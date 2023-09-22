@@ -215,18 +215,8 @@ int terminate_recovery_module();
 void terminate_asynchronous_channels_observer();
 void set_auto_increment_handler_values();
 
-static void option_deprecation_warning(MYSQL_THD thd, const char *old_name,
-                                       const char *new_name) {
-  push_deprecated_warn(thd, old_name, new_name);
-}
-
 static void check_deprecated_variables() {
   MYSQL_THD thd = lv.plugin_is_auto_starting_on_install ? nullptr : current_thd;
-  if (ov.ip_whitelist_var != nullptr &&
-      strcmp(ov.ip_whitelist_var, "AUTOMATIC")) {
-    option_deprecation_warning(thd, "group_replication_ip_whitelist",
-                               "group_replication_ip_allowlist");
-  }
   if (ov.recovery_completion_policy_var != RECOVERY_POLICY_WAIT_EXECUTED) {
     push_deprecated_warn_no_replacement(
         thd, "group_replication_recovery_complete_at");
@@ -238,20 +228,6 @@ static void check_deprecated_variables() {
   }
 }
 
-static const char *get_ip_allowlist() {
-  std::string whitelist(ov.ip_whitelist_var);
-  std::string allowlist(ov.ip_allowlist_var);
-  std::transform(whitelist.begin(), whitelist.end(), whitelist.begin(),
-                 ::tolower);
-  std::transform(allowlist.begin(), allowlist.end(), allowlist.begin(),
-                 ::tolower);
-
-  return allowlist.compare("automatic")
-             ? ov.ip_allowlist_var  // ip_allowlist_var is set
-             : whitelist.compare("automatic")
-                   ? ov.ip_whitelist_var   // ip_whitelist_var is set
-                   : ov.ip_allowlist_var;  // both are not set
-}
 /*
   Auxiliary public functions.
 */
@@ -2701,8 +2677,8 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SSL_DISABLED, ssl_mode.c_str());
   }
 
-  if (ov.ip_whitelist_var != nullptr || ov.ip_allowlist_var != nullptr) {
-    std::string v(get_ip_allowlist());
+  if (ov.ip_allowlist_var != nullptr) {
+    std::string v(ov.ip_allowlist_var);
     v.erase(std::remove(v.begin(), v.end(), ' '), v.end());
     std::transform(v.begin(), v.end(), v.begin(), ::tolower);
 
@@ -2711,7 +2687,7 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
     // do nothing and let GCS scan for the proper IPs
     if (v.find("automatic") == std::string::npos) {
       gcs_module_parameters.add_parameter("ip_allowlist",
-                                          std::string(get_ip_allowlist()));
+                                          std::string(ov.ip_allowlist_var));
     }
   }
 
@@ -2750,7 +2726,7 @@ int configure_group_communication() {
                ov.group_name_var, ov.local_address_var, ov.group_seeds_var,
                ov.bootstrap_group_var ? "true" : "false",
                ov.poll_spin_loops_var, ov.compression_threshold_var,
-               get_ip_allowlist(), ov.communication_debug_options_var,
+               ov.ip_allowlist_var, ov.communication_debug_options_var,
                ov.member_expel_timeout_var,
                ov.communication_max_message_size_var, ov.message_cache_size_var,
                ov.communication_stack_var);
@@ -3604,10 +3580,6 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   char buff[IP_ALLOWLIST_STR_BUFFER_LENGTH];
   const char *str;
   int length = sizeof(buff);
-  if (!strcmp(var->name, "group_replication_ip_whitelist")) {
-    option_deprecation_warning(thd, "group_replication_ip_whitelist",
-                               "group_replication_ip_allowlist");
-  }
 
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
@@ -4855,27 +4827,6 @@ static MYSQL_SYSVAR_ENUM(
 );
 
 static MYSQL_SYSVAR_STR(
-    ip_whitelist,        /* name */
-    ov.ip_whitelist_var, /* var */
-    /* optional var | malloc string | no set default */
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT |
-        PLUGIN_VAR_PERSIST_AS_READ_ONLY,
-    "This option can be used to specify which members "
-    "are allowed to connect to this member. The input "
-    "takes the form of a comma separated list of IPv4 "
-    "addresses or subnet CIDR notation. For example: "
-    "192.168.1.0/24,10.0.0.1. In addition, the user can "
-    "also set as input the value 'AUTOMATIC', in which case "
-    "active interfaces on the host will be scanned and "
-    "those with addresses on private subnetworks will be "
-    "automatically added to the IP allowlist. The address "
-    "127.0.0.1 is always added if not specified explicitly "
-    "in the allowlist. Default: 'AUTOMATIC'.",
-    check_ip_allowlist_preconditions, /* check func*/
-    nullptr,                          /* update func*/
-    "AUTOMATIC");                     /* default*/
-
-static MYSQL_SYSVAR_STR(
     ip_allowlist,        /* name */
     ov.ip_allowlist_var, /* var */
     /* optional var | malloc string | no set default */
@@ -5404,7 +5355,6 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(communication_max_message_size),
     MYSQL_SYSVAR(gtid_assignment_block_size),
     MYSQL_SYSVAR(ssl_mode),
-    MYSQL_SYSVAR(ip_whitelist),
     MYSQL_SYSVAR(ip_allowlist),
     MYSQL_SYSVAR(single_primary_mode),
     MYSQL_SYSVAR(enforce_update_everywhere_checks),

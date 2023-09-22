@@ -91,7 +91,7 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
 
 # Total number of GR variables.
---let $total_gr_vars= 61
+--let $total_gr_vars= 60
 
 --echo #
 --echo # Test Unit#1

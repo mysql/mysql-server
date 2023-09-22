@@ -82,9 +82,6 @@ ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is 
 SET @value= @@GLOBAL.group_replication_ip_allowlist;
 SET @@GLOBAL.group_replication_ip_allowlist= @value;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
-SET @value= @@GLOBAL.group_replication_ip_whitelist;
-SET @@GLOBAL.group_replication_ip_whitelist= @value;
-ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
 SET @value= @@GLOBAL.group_replication_member_expel_timeout;
 SET @@GLOBAL.group_replication_member_expel_timeout= @value;
 ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
