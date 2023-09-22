@@ -92,6 +92,7 @@ static const NdbDictionary::Table *g_tabptr[g_tabmax] = {0, 0, 0};
 
 static int runCreate(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = GETNDB(step);
+  pNdb->waitUntilReady();
   NdbDictionary::Dictionary *pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   int tabmask = ctx->getProperty("TABMASK", (Uint32)0);
