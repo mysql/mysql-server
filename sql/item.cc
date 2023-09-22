@@ -7562,6 +7562,18 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
   return false;
 }
 
+bool Item::clean_up_after_removal(uchar *arg) {
+  Cleanup_after_removal_context *const ctx =
+      pointer_cast<Cleanup_after_removal_context *>(arg);
+
+  if (ctx->is_stopped(this)) return false;
+
+  if (reference_count() > 1) {
+    (void)decrement_ref_count();
+  }
+  return false;
+}
+
 bool Item::can_be_substituted_for_gc(bool array) const {
   switch (real_item()->type()) {
     case FUNC_ITEM:
@@ -7977,15 +7989,18 @@ bool Item_ref::clean_up_after_removal(uchar *arg) {
 
   if (ctx->is_stopped(this)) return false;
 
-  // Exit if second visit to this object:
-  if (m_unlinked) return false;
+  // Decrement reference count for referencing object before
+  // referenced object:
+  if (reference_count() > 1) {
+    (void)decrement_ref_count();
+    ctx->stop_at(this);
+    return false;
+  }
+  if (ref_item()->is_abandoned()) return false;
 
   if (ref_item()->decrement_ref_count() > 0) {
     ctx->stop_at(this);
   }
-
-  // Ensure the count is not decremented twice:
-  m_unlinked = true;
 
   return false;
 }

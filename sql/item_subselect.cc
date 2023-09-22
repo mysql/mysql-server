@@ -2683,6 +2683,12 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   // Check whether this item should be removed
   if (ctx->is_stopped(this)) return false;
 
+  if (reference_count() > 1) {
+    (void)decrement_ref_count();
+    ctx->stop_at(this);
+    return false;
+  }
+
   // Remove item on upward traversal, not downward:
   if (marker == MARKER_NONE) {
     marker = MARKER_TRAVERSAL;

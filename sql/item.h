@@ -2732,6 +2732,7 @@ class Item : public Parse_tree_node {
     */
     Query_block *const m_root;
 
+    friend class Item;
     friend class Item_sum;
     friend class Item_subselect;
     friend class Item_ref;
@@ -2740,11 +2741,12 @@ class Item : public Parse_tree_node {
      Clean up after removing the item from the item tree.
 
      param arg pointer to a Cleanup_after_removal_context object
+     @todo: If class ORDER is refactored so that all indirect
+     grouping/ordering expressions are represented with Item_ref
+     objects, all implementations of cleanup_after_removal() except
+     the one for Item_ref can be removed.
   */
-  virtual bool clean_up_after_removal(uchar *arg [[maybe_unused]]) {
-    assert(arg != nullptr);
-    return false;
-  }
+  virtual bool clean_up_after_removal(uchar *arg);
 
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *) { return false; }
@@ -3209,6 +3211,9 @@ class Item : public Parse_tree_node {
   */
   bool is_blob_field() const;
 
+  /// @returns number of references to an item.
+  uint reference_count() const { return m_ref_count; }
+
   /// Increment reference count
   void increment_ref_count() {
     assert(!m_abandoned);
@@ -3337,6 +3342,8 @@ class Item : public Parse_tree_node {
     return false;
   }
   virtual bool strip_db_table_name_processor(uchar *) { return false; }
+
+  bool is_abandoned() const { return m_abandoned; }
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
@@ -5712,9 +5719,6 @@ class Item_ref : public Item_ident {
   bool pusheddown_depended_from{false};
 
  private:
-  /// True if referenced item has been unlinked, used during item tree removal
-  bool m_unlinked{false};
-
   Field *result_field{nullptr}; /* Save result here */
 
  protected:
