@@ -709,7 +709,7 @@ class Client {
   int set_error(const uchar *buffer, size_t length);
 
   /** Suspends client thread for the specified time
-  @param[in]	Time_Sec Time in seconds
+  @param[in]	wait_time Time in seconds
   @return error code */
   int wait(Time_Sec wait_time);
 

@@ -22,9 +22,6 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 MSVC_CPPCHECK_DISABLE()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - plugin/clone/include/clone_client.h
-DISABLE_DOCUMENTATION_WARNINGS()
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Clone")
