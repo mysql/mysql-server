@@ -1170,6 +1170,10 @@ struct ssl_ctx_st;
    *               pushed to fd, level=0 ends list.
    *
    * @return fd    filedescriptor to read events from
+   *
+   * Note, events can not be read using this socket if management handle uses
+   * TLS.  Consider to use the binary logevent interface instead, see below
+   * ndb_mgm_create_logevent_handle and ndb_logevent-functions.
    */
 #ifdef _WIN32
   SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);

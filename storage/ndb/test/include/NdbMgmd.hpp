@@ -463,8 +463,8 @@ public:
       0
     };
 
-    m_event_socket = ndb_socket_create_from_native(
-                       ndb_mgm_listen_event(m_handle, filter));
+    m_event_socket =
+      ndb_mgm_listen_event_internal(m_handle, filter, 0, true);
 
     return m_event_socket.is_valid();
   }

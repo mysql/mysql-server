@@ -6152,8 +6152,8 @@ int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
-  NdbSocket my_fd{ndb_socket_create_from_native(
-                    ndb_mgm_listen_event(mgmd.handle(), filter))};
+  NdbSocket my_fd =
+      ndb_mgm_listen_event_internal(mgmd.handle(), filter, 0, true);
 
   if(!my_fd.is_valid())
   {

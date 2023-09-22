@@ -30,7 +30,7 @@
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-
+#include "mgmapi_internal.h"
 #include <getarg.h>
 #include <InputStream.hpp>
 
@@ -386,8 +386,8 @@ static int pause_lcp(int error)
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
 
-  NdbSocket my_fd{ndb_socket_create_from_native(
-                    ndb_mgm_listen_event(g_restarter.handle, filter))};
+  NdbSocket my_fd =
+      ndb_mgm_listen_event_internal(g_restarter.handle, filter, 0, true);
 
   require(my_fd.is_valid());
   require(!g_restarter.insertErrorInAllNodes(error));
@@ -482,8 +482,8 @@ static int continue_lcp(int error)
   NdbSocket my_fd;
 
   if(error){
-    my_fd = ndb_socket_create_from_native(
-              ndb_mgm_listen_event(g_restarter.handle, filter));
+    my_fd =
+      ndb_mgm_listen_event_internal(g_restarter.handle, filter, 0, true);
     require(my_fd.is_valid());
   }
 

@@ -507,8 +507,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
 
-    NdbSocket my_fd{ndb_socket_create_from_native(
-                      ndb_mgm_listen_event(h, filter))};
+    NdbSocket my_fd = ndb_mgm_listen_event_internal(h, filter, 0, true);
 
     if(!my_fd.is_valid())
     {
