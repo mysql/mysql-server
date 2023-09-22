@@ -8,6 +8,14 @@ let MASTER_MYSOCK=`select @@socket`;
 # Setup path for log file
 let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
 
+# If test is run with TLS then programs need to find the keys.
+let $tls = `SELECT COUNT(*) > 0 FROM ndbinfo.transporters WHERE encrypted = 1`;
+if ($tls) {
+  let HOME=$MYSQL_TMP_DIR;
+  let HOMEPATH=$MYSQL_TMP_DIR;
+  --force-cpdir $MYSQLTEST_VARDIR/std_data/ndb-tls/active $HOME/ndb-tls
+}
+
 --echo Running ndb_ndbapi_simple
 --exec $NDB_EXAMPLES_DIR/ndb_ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" > $NDB_EXAMPLES_OUTPUT
 
@@ -73,3 +81,6 @@ CREATE TABLE api_array_using_adapter(
 --exec $NDB_EXAMPLES_DIR/ndb_ndbapi_array_using_adapter "$NDB_CONNECTSTRING" test
 drop table api_array_using_adapter;
 
+if ($tls) {
+  --force-rmdir $HOME/ndb-tls
+}
