@@ -1910,12 +1910,16 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
       !plan.m_is_covering;
   ror_intersect_path.rowid_intersection().need_rows_in_rowid_order = false;
 
+  double init_once_cost{0};
+  double init_cost{0};
   Mem_root_array<AccessPath *> children(param->return_mem_root);
   for (unsigned i = 0; i < plan.num_scans(); ++i) {
     AccessPath *child_path = MakeRowIdOrderedIndexScanAccessPath(
         plan.m_ror_scans[i], table, param->key[plan.m_ror_scans[i]->idx],
         /*reuse_handler=*/plan.m_is_covering && i == 0, param->return_mem_root);
     children.push_back(child_path);
+    init_once_cost += child_path->init_once_cost();
+    init_cost += child_path->init_cost();
   }
   ror_intersect_path.rowid_intersection().children =
       new (param->return_mem_root)
@@ -1929,7 +1933,8 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
   ror_intersect_path.rowid_intersection().cpk_child = cpk_child;
   ror_intersect_path.set_cost_before_filter(plan.m_total_cost.total_cost());
   ror_intersect_path.set_cost(plan.m_total_cost.total_cost());
-  ror_intersect_path.set_init_cost(plan.m_total_cost.total_cost());
+  ror_intersect_path.set_init_once_cost(init_once_cost);
+  ror_intersect_path.set_init_cost(init_cost);
   double best_rows = std::max<double>(plan.m_out_rows, 1.0);
   ror_intersect_path.set_num_output_rows(
       ror_intersect_path.num_output_rows_before_filter =

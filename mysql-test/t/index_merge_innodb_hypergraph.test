@@ -32,3 +32,25 @@ EXPLAIN FORMAT=tree SELECT COUNT(f2)
  FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
 SELECT COUNT(f2) FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#35785032 Hypergraph: Wrong first row cost for rowid intersectq
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c INT,
+  KEY k_b(b),
+  KEY k_c(c)
+);
+
+INSERT INTO t1 VALUES (1,0,0),(2,1,1),(3,0,0),(4,1,1),(5,0,0),
+  (6,1,1),(7,0,0),(8,1,1),(9,0,0),(10,1,1);
+
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=0 AND c=0;
+
+DROP TABLE t1;

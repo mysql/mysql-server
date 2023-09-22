@@ -1249,13 +1249,13 @@ key1	key2	key3	key4	filler1
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
 explain select * from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=3597..3597 rows=3808)
+-> Intersect rows sorted by row ID  (cost=0.945..3597 rows=3808)
     -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
     -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=161..161 rows=3808)
+-> Intersect rows sorted by row ID  (cost=0.0423..161 rows=3808)
     -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
     -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
