@@ -827,7 +827,7 @@ static char *test_table_access_driver(UDF_INIT *, UDF_ARGS *args, char *result,
 #define CONST_STR_AND_LEN(x) x, sizeof(x) - 1
 
 /**
- @param [out] status: true for failure, false otherwise
+ @param [out] ret true for failure, false otherwise
  */
 static void thd_function(bool *ret) {
   TA_table tb = nullptr, write_tb = nullptr;

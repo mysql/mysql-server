@@ -22,10 +22,6 @@
 
 # We are not interesting in profiling tests.
 DISABLE_MISSING_PROFILE_WARNING()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - components/test/table_access/test_table_access.cc
-DISABLE_DOCUMENTATION_WARNINGS()
-
 
 MYSQL_ADD_COMPONENT(test_table_access
   test_table_access.cc
