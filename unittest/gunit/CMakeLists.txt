@@ -25,9 +25,11 @@ IF(NOT WITH_UNIT_TESTS)
 ENDIF()
 
 MSVC_CPPCHECK_DISABLE()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - storage/innobase/
-DISABLE_DOCUMENTATION_WARNINGS()
+
+IF(NOT WITH_DEBUG)
+  # the innodb parts are documented assuming WITH_DEBUG (UNIV_DEBUG)
+  DISABLE_DOCUMENTATION_WARNINGS()
+ENDIF()
 
 # Some tests require Boost.
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})

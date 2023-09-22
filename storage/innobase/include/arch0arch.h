@@ -697,7 +697,7 @@ class Arch_File_Ctx {
   @return true if both sets of information are the same
   @param[in]    group   group whose file is being validated
   @param[in]    file_index      index of the file which is being validated
-  @param[in]    start_lsn
+  @param[in]    start_lsn start LSN
   @param[in,out]        reset_count     count of files which has been validated
   @return true if both the sets of information are the same. */
   bool validate(Arch_Group *group, uint file_index, lsn_t start_lsn,

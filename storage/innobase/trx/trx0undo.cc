@@ -1542,9 +1542,9 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 @param[out]  undo    the new undo log object, undefined if did not succeed
 @param[in]   mtr     mini-transation
 @retval DB_SUCCESS if successful in creating the new undo lob object,
-@retval DB_TOO_MANY_CONCURRENT_TRXS
-@retval DB_OUT_OF_FILE_SPACE
-@retval DB_OUT_OF_MEMORY */
+@retval DB_TOO_MANY_CONCURRENT_TRXS too many concurrent trxs
+@retval DB_OUT_OF_FILE_SPACE        out of file-space
+@retval DB_OUT_OF_MEMORY            out of memory */
 [[nodiscard]] static dberr_t trx_undo_create(
     trx_rseg_t *rseg, ulint type, trx_id_t trx_id, const XID *xid,
     trx_undo_t::Gtid_storage gtid_storage, trx_undo_t **undo, mtr_t *mtr) {

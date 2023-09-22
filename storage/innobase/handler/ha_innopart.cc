@@ -777,7 +777,9 @@ done:
 @param[in]      table_def       dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
-int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
+int ha_innopart::open(const char *name, int mode [[maybe_unused]],
+                      uint test_if_locked [[maybe_unused]],
+                      const dd::Table *table_def) {
   dict_table_t *ib_table;
   char norm_name[FN_REFLEN];
   THD *thd;

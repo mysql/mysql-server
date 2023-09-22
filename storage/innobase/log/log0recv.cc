@@ -2529,6 +2529,7 @@ bool recv_page_is_brand_new(buf_block_t *block) {
   return false;
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Applies the hashed log records to the page, if the page lsn is less than
 the lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
@@ -2536,6 +2537,13 @@ read in, or also for a page already in the buffer pool.
 @param[in]      just_read_in    true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]  block           buffer block */
+#else
+/** Applies the hashed log records to the page, if the page lsn is less than
+the lsn of a log record. This can be called when a buffer page has just been
+read in, or also for a page already in the buffer pool.
+
+@param[in,out]  block           buffer block */
+#endif
 void recv_recover_page_func(
 #ifndef UNIV_HOTBACKUP
     bool just_read_in,

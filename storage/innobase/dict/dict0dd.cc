@@ -239,12 +239,6 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   return match;
 }
 
-/** Check if the InnoDB table is consistent with dd::Table
-@tparam         Table           dd::Table or dd::Partition
-@param[in]      table                   InnoDB table
-@param[in]      dd_table                dd::Table or dd::Partition
-@return true    if match
-@retval false   if not match */
 template <typename Table>
 bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   /* Temporary table has no metadata written */

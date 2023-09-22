@@ -2279,8 +2279,8 @@ of a clustered index entry.
 @param[in]      thd     client connection, or NULL
 @param[in]      index   clustered index
 @return error code
-@retval DB_SUCCESS
-@retval DB_OUT_OF_FILE_SPACE */
+@retval DB_SUCCESS           success
+@retval DB_OUT_OF_FILE_SPACE out of file-space */
 static dberr_t row_ins_index_entry_big_rec_func(
     trx_t *trx, const dtuple_t *entry, const big_rec_t *big_rec, ulint *offsets,
     mem_heap_t **heap, IF_DEBUG(const THD *thd, ) dict_index_t *index) {

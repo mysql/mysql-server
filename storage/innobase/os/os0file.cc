@@ -3752,8 +3752,6 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
 
 /** Free storage space associated with a section of the file.
 @param[in]      fh              Open file handle
-@param[in]      page_size       Tablespace page size
-@param[in]      block_size      File system block size
 @param[in]      off             Starting offset (SEEK_SET)
 @param[in]      len             Size of the hole
 @return 0 on success or errno */

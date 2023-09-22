@@ -432,7 +432,6 @@ void Innodb_data_lock_inspector::destroy_data_lock_wait_iterator(
 @param[in]  id_str           The identifier string
 @param[out] cached_id        The cached identifier string
 @param[out] cached_id_length The cached identifier string length
-@returns string allocated in the performance schema container.
 */
 void alloc_identifier(PSI_server_data_lock_container *container,
                       PSI_identifier kind, const std::string &id_str,

@@ -127,7 +127,7 @@ extern thread_local uint64_t random_seed;
 
 /** A helper method, it is used by hash_binary_ib for backward compatibility.
 NOTE: Do not use this method, it produces results that are not hashed well.
-Especially for sequences of pairs of <i+n, j+n> over n. */
+Especially for sequences of pairs of \<i+n, j+n\> over n. */
 constexpr uint32_t hash_uint32_pair_ib(uint32_t n1, uint32_t n2) {
   constexpr uint32_t HASH_RANDOM_MASK = 1463735687;
   constexpr uint32_t HASH_RANDOM_MASK2 = 1653893711;

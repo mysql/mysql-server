@@ -164,7 +164,7 @@ when SDI is corrupted.
 @param[in,out]  tablespace      tablespace object
 @retval         false           success
 @retval         true            failure */
-bool dict_sdi_drop(dd::Tablespace *) {
+bool dict_sdi_drop(dd::Tablespace *tablespace [[maybe_unused]]) {
 #if 0  /* TODO: Enable in WL#9761 */
         uint32  space_id;
         if (dict_sdi_exists(tablespace, &space_id)

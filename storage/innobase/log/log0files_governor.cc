@@ -574,7 +574,7 @@ log.writer_mutex acquired iff has_writer_mutex is true.
 @param[in,out]  log               redo log
 @param[in]      has_writer_mutex  true iff this thread has log.writer_mutex
                                   acquired
-@return @see Log_files_governor_iteration_result */
+@return @ref Log_files_governor_iteration_result */
 static Log_files_governor_iteration_result log_files_governor_iteration_low(
     log_t &log, bool has_writer_mutex);
 

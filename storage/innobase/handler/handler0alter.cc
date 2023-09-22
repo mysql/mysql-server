@@ -846,9 +846,9 @@ static inline Instant_Type innobase_support_instant(
     COLUMN_RENAME_ONLY,           /*!< Only column RENAME */
     VIRTUAL_ADD_DROP_ONLY,        /*!< Only virtual column ADD AND DROP */
     VIRTUAL_ADD_DROP_WITH_RENAME, /*!< Virtual column ADD/DROP with RENAME */
-    INSTANT_ADD,  /*< INSTANT ADD possibly with virtual column ADD and
+    INSTANT_ADD,  /*!< INSTANT ADD possibly with virtual column ADD and
                      column RENAME */
-    INSTANT_DROP, /*|< INSTANT DROP possibly with virtual column ADD/DROP and
+    INSTANT_DROP, /*!< INSTANT DROP possibly with virtual column ADD/DROP and
                     column RENAME */
     NONE
   };
@@ -3578,7 +3578,7 @@ PK columns follows rule(2);
 @param[in]      old_clust_index index to be compared
 @param[in]      new_clust_index index to be compared
 @retval true if both indexes have same order.
-@retval false. */
+@retval false . */
 [[nodiscard]] static bool innobase_pk_order_preserved(
     const ulint *col_map, const dict_index_t *old_clust_index,
     const dict_index_t *new_clust_index) {

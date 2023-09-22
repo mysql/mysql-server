@@ -3123,8 +3123,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *, SYS_VAR *, void *,
 #endif /* UNIV_DEBUG */
 
 /** Thread tasked with flushing dirty pages from the buffer pools.
-As of now we'll have only one coordinator.
-@param[in]      n_page_cleaners Number of page cleaner threads to create */
+As of now we'll have only one coordinator. */
 static void buf_flush_page_coordinator_thread() {
   auto loop_start_time = std::chrono::steady_clock::now();
   ulint n_flushed = 0;

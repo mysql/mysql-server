@@ -65,7 +65,7 @@ class Parallel_reader_adapter {
   @param[in]  trx               Transaction used for parallel read.
   @param[in]  config            (Cluster) Index scan configuration.
   @param[in]  f                 Callback function.
-  @retval error. */
+  @returns error. */
   [[nodiscard]] dberr_t add_scan(trx_t *trx,
                                  const Parallel_reader::Config &config,
                                  Parallel_reader::F &&f);
