@@ -1,6 +1,3 @@
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
-drop table if exists t1;
 CREATE TABLE t1 (
 ol_o_id int NOT NULL,
 ol_d_id int NOT NULL,
@@ -10,6 +7,8 @@ ol_tmp int,
 PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
 ) ENGINE=NDB
 PARTITION BY HASH (ol_w_id);
+Warnings:
+Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
 insert into t1 values (1,0,0,0,0),(1,0,0,1,0),(1,0,0,2,0),(1,1,0,0,0),(1,1,0,1,0);
 insert into t1 values (2,0,0,0,0),(4,0,0,0,0),(4,0,0,1,0);
 insert into t1 values (0,1,1,4,0),(0,1,1,5,0);
@@ -35,3 +34,16 @@ ndb_scan_count
 ndb_pruned_scan_count
 1
 drop table t1;
+set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
+CREATE TABLE t1 (
+ol_o_id int NOT NULL,
+ol_d_id int NOT NULL,
+ol_w_id int NOT NULL,
+ol_number int NOT NULL,
+ol_tmp int,
+PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
+) ENGINE=NDB
+PARTITION BY HASH (ol_w_id);
+DROP TABLE t1;

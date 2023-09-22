@@ -1,6 +1,6 @@
 -- source include/have_ndb.inc
 
-# Turn on support for the "new" extended partition syntax
+# Use "new" to not warn about deprecated extended partition syntax
 set new=on;
 
 #

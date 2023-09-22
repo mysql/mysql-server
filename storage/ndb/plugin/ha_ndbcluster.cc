@@ -14858,7 +14858,6 @@ enum row_type ha_ndbcluster::get_partition_row_type(const dd::Table *, uint) {
   those into. Create mappings.
 
 */
-
 static int create_table_set_up_partition_info(partition_info *part_info,
                                               NdbDictionary::Table &ndbtab,
                                               Ndb_table_map &colIdMap) {
@@ -14878,14 +14877,28 @@ static int create_table_set_up_partition_info(partition_info *part_info,
       col->setPartitionKey(true);
     }
   } else {
+    auto partition_type_description = [](partition_type pt) {
+      switch (pt) {
+        case partition_type::RANGE:
+          return "PARTITION BY RANGE";
+        case partition_type::HASH:
+          return "PARTITION BY HASH";
+        case partition_type::LIST:
+          return "PARTITION BY LIST";
+        default:
+          assert(false);
+          return "PARTITION BY <type>";
+      }
+    };
+
     if (!current_thd->variables.new_mode) {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER_THD(current_thd, ER_ILLEGAL_HA_CREATE_OPTION),
-                          ndbcluster_hton_name,
-                          "LIST, RANGE and HASH partition disabled by default,"
-                          " use --new option to enable");
-      return HA_ERR_UNSUPPORTED;
+      // When new_mode is removed, keep below warning.
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT,
+          ER_THD(current_thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+          partition_type_description(part_info->part_type),
+          ndbcluster_hton_name);
     }
     /*
        Create a shadow field for those tables that have user defined
