@@ -2750,7 +2750,7 @@ DROP TABLE t1;
 
 SET optimizer_switch = 'materialization=off,derived_merge=off';
 
-CREATE TABLE BB (
+CREATE TABLE bb (
   pk INT auto_increment,
   col_int INT,
   col_int_key INT,
@@ -2759,24 +2759,24 @@ CREATE TABLE BB (
   PRIMARY KEY(pk)
 );
 
-CREATE TABLE CC (
+CREATE TABLE cc (
   pk INT AUTO_INCREMENT,
   col_int_key INT,
   col_varchar_key VARCHAR(1),
   PRIMARY KEY(pk)
 );
 
-INSERT INTO CC (pk,col_int_key,col_varchar_key) VALUES
+INSERT INTO cc (pk,col_int_key,col_varchar_key) VALUES
   (DEFAULT,867110528,'8'),
   (DEFAULT,-1926290568,'9'),
   (DEFAULT,428174454,'f'),
   (DEFAULT,127754401,'a'),
   (DEFAULT,-923329804,'p');
 
-INSERT INTO BB (pk,col_int,col_int_key,col_varchar,col_varchar_key) VALUES
+INSERT INTO bb (pk,col_int,col_int_key,col_varchar,col_varchar_key) VALUES
   (DEFAULT,-1777898150,-1744771058,'b','Z');
 
-ANALYZE TABLE BB, CC;
+ANALYZE TABLE bb, cc;
 
 # To reproduce this issue we need a query where the query plan has:
 # * A left hash-join H1. The first row it produces must have a
@@ -2792,19 +2792,19 @@ ANALYZE TABLE BB, CC;
 # below is taken from the bug report.
 
 SELECT alias1.col_int_key AS field2 FROM
-  (BB AS alias1 RIGHT OUTER JOIN
+  (bb AS alias1 RIGHT OUTER JOIN
         (((SELECT SQL_SMALL_RESULT SQ2_alias1.* FROM
-          (BB AS SQ2_alias1 INNER JOIN BB AS SQ2_alias2 ON
+          (bb AS SQ2_alias1 INNER JOIN bb AS SQ2_alias2 ON
             (SQ2_alias2.col_int_key = SQ2_alias1.col_int_key))
           WHERE SQ2_alias1.col_int < SQ2_alias2.col_int) AS alias2
-          RIGHT OUTER JOIN BB AS alias3 ON
+          RIGHT OUTER JOIN bb AS alias3 ON
             (alias3.col_varchar_key = alias2.col_varchar_key))) ON
           (alias3.col_varchar_key = alias2.col_varchar_key))
         WHERE EXISTS ((SELECT SQ3_alias1.col_int_key AS SQ3_field1 FROM
-          (CC AS SQ3_alias1 STRAIGHT_JOIN
-            (CC AS SQ3_alias2 INNER JOIN BB AS SQ3_alias3 ON
+          (cc AS SQ3_alias1 STRAIGHT_JOIN
+            (cc AS SQ3_alias2 INNER JOIN bb AS SQ3_alias3 ON
               (SQ3_alias3.col_varchar = SQ3_alias2.col_varchar_key))
             ON (SQ3_alias3.pk = SQ3_alias2.pk))));
 
-DROP TABLE BB, CC;
+DROP TABLE bb, cc;
 SET optimizer_switch=DEFAULT;
