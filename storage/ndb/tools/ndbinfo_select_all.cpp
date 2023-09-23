@@ -30,6 +30,7 @@
 #include <NdbOut.hpp>
 #include "../src/ndbapi/NdbInfo.hpp"
 #include <NdbSleep.h>
+#include "portlib/ssl_applink.h"
 
 #include "my_alloc.h"
 
