@@ -5609,6 +5609,7 @@ st_start_xcon(ST_Con& c)
   do {
     int ret;
     Ndb_cluster_connection* xncc = new Ndb_cluster_connection;
+    xncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
     chk2((ret = xncc->connect(30, 1, 0)) == 0, "ret:" << ret);
     chk2((ret = xncc->wait_until_ready(30, 10)) == 0, "ret:" << ret);
     Ndb* xndb = new Ndb(xncc, c.dbname);
