@@ -56,6 +56,6 @@ Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will b
 SET GLOBAL transaction_write_set_extraction= SAVED_TWSE;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.

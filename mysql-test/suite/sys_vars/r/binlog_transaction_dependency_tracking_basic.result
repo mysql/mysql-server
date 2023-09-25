@@ -48,7 +48,7 @@ include/assert.inc ['binlog_transaction_dependency_tracking should be WRITESET_S
 SET GLOBAL binlog_transaction_dependency_tracking= DEFAULT;
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-include/assert.inc ['binlog_transaction_dependency_tracking should be COMMIT_ORDER']
+include/assert.inc ['binlog_transaction_dependency_tracking should be WRITESET']
 SET GLOBAL binlog_transaction_dependency_tracking= NULL;
 ERROR 42000: Variable 'binlog_transaction_dependency_tracking' can't be set to the value of 'NULL'
 SET GLOBAL binlog_transaction_dependency_tracking= '';
@@ -63,10 +63,10 @@ SET GLOBAL binlog_transaction_dependency_tracking= OFF;
 ERROR 42000: Variable 'binlog_transaction_dependency_tracking' can't be set to the value of 'OFF'
 SET GLOBAL binlog_transaction_dependency_tracking= 3;
 ERROR 42000: Variable 'binlog_transaction_dependency_tracking' can't be set to the value of '3'
-Expect value still set to "COMMIT_ORDER"
+Expect value still set to "WRITESET"
 SELECT @@global.binlog_transaction_dependency_tracking;
 @@global.binlog_transaction_dependency_tracking
-COMMIT_ORDER
+WRITESET
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 Case1 a): "When binlog_transaction_dependency_tracking != COMMIT_ORDER,
@@ -121,6 +121,6 @@ SET GLOBAL transaction_write_set_extraction= XXHASH64;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 Warnings:
-Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.

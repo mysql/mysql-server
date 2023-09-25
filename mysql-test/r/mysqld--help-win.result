@@ -1703,7 +1703,7 @@ binlog-stmt-cache-size 32768
 binlog-transaction-compression FALSE
 binlog-transaction-compression-level-zstd 3
 binlog-transaction-dependency-history-size 25000
-binlog-transaction-dependency-tracking COMMIT_ORDER
+binlog-transaction-dependency-tracking WRITESET
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 5000

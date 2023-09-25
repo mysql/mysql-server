@@ -1,1 +1,1 @@
---transaction-write-set-extraction=OFF
+--transaction-write-set-extraction=OFF --binlog-transaction-dependency-tracking=COMMIT_ORDER

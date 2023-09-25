@@ -118,7 +118,7 @@ ALTER TABLE t3 ADD PRIMARY KEY (a);
 --source include/sync_slave_sql_with_master.inc
 RENAME TABLE t3 TO t3_bak;
 
-if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
+if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET' AND @@global.replica_parallel_type = 'LOGICAL_CLOCK'`)
 {
   --disable_query_log
   SET @saved_replica_preserve_commit_order= @@GLOBAL.replica_preserve_commit_order;
@@ -163,7 +163,7 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
-if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
+if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET' AND @@global.replica_parallel_type = 'LOGICAL_CLOCK'`)
 {
   --disable_query_log
   SET GLOBAL replica_preserve_commit_order= @saved_replica_preserve_commit_order;

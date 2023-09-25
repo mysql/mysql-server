@@ -50,7 +50,13 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-let $total_persistent_vars=448;
+
+# - transaction_write_set_extraction cannot be changed with the new
+#   default for binlog_transaction_dependency_tracking. Both of these
+#   variables are deprecated.
+let $deprecated_and_incompatible_variables=1;
+let $persistent_vars = 448;
+expr $total_persistent_vars = $persistent_vars - $deprecated_and_incompatible_variables;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -69,15 +75,20 @@ CREATE TABLE global_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64
 # ERROR 1231 (42000): Variable 'innodb_monitor_reset' can't be set to the value of 'NULL'
 # -> SET GLOBAL innodb_monitor_reset_all = @@global.innodb_monitor_reset_all;
 # ERROR 1231 (42000): Variable 'innodb_monitor_reset_all' can't be set to the value of 'NULL'
-
+#
 # Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
+#
+# - transaction_write_set_extraction is deprecated and cannot be changed
+#   when binlog_transaction_dependency_tracking is WRITESET (default)
+#
 INSERT INTO global_vars (var_name, var_value) SELECT * FROM
 performance_schema.global_variables WHERE variable_name NOT IN
 ('innodb_monitor_enable',
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
-'rbr_exec_mode');
+'rbr_exec_mode',
+'transaction_write_set_extraction');
 
 --let $count_vars= `SELECT COUNT(*) FROM global_vars;`
 --let $var_id=1
@@ -121,14 +132,18 @@ CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), 
 # Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
 #
 # Once the bugs is fixed, below $bug_var_count must be modified along with the query.
-
---let $bug_var_count=1
+#
+# We are also exempting transaction_write_set_extraction since it cannot
+# be set with the default of binlog_transaction_dependency_tracking
+# Both, transaction_write_set_extraction and binlog_transaction_dependency_tracking
+# are deprecated.
+--let $bug_var_count=2
 --expr $expected_var_count=$total_global_vars - $bug_var_count
 
 INSERT INTO all_vars (var_name, var_value)
 SELECT * FROM performance_schema.global_variables
 WHERE variable_name NOT IN
-('rbr_exec_mode')
+('rbr_exec_mode', 'transaction_write_set_extraction')
 AND variable_name NOT LIKE 'ndb_%'
 AND variable_name NOT LIKE 'debug_%'
 AND variable_name NOT LIKE '%telemetry%'

@@ -26,7 +26,7 @@ Warning	1868	file binlog.000002 was not purged because it is the active log file
 disconnect con1;
 connection con2;
 VARIABLE_NAME	VARIABLE_VALUE
-binlog_transaction_dependency_tracking	COMMIT_ORDER
+binlog_transaction_dependency_tracking	WRITESET
 disconnect con2;
 connection con3;
 disconnect con3;

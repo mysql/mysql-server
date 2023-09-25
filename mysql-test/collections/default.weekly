@@ -158,8 +158,8 @@ perl mysql-test-run.pl --force --debug-server --timer   --comment=rpl_row_table_
 
 perl mysql-test-run.pl --debug-server --timer --force  --comment=rpl_row_table_STA --vardir=var-sta-rpl-table-n_mix --mysqld=--binlog-format=row  --mysqld=--replica-parallel-workers=0 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
 
-# binlog-transaction-dependency-tracking=WRITESET with MTA replica-parellel-type=logical_clock
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=rpl_MTA-lc-binlog-txn-dependency-tracking --vardir=var-rpl-MTA-lc-binlog-txn-dependency-tracking --do-suite=rpl --mysqld=--binlog-format=row --no-skip --mysqld=--binlog-transaction-dependency-tracking=WRITESET
+# binlog-transaction-dependency-tracking=COMMIT_ORDER with replica-parallel-workers=4 (default) and replica-parallel-type=logical_clock (default)
+perl mysql-test-run.pl --timer --force --no-skip --testcase-timeout=60 --debug-server --comment=rpl-mta-trx-dependency-tracking-commit-order --vardir=var-rpl-mta-trx-dependency-tracking-commit-order --do-suite=rpl --mysqld=--binlog-format=row --mysqld=--binlog-transaction-dependency-tracking=COMMIT_ORDER
 
 # Rpl suite with MTA replica-parallel-type=logical_clock and replica-preserve-commit-order=0
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
@@ -192,9 +192,8 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 #GR with loose-group_replication_gtid_assignment_block_size=1
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_gtid_assignment_block_size_1 --vardir=var-gr_gtid_assignment_block_size_1 --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_gtid_assignment_block_size=1
 
-#GR with STA
+# GR with single-threaded applier (replica-parallel-workers=0)
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_sta --vardir=var-gr_sta --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--replica-parallel-workers=0
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_parallel_applier_binlog-txn-dependency-tracking --vardir=var-gr_parallel_applier_binlog-txn-dependency-tracking --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--binlog-transaction-dependency-tracking=WRITESET
 
 #GR with group_replication_ssl_mode = REQUIRED
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-gr_ssl_mode_required --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED

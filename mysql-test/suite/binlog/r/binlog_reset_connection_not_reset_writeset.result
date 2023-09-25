@@ -13,7 +13,7 @@ INSERT INTO t1(id) VALUES(4);
 include/save_binlog_position.inc
 INSERT INTO t1(id) VALUES(5);
 include/include/assert_logical_timestamps.inc [2 5]
-SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 DROP TABLE t1;

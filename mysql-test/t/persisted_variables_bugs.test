@@ -476,7 +476,7 @@ RESET PERSIST;
 --echo # PERSISTED OPTIONS
 --echo #
 
-SET PERSIST transaction_write_set_extraction='XXHASH64';
+SET PERSIST temptable_use_mmap=FALSE;
 SET PERSIST avoid_temporal_upgrade=TRUE;
 
 --let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
@@ -484,9 +484,9 @@ SET PERSIST avoid_temporal_upgrade=TRUE;
 --replace_result $LOG_ERR LOG_ERR
 --source include/restart_mysqld.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_text= Assert that there is a warning at bootstrap when setting temptable_use_mmap
 --let $assert_file= $LOG_ERR
---let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_select= 'temptable_use_mmap' is deprecated and will be removed in a future release.
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -499,16 +499,16 @@ SET PERSIST avoid_temporal_upgrade=TRUE;
 RESET PERSIST;
 --remove_file $LOG_ERR
 
-SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+SET PERSIST_ONLY temptable_use_mmap=FALSE;
 SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
 
 --let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
 --replace_result $LOG_ERR LOG_ERR
 --source include/restart_mysqld.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_text= Assert that there is a warning at bootstrap when setting temptable_use_mmap
 --let $assert_file= $LOG_ERR
---let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_select= 'temptable_use_mmap' is deprecated and will be removed in a future release.
 --let $assert_count= 1
 --source include/assert_grep.inc
 
