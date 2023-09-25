@@ -1983,6 +1983,7 @@ static bool pid_file_created = false;
 static void usage(void);
 static void clean_up_mutexes(void);
 static bool create_pid_file();
+static void log_final_messages(int exit_code);
 [[noreturn]] static void mysqld_exit(int exit_code);
 static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
@@ -2153,8 +2154,8 @@ static bool mysql_component_infrastructure_init() {
   @retval false success
   @retval true failure
 */
-static bool component_infrastructure_deinit() {
-  if (!opt_initialize) {
+static bool component_infrastructure_deinit(bool print_message) {
+  if (print_message) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START);
     sysd::notify("Shutdown of components in progress\n");
   }
@@ -2174,11 +2175,12 @@ static bool component_infrastructure_deinit() {
       const_cast<rwlock_type_t *>(rwlock_service)));
 
   if (deinitialize_minimal_chassis(srv_registry)) {
-    LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
+    if (print_message)
+      LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     retval = true;
   }
 
-  if (!opt_initialize) {
+  if (print_message) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_END,
            retval);
     sysd::notify("Shutdown of components ",
@@ -2581,13 +2583,25 @@ static void unireg_abort(int exit_code) {
 
 void clean_up_mysqld_mutexes() { clean_up_mutexes(); }
 
-static void mysqld_exit(int exit_code) {
-  assert((exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
-         exit_code == MYSQLD_RESTART_EXIT);
+/*
+   log "final" messages to error-logs and systemd during server shutdown and
+   server initialization
+*/
+static void log_final_messages(int exit_code) {
+#ifndef _WIN32
+  /*
+    To skip if mysqld is run wit -D option, and current running process
+    is not a daemon process (-D option is only available in UNIX-like
+    systems).
+  */
+  if (opt_daemonize && !mysqld::runtime::is_daemon()) return;
+#endif
 
-  // this is to prevent mtr from accidentally printing this log when it runs
-  // mysqld with --verbose --help to extract version info and variable values
-  // and when mysqld is run with --validate-config option
+  /*
+   1. To prevent mtr from accidentally printing this log when it runs
+      mysqld with --verbose --help to extract version info and variable values
+   2. To skip the log when mysqld is run with --validate-config option
+  */
   if (!is_help_or_validate_option()) {
     if (opt_initialize) {
       sysd::notify(
@@ -2597,9 +2611,18 @@ static void mysqld_exit(int exit_code) {
     } else {
       sysd::notify("STATUS=Server shutdown complete (with return value = ",
                    exit_code, ")");
+      LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
+             server_version, MYSQL_COMPILATION_COMMENT_SERVER);
       LogErr(SYSTEM_LEVEL, ER_SRV_END);
     }
   }
+}
+
+static void mysqld_exit(int exit_code) {
+  assert((exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
+         exit_code == MYSQLD_RESTART_EXIT);
+
+  log_final_messages(exit_code);
 
   mysql_audit_finalize();
   Srv_session::module_deinit();
@@ -2784,10 +2807,6 @@ static void clean_up(bool print_message) {
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
   delete_pid_file(MYF(0));
-
-  if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
-           server_version, MYSQL_COMPILATION_COMMENT_SERVER);
   cleanup_errmsgs();
   free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
@@ -2824,7 +2843,7 @@ static void clean_up(bool print_message) {
   g_event_channels = nullptr;
   deinit_srv_event_tracking_handles();
   Singleton_event_tracking_service_to_plugin_mapping::remove_instance();
-  component_infrastructure_deinit();
+  component_infrastructure_deinit(print_message);
   /*
     component unregister_variable() api depends on system_variable_hash.
     component_infrastructure_deinit() interns calls the deinit function
