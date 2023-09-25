@@ -499,10 +499,10 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
     }
     case AccessPath::ROWID_INTERSECTION:
       dbug_dump_rowid_intersection(indent, verbose,
-                                   *path->index_merge().children);
+                                   *path->rowid_intersection().children);
       break;
     case AccessPath::ROWID_UNION:
-      dbug_dump_rowid_union(indent, verbose, *path->index_merge().children);
+      dbug_dump_rowid_union(indent, verbose, *path->rowid_union().children);
       break;
     case AccessPath::INDEX_SKIP_SCAN:
       dbug_dump_index_skip_scan(indent, verbose, path);

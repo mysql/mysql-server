@@ -1811,29 +1811,8 @@ static void print_quick(AccessPath *path, const Key_map *needed_reg) {
   if (path == nullptr) return;
   DBUG_LOCK_FILE;
 
-  TABLE *table = nullptr;
-  switch (path->type) {
-    case AccessPath::INDEX_RANGE_SCAN:
-      table = path->index_range_scan().used_key_part[0].field->table;
-      break;
-    case AccessPath::INDEX_MERGE:
-      table = path->index_merge().table;
-      break;
-    case AccessPath::ROWID_INTERSECTION:
-      table = path->rowid_intersection().table;
-      break;
-    case AccessPath::ROWID_UNION:
-      table = path->rowid_union().table;
-      break;
-    case AccessPath::INDEX_SKIP_SCAN:
-      table = path->index_skip_scan().table;
-      break;
-    case AccessPath::GROUP_INDEX_SKIP_SCAN:
-      table = path->group_index_skip_scan().table;
-      break;
-    default:
-      assert(false);
-  }
+  TABLE *table = GetBasicTable(path);
+  assert(table != nullptr);
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   dbug_dump(path, 0, true);
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
