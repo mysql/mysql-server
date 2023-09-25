@@ -53,6 +53,7 @@
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
+#include <mysql/components/services/pfs_notification.h>
 #include <mysql/components/services/psi_cond_service.h>
 #include <mysql/components/services/psi_error_service.h>
 #include <mysql/components/services/psi_file_service.h>
@@ -9885,105 +9886,64 @@ struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap = {
 struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
     get_transaction_interface};
 
-BEGIN_COMPONENT_PROVIDES(performance_schema)
-PROVIDES_SERVICE(performance_schema, psi_cond_v1),
-    PROVIDES_SERVICE(performance_schema, psi_error_v1),
-    PROVIDES_SERVICE(performance_schema, psi_file_v2),
-    PROVIDES_SERVICE(performance_schema, psi_idle_v1),
+#define REFERENCES_SERVICE(component, service) \
+  const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(component, service))
+
+/*
+ PFS plugin is special because it's being linked statically with the server.
+ The service list below is not being registered automatically by the dynamic
+ loader so you need to register each service:
+ - here to ensure compiler does not complain about unused implementation
+ objects
+ - in server_component.cc as well for automatic (un)registration by minimal
+ chassis init/deinit
+ */
+static void *services[] = {
+    REFERENCES_SERVICE(performance_schema, psi_cond_v1),
+    REFERENCES_SERVICE(performance_schema, psi_error_v1),
+    REFERENCES_SERVICE(performance_schema, psi_file_v2),
+    REFERENCES_SERVICE(performance_schema, psi_idle_v1),
     /* Deprecated, use psi_mdl_v2. */
-    PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
-    PROVIDES_SERVICE(performance_schema, psi_mdl_v2),
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
-    PROVIDES_SERVICE(performance_schema, psi_memory_v2),
-    PROVIDES_SERVICE(performance_schema, psi_mutex_v1),
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_rwlock_v1), */
-    PROVIDES_SERVICE(performance_schema, psi_rwlock_v2),
-    PROVIDES_SERVICE(performance_schema, psi_socket_v1),
-    PROVIDES_SERVICE(performance_schema, psi_stage_v1),
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v1), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v2), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v3), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v4), */
-    PROVIDES_SERVICE(performance_schema, psi_statement_v5),
-    PROVIDES_SERVICE(performance_schema, psi_system_v1),
-    PROVIDES_SERVICE(performance_schema, psi_table_v1),
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v2), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v3), */
-    PROVIDES_SERVICE(performance_schema, psi_thread_v4),
-    PROVIDES_SERVICE(performance_schema, psi_thread_v5),
-    PROVIDES_SERVICE(performance_schema, psi_thread_v6),
-    PROVIDES_SERVICE(performance_schema, psi_thread_v7),
-    PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_table_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_small_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_medium_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_integer_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_bigint_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_decimal_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_float_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_double_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_string_v2),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_blob_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_enum_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_date_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_time_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_datetime_v1),
+    REFERENCES_SERVICE(performance_schema, psi_mdl_v1),
+    REFERENCES_SERVICE(performance_schema, psi_mdl_v2),
+    REFERENCES_SERVICE(performance_schema, psi_memory_v2),
+    REFERENCES_SERVICE(performance_schema, psi_mutex_v1),
+    REFERENCES_SERVICE(performance_schema, psi_rwlock_v2),
+    REFERENCES_SERVICE(performance_schema, psi_socket_v1),
+    REFERENCES_SERVICE(performance_schema, psi_stage_v1),
+    REFERENCES_SERVICE(performance_schema, psi_statement_v5),
+    REFERENCES_SERVICE(performance_schema, psi_system_v1),
+    REFERENCES_SERVICE(performance_schema, psi_table_v1),
+    REFERENCES_SERVICE(performance_schema, psi_thread_v4),
+    REFERENCES_SERVICE(performance_schema, psi_thread_v5),
+    REFERENCES_SERVICE(performance_schema, psi_thread_v6),
+    REFERENCES_SERVICE(performance_schema, psi_thread_v7),
+    REFERENCES_SERVICE(performance_schema, psi_transaction_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_table_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_small_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_medium_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_integer_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_bigint_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_decimal_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_float_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_double_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_string_v2),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_blob_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_enum_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_date_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_time_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_datetime_v1),
     /* Deprecated, use pfs_plugin_column_timestamp_v2. */
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
-    PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
-    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
-    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_metrics_v1),
-    PROVIDES_SERVICE(performance_schema, psi_metric_v1),
-    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
-    END_COMPONENT_PROVIDES();
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
+    REFERENCES_SERVICE(performance_schema, psi_tls_channel_v1),
+    REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
+    REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_metrics_v1),
+    REFERENCES_SERVICE(performance_schema, psi_metric_v1),
+    REFERENCES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
+    REFERENCES_SERVICE(mysql_server, pfs_notification_v3),
+    REFERENCES_SERVICE(mysql_server, pfs_resource_group_v3)};
 
-static BEGIN_COMPONENT_REQUIRES(performance_schema) END_COMPONENT_REQUIRES();
-
-BEGIN_COMPONENT_METADATA(performance_schema)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
-
-DECLARE_COMPONENT(performance_schema, "mysql:pfs")
-/* There are no initialization/deinitialization functions, they will not be
-   called as this component is not a regular one. */
-nullptr, nullptr END_DECLARE_COMPONENT();
-
-bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg) {
-  int inx = 0;
-
-  for (;;) {
-    auto *pfs_service = reinterpret_cast<my_h_service>(
-        mysql_component_performance_schema.provides[inx].implementation);
-
-    if (pfs_service == nullptr) {
-      break;
-    }
-
-    if (reg->register_service(
-            mysql_component_performance_schema.provides[inx].name,
-            pfs_service)) {
-      return true;
-    }
-
-    inx++;
-  }
-
-  return false;
-}
-
-bool pfs_deinit_services(SERVICE_TYPE(registry_registration) * reg) {
-  for (int inx = 0;
-       mysql_component_performance_schema.provides[inx].name != nullptr;
-       inx++) {
-    if (reg->unregister(
-            mysql_component_performance_schema.provides[inx].name)) {
-      return true;
-    }
-  }
-
-  return false;
-}
+void *get_services() { return services; }

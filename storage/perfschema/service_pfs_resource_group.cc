@@ -27,10 +27,10 @@
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
-#include <mysql/components/services/pfs_resource_group.h>
 #include <mysql/plugin.h>
 
 #include "storage/perfschema/pfs_server.h"
+#include "storage/perfschema/pfs_services.h"
 #include "template_utils.h"
 
 extern int pfs_set_thread_resource_group_vc(const char *group_name,
@@ -77,57 +77,3 @@ SERVICE_IMPLEMENTATION(mysql_server, pfs_resource_group_v3) = {
     impl_pfs_set_thread_resource_group,
     impl_pfs_set_thread_resource_group_by_id, impl_pfs_get_thread_system_attrs,
     impl_pfs_get_thread_system_attrs_by_id};
-
-/**
-  Register the Resource Group service with the MySQL server registry.
-  @return 0 if successful, 1 otherwise
-*/
-int register_pfs_resource_group_service() {
-  SERVICE_TYPE(registry) * r;
-  int result = 0;
-
-  r = mysql_plugin_registry_acquire();
-  if (!r) {
-    return 1;
-  }
-
-  const my_service<SERVICE_TYPE(registry_registration)> reg(
-      "registry_registration", r);
-
-  if (reg->register_service(
-          "pfs_resource_group_v3.mysql_server",
-          pointer_cast<my_h_service>(
-              const_cast<s_mysql_pfs_resource_group_v3 *>(
-                  &imp_mysql_server_pfs_resource_group_v3)))) {
-    result = 1;
-  }
-
-  mysql_plugin_registry_release(r);
-
-  return result;
-}
-
-/**
-  Unregister the Resource Group service.
-  @return 0 if successful, 1 otherwise
-*/
-int unregister_pfs_resource_group_service() {
-  SERVICE_TYPE(registry) * r;
-  int result = 0;
-
-  r = mysql_plugin_registry_acquire();
-  if (!r) {
-    return 1;
-  }
-
-  const my_service<SERVICE_TYPE(registry_registration)> reg(
-      "registry_registration", r);
-
-  if (reg->unregister("pfs_resource_group_v3.mysql_server")) {
-    result = 1;
-  }
-
-  mysql_plugin_registry_release(r);
-
-  return result;
-}

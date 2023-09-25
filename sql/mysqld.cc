@@ -2831,12 +2831,6 @@ static void clean_up(bool print_message) {
   */
   log_error_stage_set(LOG_ERROR_STAGE_SHUTTING_DOWN);
   log_builtins_error_stack(LOG_ERROR_SERVICES_DEFAULT, false, nullptr);
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  if (!is_help_or_validate_option() && !opt_initialize) {
-    unregister_pfs_notification_service();
-    unregister_pfs_resource_group_service();
-  }
-#endif
   deinit_tls_psi_keys();
   deinitialize_manifest_file_components();
   if (g_event_channels != nullptr) delete g_event_channels;
@@ -9439,16 +9433,6 @@ int mysqld_main(int argc, char **argv)
     return 1;
   }
   my_getopt_use_args_separator = false;
-
-  /*
-    Initialize Performance Schema component services.
-  */
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  if (!is_help_or_validate_option() && !opt_initialize) {
-    register_pfs_notification_service();
-    register_pfs_resource_group_service();
-  }
-#endif
 
   // Initialize the resource group subsystem.
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();

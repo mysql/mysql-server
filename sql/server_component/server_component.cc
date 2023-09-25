@@ -908,6 +908,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_metric_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
 
+    PROVIDES_SERVICE(mysql_server, pfs_notification_v3),
+    PROVIDES_SERVICE(mysql_server, pfs_resource_group_v3),
+
     PROVIDES_SERVICE(mysql_server, mysql_query_attributes_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_string),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_isnull),

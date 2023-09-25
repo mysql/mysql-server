@@ -395,18 +395,6 @@ void init_pfs_instrument_array();
 int add_pfs_instr_to_array(const char *name, const char *value);
 
 /**
-  Register/unregister notification service.
-*/
-int register_pfs_notification_service();
-int unregister_pfs_notification_service();
-
-/**
-  Register/unregister resource group service.
-*/
-int register_pfs_resource_group_service();
-int unregister_pfs_resource_group_service();
-
-/**
   Shutdown the performance schema.
 */
 void shutdown_performance_schema();
