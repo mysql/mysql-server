@@ -237,23 +237,8 @@ static bool AddSubqueryPaths(const Item *item_arg, const char *source_text,
 
     const Item_subselect *subquery = down_cast<const Item_subselect *>(item);
     Query_expression *qe = subquery->query_expr();
-    Query_block *query_block = qe->first_query_block();
-    char description[256];
-    if (query_block->is_dependent()) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in %s; dependent)",
-               query_block->select_number, source_text);
-    } else if (!query_block->is_cacheable()) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in %s; uncacheable)",
-               query_block->select_number, source_text);
-    } else {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in %s; run only once)",
-               query_block->select_number, source_text);
-    }
-
     qe->finalize(current_thd);
+    Query_block *query_block = qe->first_query_block();
     AccessPath *path;
 
     if (qe->root_access_path() != nullptr) {
