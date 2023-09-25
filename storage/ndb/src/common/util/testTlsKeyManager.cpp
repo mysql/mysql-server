@@ -700,9 +700,10 @@ void test_affirm_client_auth(Test::CertAuthority & ca) {
     ok(r == 0, "Client cert for test hostname is OK");
     if(r) {
       char buff[INET6_ADDRSTRLEN];
+      ndb_sockaddr addr(ai->ai_addr, ai->ai_addrlen);
+      Ndb_inet_ntop(&addr, buff, sizeof(buff));
       printf(" >>> Test of address %s for %s returned error %s\n",
-             inet_ntop(ai->ai_family, ai->ai_addr, buff, sizeof(buff)),
-             TheTestHostname, TlsKeyError::message(r));
+             buff, TheTestHostname, TlsKeyError::message(r));
     }
   }
 
