@@ -4514,27 +4514,44 @@ static ReplaceResult wrap_grouped_expressions_for_rollup(
   return {ReplaceResult::KEEP_TRAVERSING, nullptr};
 }
 
+/**
+   Helper function for WalkAndReplace() which replaces the Item referenced by
+   "child_ref" if "get_new_item" returns a replacement, or visits the children
+   of "child_ref" otherwise.
+ */
+static bool WalkAndReplaceInner(
+    THD *thd, Item *parent, unsigned argument_idx,
+    const function<ReplaceResult(Item *item, Item *parent,
+                                 unsigned argument_idx)> &get_new_item,
+    Item **child_ref) {
+  ReplaceResult result = get_new_item(*child_ref, parent, argument_idx);
+  if (result.action == ReplaceResult::ERROR) {
+    return true;
+  }
+
+  if (result.action == ReplaceResult::REPLACE) {
+    if (thd->lex->is_exec_started()) {
+      thd->change_item_tree(child_ref, result.replacement);
+    } else {
+      *child_ref = result.replacement;
+    }
+    return false;
+  }
+
+  return WalkAndReplace(thd, *child_ref, get_new_item);
+}
+
 bool WalkAndReplace(
     THD *thd, Item *item,
     const function<ReplaceResult(Item *item, Item *parent,
                                  unsigned argument_idx)> &get_new_item) {
   if (item->type() == Item::FUNC_ITEM ||
       (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)) {
-    Item_func *func_item = down_cast<Item_func *>(item);
-    for (unsigned argument_idx = 0; argument_idx < func_item->arg_count;
-         argument_idx++) {
-      Item *arg = func_item->arguments()[argument_idx];
-      ReplaceResult result = get_new_item(arg, item, argument_idx);
-      if (result.action == ReplaceResult::ERROR) {
-        return true;
-      } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(&func_item->arguments()[argument_idx],
-                                result.replacement);
-        } else {
-          func_item->arguments()[argument_idx] = result.replacement;
-        }
-      } else if (WalkAndReplace(thd, arg, get_new_item)) {
+    Item **args = down_cast<Item_func *>(item)->arguments();
+    const unsigned arg_count = down_cast<Item_func *>(item)->argument_count();
+    for (unsigned argument_idx = 0; argument_idx < arg_count; argument_idx++) {
+      if (WalkAndReplaceInner(thd, item, argument_idx, get_new_item,
+                              &args[argument_idx])) {
         return true;
       }
     }
@@ -4547,18 +4564,8 @@ bool WalkAndReplace(
     Item_row *row_item = down_cast<Item_row *>(item);
     for (unsigned argument_idx = 0; argument_idx < row_item->cols();
          argument_idx++) {
-      Item *arg = row_item->element_index(argument_idx);
-      ReplaceResult result = get_new_item(arg, item, argument_idx);
-      if (result.action == ReplaceResult::ERROR) {
-        return true;
-      } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(row_item->addr(argument_idx),
-                                result.replacement);
-        } else {
-          *row_item->addr(argument_idx) = result.replacement;
-        }
-      } else if (WalkAndReplace(thd, arg, get_new_item)) {
+      if (WalkAndReplaceInner(thd, item, argument_idx, get_new_item,
+                              row_item->addr(argument_idx))) {
         return true;
       }
     }
@@ -4567,18 +4574,20 @@ bool WalkAndReplace(
     List_iterator<Item> li(*cond_item->argument_list());
     unsigned argument_idx = 0;
     for (Item *arg = li++; arg != nullptr; arg = li++) {
-      ReplaceResult result = get_new_item(arg, item, argument_idx++);
-      if (result.action == ReplaceResult::ERROR) {
-        return true;
-      } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(li.ref(), result.replacement);
-        } else {
-          *li.ref() = result.replacement;
-        }
-      } else if (WalkAndReplace(thd, arg, get_new_item)) {
+      if (WalkAndReplaceInner(thd, item, argument_idx++, get_new_item,
+                              li.ref())) {
         return true;
       }
+    }
+  } else if (item->type() == Item::SUBSELECT_ITEM) {
+    const Item_subselect::Subquery_type subquery_type =
+        down_cast<Item_subselect *>(item)->subquery_type();
+    if (subquery_type == Item_subselect::IN_SUBQUERY ||
+        subquery_type == Item_subselect::ALL_SUBQUERY ||
+        subquery_type == Item_subselect::ANY_SUBQUERY) {
+      return WalkAndReplaceInner(
+          thd, item, /*argument_idx=*/0, get_new_item,
+          &down_cast<Item_in_subselect *>(item)->left_expr);
     }
   }
   return false;
