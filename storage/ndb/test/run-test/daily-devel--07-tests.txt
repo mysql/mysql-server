@@ -316,3 +316,11 @@ cmd: test_event
 args: -n StallingSubscriber T1
 max-time : 180
 
+cmd: test_event
+args: -n SubscribeEventsNR T1
+max-time: 240
+
+cmd: test_event
+args: -n SubscribeEventsNRAF T1
+max-time: 240
+

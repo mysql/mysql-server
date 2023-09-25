@@ -1,0 +1,117 @@
+--source include/have_ndb.inc
+--source include/have_multi_ndb.inc
+
+--echo # Execute a DDL and verify the participant list in the servers
+
+--connection server1
+create table t1 (a int) engine ndb;
+
+--let $assert_text= Found two participants in Server 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+# MySQL Server prints the connected participants in the format :
+# [NDB] Participants [<participant1 node id>,<participant2 node id>..]
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--connection server2
+drop table t1;
+
+--let $assert_text= Found two participants in Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo # Restart all nodes one by one
+--echo Restart data node 1
+--exec $NDB_MGM -e "1 RESTART -n"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started  > /dev/null
+
+--echo # Verify the participants again to confirm that they were not lost after node 1 stopped
+--connection server1
+create table t1 (a int) engine ndb;
+
+--let $assert_text= Found two participants in Server 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--connection server2
+drop table t1;
+
+--let $assert_text= Found two participants in Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--exec $NDB_MGM -e "1 START"
+--exec $NDB_WAITER  > /dev/null
+--echo Node 1 restarted
+
+--echo # Verify the participants again to confirm that they were not lost after node 1 restart
+--connection server1
+create table t1 (a int) engine ndb;
+
+--let $assert_text= Found two participants in Server 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 3
+--source include/assert_grep.inc
+
+--connection server2
+drop table t1;
+
+--let $assert_text= Found two participants in Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 3
+--source include/assert_grep.inc
+
+--echo Restart data node 2
+--exec $NDB_MGM -e "2 RESTART -n"
+--exec $NDB_WAITER --nowait-nodes=1 --not-started  > /dev/null
+
+--echo # Verify the participants again to confirm that they were not lost after node 2 stopped
+--connection server1
+create table t1 (a int) engine ndb;
+
+--let $assert_text= Found two participants in Server 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 4
+--source include/assert_grep.inc
+
+--connection server2
+drop table t1;
+
+--let $assert_text= Found two participants in Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 4
+--source include/assert_grep.inc
+
+--exec $NDB_MGM -e "2 START"
+--exec $NDB_WAITER  > /dev/null
+--echo Node 1 restarted
+
+--echo # Verify the participants again to confirm that they were not lost after node 2 restart
+--connection server1
+create table t1 (a int) engine ndb;
+
+--let $assert_text= Found two participants in Server 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 5
+--source include/assert_grep.inc
+
+--connection server2
+drop table t1;
+
+--let $assert_text= Found two participants in Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_select= \[NDB\] Participants: \[[0-9]+,[0-9]+\]
+--let $assert_count= 5
+--source include/assert_grep.inc

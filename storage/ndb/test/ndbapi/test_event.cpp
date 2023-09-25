@@ -6442,6 +6442,272 @@ runCreateDropConsume(NDBT_Context* ctx, NDBT_Step* step)
   return res;
 }
 
+int runSubscriptionChecker(NDBT_Context* ctx,
+                           NDBT_Step* step,
+                           Ndb* pNdb,
+                           const NdbDictionary::Table* table,
+                           const char* name)
+{
+  NdbEventOperation* evOp = createEventOperation(pNdb,
+                                                 *table);
+  if (evOp == NULL)
+  {
+    return NDBT_FAILED;
+  }
+
+  NodeBitmask subscriberViews[MAX_NDB_NODES];
+  for (Uint32 n=0; n < MAX_NDB_NODES; n++)
+  {
+    subscriberViews[n].clear();
+  }
+
+  bool error = false;
+  Uint32 maxSubscribers = 0;
+
+  while (!ctx->isTestStopped() && !error)
+  {
+    int res = pNdb->pollEvents(1000);
+
+    if (res > 0)
+    {
+      NdbEventOperation* nextEvent;
+      while ((nextEvent = pNdb->nextEvent()) != NULL)
+      {
+        switch (evOp->getEventType())
+        {
+        case NdbDictionary::Event::TE_SUBSCRIBE:
+        {
+          const Uint32 subscriber = evOp->getReqNodeId();
+          const Uint32 reporter = evOp->getNdbdNodeId();
+          const Uint64 epoch = evOp->getEpoch();
+          NodeBitmask& view = subscriberViews[reporter];
+          ndbout_c("%s : Reporter %u reports subscribe from node %u in epoch %llu/%llu",
+                   name, reporter, subscriber,
+                   epoch >> 32, epoch & 0xffffffff);
+          if (view.get(subscriber))
+          {
+            ndbout_c("%s : Error, %u already subscribed",
+                     name, subscriber);
+            /* Note that nothing stops there being > 1 subscriber per API nodeid */
+            error = true;
+            continue;
+          }
+          view.set(subscriber);
+          break;
+        }
+        case NdbDictionary::Event::TE_UNSUBSCRIBE:
+        {
+          const Uint32 subscriber = evOp->getReqNodeId();
+          const Uint32 reporter = evOp->getNdbdNodeId();
+          const Uint64 epoch = evOp->getEpoch();
+          NodeBitmask& view = subscriberViews[reporter];
+          ndbout_c("%s : Reporter %u reports unsubscribe from node %u in epoch %llu/%llu",
+                   name, reporter, subscriber,
+                   epoch >> 32, epoch & 0xffffffff);
+          if (!view.get(subscriber))
+          {
+            /* Note that nothing stops there being > 1 subscriber per API nodeid */
+            ndbout_c("%s : Error, %u not subscribed",
+                     name, subscriber);
+            error = true;
+          }
+          view.clear(subscriber);
+          break;
+        }
+        case NdbDictionary::Event::TE_NODE_FAILURE:
+        {
+          const Uint32 failedNode = evOp->getNdbdNodeId();
+          const Uint64 epoch = evOp->getEpoch();
+          ndbout_c("%s : Node failure report for node %u in epoch %llu/%llu",
+                   name, failedNode,
+                   epoch >> 32, epoch & 0xffffffff);
+          NodeBitmask& view = subscriberViews[failedNode];
+          ndbout_c("%s : Clearing subscribers in my node %u view : %s",
+                   name,
+                   failedNode,
+                   BaseString::getPrettyText(view).c_str());
+          view.clear();
+          break;
+        }
+        case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+        {
+          // Unexpected
+          const Uint64 epoch = evOp->getEpoch();
+          ndbout_c("%s : Cluster failure in epoch %llu/%llu",
+                   name,
+                   epoch >> 32, epoch & 0xffffffff);
+          if ((ctx->getProperty("IgnoreDisconnect", (Uint32)0)) != 0)
+          {
+            ndbout_c("%s : Ignoring cluster failure", name);
+            pNdb->dropEventOperation(evOp);
+            return NDBT_OK;
+          }
+
+          error = true;
+          break;
+        }
+        default:
+          ndbout_c("%s : Ignoring event of type %u",
+                   name, evOp->getEventType());
+          break;
+        }
+      }
+    }
+
+    Uint32 reporters = 0;
+    NodeBitmask unionView;
+    unionView.clear();
+    //maxSubscribers = 0;
+
+    for (Uint32 n=0; n < MAX_NDB_NODES; n++)
+    {
+      NodeBitmask& nodeView = subscriberViews[n];
+
+      if (!nodeView.isclear())
+      {
+        if (!unionView.isclear() &&
+            !unionView.equal(nodeView))
+        {
+          ndbout_c("%s : Reporter %u view different to existing union view : %s",
+                   name,
+                   n,
+                   BaseString::getPrettyText(nodeView).c_str());
+        }
+        reporters++;
+        unionView.bitOR(nodeView);
+      }
+    }
+
+    /* For ease of comparing different checker's views in output
+     * Add own-node to unionView as it's implicit
+     */
+    unionView.set(pNdb->getNodeId());
+
+    ndbout_c("%s : unionView : reporters(%u) : %s",
+             name, reporters, BaseString::getPrettyText(unionView).c_str());
+
+    const Uint32 currentSubscribers = unionView.count();
+    if (currentSubscribers > maxSubscribers)
+    {
+      maxSubscribers = currentSubscribers;
+    }
+    if (currentSubscribers < maxSubscribers)
+    {
+      ndbout_c("%s : Subscriber(s) lost - have (%u), max was %u",
+               name, currentSubscribers, maxSubscribers);
+      if ((ctx->getProperty("IgnoreSubscriberLoss", (Uint32)0)) != 0)
+      {
+        ndbout_c("%s : Ignoring subscriber loss", name);
+        maxSubscribers = currentSubscribers;
+      }
+      else
+      {
+        error = true;
+      }
+    }
+  }
+
+  pNdb->dropEventOperation(evOp);
+
+  return (error ? NDBT_FAILED : NDBT_OK);
+}
+
+int runSubscriptionCheckerSameConn(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table * table= ctx->getTab();
+  BaseString name;
+  name.appfmt("CheckerSC %u (%u)",
+              step->getStepNo(),
+              pNdb->getNodeId());
+
+  return runSubscriptionChecker(ctx, step, pNdb, table, name.c_str());
+}
+
+int runSubscriptionCheckerOtherConn(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb_cluster_connection* otherConn;
+  Ndb* otherNdb;
+
+  if (cc(&otherConn, &otherNdb) != 0)
+  {
+    ndbout_c("Failed to setup another Api connection");
+    return NDBT_FAILED;
+  }
+
+  BaseString name;
+  name.appfmt("CheckerOC %u (%u)",
+              step->getStepNo(),
+              otherNdb->getNodeId());
+
+  const NdbDictionary::Table* table =
+      otherNdb->getDictionary()->getTable(ctx->getTab()->getName());
+
+  int res = runSubscriptionChecker(ctx, step, otherNdb, table, name.c_str());
+
+  delete otherNdb;
+  delete otherConn;
+
+  return res;
+}
+
+int
+runRestartRandomNodeStartWithError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int code = ctx->getProperty("ErrorInjectCode", (Uint32)0);
+
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  /* Give other steps some time to get going */
+  NdbSleep_SecSleep(5);
+
+  do
+  {
+    int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    ndbout << "Restart node " << nodeId << endl;
+    if(restarter.restartOneDbNode(nodeId, false, true, true) != 0){
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&nodeId, 1)) {
+      g_err << "Failed to wait node to reach no start state" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.insertErrorInNode(nodeId, code)){
+      g_err << "Failed to inject error" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.startNodes(&nodeId, 1)){
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if(restarter.waitClusterStarted(60) != 0){
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  } while (0);
+
+  restarter.insertErrorInAllNodes(0); //Remove the injected error
+  ctx->stopTest();
+  return result;
+}
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation",
 	 "Verify that we can listen to Events"
@@ -6889,7 +7155,34 @@ TESTCASE("ExhaustedSafeCounterPool",
   FINALIZER(clearEmptySafeCounterPool);
   FINALIZER(runDropShadowTable);
 }
-
+TESTCASE("SubscribeEventsNR",
+         "Test that the subscriber/unsubscribe "
+         "events received are as expected over "
+         "node restarts.")
+{
+  TC_PROPERTY("ReportSubscribe", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runRestarterLoop);
+  STEP(runSubscriptionCheckerSameConn);
+  STEPS(runSubscriptionCheckerOtherConn,2);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("SubscribeEventsNRAF",
+         "Test that the subscriber/unsubscribe "
+         "events received are as expected over "
+         "simultaneous data node restarts and "
+         "API nodes failure")
+{
+  TC_PROPERTY("ReportSubscribe", 1);
+  TC_PROPERTY("IgnoreDisconnect", 1);
+  TC_PROPERTY("IgnoreSubscriberLoss", 1);
+  TC_PROPERTY("ErrorInjectCode", 13058);
+  INITIALIZER(runCreateEvent);
+  STEP(runRestartRandomNodeStartWithError)
+  STEP(runSubscriptionCheckerSameConn);
+  STEPS(runSubscriptionCheckerOtherConn,2);
+  FINALIZER(runDropEvent);
+}
 TESTCASE("DelayedEventDrop",
         "Create and Drop events with load, having multiple events droppable"
          "at once")
