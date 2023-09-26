@@ -9083,7 +9083,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
   select->is_item_list_lookup = false;
 
   /*
-    To prevent fail on forward lookup we fill it with zerows,
+    To prevent fail on forward lookup we fill it with zeros,
     then if we got pointer on zero after find_item_in_list we will know
     that it is forward lookup.
 

@@ -295,3 +295,23 @@ EXPLAIN
     -> Rows fetched before execution
 
 DROP TABLE t;
+#
+# Bug#35845129: Missing subqueries in EXPLAIN with hypergraph optimizer
+#
+CREATE TABLE t(x INT, y INT);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT x IN (SELECT x FROM t) FROM t GROUP BY x ORDER BY MAX(y);
+EXPLAIN
+-> Sort: `max(t.y)`  (rows=1)
+    -> Stream results  (rows=1)
+        -> Group aggregate: max(t.y)  (rows=1)
+            -> Sort: t.x  (rows=1)
+                -> Table scan on t  (rows=1)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t.x) = t.x) or (t.x is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(t.x), true))  (rows=1)
+        -> Table scan on t  (rows=1)
+
+DROP TABLE t;

@@ -296,21 +296,20 @@ static bool GetAccessPathsFromSelectList(JOIN *join,
     return false;
   }
 
-  // Look for any Items in the projection list itself.
-  for (Item *item : *join->get_current_fields()) {
+  // SELECT lists are present only in SELECT statements and subqueries.
+  Query_block *query_block = join->query_block;
+  if (join->thd->lex->sql_command != SQLCOM_SELECT &&
+      query_block->outer_query_block() == nullptr) {
+    return false;
+  }
+
+  // Look for any subqueries in the projection list. Use the base items, so that
+  // we see the subqueries even if they have been materialized and replaced by
+  // temporary table columns in join->fields.
+  for (Item *item : query_block->base_ref_items.prefix(join->fields->size())) {
     if (AddSubqueryPaths(item, "projection", children)) return true;
   }
 
-  // Look for any Items that were materialized into fields during execution.
-  for (uint table_idx = join->primary_tables; table_idx < join->tables;
-       ++table_idx) {
-    QEP_TAB *qep_tab = &join->qep_tab[table_idx];
-    if (qep_tab != nullptr && qep_tab->tmp_table_param != nullptr) {
-      for (Func_ptr &func : *qep_tab->tmp_table_param->items_to_copy) {
-        if (AddSubqueryPaths(func.func(), "projection", children)) return true;
-      }
-    }
-  }
   return false;
 }
 
