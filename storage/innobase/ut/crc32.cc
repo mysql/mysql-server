@@ -488,7 +488,7 @@ uint64_t use_pclmul::polynomial_mul_rev(uint32_t rev_u) {
 #ifdef CRC32_ARM64
 /** This function performs just a "type casts" from uint64_t to poly64_t.
 @param[in]  w   The 64 coefficients of the polynomial
-@return the polynomial w(x) = sum_{i=0}^{63} { (w&(1ULL<<i)) * x^{i} }
+@return the polynomial w(x) = sum_{i=0}^{63} { (w&(1ULL << i)) * x^{i} }
 */
 static inline poly64_t uint64_t_to_poly_64_t(uint64_t w) {
   /* This should compile down to nothing */
@@ -497,7 +497,8 @@ static inline poly64_t uint64_t_to_poly_64_t(uint64_t w) {
 /** This function takes a polynomial and extracts the 64 least significant
 coefficients.
 @param[in]  w   The polynomial w(x) = sum_{i=0}^{127} { a_i * x^{i} }
-@return The lowest 64 coefficients, i.e. (result & (1ULL<<i)) == a_i for 0<=i<64
+@return
+   The lowest 64 coefficients, i.e. (result & (1ULL << i)) == a_i for 0<=i<64
 */
 static inline uint64_t less_significant_half_of_poly128_t_to_uint64_t(
     poly128_t w) {
