@@ -181,9 +181,6 @@ private:
   bool ssl_handshake();
   void ssl_close();
 
-  int consolidate(const struct iovec *, const int) const;
-  int send_several_iov(const struct iovec *, int) const;
-
   friend class TlsLineReader;
 
 private:
