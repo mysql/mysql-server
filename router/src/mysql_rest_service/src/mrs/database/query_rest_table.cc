@@ -47,8 +47,13 @@ namespace database {
 using sqlstring = mysqlrouter::sqlstring;
 using MySQLSession = mysqlrouter::MySQLSession;
 
-QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory)
-    : factory_{factory} {}
+QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory,
+                               bool encode_bigints_as_strings)
+    : factory_{factory},
+      encode_bigints_as_strings_{encode_bigints_as_strings} {}
+
+QueryRestTable::QueryRestTable(bool encode_bigints_as_strings)
+    : QueryRestTable(nullptr, encode_bigints_as_strings) {}
 
 void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
@@ -375,7 +380,8 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   auto where = build_where(row_ownership);
   extend_where(where, fog);
 
-  JsonQueryBuilder qb(field_filter);
+  JsonQueryBuilder qb(field_filter, false, false, false,
+                      encode_bigints_as_strings_);
 
   qb.process_object(object_);
 
@@ -408,7 +414,8 @@ void QueryRestTable::create_serializer() {
   if (factory_)
     serializer_ = factory_->create_template();
   else
-    serializer_ = mrs::json::JsonTemplateFactory().create_template();
+    serializer_ = mrs::json::JsonTemplateFactory().create_template(
+        JsonTemplateType::kStandard, encode_bigints_as_strings_);
 }
 
 }  // namespace database

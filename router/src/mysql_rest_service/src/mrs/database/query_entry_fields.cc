@@ -155,7 +155,6 @@ void QueryEntryFields::on_row_params(const ResultRow &row) {
           {"DOUBLE", DataType::typeDouble},
           {"FLOAT", DataType::typeDouble},
           {"REAL", DataType::typeDouble},
-          {"DOUBLE", DataType::typeDouble},
           {"DECIMAL", DataType::typeDouble},
           {"CHAR", DataType::typeString},
           {"NCHAR", DataType::typeString},

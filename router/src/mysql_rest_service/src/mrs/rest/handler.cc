@@ -135,40 +135,7 @@ static const char *get_content_type(
     const std::optional<std::string> &type_text) {
   if (type_text) return type_text.value().c_str();
 
-  switch (type) {
-    case Handler::HttpResult::Type::typeJson:
-      return "application/json";
-    case Handler::HttpResult::Type::typeUnknownBinary:
-      return "application/octet-stream";
-    case Handler::HttpResult::Type::typeUnknownText:
-      return "text/plain";
-    case Handler::HttpResult::Type::typePlain:
-      return "text/plain";
-    case Handler::HttpResult::Type::typeHtml:
-      return "text/html";
-    case Handler::HttpResult::Type::typeJs:
-      return "text/javascript";
-    case Handler::HttpResult::Type::typeCss:
-      return "text/css";
-    case Handler::HttpResult::Type::typePng:
-      return "image/png";
-    case Handler::HttpResult::Type::typeJpg:
-      return "image/jpeg";
-    case Handler::HttpResult::Type::typeGif:
-      return "image/gif";
-    case Handler::HttpResult::Type::typeBmp:
-      return "image/bmp";
-    case Handler::HttpResult::Type::typeAvi:
-      return "image/avi";
-    case Handler::HttpResult::Type::typeWav:
-      return "image/wav";
-    case Handler::HttpResult::Type::typeSvg:
-      return "image/svg+xml";
-    case Handler::HttpResult::Type::typeIco:
-      return "image/x-icon";
-  }
-
-  return "";
+  return helper::get_mime_name(type);
 }
 
 std::string get_http_method_name(HttpMethod::type type) {

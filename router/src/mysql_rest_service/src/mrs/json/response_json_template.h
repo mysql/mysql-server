@@ -42,6 +42,9 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
+  explicit ResponseJsonTemplate(bool encode_bigints_as_string = false)
+      : encode_bigints_as_string_{encode_bigints_as_string} {}
+
   void begin_resultset(const std::string &url, const std::string &items_name,
                        const std::vector<helper::Column> &columns) override;
   void begin_resultset(uint32_t offset, uint32_t limit, bool is_default_limit,
@@ -77,6 +80,7 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   uint32_t pushed_documents_{0};
   bool began_{false};
   const std::vector<helper::Column> *columns_{nullptr};
+  bool encode_bigints_as_string_{false};
 };
 
 }  // namespace json

@@ -31,18 +31,19 @@ namespace mrs {
 namespace json {
 
 std::shared_ptr<database::JsonTemplate> JsonTemplateFactory::create_template(
-    const database::JsonTemplateType type) const {
+    const database::JsonTemplateType type,
+    const bool encode_bigints_as_strings) const {
   switch (type) {
     case database::JsonTemplateType::kObjectNested:
       return std::shared_ptr<database::JsonTemplate>{
-          new ResponseSpJsonTemplateNest()};
+          new ResponseSpJsonTemplateNest(encode_bigints_as_strings)};
     case database::JsonTemplateType::kObjectUnnested:
       return std::shared_ptr<database::JsonTemplate>{
-          new ResponseSpJsonTemplateUnnest()};
+          new ResponseSpJsonTemplateUnnest(encode_bigints_as_strings)};
     case database::JsonTemplateType::kStandard:
     default:
       return std::shared_ptr<database::JsonTemplate>{
-          new ResponseJsonTemplate()};
+          new ResponseJsonTemplate(encode_bigints_as_strings)};
   }
 }
 

@@ -30,6 +30,7 @@
 
 #include "my_sys.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/string_utils.h"
 #include "mysql/strings/m_ctype.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -258,6 +259,7 @@ ColumnType from_mysql_txt_column_type(const char *t) {
   remove_suffix_after(type, '(');
 
   std::string type_string{type.begin(), type.end()};
+  mysql_harness::lower(type_string);
   auto it = map.find(type_string);
   if (map.end() == it) return {};
 

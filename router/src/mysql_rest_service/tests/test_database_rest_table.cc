@@ -29,19 +29,26 @@
 #include "helper/make_shared_ptr.h"
 #include "mrs/database/entry/entry.h"
 #include "mrs/database/query_rest_table.h"
+#include "mrs/database/query_rest_table_single_row.h"
 #include "test_mrs_object_utils.h"
 
+#include "mock/mock_json_template_factory.h"
 #include "mock/mock_session.h"
 
 using mrs::database::QueryRestTable;
+using mrs::database::QueryRestTableSingleRow;
+using mysqlrouter::MySQLSession;
+
 using testing::_;
 using testing::Invoke;
 using testing::Mock;
 using testing::Return;
 using testing::ReturnRef;
+using testing::StartsWith;
 using testing::StrEq;
 using testing::StrictMock;
 using testing::Test;
+using testing::WithParamInterface;
 
 using namespace mrs::database::entry;
 
@@ -86,6 +93,149 @@ TEST(DbEntry, less) {
   ASSERT_TRUE((m[{key_rest, {5}}] == 11));
   ASSERT_TRUE((m[{key_rest, {6}}] == 12));
 }
+
+class QueryVerification {
+ public:
+  QueryVerification() = default;
+
+  QueryVerification(const QueryVerification &qv) {
+    object = qv.object;
+    query_starts_with = qv.query_starts_with;
+    encode_bigints_as_string = qv.encode_bigints_as_string;
+  }
+
+  QueryVerification(const std::string &expected_query, const ObjectBuilder &ob,
+                    bool encode_bigint_as_st = false)
+      : object{ob.root()},
+        query_starts_with{expected_query},
+        encode_bigints_as_string{encode_bigint_as_st} {}
+
+  std::shared_ptr<Object> object;
+  std::string query_starts_with;
+  bool encode_bigints_as_string{false};
+};
+class QueryRestTableParameterTests
+    : public QueryRestTableTests,
+      public WithParamInterface<QueryVerification> {
+ public:
+  InjectMockJsonTemplateFactory mock_factory_;
+};
+
+TEST_P(
+    QueryRestTableParameterTests,
+    single_row_verify_generated_sql_and_basic_flow_between_internal_objects) {
+  const std::string k_url{"my.url"};
+  const char *k_query_generated_value{"forward-this-value"};
+  char k_some_string[] = "Some String";
+
+  QueryRestTableSingleRow sut(GetParam().encode_bigints_as_string);
+  auto object = GetParam().object;
+
+  EXPECT_CALL(mock_session_,
+              query(StartsWith(GetParam().query_starts_with), _, _))
+      .WillOnce(Invoke([&k_query_generated_value, &k_some_string](
+                           auto &, auto &on_row_processor, auto &on_metadata) {
+        MYSQL_FIELD field;
+        memset(&field, 0, sizeof(field));
+        field.name = k_some_string;
+        field.type = MYSQL_TYPE_JSON;
+        on_metadata(1, &field);
+        on_row_processor(MySQLSession::ResultRow({k_query_generated_value}));
+      }));
+  sut.query_entries(&mock_session_, object,
+                    mrs::database::ObjectFieldFilter::from_object(*object), {},
+                    k_url);
+
+  // Verify that the resulting JSON is forwarded from JsonTemplate to
+  // sut_->response.
+  EXPECT_EQ(k_query_generated_value, sut.response);
+}
+
+TEST_P(QueryRestTableParameterTests,
+       verify_generated_sql_and_basic_flow_between_internal_objects) {
+  const std::string k_result{"some-result"};
+  const std::string k_url{"my.url"};
+  const char *k_query_generated_value{"forward-this-value"};
+  const int k_offset = 100;
+  const int k_page_size = 22;
+  char k_some_string[] = "Some String";
+
+  QueryRestTable sut(&mock_factory_, GetParam().encode_bigints_as_string);
+  auto object = GetParam().object;
+
+  {
+    testing::InSequence seq;
+
+    EXPECT_CALL(mock_factory_.mock_, begin()).RetiresOnSaturation();
+    EXPECT_CALL(mock_factory_.mock_,
+                begin_resultset(k_offset, k_page_size, true, k_url, _))
+        .RetiresOnSaturation();
+    EXPECT_CALL(mock_factory_.mock_,
+                push_json_document(StrEq(k_query_generated_value)))
+        .RetiresOnSaturation();
+    EXPECT_CALL(mock_factory_.mock_, finish()).RetiresOnSaturation();
+    EXPECT_CALL(mock_factory_.mock_, get_result())
+        .WillOnce(Return(k_result))
+        .RetiresOnSaturation();
+  }
+
+  EXPECT_CALL(mock_session_,
+              query(StartsWith(GetParam().query_starts_with), _, _))
+      .WillOnce(Invoke([&k_query_generated_value, &k_some_string](
+                           auto &, auto &on_row_processor, auto &on_metadata) {
+        MYSQL_FIELD field;
+        memset(&field, 0, sizeof(field));
+        field.name = k_some_string;
+        field.type = MYSQL_TYPE_JSON;
+        on_metadata(1, &field);
+        on_row_processor(MySQLSession::ResultRow({k_query_generated_value}));
+      }));
+  sut.query_entries(&mock_session_, object,
+                    mrs::database::ObjectFieldFilter::from_object(*object),
+                    k_offset, k_page_size, k_url, true);
+
+  // Verify that the resulting JSON is forwarded from JsonTemplate to
+  // sut_->response.
+  EXPECT_EQ(k_result, sut.response);
+}
+
+using Ob = ObjectBuilder;
+
+INSTANTIATE_TEST_SUITE_P(
+    InstantiateQueryExpectations, QueryRestTableParameterTests,
+    testing::Values(
+        QueryVerification(
+            "SELECT JSON_OBJECT('c1', `t`.`db_column_name_c1`, 'c2', "
+            "`t`.`db_column_name_c2`,'links',",
+            Ob("schema", "obj")
+                .field("c1", "db_column_name_c1", "TEXT")
+                .field("c2", "db_column_name_c2", "INT")),
+
+        QueryVerification(
+            "SELECT JSON_OBJECT('c2', `t`.`db_column_name_c2`,'links',",
+            Ob("schema", "obj")
+                .field("c2", "db_column_name_c2", "INT", FieldFlag::PRIMARY)),
+
+        QueryVerification(
+            "SELECT JSON_OBJECT('c2', `t`.`db_column_name_c2`,'links',",
+            Ob("schema", "obj")
+                .field("c2", "db_column_name_c2", "INT", FieldFlag::PRIMARY),
+            true),
+
+        QueryVerification(
+            "SELECT JSON_OBJECT('c2', `t`.`db_column_name_c2`,'links',",
+            Ob("schema", "obj")
+                .field("c2", "db_column_name_c2", "BIGINT",
+                       FieldFlag::PRIMARY)),
+
+        // Only case when we wrap the c2 column inside `CONVERT` call(convert to
+        // string).
+        QueryVerification("SELECT JSON_OBJECT('c2', "
+                          "CONVERT(`t`.`db_column_name_c2`, CHAR),'links',",
+                          Ob("schema", "obj")
+                              .field("c2", "db_column_name_c2", "BIGINT",
+                                     FieldFlag::PRIMARY),
+                          true)));
 
 TEST_F(QueryRestTableTests, DISABLED_basic_empty_request_throws) {
   auto object =

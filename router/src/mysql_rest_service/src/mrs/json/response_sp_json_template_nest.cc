@@ -28,10 +28,6 @@
 
 #include "mysqlrouter/base64.h"
 
-#include "mysql/harness/logging/logging.h"
-
-IMPORT_LOG_FUNCTIONS()
-
 namespace mrs {
 namespace json {
 
@@ -101,27 +97,34 @@ bool ResponseSpJsonTemplateNest::push_json_document(const ResultRow &values,
       continue;
     }
 
-    switch (columns[idx].type_json) {
+    auto type_json = columns[idx].type_json;
+
+    if (encode_bigints_as_string_ && type_json == helper::JsonType::kNumeric) {
+      if (should_encode_numeric_as_string(columns[idx].type)) {
+        serializer_.member_add_value(columns[idx].name, values[idx],
+                                     helper::JsonType::kString);
+        continue;
+      }
+    }
+
+    switch (type_json) {
       case helper::JsonType::kBool:
         serializer_.member_add_value(
             columns[idx].name,
             (*reinterpret_cast<const uint8_t *>(values[idx]) != 0) ? "true"
                                                                    : "false",
-            columns[idx].type_json);
+            type_json);
         break;
       case helper::JsonType::kBlob:
-        log_debug("values.get_data_size(idx=%i) = %i", (int)idx,
-                  (int)values.get_data_size(idx));
         serializer_.member_add_value(
             columns[idx].name,
             Base64::encode(
                 std::string_view(values[idx], values.get_data_size(idx)))
                 .c_str(),
-            columns[idx].type_json);
+            type_json);
         break;
       default:
-        serializer_.member_add_value(columns[idx].name, values[idx],
-                                     columns[idx].type_json);
+        serializer_.member_add_value(columns[idx].name, values[idx], type_json);
     }
   }
 

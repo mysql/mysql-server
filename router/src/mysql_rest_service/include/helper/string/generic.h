@@ -25,17 +25,19 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_
 
-namespace helper {
+#include <string>
 
+namespace helper {
 namespace string {
 
 inline bool is_empty(const std::string &str) { return str.empty(); }
 inline bool is_empty(const char *str) { return *str == 0; }
 inline const char *cstr(const char *str) { return str; }
 inline const char *cstr(const std::string &str) { return str.c_str(); }
+inline size_t size(const char *str) { return strlen(str); }
+inline size_t size(const std::string &str) { return str.length(); }
 
 }  // namespace string
-
 }  // namespace helper
 
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_

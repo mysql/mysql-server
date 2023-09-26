@@ -54,8 +54,8 @@ class QueryFactory : public mrs::interface::QueryFactory {
 
   std::shared_ptr<QueryUserGroups> create_query_user_groups() override;
   std::shared_ptr<QueryRestTable> create_query_table() override;
-  std::shared_ptr<QueryRestTableSingleRow> create_query_table_single_row()
-      override;
+  std::shared_ptr<QueryRestTableSingleRow> create_query_table_single_row(
+      bool encode_bigints_as_string) override;
   //   std::shared_ptr<QueryRestObjectInsert> create_query_object_insert()
   //   override;
   std::shared_ptr<QueryRestSP> create_query_sp() override;

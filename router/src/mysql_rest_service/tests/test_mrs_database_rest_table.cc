@@ -571,7 +571,7 @@ void DatabaseRestTableTest::TearDown() { drop_schema(); }
 rapidjson::Document DatabaseRestTableTest::get_one(
     std::shared_ptr<mrs::database::entry::Object> object,
     const mrs::database::PrimaryKeyColumnValues &pk) {
-  mrs::database::QueryRestTableSingleRow rest;
+  mrs::database::QueryRestTableSingleRow rest{false};
 
   rest.query_entries(m_.get(), object, {}, pk, "/");
 
