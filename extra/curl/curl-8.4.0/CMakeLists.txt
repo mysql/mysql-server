@@ -60,7 +60,7 @@
 # to ON or OFF), the symbol detection will be skipped.  If the
 # variable is NOT DEFINED, the symbol detection will be performed.
 
-cmake_minimum_required(VERSION 3.7...3.16 FATAL_ERROR)
+# cmake_minimum_required(VERSION 3.7...3.16 FATAL_ERROR)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
@@ -144,7 +144,7 @@ endif()
 
 # For debug libs and exes, add "-d" postfix
 if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-  set(CMAKE_DEBUG_POSTFIX "-d")
+#  set(CMAKE_DEBUG_POSTFIX "-d")
 endif()
 
 set(LIB_STATIC "libcurl_static")
@@ -273,7 +273,7 @@ mark_as_advanced(HTTP_ONLY)
 
 if(HTTP_ONLY)
   set(CURL_DISABLE_DICT ON)
-  set(CURL_DISABLE_FILE ON)
+# set(CURL_DISABLE_FILE ON)   Keep the FILE protocol
   set(CURL_DISABLE_FTP ON)
   set(CURL_DISABLE_GOPHER ON)
   set(CURL_DISABLE_IMAP ON)
@@ -473,7 +473,7 @@ if(use_core_foundation_and_core_services)
 endif()
 
 if(CURL_USE_OPENSSL)
-  find_package(OpenSSL REQUIRED)
+#  find_package(OpenSSL REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_OPENSSL ON)
 
@@ -1420,7 +1420,7 @@ if(MSVC)
   endif()
 
   # Use multithreaded compilation on VS 2008+
-  if(MSVC_VERSION GREATER_EQUAL 1500)
+  if(MSVC_VERSION GREATER_EQUAL 1500 AND NOT WIN32_CLANG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
   endif()
 endif()
@@ -1673,7 +1673,7 @@ set(VERSIONNUM              "${CURL_VERSION_NUM}")
 # * ENABLE_STATIC
 configure_file("${CURL_SOURCE_DIR}/curl-config.in"
                "${CURL_BINARY_DIR}/curl-config" @ONLY)
-install(FILES "${CURL_BINARY_DIR}/curl-config"
+do_not_install(FILES "${CURL_BINARY_DIR}/curl-config"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         PERMISSIONS
           OWNER_READ OWNER_WRITE OWNER_EXECUTE
@@ -1683,11 +1683,11 @@ install(FILES "${CURL_BINARY_DIR}/curl-config"
 # Finally generate a pkg-config file matching this config
 configure_file("${CURL_SOURCE_DIR}/libcurl.pc.in"
                "${CURL_BINARY_DIR}/libcurl.pc" @ONLY)
-install(FILES "${CURL_BINARY_DIR}/libcurl.pc"
+do_not_install(FILES "${CURL_BINARY_DIR}/libcurl.pc"
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 # install headers
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/curl"
+do_not_install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/curl"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h")
 
@@ -1716,14 +1716,14 @@ configure_package_config_file(CMake/curl-config.cmake.in
 )
 
 if(CURL_ENABLE_EXPORT_TARGET)
-  install(
+  do_not_install(
           EXPORT "${TARGETS_EXPORT_NAME}"
           NAMESPACE "${PROJECT_NAME}::"
           DESTINATION ${CURL_INSTALL_CMAKE_DIR}
   )
 endif()
 
-install(
+do_not_install(
         FILES ${version_config} ${project_config}
         DESTINATION ${CURL_INSTALL_CMAKE_DIR}
 )
