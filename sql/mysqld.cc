@@ -8024,7 +8024,6 @@ static int init_server_components() {
   assert((uint)global_system_variables.binlog_format <=
          array_elements(binlog_format_names) - 1);
 
-  opt_server_id_mask = ~ulong(0);
   opt_server_id_mask =
       (opt_server_id_bits == 32) ? ~ulong(0) : (1 << opt_server_id_bits) - 1;
   if (server_id != (server_id & opt_server_id_mask)) {

@@ -349,6 +349,10 @@ class Ndb_binlog_thread : public Ndb_component {
       return load_fk_parents(dict);
     }
   } metadata_cache;
+
+#ifndef NDEBUG
+  void dbug_log_table_maps(Ndb *ndb, Uint64 current_epoch);
+#endif
 };
 
 /*

@@ -1,0 +1,73 @@
+include/rpl_init.inc [topology=1->6,2->3,5->7]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/rpl_connect.inc [creating source.1]
+include/rpl_connect.inc [creating source.2]
+include/rpl_connect.inc [creating replica.3]
+include/rpl_connect.inc [creating source.4]
+include/rpl_connect.inc [creating source.5]
+include/rpl_connect.inc [creating replica.6]
+include/rpl_connect.inc [creating replica.7]
+[connection source.1]
+CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, 'a');
+[connection source.2]
+INSERT INTO t1 VALUES (2, 'b');
+[connection source.4]
+SET sql_log_bin= OFF;
+INSERT INTO t1 VALUES (3, 'c');
+SET sql_log_bin= ON;
+INSERT INTO t1 VALUES (4, 'd');
+[connection source.5]
+INSERT INTO t1 VALUES (5, 'e');
+[connection replica.3]
+SELECT * FROM t1 ORDER BY k;
+k	c
+1	a
+2	b
+3	c
+4	d
+5	e
+[connection source.4]
+SELECT * FROM t1 ORDER BY k;
+k	c
+1	a
+2	b
+3	c
+4	d
+5	e
+[connection source.5]
+SELECT * FROM t1 ORDER BY k;
+k	c
+1	a
+2	b
+3	c
+4	d
+5	e
+[connection replica.7]
+# Must not have k = 3
+SELECT * FROM t1 ORDER BY k;
+k	c
+1	a
+2	b
+4	d
+5	e
+[connection replica.6]
+# Must not have k = 3
+SELECT * FROM t1 ORDER BY k;
+k	c
+1	a
+2	b
+4	d
+5	e
+Cleanup
+[connection source.1]
+DROP TABLE t1;
+include/rpl_end.inc

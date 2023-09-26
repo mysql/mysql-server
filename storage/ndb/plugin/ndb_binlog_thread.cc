@@ -336,3 +336,110 @@ bool Ndb_binlog_thread::Metadata_cache::load_fk_parents(
   m_fk_parent_tables = std::move(table_ids);
   return true;
 }
+
+#ifndef NDEBUG
+#include <tuple>
+
+#include "storage/ndb/plugin/ndb_anyvalue.h"
+#include "storage/ndb/plugin/ndb_require.h"
+
+// Write some rows with specific values for server_id, defined in the
+// any-value of each operation. This is to check the behavior of the
+// any-value filter in conjunction with the log-replica-updates option.
+void Ndb_binlog_thread::dbug_log_table_maps(Ndb *ndb, Uint64 current_epoch) {
+  static Uint64 last_epoch = 0;
+  static int step = 0;
+
+  enum {
+    NOLOG = 1,
+    READ_OP = 2,  // just another reserved bit
+  };
+
+  if (current_epoch <= last_epoch) {
+    // Wait until next epoch as each test transaction should be written to
+    // binlog in its own epoch transaction
+    return;
+  }
+  last_epoch = current_epoch;
+
+  // Build some rows (id, what, server-id, reserved)
+  std::vector<std::tuple<int, std::string, int, int>> rows;
+  switch (step++) {
+    case 0:  // non-replica
+      rows.emplace_back(1, "change from non replica", 0, 0);
+      break;
+    case 1:  // replica
+      rows.emplace_back(2, "change from replica", 37, 0);
+      break;
+    case 2:  // non-replica + replica
+      rows.emplace_back(3, "change from non replica", 0, 0);
+      rows.emplace_back(4, "change from replica", 37, 0);
+      break;
+    case 3:  // replica + replica
+      rows.emplace_back(5, "change from first replica", 26, 0);
+      rows.emplace_back(6, "change from second replica", 37, 0);
+      break;
+    case 4:  // replica + nologging
+      rows.emplace_back(7, "no logging change from replica", 37, NOLOG);
+      break;
+    case 5:  // non-replica + nologging
+      rows.emplace_back(8, "no logging change from non-replica", 0, NOLOG);
+      break;
+    case 6:  // replica + non-replica + nologging
+      rows.emplace_back(9, "change from replica", 37, 0);
+      rows.emplace_back(10, "no logging change from non-replica", 0, NOLOG);
+      break;
+    case 7:  // non-replica + nologging + reserved
+      rows.emplace_back(11, "no logging change from non-replica", 0, NOLOG);
+      rows.emplace_back(12, "read-op change from non-replica", 0, READ_OP);
+      break;
+    case 8:  // replica + nologging + reserved
+      rows.emplace_back(13, "no logging change from replica", 37, NOLOG);
+      rows.emplace_back(14, "read-op change from replica", 37, READ_OP);
+      break;
+    case 9:  // replica + non-replica + reserved
+      rows.emplace_back(15, "read-op change from non-replica", 0, READ_OP);
+      rows.emplace_back(16, "read-op change from replica", 37, READ_OP);
+      break;
+    default:
+      // Test completed, use SHOW BINLOG EVENTS from test and check that
+      // it matches.
+      return;
+      break;
+  }
+
+  // Open table created with:
+  // CREATE TABLE test_log_table_maps (
+  //   id INT PRIMARY KEY,
+  //   what VARCHAR(128)
+  // ) ENGINE = NDB;
+  Ndb_table_guard ndbtab_g(ndb, "test", "test_log_table_maps");
+  ndbcluster::ndbrequire(ndbtab_g.get_table() != nullptr);
+
+  // Write one or more rows to NDB. If written in the same NDB
+  // transaction they will also show in the same epoch transaction.
+  {
+    NdbTransaction *trans = ndb->startTransaction();
+    ndbcluster::ndbrequire(trans != nullptr);
+    for (const auto &row : rows) {
+      const auto [id, what, server_id, reserved] = row;
+      char buf[512];
+      ndb_pack_varchar(ndbtab_g.get_table(), 1, buf, what.c_str(),
+                       strlen(what.c_str()));
+      NdbOperation *op = trans->getNdbOperation(ndbtab_g.get_table());
+      ndbcluster::ndbrequire(op->insertTuple() == 0);
+      ndbcluster::ndbrequire(op->equal("id", id) == 0);
+      ndbcluster::ndbrequire(op->setValue("what", buf) == 0);
+      Uint32 any_value = 0;
+      ndbcluster_anyvalue_set_serverid(any_value, server_id);
+      if (reserved == NOLOG) ndbcluster_anyvalue_set_nologging(any_value);
+      if (reserved == READ_OP) ndbcluster_anyvalue_set_read_op(any_value);
+      ndbcluster::ndbrequire(op->setAnyValue(any_value) == 0);
+    }
+    if (trans->execute(NdbTransaction::Commit)) {
+      log_ndb_error(const_cast<NdbError &>(trans->getNdbError()));
+    }
+    trans->close();
+  }
+}
+#endif

@@ -1,0 +1,133 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config.cluster1]
+NoOfReplicas=                  1
+ndbd=
+ndb_mgmd=
+mysqld=,
+ndbapi=,
+
+[cluster_config.cluster2]
+NoOfReplicas=                  1
+ndbd=
+ndb_mgmd=
+mysqld=,,
+ndbapi=,,
+
+[cluster_config.cluster3]
+NoOfReplicas=                  1
+ndbd=
+ndb_mgmd=
+mysqld=,
+ndbapi=,
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+ndb-wait-connected=30
+ndb-wait-setup=60
+replica-allow-batching
+ndb-log-orig
+# Turn on bin logging
+ndb-log-bin=1
+# for performance reasons
+ndb-table-temporary=1
+ndb-extra-logging=99
+ndb-log-apply-status=ON
+# Set error log verbosity to max, otherwise info messages
+# are filtered away
+log-error-verbosity=3
+binlog-format=row
+replica-parallel-workers=1
+
+[cluster_config.mysqld.1.cluster1]
+NodeId=10
+Dedicated=1
+
+[cluster_config.mysqld.2.cluster1]
+NodeId=11
+Dedicated=1
+
+[cluster_config.ndbapi.1.cluster1]
+NodeId=12
+Dedicated=1
+
+[cluster_config.mysqld.1.cluster2]
+NodeId=20
+Dedicated=1
+
+[cluster_config.mysqld.2.cluster2]
+NodeId=21
+Dedicated=1
+
+[cluster_config.mysqld.3.cluster2]
+NodeId=22
+Dedicated=1
+
+[cluster_config.mysqld.1.cluster3]
+NodeId=30
+Dedicated=1
+
+[cluster_config.mysqld.2.cluster3]
+NodeId=31
+Dedicated=1
+
+[cluster_config.ndbapi.1.cluster3]
+NodeId=32
+Dedicated=1
+
+[mysqld.1.cluster1]
+ndb-nodeid=10
+log-bin=                        cluster1-bin
+server_id=                      1
+log-replica-updates=            OFF
+
+[mysqld.2.cluster1]
+ndb-nodeid=11
+log-bin=                        cluster1-bin
+server_id=                      2
+log-replica-updates=            OFF
+
+[mysqld.1.cluster2]
+ndb-nodeid=20
+server_id=                      4
+log-bin=                        cluster2-bin
+relay-log=                      cluster2-relay-bin
+log-replica-updates=            ON
+
+[mysqld.2.cluster2]
+ndb-nodeid=21
+server_id=                      8
+log-bin=                        cluster2-bin
+log-replica-updates=            OFF
+
+[mysqld.3.cluster2]
+ndb-nodeid=22
+server_id=                      16
+log-bin=                        cluster2-bin
+log-replica-updates=            OFF
+
+[mysqld.1.cluster3]
+ndb-nodeid=30
+server_id=                      32
+log-bin=                        cluster3-bin
+relay-log=                      cluster3-relay-bin
+log-replica-updates=            ON
+
+[mysqld.2.cluster3]
+ndb-nodeid=31
+server_id=                      64
+log-bin=                        cluster3-bin
+relay-log=                      cluster3-relay-bin
+log-replica-updates=            ON
+
+[ENV]
+SERVER_MYPORT_1=              @mysqld.1.cluster1.port
+SERVER_MYPORT_2=              @mysqld.2.cluster1.port
+SERVER_MYPORT_3=              @mysqld.1.cluster2.port
+SERVER_MYPORT_4=              @mysqld.2.cluster2.port
+SERVER_MYPORT_5=              @mysqld.3.cluster2.port
+SERVER_MYPORT_6=              @mysqld.1.cluster3.port
+SERVER_MYPORT_7=              @mysqld.2.cluster3.port
+NUM_MYSQLD=                   7

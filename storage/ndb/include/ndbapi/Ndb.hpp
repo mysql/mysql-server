@@ -1512,6 +1512,26 @@ public:
                            Uint32* event_types,
                            Uint32* cumulative_any_value);
 
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  In event_types
+   * it returns bitmask of received event types.  In
+   * cumulative_any_value it returns a merged value of received
+   * any_value(s) to show what bits were set for all operations of a
+   * specific table. In filtered_any_value it returns a union of the
+   * received any_value(s) as filtered by the event operations
+   * any_value filter function.
+   */
+  const NdbEventOperation*
+    getNextEventOpInEpoch4(Uint32* iter,
+                           Uint32& event_types,
+                           Uint32& cumulative_any_value,
+                           Uint32& filtered_any_value) const;
+
+
   /** Get the highest epoch that have entered into the event queue.
    * This value can be higher than the epoch returned by the last
    * pollEvents() call, if new epochs have been received and queued later.

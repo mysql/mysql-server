@@ -2343,12 +2343,27 @@ Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 
 const NdbEventOperation*
 Ndb::getNextEventOpInEpoch3(Uint32* iter, Uint32* event_types,
-                           Uint32* cumulative_any_value)
+                            Uint32* cumulative_any_value)
 {
-  NdbEventOperationImpl* op =
-    theEventBuffer->getEpochEventOperations(iter, event_types, cumulative_any_value);
-  if (op != nullptr)
+  Uint32 zero = 0; // used as buffer
+  if (cumulative_any_value == nullptr) {
+    cumulative_any_value = &zero;
+  }
+  if (event_types == nullptr) {
+    event_types = &zero;
+  }
+  return getNextEventOpInEpoch4(iter, *event_types, *cumulative_any_value, zero);
+}
+
+const NdbEventOperation
+*Ndb::getNextEventOpInEpoch4(Uint32 *iter, Uint32 &event_types,
+                             Uint32 &cumulative_any_value,
+                             Uint32 &filtered_any_value) const {
+  NdbEventOperationImpl *op = theEventBuffer->getEpochEventOperations(
+      iter, event_types, cumulative_any_value, filtered_any_value);
+  if (op != nullptr) {
     return op->m_facade;
+  }
   return nullptr;
 }
 
