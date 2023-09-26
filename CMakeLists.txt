@@ -976,9 +976,12 @@ OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
   ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
 
-# On windows we need a non-standard package for CURL.
-IF(WITH_INTERNAL AND UNIX)
-  SET(WITH_CURL_DEFAULT "system")
+IF(WITH_INTERNAL)
+  IF(UNIX)
+    SET(WITH_CURL_DEFAULT "system")
+  ELSE()
+    SET(WITH_CURL_DEFAULT "bundled")
+  ENDIF()
 ELSE()
   SET(WITH_CURL_DEFAULT "none")
 ENDIF()
