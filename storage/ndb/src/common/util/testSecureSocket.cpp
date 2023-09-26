@@ -201,6 +201,7 @@ private:
 class TlsService : public SocketServer::Service {
 public:
   TlsService(bool sink);
+  ~TlsService() override { if (m_ssl_ctx) SSL_CTX_free(m_ssl_ctx); }
   EchoSession * newSession(NdbSocket&& s) override {
     return new EchoSession(std::move(s), m_sink, m_ssl_ctx);
   }
@@ -252,6 +253,9 @@ TlsService::TlsService(bool sink) : m_sink(sink) {
   /* Set the cipher list */
   r = SSL_CTX_set_cipher_list(m_ssl_ctx, cipher_list);
   require(r);
+
+  EVP_PKEY_free(tls_key);
+  X509_free(tls_cert);
 }
 
 int TlsService::on_ssl_verify(int r, X509_STORE_CTX *) {
