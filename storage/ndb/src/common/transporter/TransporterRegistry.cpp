@@ -967,8 +967,7 @@ SendStatus TransporterRegistry::prepareSendTemplate(
     AnySectionArg section) {
   assert(t != nullptr);
 
-  if (likely((ioStates[nodeId] != HaltOutput) &&
-             (ioStates[nodeId] != HaltIO)) ||
+  if (likely(!(ioStates[nodeId] & HaltOutput)) ||
       (signalHeader->theReceiversBlockNumber == QMGR) ||
       (signalHeader->theReceiversBlockNumber == API_CLUSTERMGR)) {
     const TrpId trp_id = t->getTransporterIndex();
