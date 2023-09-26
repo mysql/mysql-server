@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,22 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   return (int)my_recv(socket, &buf[0], buflen, 0);
 }
 
+/*
+ * On success readln_socket will read one line of data into buf.
+ * At most (buflen-2) characters plus new line character ('\n') and null
+ * termination ('\0').
+ * Input line can be terminated using "\r\n" but will be returned as '\n'.
+ * The return value will be the line length including the new line character.
+ * Furthermore the elapsed time (*time) will always be set to zero.
+ *
+ * If nothing was read until timeout, 0 will be returned and *time will contain
+ * the elapsed time.
+ *
+ * If some data have been read when timeout, failure (-1) will be returned and
+ * the amount of read data will *not* be indicated to caller in any way.
+ *
+ * Note that if buflen is less than two, 0 will be returned, not -1.
+ */
 extern "C"
 int
 readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
@@ -90,12 +106,11 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   if (res <= 0)
     return res;
 
-  char* ptr = buf;
-  int len = buflen;
-  do
-  {
-    int t;
-    while((t = (int)my_recv(socket, ptr, len, MSG_PEEK)) == -1
+  char* buf_free_ptr = buf;
+  int buf_free_len = buflen;
+  for (;;) {
+    ssize_t t;
+    while((t = my_recv(socket, buf_free_ptr, buf_free_len, MSG_PEEK)) == -1
           && socket_errno == EINTR);
     
     if(t < 1)
@@ -103,53 +118,27 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       return -1;
     }
 
-    
-    for(int i = 0; i<t; i++)
-    {
-      if(ptr[i] == '\n')
-      {
-	/**
-	 * Now consume
-	 */
-	for (len = 1 + i; len; )
-	{
-	  while ((t = (int)my_recv(socket, ptr, len, 0)) == -1
-                 && socket_errno == EINTR);
-	  if (t < 1)
-	    return -1;
-	  ptr += t;
-	  len -= t;
-	}
-	if (t > 1 && ptr[-2] == '\r')
-	{
-	  ptr[-2] = '\n';
-          ptr[-1] = '\0';
-	  ptr--;
-	}
+    int i = 0;
+    while (i < t && buf_free_ptr[i++] != '\n') { ; }
 
-        *time = 0;
-
-	ptr[0]= 0;
-	return (int)(ptr - buf);
-      }
-    }
+    /* consume peeked data up to end of line or eveything */
+    for (int j = i; j > 0; ) {
+      ssize_t t;
+      while((t = my_recv(socket, buf_free_ptr, j, 0)) == -1
+            && socket_errno == EINTR);
     
-    for (int tmp = t; tmp; )
-    {
-      while ((t = (int)my_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
-      if (t < 1)
+      if(t < 1)
       {
-	return -1;
+        return -1;
       }
-      ptr += t;
-      len -= t;
-      tmp -= t;
-      if (t > 0 && buf[t-1] == '\r')
-      {
-        buf[t-1] = '\n';
-        ptr--;
-      }
+
+      buf_free_ptr += t;
+      buf_free_len -= t;
+      j -= t;
     }
+
+    if (buf_free_ptr[-1] == '\n') break;
+    if (buf_free_len == 0) return -1; // End of line not found
 
     if (poll_socket(socket, true, false, timeout_millis, time) != 1)
     {
@@ -157,10 +146,29 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       // used up => return error
       return -1;
     }
+  }
 
-  } while (len > 0);
-  
-  return -1;
+  assert(buf_free_ptr[-1] == '\n');
+
+  if (buf_free_len == 0) {
+    if (buf_free_ptr[-2] != '\r')
+      return -1; // Too long line
+    buf_free_ptr--;
+    buf_free_len++;
+    buf_free_ptr[-1] = '\n';
+  }
+  else if (buf_free_ptr > buf + 2) {
+    if (buf_free_ptr[-2] == '\r') {
+      buf_free_ptr--;
+      buf_free_len++;
+      buf_free_ptr[-1] = '\n';
+    }
+  }
+  assert(buf_free_len >= 1);
+  buf_free_ptr[0] = 0;
+
+  *time = 0;
+  return (int)(buf_free_ptr - buf);
 }
 
 extern "C"
