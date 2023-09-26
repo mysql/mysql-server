@@ -739,6 +739,17 @@ size_t Table_access_impl::add_table(const char *schema_name,
 }
 
 int Table_access_impl::begin() {
+  /*
+    Read lock must be acquired during entire open_and_lock_tables function
+    call, because shutdown process can make its internals unavailable in the
+    middle of the call. If tables are acquired before the shutdown process, the
+    shutdown process will not deallocate internals until tables are closed.
+   */
+  rwlock_scoped_lock rdlock(&LOCK_server_shutting_down, false, __FILE__,
+                            __LINE__);
+
+  if (server_shutting_down) return TA_ERROR_OPEN;
+
   if (m_write && m_parent_thd != nullptr) {
     if (m_parent_thd->global_read_lock.is_acquired()) {
       /*
