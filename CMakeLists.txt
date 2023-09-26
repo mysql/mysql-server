@@ -914,9 +914,12 @@ IF(NOT WITH_AUTHENTICATION_WEBAUTHN AND
   SET(WITH_FIDO "none" CACHE STRING "fido2 is disabled")
 ENDIF()
 
-# On windows we need a non-standard package for CURL.
-IF(WITH_INTERNAL AND UNIX)
-  SET(WITH_CURL_DEFAULT "system")
+IF(WITH_INTERNAL)
+  IF(UNIX)
+    SET(WITH_CURL_DEFAULT "system")
+  ELSE()
+    SET(WITH_CURL_DEFAULT "bundled")
+  ENDIF()
 ELSE()
   SET(WITH_CURL_DEFAULT "none")
 ENDIF()
