@@ -128,13 +128,6 @@ retry_transaction:
   return result;
 }
 
-/**
- * Perform a transaction in the bank. 
- * Ie. transfer money from one account to another.
- *
- * @param 
- * @return 0 if successful or an error code
- */
 int Bank::performTransaction(int fromAccountId,
 			     int toAccountId,
 			     int amount ){
