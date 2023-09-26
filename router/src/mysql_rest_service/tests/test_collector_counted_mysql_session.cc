@@ -1,5 +1,4 @@
-/*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,36 +21,40 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_MEDIA_TYPE_H_
-#define ROUTER_SRC_REST_MRS_SRC_HELPER_MEDIA_TYPE_H_
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include <string>
+#include <chrono>  // NOLINT(build/c++11)
+#include <thread>  // NOLINT(build/c++11)
 
-namespace helper {
+#include "collector/counted_mysql_session.h"
+#include "helper/make_shared_ptr.h"
+#include "mrs/database/helper/query_gtid_executed.h"
 
-enum MediaType {
-  typeUnknownBinary,
-  typeUnknownText,
-  typePlain,
-  typeHtml,
-  typeJs,
-  typeCss,
-  typePng,
-  typeJpg,
-  typeIco,
-  typeGif,
-  typeBmp,
-  typeAvi,
-  typeWav,
-  typeJson,
-  typeXieee754ClientJson,
-  typeSvg,
+using CountedMySQLSession = collector::CountedMySQLSession;
+
+static int get_env_int(const char *name) {
+  auto env = getenv(name);
+  if (!env) throw std::runtime_error("Enverioment variable not set.");
+
+  return atoi(env);
+}
+
+class CountedMySQLSessionTests : public testing::Test {
+ public:
+  helper::MakeSharedPtr<CountedMySQLSession> sut_;
 };
 
-const char *get_mime_name(MediaType mt);
+TEST_F(CountedMySQLSessionTests, first_test) {
+  auto port = get_env_int("PORT");
 
-std::string to_string(MediaType mt);
+  sut_->connect("127.0.0.1", port, "root", "", {}, {});
 
-}  // namespace helper
+  auto result = mrs::database::get_gtid_executed(sut_.get());
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_MEDIA_TYPE_H_
+  std::cout << "size:" << result.size() << "\n";
+
+  for (const auto &a : result) {
+    std::cout << "element:" << a.to_string() << "\n";
+  }
+}

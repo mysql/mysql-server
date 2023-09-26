@@ -37,7 +37,10 @@ class Error {
   using Status = HttpStatusCode::key_type;
 
  public:
-  Error(const Status s, const std::string &m) : status{s}, message{m} {}
+  template <typename... T>
+  Error(const Status s, const std::string &m, const T &... t) : status{s} {
+    message = (m + ... + t);
+  }
 
   Error(const Status s)
       : status{s}, message{HttpStatusCode::get_default_status_text(s)} {}

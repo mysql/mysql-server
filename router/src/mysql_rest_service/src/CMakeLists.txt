@@ -82,6 +82,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   collector/counted_mysql_session.cc
   collector/mysql_cache_manager.cc
   helper/media_detector.cc
+  helper/media_type.cc
   helper/json/to_string.cc
   helper/json/to_sqlstring.cc
   helper/json/jvalue.cc
@@ -108,6 +109,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/json/response_sp_json_template_unnest.cc
   mrs/json/response_sp_json_template_nest.cc
   mrs/http/cookie.cc
+  mrs/http/header_accept.cc
   mrs/http/utilities.cc
   mrs/http/session_manager.cc
   mrs/users/user_manager.cc

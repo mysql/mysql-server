@@ -31,6 +31,7 @@
 #include "helper/http/url.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
+#include "mrs/http/header_accept.h"
 #include "mrs/interface/authorize_handler.h"
 #include "mrs/interface/authorize_manager.h"
 
@@ -41,18 +42,23 @@ struct RequestContext {
   using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
   using AuthUser = mrs::database::entry::AuthUser;
   using Url = helper::http::Url;
+  using HeaderAccept = mrs::http::HeaderAccept;
 
   RequestContext(interface::AuthorizeManager *auth_manager = nullptr)
       : auth_manager_{auth_manager} {}
   RequestContext(HttpRequest *r,
                  interface::AuthorizeManager *auth_manager = nullptr)
-      : request{r}, auth_manager_{auth_manager} {}
+      : request{r},
+        auth_manager_{auth_manager},
+        accepts{get_in_headers().get("Accept")} {}
 
   HttpRequest *request{nullptr};
   http::Cookie cookies{request};
   SqlSessionCached sql_session_cache;
   interface::AuthorizeManager *auth_manager_;
   std::shared_ptr<interface::AuthorizeHandler> selected_handler;
+
+  HeaderAccept accepts;
   AuthUser user;
   bool post_authentication{false};
 

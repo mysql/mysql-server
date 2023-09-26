@@ -32,6 +32,7 @@
 namespace helper {
 
 enum JsonType { kNull, kBool, kString, kNumeric, kJson, kBlob };
+
 struct ColumnType {
   enum_field_types type_mysql{MYSQL_TYPE_NULL};
   JsonType type_json{JsonType::kNull};

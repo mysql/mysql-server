@@ -56,6 +56,21 @@ class JsonTemplate {
 
   virtual void flush() = 0;
   virtual std::string get_result() = 0;
+
+ protected:
+  static bool should_encode_numeric_as_string(enum_field_types field_type) {
+    switch (field_type) {
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+      case MYSQL_TYPE_DECIMAL:
+        return true;
+      default:
+        return false;
+    }
+
+    return false;
+  }
 };
 
 enum class JsonTemplateType { kStandard, kObjectNested, kObjectUnnested };
@@ -63,7 +78,8 @@ class JsonTemplateFactory {
  public:
   virtual ~JsonTemplateFactory() = default;
   virtual std::shared_ptr<JsonTemplate> create_template(
-      const JsonTemplateType type = JsonTemplateType::kStandard) const = 0;
+      const JsonTemplateType type = JsonTemplateType::kStandard,
+      const bool encode_bigints_as_strings = false) const = 0;
 };
 
 }  // namespace database

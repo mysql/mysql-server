@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,8 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestTable>,
               create_query_table, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestTableSingleRow>,
-              create_query_table_single_row, (), (override));
+              create_query_table_single_row, (bool encode_bigints_as_string),
+              (override));
   // MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestObjectInsert>,
   //             create_query_object_insert, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestSP>, create_query_sp, (),

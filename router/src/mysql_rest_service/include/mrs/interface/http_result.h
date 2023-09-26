@@ -46,7 +46,7 @@ struct HttpResult {
 
   std::string response;
   HttpStatus status;
-  Type type{Type::typeDefault};
+  Type type{Type::typeJson};
   std::optional<std::string> type_text;
   std::string etag;
 };

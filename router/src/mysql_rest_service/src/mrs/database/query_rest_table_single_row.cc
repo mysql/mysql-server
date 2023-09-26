@@ -44,6 +44,9 @@ static void json_object_fast_append(std::string &jo, const std::string &key,
   jo.push_back('}');
 }
 
+QueryRestTableSingleRow::QueryRestTableSingleRow(bool encode_bigints_as_string)
+    : encode_bigints_as_string_{encode_bigints_as_string} {}
+
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
@@ -87,7 +90,8 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
 void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
     const PrimaryKeyColumnValues &pk, const std::string &url_route) {
-  JsonQueryBuilder qb(*field_filter_);
+  JsonQueryBuilder qb(*field_filter_, false, false, false,
+                      encode_bigints_as_string_);
   qb.process_object(object);
 
   std::vector<mysqlrouter::sqlstring> fields;

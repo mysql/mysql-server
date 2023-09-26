@@ -35,6 +35,12 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace json {
 
+namespace {
+
+const char *to_cstr(bool value) { return value ? "true" : "false"; }
+
+}  // namespace
+
 std::string ResponseJsonTemplate::get_result() {
   return serializer_.get_result();
 }
@@ -152,7 +158,21 @@ bool ResponseJsonTemplate::push_json_document(const ResultRow &values,
       continue;
     }
 
-    switch (columns[idx].type_json) {
+    auto type_json = columns[idx].type_json;
+
+    log_debug("encode_bigint_as_string:%s, isNumeric:%s",
+              to_cstr(encode_bigints_as_string_),
+              to_cstr(type_json == helper::JsonType::kNumeric));
+
+    if (encode_bigints_as_string_ && type_json == helper::JsonType::kNumeric) {
+      if (should_encode_numeric_as_string(columns[idx].type)) {
+        serializer_.member_add_value(columns[idx].name, values[idx],
+                                     helper::JsonType::kString);
+        continue;
+      }
+    }
+
+    switch (type_json) {
       case helper::JsonType::kBool:
         serializer_.member_add_value(
             columns[idx].name,

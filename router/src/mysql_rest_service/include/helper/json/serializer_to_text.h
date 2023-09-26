@@ -130,6 +130,9 @@ class SerializerToText {
   };
 
  public:
+  explicit SerializerToText(const bool bigint_encode_as_string = false)
+      : bigint_encode_as_string_{bigint_encode_as_string} {}
+
   std::string get_result() {
     writer_.Flush();
     return value_.str();
@@ -159,12 +162,24 @@ class SerializerToText {
   }
 
   SerializerToText &operator<<(const uint64_t value) {
-    writer_.Uint64(value);
+    if (!bigint_encode_as_string_) {
+      writer_.Uint64(value);
+    } else {
+      auto str = std::to_string(value);
+      writer_.String(str.c_str(), str.length());
+    }
     return *this;
   }
 
   SerializerToText &operator<<(const int64_t value) {
-    writer_.Int64(value);
+    if (!bigint_encode_as_string_) {
+      writer_.Int64(value);
+    } else {
+      auto str = std::to_string(value);
+      writer_.String(str.c_str(), str.length());
+    }
+    return *this;
+
     return *this;
   }
 
@@ -195,6 +210,7 @@ class SerializerToText {
         break;
 
       case JsonType::kNumeric:
+        // This functions should take into account `bigint_encode_as_string_`.
         writer_.RawValue(value, length, rapidjson::kNumberType);
         break;
 
@@ -284,6 +300,7 @@ class SerializerToText {
     add_value(value, ct);
   }
 
+  bool bigint_encode_as_string_{false};
   std::stringstream value_;
   rapidjson::OStreamWrapper ostream_{value_};
   rapidjson::Writer<rapidjson::OStreamWrapper> writer_{ostream_};

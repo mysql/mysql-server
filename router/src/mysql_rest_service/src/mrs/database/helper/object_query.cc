@@ -38,11 +38,15 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-static mysqlrouter::sqlstring format_pk(const std::string &table_name,
-                                        const std::string &column_name) {
+namespace {
+
+mysqlrouter::sqlstring format_pk(const std::string &table_name,
+                                 const std::string &column_name) {
   if (table_name.empty()) return mysqlrouter::sqlstring("!") << column_name;
   return mysqlrouter::sqlstring("!.!") << table_name << column_name;
 }
+
+}  // namespace
 
 mysqlrouter::sqlstring format_where_expr(
     std::shared_ptr<database::entry::Table> table,
@@ -271,6 +275,21 @@ static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
   return {value_only ? "!.!" : "?, !.!"};
 }
 
+static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
+                                               const std::string &datatype,
+                                               bool value_only,
+                                               bool bigints_as_string) {
+  if (bigints_as_string) {
+    if (type == entry::ColumnType::INTEGER &&
+        helper::icontains(datatype, "bigint"))
+      return {value_only ? "CONVERT(!.!,CHAR)" : "?, CONVERT(!.!, CHAR)"};
+    else if (type == entry::ColumnType::DOUBLE)
+      return {value_only ? "CONVERT(!.!,CHAR)" : "?, CONVERT(!.!, CHAR)"};
+  }
+
+  return get_field_format(type, value_only);
+}
+
 void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
   if (!m_filter.is_included(m_path_prefix, field->name)) return;
   if (!field->enabled) return;
@@ -283,7 +302,9 @@ void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
     m_select_items.append_preformatted_sep(", ", item);
     m_select_items.append_preformatted(subquery);
   } else if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
-    auto item = get_field_format(dfield->source->type, false);
+    log_debug("dfield->name:%s", dfield->name.c_str());
+    auto item = get_field_format(dfield->source->type, dfield->source->datatype,
+                                 false, m_bigins_as_string);
     item << dfield->name << dfield->source->table.lock()->table_alias
          << dfield->source->name;
     m_select_items.append_preformatted_sep(", ", item);
@@ -300,7 +321,9 @@ void JsonQueryBuilder::add_field_value(
     auto subquery = make_subquery(*rfield);
     m_select_items.append_preformatted_sep(", ", subquery);
   } else if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
-    auto item = get_field_format(dfield->source->type, true);
+    log_debug("dfield->name:%s", dfield->name.c_str());
+    auto item = get_field_format(dfield->source->type, dfield->source->datatype,
+                                 true, m_bigins_as_string);
     item << dfield->source->table.lock()->table_alias << dfield->source->name;
     m_select_items.append_preformatted_sep(", ", item);
 

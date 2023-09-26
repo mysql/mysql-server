@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,9 @@ class InjectMockJsonTemplateFactory
 
  public:
   std::shared_ptr<JsonTemplate> create_template(
-      const JsonTemplateType type =
-          JsonTemplateType::kStandard) const override {
+      const JsonTemplateType type = JsonTemplateType::kStandard,
+      [[maybe_unused]] const bool encode_bigints_as_strings =
+          false) const override {
     JsonTemplate *ptr;
 
     switch (type) {

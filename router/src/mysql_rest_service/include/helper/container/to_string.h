@@ -25,15 +25,25 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_CONTAINER_TO_STRING_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_CONTAINER_TO_STRING_H_
 
+#include <cassert>
 #include <string>
 
 namespace helper {
+
+class DummyType {};
+
+inline std::string to_string(const DummyType &) {
+  assert(false && "Not usable, defined just to compile the code below.");
+  return {};
+}
+
 namespace container {
 
 inline std::string to_string(const std::string &result) { return result; }
 
 template <typename PairFirst, typename PairSecond>
 std::string to_string(const std::pair<PairFirst, PairSecond> &pair) {
+  using helper::to_string;
   using helper::container::to_string;
   using std::to_string;
   std::string result;
@@ -45,6 +55,7 @@ std::string to_string(const std::pair<PairFirst, PairSecond> &pair) {
 
 template <typename Container>
 std::string to_string(const Container &container) {
+  using helper::to_string;
   using helper::container::to_string;
   using std::to_string;
   std::string result;

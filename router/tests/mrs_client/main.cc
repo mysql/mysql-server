@@ -333,6 +333,13 @@ std::vector<CmdOption> g_options{
        }
      }},
 
+    {{"--accept"},
+     "Set the mime-type, that client can process.",
+     CmdOptionValueReq::required,
+     "meta_accept",
+     [](const std::string &value) { g_configuration.accept = value; },
+     [](const std::string &) {}},
+
     {{"--payload"},
      "Set the request body for POST, PUT requests.",
      CmdOptionValueReq::required,
@@ -709,6 +716,10 @@ int main(int argc, char *argv[]) {
     IOContext ctx;
     HttpClientSession session{g_configuration.session_file};
     HttpClientRequest request{&ctx, &session, &url};
+
+    if (!g_configuration.accept.empty()) {
+      request.add_header("Accept", g_configuration.accept.c_str());
+    }
 
     auto result = execute_http_flow(request, url);
     validate_result(result);

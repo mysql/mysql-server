@@ -63,6 +63,46 @@ class UserIdContainer {
   uint64_t push_index_{0};
 };
 
+TEST(helper_string, icontains_returns_true) {
+  using helper::icontains;
+
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "Some"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "STRING"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "with"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "23"));
+
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "SOME"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "string"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "With"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "23"));
+  ASSERT_TRUE(icontains("Some STRING with NUMBERS 1 23 456", "456"));
+
+  ASSERT_TRUE(
+      icontains("Some STRING with NUMBERS 1 23 456", "e STRING with NUM"));
+  ASSERT_TRUE(
+      icontains("Some STRING with NUMBERS 1 23 456", "E STRING WITH NUM"));
+}
+
+TEST(helper_string, icontains_returns_false) {
+  using helper::icontains;
+
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "SomeX"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "XSTRING"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "with X"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "23-"));
+
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "-SOME"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "string-"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "-With"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "23-"));
+  ASSERT_FALSE(icontains("Some STRING with NUMBERS 1 23 456", "456X"));
+
+  ASSERT_FALSE(
+      icontains("Some STRING with NUMBERS 1 23 456", "e STRING withXNUM"));
+  ASSERT_FALSE(
+      icontains("Some STRING with NUMBERS 1 23 456", "E STRING WITH NUMX"));
+}
+
 TEST(helper_string_ends_with, basic) {
   ASSERT_FALSE(helper::ends_with("my first string", ""));
   ASSERT_FALSE(helper::ends_with("my first string", "first"));

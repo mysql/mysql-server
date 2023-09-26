@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_MOCK_MOCK_JSON_TEMPLATE_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_MOCK_MOCK_JSON_TEMPLATE_H_
 
-#include "src/mysql_rest_service/include/mrs/database/json_template.h"
+#include <memory>
+
+#include "mrs/database/json_template.h"
 
 namespace mrs {
 namespace database {
@@ -59,10 +61,13 @@ namespace database {
 
 class MockJsonTemplateFactory : public JsonTemplateFactory {
  public:
-  MOCK_METHOD(std::unique_ptr<JsonTemplate>, create_template, (),
+  MOCK_METHOD(std::shared_ptr<JsonTemplate>, create_template,
+              (const JsonTemplateType type,
+               const bool encode_bigints_as_strings),
               (const, override));
 };
 
 }  // namespace database
 }  // namespace mrs
+
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_MOCK_MOCK_JSON_TEMPLATE_H_

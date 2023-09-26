@@ -45,6 +45,8 @@ class QueryRestTableSingleRow : private QueryLog {
   using PrimaryKeyColumnValues = mrs::database::PrimaryKeyColumnValues;
 
  public:
+  explicit QueryRestTableSingleRow(bool encode_bigints_as_string = false);
+
   virtual void query_entries(MySQLSession *session,
                              std::shared_ptr<database::entry::Object> object,
                              const ObjectFieldFilter &field_filter,
@@ -61,6 +63,7 @@ class QueryRestTableSingleRow : private QueryLog {
   const ObjectFieldFilter *field_filter_;
   bool compute_etag_ = false;
   std::string metadata_gtid_{};
+  bool encode_bigints_as_string_;
 
   void on_row(const ResultRow &r) override;
   void build_query(std::shared_ptr<database::entry::Object> object,

@@ -69,6 +69,7 @@ struct ApplicationConfiguration {
   std::string session_file;
   std::string json_schema_file;
   std::string payload;
+  std::string accept;
   std::string write_to_file;
   WriteFileFormat write_format{WriteFileFormat::kRaw};
   bool help{false};

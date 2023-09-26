@@ -42,6 +42,9 @@ class ResponseSpJsonTemplateUnnest : public database::JsonTemplate {
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
+  explicit ResponseSpJsonTemplateUnnest(bool encode_bigints_as_string = false)
+      : encode_bigints_as_string_{encode_bigints_as_string} {}
+
   void begin_resultset(const std::string &url, const std::string &items_name,
                        const std::vector<helper::Column> &columns) override;
   void begin_resultset(uint32_t offset, uint32_t limit, bool is_default_limit,
@@ -62,9 +65,9 @@ class ResponseSpJsonTemplateUnnest : public database::JsonTemplate {
   bool count_check_if_push_is_allowed();
 
   // External data needed by the template
-  uint32_t offset_;
-  uint32_t limit_;
-  bool is_default_limit_;
+  uint32_t offset_{0};
+  uint32_t limit_{25};
+  bool is_default_limit_{false};
   bool limit_not_set_{false};
   std::string url_;
   bool full_stop_{false};
@@ -79,6 +82,7 @@ class ResponseSpJsonTemplateUnnest : public database::JsonTemplate {
   uint32_t pushed_documents_{0};
   bool began_{false};
   std::vector<helper::Column> columns_;
+  bool encode_bigints_as_string_{false};
 };
 
 }  // namespace json

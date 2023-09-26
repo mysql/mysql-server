@@ -28,10 +28,6 @@
 
 #include "mysqlrouter/base64.h"
 
-#include "mysql/harness/logging/logging.h"
-
-IMPORT_LOG_FUNCTIONS()
-
 namespace mrs {
 namespace json {
 
@@ -82,15 +78,12 @@ void ResponseSpJsonTemplateUnnest::finish() {
     }
   }
   json_root_ = JsonSerializer::Object();
-  log_debug("ResponseSpJsonTemplateUnnest::finish");
 }
 
 bool ResponseSpJsonTemplateUnnest::push_json_document(
     const ResultRow &values, const char *ignore_column) {
   auto &columns = columns_;
   assert(values.size() == columns.size());
-  log_debug("ResponseSpJsonTemplateUnnest::push_doc (fullstop=%s)",
-            (full_stop_ ? "yes" : "no"));
   if (full_stop_) return false;
 
   auto obj = json_root_items_->add_object();
@@ -98,12 +91,19 @@ bool ResponseSpJsonTemplateUnnest::push_json_document(
   for (size_t idx = 0; idx < values.size(); ++idx) {
     if (ignore_column && columns[idx].name == ignore_column) {
       ignore_column = nullptr;
-      log_debug("serialize skip name:%s", columns[idx].name.c_str());
       continue;
     }
 
-    log_debug("serialize jsong_type:%i, name:%s", (int)columns[idx].type_json,
-              columns[idx].name.c_str());
+    auto type_json = columns[idx].type_json;
+
+    if (encode_bigints_as_string_ && type_json == helper::JsonType::kNumeric) {
+      if (should_encode_numeric_as_string(columns[idx].type)) {
+        serializer_.member_add_value(columns[idx].name, values[idx],
+                                     helper::JsonType::kString);
+        continue;
+      }
+    }
+
     switch (columns[idx].type_json) {
       case helper::JsonType::kBool:
         serializer_.member_add_value(
@@ -113,8 +113,6 @@ bool ResponseSpJsonTemplateUnnest::push_json_document(
             columns[idx].type_json);
         break;
       case helper::JsonType::kBlob:
-        log_debug("values.get_data_size(idx=%i) = %i", (int)idx,
-                  (int)values.get_data_size(idx));
         serializer_.member_add_value(
             columns[idx].name,
             Base64::encode(

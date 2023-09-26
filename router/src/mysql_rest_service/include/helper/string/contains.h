@@ -38,6 +38,30 @@ bool contains(const String1 &value, const String2 &sst) {
   return nullptr != strstr(cstr(value), cstr(sst));
 }
 
+template <typename String1, typename String2>
+bool icontains(const String1 &value, const String2 &sst) {
+  auto sv = helper::string::size(value);
+  auto ss = helper::string::size(sst);
+
+  if (ss > sv) return false;
+
+  auto serach_break_at = sv - ss;
+
+  size_t found_chars = 0;
+  for (size_t i = 0; i < sv && found_chars != ss; ++i) {
+    if (!found_chars && (i > serach_break_at)) break;
+
+    if (tolower(value[i]) == tolower(sst[found_chars])) {
+      ++found_chars;
+      continue;
+    }
+
+    found_chars = 0;
+  }
+
+  return found_chars == ss;
+}
+
 inline bool ends_with(const std::string &value, const std::string &sst) {
   if (sst.empty()) return false;
 

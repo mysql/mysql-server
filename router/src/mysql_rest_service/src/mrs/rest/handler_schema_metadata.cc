@@ -58,7 +58,7 @@ HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   uint32_t offset = 0;
   uint32_t limit = k_default_limit;
   Url::Parameaters query_parameaters;
-  json::ResponseJsonTemplate response_template;
+  json::ResponseJsonTemplate response_template{false};
 
   Url::parse_query(requests_uri.get_query().c_str(), &query_parameaters);
   Url::parse_offset_limit(query_parameaters, &offset, &limit);

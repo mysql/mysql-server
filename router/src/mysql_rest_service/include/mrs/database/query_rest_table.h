@@ -54,7 +54,9 @@ class QueryRestTable : private QueryLog {
 
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
 
-  QueryRestTable(const JsonTemplateFactory *factory = nullptr);
+  QueryRestTable(const JsonTemplateFactory *factory = nullptr,
+                 bool encode_bigints_as_strings = false);
+  explicit QueryRestTable(bool encode_bigints_as_strings);
 
  public:
   virtual void query_entries(
@@ -84,6 +86,7 @@ class QueryRestTable : private QueryLog {
   mysqlrouter::sqlstring where_;
   bool metadata_received_{false};
   const JsonTemplateFactory *factory_;
+  bool encode_bigints_as_strings_;
 
   void create_serializer();
   void on_row(const ResultRow &r) override;

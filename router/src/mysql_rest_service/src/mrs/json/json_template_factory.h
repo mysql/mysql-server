@@ -34,7 +34,8 @@ class JsonTemplateFactory : public database::JsonTemplateFactory {
  public:
   std::shared_ptr<database::JsonTemplate> create_template(
       const database::JsonTemplateType type =
-          database::JsonTemplateType::kStandard) const override;
+          database::JsonTemplateType::kStandard,
+      const bool encode_bigints_as_strings = false) const override;
 };
 
 }  // namespace json

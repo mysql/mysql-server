@@ -36,6 +36,7 @@
 #include "mysql/harness/string_utils.h"
 
 #include "helper/container/generic.h"
+#include "helper/container/to_string.h"
 #include "helper/http/url.h"
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/to_sqlstring.h"
@@ -67,7 +68,23 @@ using RowUserOwnership = mrs::database::entry::RowUserOwnership;
 using sqlstring = mysqlrouter::sqlstring;
 using SqlStrings = std::vector<sqlstring>;
 using Url = helper::http::Url;
+using MediaType = helper::MediaType;
+using HeaderAccept = mrs::http::HeaderAccept;
 using rapidjson::StringRef;
+
+MediaType validate_content_type_encoding(HeaderAccept *accepts) {
+  static const std::vector<MediaType> allowedMimeTypes{
+      MediaType::typeJson, MediaType::typeXieee754ClientJson};
+
+  auto allowed_type = accepts->is_acceptable(allowedMimeTypes);
+  if (!allowed_type.has_value()) {
+    throw mrs::http::Error(HttpStatusCode::NotAcceptable,
+                           "The request must accept one of: ",
+                           helper::container::to_string(allowedMimeTypes));
+  }
+
+  return allowed_type.value();
+}
 
 mysql_harness::TCPAddress get_tcpaddr(
     const collector::CountedMySQLSession::ConnectionParameters &c) {
@@ -138,6 +155,7 @@ namespace rest {
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 using MysqlCacheManager = collector::MysqlCacheManager;
 using MySQLConnection = collector::MySQLConnection;
+using MediaType = helper::MediaType;
 
 static CachedObject get_session(
     ::mysqlrouter::MySQLSession *, MysqlCacheManager *cache_manager,
@@ -207,6 +225,10 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
   database::ObjectFieldFilter field_filter;
   std::optional<std::string> target_field;
   auto pk = get_rest_pk_parameter(object, requests_uri);
+  const auto accepted_content_type =
+      validate_content_type_encoding(&ctxt->accepts);
+  const bool encode_bigints_as_string =
+      accepted_content_type == MediaType::typeXieee754ClientJson;
 
   Url uri_param(requests_uri);
 
@@ -245,7 +267,7 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
       database::FilterObjectGenerator fog(object, true,
                                           get_options().query.wait,
                                           get_options().query.embed_wait);
-      database::QueryRestTable rest{};
+      database::QueryRestTable rest{encode_bigints_as_string};
 
       fog.parse(uri_param.get_query_parameter("q"));
       database::QueryRetryOnRW query_retry{route_->get_cache(),
@@ -282,7 +304,7 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
     return {std::move(rest.response), detected_type};
   } else {
     if (raw_value.empty()) {
-      database::QueryRestTableSingleRow rest;
+      database::QueryRestTableSingleRow rest(encode_bigints_as_string);
       log_debug(
           "Rest select single row %s",
           database::format_key(object->get_base_table(), pk).str().c_str());
@@ -392,6 +414,8 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   auto addr = get_tcpaddr(session->get_connection_parameters());
 
   uint64_t count = 0;
+  const auto accepted_content_type =
+      validate_content_type_encoding(&ctxt->accepts);
 
   mrs::database::TableUpdater rest(object, row_ownership_info(ctxt, object));
 
@@ -452,7 +476,8 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
     }
   }
 
-  helper::json::SerializerToText stt;
+  helper::json::SerializerToText stt{accepted_content_type ==
+                                     MediaType::typeXieee754ClientJson};
   {
     auto obj = stt.add_object();
     obj->member_add_value("itemsDeleted", count);
@@ -464,7 +489,7 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
       }
     }
   }
-  return {stt.get_result(), helper::MediaType::typeJson};
+  return {stt.get_result(), accepted_content_type};
 }
 
 // Update, with insert possibility

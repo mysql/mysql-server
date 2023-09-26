@@ -76,11 +76,13 @@ class JsonQueryBuilder {
  public:
   explicit JsonQueryBuilder(const ObjectFieldFilter &filter,
                             bool for_update = false, bool for_checksum = false,
-                            bool all_fields = false)
+                            bool all_fields = false,
+                            bool for_bigins_as_string = false)
       : m_filter(filter),
         m_for_update(for_update),
         m_for_checksum(for_checksum),
-        m_all_fields(all_fields) {}
+        m_all_fields(all_fields),
+        m_bigins_as_string{for_bigins_as_string} {}
 
   void process_object(std::shared_ptr<entry::Object> object);
 
@@ -118,6 +120,7 @@ class JsonQueryBuilder {
   bool m_for_update = false;
   bool m_for_checksum = false;
   bool m_all_fields = false;
+  bool m_bigins_as_string = false;
 
   void process_object(std::shared_ptr<entry::Object> object,
                       const std::string &path_prefix);
