@@ -27,6 +27,7 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -34,7 +35,6 @@
 
 #include "field_types.h"
 #include "mem_root_deque.h"
-#include "my_bit.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -2245,7 +2245,7 @@ bool materialize_iterator::SpillState::compute_chunk_file_sets(
   // Ensure that the number of chunks is always a power of two. This allows
   // us to do some optimizations when calculating which chunk a row should
   // be placed in.
-  m_num_chunks = my_round_up_to_next_power(num_chunks);
+  m_num_chunks = std::bit_ceil(num_chunks);
   m_no_of_chunk_file_sets = (m_num_chunks + HashJoinIterator::kMaxChunks - 1) /
                             HashJoinIterator::kMaxChunks;
   m_current_chunk_file_set = 0;

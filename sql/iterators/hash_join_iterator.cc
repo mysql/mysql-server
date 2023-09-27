@@ -25,13 +25,13 @@
 #include <assert.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <utility>
 #include <vector>
 
 #include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "my_alloc.h"
-#include "my_bit.h"
 #include "my_xxhash.h"
 
 #include "my_inttypes.h"
@@ -464,7 +464,7 @@ static bool InitializeChunkFiles(size_t estimated_rows_produced_by_join,
   // Ensure that the number of chunks is always a power of two. This allows
   // us to do some optimizations when calculating which chunk a row should
   // be placed in.
-  const size_t num_chunks_pow_2 = my_round_up_to_next_power(num_chunks);
+  const size_t num_chunks_pow_2 = std::bit_ceil(num_chunks);
 
   assert(chunk_pairs != nullptr && chunk_pairs->empty());
   chunk_pairs->resize(num_chunks_pow_2);

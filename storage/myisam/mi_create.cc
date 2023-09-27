@@ -28,8 +28,8 @@
 #include <time.h>
 
 #include <algorithm>
+#include <bit>
 
-#include "my_bit.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -399,9 +399,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       share.state.rec_per_key_part[key_segs - 1] = 1L;
     length += key_length;
     /* Get block length for key, if defined by user */
-    block_length =
-        (keydef->block_length ? my_round_up_to_next_power(keydef->block_length)
-                              : myisam_block_size);
+    block_length = keydef->block_length ? std::bit_ceil(keydef->block_length)
+                                        : myisam_block_size;
     block_length = std::max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
     block_length = std::min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
@@ -499,8 +498,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   mi_int2store(share.state.header.unique_key_parts, unique_key_parts);
 
   mi_set_all_keys_active(share.state.key_map, keys);
-  aligned_key_start = my_round_up_to_next_power(
-      max_key_block_length ? max_key_block_length : myisam_block_size);
+  aligned_key_start = std::bit_ceil(max_key_block_length ? max_key_block_length
+                                                         : myisam_block_size);
 
   share.base.keystart = share.state.state.key_file_length =
       MY_ALIGN(info_length, aligned_key_start);

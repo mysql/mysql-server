@@ -121,9 +121,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <bit>
 
 #include "keycache.h"
-#include "my_bit.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -241,9 +241,7 @@ static int fail_hlink(HASH_LINK *hlink);
 static int cache_empty(KEY_CACHE *keycache);
 #endif
 
-static inline uint next_power(uint value) {
-  return (uint)my_round_up_to_next_power((uint32)value) << 1;
-}
+static inline uint next_power(uint value) { return std::bit_ceil(value) << 1; }
 
 /*
   Initialize a key cache
