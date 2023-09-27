@@ -21,191 +21,119 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "auth_ldap_kerberos.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#ifndef _WIN32
-#include <krb5/krb5.h>
-#include <profile.h>
-#include <sasl/sasl.h>
-#endif
 
-Ldap_logger *g_logger_client = nullptr;
+#include <cstring>
 
-namespace auth_ldap_client_kerberos_context {
-Kerberos::Kerberos(const char *user, const char *password)
+#include "krb5_interface.h"
+
+namespace auth_ldap_sasl_client {
+
+Kerberos::Kerberos()
     : m_initialized(false),
-      m_user(user),
-      m_password(password),
       m_destroy_tgt(false),
       m_context(nullptr),
       m_krb_credentials_cache(nullptr),
       m_credentials_created(false) {
-  if (g_logger_client == nullptr) {
-    g_logger_client = new Ldap_logger();
-  }
-  setup();
+  memset(&m_credentials, 0, sizeof(krb5_creds));
 }
 
 Kerberos::~Kerberos() { cleanup(); }
 
-void Kerberos::get_ldap_host(std::string &host) { host = m_ldap_server_host; }
+void Kerberos::get_ldap_host(std::string &host) {
+  if (initialize()) host = m_ldap_server_host;
+}
 
-bool Kerberos::setup() {
+bool Kerberos::initialize() {
   krb5_error_code res_kerberos = 0;
-  bool ret_val = false;
 
-  if (m_initialized) {
-    ret_val = true;
-    goto EXIT;
-  }
+  if (m_initialized) return true;
+
+  if (!krb5.initialize()) return false;
+
   log_dbg("Kerberos setup starting.");
-  if ((res_kerberos = krb5_init_context(&m_context)) != 0) {
-    log_info("SASL kerberos setup: failed to initialize context.");
+  if ((res_kerberos = krb5.krb5_init_context()(&m_context)) != 0) {
+    log_error("Failed to initialize Kerberos context.");
+    log(res_kerberos);
     goto EXIT;
   }
-  if ((res_kerberos = get_kerberos_config()) != 0) {
-    log_info(
-        "SASL kerberos setup: failed to get required details from "
-        "configuration file.");
+  if (!get_kerberos_config()) {
+    log_error(
+        "Failed to get required details from Kerberos configuration file.");
     goto EXIT;
   }
   m_initialized = true;
-  ret_val = true;
+  log_dbg("Kerberos object initialized successfully.");
 
 EXIT:
-  if (res_kerberos) {
-    log(res_kerberos);
-    cleanup();
+  if (!m_initialized && m_context) {
+    krb5.krb5_free_context()(m_context);
+    m_context = nullptr;
   }
-  return ret_val;
+  return m_initialized;
 }
 
 void Kerberos::cleanup() {
-  if (m_destroy_tgt && m_credentials_created) {
-    destroy_credentials();
+  if (m_credentials_created) {
+    if (m_destroy_tgt) destroy_credentials();
+    krb5.krb5_free_cred_contents()(m_context, &m_credentials);
+    m_credentials_created = false;
   }
 
-  if (m_krb_credentials_cache) {
-    krb5_cc_close(m_context, m_krb_credentials_cache);
-    m_krb_credentials_cache = nullptr;
-  }
+  close_default_cache();
 
   if (m_context) {
-    krb5_free_context(m_context);
+    krb5.krb5_free_context()(m_context);
     m_context = nullptr;
   }
-
   m_initialized = false;
 }
 
-krb5_error_code Kerberos::store_credentials() {
-  krb5_error_code res_kerberos = 0;
-  log_dbg("Store credentials starting.");
-  res_kerberos =
-      krb5_cc_store_cred(m_context, m_krb_credentials_cache, &m_credentials);
+bool Kerberos::open_default_cache() {
+  if (m_krb_credentials_cache != nullptr) return true;
+  krb5_error_code res_kerberos =
+      krb5.krb5_cc_default()(m_context, &m_krb_credentials_cache);
   if (res_kerberos) {
-    log_info("SASL kerberos store credentials: failed to store credentials. ");
+    log_error("Failed to open default Kerberos credentials cache.");
+    log(res_kerberos);
+    m_krb_credentials_cache = nullptr;
+    return false;
   }
-  return res_kerberos;
+  log_dbg("Default Kerberos credentials cache opened.");
+  return true;
 }
 
-krb5_error_code Kerberos::obtain_credentials() {
-  krb5_error_code res_kerberos = 0;
-  krb5_get_init_creds_opt *options = nullptr;
-  char *password = const_cast<char *>(m_password.c_str());
-  krb5_principal principal = nullptr;
-
-  log_dbg("Obtain credentials starting.");
-
-  if (m_credentials_created) {
-    log_info("SASL kerberos obtain credentials: already obtained credential.");
-    goto EXIT;
-  }
-
-  memset(&principal, 0, sizeof(krb5_principal));
-
-  /*
-    Full user name with domain name like, yashwant.sahu@oracle.com.
-    Parsed principal will be used for authentication and to check if user is
-    already authenticated.
-  */
-  if (!m_user.empty()) {
-    res_kerberos = krb5_parse_name(m_context, m_user.c_str(), &principal);
-  } else {
-    goto EXIT;
-  }
+void Kerberos::close_default_cache() {
+  if (!m_krb_credentials_cache) return;
+  krb5_error_code res_kerberos =
+      krb5.krb5_cc_close()(m_context, m_krb_credentials_cache);
   if (res_kerberos) {
-    log_info("SASL kerberos obtain credentials: failed to parse user name.");
-    goto EXIT;
+    log_error("Failed to close Kerberos credentials cache.");
+    log(res_kerberos);
   }
-  if (m_krb_credentials_cache == nullptr) {
-    res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
-  }
-  if (res_kerberos) {
-    log_info(
-        "SASL kerberos obtain credentials: failed to get default credentials "
-        "cache.");
-    goto EXIT;
-  }
-  memset(&m_credentials, 0, sizeof(m_credentials));
-  krb5_get_init_creds_opt_alloc(m_context, &options);
-  /*
-    Getting TGT from TGT server.
-  */
-  res_kerberos = krb5_get_init_creds_password(m_context, &m_credentials,
-                                              principal, password, nullptr,
-                                              nullptr, 0, nullptr, options);
-
-  if (res_kerberos) {
-    log_info("SASL kerberos obtain credentials: failed to obtain credentials.");
-    goto EXIT;
-  }
-  m_credentials_created = true;
-  /*
-    Verifying TGT.
-  */
-  res_kerberos = krb5_verify_init_creds(m_context, &m_credentials, nullptr,
-                                        nullptr, nullptr, nullptr);
-  if (res_kerberos) {
-    log_info("SASL kerberos obtain credentials: failed to verify credentials.");
-    goto EXIT;
-  }
-  log_dbg("Obtain credential successful");
-  if (principal) {
-    res_kerberos =
-        krb5_cc_initialize(m_context, m_krb_credentials_cache, principal);
-    if (res_kerberos) {
-      log_info(
-          "SASL kerberos store credentials: failed to initialize credentials "
-          "cache.");
-      goto EXIT;
-    }
-  }
-
-EXIT:
-  if (options) {
-    krb5_get_init_creds_opt_free(m_context, options);
-    options = nullptr;
-  }
-  if (principal) {
-    krb5_free_principal(m_context, principal);
-    principal = nullptr;
-  }
-  if (m_credentials_created && res_kerberos) {
-    krb5_free_cred_contents(m_context, &m_credentials);
-    m_credentials_created = false;
-  }
-  return res_kerberos;
+  m_krb_credentials_cache = nullptr;
 }
 
 bool Kerberos::obtain_store_credentials() {
-  bool ret_val = false;
   krb5_error_code res_kerberos = 0;
-  if (!m_initialized) {
-    log_dbg("Kerberos object is not initialized.");
-    goto EXIT;
+  krb5_principal principal = nullptr;
+  krb5_get_init_creds_opt *options = nullptr;
+  bool success = false;
+
+  if (!initialize()) return false;
+
+  /*
+    If valid credential exist, no need to obtain it again.
+    This is done for the performance reason. Default expiry of TGT is 24 hours
+    and this can be configured.
+  */
+  if (credentials_valid()) {
+    log_info(
+        "Existing Kerberos TGT is valid and will be used for authentication.");
+    return true;
   }
+
+  log_dbg("No valid Kerberos TGT exists.");
+
   /*
     Not attempting authentication as there are few security concern of active
     directory allowing users with empty password. End user may question this
@@ -214,105 +142,125 @@ bool Kerberos::obtain_store_credentials() {
     in server side plug-in.
   */
   if (m_user.empty() || m_password.empty()) {
-    log_info(
-        "SASL kerberos obtain and store TGT: empty user name or password.");
-    goto EXIT;
+    log_error("Cannot obtain Kerberos TGT: empty user name or password.");
+    return false;
   }
+
+  if (m_credentials_created) {
+    log_info("Kerberos credentials already obtained.");
+    return true;
+  }
+
+  log_dbg("Obtaining Kerberos credentials.");
+
   /*
-    If valid credential exist, no need to obtain it again.
-    This is done for the performance reason. Default expiry of TGT is 24 hours
-    and this can be configured.
+    Full user name with domain name like, yashwant.sahu@oracle.com.
+    Parsed principal will be used for authentication and to check if user is
+    already authenticated.
   */
-  if ((ret_val = credential_valid())) {
-    log_info("SASL kerberos obtain and store TGT: Valid TGT exists.");
+  principal = nullptr;
+  memset(&principal, 0, sizeof(krb5_principal));
+  res_kerberos = krb5.krb5_parse_name()(m_context, m_user.c_str(), &principal);
+  if (res_kerberos) {
+    log_error("Failed to parse user name.");
     goto EXIT;
   }
-  if ((res_kerberos = obtain_credentials()) != 0) {
-    log_info(
-        "SASL kerberos obtain and store TGT: failed to obtain "
-        "TGT/credentials.");
+
+  /*
+    Getting TGT from TGT server.
+  */
+  memset(&m_credentials, 0, sizeof(m_credentials));
+  res_kerberos = krb5.krb5_get_init_creds_opt_alloc()(m_context, &options);
+  if (res_kerberos) {
+    log_error("Failed to create Kerberos options.");
     goto EXIT;
   }
+  res_kerberos = krb5.krb5_get_init_creds_password()(
+      m_context, &m_credentials, principal, m_password.c_str(), nullptr,
+      nullptr, 0, nullptr, options);
+  if (res_kerberos) {
+    log_error("Failed to obtain Kerberos TGT.");
+    goto EXIT;
+  }
+  m_credentials_created = true;
+
+  /*
+    Verifying TGT.
+  */
+  res_kerberos = krb5.krb5_verify_init_creds()(
+      m_context, &m_credentials, nullptr, nullptr, nullptr, nullptr);
+  if (res_kerberos) {
+    log_error("Failed veryfying Kerberos TGT against the keytab.");
+    goto EXIT;
+  }
+
+  log_info("Kerberos TGT obtained for '", m_user.c_str(), "'.");
+
   /*
     Store the credentials in the default cache. Types can be file, memory,
     keyring etc. Administrator should change default cache based on there
     preference.
   */
-  if ((res_kerberos = store_credentials()) != 0) {
-    log_info(
-        "SASL kerberos obtain and store TGT: failed to store credentials.");
+
+  log_dbg("Store Kerberos credentials starting.");
+
+  /*
+    Open and initialize credentials cache.
+  */
+  if (!open_default_cache()) goto EXIT;
+  res_kerberos =
+      krb5.krb5_cc_initialize()(m_context, m_krb_credentials_cache, principal);
+  if (res_kerberos) {
+    log_error("Failed to initialize credentials cache.");
     goto EXIT;
   }
 
-  ret_val = true;
+  /*
+    Store the credentials.
+   */
+  res_kerberos = krb5.krb5_cc_store_cred()(m_context, m_krb_credentials_cache,
+                                           &m_credentials);
+  if (res_kerberos) {
+    log_error("Failed to store Kerberos credentials. ");
+    log(res_kerberos);
+    goto EXIT;
+  }
+
+  log_info("Kerberos credentials stored in the cache.");
+
+  /*
+    We need to close the cache to flush the credentials.
+   */
+  close_default_cache();
+
+  success = true;
 
 EXIT:
-  if (res_kerberos) {
-    ret_val = false;
-    log(res_kerberos);
+  if (res_kerberos) log(res_kerberos);
+
+  if (principal) {
+    krb5.krb5_free_principal()(m_context, principal);
+    principal = nullptr;
   }
-  /*
-    Storing the credentials.
-    We need to close the context to save the credentials successfully.
-   */
-  if (m_credentials_created && !m_destroy_tgt) {
-    krb5_free_cred_contents(m_context, &m_credentials);
-    m_credentials_created = false;
-    if (m_krb_credentials_cache) {
-      log_info("Storing credentials into cache, closing krb5 cc.");
-      krb5_cc_close(m_context, m_krb_credentials_cache);
-      m_krb_credentials_cache = nullptr;
-    }
+  if (options) {
+    krb5.krb5_get_init_creds_opt_free()(m_context, options);
+    options = nullptr;
   }
-  return ret_val;
+  return success;
 }
 
-/**
-  This method gets kerberos profile settings from krb5.conf file.
-  Sample krb5.conf file format may be like this:
-
-  [realms]
-  MEM.LOCAL = {
-    kdc = VIKING67.MEM.LOCAL
-    admin_server = VIKING67.MEM.LOCAL
-    default_domain = MEM.LOCAL
-    }
-
-  # This portion is optional
-  [appdefaults]
-  mysql = {
-    ldap_server_host = ldap_host.oracle.com
-    ldap_destroy_tgt = true
-  }
-
-  kdc:
-  The name or address of a host running a KDC for that realm.
-  An optional port number, separated from the hostname by a colon, may
-  be included. If the name or address contains colons (for example, if it is
-  an IPv6 address), enclose it in square brackets to distinguish the colon
-  from a port separator.
-
-  For example:
-  kdchost.example.com:88
-  [2001:db8:3333:4444:5555:6666:7777:8888]:88
-
-  Details from:
-  https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html
-
-  Host information is used by LDAP SASL client API while initialization.
-  LDAP SASL API doesn't need port information and port is not used any where.
-*/
 bool Kerberos::get_kerberos_config() {
   log_dbg("Getting kerberos configuration.");
   /*
     Kerberos profile category/sub-category names.
   */
-  const char realms_heading[] = "realms";
-  const char host_default[] = "";
-  const char apps_heading[] = "appdefaults";
-  const char mysql_apps[] = "mysql";
-  const char ldap_host_option[] = "ldap_server_host";
-  const char ldap_destroy_option[] = "ldap_destroy_tgt";
+  static const char realms_heading[] = "realms";
+  static const char host_default[] = "";
+  static const char apps_heading[] = "appdefaults";
+  static const char mysql_apps[] = "mysql";
+  static const char ldap_host_option[] = "ldap_server_host";
+  static const char ldap_destroy_option[] = "ldap_destroy_tgt";
+  static const char kdc_option[] = "kdc";
 
   krb5_error_code res_kerberos = 0;
   _profile_t *profile = nullptr;
@@ -322,15 +270,15 @@ bool Kerberos::get_kerberos_config() {
   /*
     Get default realm.
   */
-  res_kerberos = krb5_get_default_realm(m_context, &default_realm);
+  res_kerberos = krb5.krb5_get_default_realm()(m_context, &default_realm);
   if (res_kerberos) {
-    log_error("get_kerberos_config: failed to get default realm.");
+    log_error("Failed to get default realm from Kerberos configuration.");
     goto EXIT;
   }
 
-  res_kerberos = krb5_get_profile(m_context, &profile);
+  res_kerberos = krb5.krb5_get_profile()(m_context, &profile);
   if (res_kerberos) {
-    log_error("get_kerberos_config: failed to kerberos configurations.");
+    log_error("Failed to get Kerberos configuration profile.");
     goto EXIT;
   }
 
@@ -342,18 +290,19 @@ bool Kerberos::get_kerberos_config() {
     failed if failed to get LDAP server host.
   */
   res_kerberos =
-      profile_get_string(profile, apps_heading, mysql_apps, ldap_host_option,
-                         host_default, &host_value);
+      krb5.profile_get_string()(profile, apps_heading, mysql_apps,
+                                ldap_host_option, host_default, &host_value);
   if (res_kerberos || !strcmp(host_value, "")) {
     if (host_value) {
-      profile_release_string(host_value);
+      krb5.profile_release_string()(host_value);
       host_value = nullptr;
     }
-    res_kerberos = profile_get_string(profile, realms_heading, default_realm,
-                                      "kdc", host_default, &host_value);
+    res_kerberos =
+        krb5.profile_get_string()(profile, realms_heading, default_realm,
+                                  kdc_option, host_default, &host_value);
     if (res_kerberos) {
       if (host_value) {
-        profile_release_string(host_value);
+        krb5.profile_release_string()(host_value);
         host_value = nullptr;
       }
       log_error("get_kerberos_config: failed to get ldap server host.");
@@ -361,11 +310,8 @@ bool Kerberos::get_kerberos_config() {
     }
   }
   if (host_value) {
-    std::stringstream log_stream;
     m_ldap_server_host = host_value;
-    log_stream << "Kerberos configuration KDC : " << m_ldap_server_host;
-    log_info(log_stream.str());
-    log_stream.str("");
+    log_info("Kerberos configuration KDC : ", m_ldap_server_host.c_str());
     size_t pos = m_ldap_server_host.npos;
     /* IPV6 */
     if (m_ldap_server_host[0] == '[') {
@@ -383,9 +329,7 @@ bool Kerberos::get_kerberos_config() {
         m_ldap_server_host.erase(pos);
       }
     }
-    log_stream << "Processed Kerberos KDC: " << m_ldap_server_host;
-    log_info(log_stream.str());
-    log_stream.str("");
+    log_info("Processed Kerberos KDC: ", m_ldap_server_host.c_str());
   }
 
   /*
@@ -394,207 +338,172 @@ bool Kerberos::get_kerberos_config() {
     This value is consistent with kerberos authentication usage as TGT was
     supposed to be used till it expires.
   */
-  res_kerberos = profile_get_boolean(profile, realms_heading, default_realm,
-                                     ldap_destroy_option, m_destroy_tgt,
-                                     (int *)&m_destroy_tgt);
+  res_kerberos = krb5.profile_get_boolean()(profile, apps_heading, mysql_apps,
+                                            ldap_destroy_option, m_destroy_tgt,
+                                            (int *)&m_destroy_tgt);
   if (res_kerberos) {
     log_info(
         "get_kerberos_config: failed to get destroy TGT flag, default is set.");
   }
 
 EXIT:
-  profile_release(profile);
   if (host_value) {
-    profile_release_string(host_value);
+    krb5.profile_release_string()(host_value);
     host_value = nullptr;
   }
   if (default_realm) {
-    krb5_free_default_realm(m_context, default_realm);
+    krb5.krb5_free_default_realm()(m_context, default_realm);
     default_realm = nullptr;
   }
-  return res_kerberos;
+  if (profile) {
+    krb5.profile_release()(profile);
+    profile = nullptr;
+  }
+  return res_kerberos == 0;
 }
 
-bool Kerberos::credential_valid() {
+bool Kerberos::credentials_valid() {
   bool ret_val = false;
   krb5_error_code res_kerberos = 0;
   krb5_creds credentials;
-  krb5_timestamp krb_current_time;
+  krb5_timestamp krb_current_time = 0;
   bool credentials_retrieve = false;
   krb5_creds matching_credential;
-  std::stringstream info_stream;
   char *realm = nullptr;
 
   memset(&matching_credential, 0, sizeof(matching_credential));
   memset(&credentials, 0, sizeof(credentials));
 
-  if (m_krb_credentials_cache == nullptr) {
-    res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
-    if (res_kerberos) {
-      log_info("SASL kerberos setup: failed to get default credentials cache.");
-      goto EXIT;
-    }
-  }
+  if (!initialize()) goto EXIT;
+
+  log_info("Validating Kerberos credentials of '", m_user.c_str(), "'.");
+
+  if (!open_default_cache()) goto EXIT;
   /*
     Example credentials client principal: test3@MYSQL.LOCAL
     Example credentials server principal: krbtgt/MYSQL.LOCAL@MYSQL.LOCAL
   */
-  res_kerberos =
-      krb5_parse_name(m_context, m_user.c_str(), &matching_credential.client);
+  res_kerberos = krb5.krb5_parse_name()(m_context, m_user.c_str(),
+                                        &matching_credential.client);
   if (res_kerberos) {
-    log_info(
-        "SASL kerberos credentials valid: failed to parse client principal.");
+    log_error("Failed to parse Kerberos client principal.");
     goto EXIT;
   }
-  res_kerberos = krb5_get_default_realm(m_context, &realm);
+  res_kerberos = krb5.krb5_get_default_realm()(m_context, &realm);
   if (res_kerberos) {
-    log_info("SASL kerberos credentials valid: failed to get default realm.");
+    log_error("Failed to get default Kerberos realm.");
     goto EXIT;
   }
-  log_info(realm);
+  log_info("Default Kerberos realm is '", realm, "'.");
   res_kerberos =
-      krb5_build_principal(m_context, &matching_credential.server,
-                           strlen(realm), realm, "krbtgt", realm, NULL);
+      krb5.krb5_build_principal()(m_context, &matching_credential.server,
+                                  strlen(realm), realm, "krbtgt", realm, NULL);
   if (res_kerberos) {
-    log_info(
-        "SASL kerberos credentials valid: failed to build krbtgt principal.");
+    log_error("Failed to build Kerberos TGT principal.");
     goto EXIT;
   }
 
   /*
     Retrieving credentials using input parameters.
   */
-  res_kerberos = krb5_cc_retrieve_cred(m_context, m_krb_credentials_cache, 0,
-                                       &matching_credential, &credentials);
+  res_kerberos =
+      krb5.krb5_cc_retrieve_cred()(m_context, m_krb_credentials_cache, 0,
+                                   &matching_credential, &credentials);
   if (res_kerberos) {
-    log_info(
-        "SASL kerberos credentials valid: failed to retrieve credentials.");
+    log_info("Kerberos credentials not found in the cache.");
     goto EXIT;
   }
   credentials_retrieve = true;
   /*
     Getting current time from kerberos libs.
   */
-  res_kerberos = krb5_timeofday(m_context, &krb_current_time);
+  res_kerberos = krb5.krb5_timeofday()(m_context, &krb_current_time);
   if (res_kerberos) {
-    log_info(
-        "SASL kerberos credentials valid: failed to retrieve current time.");
+    log_error("Failed to retrieve current time.");
     goto EXIT;
   }
   /*
     Checking validity of credentials if it is still valid.
   */
   if (credentials.times.endtime < krb_current_time) {
-    log_info("SASL kerberos credentials valid: credentials are expired.");
+    log_info("Kerberos credentials expired.");
     goto EXIT;
-  } else {
-    ret_val = true;
-    log_info(
-        "SASL kerberos credentials valid: credentials are valid. New TGT will "
-        "not be obtained.");
   }
 
+  ret_val = true;
+  log_info("Kerberos credentials are valid. New TGT will not be obtained.");
+
 EXIT:
-  if (res_kerberos) {
-    ret_val = false;
-    log(res_kerberos);
-  }
+  if (res_kerberos) log(res_kerberos);
   if (realm) {
-    krb5_free_default_realm(m_context, realm);
+    krb5.krb5_free_default_realm()(m_context, realm);
     realm = nullptr;
   }
   if (matching_credential.server) {
-    krb5_free_principal(m_context, matching_credential.server);
+    krb5.krb5_free_principal()(m_context, matching_credential.server);
   }
   if (matching_credential.client) {
-    krb5_free_principal(m_context, matching_credential.client);
+    krb5.krb5_free_principal()(m_context, matching_credential.client);
   }
   if (credentials_retrieve) {
-    krb5_free_cred_contents(m_context, &credentials);
-  }
-  if (m_krb_credentials_cache) {
-    krb5_cc_close(m_context, m_krb_credentials_cache);
-    m_krb_credentials_cache = nullptr;
+    krb5.krb5_free_cred_contents()(m_context, &credentials);
   }
   return ret_val;
 }
 
 void Kerberos::destroy_credentials() {
-  log_dbg("SASL kerberos destroy credentials");
-  if (!m_destroy_tgt) {
-    log_dbg("SASL kerberos destroy credentials: destroy flag is false.");
-    return;
-  }
-  krb5_error_code res_kerberos = 0;
-  if (m_credentials_created) {
-    res_kerberos = krb5_cc_remove_cred(m_context, m_krb_credentials_cache, 0,
-                                       &m_credentials);
-    krb5_free_cred_contents(m_context, &m_credentials);
-    m_credentials_created = false;
-  }
-
+  if (!open_default_cache())
+    log_error("Failed to destroy Kerberos TGT, cannot open credentials cache.");
+  krb5_error_code res_kerberos = krb5.krb5_cc_remove_cred()(
+      m_context, m_krb_credentials_cache, 0, &m_credentials);
   if (res_kerberos) {
+    log_error("Failed to destroy Kerberos TGT.");
     log(res_kerberos);
   }
+  close_default_cache();
+  log_info("Kerberos TGT destroyed.");
 }
 
-bool Kerberos::get_user_name(std::string *name) {
+bool Kerberos::get_default_principal_name(std::string &name) {
   krb5_error_code res_kerberos = 0;
   krb5_principal principal = nullptr;
   krb5_context context = nullptr;
   char *user_name = nullptr;
-  std::stringstream log_stream;
 
-  if (!m_initialized) {
-    log_dbg("Kerberos object is not initialized.");
-    goto EXIT;
-  }
-  if (!name) {
-    log_dbg("Failed to get Kerberos user name.");
-    goto EXIT;
-  }
-  *name = "";
-  if (m_krb_credentials_cache == nullptr) {
-    res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
-    if (res_kerberos) {
-      log_info("SASL kerberos setup: failed to get default credentials cache.");
-      goto EXIT;
-    }
-  }
+  if (!initialize()) goto EXIT;
+
+  name = "";
+
+  if (!open_default_cache()) goto EXIT;
+
   /*
-    Getting default principal in the kerberos.
+    Getting default principal from the cache.
   */
-  res_kerberos =
-      krb5_cc_get_principal(m_context, m_krb_credentials_cache, &principal);
+  res_kerberos = krb5.krb5_cc_get_principal()(
+      m_context, m_krb_credentials_cache, &principal);
   if (res_kerberos) {
-    log_info("SASL get user name: failed to get principal.");
+    log_error("Failed to get default Kerberos principal.");
     goto EXIT;
   }
   /*
     Parsing user name from principal.
   */
-  res_kerberos = krb5_unparse_name(m_context, principal, &user_name);
+  res_kerberos = krb5.krb5_unparse_name()(m_context, principal, &user_name);
   if (res_kerberos) {
-    log_info("SASL get user name: failed to parse principal name.");
+    log_error("Failed to parse principal name.");
     goto EXIT;
-  } else {
-    log_stream << "SASL get user name: ";
-    log_stream << user_name;
-    log_info(log_stream.str());
-    *name = user_name;
   }
+
+  log_info("Default principal name is '", user_name, "'.");
+  name = user_name;
 
 EXIT:
   if (user_name) {
-    free(user_name);
+    krb5.krb5_free_unparsed_name()(context, user_name);
   }
   if (principal) {
-    krb5_free_principal(context, principal);
+    krb5.krb5_free_principal()(context, principal);
     principal = nullptr;
-  }
-  if (m_krb_credentials_cache) {
-    krb5_cc_close(m_context, m_krb_credentials_cache);
-    m_krb_credentials_cache = nullptr;
   }
   if (res_kerberos) {
     log(res_kerberos);
@@ -606,18 +515,13 @@ EXIT:
 
 void Kerberos::log(int error_code) {
   const char *err_message = nullptr;
-  std::stringstream error_stream;
   if (m_context) {
-    err_message = krb5_get_error_message(m_context, error_code);
+    err_message = krb5.krb5_get_error_message()(m_context, error_code);
   }
   if (err_message) {
-    error_stream << "LDAP SASL kerberos operation failed with error: "
-                 << err_message;
-  }
-  log_error(error_stream.str());
-  if (err_message) {
-    krb5_free_error_message(m_context, err_message);
+    log_info("Kerberos message: ", err_message);
+    krb5.krb5_free_error_message()(m_context, err_message);
   }
   return;
 }
-}  // namespace auth_ldap_client_kerberos_context
+}  // namespace auth_ldap_sasl_client

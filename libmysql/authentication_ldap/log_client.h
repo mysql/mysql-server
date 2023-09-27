@@ -20,22 +20,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LOG_H_
-#define LOG_H_
+#ifndef LOG_CLIENT_H_
+#define LOG_CLIENT_H_
 
 #include <stdio.h>
-#include <iostream>
+
 #include <sstream>
 
-struct ldap_log_type {
-  typedef enum {
-    LDAP_LOG_DBG,
-    LDAP_LOG_INFO,
-    LDAP_LOG_WARNING,
-    LDAP_LOG_ERROR
-  } ldap_type;
-};
+namespace auth_ldap_sasl_client {
 
+/**
+ LDAP plugin log levels type
+*/
 enum ldap_log_level {
   LDAP_LOG_LEVEL_NONE = 1,
   LDAP_LOG_LEVEL_ERROR,
@@ -44,69 +40,118 @@ enum ldap_log_level {
   LDAP_LOG_LEVEL_ALL
 };
 
+/**
+ Log writer class.
+*/
 class Ldap_log_writer_error {
  public:
+  /**
+   Constructor.
+  */
   Ldap_log_writer_error();
+  /**
+   Destructor.
+  */
   ~Ldap_log_writer_error();
-  void write(std::string data);
+  /**
+   Writes the data to the log.
+
+   @param data [in] the data
+  */
+  void write(const std::string &data);
 };
 
+/**
+ Class representing logger for LDAP plugins. Singleton.
+*/
 class Ldap_logger {
+  /** type of message to be logged */
+  using Message = std::initializer_list<const char *>;
+
  public:
-  Ldap_logger();
-  ~Ldap_logger();
-  template <ldap_log_type::ldap_type type>
-  void log(std::string msg);
-  void set_log_level(ldap_log_level level);
+  /**
+   Creates the logger object.
+
+   @param log_level [in] log level
+  */
+  static void create_logger(ldap_log_level log_level = LDAP_LOG_LEVEL_NONE);
+  /**
+   Destroys the logger object.
+  */
+  static void destroy_logger();
+  /**
+   Log a debug message.
+
+   @param msg [in] the message
+  */
+  static void log_dbg_msg(Message msg);
+  /**
+   Log an info message.
+
+   @param msg [in] the message
+  */
+  static void log_info_msg(Message msg);
+  /**
+   Log a warning message.
+
+   @param msg [in] the message
+  */
+  static void log_warning_msg(Message msg);
+  /**
+   Log an error message.
+
+   @param msg [in] the message
+  */
+  static void log_error_msg(Message msg);
 
  private:
+  /**
+   Private constructor to assure singleton pattern.
+
+   @param level [in] log level
+  */
+  Ldap_logger(ldap_log_level level);
+  /**
+   Destructor.
+  */
+  ~Ldap_logger();
+
+  /** Log writer */
   Ldap_log_writer_error *m_log_writer;
+  /** Log level */
   ldap_log_level m_log_level;
+  /** Pointer to the only log object */
+  static Ldap_logger *m_logger;
+
+  /**
+   Compose the log message and write it.
+
+   @tparam level log level
+   @tparam prefix log level name
+
+   @param msg [in] message to be logged
+  */
+  template <ldap_log_level level, const char *prefix>
+  void log(Message msg) {
+    std::stringstream log_stream;
+    if (level > m_log_level || !m_log_writer) return;
+    log_stream << prefix << " : ";
+    for (auto &msg_element : msg) {
+      if (msg_element) log_stream << msg_element;
+    }
+    m_logger->m_log_writer->write(log_stream.str());
+  }
 };
 
-template <ldap_log_type::ldap_type type>
-void Ldap_logger::log(std::string msg) {
-  std::stringstream log_stream;
-  switch (type) {
-    case ldap_log_type::LDAP_LOG_DBG:
-      if (LDAP_LOG_LEVEL_ALL > m_log_level) {
-        return;
-      }
-      log_stream << "[DBG] ";
-      break;
-    case ldap_log_type::LDAP_LOG_INFO:
-      if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
-        return;
-      }
-      log_stream << "[Note] ";
-      break;
-    case ldap_log_type::LDAP_LOG_WARNING:
-      if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level) {
-        return;
-      }
-      log_stream << "[Warning] ";
-      break;
-    case ldap_log_type::LDAP_LOG_ERROR:
-      if (LDAP_LOG_LEVEL_NONE >= m_log_level) {
-        return;
-      }
-      log_stream << "[Error] ";
-      break;
-  };
-
-  /** We can write debug messages also in error log file if logging level is set
-     to debug. For MySQL client this will come from environment variable */
-  if (m_log_writer) {
-    log_stream << ": " << msg;
-    m_log_writer->write(log_stream.str());
-  }
-}
-
-extern Ldap_logger *g_logger_client;
-
-#define log_dbg g_logger_client->log<ldap_log_type::LDAP_LOG_DBG>
-#define log_info g_logger_client->log<ldap_log_type::LDAP_LOG_INFO>
-#define log_warning g_logger->log<ldap_log_type::LDAP_LOG_WARNING>
-#define log_error g_logger_client->log<ldap_log_type::LDAP_LOG_ERROR>
+}  // namespace auth_ldap_sasl_client
+/**
+  \defgroup Ldap_logger_wrappers Shortcut wrappers to the logger functions
+  @{
+*/
+#define log_dbg(...) Ldap_logger::log_dbg_msg({__VA_ARGS__})
+#define log_info(...) Ldap_logger::log_info_msg({__VA_ARGS__})
+#define log_warning(...) Ldap_logger::log_warning_msg({__VA_ARGS__})
+#define log_error(...) Ldap_logger::log_error_msg({__VA_ARGS__})
+/**@}*/
 
 #endif

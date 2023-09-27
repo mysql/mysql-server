@@ -1846,9 +1846,11 @@ IF(WITH_AUTHENTICATION_LDAP)
     ENDIF()
   ELSEIF(WIN32)
     # system LDAP, but SASL needs to be explicitly added
-    IF(NOT SASL_LIBRARY_DLL OR NOT SASL_SCRAM_PLUGIN)
+    # and support SCRAM or GSSAPI
+    IF(NOT SASL_LIBRARY_DLL OR NOT (SASL_SCRAM_PLUGIN OR SASL_GSSAPI_PLUGIN))
       MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
-      MESSAGE(FATAL_ERROR "Missing SASL and/or SCRAM libraries.")
+      MESSAGE(FATAL_ERROR
+        "Missing SASL library or none supported SASL mechanism is available.")
     ENDIF()
   ELSEIF(APPLE)
     # system LDAP and SASL, but there is no scram plugin.

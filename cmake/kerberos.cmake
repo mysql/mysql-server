@@ -23,7 +23,12 @@
 # cmake -DWITH_KERBEROS=system|<path/to/custom/installation>|none
 # system is the default
 # none will diable the kerberos build
-# Custom path is only supported for LINUX_STANDALONE.
+# no Kerberos support for APPLE OR, FREEBSD, SOLARIS, set WITH_KERBEROS to none
+
+# cmake -DWITH_KERBEROS_WIN=system|<path/to/custom/installation>|none
+# ignored when not on Windows
+# when set, WITH_KERBEROS is set to WITH_KERBEROS_WIN
+# and KERBEROS_LIB_SSPI is set to 1
 
 INCLUDE (CheckIncludeFile)
 INCLUDE (CheckIncludeFiles)
@@ -324,7 +329,8 @@ MACRO(MYSQL_CHECK_KERBEROS)
   IF(WIN32)
     SET(KERBEROS_LIB_SSPI 1)
     IF(WITH_KERBEROS_WIN)
-      MESSAGE(STATUS "WITH_KERBEROS_WIN is specified. Setting WITH_KERBEROS.")
+      MESSAGE(STATUS "WITH_KERBEROS_WIN is specified. \
+        Setting WITH_KERBEROS = ${WITH_KERBEROS_WIN}.")
       SET(WITH_KERBEROS ${WITH_KERBEROS_WIN})
       SET(WITH_KERBEROS ${WITH_KERBEROS_WIN} CACHE STRING "${WITH_KERBEROS_WIN}")
     ELSE()
@@ -385,7 +391,7 @@ MACRO(MYSQL_CHECK_KERBEROS)
     ENDIF()
   ENDIF()
 
-  IF(KERBEROS_FOUND AND (NOT WIN32))
+  IF(KERBEROS_FOUND)
     SET(KERBEROS_LIB_CONFIGURED 1)
   ENDIF()
 
@@ -460,7 +466,7 @@ MACRO(MYSQL_CHECK_KERBEROS_DLLS)
         DESTINATION ${INSTALL_BINDIR} COMPONENT SharedLibraries)
     ENDFOREACH()
 
-    GET_FILENAME_COMPONENT(CCAPISERVER_EXE_NAME 
+    GET_FILENAME_COMPONENT(CCAPISERVER_EXE_NAME
       "${CCAPISERVER_EXECUTABLE}" NAME)
     ADD_CUSTOM_COMMAND(
       OUTPUT "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${CCAPISERVER_EXE_NAME}"
