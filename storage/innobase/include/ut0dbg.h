@@ -65,15 +65,14 @@ template <typename L, typename R>
 /** Assert that LHS OP RHS, where OP is an operator.
 Abort execution otherwise.
 Technical remarks: The LHS and RHS are evaluated exactly once (no short
-circuiting, even if OP is && or ||). Each value is stored in reference-to-const
-which extends the lifetime of the temporary to the lifetime of the reference, so
-it's fine for LHS or RHS to return a temporary.
+circuiting, even if OP is && or ||). Each value is stored in a local variable,
+so it's fine for LHS or RHS to return a temporary.
 In case of assertion failure references to const values of LHS and RHS will be
 passed to std::ostringstream::operator<<, so it must be implemented for them. */
 #define ut_a_op(LHS, OP, RHS)                                                  \
   do {                                                                         \
-    const auto &lhs = (LHS);                                                   \
-    const auto &rhs = (RHS);                                                   \
+    const auto lhs{LHS};                                                       \
+    const auto rhs{RHS};                                                       \
     if (unlikely(!(lhs OP rhs))) {                                             \
       ut_dbg_comparison_failed(#LHS, lhs, #OP, #RHS, rhs, __FILE__, __LINE__); \
     }                                                                          \
