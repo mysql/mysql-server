@@ -66,7 +66,7 @@ show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
 GRANT SELECT, INSERT, INSERT (`a`), REFERENCES (`a`) ON `test`.`t1` TO `mysqltest_1`@`localhost`
-REVOKE select,update,insert,insert (a) on t1 from mysqltest_1@localhost;
+REVOKE select,insert,insert (a) on t1 from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`

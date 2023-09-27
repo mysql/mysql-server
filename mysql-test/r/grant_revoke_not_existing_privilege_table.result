@@ -1,0 +1,349 @@
+CREATE USER rngp_user;
+CREATE ROLE rngp_role;
+CREATE DATABASE rngp_db;
+CREATE TABLE rngp_db.tb1 (x INT);
+CREATE TABLE rngp_db.tb2 (no INT, name VARCHAR(20));
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+GRANT SELECT, INSERT ON rngp_db.tb1 TO rngp_role;
+GRANT SELECT (no), INSERT (no) ON rngp_db.tb2 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`), INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+GRANT SELECT ON rngp_db.tb1 TO rngp_role;
+GRANT SELECT (no) ON rngp_db.tb2 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`), INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+GRANT SELECT, UPDATE ON rngp_db.tb1 TO rngp_role;
+GRANT SELECT (no), UPDATE (no) ON rngp_db.tb2 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, INSERT, UPDATE ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`), INSERT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+REVOKE INSERT ON rngp_db.tb1 FROM rngp_role;
+REVOKE INSERT (no) ON rngp_db.tb2 FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, UPDATE ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+REVOKE SELECT, INSERT ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+REVOKE SELECT (no), INSERT (no) ON rngp_db.tb2 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+SET original_server_version := 80200;
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
+SET original_server_version := 80200;
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
+SET @@session.original_server_version := CAST(
+SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
+AS UNSIGNED);
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SET @@session.original_server_version := CAST(
+SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
+AS UNSIGNED);
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, UPDATE ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+REVOKE UPDATE ON rngp_db.tb1 FROM rngp_role;
+REVOKE UPDATE (no) ON rngp_db.tb2 FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT SELECT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+REVOKE IF EXISTS SELECT ON rngp_db.tb1 FROM rngp_role;
+SHOW WARNINGS;
+Level	Code	Message
+REVOKE IF EXISTS SELECT (no) ON rngp_db.tb2 FROM rngp_role;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+
+GRANT SELECT ON rngp_db.tb1 TO rngp_role;
+GRANT SELECT (no) ON rngp_db.tb2 TO rngp_role;
+REVOKE IF EXISTS INSERT, SELECT ON rngp_db.tb1 FROM rngp_role;
+Warnings:
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+REVOKE IF EXISTS INSERT (no), SELECT (no) ON rngp_db.tb2 FROM rngp_role;
+Warnings:
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+
+GRANT INSERT ON rngp_db.tb1 TO rngp_role;
+GRANT INSERT (no) ON rngp_db.tb2 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+GRANT INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+
+SET original_server_version := 80200;
+REVOKE IF EXISTS INSERT, SELECT ON rngp_db.tb1 FROM rngp_role;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_role`@`%`
+SET original_server_version := 80200;
+REVOKE IF EXISTS INSERT (no), SELECT (no) ON rngp_db.tb2 FROM rngp_role;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+
+REVOKE UPDATE, REFERENCES (x) ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+GRANT INSERT, SELECT (x) ON rngp_db.tb1 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT (`x`), INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+GRANT INSERT, SELECT (x) ON rngp_db.tb1 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT (`x`), INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+GRANT UPDATE, INSERT, SELECT (x), REFERENCES (x) ON rngp_db.tb1 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT (`x`), INSERT, UPDATE, REFERENCES (`x`) ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+REVOKE INSERT, SELECT (x) ON rngp_db.tb1 FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT UPDATE, REFERENCES (`x`) ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+REVOKE UPDATE, INSERT, SELECT (x), REFERENCES (x) ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT UPDATE, REFERENCES (`x`) ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+REVOKE INSERT, SELECT (x) ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT UPDATE, REFERENCES (`x`) ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+REVOKE IF EXISTS UPDATE, INSERT, SELECT (x), REFERENCES (x) ON rngp_db.tb1 FROM rngp_role;
+Warnings:
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+Warning	1147	There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+GRANT SELECT, INSERT ON rngp_db.tb1 TO rngp_user;
+GRANT SELECT (no), INSERT (no) ON rngp_db.tb2 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`), INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+GRANT SELECT ON rngp_db.tb1 TO rngp_user;
+GRANT SELECT (no) ON rngp_db.tb2 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`), INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+GRANT SELECT, UPDATE ON rngp_db.tb1 TO rngp_user;
+GRANT SELECT (no), UPDATE (no) ON rngp_db.tb2 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, INSERT, UPDATE ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`), INSERT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+REVOKE INSERT ON rngp_db.tb1 FROM rngp_user;
+REVOKE INSERT (no) ON rngp_db.tb2 FROM rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, UPDATE ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+REVOKE SELECT, INSERT ON rngp_db.tb1 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+REVOKE SELECT (no), INSERT (no) ON rngp_db.tb2 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+SET original_server_version := 80200;
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
+SET original_server_version := 80200;
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
+SET @@session.original_server_version := CAST(
+SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
+AS UNSIGNED);
+REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+SET @@session.original_server_version := CAST(
+SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
++SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
+AS UNSIGNED);
+REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, UPDATE ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`), UPDATE (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+REVOKE UPDATE ON rngp_db.tb1 FROM rngp_user;
+REVOKE UPDATE (no) ON rngp_db.tb2 FROM rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+REVOKE IF EXISTS SELECT ON rngp_db.tb1 FROM rngp_user;
+SHOW WARNINGS;
+Level	Code	Message
+REVOKE IF EXISTS SELECT (no) ON rngp_db.tb2 FROM rngp_user;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+
+GRANT SELECT ON rngp_db.tb1 TO rngp_user;
+GRANT SELECT (no) ON rngp_db.tb2 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT SELECT (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+REVOKE IF EXISTS INSERT, SELECT ON rngp_db.tb1 FROM rngp_user;
+Warnings:
+Warning	1147	There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1147	There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+REVOKE IF EXISTS INSERT (no), SELECT (no) ON rngp_db.tb2 FROM rngp_user;
+Warnings:
+Warning	1147	There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1147	There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+
+GRANT INSERT ON rngp_db.tb1 TO rngp_user;
+GRANT INSERT (no) ON rngp_db.tb2 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT INSERT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+GRANT INSERT (`no`) ON `rngp_db`.`tb2` TO `rngp_user`@`%`
+
+SET original_server_version := 80200;
+REVOKE IF EXISTS INSERT, SELECT ON rngp_db.tb1 FROM rngp_user;
+SHOW WARNINGS;
+Level	Code	Message
+SET original_server_version := 80200;
+REVOKE IF EXISTS INSERT (no), SELECT (no) ON rngp_db.tb2 FROM rngp_user;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+
+REVOKE ALL PRIVILEGES ON rngp_db.tb1 FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
+GRANT SELECT, INSERT ON rngp_db.tb1 TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_role`@`%`
+
+REVOKE ALL PRIVILEGES ON rngp_db.tb1 FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+
+REVOKE ALL PRIVILEGES ON rngp_db.tb1 FROM rngp_user;
+ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
+GRANT SELECT, INSERT ON rngp_db.tb1 TO rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+GRANT SELECT, INSERT ON `rngp_db`.`tb1` TO `rngp_user`@`%`
+
+REVOKE ALL PRIVILEGES ON rngp_db.tb1 FROM rngp_user;
+SHOW GRANTS FOR rngp_user;
+Grants for rngp_user@%
+GRANT USAGE ON *.* TO `rngp_user`@`%`
+
+DROP ROLE rngp_role;
+DROP USER rngp_user;
+DROP TABLE rngp_db.tb1;
+DROP TABLE rngp_db.tb2;
+DROP DATABASE rngp_db;

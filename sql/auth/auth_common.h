@@ -786,9 +786,10 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool grant_all_current_privileges, LEX_GRANT_AS *grant_as);
 bool mysql_routine_grant(THD *thd, Table_ref *table, bool is_proc,
                          List<LEX_USER> &user_list, ulong rights, bool revoke,
-                         bool write_to_binlog);
+                         bool write_to_binlog, bool all_current_privileges);
 int mysql_table_grant(THD *thd, Table_ref *table, List<LEX_USER> &user_list,
-                      List<LEX_COLUMN> &column_list, ulong rights, bool revoke);
+                      List<LEX_COLUMN> &column_list, ulong rights, bool revoke,
+                      bool all_current_privileges);
 bool check_grant(THD *thd, ulong want_access, Table_ref *tables,
                  bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column(THD *thd, GRANT_INFO *grant, const char *db_name,

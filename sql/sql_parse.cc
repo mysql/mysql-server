@@ -4200,16 +4200,17 @@ int mysql_execute_command(THD *thd, bool first_level) {
           /* Conditionally writes to binlog */
           res = mysql_routine_grant(
               thd, all_tables, lex->type == TYPE_ENUM_PROCEDURE,
-              lex->users_list, grants, lex->sql_command == SQLCOM_REVOKE, true);
+              lex->users_list, grants, lex->sql_command == SQLCOM_REVOKE, true,
+              lex->all_privileges);
           if (!res) my_ok(thd);
         } else {
           if (check_grant(thd, (lex->grant | lex->grant_tot_col | GRANT_ACL),
                           all_tables, false, UINT_MAX, false))
             goto error;
           /* Conditionally writes to binlog */
-          res =
-              mysql_table_grant(thd, all_tables, lex->users_list, lex->columns,
-                                lex->grant, lex->sql_command == SQLCOM_REVOKE);
+          res = mysql_table_grant(
+              thd, all_tables, lex->users_list, lex->columns, lex->grant,
+              lex->sql_command == SQLCOM_REVOKE, lex->all_privileges);
         }
       } else {
         if (lex->columns.elements ||
