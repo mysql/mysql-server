@@ -342,63 +342,42 @@ int NdbSocket::ssl_shutdown() const { return -1; }
  * writev()
  */
 
-/* consolidate() returns the number of consecutive iovec send buffers
-   that can be combined and sent together with total size < a 16KB TLS record.
-
-   MaxTlsRecord is set to some small amount less than 16KB.
+/* MaxTlsRecord is set to some small amount less than 16KB.
 
    MaxSingleBuffer is set to some size point where a record is so large that
-   consolidation is not worth the cost of the in-memory copy required.
+   it is not worth the cost of the in-memory copy to 'pack' it.
    12KB here is just a guess.
 */
 static constexpr const int MaxTlsRecord = 16000;
 static constexpr size_t MaxSingleBuffer = 12 * 1024;
 
-int NdbSocket::consolidate(const struct iovec *vec,
-                           const int nvec) const
-{
-  int n = 0;
-  size_t total = 0;
-  for(int i = 0; i < nvec ; i++) {
-    size_t len = vec[i].iov_len;
-    if(len > MaxSingleBuffer) break;
-    total += len;
-    if(total > MaxTlsRecord) break;
-    n++;
-  }
-  if(n == 0) n = 1;
-  return n;
-}
+static_assert(MaxSingleBuffer <= MaxTlsRecord);
 
 ssize_t NdbSocket::ssl_writev(const struct iovec *vec, int nvec) const
 {
   if (unlikely(nvec <= 0)) return 0;
 
-  int sent;
-  const int n = consolidate(vec, nvec);
-  if(n > 1) {
-    sent = send_several_iov(vec, n);
+  if (nvec == 1 || vec[0].iov_len > MaxSingleBuffer) {
+    return ssl_send((const char *)vec[0].iov_base, vec[0].iov_len);
   } else {
-    sent = ssl_send((const char *) vec[0].iov_base, vec[0].iov_len);
+    // Pack iovec's into buff[], first iovec will always fit.
+    char buff[MaxTlsRecord];
+    size_t buff_len = vec[0].iov_len;
+    memcpy(buff, vec[0].iov_base, buff_len);
+
+    // Pack more iovec's into remaining buff[] space
+    for (int i = 1; i < nvec && buff_len < MaxTlsRecord; i++) {
+      const struct iovec & v = vec[i];
+      size_t cpy_len = v.iov_len;
+      if (buff_len + cpy_len > MaxTlsRecord) {
+        // Do a partial copy of last iovec[]
+        cpy_len = MaxTlsRecord - buff_len;
+      }
+      memcpy(buff + buff_len, v.iov_base, cpy_len);
+      buff_len += cpy_len;
+    }
+    return ssl_send(buff, buff_len);
   }
-  // Note that handling of partial sends is the responsibility of
-  // upper transporter levels -> We should not retry here!
-  return sent;
-}
-
-/* Bundle several small iovecs into a single TLS record < 16 KB */
-int NdbSocket::send_several_iov(const struct iovec * vec, int n) const {
-  size_t len = 0;
-  char buff[MaxTlsRecord];
-
-  for(int i = 0 ; i < n ; i++) {
-    const struct iovec & v = vec[i];
-    memcpy(buff + len, v.iov_base, v.iov_len);
-    len += v.iov_len;
-    assert(len <= MaxTlsRecord);
-  }
-
-  return ssl_send(buff, len);
 }
 
 

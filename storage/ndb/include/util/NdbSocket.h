@@ -177,9 +177,6 @@ private:
   int ssl_shutdown() const;
   void ssl_close();
 
-  int consolidate(const struct iovec *, const int) const;
-  int send_several_iov(const struct iovec *, int) const;
-
   friend class TlsLineReader;
 
 private:
