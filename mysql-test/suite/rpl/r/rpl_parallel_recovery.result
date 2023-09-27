@@ -52,7 +52,7 @@ include/assert.inc [Assert that t5 has 0 records in it]
 [connection master]
 UPDATE t5 SET c1 = 2 , c2 = REPEAT('b', 8129) WHERE c1 = 1;
 [connection slave]
-START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
+START_REPLICA_UNTIL_AFTER_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Assert that t3 has 1 records in it]
@@ -111,7 +111,7 @@ SET GLOBAL replica_preserve_commit_order= OFF;
 [connection master]
 UPDATE t5 SET c1 = 2 , c2 = REPEAT('b', 8129) WHERE c1 = 1;
 [connection slave]
-START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
+START_REPLICA_UNTIL_AFTER_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Assert that t3 has 1 records in it]

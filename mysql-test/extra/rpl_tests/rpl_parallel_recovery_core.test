@@ -51,10 +51,10 @@ SET GLOBAL replica_preserve_commit_order= OFF;
 # End of parameters
 # ------------------
 
---let $START_REPLICA_UNTIL_AFTER_GAPS=START REPLICA UNTIL SQL_AFTER_MTS_GAPS
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
 if ($rpl_multi_source)
 {
-  --let $START_REPLICA_UNTIL_AFTER_GAPS = $START_REPLICA_UNTIL_AFTER_GAPS FOR CHANNEL 'channel_1'
+  --let $FOR_CHANNEL = FOR CHANNEL 'channel_1'
   --let $rpl_channel_name = 'channel_1'
 }
 
@@ -102,6 +102,7 @@ while ($iterations)
   {
     --eval UPDATE t$i SET c1 = 2 , c2 = REPEAT('b', 8192) WHERE c1 = 1
     --inc $i
+    --let $gtid_executed_after_t4=`SELECT @@global.gtid_executed`
   }
 
   # lock records in db3.t
@@ -170,9 +171,21 @@ while ($iterations)
 
   # assert that a START REPLICA fills in the GAP and nothing else
 
+  if ($gtid_mode != 'OFF')
+  {
+    --let $START_REPLICA_UNTIL_AFTER_GAPS=START REPLICA UNTIL SQL_AFTER_GTIDS='$gtid_executed_after_t4' $FOR_CHANNEL
+    --let $slave_param_value = SQL_AFTER_GTIDS
+  }
+
+  if ($gtid_mode == 'OFF')
+  {
+    --let $START_REPLICA_UNTIL_AFTER_GAPS=START REPLICA UNTIL SQL_AFTER_MTS_GAPS $FOR_CHANNEL
+    --let $slave_param_value = DONE
+  }
+
+  --replace_result $START_REPLICA_UNTIL_AFTER_GAPS START_REPLICA_UNTIL_AFTER_GAPS
   --eval $START_REPLICA_UNTIL_AFTER_GAPS
   --let $slave_param = Until_Condition
-  --let $slave_param_value = DONE
   --source include/wait_for_slave_param.inc
   --source include/wait_for_slave_sql_to_stop.inc
 
