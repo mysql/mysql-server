@@ -3694,6 +3694,12 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
     */
     release_local_nodeid_reservation(nodeId);
 
+    /*
+      Clear connect address cache in case there
+      is some stale address there
+    */
+    clear_connect_address_cache(nodeId);
+
     union {
       Uint32 theData[25];
       EventReport repData;
