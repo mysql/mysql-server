@@ -307,6 +307,7 @@ BitmaskImpl::setRange(unsigned size [[maybe_unused]], Uint32 data[],
     return;
   }
 
+  assert(start < (size << 5));
   Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
