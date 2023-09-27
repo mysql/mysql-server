@@ -65,8 +65,23 @@ bool ndb_file::is_regular_file() const
   return false;
 }
 
+bool ndb_file::check_is_regular_file() const
+{
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+  if (!is_open()) return true;
+  struct stat sb;
+  if (fstat(m_handle, &sb) == -1) return true;
+  if ((sb.st_mode & S_IFMT) == S_IFREG) return true;
+  fprintf(stderr,"FATAL ERROR: %s: %u: Handle is not a regular file: fd=%d file type=%o\n",__func__,__LINE__,m_handle,sb.st_mode&S_IFMT);
+  return false;
+#else
+  return true;
+#endif
+}
+
 int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
 {
+  require(check_is_regular_file());
   require(check_block_size_and_alignment(buf, count, get_pos()));
   int ret;
   do {
@@ -83,6 +98,7 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
 int ndb_file::write_pos(const void* buf, ndb_file::size_t count,
                         ndb_off_t offset)
 {
+  require(check_is_regular_file());
   require(check_block_size_and_alignment(buf, count, offset));
   int ret;
   do {
@@ -98,6 +114,7 @@ int ndb_file::write_pos(const void* buf, ndb_file::size_t count,
 
 int ndb_file::read_forward(void* buf, ndb_file::size_t count) const
 {
+  require(check_is_regular_file());
   require(check_block_size_and_alignment(buf, count, 1));
   int ret;
   do {
@@ -107,6 +124,7 @@ int ndb_file::read_forward(void* buf, ndb_file::size_t count) const
 }
 int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
 {
+  require(check_is_regular_file());
   require(check_block_size_and_alignment(buf, count, 1));
   // Current pos must be within file.
   // Current pos - count must be within file.
@@ -146,6 +164,7 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
 int ndb_file::read_pos(void* buf, ndb_file::size_t count,
     ndb_off_t offset) const
 {
+  require(check_is_regular_file());
   require(check_block_size_and_alignment(buf, count, offset));
   int ret;
   do {
