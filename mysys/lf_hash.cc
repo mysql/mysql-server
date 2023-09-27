@@ -39,6 +39,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <atomic>
+#include <bit>
 
 #include "lf.h"
 #include "my_atomic.h"
@@ -809,7 +810,8 @@ static const uchar *dummy_key = pointer_cast<const uchar *>("");
 */
 static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
                              uint bucket, LF_PINS *pins) {
-  const uint parent = my_clear_highest_bit(bucket);
+  // Get the parent bucket by clearing the highest bit in bucket.
+  const uint parent = bucket ^ std::bit_floor(bucket);
   LF_SLIST *dummy =
       (LF_SLIST *)my_malloc(key_memory_lf_slist, sizeof(LF_SLIST), MYF(MY_WME));
   if (unlikely(!dummy)) {

@@ -60,16 +60,6 @@ static inline uint my_count_bits_uint32(uint32 v) {
       _my_bits_nbits[(uchar)(v >> 16)] + _my_bits_nbits[(uchar)(v >> 24)]);
 }
 
-static inline uint32 my_clear_highest_bit(uint32 v) {
-  uint32 w = v >> 1;
-  w |= w >> 1;
-  w |= w >> 2;
-  w |= w >> 4;
-  w |= w >> 8;
-  w |= w >> 16;
-  return v & w;
-}
-
 static inline uint32 my_reverse_bits(uint32 key) {
   return (_my_bits_reverse_table[key & 255] << 24) |
          (_my_bits_reverse_table[(key >> 8) & 255] << 16) |
