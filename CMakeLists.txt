@@ -2327,6 +2327,12 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       IF(HAS_WARN_FLAG)
         MY_TARGET_LINK_OPTIONS(server_unittest_library "${HAS_WARN_FLAG}")
       ENDIF()
+      # The mold linker and RelWithDebInfo build complains about
+      # the new expression in Rpl_info_values::init()
+      IF(MY_COMPILER_IS_GNU)
+        MY_TARGET_LINK_OPTIONS(server_unittest_library
+          "-Wno-alloc-size-larger-than")
+      ENDIF()
     ENDIF()
   ELSE()
     SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
