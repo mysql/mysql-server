@@ -29,6 +29,7 @@
 #include <openssl/crypto.h>
 #include <iostream>
 #include <memory>
+#include "scope_guard.h"
 #include "sql-common/oci/ssl.h"
 
 namespace oci {
@@ -84,20 +85,20 @@ Data Signing_Key::sign(const void *message, size_t length) {
  */
 Signing_Key::Signing_Key(const std::string &file_name)
     : m_private_key{EVP_PKEY_new()} {
-  std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(file_name.c_str(), "rb"),
-                                              &fclose);
-  if (!fp) {
+  FILE *fp = fopen(file_name.c_str(), "rb");
+  if (fp == nullptr) {
     log_error("Cannot open signing key file " + file_name + "\n");
     return;
   }
 
+  auto close_it = create_scope_guard([&fp]() { fclose(fp); });
   if (!m_private_key) {
     log_error("Cannot create private key");
     return;
   }
 
   auto key = m_private_key.release();
-  key = PEM_read_PrivateKey(fp.get(), &key, nullptr, nullptr);
+  key = PEM_read_PrivateKey(fp, &key, nullptr, nullptr);
   if (key == nullptr) {
     log_error("Cannot read signing key file " + file_name);
     return;
