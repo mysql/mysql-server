@@ -987,8 +987,7 @@ bool Item_field::collect_item_field_or_ref_processor(uchar *arg) {
       if (already_collected->eq(this, true)) return false;
     }
   }
-  info->m_items->push_back(this);
-  return false;
+  return info->m_items->push_back(this);
 }
 
 bool Item_field::collect_item_field_or_view_ref_processor(uchar *arg) {
@@ -1010,8 +1009,7 @@ bool Item_field::collect_item_field_or_view_ref_processor(uchar *arg) {
     }
   }
   m_protected_by_any_value = info->m_any_value_level > 0;
-  info->m_item_fields_or_view_refs->push_back(this);
-  return false;
+  return info->m_item_fields_or_view_refs->push_back(this);
 }
 
 bool Item_field::add_field_to_set_processor(uchar *arg) {
@@ -9020,7 +9018,10 @@ bool Item_view_ref::collect_item_field_or_view_ref_processor(uchar *arg) {
                     : ((depended_from == info->m_transformed_block)  // 3
                            ? this
                            : nullptr));
-  if (item != nullptr) info->m_item_fields_or_view_refs->push_back(item);
+  bool error = false;
+  if (item != nullptr)
+    error = info->m_item_fields_or_view_refs->push_back(item);
+  if (error) return true;
   info->stop_at(this);
   return false;
 }

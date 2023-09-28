@@ -46,9 +46,13 @@ template <typename T>
 class SQL_I_List {
  public:
   uint elements;
-  /** The first element in the list. */
+  /** The first element in the list. If empty, nullptr */
   T *first;
-  /** A reference to the next element in the list. */
+  /**
+    A reference to the next element in the list. If empty points to
+    the head element's 'first' pointer, else to the last element's
+    next pointer.
+  */
   T **next;
 
   SQL_I_List() { clear(); }
@@ -91,6 +95,34 @@ class SQL_I_List {
       next = save->next;
       elements += save->elements;
     }
+  }
+
+  /*
+    Split list after sz elements into two: this list gets shortened, the rest
+    gets assigned into tail.  If sz is larger than or equal to the number of
+    elements in this list, this list is unchanged, and tail will be empty
+
+    @param sz   The number of elements to retain in this list
+    @param tail The list to hold the tail we chop off.
+  */
+  void split_after(uint sz, SQL_I_List<T> *tail) {
+    assert(this != tail);
+    if (sz >= elements) {  // just put an empty list in tail
+      *tail = std::move(SQL_I_List<T>());
+      return;
+    }
+    T **o = &first;
+    for (uint i = 0; i < sz; i++) {
+      o = &(*o)->next;
+    }
+    // Save tail
+    tail->first = *o;
+    tail->next = next;
+    tail->elements = elements - sz;
+    // Shorten this
+    next = o;
+    *next = nullptr;
+    elements = sz;
   }
 
   inline uint size() const { return elements; }

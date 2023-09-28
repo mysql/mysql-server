@@ -132,7 +132,7 @@ struct NESTED_JOIN;
 struct PSI_digest_locker;
 struct sql_digest_state;
 union Lexer_yystype;
-struct Lifted_fields_map;
+struct Lifted_expressions_map;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 constexpr const int MAX_SELECT_NESTING{sizeof(nesting_map) * 8 - 1};
@@ -1937,14 +1937,29 @@ class Query_block : public Query_term {
   Group_list_ptrs *order_list_ptrs{nullptr};
 
   /**
-    GROUP BY clause.
-    This list may be mutated during optimization (by remove_const() in the old
-    optimizer or by RemoveRedundantOrderElements() in the hypergraph optimizer),
-    so for prepared statements, we keep a copy of the ORDER.next pointers in
-    group_list_ptrs, and re-establish the original list before each execution.
+    GROUP BY clause.  This list may be mutated during optimization (by
+    \c remove_const() in the old optimizer or by
+    RemoveRedundantOrderElements() in the hypergraph optimizer), so for prepared
+    statements, we keep a copy of the ORDER.next pointers in \c group_list_ptrs,
+    and re-establish the original list before each execution.  The list can also
+    be temporarily pruned and restored by \c Group_check (if transform done,
+    cf. \c Query_block::m_gl_size_orig).
   */
   SQL_I_List<ORDER> group_list{};
   Group_list_ptrs *group_list_ptrs{nullptr};
+  /**
+    For an explicitly grouped, correlated, scalar subquery which is transformed
+    to join with derived tables: the number of added non-column expressions.
+    Used for better functional dependency analysis since this is checked during
+    prepare *after* transformations. Transforms will append inner expressions
+    to the group by list, rendering the check too optimistic. To remedy this,
+    we temporarily remove the added compound (i.e. not simple column)
+    expressions when doing the full group by check. This is bit too
+    pessimistic: we can get occasionally false positives (full group by check
+    error). The underlying problem is that we do not perform full group by
+    checking before transformations.  See also \c Group_check's ctor and dtor.
+  */
+  decltype(SQL_I_List<ORDER>::elements) m_no_of_added_exprs{0};
 
   // Used so that AggregateIterator knows which items to signal when the rollup
   // level changes. Obviously only used in the presence of rollup.
@@ -2248,16 +2263,25 @@ class Query_block : public Query_term {
                                      Item *lifted_where_cond);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
-  bool setup_counts_over_partitions(THD *thd, Table_ref *derived,
-                                    Lifted_fields_map *lifted_fields,
-                                    std::deque<Item_field *> &added_to_group_by,
-                                    uint hidden_fields);
+  bool setup_counts_over_partitions(
+      THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_expressions,
+      mem_root_deque<Item *> &exprs_added_to_group_by, uint hidden_fields);
+  bool add_inner_fields_to_select_list(THD *thd,
+                                       Lifted_expressions_map *lifted_exprs,
+                                       Item *selected_field_or_ref,
+                                       const uint first_non_hidden);
+  bool add_inner_func_calls_to_select_list(
+      THD *thd, Lifted_expressions_map *lifted_exprs);
+  bool add_inner_exprs_to_group_by(
+      THD *thd, List_iterator<Item> &inner_exprs, Item *selected_item,
+      bool *selected_expr_added_to_group_by,
+      mem_root_deque<Item *> *exprs_added_to_group_by);
   bool decorrelate_derived_scalar_subquery_pre(
       THD *thd, Table_ref *derived, Item *lifted_where,
-      Lifted_fields_map *lifted_where_fields, bool *added_card_check,
+      Lifted_expressions_map *lifted_where_expressions, bool *added_card_check,
       size_t *added_window_card_checks);
   bool decorrelate_derived_scalar_subquery_post(
-      THD *thd, Table_ref *derived, Lifted_fields_map *lifted_where_fields,
+      THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_exprs,
       bool added_card_check, size_t added_window_card_checks);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);

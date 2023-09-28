@@ -554,6 +554,8 @@ class Item_func : public Item_result_field {
                                             item_sep);
   }
 
+  Item *replace_func_call(uchar *) override;
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,

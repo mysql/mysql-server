@@ -569,9 +569,26 @@ class Group_check : public Item_tree_walker {
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root),
-        failed_ident(nullptr) {}
+        failed_ident(nullptr) {
+    if (select->m_no_of_added_exprs > 0) {
+      // Temporarily shorten GROUP BY list for full group by checking of
+      // non-field expressions stemming from transform of correlated scalar
+      // subquery to join with derived table, cf.
+      // Query_block::m_no_of_added_exprs
+      select->group_list.split_after(
+          select->group_list.elements - select->m_no_of_added_exprs,
+          &m_added_by_transform);
+    }
+  }
 
-  ~Group_check() { std::destroy_n(mat_tables.data(), mat_tables.size()); }
+  ~Group_check() {
+    std::destroy_n(mat_tables.data(), mat_tables.size());
+    if (select->m_no_of_added_exprs > 0) {
+      // restore GROUP BY list
+      select->group_list.push_back(&m_added_by_transform);
+      m_added_by_transform.clear();
+    }
+  }
   Group_check(const Group_check &) = delete;
   Group_check &operator=(const Group_check &) = delete;
 
@@ -641,6 +658,8 @@ class Group_check : public Item_tree_walker {
   Mem_root_array<Group_check *> mat_tables;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
+  /// GROUP BY list non single column expressions entries added by transform
+  SQL_I_List<ORDER> m_added_by_transform;
 
   bool is_fd_on_source(Item *item);
   bool is_child() const { return table != nullptr; }

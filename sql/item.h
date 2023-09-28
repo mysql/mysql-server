@@ -3190,6 +3190,16 @@ class Item : public Parse_tree_node {
           m_default_value(default_value) {}
   };
 
+  struct Item_func_call_replacement : Item_replacement {
+    Item_func *m_target;  ///< The function call to be replaced
+    Item_field *m_item;   ///< The replacement field
+    Item_func_call_replacement(Item_func *func_target, Item_field *item,
+                               Query_block *select)
+        : Item_replacement(select, select),
+          m_target(func_target),
+          m_item(item) {}
+  };
+
   struct Item_view_ref_replacement : Item_replacement {
     Item *m_target;  ///< The item identifying the view_ref to be replaced
     Field *m_field;  ///< The replacement field
@@ -3221,6 +3231,7 @@ class Item : public Parse_tree_node {
     operation of the original transformed query block.
   */
   virtual Item *replace_item_field(uchar *) { return this; }
+  virtual Item *replace_func_call(uchar *) { return this; }
   virtual Item *replace_item_view_ref(uchar *) { return this; }
   virtual Item *replace_aggregate(uchar *) { return this; }
   virtual Item *replace_outer_ref(uchar *) { return this; }

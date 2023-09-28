@@ -78,7 +78,6 @@
 #include "sql_update.h"  // Sql_cmd_update
 #include "string_with_len.h"
 #include "template_utils.h"
-
 class PT_hint_list;
 
 extern int my_hint_parser_parse(THD *thd, Hint_scanner *scanner,

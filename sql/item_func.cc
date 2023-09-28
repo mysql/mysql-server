@@ -617,6 +617,15 @@ bool Item_func::param_type_uses_non_param(THD *thd, enum_field_types def) {
   return param_type_uses_non_param_inner(thd, arg_count, args, def);
 }
 
+Item *Item_func::replace_func_call(uchar *arg) {
+  auto *info = pointer_cast<Item::Item_func_call_replacement *>(arg);
+  if (eq(info->m_target, /*binary_cmp*/ false)) {
+    assert(info->m_curr_block == info->m_trans_block);
+    return info->m_item;
+  }
+  return this;
+}
+
 bool Item_func::walk(Item_processor processor, enum_walk walk,
                      uchar *argument) {
   if ((walk & enum_walk::PREFIX) && (this->*processor)(argument)) return true;
