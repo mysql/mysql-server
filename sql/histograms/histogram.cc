@@ -210,19 +210,6 @@ static Value_map_type field_type_to_value_map_type(const Field *field) {
   return field_type_to_value_map_type(field->real_type(), is_unsigned);
 }
 
-Error_context::Error_context(THD *thd, Field *field, TABLE *table,
-                             results_map *results) {
-  m_thd = thd;
-  m_results = results;
-  m_binary = false;
-
-  // create a fake field to store values
-  Create_field create_field(field, nullptr);
-  m_field = make_field(create_field, table->s, m_buffer + 1, m_buffer,
-                       0 /* null bit*/);
-  m_field->table = table;
-}
-
 void Error_context::report_global(Message err_code) {
   assert(err_code == Message::JSON_NUM_BUCKETS_MORE_THAN_SPECIFIED ||
          err_code == Message::JSON_IMPOSSIBLE_EMPTY_EQUI_HEIGHT ||
@@ -284,45 +271,37 @@ class Histogram_error_handler : public Internal_error_handler {
 };
 
 /**
-  Helper template function for check_value().
+  Helper function for check_value().
 
-  It uses Field::store() on a fake Field to test if the value is in the field
-  definition domain, which is kind of best effort without touching real data.
-
-  Note that the value parameter is pointer instead of const reference.
-  The function uses Field::store() and variants to test against value domain,
-  which do not agree the same const style.
+  It uses Field::store() on the actual Field that the histogram belongs to in
+  order to test if the value is in the field definition domain.
 */
-template <typename T>
-type_conversion_status check_value_aux(Field *f, T *v);
-
-template <>
-type_conversion_status check_value_aux(Field *field, double *nr) {
+static type_conversion_status check_value_aux(Field *field, const double *nr) {
   return field->store(*nr);
 }
 
-template <>
-type_conversion_status check_value_aux(Field *field, String *str) {
+static type_conversion_status check_value_aux(Field *field, const String *str) {
   return field->store(str->ptr(), str->length(), str->charset());
 }
 
-template <>
-type_conversion_status check_value_aux(Field *field, longlong *nr) {
+static type_conversion_status check_value_aux(Field *field,
+                                              const longlong *nr) {
   return field->store(*nr, false);
 }
 
-template <>
-type_conversion_status check_value_aux(Field *field, ulonglong *nr) {
+static type_conversion_status check_value_aux(Field *field,
+                                              const ulonglong *nr) {
   return field->store(*nr, true);
 }
 
-template <>
-type_conversion_status check_value_aux(Field *field, MYSQL_TIME *ltime) {
+// Field::store_time() should be updated to use a const pointer. We assume that
+// the input value is not modified.
+static type_conversion_status check_value_aux(Field *field, MYSQL_TIME *ltime) {
   return field->store_time(ltime);
 }
 
-template <>
-type_conversion_status check_value_aux(Field *field, my_decimal *mdec) {
+static type_conversion_status check_value_aux(Field *field,
+                                              const my_decimal *mdec) {
   return field->store_decimal(mdec);
 }
 
@@ -1408,7 +1387,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
     MEM_ROOT local_mem_root;
 
     // Create a histogram for the json object.
-    Error_context context(thd, field, table->table, &results);
+    Error_context context(thd, field, &results);
     std::string col_name(field->field_name);
     // Convert JSON to histogram
     histograms::Histogram *histogram = Histogram::json_to_histogram(

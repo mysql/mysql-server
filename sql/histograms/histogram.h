@@ -179,36 +179,49 @@ enum class enum_operator {
     5) breaking bucket sequence semantics
     6) breaking certain constraint between pieces of information
 
-  @see Message
+  @see histograms::Message for the list of JSON validation errors.
+
+  Use of the Error_context class
+  ------------------------------
+
+  An Error_context object is passed along with other parameters to the
+  json_to_histogram() function that is used to create a histogram object (e.g.
+  Equi_height<longlong>) from a JSON string.
+
+  The json_to_histogram() function has two different use cases, with different
+  requirements for validation:
+
+  1) Deserializing a histogram that was retrieved from the dictionary. In this
+     case the histogram has already been validated, and the user is not
+     expecting validation feedback, so we pass along a default-constructed
+     "empty shell" Error_context object with no-op operations.
+
+  2) When validating the user-supplied JSON string to the UPDATE HISTOGRAM ...
+     USING DATA commmand. In this case we pass along an active Error_context
+     object that uses a Field object to validate bucket values, and stores
+     results in a results_map.
+
+  The binary() method is used to distinguish between these two contexts/cases.
 */
 class Error_context {
  public:
-  /// Default constructor.
+  /// Default constructor. Used when deserializing binary JSON that has already
+  /// been validated, e.g. when retrieving a histogram from the dictionary, and
+  /// the Error_context object is not actively used for validation.
   Error_context()
       : m_thd{nullptr}, m_field{nullptr}, m_results{nullptr}, m_binary{true} {}
 
   /**
-    Constructor. The context will create a copy of the Field so that
-    Field::store can be used to check validity of bucket values. Results will
-    be saved to the given results store
+    Constructor. Used in the context of deserializing the user-supplied JSON
+    string to the UPDATE HISTOGRAM ... USING DATA command.
 
     @param thd      Thread context
     @param field    The field for values on which the histogram is built
-    @param table    The table on which the histogram is built
     @param results  Where reported errors are stored
     */
-  Error_context(THD *thd, Field *field, TABLE *table, results_map *results);
+  Error_context(THD *thd, Field *field, results_map *results)
+      : m_thd(thd), m_field(field), m_results(results), m_binary(false) {}
 
-  /**
-   Destructor. Destroy the copy of the Field and set all pointers to nullptr
-   **/
-  ~Error_context() {
-    if (m_field) destroy(m_field);
-    m_thd = nullptr;
-    m_field = nullptr;
-    m_results = nullptr;
-    m_binary = false;
-  }
   /**
     Report a global error to this context.
 
@@ -237,6 +250,14 @@ class Error_context {
     @param v Pointer to the value.
 
     @return true on error, false otherwise
+
+    @note Uses Field::store() on the field for which the user-defined histogram
+    is to be constructed in order to check the validity of the supplied value.
+    This will have the side effect of writing to the record buffer so this
+    should only be used with an active Error_context (with a non-nullptr field)
+    when we do not otherwise expect to use the record buffer. Currently the only
+    use case is to validate the JSON input to the command UPDATE HISTOGRAM ...
+    USING DATA where it should be OK to use the field for this purpose.
    */
   template <typename T>
   bool check_value(T *v);
@@ -256,6 +277,7 @@ class Error_context {
     Return data-type of field in context if present. Used to enforce
     that histogram datatype matches column datatype for user-defined
     histograms.
+
     @return datatype string if present, nullptr if not
    */
   Field *field() const { return m_field; }
@@ -263,8 +285,6 @@ class Error_context {
  private:
   /// Thread context for error handlers
   THD *m_thd;
-  /// Buffer for m_field
-  uchar m_buffer[MAX_FIELD_WIDTH];
   /// The field for checking endpoint values
   Field *m_field;
   /// Where reported errors are stored
