@@ -878,10 +878,10 @@ Suma::check_start_handover(Signal* signal)
       return;
     }
     c_startup.m_wait_handover= false;
-    Subscription_hash::Iterator iter;
+    SubscriptionPtr subPtr;
     // Lock the dict only if there are any buckets to handover or
     // there are subscriptions whose reports need to be sent out
-    if (c_no_of_buckets || c_subscriptions.first(iter))
+    if (c_no_of_buckets || c_subscriptions.first(subPtr))
     {
       jam();
       send_dict_lock_req(signal, DictLockReq::SumaHandOver);
@@ -3969,9 +3969,7 @@ Suma::report_subscription_set(Signal *signal,
   if (subPtr.i == RNIL)
   {
     jam();
-    Subscription_hash::Iterator iter;
-    c_subscriptions.first(iter);
-    subPtr = iter.curr;
+    c_subscriptions.first(subPtr);
   }
   else
   {
@@ -4132,10 +4130,7 @@ Suma::report_subscription_set(Signal *signal,
 
       subList.next(subscriberPtr); /* Next subscriber */
     }
-    Subscription_hash::Iterator it;
-    it.curr = subPtr;
-    c_subscriptions.next(it);  /* Next subscription */
-    subPtr = it.curr;
+    c_subscriptions.next(subPtr); /* Next subscription */
   }
 
   /* Reporting done */
