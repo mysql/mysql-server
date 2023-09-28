@@ -1831,7 +1831,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else
     {
       g_eventLogger->warning("CmvmiLongSignalMemorySnapshot IGNORED"
-                             ", exceeded the max %lu snapshots",
+                             ", exceeded the max %zu snapshots",
                              NDB_ARRAY_SIZE(f_free_segments));
     }
 #endif
