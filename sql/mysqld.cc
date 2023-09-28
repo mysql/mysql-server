@@ -1199,7 +1199,6 @@ ulong opt_log_throttle_queries_not_using_indexes = 0;
 bool opt_log_slow_extra = false;
 bool opt_disable_networking = false, opt_skip_show_db = false;
 bool opt_skip_name_resolve = false;
-bool opt_character_set_client_handshake = true;
 bool server_id_supplied = false;
 static bool opt_endinfo;
 bool using_udf_functions;
@@ -10733,11 +10732,6 @@ struct my_option my_long_options[] = {
      "log.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
-     "Deprecated. Don't ignore client side character set value sent during "
-     "handshake.",
-     &opt_character_set_client_handshake, &opt_character_set_client_handshake,
-     nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
     {"character-set-filesystem", 0, "Set the filesystem character set.",
      &character_set_filesystem_name, &character_set_filesystem_name, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},

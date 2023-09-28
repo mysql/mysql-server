@@ -248,10 +248,6 @@ The following options may be given as the first argument:
  --caching-sha2-password-public-key-path=name 
  A fully qualified path to the public RSA key used for
  authentication.
- --character-set-client-handshake 
- Deprecated. Don't ignore client side character set value
- sent during handshake.
- (Defaults to on; use --skip-character-set-client-handshake to disable.)
  --character-set-filesystem=name 
  Set the filesystem character set.
  -C, --character-set-server=name 
@@ -1709,7 +1705,6 @@ bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 5000
 caching-sha2-password-private-key-path private_key.pem
 caching-sha2-password-public-key-path public_key.pem
-character-set-client-handshake TRUE
 character-set-filesystem binary
 character-set-server utf8mb4
 character-sets-dir MYSQL_CHARSETSDIR/

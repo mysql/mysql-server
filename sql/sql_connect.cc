@@ -390,13 +390,11 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   CHARSET_INFO *cs;
   /*
    Use server character set and collation if
-   - opt_character_set_client_handshake is not set
    - client has not specified a character set
    - client character set is the same as the servers
    - client character set doesn't exists in server
   */
-  if (!opt_character_set_client_handshake ||
-      !(cs = get_charset(cs_number, MYF(0))) ||
+  if (!(cs = get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
                      global_system_variables.character_set_client->m_coll_name,
                      cs->m_coll_name)) {
