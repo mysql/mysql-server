@@ -201,7 +201,15 @@ void Qmgr::initData()
       break;
     }
   }
-  receivedProcessInfo = new ProcessInfo[numOfApiAndMgmNodes];
+  /*
+   * In reality there must be at least one MGM, API, and, DB node.
+   * And numOfApiAndMgmNodes will be betweeen 2 and 254 (MAX_NODES - 2).
+   *
+   * If in future one can have DB only cluster it is ok to leave
+   * receivedProcessInfo as nullptr since it is only used for MGM and API.
+   */
+  if (likely(numOfApiAndMgmNodes > 0))
+    receivedProcessInfo = new ProcessInfo[numOfApiAndMgmNodes];
 }//Qmgr::initData()
 
 void Qmgr::initRecords()

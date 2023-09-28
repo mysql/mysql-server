@@ -618,7 +618,7 @@ private:
   Timer ka_send_timer;
 
   Int16 processInfoNodeIndex[MAX_NODES];
-  ProcessInfo * receivedProcessInfo;
+  ProcessInfo * receivedProcessInfo = nullptr;
   Uint16 max_api_node_id;
 
   NdbNodeBitmask cfailedNodes;
