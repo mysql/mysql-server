@@ -6059,8 +6059,6 @@ void Ndb_binlog_thread::inject_incident(
     Uint64 gap_epoch) const {
   DBUG_TRACE;
 
-  Ndb_thd_memory_guard inject_incident_guard(thd);
-
   const char *reason = "problem";
   if (event_type == NdbDictionary::Event::TE_INCONSISTENT) {
     reason = "missing data";
