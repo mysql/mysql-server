@@ -26,7 +26,7 @@ ADD_WSHADOW_WARNING()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
 # but it is basically impossible to trace the actual origin.
-IF(FPROFILE_GENERATE OR FPROFILE_USE)
+IF(FPROFILE_GENERATE OR FPROFILE_USE OR CMAKE_COMPILER_FLAG_WITH_LTO)
   IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
     # -Walloc-size-larger-than=PTRDIFF_MAX is enabled by default.
     STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -Wno-alloc-size-larger-than")
