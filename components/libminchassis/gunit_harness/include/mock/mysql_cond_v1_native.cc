@@ -66,6 +66,7 @@ static int wait(mysql_cond_t *that, mysql_mutex_t *mutex_arg,
   mutex *mtx = reinterpret_cast<mutex *>(mutex_arg->m_psi);
   unique_lock lck(*mtx, adopt_lock);
   cond->wait(lck);
+  lck.release();
   return 0;
 }
 
@@ -76,11 +77,13 @@ static int timedwait(mysql_cond_t *that, mysql_mutex_t *mutex_arg,
       reinterpret_cast<condition_variable *>(that->m_psi);
   mutex *mtx = reinterpret_cast<mutex *>(mutex_arg->m_psi);
   unique_lock lck(*mtx, adopt_lock);
-  return cond->wait_until(lck, mock_clock::from_time_t(abstime->tv_sec) +
-                                   nanoseconds(abstime->tv_nsec)) ==
-                 cv_status::timeout
-             ? 1
-             : 0;
+  int ret = cond->wait_until(lck, mock_clock::from_time_t(abstime->tv_sec) +
+                                      nanoseconds(abstime->tv_nsec)) ==
+                    cv_status::timeout
+                ? 1
+                : 0;
+  lck.release();
+  return ret;
 }
 
 static int signal(mysql_cond_t *that, const char * /*src_file*/,
