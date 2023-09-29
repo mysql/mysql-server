@@ -642,6 +642,21 @@ class PFS_buffer_scalable_container {
     return nullptr;
   }
 
+  void dirty_to_free(pfs_dirty_state *dirty_state, value_type *safe_pfs) {
+    /* Find the containing page */
+    PFS_opaque_container_page *opaque_page = safe_pfs->m_page;
+    auto *page = reinterpret_cast<array_type *>(opaque_page);
+
+    /* Mark the object free */
+    safe_pfs->m_lock.dirty_to_free(dirty_state);
+
+    /* Flag the containing page as not full. */
+    page->m_full = false;
+
+    /* Flag the overall container as not full. */
+    m_full = false;
+  }
+
   void deallocate(value_type *safe_pfs) {
     /* Find the containing page */
     PFS_opaque_container_page *opaque_page = safe_pfs->m_page;

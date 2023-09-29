@@ -1,0 +1,27 @@
+truncate table performance_schema.events_statements_summary_by_digest;
+use test;
+SET DEBUG_SYNC='after_lf_hash_search SIGNAL not_found WAIT_FOR continue';
+"Waiting for con1"
+SET DEBUG_SYNC='now WAIT_FOR not_found';
+use test;
+select "Con2";
+Con2
+Con2
+SET DEBUG_SYNC='now SIGNAL continue';
+SELECT schema_name, digest, digest_text, count_star
+FROM performance_schema.events_statements_summary_by_digest USE INDEX()
+where schema_name = 'test';
+schema_name	digest	digest_text	count_star
+test	5e18b503343466373cc0ce1922b04a77902f0cce5386ce599cb95b682d29415e	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+test	bdf269459ee1e562d4b251cd893cc077fa83a57af67cc7648615bb8b1dc2a298	USE `test`	2
+test	38bf19041c8c8063d5d4dcd0b6cc0bad490baa443d56905804bf3af070fdd1e6	SET `DEBUG_SYNC` = ?	3
+test	d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	SELECT ?	1
+SELECT schema_name, digest, digest_text, count_star
+FROM performance_schema.events_statements_summary_by_digest
+WHERE schema_name = 'test';
+schema_name	digest	digest_text	count_star
+test	5e18b503343466373cc0ce1922b04a77902f0cce5386ce599cb95b682d29415e	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+test	bdf269459ee1e562d4b251cd893cc077fa83a57af67cc7648615bb8b1dc2a298	USE `test`	2
+test	38bf19041c8c8063d5d4dcd0b6cc0bad490baa443d56905804bf3af070fdd1e6	SET `DEBUG_SYNC` = ?	3
+test	d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	SELECT ?	1
+test	9f466e41f5ae176f1676655afa10dce7ce1c930b0e1f01544d450f8295e14131	SELECT SCHEMA_NAME , `digest` , `digest_text` , `count_star` FROM `performance_schema` . `events_statements_summary_by_digest` USE INDEX ( ) WHERE SCHEMA_NAME = ?	1

@@ -29,6 +29,8 @@
 #include <sys/types.h>
 
 #include "mysql/strings/m_ctype.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
@@ -81,3 +83,9 @@ int log_message(int, ...) {
 }
 
 void reset_status_by_thd() {}
+
+thread_local THD *current_thd;
+
+uint opt_debug_sync_timeout = 0;
+
+void debug_sync(THD *, const char *, size_t) {}

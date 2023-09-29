@@ -187,13 +187,13 @@ search:
     pfs->reset_connections_stats();
 
     int res;
-    pfs->m_lock.dirty_to_allocated(&dirty_state);
     res = lf_hash_insert(&user_hash, pins, &pfs);
     if (likely(res == 0)) {
+      pfs->m_lock.dirty_to_allocated(&dirty_state);
       return pfs;
     }
 
-    global_user_container.deallocate(pfs);
+    global_user_container.dirty_to_free(&dirty_state, pfs);
 
     if (res > 0) {
       if (++retry_count > retry_max) {

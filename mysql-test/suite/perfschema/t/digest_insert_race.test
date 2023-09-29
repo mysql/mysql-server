@@ -1,0 +1,53 @@
+
+--source include/have_debug_sync.inc
+
+#
+# This test causes the same query digest `SET `DEBUG_SYNC` = ?`
+# to be created concurrently by two connections.
+#
+# Note that this digest is at the same time:
+# - the payload query to test (expecting a unique digest record)
+# - the way to control the race in the server
+#
+
+truncate table performance_schema.events_statements_summary_by_digest;
+
+connect(con1, localhost, root,,);
+use test;
+
+--send SET DEBUG_SYNC='after_lf_hash_search SIGNAL not_found WAIT_FOR continue'
+
+--connection default
+
+echo "Waiting for con1";
+
+SET DEBUG_SYNC='now WAIT_FOR not_found';
+
+connect(con2, localhost, root,,);
+use test;
+select "Con2";
+
+--connection default
+
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--connection con1
+--reap
+
+--connection default
+
+# This uses a full table scan.
+# Expect only one row for `SET `DEBUG_SYNC`.
+SELECT schema_name, digest, digest_text, count_star
+  FROM performance_schema.events_statements_summary_by_digest USE INDEX()
+  where schema_name = 'test';
+
+# This uses an index scan (key SCHEMA_NAME)
+# Expect only one row for `SET `DEBUG_SYNC`, not 2.
+SELECT schema_name, digest, digest_text, count_star
+  FROM performance_schema.events_statements_summary_by_digest
+  WHERE schema_name = 'test';
+
+--disconnect con1
+--disconnect con2
+

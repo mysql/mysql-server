@@ -47,6 +47,9 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/table_helper.h"
 
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+
 size_t digest_max = 0;
 ulong digest_lost = 0;
 
@@ -287,6 +290,8 @@ search:
   /* Lookup LF_HASH using this new key. */
   entry = reinterpret_cast<PFS_statements_digest_stat **>(
       lf_hash_search(&digest_hash, pins, &hash_key, sizeof(PFS_digest_key)));
+
+  DEBUG_SYNC(current_thd, "after_lf_hash_search");
 
   if (entry && (entry != MY_LF_ERRPTR)) {
     /* If digest already exists, update stats and return. */

@@ -213,14 +213,14 @@ int insert_setup_object(enum_object_type object_type,
     pfs->m_timed = timed;
 
     int res;
-    pfs->m_lock.dirty_to_allocated(&dirty_state);
     res = lf_hash_insert(&setup_object_hash, pins, &pfs);
     if (likely(res == 0)) {
       setup_objects_version++;
+      pfs->m_lock.dirty_to_allocated(&dirty_state);
       return 0;
     }
 
-    global_setup_object_container.deallocate(pfs);
+    global_setup_object_container.dirty_to_free(&dirty_state, pfs);
 
     if (res > 0) {
       return HA_ERR_FOUND_DUPP_KEY;

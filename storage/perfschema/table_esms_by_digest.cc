@@ -155,7 +155,9 @@ int table_esms_by_digest::rnd_next() {
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next()) {
     digest_stat = &statements_digest_stat_array[m_pos.m_index];
+
     if (digest_stat->m_lock.is_populated()) {
+      /* Filter out record[0] when never used. */
       if (digest_stat->m_first_seen != 0) {
         m_next_pos.set_after(&m_pos);
         return make_row(digest_stat);
@@ -177,6 +179,7 @@ int table_esms_by_digest::rnd_pos(const void *pos) {
   digest_stat = &statements_digest_stat_array[m_pos.m_index];
 
   if (digest_stat->m_lock.is_populated()) {
+    /* Filter out record[0] when never used. */
     if (digest_stat->m_first_seen != 0) {
       return make_row(digest_stat);
     }
@@ -203,11 +206,15 @@ int table_esms_by_digest::index_next() {
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < digest_max; m_pos.next()) {
     digest_stat = &statements_digest_stat_array[m_pos.m_index];
-    if (digest_stat->m_first_seen != 0) {
-      if (m_opened_index->match(digest_stat)) {
-        if (!make_row(digest_stat)) {
-          m_next_pos.set_after(&m_pos);
-          return 0;
+
+    if (digest_stat->m_lock.is_populated()) {
+      /* Filter out record[0] when never used. */
+      if (digest_stat->m_first_seen != 0) {
+        if (m_opened_index->match(digest_stat)) {
+          if (!make_row(digest_stat)) {
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
       }
     }

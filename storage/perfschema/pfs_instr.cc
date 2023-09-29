@@ -1106,16 +1106,16 @@ search:
     pfs->m_temporary = false;
 
     int res;
-    pfs->m_lock.dirty_to_allocated(&dirty_state);
     res = lf_hash_insert(&filename_hash, pins, &pfs);
     if (likely(res == 0)) {
       if (klass->is_singleton()) {
         klass->m_singleton = pfs;
       }
+      pfs->m_lock.dirty_to_allocated(&dirty_state);
       return pfs;
     }
 
-    global_file_container.deallocate(pfs);
+    global_file_container.dirty_to_free(&dirty_state, pfs);
 
     if (res > 0) {
       /* Duplicate insert by another thread */

@@ -188,14 +188,14 @@ int insert_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
     pfs->m_history = history;
 
     int res;
-    pfs->m_lock.dirty_to_allocated(&dirty_state);
     res = lf_hash_insert(&setup_actor_hash, pins, &pfs);
     if (likely(res == 0)) {
       update_setup_actors_derived_flags();
+      pfs->m_lock.dirty_to_allocated(&dirty_state);
       return 0;
     }
 
-    global_setup_actor_container.deallocate(pfs);
+    global_setup_actor_container.dirty_to_free(&dirty_state, pfs);
 
     if (res > 0) {
       return HA_ERR_FOUND_DUPP_KEY;

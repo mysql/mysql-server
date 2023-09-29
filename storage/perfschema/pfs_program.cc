@@ -238,14 +238,14 @@ search:
     pfs->m_timed = is_timed;
 
     /* Insert this record. */
-    pfs->m_lock.dirty_to_allocated(&dirty_state);
     const int res = lf_hash_insert(&program_hash, pins, &pfs);
 
     if (likely(res == 0)) {
+      pfs->m_lock.dirty_to_allocated(&dirty_state);
       return pfs;
     }
 
-    global_program_container.deallocate(pfs);
+    global_program_container.dirty_to_free(&dirty_state, pfs);
 
     if (res > 0) {
       /* Duplicate insert by another thread */
