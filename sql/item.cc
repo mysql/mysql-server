@@ -5327,6 +5327,8 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
   if (select->having_fix_field && !ref->has_aggregation() && group_list) {
     Item **group_by_ref = find_field_in_group_list(ref, group_list);
 
+    if (thd->is_error()) return true;
+
     /* Check if the fields found in SELECT and GROUP BY are the same field. */
     if (group_by_ref != nullptr && select_ref != nullptr &&
         !((*group_by_ref)->eq(*select_ref, false))) {

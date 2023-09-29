@@ -987,3 +987,21 @@ HAVING field1 < 7
 ORDER BY field1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35846192 Assertion Failure in /mysql-8.0.34/sql/sql_resolver.cc
+--echo #
+
+CREATE TABLE t0 (c42 INT);
+
+--error ER_NON_UNIQ_ERROR
+SELECT *
+FROM (SELECT c42 AS c6 FROM t0) AS t1
+JOIN t0 ON t0.c42 = t0.c42
+GROUP BY c6
+HAVING (SELECT MIN(c6) AS c44 FROM t0
+        GROUP BY c6, c6
+        HAVING t1.c6 = (SELECT 1 FROM t0)
+       );
+
+DROP TABLE t0;
