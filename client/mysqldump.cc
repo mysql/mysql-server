@@ -3946,7 +3946,7 @@ static void dump_table(char *table, char *db) {
                 : 0;
         if (extended_insert && !opt_xml) {
           if (first_column) {
-            dynstr_set_checked(&extended_row, "(");
+            dynstr_set_checked(&extended_row, "\n(");
             first_column = false;
           } else
             dynstr_append_checked(&extended_row, ",");
@@ -4084,7 +4084,7 @@ static void dump_table(char *table, char *db) {
         row_length = 2 + extended_row.length;
         if (total_length + row_length < opt_net_buffer_length) {
           total_length += row_length;
-          fputc(',', md_result_file); /* Always row break */
+          fputc(',', md_result_file);
           fputs(extended_row.str, md_result_file);
         } else {
           if (row_break) fputs(";\n", md_result_file);
