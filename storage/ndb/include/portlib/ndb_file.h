@@ -236,6 +236,7 @@ private:
   int detect_direct_io_block_size_and_alignment();
   bool check_block_size_and_alignment(const void* buf, size_t count,
                                       ndb_off_t offset) const;
+  bool check_is_regular_file() const;
   bool is_regular_file() const;
   int do_sync_after_write(size_t written_bytes);
 
