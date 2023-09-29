@@ -2694,3 +2694,40 @@ ANALYZE TABLE t1, t2;
 --eval $query
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#31969607: THE RESULT IS INCONSISTENT BETWEEN JOIN AND GROUP BY
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t1(j) VALUES
+  (NULL), ('-1'), ('1'), ('1.0'), ('"1"'), ('[1, 2]'), ('[1.0, 2.0]'),
+  ('9223372036854775806'), ('9223372036854775807'), ('"abc"'), ('"Abc"');
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(100));
+INSERT INTO t2(vc) VALUES
+  (NULL), ('-1'), ('1'), ('1.0'), ('"1"'), ('[1, 2]'), ('[1.0, 2.0]'),
+  ('9223372036854775806'), ('9223372036854775807'), ('abc'), ('Abc');
+CREATE TABLE t3 (i BIGINT);
+INSERT INTO t3 VALUES (NULL), (-1), (0), (1), (2), (3),
+                      (9223372036854775806), (9223372036854775807);
+
+--skip_if_hypergraph  # Bug#33824300.
+--sorted_result
+SELECT * FROM t1 AS a, t1 AS b WHERE a.j = b.j;
+--skip_if_hypergraph  # Bug#33824300.
+--sorted_result
+SELECT * FROM t1 AS a, t1 AS b WHERE a.j <=> b.j;
+
+--sorted_result
+SELECT * FROM t1, t2 WHERE t1.j = t2.vc;
+--sorted_result
+SELECT * FROM t1, t2 WHERE t1.j <=> t2.vc;
+
+--skip_if_hypergraph  # Bug#33824300.
+--sorted_result
+SELECT * FROM t1, t3 WHERE t1.j = t3.i;
+--skip_if_hypergraph  # Bug#33824300.
+--sorted_result
+SELECT * FROM t1, t3 WHERE t1.j <=> t3.i;
+
+DROP TABLE t1, t2, t3;

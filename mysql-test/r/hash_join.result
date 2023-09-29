@@ -3945,10 +3945,11 @@ CREATE TABLE t (i INTEGER);
 INSERT INTO t VALUES (1), (2);
 EXPLAIN FORMAT=tree SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
 EXPLAIN
--> Inner hash join (json_extract(t1.i,t1.i) = t2.i)  (cost=1.1 rows=2)
-    -> Table scan on t2  (cost=0.175 rows=2)
-    -> Hash
-        -> Table scan on t1  (cost=0.45 rows=2)
+-> Filter: (json_extract(t1.i,t1.i) = t2.i)  (cost=1.1 rows=2)
+    -> Inner hash join (<hash>(json_extract(t1.i,t1.i))=<hash>(t2.i))  (cost=1.1 rows=2)
+        -> Table scan on t2  (cost=0.175 rows=2)
+        -> Hash
+            -> Table scan on t1  (cost=0.45 rows=2)
 
 SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
@@ -4244,3 +4245,77 @@ NULL
 NULL
 NULL
 DROP TABLE t1, t2;
+#
+# Bug#31969607: THE RESULT IS INCONSISTENT BETWEEN JOIN AND GROUP BY
+#
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t1(j) VALUES
+(NULL), ('-1'), ('1'), ('1.0'), ('"1"'), ('[1, 2]'), ('[1.0, 2.0]'),
+('9223372036854775806'), ('9223372036854775807'), ('"abc"'), ('"Abc"');
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(100));
+INSERT INTO t2(vc) VALUES
+(NULL), ('-1'), ('1'), ('1.0'), ('"1"'), ('[1, 2]'), ('[1.0, 2.0]'),
+('9223372036854775806'), ('9223372036854775807'), ('abc'), ('Abc');
+CREATE TABLE t3 (i BIGINT);
+INSERT INTO t3 VALUES (NULL), (-1), (0), (1), (2), (3),
+(9223372036854775806), (9223372036854775807);
+SELECT * FROM t1 AS a, t1 AS b WHERE a.j = b.j;
+id	j	id	j
+10	"abc"	10	"abc"
+11	"Abc"	11	"Abc"
+2	-1	2	-1
+3	1	3	1
+3	1	4	1.0
+4	1.0	3	1
+4	1.0	4	1.0
+5	"1"	5	"1"
+6	[1, 2]	6	[1, 2]
+6	[1, 2]	7	[1.0, 2.0]
+7	[1.0, 2.0]	6	[1, 2]
+7	[1.0, 2.0]	7	[1.0, 2.0]
+8	9223372036854775806	8	9223372036854775806
+9	9223372036854775807	9	9223372036854775807
+SELECT * FROM t1 AS a, t1 AS b WHERE a.j <=> b.j;
+id	j	id	j
+1	NULL	1	NULL
+10	"abc"	10	"abc"
+11	"Abc"	11	"Abc"
+2	-1	2	-1
+3	1	3	1
+3	1	4	1.0
+4	1.0	3	1
+4	1.0	4	1.0
+5	"1"	5	"1"
+6	[1, 2]	6	[1, 2]
+6	[1, 2]	7	[1.0, 2.0]
+7	[1.0, 2.0]	6	[1, 2]
+7	[1.0, 2.0]	7	[1.0, 2.0]
+8	9223372036854775806	8	9223372036854775806
+9	9223372036854775807	9	9223372036854775807
+SELECT * FROM t1, t2 WHERE t1.j = t2.vc;
+id	j	id	vc
+10	"abc"	10	abc
+11	"Abc"	11	Abc
+5	"1"	3	1
+SELECT * FROM t1, t2 WHERE t1.j <=> t2.vc;
+id	j	id	vc
+1	NULL	1	NULL
+10	"abc"	10	abc
+11	"Abc"	11	Abc
+5	"1"	3	1
+SELECT * FROM t1, t3 WHERE t1.j = t3.i;
+id	j	i
+2	-1	-1
+3	1	1
+4	1.0	1
+8	9223372036854775806	9223372036854775806
+9	9223372036854775807	9223372036854775807
+SELECT * FROM t1, t3 WHERE t1.j <=> t3.i;
+id	j	i
+1	NULL	NULL
+2	-1	-1
+3	1	1
+4	1.0	1
+8	9223372036854775806	9223372036854775806
+9	9223372036854775807	9223372036854775807
+DROP TABLE t1, t2, t3;
