@@ -3643,7 +3643,8 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
     return {};
   }
 
-  // FIXME: Decide whether to keep this
+  // MySQL 8.0.33 through 8.2.x do not allow a TLS socket to be upgraded to
+  // a transporter connection. Beginning with MySQL 8.3 this is not an error.
   if ((*handle)->socket.has_tls())
   {
     SET_ERROR(*handle, NDB_MGM_CANNOT_CONVERT_TO_TRANSPORTER, "");
