@@ -8,11 +8,11 @@
 select @@global.ndb_log_transaction_dependency;
 @@global.ndb_log_transaction_dependency
 0
-# Test assumes that COMMIT_ORDER is used for dependency tracking (this
-# is the default setting for MySQL Server)
+# Test records that WRITESET is used for dependency tracking (this
+# is the default setting for MySQL Server). But otherwise ignored.
 select @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
-COMMIT_ORDER
+WRITESET
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
