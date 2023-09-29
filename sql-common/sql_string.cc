@@ -447,7 +447,7 @@ bool String::append(const char *s, size_t arg_length) {
   }
 
   /*
-    For an ASCII compatinble string we can just append.
+    For an ASCII compatible string we can just append.
   */
   if (mem_realloc_exp(m_length + arg_length)) return true;
   memcpy(m_ptr + m_length, s, arg_length);

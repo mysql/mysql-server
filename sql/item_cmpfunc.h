@@ -245,6 +245,8 @@ class Arg_comparator {
 
   Arg_comparator *get_child_comparators() const { return comparators; }
 
+  bool compare_as_json() const { return func == &Arg_comparator::compare_json; }
+
   /// @returns true if the class has decided that values should be extracted
   ///   from the Items using function pointers set up by this class.
   bool use_custom_value_extractors() const {
