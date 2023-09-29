@@ -887,3 +887,15 @@ ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.66666666
 Table	Op	Msg_type	Msg_text
 test.t	histogram	status	Histogram statistics created for column 'x'.
 DROP TABLE t;
+#
+# Bug#35227319 String histogram collation mismatch on comparison with REVERSE(1)
+#
+CREATE TABLE t1(x TEXT);
+INSERT INTO t1 VALUES ("1");
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+SELECT * FROM t1 AS a JOIN t1 AS b ON a.x = REVERSE(1);
+x	x
+1	1
+DROP TABLE t1;

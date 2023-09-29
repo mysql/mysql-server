@@ -1190,23 +1190,29 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
 
 String *Item_func_reverse::val_str(String *str) {
   assert(fixed);
-  String *res = args[0]->val_str(str);
-  const char *ptr, *end;
-  char *tmp;
 
-  if ((null_value = args[0]->null_value)) return nullptr;
-  /* An empty string is a special case as the string pointer may be null */
-  if (!res->length()) return make_empty_result();
+  // Ensure that the input to REVERSE() is converted to the collation used by
+  // the reverse item itself. This is important e.g. for "REVERSE(1)" where the
+  // input collation is latin1 while the default collation for the reverse item
+  // is utf8mb4.
+  String *res = eval_string_arg(collation.collation, args[0], str);
+  if (res == nullptr) return error_str();
+  null_value = false;
+
+  if (res->length() == 0) return make_empty_result();
+
+  // Prepare tmp_value to hold the reversed input string.
   if (tmp_value.alloced_length() < res->length() &&
       tmp_value.mem_realloc(res->length())) {
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
   tmp_value.length(res->length());
   tmp_value.set_charset(res->charset());
-  ptr = res->ptr();
-  end = ptr + res->length();
-  tmp = tmp_value.ptr() + tmp_value.length();
+
+  // Reverse the string.
+  const char *ptr = res->ptr();
+  const char *end = ptr + res->length();
+  char *tmp = tmp_value.ptr() + tmp_value.length();
   if (use_mb(res->charset())) {
     uint32 l;
     while (ptr < end) {

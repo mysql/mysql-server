@@ -654,3 +654,13 @@ ANALYZE TABLE t DROP HISTOGRAM ON x;
 ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
 ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
 DROP TABLE t;
+
+
+-- echo #
+-- echo # Bug#35227319 String histogram collation mismatch on comparison with REVERSE(1)
+-- echo #
+CREATE TABLE t1(x TEXT);
+INSERT INTO t1 VALUES ("1");
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+SELECT * FROM t1 AS a JOIN t1 AS b ON a.x = REVERSE(1);
+DROP TABLE t1;
