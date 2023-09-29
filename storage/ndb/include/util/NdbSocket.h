@@ -307,6 +307,7 @@ uint NdbSocket::add_writable(ndb_socket_poller * poller) const {
 
 inline
 int NdbSocket::poll_readable(int timeout) const {
+  if (!is_valid()) return -1;
   ndb_socket_poller poller;
   poller.add_readable(s, ssl);
   return poller.poll(timeout);
@@ -314,6 +315,7 @@ int NdbSocket::poll_readable(int timeout) const {
 
 inline
 int NdbSocket::poll_writable(int timeout) const {
+  if (!is_valid()) return -1;
   ndb_socket_poller poller;
   poller.add_writable(s);
   return poller.poll(timeout);
@@ -321,6 +323,7 @@ int NdbSocket::poll_writable(int timeout) const {
 
 inline
 bool NdbSocket::check_hup() const {
+  if (!is_valid()) return true;
   ndb_socket_poller poller;
   poller.add_readable(s);
   if(poller.poll_unsafe(0) > 0 && poller.has_hup(0))

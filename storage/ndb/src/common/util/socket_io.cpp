@@ -57,6 +57,9 @@ poll_socket(ndb_socket_t socket, bool read, bool write,
 int
 read_socket(ndb_socket_t socket, int timeout_millis,
 	    char * buf, int buflen){
+  if (!ndb_socket_valid(socket))
+    return -1;
+
   if(buflen < 1)
     return 0;
 
@@ -72,6 +75,9 @@ read_socket(ndb_socket_t socket, int timeout_millis,
 int
 readln_socket(ndb_socket_t socket, int timeout_millis, int *time,
 	      char * buf, int buflen, NdbMutex *mutex){
+  if (!ndb_socket_valid(socket))
+    return -1;
+
   if(buflen <= 1)
     return 0;
 
