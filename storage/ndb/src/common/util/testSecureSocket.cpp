@@ -181,7 +181,7 @@ public:
     m_ssl_ctx(ctx),
     m_secure_socket(std::move(s)) {}
   void runSession() override;
-  void stopSession() override { m_secure_socket.close(); }
+  void stopSession() override;
 private:
   bool m_sink;
   SSL_CTX * m_ssl_ctx;
@@ -292,6 +292,10 @@ void EchoSession::runSession() {
   }
 }
 
+void EchoSession::stopSession() {
+  m_stop = true;
+  m_secure_socket.close();
+}
 
 /*** Client ****/
 
