@@ -233,7 +233,9 @@ class Client : public SocketClient {
   }
   Client(SSL_CTX *km) : m_ssl_ctx(km) {}
 
-  ~Client() { m_socket.close(); }
+  ~Client() {
+    if (m_socket.is_valid()) m_socket.close();
+  }
   bool connect(int port, bool expectSuccess = true);
   bool connect(ndb_sockaddr &, bool);
 
@@ -313,7 +315,7 @@ void Session::runSession() {
   } else
     NdbSocket::free_ssl(ssl);
 
-  m_socket.close();
+  if (m_socket.is_valid()) m_socket.close();
 }
 }  // namespace Test
 

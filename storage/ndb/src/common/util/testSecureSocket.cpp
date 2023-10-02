@@ -170,7 +170,6 @@ class EchoSession : public SocketServer::Session {
         m_ssl_ctx(ctx),
         m_secure_socket(std::move(s)) {}
   void runSession() override;
-  void stopSession() override;
 
  private:
   bool m_sink;
@@ -276,7 +275,7 @@ void EchoSession::runSession() {
 
   while (!m_stop) {
     if ((n = m_secure_socket.read(50, buffer, echo_buffer_size)) < 0) {
-      return;
+      break;
     }
     total += n;
     if (m_sink && n) { /* Send acknowledgement */
@@ -286,10 +285,6 @@ void EchoSession::runSession() {
       m_secure_socket.send(buffer, n);
     }
   }
-}
-
-void EchoSession::stopSession() {
-  m_stop = true;
   m_secure_socket.close();
 }
 

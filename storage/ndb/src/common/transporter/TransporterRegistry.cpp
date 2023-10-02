@@ -431,6 +431,8 @@ void TransporterRegistry::disconnectAll() {
       (stderr, "(%u)doDisconnect(all), line: %d\n", localNodeId, __LINE__));
 
   for (Uint32 i = 1; i < (nTransporters + 1); i++) {
+    if (allTransporters[i]->isReleased()) continue;
+
     allTransporters[i]->doDisconnect();
 
     // We force a 'clean' shutdown of the Transporters.

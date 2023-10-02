@@ -91,7 +91,7 @@ class NdbMgmd {
       ndb_mgm_destroy_handle(&m_handle);
       m_handle = NULL;
     }
-    m_event_socket.close();
+    if (m_event_socket.is_valid()) m_event_socket.close();
   }
 
   NdbMgmHandle handle(void) const { return m_handle; }

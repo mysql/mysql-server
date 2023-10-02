@@ -134,6 +134,7 @@ class Transporter {
    * Are we currently connected
    */
   bool isConnected() const;
+  bool isReleased() const;
 
   /**
    * Remote Node Id
@@ -353,6 +354,10 @@ inline TransporterType Transporter::getTransporterType() const {
 }
 
 inline bool Transporter::isConnected() const { return m_connected; }
+
+inline bool Transporter::isReleased() const {
+  return !isConnected() && !theSocket.is_valid();
+}
 
 inline NodeId Transporter::getRemoteNodeId() const { return remoteNodeId; }
 
