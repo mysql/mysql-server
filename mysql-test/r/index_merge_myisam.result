@@ -23,6 +23,18 @@ INDEX i6(key6),
 INDEX i7(key7),
 INDEX i8(key8)
 );
+create procedure populate_t0()
+begin
+declare d int default 2;
+insert into t0 values (1,1,1,1,1,1,1,1023),(2,2,2,2,2,2,2,1022);
+while d<=POW(2,9) do
+insert into t0 select key1+d, key2+d, key3+d, key4+d, key5+d,
+key6+d, key7+d, key8-d from t0;
+set d = d*2;
+end while;
+end|
+call populate_t0();
+drop procedure populate_t0;
 analyze table t0;
 Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK

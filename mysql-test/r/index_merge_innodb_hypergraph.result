@@ -23,6 +23,18 @@ INDEX i6(key6),
 INDEX i7(key7),
 INDEX i8(key8)
 );
+create procedure populate_t0()
+begin
+declare d int default 2;
+insert into t0 values (1,1,1,1,1,1,1,1023),(2,2,2,2,2,2,2,1022);
+while d<=POW(2,9) do
+insert into t0 select key1+d, key2+d, key3+d, key4+d, key5+d,
+key6+d, key7+d, key8-d from t0;
+set d = d*2;
+end while;
+end|
+call populate_t0();
+drop procedure populate_t0;
 analyze table t0;
 Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
@@ -114,7 +126,7 @@ EXPLAIN
 #    verify fallback to "range" if there is only one non-confluent condition
 explain select * from t0 where key2 = 45 or key1 <=> null;
 EXPLAIN
--> Filter: ((t0.key2 = 45) or (t0.key1 <=> NULL))  (rows=103)
+-> Filter: ((t0.key2 = 45) or (t0.key1 <=> NULL))  (rows=1)
     -> Index range scan on t0 using i2 over (key2 = 45)  (rows=1)
 
 explain select * from t0 where key2 = 45 or key1 is not null;
@@ -128,7 +140,7 @@ EXPLAIN
 #   the last conj. is always false and will be discarded
 explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=104)
+-> Deduplicate rows sorted by row ID  (rows=2)
     -> Index range scan on t0 using i2 over (key2 = 10)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 3)  (rows=1)
 
@@ -143,14 +155,14 @@ EXPLAIN
 explain select key1 from t0 where (key1 <=> null) or (key2 < 2) or
 (key3=10) or (key4 <=> null);
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=472)
+-> Sort-deduplicate by row ID  (rows=342)
     -> Index range scan on t0 using i2 over (key2 < 2)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 
 explain select key1 from t0 where (key1 <=> null) or (key1 < 5) or
 (key3=10) or (key4 <=> null);
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=472)
+-> Sort-deduplicate by row ID  (rows=342)
     -> Index range scan on t0 using i1 over (key1 < 5)  (rows=4)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 

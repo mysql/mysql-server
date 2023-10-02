@@ -1219,7 +1219,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` is null)
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 = NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	0.10	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE t1.col3>NULL;
@@ -1283,7 +1283,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where false
 EXPLAIN SELECT * FROM t1 WHERE t1.col4 = NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	0.10	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE t1.col4>NULL;

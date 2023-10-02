@@ -1185,3 +1185,98 @@ EXPLAIN
         -> Covering index lookup on x2 using k1 (a=x1.b)  (rows=6)
 
 DROP TABLE t1;
+#
+# Bug#35483044 Hypergraph: Invalid row estimate for filter on
+# 'Index range scan'
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT NOT NULL,
+c INT,
+KEY k_b(b),
+KEY k_c(c)
+);
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<30) SELECT n, n/2, n/2 FROM qn;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c=NULL;
+EXPLAIN
+-> Filter: ((t1.b = 5) or (t1.c = NULL))  (rows=2)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
+EXPLAIN
+-> Deduplicate rows sorted by row ID  (rows=4.8)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+    -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
+EXPLAIN
+-> Deduplicate rows sorted by row ID  (rows=4.8)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+    -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
+EXPLAIN
+-> Filter: ((t1.b = NULL) or (t1.c = 5))  (rows=2)
+    -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
+EXPLAIN
+-> Filter: ((t1.b <=> NULL) or (t1.c = 5))  (rows=2)
+    -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
+EXPLAIN
+-> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
+    -> Table scan on t1  (rows=30)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
+EXPLAIN
+-> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
+    -> Table scan on t1  (rows=30)
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c=NULL;
+EXPLAIN
+-> Filter: ((t1.b = 5) or (t1.c = NULL))  (rows=2)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
+EXPLAIN
+-> Deduplicate rows sorted by row ID  (rows=2.03)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+    -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
+EXPLAIN
+-> Deduplicate rows sorted by row ID  (rows=2.03)
+    -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
+    -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
+EXPLAIN
+-> Filter: ((t1.b = NULL) or (t1.c = 5))  (rows=2)
+    -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
+EXPLAIN
+-> Filter: ((t1.b <=> NULL) or (t1.c = 5))  (rows=2)
+    -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
+EXPLAIN
+-> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
+    -> Table scan on t1  (rows=30)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
+EXPLAIN
+-> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
+    -> Table scan on t1  (rows=30)
+
+DROP TABLE t1;

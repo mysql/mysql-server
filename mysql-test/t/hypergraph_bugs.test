@@ -986,3 +986,81 @@ EXPLAIN FORMAT=TREE SELECT a, COUNT(*) FROM
   (SELECT x1.a FROM t1 x1, t1 x2 WHERE x1.b = x2.a) AS dt GROUP BY a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35483044 Hypergraph: Invalid row estimate for filter on
+--echo # 'Index range scan'
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT NOT NULL,
+  c INT,
+  KEY k_b(b),
+  KEY k_c(c)
+);
+
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<30) SELECT n, n/2, n/2 FROM qn;
+
+ANALYZE TABLE t1;
+
+# c=NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c=NULL;
+
+# 'c<=>NULL' and 'c IS NULL' are equivalent and should get the same row
+# estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
+
+# b=NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
+
+# b<=>NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
+
+# Use index for selectivity estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
+
+# Use index for selectivity estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
+
+# c=NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c=NULL;
+
+# 'c<=>NULL' and 'c IS NULL' are equivalent and should get the same row
+# estimate (from the histogram).
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
+
+# b=NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
+
+# b<=>NULL is always false and should not affect the row estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
+
+# Use index for selectivity estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
+
+# Use index for selectivity estimate.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
+
+DROP TABLE t1;

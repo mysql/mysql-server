@@ -2651,6 +2651,65 @@ longlong Item_func_ne::val_int() {
   return value != 0 && !null_value ? 1 : 0;
 }
 
+/**
+   Compute selectivity for field=expression and field<=>expression, where
+   'expression' is not Item_null.
+   @param thd The current thread.
+   @param equal The '=' or '<=>' term.
+   @param field The field we compare with 'expression'.
+   @param rows_in_table Number of rows in the table of 'field'.
+   @returns Selectivity estimate.
+ */
+static double GetEqualSelectivity(THD *thd, Item_eq_base *equal,
+                                  const Item_field &field,
+                                  double rows_in_table) {
+  assert(equal->argument_count() == 2);
+  assert(std::none_of(
+      equal->arguments(), equal->arguments() + equal->argument_count(),
+      [](const Item *item) { return item->type() == Item::NULL_ITEM; }));
+
+  const double selectivity = [&]() {
+    // The index calculation might be useful for the original optimizer too,
+    // but we are loth to change existing plans and therefore restrict
+    // it to Hypergraph.
+    if (!thd->lex->using_hypergraph_optimizer) {
+      return get_histogram_selectivity(
+          thd, *field.field, histograms::enum_operator::EQUALS_TO, *equal);
+
+    } else if (equal->arguments()[0]->const_item() ||
+               equal->arguments()[1]->const_item() ||
+               field.field->key_start.is_clear_all()) {
+      // We prefer histograms over indexes if:
+      // 1) We are comparing a field to a constant, since histograms will
+      //    give the frequency of that constant value.
+      // 2) If no index starts with field.field, as index estimates will then
+      //    be less accurate, since we do not know if that field is correlated
+      //    with the preceding fields of the index.
+      const double histogram_selectivity = get_histogram_selectivity(
+          thd, *field.field, histograms::enum_operator::EQUALS_TO, *equal);
+
+      return histogram_selectivity == kUndefinedSelectivity
+                 ? IndexSelectivityOfUnknownValue(*field.field)
+                 : histogram_selectivity;
+
+    } else {
+      const double index_selectivity =
+          IndexSelectivityOfUnknownValue(*field.field);
+
+      return index_selectivity == kUndefinedSelectivity
+                 ? get_histogram_selectivity(
+                       thd, *field.field, histograms::enum_operator::EQUALS_TO,
+                       *equal)
+                 : index_selectivity;
+    }
+  }();
+
+  return selectivity == kUndefinedSelectivity
+             ? field.get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY)
+             : selectivity;
+}
+
 float Item_func_equal::get_filtering_effect(THD *thd,
                                             table_map filter_for_table,
                                             table_map read_tables,
@@ -2660,10 +2719,28 @@ float Item_func_equal::get_filtering_effect(THD *thd,
       thd, read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
 
-  // TODO(khatlen): Use histograms for field <=> const, like in Item_func_eq?
+  for (int i : {0, 1}) {
+    if (arguments()[i]->type() == NULL_ITEM) {
+      if (!fld->field->is_nullable()) {
+        return 0.0;
+      }
 
-  return fld->get_cond_filter_default_probability(rows_in_table,
-                                                  COND_FILTER_EQUALITY);
+      const Item_func *is_null =
+          new (thd->mem_root) Item_func_isnull(arguments()[(i + 1) % 2]);
+
+      const double histogram_selectivity = get_histogram_selectivity(
+          thd, *fld->field, histograms::enum_operator::IS_NULL, *is_null);
+
+      if (histogram_selectivity >= 0.0) {
+        return histogram_selectivity;
+      } else {
+        return fld->get_cond_filter_default_probability(rows_in_table,
+                                                        COND_FILTER_EQUALITY);
+      }
+    }
+  }
+
+  return GetEqualSelectivity(thd, this, *fld, rows_in_table);
 }
 
 float Item_func_inequality::get_filtering_effect(
@@ -7471,49 +7548,17 @@ float Item_func_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  if (arguments()[0]->type() == NULL_ITEM ||
+      arguments()[1]->type() == NULL_ITEM) {
+    return 0.0;
+  }
+
   const Item_field *fld = contributes_to_filter(
       thd, read_tables, filter_for_table, fields_to_ignore);
+
   if (!fld) return COND_FILTER_ALLPASS;
 
-  const double selectivity = [&]() {
-    // The index calculation might be useful for the original optimizer too,
-    // but we are loth to change existing plans and therefore restrict
-    // it to Hypergraph.
-    if (!thd->lex->using_hypergraph_optimizer) {
-      return get_histogram_selectivity(
-          thd, *fld->field, histograms::enum_operator::EQUALS_TO, *this);
-
-    } else if (args[0]->const_item() || args[1]->const_item() ||
-               fld->field->key_start.is_clear_all()) {
-      // We prefer histograms over indexes if:
-      // 1) We are comparing a field to a constant, since histograms will
-      //    give the frequency of that constant value.
-      // 2) If no index starts with fld->field, as index estimates will then
-      //    be less accurate, since we do not know if that field is correlated
-      //    with the preceding fields of the index.
-      const double histogram_selectivity = get_histogram_selectivity(
-          thd, *fld->field, histograms::enum_operator::EQUALS_TO, *this);
-
-      return histogram_selectivity == kUndefinedSelectivity
-                 ? IndexSelectivityOfUnknownValue(*fld->field)
-                 : histogram_selectivity;
-
-    } else {
-      const double index_selectivity =
-          IndexSelectivityOfUnknownValue(*fld->field);
-
-      return index_selectivity == kUndefinedSelectivity
-                 ? get_histogram_selectivity(
-                       thd, *fld->field, histograms::enum_operator::EQUALS_TO,
-                       *this)
-                 : index_selectivity;
-    }
-  }();
-
-  return selectivity == kUndefinedSelectivity
-             ? fld->get_cond_filter_default_probability(rows_in_table,
-                                                        COND_FILTER_EQUALITY)
-             : selectivity;
+  return GetEqualSelectivity(thd, this, *fld, rows_in_table);
 }
 
 bool Item_func_any_value::aggregate_check_group(uchar *arg) {
