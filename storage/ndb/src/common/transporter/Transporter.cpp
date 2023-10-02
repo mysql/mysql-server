@@ -290,6 +290,9 @@ bool Transporter::connect_client() {
       }
     }
     secureSocket = m_socket_client->connect(remote_addr);
+    if (!secureSocket.is_valid()) {
+      DBUG_RETURN(false);
+    }
 
     /** Socket Authentication */
     if (m_socket_client->authenticate(secureSocket) <
