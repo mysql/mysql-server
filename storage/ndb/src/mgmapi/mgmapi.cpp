@@ -49,7 +49,7 @@
 #include "mgmcommon/NdbMgm.hpp"
 #include "portlib/ndb_sockaddr.h"
 
-//#define MGMAPI_LOG
+// #define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc)                                          \
   {                                                                       \
     name, 0, ParserRow<ParserDummy>::Cmd, ParserRow<ParserDummy>::String, \
@@ -874,7 +874,7 @@ extern "C" socket_t ndb_mgm_get_fd(NdbMgmHandle handle) {
  * e.g. on timeout, we leave NdbMgmHandle disconnected
  */
 int ndb_mgm_disconnect_quiet(NdbMgmHandle handle) {
-  handle->socket.close();
+  if (handle->socket.is_valid()) handle->socket.close();
   handle->connected = 0;
 
   return 0;

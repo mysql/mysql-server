@@ -266,6 +266,7 @@ inline int NdbSocket::shutdown() const {
 }
 
 inline int NdbSocket::close() {
+  assert(is_valid());
   if (ssl) ssl_close();
   int r = ndb_socket_close(s);
   invalidate_socket_handle();

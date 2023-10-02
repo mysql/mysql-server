@@ -499,7 +499,7 @@ void Transporter::forceUnsafeDisconnect() {
 
   // Release of resources need locks as we not really DISCONNECTED.
   get_callback_obj()->lock_transporter(m_transporter_index);
-  releaseAfterDisconnect();
+  if (!isReleased()) releaseAfterDisconnect();
   get_callback_obj()->unlock_transporter(m_transporter_index);
 }
 

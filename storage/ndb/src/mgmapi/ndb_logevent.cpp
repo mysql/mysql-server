@@ -88,7 +88,14 @@ extern "C" socket_t ndb_logevent_get_fd(const NdbLogEventHandle h) {
 extern "C" void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle *h) {
   if (!h) return;
   if (*h == nullptr) return;
-  (*h)->owned_socket.close();
+
+  if ((*h)->owned_socket.is_valid()) {
+    assert(&(*h)->owned_socket == &(*h)->socket);
+    (*h)->owned_socket.close();
+  } else {
+    assert(&(*h)->owned_socket != &(*h)->socket);
+  }
+
   delete (*h);
 }
 
