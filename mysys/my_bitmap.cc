@@ -46,16 +46,16 @@
   Kindahl.
 */
 
+#include "my_bitmap.h"
+
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <bit>
 
-#include "my_bit.h"
-#include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
@@ -419,10 +419,10 @@ uint bitmap_bits_set(const MY_BITMAP *map) {
   assert(map->bitmap);
   assert(map->n_bits > 0);
 
-  for (; data_ptr < end; data_ptr++) res += my_count_bits_uint32(*data_ptr);
+  for (; data_ptr < end; data_ptr++) res += std::popcount(*data_ptr);
 
   /*Reset last bits to zero*/
-  res += my_count_bits_uint32(*map->last_word_ptr & ~map->last_word_mask);
+  res += std::popcount(*map->last_word_ptr & ~map->last_word_mask);
   return res;
 }
 

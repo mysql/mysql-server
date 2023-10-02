@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cmath>
 #include <list>
 #include <random>  // std::uniform_real_distribution
@@ -45,7 +46,6 @@
 
 #include "keycache.h"
 #include "m_string.h"
-#include "my_bit.h"     // my_count_bits
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_check_opt.h"
 #include "my_dbug.h"
@@ -6303,7 +6303,7 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else if (range.range_flag & SKIP_RECORDS_IN_RANGE &&  // 2)
              !(range.range_flag & NULL_RANGE)) {
       if ((range.range_flag & EQ_RANGE) &&
-          (keyparts_used = my_count_bits(range.start_key.keypart_map)) &&
+          (keyparts_used = std::popcount(range.start_key.keypart_map)) &&
           table->key_info[keyno].has_records_per_key(keyparts_used - 1)) {
         rows = static_cast<ha_rows>(
             table->key_info[keyno].records_per_key(keyparts_used - 1));

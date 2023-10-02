@@ -31,7 +31,6 @@
 
 #include "field_types.h"
 #include "my_alloc.h"
-#include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 

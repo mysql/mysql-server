@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -37,7 +38,6 @@
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -1610,7 +1610,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   */
   thd->table_map_for_update = tables_for_update = get_table_map(select->fields);
 
-  uint update_table_count_local = my_count_bits(tables_for_update);
+  const int update_table_count_local = std::popcount(tables_for_update);
 
   assert(update_table_count_local > 0);
 

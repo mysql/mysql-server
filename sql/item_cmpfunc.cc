@@ -42,7 +42,6 @@
 #include "decimal.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
 #include "my_alloc.h"
-#include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"

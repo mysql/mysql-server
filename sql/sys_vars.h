@@ -34,6 +34,7 @@
 
 #include <sys/types.h>
 
+#include <bit>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -44,7 +45,6 @@
 #include "keycache.h"  // dflt_key_cache
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_bit.h"  // my_count_bits
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
@@ -1931,7 +1931,7 @@ class Sys_var_bit : public Sys_var_typelib {
                         on_check_func, on_update_func, substitute) {
     option.var_type = GET_BOOL;
     pre_update = pre_update_func;
-    reverse_semantics = my_count_bits(bitmask_arg) > 1;
+    reverse_semantics = std::popcount(bitmask_arg) > 1;
     bitmask = reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
     assert(getopt.id == -1);  // force NO_CMD_LINE

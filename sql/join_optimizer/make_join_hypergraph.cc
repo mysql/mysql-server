@@ -36,7 +36,6 @@
 #include "limits.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
-#include "my_bit.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -72,6 +71,7 @@ using std::array;
 using std::has_single_bit;
 using std::max;
 using std::min;
+using std::popcount;
 using std::string;
 using std::swap;
 using std::vector;
@@ -240,8 +240,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
               eq_items.push_back(MakeEqItem(&field, equal->const_arg(), equal));
             }
           }
-        } else if (my_count_bits(equal->used_tables() & tables_in_subtree) >
-                   2) {
+        } else if (popcount(equal->used_tables() & tables_in_subtree) > 2) {
           // Only look at partial expansion.
           ExpandSameTableFromMultipleEquals(equal, tables_in_subtree,
                                             &eq_items);
@@ -874,7 +873,7 @@ bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
     if (!func_item->contains_only_equi_join_condition()) {
       return false;
     }
-    if (my_count_bits(cond->used_tables()) != 2) {
+    if (popcount(cond->used_tables()) != 2) {
       return false;
     }
   }
@@ -1628,13 +1627,13 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     table_map left_tables = cond->used_tables() & expr->left->tables_in_subtree;
     table_map right_tables =
         cond->used_tables() & expr->right->tables_in_subtree;
-    if (my_count_bits(left_tables) >= 2 && can_push_into_left) {
+    if (popcount(left_tables) >= 2 && can_push_into_left) {
       PushDownCondition(cond, expr->left,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,
                         cycle_inducing_edges, remaining_parts, trace);
     }
-    if (my_count_bits(right_tables) >= 2 && can_push_into_right) {
+    if (popcount(right_tables) >= 2 && can_push_into_right) {
       PushDownCondition(cond, expr->right,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,

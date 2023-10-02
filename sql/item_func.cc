@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cfloat>  // DBL_DIG
 #include <cmath>   // std::log2
 #include <cstdio>
@@ -50,7 +51,6 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
-#include "my_bit.h"      // my_count_bits
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -4440,33 +4440,35 @@ longlong Item_func_find_in_set::val_int() {
 
 longlong Item_func_bit_count::val_int() {
   assert(fixed);
+  using std::popcount;
   if (bit_func_returns_binary(args[0], nullptr)) {
     String *s = args[0]->val_str(&str_value);
     if (args[0]->null_value || !s) return error_int();
 
-    const char *val = s->ptr();
+    const auto val = pointer_cast<const unsigned char *>(s->ptr());
 
     longlong len = 0;
     size_t i = 0;
     const size_t arg_length = s->length();
     while (i + sizeof(longlong) <= arg_length) {
-      len += my_count_bits(uint8korr(&val[i]));
+      len += popcount<ulonglong>(longlongget(&val[i]));
       i += sizeof(longlong);
     }
-    while (i < arg_length) {
-      len += _my_bits_nbits[(uchar)val[i]];
-      i++;
+    if (i < arg_length) {
+      ulonglong d = 0;
+      memcpy(&d, &val[i], arg_length - i);
+      len += popcount(d);
     }
 
     null_value = false;
     return len;
   }
 
-  const ulonglong value = (ulonglong)args[0]->val_int();
+  const ulonglong value = args[0]->val_uint();
   if (args[0]->null_value) return error_int(); /* purecov: inspected */
 
   null_value = false;
-  return (longlong)my_count_bits(value);
+  return popcount(value);
 }
 
 /****************************************************************************

@@ -40,9 +40,9 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 
 #include "my_base.h"  // key_part_map
-#include "my_bit.h"   // my_count_bits
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -81,6 +81,7 @@
 
 using std::max;
 using std::min;
+using std::popcount;
 
 /**
   Number of rows in a reference table when refereed through a not unique key.
@@ -2225,7 +2226,7 @@ static int semijoin_order_allows_materialization(const JOIN *join,
     Walk back and check if all immediately preceding tables are from
     this semi-join.
   */
-  const uint n_tables = my_count_bits(emb_sj_nest->sj_inner_tables);
+  const uint n_tables = popcount(emb_sj_nest->sj_inner_tables);
   for (uint i = 1; i < n_tables; i++) {
     if (join->positions[idx - i].table->emb_sj_nest != emb_sj_nest)
       return SJ_OPT_NONE;
@@ -2332,7 +2333,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
   DBUG_TRACE;
 
   /* Number of tables that we are optimizing */
-  const uint n_tables = my_count_bits(remaining_tables);
+  const uint n_tables = popcount(remaining_tables);
 
   /* Number of tables remaining to be optimized */
   uint size_remain = n_tables;
@@ -3380,7 +3381,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
     uint first = 0;
     if (pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP) {
       Table_ref *const sjm_nest = pos->table->emb_sj_nest;
-      const uint table_count = my_count_bits(sjm_nest->sj_inner_tables);
+      const uint table_count = popcount(sjm_nest->sj_inner_tables);
       /*
         This memcpy() copies a partial QEP produced by
         optimize_semijoin_nests_for_materialization() (source) into the final
@@ -3410,7 +3411,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       const uint last_inner = pos->sjm_scan_last_inner;
       Table_ref *const sjm_nest =
           (join->best_positions + last_inner)->table->emb_sj_nest;
-      const uint table_count = my_count_bits(sjm_nest->sj_inner_tables);
+      const uint table_count = popcount(sjm_nest->sj_inner_tables);
       first = last_inner - table_count + 1;
       assert((join->best_positions + first)->table->emb_sj_nest == sjm_nest);
       memcpy(join->best_positions + first,  // stale semijoin strategy here too
@@ -3463,7 +3464,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       POSITION *const first_pos = join->best_positions + first;
       first_pos->sj_strategy = SJ_OPT_LOOSE_SCAN;
       first_pos->n_sj_tables =
-          my_count_bits(first_pos->table->emb_sj_nest->sj_inner_tables);
+          popcount(first_pos->table->emb_sj_nest->sj_inner_tables);
     } else if (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT) {
       /*
         Duplicate Weedout starting at pos->first_dupsweedout_table, ending at
@@ -3831,7 +3832,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 
   POSITION *const positions =
       got_final_plan ? join->best_positions : join->positions;
-  const uint inner_count = my_count_bits(sjm_nest->sj_inner_tables);
+  const uint inner_count = popcount(sjm_nest->sj_inner_tables);
 
   // Get the prefix cost.
   const uint first_inner = last_inner_tab + 1 - inner_count;
@@ -3905,7 +3906,7 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(uint last_inner,
                                                             double *newcost) {
   DBUG_TRACE;
 
-  const uint inner_count = my_count_bits(sjm_nest->sj_inner_tables);
+  const uint inner_count = popcount(sjm_nest->sj_inner_tables);
   double rowcount, cost;
 
   const uint first_inner = last_inner + 1 - inner_count;

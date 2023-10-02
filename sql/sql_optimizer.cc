@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cmath>
 #include <deque>
 #include <limits>
@@ -50,7 +51,6 @@
 #include "ft_global.h"
 #include "mem_root_deque.h"
 #include "memory_debugging.h"
-#include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -6609,7 +6609,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join) {
 
       if (Optimize_table_order(join->thd, join, sj_nest).choose_table_order())
         return true;
-      const uint n_tables = my_count_bits(sj_nest->sj_inner_tables);
+      const uint n_tables = std::popcount(sj_nest->sj_inner_tables);
       calculate_materialization_costs(join, sj_nest, n_tables,
                                       &sj_nest->nested_join->sjm);
       /*
