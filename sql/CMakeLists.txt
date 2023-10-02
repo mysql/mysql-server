@@ -965,6 +965,8 @@ IF(COMPRESS_DEBUG_SECTIONS)
     TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
   ENDIF()
 ENDIF()
+# Exclude sql_gis from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(sql_gis)
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
@@ -1210,11 +1212,18 @@ IF(FPROFILE_GENERATE)
 ENDIF()
 
 IF(MSVC)
-  # Set module definition file.
-  SET_TARGET_PROPERTIES(mysqld
-    PROPERTIES LINK_FLAGS
+  ADD_DEPENDENCIES(sql_main GenError)
+  IF(MYSQLD_DEF_FILE)
+    # Set module definition file.
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS
+        "${mysqld_link_flags} /DEF:${MYSQLD_DEF_FILE}")
+  ELSE()
+    # Set module definition file.
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS
     "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def")
-
+  ENDIF()
   SET(_PLATFORM  x64)
 
   MYSQL_ADD_EXECUTABLE(create_def create_def.cc SKIP_INSTALL)

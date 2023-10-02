@@ -36,5 +36,7 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmapi
   ndbd_exit_codes.cpp
   LINK_LIBRARIES ndbmgmcommon ndbportlib ndbgeneral
   )
+# Exclude ndbmgmapi_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbmgmapi_objlib)
 
 NDB_ADD_TEST(mgmapi-t mgmapi-t.cpp LIBS ndbmgmapi ndbgeneral)

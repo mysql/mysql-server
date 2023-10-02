@@ -80,3 +80,6 @@ TARGET_COMPILE_DEFINITIONS(mysql_server_component_services
 TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE extra::rapidjson)
 TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE ext::zlib)
 ADD_DEPENDENCIES(mysql_server_component_services GenError)
+
+# Exclude mysql_server_component_services from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(mysql_server_component_services)

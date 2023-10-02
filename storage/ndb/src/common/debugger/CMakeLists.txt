@@ -33,3 +33,5 @@ ADD_CONVENIENCE_LIBRARY(ndbtrace
   SignalLoggerManager.cpp
   LINK_LIBRARIES ndbmgmapi ndbsignaldata ndblogger ndbgeneral
   )
+# Exclude ndbtrace_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbtrace_objlib)

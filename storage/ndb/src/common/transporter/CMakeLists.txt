@@ -41,3 +41,5 @@ ADD_CONVENIENCE_LIBRARY(ndbtransport
   Multi_Transporter.cpp
   ${EXTRA_SRC}
   )
+# Exclude ndbtransport_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbtransport_objlib)
