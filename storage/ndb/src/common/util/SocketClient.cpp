@@ -35,8 +35,10 @@
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#define HAVE_DEBUG_FPRINTF 1
 #else
 #define DEBUG_FPRINTF(a)
+#define HAVE_DEBUG_FPRINTF 0
 #endif
 
 SocketClient::SocketClient(SocketAuthenticator *sa) :
@@ -142,7 +144,12 @@ SocketClient::connect(ndb_sockaddr server_addr)
   }
 
   // Start non blocking connect
-  DEBUG_FPRINTF((stderr, "Connect to %s:%u\n", server_hostname, server_port));
+#if HAVE_DEBUG_FPRINTF
+  char server_addrstr[NDB_ADDR_STRLEN];
+  Ndb_inet_ntop(&server_addr, server_addrstr, sizeof(server_addrstr));
+#endif
+  DEBUG_FPRINTF((stderr, "Connect to %s port %d\n", server_addrstr,
+                 server_addr.get_port()));
   int r = ndb_connect(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
