@@ -57,7 +57,6 @@ SET(MYSYS_SOURCES
   my_access.cc
   my_aligned_malloc.cc
   my_alloc.cc
-  my_bit.cc
   my_bitmap.cc
   my_chmod.cc
   my_chsize.cc
