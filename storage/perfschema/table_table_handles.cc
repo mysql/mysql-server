@@ -88,6 +88,9 @@ bool PFS_index_table_handles_by_object::match(PFS_table *pfs) {
   }
 
   PFS_table_share *share = sanitize_table_share(pfs->m_share);
+  if (share == nullptr) {
+    return false;
+  }
 
   if (m_fields >= 2) {
     if (!m_key_2.match(share)) {
