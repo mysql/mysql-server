@@ -27,3 +27,5 @@ MYSQL_ADD_PLUGIN(archive azio.cc ha_archive.cc
   STORAGE_ENGINE
   LINK_LIBRARIES extra::rapidjson ext::zlib
 )
+# Exclude archive from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(archive)

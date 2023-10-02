@@ -24,3 +24,6 @@ MYSQL_ADD_PLUGIN(federated ha_federated.cc
   STORAGE_ENGINE DEFAULT_LEGACY_ENGINE
   LINK_LIBRARIES extra::rapidjson
   )
+
+# Exclude federated from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(federated)

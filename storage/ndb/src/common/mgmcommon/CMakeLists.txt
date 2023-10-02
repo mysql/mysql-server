@@ -37,6 +37,8 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
   thr_config.cpp
   LINK_LIBRARIES ndbmgmapi
   )
+# Exclude ndbmgmcommon_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbmgmcommon_objlib)
 
 NDB_ADD_TEST(thr_config-t thr_config.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp

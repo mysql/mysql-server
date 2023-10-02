@@ -73,6 +73,8 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbSpin.cpp
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
+# Exclude ndbportlib_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbportlib_objlib)
 
 IF(WIN32_CLANG)
   ADD_COMPILE_FLAGS(ndb_daemon.cpp COMPILE_FLAGS " -Wno-microsoft-cast")

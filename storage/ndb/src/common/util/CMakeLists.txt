@@ -77,6 +77,9 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   LINK_LIBRARIES ndbtrace ndbportlib ext::zlib mysys
 )
 
+# Exclude ndbgeneral_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbgeneral_objlib)
+
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 

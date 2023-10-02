@@ -105,11 +105,16 @@ ADD_LIBRARY(myisam_library STATIC ${MYISAM_SOURCES})
 ADD_DEPENDENCIES(myisam_library GenError)
 TARGET_LINK_LIBRARIES(myisam_library mysys extra::rapidjson)
 
+# Exclude myisam_library from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(myisam_library)
+
 MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
   STORAGE_ENGINE
   MANDATORY
   LINK_LIBRARIES myisam_library
 )
+# Exclude myisam from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(myisam)
 
 DISABLE_MISSING_PROFILE_WARNING()
 

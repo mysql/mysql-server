@@ -54,3 +54,6 @@ ENDIF()
 MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES}
   STORAGE_ENGINE MANDATORY
   LINK_LIBRARIES extra::rapidjson)
+
+# Exclude myisam from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(myisammrg)

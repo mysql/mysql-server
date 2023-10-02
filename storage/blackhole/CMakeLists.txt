@@ -24,3 +24,5 @@ MYSQL_ADD_PLUGIN(blackhole ha_blackhole.cc
   DEFAULT_LEGACY_ENGINE STORAGE_ENGINE
   LINK_LIBRARIES extra::rapidjson ext::zlib
   )
+# Exclude blackhole from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(blackhole)
