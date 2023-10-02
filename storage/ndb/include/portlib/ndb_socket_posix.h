@@ -111,7 +111,7 @@ int ndb_socket_nonblock(ndb_socket_t s, int enable)
 }
 
 static inline
-bool ndb_is_socket(ndb_socket_t s)
+bool ndb_is_socket(ndb_socket_t s [[maybe_unused]])
 {
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
   if (s.s == INVALID_SOCKET) return true;
