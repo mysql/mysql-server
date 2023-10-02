@@ -66,6 +66,7 @@
 #include <string.h>
 
 #include <array>
+#include <bit>
 #include <tuple>
 
 #include "my_alloc.h"
@@ -565,7 +566,7 @@ inline bool IsEmpty(const MutableOverflowBitset &x) {
 
 inline int PopulationCount(OverflowBitset x) {
   if (x.is_inline()) {
-    return PopulationCount(x.m_bits) - 1;
+    return std::popcount(x.m_bits) - 1;
   } else {
     return PopulationCountOverflow(x);
   }

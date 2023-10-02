@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 #include <algorithm>
+#include <bit>
 #include <initializer_list>
 #include <string>
 
@@ -236,7 +237,7 @@ KeySelectivityResult EstimateSelectivityFromIndexStatistics(
       present in companion_set. Then we still want to use the first
       key field.
     */
-    if (part_no > 0 && !AreMultipleBitsSet(joined_tables)) {
+    if (part_no > 0 && std::popcount(joined_tables) < 2) {
       break;
     }
 

@@ -129,6 +129,7 @@ using std::find_if;
 using std::has_single_bit;
 using std::min;
 using std::pair;
+using std::popcount;
 using std::string;
 using std::swap;
 using std::vector;
@@ -4185,7 +4186,7 @@ void CostingReceiver::ProposeHashJoin(
   // "edge", and that the alternative edges are put in filters on top of the
   // join.
   if (edge->expr->join_predicate_first != edge->expr->join_predicate_last &&
-      PopulationCount(left | right) > 2) {
+      popcount(left | right) > 2) {
     // Only inner joins are part of cycles.
     assert(edge->expr->type == RelationalExpression::INNER_JOIN);
     for (size_t edge_idx = 0; edge_idx < m_graph->graph.edges.size();
@@ -4705,8 +4706,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
     if (rewrite_semi_to_inner) {
       swap(outer_input_rows, inner_input_rows);
 
-      if (right_path_already_applied_selectivity < 1.0 &&
-          PopulationCount(right) > 1) {
+      if (right_path_already_applied_selectivity < 1.0 && popcount(right) > 1) {
         // If there are multiple inner tables, it is possible that the row count
         // of the inner child is clamped by FindOutputRowsForJoin() by a
         // semijoin nested inside the inner child, and it is therefore difficult

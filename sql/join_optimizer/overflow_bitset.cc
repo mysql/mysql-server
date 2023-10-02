@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <bit>
 
 #include "my_alloc.h"
 #include "template_utils.h"
@@ -138,7 +139,7 @@ int PopulationCountOverflow(OverflowBitset x) {
   assert(!x.is_inline());
   int count = 0;
   for (unsigned i = 0; i < x.m_ext->m_num_blocks; ++i) {
-    count += PopulationCount(x.m_ext->m_bits[i]);
+    count += std::popcount(x.m_ext->m_bits[i]);
   }
   return count;
 }

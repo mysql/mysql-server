@@ -25,6 +25,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <algorithm>
+#include <bit>
 
 #include "mem_root_deque.h"
 #include "my_base.h"
@@ -53,6 +54,7 @@
 #include "template_utils.h"
 
 using std::min;
+using std::popcount;
 using std::string;
 
 double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
@@ -881,7 +883,7 @@ void EstimateDeleteRowsCost(AccessPath *path) {
   const table_map buffered_tables =
       param.tables_to_delete_from & ~param.immediate_tables;
   path->set_cost(child->cost() + kMaterializeOneRowCost *
-                                     PopulationCount(buffered_tables) *
+                                     popcount(buffered_tables) *
                                      child->num_output_rows());
 }
 
@@ -898,7 +900,7 @@ void EstimateUpdateRowsCost(AccessPath *path) {
   const table_map buffered_tables =
       param.tables_to_update & ~param.immediate_tables;
   path->set_cost(child->cost() + kMaterializeOneRowCost *
-                                     PopulationCount(buffered_tables) *
+                                     popcount(buffered_tables) *
                                      child->num_output_rows());
 }
 

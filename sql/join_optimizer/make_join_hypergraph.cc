@@ -118,7 +118,7 @@ int CountTablesInEquiJoinCondition(const Item *cond) {
     assert(down_cast<const Item_equal *>(cond)->const_arg() == nullptr);
     return 2;
   } else {
-    return PopulationCount(cond->used_tables());
+    return popcount(cond->used_tables());
   }
 }
 
@@ -1834,7 +1834,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
     Mem_root_array<Item *> *cycle_inducing_edges, string *trace) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
-    if (!AreMultipleBitsSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
+    if (popcount(item->used_tables() & ~PSEUDO_TABLE_BITS) < 2 &&
         !is_join_condition_for_expr) {
       // Simple filters will stay in WHERE; we go through them with
       // AddPredicate() (in MakeJoinHypergraph()) and convert them into
@@ -1931,9 +1931,8 @@ void PushDownJoinConditionsForSargable(THD *thd, RelationalExpression *expr) {
     // These are the same conditions as PushDownAsMuchAsPossible();
     // not filters (which shouldn't be here anyway), and not tables
     // outside the subtree.
-    if (AreMultipleBitsSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
-        IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
-                 expr->tables_in_subtree)) {
+    if (const table_map tables = item->used_tables() & ~PSEUDO_TABLE_BITS;
+        popcount(tables) >= 2 && IsSubset(tables, expr->tables_in_subtree)) {
       PushDownToSargableCondition(item, expr,
                                   /*is_join_condition_for_expr=*/true);
     }
@@ -2240,7 +2239,7 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
       equi-join condition rather than an extra predicate for the join.
     */
     const bool is_filter =
-        !AreMultipleBitsSet((*it)->used_tables() & ~PSEUDO_TABLE_BITS);
+        popcount((*it)->used_tables() & ~PSEUDO_TABLE_BITS) < 2;
     if (is_filter || !is_function_of_type(*it, Item_func::MULT_EQUAL_FUNC)) {
       table_map tables_in_subtree = TablesBetween(0, MAX_TABLES);
       // If this is a degenerate join condition i.e. all fields in the
