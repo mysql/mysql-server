@@ -101,7 +101,3 @@ Note that leak sanitizer is *not* supported.
 
 For running tests with --parallel, you may need to add --build-thread= (500 is
 a reasonable value to try).
-
-===
-
-Note: You need to tell cmake where to find boost, see ../cmake/boost.cmake

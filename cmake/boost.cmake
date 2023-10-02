@@ -39,6 +39,14 @@ ADD_LIBRARY(extra::boost ALIAS boost)
 TARGET_INCLUDE_DIRECTORIES(boost SYSTEM BEFORE INTERFACE
   ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
+IF(NOT WIN32)
+  # See boost/container_hash/hash.hpp
+  # We pretend that the compiler is pre-c++98, in order to hide the
+  # usage of std::unary_function<..> (which was removed in C++17)
+  # For windows: see boost/config/stdlib/dinkumware.hpp
+  TARGET_COMPILE_DEFINITIONS(boost INTERFACE BOOST_NO_CXX98_FUNCTION_BASE)
+ENDIF()
+
 MESSAGE(STATUS "BOOST_PATCHES_DIR ${BOOST_PATCHES_DIR}")
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
