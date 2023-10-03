@@ -807,7 +807,7 @@ createTables(Ndb* pMyNdb)
       // Primary key
       //ndbout << "  pk " << (char*)&attrName[0] << "..." << endl;
       check = MySchemaOp->createAttribute( (char*)attrName[0], TupleKey, 32,
-					   1, UnSigned, MMBased,
+                                           1, NdbSchemaOp::UnSigned, MMBased,
 					   NotNullAttribute );
       if (check == -1) { 
 	// Clean up opened schema transaction
@@ -819,7 +819,7 @@ createTables(Ndb* pMyNdb)
       for (j = 1; j < tNoOfAttributes ; j++) {
 	//ndbout << "    " << (char*)attrName[j] << "..." << endl;
 	check = MySchemaOp->createAttribute( (char*)attrName[j], NoKey, 32, 
-					     tAttributeSize, UnSigned, MMBased, 
+                                             tAttributeSize, NdbSchemaOp::UnSigned, MMBased,
 					     NotNullAttribute );
 	if (check == -1) {
 	  // Clean up opened schema transaction

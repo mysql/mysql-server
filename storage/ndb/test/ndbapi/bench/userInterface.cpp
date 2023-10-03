@@ -160,7 +160,7 @@ create_table_server(Ndb * pNdb){
       TupleKey, 
       sizeof(char) << 3,
       SUBSCRIBER_NUMBER_SUFFIX_LENGTH,
-      String, 
+      NdbSchemaOp::String,
       MMBased,
       NotNullAttribute,
       0,
@@ -176,7 +176,7 @@ create_table_server(Ndb * pNdb){
 				       TupleKey, 
 				       sizeof(ServerId) << 3,
 				       1,
-				       UnSigned, 
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -188,7 +188,7 @@ create_table_server(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(char) << 3,
 				       SERVER_NAME_LENGTH,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -200,7 +200,7 @@ create_table_server(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Counter) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -211,7 +211,7 @@ create_table_server(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Counter) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -222,7 +222,7 @@ create_table_server(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Counter) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -270,7 +270,7 @@ create_table_group(Ndb * pNdb){
 				       TupleKey, 
 				       sizeof(GroupId) << 3,
 				       1,
-				       UnSigned, 
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -281,7 +281,7 @@ create_table_group(Ndb * pNdb){
 				       NoKey,
 				       sizeof(char) << 3,
 				       GROUP_NAME_LENGTH,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -293,7 +293,7 @@ create_table_group(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Permission) << 3,
 				       1,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -305,7 +305,7 @@ create_table_group(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Permission) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -316,7 +316,7 @@ create_table_group(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Permission) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -363,7 +363,7 @@ create_table_subscriber(Ndb * pNdb){
       TupleKey, 
       sizeof(char) << 3,
       SUBSCRIBER_NUMBER_LENGTH,
-      String, 
+      NdbSchemaOp::String,
       MMBased,
       NotNullAttribute,
       0,
@@ -378,7 +378,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(char) << 3,
 				       SUBSCRIBER_NAME_LENGTH,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -390,7 +390,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(GroupId) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -402,7 +402,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(Location) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -413,7 +413,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(ActiveSessions) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -424,7 +424,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(char) << 3,
 				       CHANGED_BY_LENGTH,
-				       String,
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -435,7 +435,7 @@ create_table_subscriber(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(char) << 3,
 				       CHANGED_TIME_LENGTH,
-				       String,
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -481,7 +481,7 @@ create_table_session(Ndb * pNdb){
 				       TupleKey, 
 				       sizeof(char) << 3,
 				       SUBSCRIBER_NUMBER_LENGTH,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute,
 				       0,
@@ -497,7 +497,7 @@ create_table_session(Ndb * pNdb){
 				       TupleKey, 
 				       sizeof(ServerId) << 3,
 				       1,
-				       UnSigned,
+                                       NdbSchemaOp::UnSigned,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 
@@ -509,7 +509,7 @@ create_table_session(Ndb * pNdb){
 				       NoKey, 
 				       sizeof(char) << 3,
 				       SESSION_DETAILS_LENGTH,
-				       String, 
+                                       NdbSchemaOp::String,
 				       MMBased,
 				       NotNullAttribute );
   if( check == -1 ) 

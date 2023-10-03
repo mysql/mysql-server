@@ -718,7 +718,7 @@ createTables(Ndb* pMyNdb){
                                          TupleKey,
                                          32,
                                          1,
-                                         UnSigned,
+                                         NdbSchemaOp::UnSigned,
                                          MMBased,
                                          NotNullAttribute );
       
@@ -729,7 +729,7 @@ createTables(Ndb* pMyNdb){
                                          TupleKey,
                                          32,
                                          1,
-                                         UnSigned,
+                                         NdbSchemaOp::UnSigned,
                                          MMBased,
                                          NotNullAttribute );
       
@@ -740,7 +740,7 @@ createTables(Ndb* pMyNdb){
                                              NoKey,
                                              8,
                                              10,
-                                             UnSigned,
+                                             NdbSchemaOp::UnSigned,
                                              MMBased,
                                              NotNullAttribute );
     if (check == -1 &&
@@ -751,7 +751,7 @@ createTables(Ndb* pMyNdb){
                                              NoKey,
                                              8,
                                              10,
-                                             UnSigned,
+                                             NdbSchemaOp::UnSigned,
                                              MMBased,
                                              NotNullAttribute );
     if (check == -1 &&
@@ -762,7 +762,7 @@ createTables(Ndb* pMyNdb){
                                              NoKey,
                                              8,
                                              100,
-                                             UnSigned,
+                                             NdbSchemaOp::UnSigned,
                                              MMBased,
                                              NotNullAttribute );
     if (check == -1 &&
