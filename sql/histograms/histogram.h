@@ -198,9 +198,9 @@ enum class enum_operator {
      "empty shell" Error_context object with no-op operations.
 
   2) When validating the user-supplied JSON string to the UPDATE HISTOGRAM ...
-     USING DATA <json>. commmand. In this case we pass along an active
-     Error_context object that uses a Field object to validate bucket values,
-     and stores results in a results_map.
+     USING DATA commmand. In this case we pass along an active Error_context
+     object that uses a Field object to validate bucket values, and stores
+     results in a results_map.
 
   The binary() method is used to distinguish between these two contexts/cases.
 */
@@ -214,7 +214,7 @@ class Error_context {
 
   /**
     Constructor. Used in the context of deserializing the user-supplied JSON
-    string to the UPDATE HISTOGRAM ... USING DATA <json> command.
+    string to the UPDATE HISTOGRAM ... USING DATA command.
 
     @param thd      Thread context
     @param field    The field for values on which the histogram is built
