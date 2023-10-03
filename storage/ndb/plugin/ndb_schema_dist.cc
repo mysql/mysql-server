@@ -117,6 +117,13 @@ Ndb_schema_dist_client::Ndb_schema_dist_client(THD *thd)
 bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_TRACE;
 
+  // Check local schema distribution state
+  if (!check_local_schema_dist_available()) {
+    push_warning(m_thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                 "Schema distribution is not ready");
+    return false;
+  }
+
   // Acquire reference on mysql.ndb_schema
   m_share = NDB_SHARE::acquire_reference(
       Ndb_schema_dist_table::DB_NAME.c_str(),

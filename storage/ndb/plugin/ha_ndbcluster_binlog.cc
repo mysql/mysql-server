@@ -1060,6 +1060,18 @@ bool Ndb_schema_dist_client::write_schema_op_to_NDB(
 }
 
 /*
+  Check whether the Server-local schema distribution mechanism
+  is available
+*/
+bool Ndb_schema_dist_client::check_local_schema_dist_available() const {
+  /**
+   * Schema distribution is not available if the local
+   * BI is either not yet setup, or shut[ting] down
+   */
+  return ndb_binlog_is_initialized();
+}
+
+/*
   log query in ndb_schema table
 */
 
@@ -7957,6 +7969,7 @@ err:
 
   mysql_mutex_lock(&injector_data_mutex);
   ndb_binlog_tables_inited = false;
+  ndb_binlog_is_ready = false;
   mysql_mutex_unlock(&injector_data_mutex);
 
   thd->reset_db(NULL_CSTR);  // as not to try to free memory
