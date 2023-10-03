@@ -750,90 +750,6 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql) {
   return result;
 }
 
-/**************************************************************************
-  List all fields in a table
-  If wild is given then only the fields matching wild is returned
-  Instead of this use query:
-  show fields in 'table' like "wild"
-**************************************************************************/
-
-MYSQL_RES *STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
-                                     const char *wild) {
-  MYSQL_RES *result;
-  MYSQL_FIELD *fields;
-  MEM_ROOT *new_root;
-  char buff[258], *end;
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("table: '%s'  wild: '%s'", table, wild ? wild : ""));
-
-  end = strmake(strmake(buff, table, 128) + 1, wild ? wild : "", 128);
-  free_old_query(mysql);
-  if (simple_command(mysql, COM_FIELD_LIST, (uchar *)buff, (ulong)(end - buff),
-                     1) ||
-      !(fields = (*mysql->methods->list_fields)(mysql)))
-    return nullptr;
-
-  if (!(new_root = (MEM_ROOT *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(MEM_ROOT),
-                                         MYF(MY_WME | MY_ZEROFILL))))
-    return nullptr;
-  if (!(result = (MYSQL_RES *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(MYSQL_RES),
-                                        MYF(MY_WME | MY_ZEROFILL)))) {
-    my_free(new_root);
-    return nullptr;
-  }
-
-  result->methods = mysql->methods;
-  result->field_alloc = mysql->field_alloc;
-  mysql->fields = nullptr;
-  mysql->field_alloc = new_root;
-  result->field_count = mysql->field_count;
-  result->fields = fields;
-  result->eof = true;
-  return result;
-}
-
-/* List all running processes (threads) in server */
-
-MYSQL_RES *STDCALL mysql_list_processes(MYSQL *mysql) {
-  uint field_count;
-  uchar *pos;
-  DBUG_TRACE;
-
-  if (simple_command(mysql, COM_PROCESS_INFO, nullptr, 0, 0)) return nullptr;
-  free_old_query(mysql);
-  pos = (uchar *)mysql->net.read_pos;
-  field_count = (uint)net_field_length(&pos);
-  if (!(mysql->fields =
-            cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7 : 5)))
-    return nullptr;
-  mysql->status = MYSQL_STATUS_GET_RESULT;
-  mysql->field_count = field_count;
-  return mysql_store_result(mysql);
-}
-
-int STDCALL mysql_refresh(MYSQL *mysql, uint options) {
-  uchar bits[1];
-  DBUG_TRACE;
-  bits[0] = (uchar)options;
-  return simple_command(mysql, COM_REFRESH, bits, 1, 0);
-}
-
-int STDCALL mysql_kill(MYSQL *mysql, ulong pid) {
-  uchar buff[4];
-  DBUG_TRACE;
-  /*
-    Sanity check: if ulong is 64-bits, user can submit a PID here that
-    overflows our 32-bit parameter to the somewhat obsolete COM_PROCESS_KILL.
-    If this is the case, we'll flag an error here.
-    The SQL statement KILL CONNECTION is the safer option here.
-    There is an analog of this failsafe in the server as we might see old
-    libmysql connection to a new server as well as the other way around.
-  */
-  if (pid & (~0xfffffffful)) return CR_INVALID_CONN_HANDLE;
-  int4store(buff, pid);
-  return simple_command(mysql, COM_PROCESS_KILL, buff, sizeof(buff), 0);
-}
-
 int STDCALL mysql_set_server_option(MYSQL *mysql,
                                     enum enum_mysql_set_option option) {
   uchar buff[2];
@@ -917,8 +833,6 @@ uint STDCALL mysql_warning_count(MYSQL *mysql) { return mysql->warning_count; }
 ulong STDCALL mysql_thread_id(MYSQL *mysql) {
   /*
     ulong may be 64-bit, but we currently only transmit 32-bit.
-    mysql_thread_id() is usually used in conjunction with mysql_kill()
-    which is similarly limited (and obsolete).
     SELECTION CONNECTION_ID() / KILL CONNECTION avoid this issue.
   */
   return (mysql)->thread_id;

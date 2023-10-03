@@ -1250,7 +1250,7 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
       EXPECT_THAT(ids, ::testing::SizeIs(1));
 
       for (auto id : ids) {
-        ASSERT_NO_ERROR(srv_cli->kill(id));
+        ASSERT_NO_ERROR(srv_cli->query("KILL " + std::to_string(id)));
 
         cli_ids[ndx] = std::make_pair(s->server_port(), id);
       }
@@ -2172,65 +2172,6 @@ TEST_P(ShareConnectionTest, classic_protocol_server_status_after_command) {
   }
 }
 
-// check that CMD_KILL opens a new connection to the server.
-TEST_P(ShareConnectionTest, classic_protocol_kill_zero) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  SCOPED_TRACE("// killing connection 0");
-  {
-    auto kill_res = cli.kill(0);
-    ASSERT_ERROR(kill_res);
-    EXPECT_EQ(kill_res.error().value(), 1094) << kill_res.error();
-    // unknown thread id.
-  }
-
-  SCOPED_TRACE("// ping after kill");
-
-  // nothing was killed and PING should open a new connection.
-  ASSERT_NO_ERROR(cli.ping());
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_kill_current_connection) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  ASSERT_NO_ERROR(cli.query("BEGIN"));
-
-  auto connection_id_res = fetch_connection_id(cli);
-  ASSERT_NO_ERROR(connection_id_res);
-
-  auto connection_id = connection_id_res.value();
-
-  SCOPED_TRACE("// killing connection " + std::to_string(connection_id));
-  {
-    auto kill_res = cli.kill(connection_id);
-    ASSERT_ERROR(kill_res);
-    EXPECT_EQ(kill_res.error().value(), 1317) << kill_res.error();
-    // Query execution was interrupted
-  }
-
-  SCOPED_TRACE("// ping after kill");
-  {
-    auto ping_res = cli.ping();
-    ASSERT_ERROR(ping_res);
-    EXPECT_EQ(ping_res.error().value(), 2013) << ping_res.error();
-    // Lost connection to MySQL server during query
-  }
-}
-
 TEST_P(ShareConnectionTest, classic_protocol_kill_via_select) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2266,21 +2207,6 @@ TEST_P(ShareConnectionTest, classic_protocol_kill_via_select) {
   }
 }
 
-TEST_P(ShareConnectionTest, classic_protocol_kill_fail) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto kill_res = cli.kill(0);  // should fail.
-  ASSERT_ERROR(kill_res);
-  EXPECT_EQ(kill_res.error().value(), 1094);  // Unknown thread id: 0
-}
-
 TEST_P(ShareConnectionTest, classic_protocol_list_dbs) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2292,41 +2218,6 @@ TEST_P(ShareConnectionTest, classic_protocol_list_dbs) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   ASSERT_NO_ERROR(cli.list_dbs());
-}
-
-// cmd_list_fields -> err
-TEST_P(ShareConnectionTest, classic_protocol_list_fields_succeeds) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-  cli.use_schema("mysql");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto cmd_res = cli.list_fields("user");
-  ASSERT_NO_ERROR(cmd_res);
-}
-
-// cmd_list_fields -> ok
-TEST_P(ShareConnectionTest, classic_protocol_list_fields_fails) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-  cli.use_schema("mysql");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  {
-    auto cmd_res = cli.list_fields("does_not_exist");
-    ASSERT_ERROR(cmd_res);
-    EXPECT_EQ(cmd_res.error().value(), 1146) << cmd_res.error();
-  }
 }
 
 TEST_P(ShareConnectionTest,
@@ -2486,40 +2377,6 @@ TEST_P(ShareConnectionTest, classic_protocol_statistics) {
   EXPECT_NO_ERROR(cli.stat());
 
   EXPECT_NO_ERROR(cli.stat());
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_refresh) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  EXPECT_NO_ERROR(cli.refresh());
-
-  EXPECT_NO_ERROR(cli.refresh());
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_refresh_fail) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  auto account = SharedServer::native_empty_password_account();
-  cli.username(account.username);
-  cli.password(account.password);
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  {
-    auto cmd_res = cli.refresh();
-    ASSERT_ERROR(cmd_res);
-
-    EXPECT_EQ(cmd_res.error().value(), 1227);  // Access Denied
-  }
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_reset_connection) {

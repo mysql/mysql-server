@@ -488,38 +488,8 @@ class MysqlClient {
     return {};
   }
 
-  stdx::expected<void, MysqlError> refresh(unsigned int options = 0) {
-    const auto r = mysql_refresh(m_.get(), options);
-
-    if (r != 0) {
-      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
-    }
-
-    return {};
-  }
-
-  stdx::expected<void, MysqlError> reload() {
-    const auto r = mysql_reload(m_.get());
-
-    if (r != 0) {
-      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
-    }
-
-    return {};
-  }
-
   stdx::expected<void, MysqlError> shutdown() {
     const auto r = mysql_query(m_.get(), "SHUTDOWN");
-
-    if (r != 0) {
-      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
-    }
-
-    return {};
-  }
-
-  stdx::expected<void, MysqlError> kill(uint32_t id) {
-    const auto r = mysql_kill(m_.get(), id);
 
     if (r != 0) {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
@@ -887,17 +857,6 @@ class MysqlClient {
 
   stdx::expected<Statement::ResultSet, MysqlError> list_dbs() {
     const auto res = mysql_list_dbs(m_.get(), nullptr);
-
-    if (res == nullptr) {
-      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
-    }
-
-    return {std::in_place, m_.get(), res};
-  }
-
-  stdx::expected<Statement::ResultSet, MysqlError> list_fields(
-      std::string tablename) {
-    const auto res = mysql_list_fields(m_.get(), tablename.c_str(), nullptr);
 
     if (res == nullptr) {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));

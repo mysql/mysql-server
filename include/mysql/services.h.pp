@@ -4,12 +4,6 @@ struct COM_INIT_DB_DATA {
   const char *db_name;
   unsigned long length;
 };
-struct COM_REFRESH_DATA {
-  unsigned char options;
-};
-struct COM_KILL_DATA {
-  unsigned long id;
-};
 struct COM_SET_OPTION_DATA {
   unsigned int opt_command;
 };
@@ -55,16 +49,8 @@ struct COM_QUERY_DATA {
   PS_PARAM *parameters;
   unsigned long parameter_count;
 };
-struct COM_FIELD_LIST_DATA {
-  unsigned char *table_name;
-  unsigned int table_name_length;
-  const unsigned char *query;
-  unsigned int query_length;
-};
 union COM_DATA {
   COM_INIT_DB_DATA com_init_db;
-  COM_REFRESH_DATA com_refresh;
-  COM_KILL_DATA com_kill;
   COM_SET_OPTION_DATA com_set_option;
   COM_STMT_EXECUTE_DATA com_stmt_execute;
   COM_STMT_FETCH_DATA com_stmt_fetch;
@@ -73,7 +59,6 @@ union COM_DATA {
   COM_STMT_CLOSE_DATA com_stmt_close;
   COM_STMT_RESET_DATA com_stmt_reset;
   COM_QUERY_DATA com_query;
-  COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql/service_srv_session.h"
 #include "mysql/service_srv_session_bits.h"

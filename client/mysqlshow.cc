@@ -510,7 +510,7 @@ static int list_tables(MYSQL *mysql, const char *db, const char *table) {
   const char *header;
   size_t head_length;
   uint counter = 0;
-  char query[NAME_LEN + 100], rows[NAME_LEN], fields[16];
+  char query[2 * NAME_LEN + 100], rows[2 * NAME_LEN + 2], fields[16];
   MYSQL_FIELD *field;
   MYSQL_RES *result = nullptr;
   MYSQL_ROW row, rrow;
@@ -568,7 +568,12 @@ static int list_tables(MYSQL *mysql, const char *db, const char *table) {
     counter++;
     if (opt_verbose > 0) {
       if (!(mysql_select_db(mysql, db))) {
-        MYSQL_RES *rresult = mysql_list_fields(mysql, row[0], nullptr);
+        mysql_real_escape_string_quote(mysql, rows, row[0],
+                                       (unsigned long)strlen(row[0]), '`');
+        snprintf(query, sizeof(query), "SELECT * FROM `%s` LIMIT 0", rows);
+        MYSQL_RES *rresult = (0 == mysql_query(mysql, query))
+                                 ? mysql_store_result(mysql)
+                                 : nullptr;
         ulong rowcount = 0L;
         if (!rresult) {
           my_stpcpy(fields, "N/A");

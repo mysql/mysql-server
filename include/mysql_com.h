@@ -220,8 +220,8 @@
 #define UNUSED_8                                                           \
   8 /**< Previously REFRESH_HOSTS but not used anymore. Use TRUNCATE TABLE \
        performance_schema.host_cache instead */
-#define REFRESH_STATUS 16  /**< Flush status variables, FLUSH STATUS */
-#define REFRESH_THREADS 32 /**< Flush thread cache */
+#define REFRESH_STATUS 16 /**< Flush status variables, FLUSH STATUS */
+#define UNUSED_32 32      /**< Removed. Used to be flush thread cache */
 #define REFRESH_REPLICA                         \
   64 /**< Reset source info and restart replica \
         thread, RESET REPLICA */

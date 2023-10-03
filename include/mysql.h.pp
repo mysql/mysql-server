@@ -58,15 +58,15 @@ enum enum_server_command {
   COM_QUIT,
   COM_INIT_DB,
   COM_QUERY,
-  COM_FIELD_LIST,
+  COM_UNUSED_3,
   COM_CREATE_DB,
   COM_DROP_DB,
-  COM_REFRESH,
-  COM_DEPRECATED_1,
+  COM_UNUSED_2,
+  COM_UNUSED_1,
   COM_STATISTICS,
-  COM_PROCESS_INFO,
+  COM_UNUSED_4,
   COM_CONNECT,
-  COM_PROCESS_KILL,
+  COM_UNUSED_5,
   COM_DEBUG,
   COM_PING,
   COM_TIME,
@@ -660,8 +660,6 @@ void mysql_set_local_infile_handler(
     int (*local_infile_error)(void *, char *, unsigned int), void *);
 void mysql_set_local_infile_default(MYSQL *mysql);
 int mysql_dump_debug_info(MYSQL *mysql);
-int mysql_refresh(MYSQL *mysql, unsigned int refresh_options);
-int mysql_kill(MYSQL *mysql, unsigned long pid);
 int mysql_set_server_option(MYSQL *mysql,
                                     enum enum_mysql_set_option option);
 int mysql_ping(MYSQL *mysql);
@@ -674,7 +672,6 @@ unsigned long mysql_get_server_version(MYSQL *mysql);
 unsigned int mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES * mysql_list_dbs(MYSQL *mysql, const char *wild);
 MYSQL_RES * mysql_list_tables(MYSQL *mysql, const char *wild);
-MYSQL_RES * mysql_list_processes(MYSQL *mysql);
 int mysql_options(MYSQL *mysql, enum mysql_option option,
                           const void *arg);
 int mysql_options4(MYSQL *mysql, enum mysql_option option,
@@ -693,8 +690,6 @@ enum net_async_status mysql_fetch_row_nonblocking(MYSQL_RES *res,
                                                           MYSQL_ROW *row);
 unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
-MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,
-                                     const char *wild);
 unsigned long mysql_escape_string(char *to, const char *from,
                                           unsigned long from_length);
 unsigned long mysql_hex_string(char *to, const char *from,

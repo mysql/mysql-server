@@ -442,7 +442,7 @@ stdx::expected<void, MysqlError> SharedServer::close_all_connections(
     if (!ids_res) return stdx::make_unexpected(ids_res.error());
 
     for (auto id : *ids_res) {
-      auto kill_res = cli.kill(id);
+      auto kill_res = cli.query("KILL " + std::to_string(id));
 
       // either it succeeds or "Unknown thread id" because it closed itself
       // between the SELECT and this kill

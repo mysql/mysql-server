@@ -72,10 +72,6 @@ EOF
 --replace_result $DDIR DDIR $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
 
---echo # Run the single test.
---echo # Following command would crash if run without fix.
---exec $MYSQL_CLIENT_TEST test_bug24963580 >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
-
 --echo # Shutdown server.
 --let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc

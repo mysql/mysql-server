@@ -4785,8 +4785,7 @@ static int dump_all_tables_in_db(char *database) {
     dynstr_free(&query);
   }
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG))
-      DB_error(mysql, "when doing refresh");
+    if (mysql_query(mysql, "FLUSH LOGS")) DB_error(mysql, "when doing refresh");
     /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
@@ -4941,8 +4940,7 @@ static bool dump_all_views_in_db(char *database) {
     dynstr_free(&query);
   }
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG))
-      DB_error(mysql, "when doing refresh");
+    if (mysql_query(mysql, "FLUSH LOGS")) DB_error(mysql, "when doing refresh");
     /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_all_views_in_db : logs flushed successfully!\n");
@@ -5060,7 +5058,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG)) {
+    if (mysql_query(mysql, "FLUSH LOGS")) {
       if (!opt_force) root.Clear();
       DB_error(mysql, "when doing refresh");
     }
@@ -6211,7 +6209,7 @@ int main(int argc, char **argv) {
        (flush_logs || server_with_gtids_and_opt_purge_not_off)) ||
       opt_delete_source_logs) {
     if (flush_logs || opt_delete_source_logs) {
-      if (mysql_refresh(mysql, REFRESH_LOG)) {
+      if (mysql_query(mysql, "FLUSH LOGS")) {
         DB_error(mysql, "when doing refresh");
         goto err;
       }

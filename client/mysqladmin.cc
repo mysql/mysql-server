@@ -153,7 +153,6 @@ enum commands {
   ADMIN_FLUSH_PRIVILEGES,
   ADMIN_START_REPLICA,
   ADMIN_STOP_REPLICA,
-  ADMIN_FLUSH_THREADS,
   ADMIN_START_SLAVE,
   ADMIN_STOP_SLAVE
 };
@@ -178,7 +177,6 @@ static const char *command_names[] = {"create",
                                       "flush-privileges",
                                       "start-replica",
                                       "stop-replica",
-                                      "flush-threads",
                                       "start-slave",
                                       "stop-slave",
                                       NullS};
@@ -749,16 +747,9 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       case ADMIN_REFRESH:
-        if (mysql_refresh(mysql, (uint) ~(REFRESH_GRANT | REFRESH_STATUS |
-                                          REFRESH_READ_LOCK | REFRESH_REPLICA |
-                                          REFRESH_SOURCE))) {
-          my_printf_error(0, "refresh failed; error: '%s'", error_flags,
-                          mysql_error(mysql));
-          return -1;
-        }
-        break;
-      case ADMIN_FLUSH_THREADS:
-        if (mysql_refresh(mysql, (uint)REFRESH_THREADS)) {
+        if (mysql_query(mysql, "FLUSH PRIVILEGES, STATUS") ||
+            mysql_query(mysql, "FLUSH TABLES WITH READ LOCK") ||
+            mysql_query(mysql, "RESET REPLICA, MASTER")) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;
@@ -822,7 +813,6 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         pos = argv[1];
         for (;;) {
-          /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
           char buff[26], *out; /* "KILL " + max 20 digs + NUL */
           out = strxmov(buff, "KILL ", NullS);
           ullstr(my_strtoull(pos, nullptr, 0), out);

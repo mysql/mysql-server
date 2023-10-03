@@ -843,39 +843,6 @@ TEST_P(ReuseConnectionTest, classic_protocol_debug_fails) {
   }
 }
 
-TEST_P(ReuseConnectionTest, classic_protocol_kill) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  auto connect_res =
-      cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-  ASSERT_NO_ERROR(connect_res);
-
-  auto connection_id_res = fetch_connection_id(cli);
-  ASSERT_NO_ERROR(connection_id_res);
-
-  auto connection_id = connection_id_res.value();
-
-  SCOPED_TRACE("// killing connection " + std::to_string(connection_id));
-  {
-    auto kill_res = cli.kill(connection_id);
-    ASSERT_ERROR(kill_res);
-    EXPECT_EQ(kill_res.error().value(), 1317) << kill_res.error();
-    // Query execution was interrupted
-  }
-
-  SCOPED_TRACE("// ping after kill");
-  {
-    auto ping_res = cli.ping();
-    ASSERT_ERROR(ping_res);
-    EXPECT_EQ(ping_res.error().value(), 2013) << ping_res.error();
-    // Lost connection to MySQL server during query
-  }
-}
-
 TEST_P(ReuseConnectionTest, classic_protocol_kill_via_select) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -908,22 +875,6 @@ TEST_P(ReuseConnectionTest, classic_protocol_kill_via_select) {
     EXPECT_EQ(ping_res.error().value(), 2013) << ping_res.error();
     // Lost connection to MySQL server during query
   }
-}
-
-TEST_P(ReuseConnectionTest, classic_protocol_kill_fail) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  auto connect_res =
-      cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-  ASSERT_NO_ERROR(connect_res);
-
-  auto kill_res = cli.kill(0);  // should fail.
-  ASSERT_FALSE(kill_res);
-  EXPECT_EQ(kill_res.error().value(), 1094);  // Unknown thread id: 0
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_change_user_native_empty) {
@@ -1106,20 +1057,6 @@ TEST_P(ReuseConnectionTest, classic_protocol_statistics) {
   ASSERT_NO_ERROR(connect_res);
 
   EXPECT_NO_ERROR(cli.stat());
-}
-
-TEST_P(ReuseConnectionTest, classic_protocol_refresh) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  auto connect_res =
-      cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
-  ASSERT_NO_ERROR(connect_res);
-
-  EXPECT_NO_ERROR(cli.refresh());
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_reset_connection) {

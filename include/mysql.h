@@ -124,7 +124,7 @@ typedef struct MYSQL_FIELD {
   char *org_table;          /* Org table name, if table was an alias */
   char *db;                 /* Database for table */
   char *catalog;            /* Catalog for table */
-  char *def;                /* Default value (set by mysql_list_fields) */
+  char *def;                /* Default value */
   unsigned long length;     /* Width of column (create length) */
   unsigned long max_length; /* Max width for selected set */
   unsigned int name_length;
@@ -512,8 +512,6 @@ void mysql_set_local_infile_handler(
 
 void mysql_set_local_infile_default(MYSQL *mysql);
 int STDCALL mysql_dump_debug_info(MYSQL *mysql);
-int STDCALL mysql_refresh(MYSQL *mysql, unsigned int refresh_options);
-int STDCALL mysql_kill(MYSQL *mysql, unsigned long pid);
 int STDCALL mysql_set_server_option(MYSQL *mysql,
                                     enum enum_mysql_set_option option);
 int STDCALL mysql_ping(MYSQL *mysql);
@@ -526,7 +524,6 @@ unsigned long STDCALL mysql_get_server_version(MYSQL *mysql);
 unsigned int STDCALL mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_list_dbs(MYSQL *mysql, const char *wild);
 MYSQL_RES *STDCALL mysql_list_tables(MYSQL *mysql, const char *wild);
-MYSQL_RES *STDCALL mysql_list_processes(MYSQL *mysql);
 int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                           const void *arg);
 int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
@@ -546,8 +543,6 @@ enum net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
 
 unsigned long *STDCALL mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD *STDCALL mysql_fetch_field(MYSQL_RES *result);
-MYSQL_RES *STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
-                                     const char *wild);
 unsigned long STDCALL mysql_escape_string(char *to, const char *from,
                                           unsigned long from_length);
 unsigned long STDCALL mysql_hex_string(char *to, const char *from,
@@ -799,8 +794,6 @@ void STDCALL mysql_reset_server_public_key(void);
 /* status return codes */
 #define MYSQL_NO_DATA 100
 #define MYSQL_DATA_TRUNCATED 101
-
-#define mysql_reload(mysql) mysql_refresh((mysql), REFRESH_GRANT)
 
 #define HAVE_MYSQL_REAL_CONNECT
 

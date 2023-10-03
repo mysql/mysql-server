@@ -137,16 +137,18 @@ long Sql_service_commands::internal_kill_session(
   Sql_resultset rset;
   long srv_err = 0;
   if (!sql_interface->is_session_killed(sql_interface->get_session())) {
-    COM_DATA data;
-    data.com_kill.id = *((unsigned long *)session_id);
-    srv_err = sql_interface->execute(data, COM_PROCESS_KILL, &rset);
+    std::stringstream str;
+    str << "KILL " << *((unsigned long *)session_id);
+    srv_err = sql_interface->execute_query(str.str());
     if (srv_err == 0) {
       LogPluginErr(
-          INFORMATION_LEVEL, ER_GRP_RPL_KILLED_SESSION_ID, data.com_kill.id,
+          INFORMATION_LEVEL, ER_GRP_RPL_KILLED_SESSION_ID,
+          (int)*((unsigned long *)session_id),
           sql_interface->is_session_killed(sql_interface->get_session()));
     } else {
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_KILLED_FAILED_ID,
-                   data.com_kill.id, srv_err); /* purecov: inspected */
+                   (int)*((unsigned long *)session_id),
+                   srv_err); /* purecov: inspected */
     }
   }
   return srv_err;

@@ -140,8 +140,6 @@ TRUNCATE TABLE mysql.slow_log;
 # First start the server with --initialize
 # Restart the server against DDIR.
 # restart: --datadir=DDIR --lower_case_table_names=1 --secure-file-priv= --no-console --log-error=MYSQLD_LOG
-# Run the single test.
-# Following command would crash if run without fix.
 # Shutdown server.
 # Cleanup.
 #   Delete $DDIR.

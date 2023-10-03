@@ -818,20 +818,6 @@ int check_event_READY_FOR_COMMAND(MYSQL *conn, struct st_trace_data *data,
           return 1;
 
         /*
-          After COM_PROCESS_INFO server sends a regular result set.
-        */
-        case COM_PROCESS_INFO:
-          NEXT_STAGE(WAIT_FOR_RESULT);
-          break;
-
-        /*
-          After COM_FIELD_LIST server directly sends field descriptions.
-        */
-        case COM_FIELD_LIST:
-          NEXT_STAGE(WAIT_FOR_FIELD_DEF);
-          break;
-
-        /*
           Server replies to COM_STATISTICS with a single packet
           containing a string with statistics information.
         */

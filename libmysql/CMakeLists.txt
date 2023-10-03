@@ -55,10 +55,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_info
   mysql_init
   mysql_insert_id
-  mysql_kill
   mysql_list_dbs
-  mysql_list_fields
-  mysql_list_processes
   mysql_list_tables
   mysql_more_results
   mysql_next_result
@@ -85,7 +82,6 @@ SET(CLIENT_API_FUNCTIONS
   mysql_real_escape_string
   mysql_real_escape_string_quote
   mysql_real_query
-  mysql_refresh
   mysql_rollback
   mysql_row_seek
   mysql_row_tell

@@ -29,10 +29,6 @@ srv_session_close.
 current_db before init_db : (null)
 current_db after init_db  : mysql
 ======================================================
-COM_KILL
-session is dead? 0
-session is dead now? 1053
-======================================================
 test_query_kill
 session is dead? 0
 Executing select sleep(10)

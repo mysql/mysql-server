@@ -8180,69 +8180,6 @@ static void test_fetch_column() {
   myquery(mysql_query(mysql, "drop table t1"));
 }
 
-/* Test mysql_list_fields() */
-
-static void test_list_fields() {
-  MYSQL_RES *result;
-  int rc;
-  myheader("test_list_fields");
-
-  rc = mysql_query(mysql, "drop table if exists t1");
-  myquery(rc);
-
-  rc = mysql_query(mysql,
-                   "create table t1(c1 int primary key auto_increment, c2 "
-                   "char(10) default 'mysql')");
-  myquery(rc);
-
-  result = mysql_list_fields(mysql, "t1", nullptr);
-  mytest(result);
-
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 0);
-
-  verify_prepare_field(result, 0, "c1", "c1", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, "0");
-
-  verify_prepare_field(result, 1, "c2", "c2", MYSQL_TYPE_STRING, "t1", "t1",
-                       current_db, 10, "mysql");
-
-  mysql_free_result(result);
-  myquery(mysql_query(mysql, "drop table t1"));
-}
-
-static void test_bug19671() {
-  MYSQL_RES *result;
-  int rc;
-  myheader("test_bug19671");
-
-  mysql_query(mysql, "set sql_mode=''");
-  rc = mysql_query(mysql, "drop table if exists t1");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "drop view if exists v1");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "create table t1(f1 int)");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "create view v1 as select va.* from t1 va");
-  myquery(rc);
-
-  result = mysql_list_fields(mysql, "v1", nullptr);
-  mytest(result);
-
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 0);
-
-  verify_prepare_field(result, 0, "f1", "f1", MYSQL_TYPE_LONG, "v1", "v1",
-                       current_db, 11, "0");
-
-  mysql_free_result(result);
-  myquery(mysql_query(mysql, "drop view v1"));
-  myquery(mysql_query(mysql, "drop table t1"));
-}
-
 /* Test a memory ovverun bug */
 
 static void test_mem_overun() {
@@ -12622,27 +12559,6 @@ static void test_truncation_option() {
   mysql_stmt_close(stmt);
 }
 
-/* Bug#6761 - mysql_list_fields doesn't work */
-
-static void test_bug6761() {
-  const char *stmt_text;
-  MYSQL_RES *res;
-  int rc;
-  myheader("test_bug6761");
-
-  stmt_text = "CREATE TABLE t1 (a int, b char(255), c decimal)";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  res = mysql_list_fields(mysql, "t1", "%");
-  DIE_UNLESS(res && mysql_num_fields(res) == 3);
-  mysql_free_result(res);
-
-  stmt_text = "DROP TABLE t1";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-}
-
 /* Bug#8330 - mysql_stmt_execute crashes (libmysql) */
 
 static void test_bug8330() {
@@ -12823,40 +12739,6 @@ static void restore_query_logs() {
 
   rc = mysql_query(mysql,
                    "set @@global.slow_query_log=@save_global_slow_query_log");
-  myquery(rc);
-}
-
-static void test_view_sp_list_fields() {
-  int rc;
-  MYSQL_RES *res;
-
-  myheader("test_view_sp_list_fields");
-
-  rc = mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS v1, t1, t2");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP VIEW IF EXISTS v1, t1, t2");
-  myquery(rc);
-  rc = mysql_query(mysql, "create function f1 () returns int return 5");
-  myquery(rc);
-  rc = mysql_query(mysql, "create table t1 (s1 char,s2 char)");
-  myquery(rc);
-  rc = mysql_query(mysql, "create table t2 (s1 int);");
-  myquery(rc);
-  rc = mysql_query(mysql,
-                   "create view v1 as select s2,sum(s1) - \
-count(s2) as vx from t1 group by s2 having sum(s1) - count(s2) < (select f1() \
-from t2);");
-  myquery(rc);
-  res = mysql_list_fields(mysql, "v1", NullS);
-  DIE_UNLESS(res != nullptr && mysql_num_fields(res) != 0);
-  rc = mysql_query(mysql, "DROP FUNCTION f1");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP VIEW v1");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP TABLE t1, t2");
-  mysql_free_result(res);
   myquery(rc);
 }
 
@@ -16335,48 +16217,6 @@ static void test_bug29692() {
   mysql_close(conn);
 }
 
-/**
-  Bug#29306 Truncated data in MS Access with decimal (3,1) columns in a VIEW
-*/
-
-static void test_bug29306() {
-  MYSQL_FIELD *field;
-  int rc;
-  MYSQL_RES *res;
-
-  DBUG_TRACE;
-  myheader("test_bug29306");
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS tab17557");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP VIEW IF EXISTS view17557");
-  myquery(rc);
-  rc = mysql_query(mysql, "CREATE TABLE tab17557 (dd decimal (3,1))");
-  myquery(rc);
-  rc = mysql_query(mysql, "CREATE VIEW view17557 as SELECT dd FROM tab17557");
-  myquery(rc);
-  rc = mysql_query(mysql, "INSERT INTO tab17557 VALUES (7.6)");
-  myquery(rc);
-
-  /* Checking the view */
-  res = mysql_list_fields(mysql, "view17557", nullptr);
-  while ((field = mysql_fetch_field(res))) {
-    if (!opt_silent) {
-      printf("field name %s\n", field->name);
-      printf("field table %s\n", field->table);
-      printf("field decimals %d\n", field->decimals);
-      if (field->decimals < 1) printf("Error! No decimals! \n");
-      printf("\n\n");
-    }
-    DIE_UNLESS(field->decimals == 1);
-  }
-  mysql_free_result(res);
-
-  rc = mysql_query(mysql, "DROP TABLE tab17557");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP VIEW view17557");
-  myquery(rc);
-}
 /*
   Bug#30472: libmysql doesn't reset charset, insert_id after succ.
   mysql_change_user() call row insertions.
@@ -17388,56 +17228,6 @@ static void test_bug36004() {
   mysql_stmt_close(stmt);
 }
 
-/**
-  Test that COM_REFRESH issues a implicit commit.
-*/
-
-static void test_wl4284_1() {
-  int rc;
-  MYSQL_ROW row;
-  MYSQL_RES *result;
-
-  DBUG_TRACE;
-  myheader("test_wl4284_1");
-
-  /* set AUTOCOMMIT to OFF */
-  rc = mysql_autocommit(mysql, false);
-  myquery(rc);
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS trans");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE TABLE trans (a INT) ENGINE= InnoDB");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "INSERT INTO trans VALUES(1)");
-  myquery(rc);
-
-  rc = mysql_refresh(mysql, REFRESH_GRANT | REFRESH_TABLES);
-  myquery(rc);
-
-  rc = mysql_rollback(mysql);
-  myquery(rc);
-
-  rc = mysql_query(mysql, "SELECT * FROM trans");
-  myquery(rc);
-
-  result = mysql_use_result(mysql);
-  mytest(result);
-
-  row = mysql_fetch_row(result);
-  mytest(row);
-
-  mysql_free_result(result);
-
-  /* set AUTOCOMMIT to ON */
-  rc = mysql_autocommit(mysql, true);
-  myquery(rc);
-
-  rc = mysql_query(mysql, "DROP TABLE trans");
-  myquery(rc);
-}
-
 static void test_bug38486() {
   MYSQL_STMT *stmt;
   const char *stmt_text;
@@ -17840,50 +17630,6 @@ static void test_bug44495() {
   mysql_close(&con);
 
   rc = mysql_query(mysql, "DROP PROCEDURE p1");
-  myquery(rc);
-}
-
-static void test_bug53371() {
-  int rc;
-  MYSQL_RES *result;
-
-  myheader("test_bug53371");
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP DATABASE IF EXISTS bug53371");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP USER 'testbug'@localhost");
-  rc = mysql_query(mysql, "CREATE USER 'testbug'@localhost");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE TABLE t1 (a INT)");
-  myquery(rc);
-  rc = mysql_query(mysql, "CREATE DATABASE bug53371");
-  myquery(rc);
-  rc = mysql_query(mysql, "GRANT SELECT ON bug53371.* to 'testbug'@localhost");
-  myquery(rc);
-
-  rc = mysql_change_user(mysql, "testbug", nullptr, "bug53371");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "SHOW COLUMNS FROM client_test_db.t1");
-  DIE_UNLESS(rc);
-  DIE_UNLESS(mysql_errno(mysql) == 1142);
-
-  result = mysql_list_fields(mysql, "../client_test_db/t1", nullptr);
-  DIE_IF(result);
-
-  result = mysql_list_fields(mysql, "#mysql50#/../client_test_db/t1", nullptr);
-  DIE_IF(result);
-
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP TABLE t1");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP DATABASE bug53371");
-  myquery(rc);
-  rc = mysql_query(mysql, "DROP USER 'testbug'@localhost");
   myquery(rc);
 }
 
@@ -18389,79 +18135,6 @@ static void test_bug11766854() {
 }
 
 /**
-  Bug#12337762: 60075: MYSQL_LIST_FIELDS() RETURNS WRONG CHARSET FOR
-                       CHAR/VARCHAR/TEXT COLUMNS IN VIEWS
-*/
-static void test_bug12337762() {
-  int rc, i = 0;
-  MYSQL_RES *result;
-  MYSQL_FIELD *field;
-  unsigned int tab_charsetnr[3] = {0};
-
-  DBUG_TRACE;
-  myheader("test_bug12337762");
-
-  /*
-    Creating table with specific charset.
-  */
-  rc = mysql_query(mysql, "drop table if exists charset_tab");
-  rc = mysql_query(mysql,
-                   "create table charset_tab("
-                   "txt1 varchar(32) character set Latin1,"
-                   "txt2 varchar(32) character set Latin1 collate latin1_bin,"
-                   "txt3 varchar(32) character set utf8mb3 collate utf8mb3_bin"
-                   ")");
-
-  DIE_UNLESS(rc == 0);
-  DIE_IF(mysql_errno(mysql));
-
-  /*
-    Creating view from table created earlier.
-  */
-  rc = mysql_query(mysql, "drop view if exists charset_view");
-  rc = mysql_query(mysql,
-                   "create view charset_view as "
-                   "select * from charset_tab;");
-  DIE_UNLESS(rc == 0);
-  DIE_IF(mysql_errno(mysql));
-
-  /*
-    Checking field information for table.
-  */
-  result = mysql_list_fields(mysql, "charset_tab", nullptr);
-  DIE_IF(mysql_errno(mysql));
-  i = 0;
-  while ((field = mysql_fetch_field(result))) {
-    printf("field name %s\n", field->name);
-    printf("field table %s\n", field->table);
-    printf("field type %d\n", field->type);
-    printf("field charset %d\n", field->charsetnr);
-    tab_charsetnr[i++] = field->charsetnr;
-    printf("\n");
-  }
-  mysql_free_result(result);
-
-  /*
-    Checking field information for view.
-  */
-  result = mysql_list_fields(mysql, "charset_view", nullptr);
-  DIE_IF(mysql_errno(mysql));
-  i = 0;
-  while ((field = mysql_fetch_field(result))) {
-    printf("field name %s\n", field->name);
-    printf("field table %s\n", field->table);
-    printf("field type %d\n", field->type);
-    printf("field charset %d\n", field->charsetnr);
-    printf("\n");
-    /*
-      charset value for field must be same for both, view and table.
-    */
-    DIE_UNLESS(field->charsetnr == tab_charsetnr[i++]);
-  }
-  mysql_free_result(result);
-}
-
-/**
   Bug#54790: Use of non-blocking mode for sockets limits performance
 */
 
@@ -18522,87 +18195,6 @@ static void test_bug11754979() {
   DIE_UNLESS(mysql_affected_rows(conn) == 2);
   myquery(mysql_query(conn, "DROP TABLE t1"));
   mysql_close(conn);
-}
-
-/*
-  Bug#13001491: MYSQL_REFRESH CRASHES WHEN STORED ROUTINES ARE RUN CONCURRENTLY.
-*/
-static void test_bug13001491() {
-  int rc;
-  char query[MAX_TEST_QUERY_LENGTH];
-  MYSQL *c;
-
-  myheader("test_bug13001491");
-
-  snprintf(query, MAX_TEST_QUERY_LENGTH, "CREATE USER mysqltest_u1@%s",
-           opt_host ? opt_host : "'localhost'");
-
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  snprintf(query, MAX_TEST_QUERY_LENGTH,
-           "GRANT ALL PRIVILEGES ON *.* TO mysqltest_u1@%s",
-           opt_host ? opt_host : "'localhost'");
-
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  snprintf(query, MAX_TEST_QUERY_LENGTH,
-           "GRANT RELOAD ON *.* TO mysqltest_u1@%s",
-           opt_host ? opt_host : "'localhost'");
-
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  c = mysql_client_init(nullptr);
-
-  DIE_UNLESS(mysql_real_connect(
-      c, opt_host, "mysqltest_u1", nullptr, current_db, opt_port,
-      opt_unix_socket, CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS));
-
-  rc = mysql_query(c, "DROP PROCEDURE IF EXISTS p1");
-  myquery(rc);
-
-  rc = mysql_query(c,
-                   "CREATE PROCEDURE p1() "
-                   "BEGIN "
-                   " DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END; "
-                   " SELECT COUNT(*) "
-                   " FROM INFORMATION_SCHEMA.PROCESSLIST "
-                   " GROUP BY user "
-                   " ORDER BY NULL "
-                   " INTO @a; "
-                   "END");
-  myquery(rc);
-
-  rc = mysql_query(c, "CALL p1()");
-  myquery(rc);
-
-  mysql_free_result(mysql_store_result(c));
-
-  /* Check that mysql_refresh() succeeds without REFRESH_LOG. */
-  rc = mysql_refresh(
-      c, REFRESH_GRANT | REFRESH_TABLES | REFRESH_STATUS | REFRESH_THREADS);
-  myquery(rc);
-
-  /*
-    Check that mysql_refresh(REFRESH_LOG) does not crash the server even if it
-    fails. mysql_refresh(REFRESH_LOG) fails when error log points to unavailable
-    location.
-  */
-  mysql_refresh(c, REFRESH_LOG);
-
-  rc = mysql_query(c, "DROP PROCEDURE p1");
-  myquery(rc);
-
-  mysql_close(c);
-  c = nullptr;
-
-  snprintf(query, MAX_TEST_QUERY_LENGTH, "DROP USER mysqltest_u1@%s",
-           opt_host ? opt_host : "'localhost'");
-
-  rc = mysql_query(mysql, query);
-  myquery(rc);
 }
 
 /*
@@ -19701,75 +19293,6 @@ static void test_bug20444737() {
   my_fclose(test_file, MYF(0));
 }
 
-/**
-  Bug#21104470 WL8132:ASSERTION `! IS_SET()' FAILED.
-*/
-static void test_bug21104470() {
-  MYSQL_RES *result;
-  int rc;
-
-  myheader("test_bug21104470");
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE TABLE t1(j1 JSON, j2 JSON NOT NULL)");
-  myquery(rc);
-
-  /* This call used to crash the server. */
-  result = mysql_list_fields(mysql, "t1", nullptr);
-  mytest(result);
-
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 0);
-
-  verify_prepare_field(result, 0, "j1", "j1", MYSQL_TYPE_JSON, "t1", "t1",
-                       current_db, UINT_MAX32, nullptr);
-
-  verify_prepare_field(result, 1, "j2", "j2", MYSQL_TYPE_JSON, "t1", "t1",
-                       current_db, UINT_MAX32, nullptr);
-
-  mysql_free_result(result);
-  myquery(mysql_query(mysql, "DROP TABLE t1"));
-}
-
-/**
-  Bug#21293012 ASSERT `!IS_NULL()' FAILED AT FIELD_JSON::VAL_JSON
-  ON NEW CONN TO DB WITH VIEW
-*/
-static void test_bug21293012() {
-  MYSQL_RES *result;
-  int rc;
-
-  myheader("test_bug21293012");
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE TABLE t1(j1 JSON, j2 JSON NOT NULL)");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE VIEW v1 AS SELECT * FROM t1");
-  myquery(rc);
-
-  /* This call used to crash the server. */
-  result = mysql_list_fields(mysql, "v1", nullptr);
-  mytest(result);
-
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 0);
-
-  verify_prepare_field(result, 0, "j1", "j1", MYSQL_TYPE_JSON, "v1", "v1",
-                       current_db, UINT_MAX32, nullptr);
-
-  verify_prepare_field(result, 1, "j2", "j2", MYSQL_TYPE_JSON, "v1", "v1",
-                       current_db, UINT_MAX32, nullptr);
-
-  mysql_free_result(result);
-  myquery(mysql_query(mysql, "DROP VIEW v1"));
-  myquery(mysql_query(mysql, "DROP TABLE t1"));
-}
-
 static void test_bug21199582() {
   int rc = 0;
   int recCnt[] = {3, 4, 1};
@@ -20004,88 +19527,6 @@ static void test_bug20821550() {
   mysql_close(mysql_ptr);
 }
 
-static void check_warning(MYSQL *conn, int warn_count) {
-  MYSQL_RES *result;
-  int rc;
-
-  rc = mysql_query(conn, "SHOW WARNINGS");
-  myquery(rc);
-  result = mysql_store_result(conn);
-  mytest(result);
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == warn_count);
-  mysql_free_result(result);
-}
-
-static void check_warning(MYSQL *conn) { return check_warning(conn, 1); }
-
-static void test_wl8754() {
-  MYSQL_RES *res;
-  MYSQL *conn;
-  int rc;
-  unsigned long thread_id;
-  const char *stmt_text;
-
-  myheader("test_wl8754");
-
-  /* Check that mysql_list_fields reports deprecated warning. */
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
-  myquery(rc);
-  stmt_text = "CREATE TABLE t1 (a int, b char(255), c decimal)";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  res = mysql_list_fields(mysql, "t1", "%");
-  mysql_free_result(res);
-
-  check_warning(mysql);
-
-  stmt_text = "DROP TABLE t1";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  /* Check that mysql_refresh() reports deprecated warning. */
-  rc = mysql_refresh(mysql, REFRESH_TABLES);
-  myquery(rc);
-
-  check_warning(mysql);
-
-  /* Run a dummy query to clear diagnostics. */
-  rc = mysql_query(mysql, "SELECT 1");
-  myquery(rc);
-  /* Get the result. */
-  res = mysql_store_result(mysql);
-  mytest(res);
-  (void)my_process_result_set(res);
-  mysql_free_result(res);
-
-  /* Check that mysql_list_processes() reports deprecated warning. */
-  res = mysql_list_processes(mysql);
-  mysql_free_result(res);
-
-  check_warning(mysql, 2);
-
-  /* Check that mysql_kill() reports deprecated warning. */
-  if (!(conn = mysql_client_init(nullptr))) {
-    myerror("mysql_client_init() failed");
-    exit(1);
-  }
-  conn->reconnect = true;
-  if (!(mysql_real_connect(conn, opt_host, opt_user, opt_password, current_db,
-                           opt_port, opt_unix_socket, 0))) {
-    myerror("connection failed");
-    exit(1);
-  }
-  thread_id = mysql_thread_id(conn);
-  /*
-    Kill connection would have killed the existing connection which clears
-    the THD state and reconnects with a new THD thus there will be no
-    warnings.
-  */
-  mysql_kill(conn, (unsigned long)thread_id);
-  mysql_close(conn);
-}
-
 /*
   BUG#17883203: MYSQL EMBEDDED MYSQL_STMT_EXECUTE RETURN
                 "MALFORMED COMMUNICATION PACKET" ERROR
@@ -20156,28 +19597,6 @@ static void test_bug22336527() {
 
   /* clean up */
   mysql_close(l_mysql);
-}
-
-/**
-  Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::INIT_WITH_SOURCE
-*/
-static void test_bug24963580() {
-  MYSQL_RES *result;
-  int rc;
-
-  myheader("test_bug24963580");
-
-  rc = mysql_query(mysql, "USE information_schema");
-  myquery(rc);
-
-  /* This call used to crash the server. */
-  result = mysql_list_fields(mysql, "CHARACTER_SETS", nullptr);
-  mytest(result);
-
-  rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 0);
-
-  mysql_free_result(result);
 }
 
 static int test_mysql_binlog_perform(MYSQL *mysql1, const char *binlog_name,
@@ -21793,17 +21212,6 @@ static void test_param_integer() {
   myquery(rc);
 }
 
-static void test_bug30032302() {
-  MYSQL_RES *res;
-
-  myheader("test_bug30032302");
-
-  res = mysql_list_processes(mysql);
-  mysql_free_result(res);
-
-  check_warning(mysql, 2);
-}
-
 static void test_wl13168() {
   int rc;
   MYSQL *l_mysql;
@@ -22773,6 +22181,9 @@ static void test_bug32892045() {
   int rc = mysql_query(mysql, command);
   myquery(rc);
 
+  rc = mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+
   rc = mysql_query(mysql,
                    "CREATE TABLE t1 (AAA INT, BBB INT, CCC INT, DDD INT)");
   myquery(rc);
@@ -23430,8 +22841,6 @@ static void test_server_telemetry_traces() {
   // (ordering not changed between multiple sessions)
   my_sleep(500000);  // 500msec
 
-  test_zero_rpc(COM_REFRESH, true);
-  test_zero_rpc(COM_PROCESS_KILL, true);
   test_zero_rpc(COM_STMT_EXECUTE, true);
   test_zero_rpc(COM_STMT_SEND_LONG_DATA, true);
   test_zero_rpc(COM_STMT_CLOSE, true);
@@ -23951,7 +23360,6 @@ static void test_wl15633(void) {
 
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
-    {"test_view_sp_list_fields", test_view_sp_list_fields},
     {"client_query", client_query},
     {"test_prepare_insert_update", test_prepare_insert_update},
     {"test_fetch_seek", test_fetch_seek},
@@ -24042,7 +23450,6 @@ static struct my_tests_st my_tests[] = {
     {"test_fetch_offset", test_fetch_offset},
     {"test_fetch_column", test_fetch_column},
     {"test_mem_overun", test_mem_overun},
-    {"test_list_fields", test_list_fields},
     {"test_free_result", test_free_result},
     {"test_free_store_result", test_free_store_result},
     {"test_sqlmode", test_sqlmode},
@@ -24097,7 +23504,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug4172", test_bug4172},
     {"test_conversion", test_conversion},
     {"test_rewind", test_rewind},
-    {"test_bug6761", test_bug6761},
     {"test_view", test_view},
     {"test_view_where", test_view_where},
     {"test_view_2where", test_view_2where},
@@ -24155,7 +23561,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug17667", test_bug17667},
     {"test_bug15752", test_bug15752},
     {"test_mysql_insert_id", test_mysql_insert_id},
-    {"test_bug19671", test_bug19671},
     {"test_bug21206", test_bug21206},
     {"test_bug21726", test_bug21726},
     {"test_bug15518", test_bug15518},
@@ -24171,12 +23576,10 @@ static struct my_tests_st my_tests[] = {
     {"test_bug27592", test_bug27592},
     {"test_bug29687", test_bug29687},
     {"test_bug29692", test_bug29692},
-    {"test_bug29306", test_bug29306},
     {"test_change_user", test_change_user},
     {"test_bug30472", test_bug30472},
     {"test_bug20023", test_bug20023},
     {"test_bug45010", test_bug45010},
-    {"test_bug53371", test_bug53371},
     {"test_bug31418", test_bug31418},
     {"test_bug31669", test_bug31669},
     {"test_bug28386", test_bug28386},
@@ -24185,7 +23588,6 @@ static struct my_tests_st my_tests[] = {
     {"test_wl4166_3", test_wl4166_3},
     {"test_wl4166_4", test_wl4166_4},
     {"test_bug36004", test_bug36004},
-    {"test_wl4284_1", test_wl4284_1},
     {"test_wl4435", test_wl4435},
     {"test_wl4435_2", test_wl4435_2},
     {"test_wl4435_3", test_wl4435_3},
@@ -24205,9 +23607,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug56976", test_bug56976},
     {"test_bug11766854", test_bug11766854},
     {"test_bug54790", test_bug54790},
-    {"test_bug12337762", test_bug12337762},
     {"test_bug11754979", test_bug11754979},
-    {"test_bug13001491", test_bug13001491},
     {"test_wl5968", test_wl5968},
     {"test_wl5924", test_wl5924},
     {"test_wl6587", test_wl6587},
@@ -24221,14 +23621,10 @@ static struct my_tests_st my_tests[] = {
     {"test_bug20645725", test_bug20645725},
     {"test_bug19894382", test_bug19894382},
     {"test_bug20444737", test_bug20444737},
-    {"test_bug21104470", test_bug21104470},
-    {"test_bug21293012", test_bug21293012},
     {"test_bug21199582", test_bug21199582},
     {"test_bug20821550", test_bug20821550},
-    {"test_wl8754", test_wl8754},
     {"test_bug17883203", test_bug17883203},
     {"test_bug22336527", test_bug22336527},
-    {"test_bug24963580", test_bug24963580},
     {"test_mysql_binlog", test_mysql_binlog},
     {"test_bug22028117", test_bug22028117},
     {"test_skip_metadata", test_skip_metadata},
@@ -24241,7 +23637,6 @@ static struct my_tests_st my_tests[] = {
     {"test_wl12475", test_wl12475},
     {"test_limit_syntax", test_limit_syntax},
     {"test_param_integer", test_param_integer},
-    {"test_bug30032302", test_bug30032302},
     {"test_wl13168", test_wl13168},
     {"test_wl13510", test_wl13510},
     {"test_wl13510_multi_statements", test_wl13510_multi_statements},

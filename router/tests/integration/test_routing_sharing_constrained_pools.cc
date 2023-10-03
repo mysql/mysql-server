@@ -1766,51 +1766,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
  * using one-server to ensure both connections end up on the same backend.
  */
 TEST_P(ShareConnectionTinyPoolOneServerTest,
-       classic_protocol_kill_other_connection) {
-  SCOPED_TRACE("// connecting to server");
-
-  // open two connections on the same server:
-  //
-  // - one to be killed
-  // - one to kill
-  std::array<MysqlClient, 2> clis;
-  std::array<uint32_t, 2> conn_ids;
-
-  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
-    cli.username("root");
-    cli.password("");
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-
-    // block the connection to ensure that even with connection-sharing, a new
-    // connection gets opened that can be successfully killed.
-    ASSERT_NO_ERROR(cli.query("SET @block_connection = 1"));
-
-    auto conn_id_res = query_one<1>(cli, "SELECT CONNECTION_ID()");
-    ASSERT_NO_ERROR(conn_id_res);
-
-    auto conn_num_res = from_string((*conn_id_res)[0]);
-    ASSERT_NO_ERROR(conn_num_res);
-
-    conn_ids[ndx] = *conn_num_res;
-  }
-
-  // there should be no pooling.
-  ASSERT_NE(conn_ids[0], conn_ids[1]);
-
-  ASSERT_NO_ERROR(clis[0].kill(conn_ids[1]));
-
-  // should fail as connection is killed.
-  ASSERT_ERROR(clis[1].query("DO 1"));
-}
-
-/*
- * test the cmd_kill -> Ok path
- *
- * using one-server to ensure both connections end up on the same backend.
- */
-TEST_P(ShareConnectionTinyPoolOneServerTest,
        classic_protocol_set_password_reconnect) {
   const bool can_share = GetParam().can_share();
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
@@ -1837,7 +1792,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   auto conn_num_res = from_string((*conn_id_res)[0]);
   ASSERT_NO_ERROR(conn_num_res);
 
-  ASSERT_NO_ERROR(admin_cli.kill(*conn_num_res));
+  ASSERT_NO_ERROR(admin_cli.query("KILL " + std::to_string(*conn_num_res)));
 
   ASSERT_NO_ERROR(admin_cli.query("SET PASSWORD FOR changeme='changeme2'"));
 

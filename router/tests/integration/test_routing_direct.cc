@@ -724,65 +724,6 @@ class ConnectionTestBase : public RouterComponentTest {
 class ConnectionTest : public ConnectionTestBase,
                        public ::testing::WithParamInterface<ConnectionParam> {};
 
-// check that CMD_KILL opens a new connection to the server.
-TEST_P(ConnectionTest, classic_protocol_kill_zero) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  SCOPED_TRACE("// killing connection 0");
-  {
-    auto kill_res = cli.kill(0);
-    ASSERT_ERROR(kill_res);
-    EXPECT_EQ(kill_res.error().value(), 1094) << kill_res.error();
-    // unknown thread id.
-  }
-
-  SCOPED_TRACE("// ping after kill");
-
-  // nothing was killed and PING should just work.
-  ASSERT_NO_ERROR(cli.ping());
-}
-
-TEST_P(ConnectionTest, classic_protocol_kill_current_connection) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto connection_id_res = fetch_connection_id(cli);
-  ASSERT_NO_ERROR(connection_id_res);
-
-  auto connection_id = connection_id_res.value();
-
-  SCOPED_TRACE("// killing connection " + std::to_string(connection_id));
-  {
-    auto kill_res = cli.kill(connection_id);
-    ASSERT_ERROR(kill_res);
-    EXPECT_EQ(kill_res.error().value(), 1317) << kill_res.error();
-    // Query execution was interrupted
-  }
-
-  EXPECT_NO_ERROR(shared_router()->wait_for_num_connections(GetParam(), 0, 1s));
-
-  SCOPED_TRACE("// ping after kill");
-  {
-    auto ping_res = cli.ping();
-    ASSERT_ERROR(ping_res);
-    EXPECT_EQ(ping_res.error().value(), 2013) << ping_res.error();
-    // Lost connection to MySQL server during query
-  }
-}
-
 TEST_P(ConnectionTest, classic_protocol_wait_timeout) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -858,39 +799,6 @@ TEST_P(ConnectionTest, classic_protocol_list_dbs) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   ASSERT_NO_ERROR(cli.list_dbs());
-}
-
-TEST_P(ConnectionTest, classic_protocol_list_fields_succeeds) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-  cli.use_schema("mysql");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto cmd_res = cli.list_fields("user");
-  ASSERT_NO_ERROR(cmd_res);
-}
-
-TEST_P(ConnectionTest, classic_protocol_list_fields_fails) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-  cli.use_schema("mysql");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  {
-    auto cmd_res = cli.list_fields("does_not_exist");
-    ASSERT_ERROR(cmd_res);
-    EXPECT_EQ(cmd_res.error().value(), 1146) << cmd_res.error();
-  }
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_native_empty) {
@@ -1321,40 +1229,6 @@ TEST_P(ConnectionTest, classic_protocol_debug_fails) {
     auto res = cli.dump_debug_info();
     ASSERT_ERROR(res);
     EXPECT_EQ(res.error().value(), 1227);  // access denied, you need SUPER
-  }
-}
-
-TEST_P(ConnectionTest, classic_protocol_refresh) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  EXPECT_NO_ERROR(cli.refresh());
-
-  EXPECT_NO_ERROR(cli.refresh());
-}
-
-TEST_P(ConnectionTest, classic_protocol_refresh_fail) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  auto account = SharedServer::native_empty_password_account();
-  cli.username(account.username);
-  cli.password(account.password);
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  {
-    auto cmd_res = cli.refresh();
-    ASSERT_ERROR(cmd_res);
-
-    EXPECT_EQ(cmd_res.error().value(), 1227);  // Access Denied
   }
 }
 

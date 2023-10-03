@@ -182,11 +182,7 @@
 
    - @subpage page_protocol_com_quit
    - @subpage page_protocol_com_init_db
-   - @subpage page_protocol_com_field_list
-   - @subpage page_protocol_com_refresh
    - @subpage page_protocol_com_statistics
-   - @subpage page_protocol_com_process_info
-   - @subpage page_protocol_com_process_kill
    - @subpage page_protocol_com_debug
    - @subpage page_protocol_com_ping
    - @subpage page_protocol_com_change_user
@@ -1760,87 +1756,6 @@ int Protocol_classic::read_packet() {
 */
 
 /**
-  @page page_protocol_com_field_list COM_FIELD_LIST
-
-  @note As of MySQL 5.7.11, COM_FIELD_LIST is deprecated and will be removed in
-  a future version of MySQL. Instead, use COM_QUERY to execute a SHOW COLUMNS
-  statement.
-
-  <table>
-  <caption>Payload</caption>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>command</td>
-      <td>0x04: COM_FIELD_LIST</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
-      <td>table</td>
-      <td>the name of the table to return column information for
-      (in the current database for the connection)</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
-      <td>wildcard</td>
-      <td>field wildcard</td></tr>
-  </table>
-
-  @return @ref sect_protocol_com_field_list_response
-
-  @sa mysql_list_fields, mysqld_list_fields
-
-  @section sect_protocol_com_field_list_response COM_FIELD_LIST Response
-
-  The response to @ref page_protocol_com_field_list can be one of:
-   - @ref page_protocol_basic_err_packet
-   - zero or more
-     @ref page_protocol_com_query_response_text_resultset_column_definition
-   - a closing @ref page_protocol_basic_eof_packet
-
-  @warning if ::CLIENT_OPTIONAL_RESULTSET_METADATA is on and the server side
-  variable ::Sys_resultset_metadata is not set to ::RESULTSET_METADATA_FULL
-  no rows will be sent, just an empty resultset.
-
-  ~~~~~~~~
-  31 00 00 01 03 64 65 66    04 74 65 73 74 09 66 69    1....def.test.fi
-  65 6c 64 6c 69 73 74 09    66 69 65 6c 64 6c 69 73    eldlist.fieldlis
-  74 02 69 64 02 69 64 0c    3f 00 0b 00 00 00 03 00    t.id.id.?.......
-  00 00 00 00 fb 05 00 00    02 fe 00 00 02 00          ..............
-  ~~~~~~~~
-
-  @sa mysql_list_fields, mysqld_list_fields, THD::send_result_metadata,
-  dispatch_command, cli_list_fields
-
-*/
-
-/**
-  @page page_protocol_com_refresh COM_REFRESH
-
-  @warning As of MySQL 5.7.11, COM_REFRESH is deprecated and will be removed
-  in a future version of MySQL. Instead, use COM_QUERY to execute a
-  FLUSH statement.
-
-  A low-level version of several FLUSH ... and RESET ... statements.
-
-  Calls REFRESH or FLUSH statements.
-
-  <table>
-  <caption>Payload</caption>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>command</td>
-      <td>0x07: COM_REFRESH</td></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>sub_command</td>
-      <td>A bitmask of sub-systems to refresh.
-      A combination of the first 8 bits of
-      @ref group_cs_com_refresh_flags</td></tr>
-  </table>
-
-  @return @ref page_protocol_basic_err_packet or
-    @ref page_protocol_basic_ok_packet
-
-  @sa dispatch_command, handle_reload_request, mysql_refresh
-*/
-
-
-/**
   @page page_protocol_com_statistics COM_STATISTICS
 
   Get a human readable string of some internal status vars.
@@ -1860,58 +1775,6 @@ int Protocol_classic::read_packet() {
   </table>
 
   @sa cli_read_statistics, mysql_stat, dispatch_command, calc_sum_of_all_status
-*/
-
-
-/**
-  @page page_protocol_com_process_info COM_PROCESS_INFO
-
-  @warning As of 5.7.11 ::COM_PROCESS_INFO is deprecated in favor of ::COM_QUERY
-    with SHOW PROCESSLIST
-
-  Get a list of active threads
-
-  @return @ref page_protocol_com_query_response_text_resultset or a
-  @ref page_protocol_basic_err_packet
-
-  <table>
-  <caption>Payload</caption>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>command</td>
-      <td>0x0A: COM_PROCESS_INFO</td></tr>
-  </table>
-
-  @sa mysql_list_processes, dispatch_command, mysqld_list_processes
-*/
-
-
-/**
-  @page page_protocol_com_process_kill COM_PROCESS_KILL
-
-  Ask the server to terminate a connection
-
-  @warning As of MySQL 5.7.11, COM_PROCESS_KILL is deprecated and will be
-  removed in a future version of MySQL. Instead, use ::COM_QUERY and
-  a KILL command.
-
-  Same as the SQL command `KILL <id>`.
-
-  <table>
-  <caption>Payload</caption>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>command</td>
-      <td>0x0C: COM_PROCESS_KILL</td></tr>
-  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
-      <td>connection_id</td>
-      <td>The connection to kill</td></tr>
-  </table>
-
-  @return @ref page_protocol_basic_err_packet or
-    @ref page_protocol_basic_ok_packet
-
-  @sa dispatch_command, mysql_kill, sql_kill
 */
 
 /**
@@ -2842,16 +2705,6 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       data->com_init_db.length = input_packet_length;
       break;
     }
-    case COM_REFRESH: {
-      if (input_packet_length < 1) goto malformed;
-      data->com_refresh.options = input_raw_packet[0];
-      break;
-    }
-    case COM_PROCESS_KILL: {
-      if (input_packet_length < 4) goto malformed;
-      data->com_kill.id = (ulong)uint4korr(input_raw_packet);
-      break;
-    }
     case COM_SET_OPTION: {
       if (input_packet_length < 2) goto malformed;
       data->com_set_option.opt_command = uint2korr(input_raw_packet);
@@ -2951,22 +2804,6 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
 
       data->com_query.query = reinterpret_cast<const char *>(read_pos);
       data->com_query.length = packet_left;
-      break;
-    }
-    case COM_FIELD_LIST: {
-      /*
-        We have name + wildcard in packet, separated by endzero
-      */
-      const ulong len =
-          strend((char *)input_raw_packet) - (char *)input_raw_packet;
-
-      if (len >= input_packet_length || len > NAME_LEN) goto malformed;
-
-      data->com_field_list.table_name = input_raw_packet;
-      data->com_field_list.table_name_length = len;
-
-      data->com_field_list.query = input_raw_packet + len + 1;
-      data->com_field_list.query_length = input_packet_length - len;
       break;
     }
     default:

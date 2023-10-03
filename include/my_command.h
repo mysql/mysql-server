@@ -50,21 +50,21 @@ enum enum_server_command {
     Also used internally to mark the start of a session.
   */
   COM_SLEEP,
-  COM_QUIT,       /**< See @ref page_protocol_com_quit */
-  COM_INIT_DB,    /**< See @ref page_protocol_com_init_db */
-  COM_QUERY,      /**< See @ref page_protocol_com_query */
-  COM_FIELD_LIST, /**< Deprecated. See @ref page_protocol_com_field_list */
+  COM_QUIT,      /**< See @ref page_protocol_com_quit */
+  COM_INIT_DB,   /**< See @ref page_protocol_com_init_db */
+  COM_QUERY,     /**< See @ref page_protocol_com_query */
+  COM_UNUSED_3,  /**< Removed, used to be COM_FIELD_LIST */
   COM_CREATE_DB, /**< Currently refused by the server. See ::dispatch_command */
   COM_DROP_DB,   /**< Currently refused by the server. See ::dispatch_command */
-  COM_REFRESH,   /**< Deprecated. See @ref page_protocol_com_refresh */
-  COM_DEPRECATED_1, /**< Deprecated, used to be COM_SHUTDOWN */
-  COM_STATISTICS,   /**< See @ref page_protocol_com_statistics */
-  COM_PROCESS_INFO, /**< Deprecated. See @ref page_protocol_com_process_info */
-  COM_CONNECT,      /**< Currently refused by the server. */
-  COM_PROCESS_KILL, /**< Deprecated. See @ref page_protocol_com_process_kill */
-  COM_DEBUG,        /**< See @ref page_protocol_com_debug */
-  COM_PING,         /**< See @ref page_protocol_com_ping */
-  COM_TIME,         /**< Currently refused by the server. */
+  COM_UNUSED_2,  /**< Removed, used to be COM_REFRESH. */
+  COM_UNUSED_1,  /**< Removed, used to be COM_SHUTDOWN */
+  COM_STATISTICS,     /**< See @ref page_protocol_com_statistics */
+  COM_UNUSED_4,       /**< Removed, used to be COM_PROCESS_INFO */
+  COM_CONNECT,        /**< Currently refused by the server. */
+  COM_UNUSED_5,       /**< Removed, used to be COM_PROCESS_KILL */
+  COM_DEBUG,          /**< See @ref page_protocol_com_debug */
+  COM_PING,           /**< See @ref page_protocol_com_ping */
+  COM_TIME,           /**< Currently refused by the server. */
   COM_DELAYED_INSERT, /**< Functionality removed. */
   COM_CHANGE_USER,    /**< See @ref page_protocol_com_change_user */
   COM_BINLOG_DUMP,    /**< See @ref page_protocol_com_binlog_dump */
