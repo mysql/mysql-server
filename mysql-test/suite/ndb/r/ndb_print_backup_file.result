@@ -191,9 +191,9 @@ ndb_print_backup_file suite/ndb/backups/LCP/3/T19F0.Data
 ndb_print_backup_file suite/ndb/backups/LCP/3/T22F0.Data
 1429 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1-0.1.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1-0.2.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.1.ctl
 34508 bytes in output
 ndb_print_backup_file suite/ndb/backups/before_native_default/BACKUP-1.1.log
@@ -211,25 +211,25 @@ ndb_print_backup_file suite/ndb/backups/bug17275798/BACKUP-1.21.log
 ndb_print_backup_file suite/ndb/backups/bug54613/BACKUP-2.2.ctl
 33362 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1-0.1.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1.1.ctl
 119052 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1.1.log
 336 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2-0.1.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2.1.ctl
 119054 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2.1.log
 361 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1-0.1.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1.1.ctl
 119052 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1.1.log
 610 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2-0.1.Data
-534 bytes in output
+522 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2.1.ctl
 119054 bytes in output
 ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2.1.log
@@ -429,7 +429,7 @@ ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP
 ndb_print_backup_file suite/ndb/backups/missing_part/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
 334 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1-0.2.Data
-1247 bytes in output
+1235 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.ctl
 37317 bytes in output
 ndb_print_backup_file suite/ndb/backups/packed/BACKUP-1.2.log
