@@ -321,11 +321,13 @@ INSERT INTO global_suppressions VALUES
  ("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001160 - Got an error writing communication packets.*"),
  ("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001158 - Got an error reading communication packets.*"),
  ("Failed to establish MySQL client connection in Group Replication.*."),
+ ("Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS. Please retry."),
  ("\\[GCS\\] client closed the signalling connection .*"),
  ("\\[GCS\\] local_server: client closed the signalling connection.*"),
  ("\\[GCS\\] local_server: error reading from the signalling connection.*"),
  ("\\[GCS\\] Unable to start XCom Network Provider.*"),
  ("\\[GCS\\] Error initializing the group communication engine.*"),
+ ("\\[GCS\\] The group communication engine could not set up its internal event notification mechanism.*"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx
