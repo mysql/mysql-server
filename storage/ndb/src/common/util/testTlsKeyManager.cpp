@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+#include <cstdarg>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -31,6 +32,7 @@
 
 #include "ndb_init.h"
 #include "debugger/EventLogger.hpp"
+#include "portlib/ndb_compiler.h"
 #include "portlib/NdbDir.hpp"
 #include "portlib/NdbTCP.h"
 #include "util/File.hpp"
@@ -45,6 +47,8 @@
 
 int opt_port = 4400;
 int opt_last_test = INT16_MAX;
+const char * opt_cert_test_host = "www.kth.se";
+bool opt_cert_test = true;
 
 static struct my_option options[] =
 {
@@ -54,6 +58,14 @@ static struct my_option options[] =
   { "to", 'n', "run tests up to test number n", & opt_last_test,
     nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_last_test,
     0, 0, nullptr, 0, nullptr },
+  { "cert-test", NDB_OPT_NOSHORT,
+    "Run certificate test; use --skip-cert-test to skip",
+    &opt_cert_test,  nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "cert-test-hostname", NDB_OPT_NOSHORT,
+    "hostname with a stable set of addresses for testing bound certificates",
+    &opt_cert_test_host, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   NdbStdOpt::end_of_options
 };
 
@@ -68,13 +80,38 @@ static short tests_failed() { return globalTestInfo.failed; }
 static void plan()          { printf("1..%d\n", tests_run()); }
 static int exit_status()    { plan(); return tests_failed(); }
 
-static void ok(bool p, const char * msg) {
+static void emit(bool p, const char* dir, const char* fmt, std::va_list ap)
+  ATTRIBUTE_FORMAT(printf, 3, 0);
+static void ok(bool p, const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 2, 3);
+static void skip(int how_many, const char * fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 2, 3);
+
+void emit(bool p, const char* dir, const char* fmt, std::va_list ap) {
   globalTestInfo.run++;
   if(! p) globalTestInfo.failed++;
-  printf("%s %d - %s\n", p ? "ok" : "not ok", globalTestInfo.run, msg);
+  cstrbuf<100> line;
+  require(line.appendf("%s %d %s%s ", p ? "ok" : "not ok", globalTestInfo.run,
+                       (dir?"# ":"-"), (dir?dir:"")) != -1);
+  require(line.appendf(fmt, ap) != -1);
+  line.replace_end_if_truncated("...");
+  puts(line.c_str());
   if(globalTestInfo.run == opt_last_test) exit(exit_status());
 }
 
+void ok(bool p, const char * fmt, ...) {
+  std::va_list ap;
+  va_start(ap, fmt);
+  emit(p, nullptr, fmt, ap);
+  va_end(ap);
+}
+
+void skip(int how_many, const char * fmt, ...) {
+  std::va_list ap;
+  va_start(ap, fmt);
+  for (int i = 0; i < how_many; i++)
+    emit(true, "skip", fmt, ap);
+  va_end(ap);
+}
 
 /* Infrastructure */
 
@@ -667,17 +704,14 @@ void test_key_replace(Test::CertAuthority & ca) {
 }
 
 void test_affirm_client_auth(Test::CertAuthority & ca) {
+  if(! opt_cert_test) {
+    skip(1, "certificate authorization test");
+    return;
+  }
   printf("\nTest server authorization of client hostname:\n");
-
-  /* Create a client certificate bound to a particular hostname.
-     The test hostname should ideally:
-        * be stable from one lookup to the next (not Akamaized)
-        * return several addresses including both IPv4 and IPv6
-  */
-  static constexpr const char * TheTestHostname = "msdn.microsoft.com";
-  NodeCertificate * nc = new NodeCertificate(Node::Type::Client, 15);
+  auto nc = std::make_unique<NodeCertificate>(Node::Type::Client, 15);
   nc->create_keys("P-256");
-  nc->bind_hostname(TheTestHostname);
+  nc->bind_hostname(opt_cert_test_host);
   nc->finalise(ca.cert(), ca.key());
 
   struct addrinfo hints;
@@ -687,28 +721,32 @@ void test_affirm_client_auth(Test::CertAuthority & ca) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = 0;
   struct addrinfo* ai_list = nullptr;
-  ok(getaddrinfo(TheTestHostname, nullptr, &hints, &ai_list) == 0,
-     "getaddrinfo success");
+  int gaierr = getaddrinfo(opt_cert_test_host, nullptr, &hints, &ai_list);
+  if (gaierr == EAI_NONAME) {
+    skip(1, "Could not find addresses for %s", opt_cert_test_host);
+    return;
+  }
+  ok(gaierr == 0, "getaddrinfo(%s) success", opt_cert_test_host);
 
-  /* We cannot actually connect from www.oracle.com, but we can test
+  /* We cannot actually connect from the test host, but we can test
      each address that came from the resolver as if it belonged to a
      connected socket. The cert should be valid for each listed address. */
   ClientAuthorization * auth;
   for(struct addrinfo *ai = ai_list; ai != nullptr; ai = ai->ai_next) {
     auth = TlsKeyManager::test_client_auth(nc->cert(), ai);
     int r = TlsKeyManager::perform_client_host_auth(auth);
-    ok(r == 0, "Client cert for test hostname is OK");
+    char buff[INET6_ADDRSTRLEN];
+    ndb_sockaddr addr(ai->ai_addr, ai->ai_addrlen);
+    Ndb_inet_ntop(&addr, buff, sizeof(buff));
+    ok(r == 0, "Client cert with address %s for test hostname %s is OK", buff,
+               opt_cert_test_host);
     if(r) {
-      char buff[INET6_ADDRSTRLEN];
-      ndb_sockaddr addr(ai->ai_addr, ai->ai_addrlen);
-      Ndb_inet_ntop(&addr, buff, sizeof(buff));
       printf(" >>> Test of address %s for %s returned error %s\n",
-             buff, TheTestHostname, TlsKeyError::message(r));
+             buff, opt_cert_test_host, TlsKeyError::message(r));
     }
   }
 
   freeaddrinfo(ai_list);
-  delete nc;
 }
 
 
