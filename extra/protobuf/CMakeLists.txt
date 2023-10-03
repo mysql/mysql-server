@@ -111,7 +111,8 @@ ELSE()
   # so use static libs instead.
   IF(CMAKE_CXX_FLAGS MATCHES "-static-libgcc")
     SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-  ELSE()
+  ELSEIF(NOT DEFINED protobuf_BUILD_SHARED_LIBS)
+    # Do not redefine to ON if already set to OFF
     SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
   ENDIF()
 ENDIF()
