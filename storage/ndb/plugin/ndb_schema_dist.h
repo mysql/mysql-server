@@ -197,6 +197,11 @@ class Ndb_schema_dist_client {
    */
   void acquire_acl_lock();
 
+  /**
+     @brief Check if local schema distribution mechanism available
+   */
+  bool check_local_schema_dist_available() const;
+
  public:
   Ndb_schema_dist_client() = delete;
   Ndb_schema_dist_client(const Ndb_schema_dist_client &) = delete;
