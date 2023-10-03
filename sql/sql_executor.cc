@@ -38,15 +38,13 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <iterator>
+#include <cstring>
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "field_types.h"
-#include "lex_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -72,7 +70,8 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/iterators/sorting_iterator.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -90,26 +89,25 @@
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/query_options.h"
+#include "sql/query_term.h"
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/sort_param.h"
 #include "sql/sql_array.h"  // Bounds_checked_array
-#include "sql/sql_base.h"   // fill_record
-#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_delete.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
+#include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/sql_update.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/visible_fields.h"
 #include "sql/window.h"
-#include "tables_contained_in.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -827,8 +825,9 @@ static AccessPath *NewInvalidatorAccessPathForTable(
 
 static table_map ConvertQepTabMapToTableMap(JOIN *join, qep_tab_map tables) {
   table_map map = 0;
-  for (QEP_TAB *tab : TablesContainedIn(join, tables)) {
-    map |= tab->table_ref->map();
+  for (size_t idx : BitsSetIn(tables)) {
+    assert(idx < join->tables);
+    map |= join->qep_tab[idx].table_ref->map();
   }
   return map;
 }

@@ -57,25 +57,20 @@
 /// for implementing hash join.
 
 #include <stddef.h>
-#include <stdint.h>
+#include <cassert>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "extra/robin-hood-hashing/robin_hood.h"
-#include "field_types.h"
-#include "map_helpers.h"
 #include "my_alloc.h"
-#include "my_inttypes.h"
-#include "my_table_map.h"
-#include "prealloced_array.h"
 #include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/pack_rows.h"
-#include "sql/table.h"
 #include "sql_string.h"
 
-class Field;
-class QEP_TAB;
+class THD;
 
 namespace hash_join_buffer {
 

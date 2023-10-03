@@ -22,30 +22,21 @@
 
 #include "sql/iterators/hash_join_buffer.h"
 
-#include <assert.h>
-#include <cstddef>
-#include <cstring>
-#include <iterator>
-#include <new>
-#include <unordered_map>
+#include <algorithm>
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
 
-#include "field_types.h"
 #include "my_alloc.h"
-#include "my_bitmap.h"
 #include "my_compiler.h"
-
 #include "my_inttypes.h"
-#include "mysql/strings/m_ctype.h"
-#include "sql/field.h"
-#include "sql/handler.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql/current_thd.h"
 #include "sql/item_cmpfunc.h"
-#include "sql/join_optimizer/bit_utils.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
-#include "sql/sql_executor.h"
-#include "sql/sql_optimizer.h"
-#include "sql/table.h"
-#include "tables_contained_in.h"
+#include "sql/system_variables.h"
 #include "template_utils.h"
 
 using pack_rows::TableCollection;

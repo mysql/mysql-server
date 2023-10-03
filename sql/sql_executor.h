@@ -29,43 +29,34 @@
 */
 
 #include <sys/types.h>
-#include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql/iterators/row_iterator.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
-class CacheInvalidatorIterator;
 class Cached_item;
 class Field;
 class Field_longlong;
 class Filesort;
-class FollowTailIterator;
 class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
 class KEY;
-class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;
 class RowIterator;
 class THD;
-class Window;
 template <class T>
 class mem_root_deque;
 
-enum class Window_retrieve_cached_row_reason;
 struct AccessPath;
-struct CACHE_FIELD;
 struct POSITION;
 template <class T>
 class List;
