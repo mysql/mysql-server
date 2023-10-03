@@ -1,0 +1,157 @@
+################################################################################
+# This test creates a misconfiguration in a 2-node scenario in which server 2
+# is able to contact server 1, but server 1 is not able to contact server 2.
+# Joining server 2 must fail and the group should remain functional with
+# server 1.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create two users on M1: user_m1 and user_m2.
+# 2. Start and bootstrap group on M1
+# 2.1. Change the Recovery Channel to use user_m1
+# 3. Create two users on M2: user_m1 with a wrong password and user_m2.
+# 4. Change the Recovery Channel to use user_m2
+# 5. Start M2
+# 6. Starting M2 must fail
+# 7. Go to M1 and create another user. It must succeed.
+# 8. Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_mysql_communication_stack.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo #
+--echo # 0. The test requires two servers: M1 and M2.
+--echo ###
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/disable_binlog.inc
+call mtr.add_suppression("Error while executing a group configuration operation: Could not extract the access credentials for XCom connections.*");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
+call mtr.add_suppression("\\[GCS\\] The group communication engine failed to test connectivity to the local group communication engine.*");
+call mtr.add_suppression("Timeout on wait for view after joining group.");
+--source include/restore_binlog.inc
+
+
+--echo #
+--echo # 1. Create two users on M1: user_m1 and user_m2.
+--echo ###
+
+--source include/disable_binlog.inc
+
+CREATE USER 'user_m1' IDENTIFIED BY 'password';
+CREATE USER 'user_m2' IDENTIFIED BY 'password';
+
+GRANT REPLICATION SLAVE ON *.* TO "user_m1";
+GRANT REPLICATION SLAVE ON *.* TO "user_m2";
+
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m1";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m2";
+
+--source include/restore_binlog.inc
+
+--echo #
+--echo # 2. Start and bootstrap group on M1
+--echo ###
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # 2.1. Change the Recovery Channel to use user_m1
+--echo ###
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER='user_m1' , SOURCE_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/disable_binlog.inc
+call mtr.add_suppression("Error while executing a group configuration operation: Could not extract the access credentials for XCom connections.*");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
+call mtr.add_suppression("\\[GCS\\] The group communication engine failed to test connectivity to the local group communication engine.*");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to be ready.*");
+call mtr.add_suppression("\\[GCS\\] The group communication engine is not ready for the member to join.*");
+call mtr.add_suppression("Timeout on wait for view after joining group.");
+--source include/restore_binlog.inc
+
+--echo #
+--echo # 3. Create two users on M2: user_m1 with a wrong password and user_m2.
+--echo ###
+
+--source include/disable_binlog.inc
+
+CREATE USER 'user_m1' IDENTIFIED BY 'wrongpassword';
+CREATE USER 'user_m2' IDENTIFIED BY 'password';
+
+GRANT REPLICATION SLAVE ON *.* TO "user_m1";
+GRANT REPLICATION SLAVE ON *.* TO "user_m2";
+
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m1";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "user_m2";
+
+--source include/restore_binlog.inc
+
+--echo #
+--echo # 4. Change the Recovery Channel to use user_m2
+--echo ###
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER='user_m2' , SOURCE_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';
+
+--echo #
+--echo # 5. Start M2
+--echo # 6. Starting M2 must fail
+--echo ###
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo #
+--echo # 7. Go to M1 and create another user to prove that the member if 
+--echo # functional. It must succeed.
+--echo ###
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/disable_binlog.inc
+
+CREATE USER 'user_m3' IDENTIFIED BY 'wrongpassword';
+
+--source include/restore_binlog.inc
+
+--echo #
+--echo # 8. Cleanup.
+--echo ###
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' , SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+
+--source include/disable_binlog.inc
+
+DROP USER 'user_m3';
+DROP USER 'user_m2';
+DROP USER 'user_m1';
+
+--source include/restore_binlog.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' , SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+
+--source include/disable_binlog.inc
+
+DROP USER 'user_m2';
+DROP USER 'user_m1';
+
+--source include/restore_binlog.inc
+
+--source include/group_replication_end.inc
+

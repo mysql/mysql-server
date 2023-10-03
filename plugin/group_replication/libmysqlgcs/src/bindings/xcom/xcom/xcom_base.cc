@@ -5551,6 +5551,36 @@ static client_reply_code xcom_get_event_horizon(
   return REQUEST_OK;
 }
 
+static bool add_node_test_connectivity_to_added_nodes(
+    node_address *nodes_to_change, u_int number_of_nodes_to_change) {
+  char name[IP_MAX_SIZE];
+  xcom_port port = 0;
+
+  for (u_int i = 0; i < number_of_nodes_to_change; i++) {
+    memset(name, 0, IP_MAX_SIZE);
+
+    node_address node_to_change = nodes_to_change[i];
+
+    if (get_ip_and_port(node_to_change.address, name, &port)) {
+      G_INFO("Error parsing ip:port for new server. Incorrect value is %s",
+             node_to_change.address);
+      return true;
+    }
+
+    if (!is_able_to_connect_to_node(name, port)) {
+      G_INFO(
+          "Error connecting back to %s on a node being added to the group "
+          "using this member as seed. Please retry adding "
+          "this node to the group, after troubleshooting any issue that you "
+          "might have on a bi-directional link.",
+          node_to_change.address);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static u_int allow_add_node(app_data_ptr a) {
   /* Get information on the current site definition */
   const site_def *new_site_def = get_site_def();
@@ -5574,6 +5604,11 @@ static u_int allow_add_node(app_data_ptr a) {
         "to "
         "communicate using IPv6, only IPv4.Please configure this server to "
         "join the group using an IPv4 address instead.");
+    return 0;
+  }
+
+  if (add_node_test_connectivity_to_added_nodes(nodes_to_change,
+                                                nr_nodes_to_add)) {
     return 0;
   }
 

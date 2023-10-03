@@ -168,6 +168,20 @@ connection_descriptor *open_new_connection(
 connection_descriptor *open_new_local_connection(const char *server,
                                                  xcom_port port);
 
+/**
+ * @brief Tests connectivity to another node under the current configuration
+ * setup.
+ *
+ * This function verifies that this node is able to successfully reach to the
+ * other node. It is used to do a sanity check at when a new member is about
+ * to be added to the list of participants and to check local node
+ * connectivity, in order to validate configurations.
+ *
+ * @return false In case of error.
+ * @return true If it succeeds to connect to a node.
+ */
+bool is_able_to_connect_to_node(const char *server, const xcom_port port);
+
 #ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con);
 #endif
