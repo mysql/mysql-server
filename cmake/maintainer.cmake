@@ -129,15 +129,14 @@ IF(MY_COMPILER_IS_CLANG)
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-override")
   MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
   MY_ADD_CXX_WARNING_FLAG("Wstring-concatenation")
-  IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-    # require clang-11 or later when enabling -Wdocumentation to workaround
-    #
-    # https://bugs.llvm.org/show_bug.cgi?id=38905
-    MY_ADD_CXX_WARNING_FLAG("Wdocumentation")
-    # -Wdocumentation enables -Wdocumentation-deprecated-sync
-    # which currently raises to many warnings
-    MY_ADD_CXX_WARNING_FLAG("Wno-documentation-deprecated-sync")
-  ENDIF()
+
+  # require clang-11 or later when enabling -Wdocumentation to workaround
+  #
+  # https://bugs.llvm.org/show_bug.cgi?id=38905
+  MY_ADD_CXX_WARNING_FLAG("Wdocumentation")
+  # -Wdocumentation enables -Wdocumentation-deprecated-sync
+  # which currently raises to many warnings
+  MY_ADD_CXX_WARNING_FLAG("Wno-documentation-deprecated-sync")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
