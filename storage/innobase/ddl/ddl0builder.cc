@@ -1264,7 +1264,11 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
                   { static_cast<void>(online_build_handle_error(DB_ERROR)); });
 
   if (m_btr_load == nullptr) {
-    ib::error(ER_IB_MSG_DDL_FAIL_NO_BUILDER);
+    auto ind = index();
+    ib::error(ER_IB_MSG_DDL_FAIL_NO_BUILDER, static_cast<unsigned>(get_state()),
+              static_cast<unsigned>(get_error()), id(), ind->name(),
+              ind->space_id(), static_cast<unsigned>(ind->page),
+              ctx().old_table()->name.m_name, ctx().new_table()->name.m_name);
     return DB_ERROR;
   }
 

@@ -85,7 +85,7 @@ class Page_load : private ut::Non_copyable {
 
   /** Destructor */
   ~Page_load() noexcept {
-    ut_a(m_n_blocks_buf_fixed == 0);
+    ut_ad(m_n_blocks_buf_fixed == 0);
     if (m_heap != nullptr) {
       /* mtr is allocated using heap. */
       if (m_mtr != nullptr) {
@@ -858,7 +858,7 @@ void Page_load::latch() noexcept {
 
   buf_block_buf_fix_dec(m_block);
   m_n_blocks_buf_fixed--;
-  ut_a(m_n_blocks_buf_fixed >= 0);
+  ut_ad(m_n_blocks_buf_fixed >= 0);
 
   /* The caller is going to use the m_block, so it needs to be buffer-fixed
   even after the decrement above. This works like this:
