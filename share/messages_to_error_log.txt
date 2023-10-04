@@ -12280,7 +12280,7 @@ ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
    eng "Value for option '%s' contains cipher '%s' that is either blocked or deprecated (and will be removed in a future release). Please refer to the documentation for more details."
 
 ER_IB_MSG_DDL_FAIL_NO_BUILDER
-  eng "DDL Failed as Builder is already freed"
+  eng "DDL failed as Builder is already freed. Builder: state=%u, error_state=%u. Index: id=%zu, name='%s', space_id=%u, page=%u. Table: old_name='%s', new_name='%s'."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -6,7 +6,7 @@ CREATE TABLE t1 (c1 INT);
 
 --echo # Create big enough table to ensure another call to Builder::insert_direct
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .* DDL Failed as Builder is already freed");
+call mtr.add_suppression("\\[ERROR\\] .* DDL failed as Builder is already freed");
 DELIMITER |;
 CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
 BEGIN
