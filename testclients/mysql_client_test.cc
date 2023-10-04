@@ -884,8 +884,7 @@ static void test_wl4435() {
 
     /* Bind parameters. */
 
-    query_rc = mysql_stmt_bind_named_param(stmt, ps_params,
-                                           std::size(ps_params), nullptr);
+    query_rc = mysql_stmt_bind_named_param(stmt, ps_params, 3, nullptr);
     check_execute(stmt, query_rc);
 
     /* Prevent converting to character_set_results. */
@@ -9878,7 +9877,7 @@ static void test_bug3035() {
   rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
-  mysql_stmt_bind_named_param(stmt, bind_array, std::size(bind_array), nullptr);
+  mysql_stmt_bind_named_param(stmt, bind_array, 8, nullptr);
 
   int8_val = int8_min;
   uint8_val = uint8_min;
@@ -10954,7 +10953,7 @@ static void test_view_star() {
   rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
-  rc = mysql_stmt_bind_named_param(stmt, my_bind, std::size(my_bind), nullptr);
+  rc = mysql_stmt_bind_named_param(stmt, my_bind, 2, nullptr);
   check_execute(stmt, rc);
 
   for (i = 0; i < 3; i++) {
