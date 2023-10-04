@@ -1016,7 +1016,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           if (!first_row_in_range_frame_seen)
             // empty frame, optimize starting point for next row
             w.set_first_rowno_in_range_frame(rowno);
-          w.restore_pos(reason);
+          w.restore_pos(Window_retrieve_cached_row_reason::LAST_IN_FRAME);
           break;
         }  // else: row is within range, process
 
@@ -1368,13 +1368,20 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                 thd, &w, rowno,
                 Window_retrieve_cached_row_reason::LAST_IN_FRAME))
           return true;
-
+        if (rowno == first && !found_first)
+          w.copy_pos(Window_retrieve_cached_row_reason::LAST_IN_FRAME,
+                     Window_retrieve_cached_row_reason::FIRST_IN_FRAME);
         if (w.before_frame()) {
           if (!found_first) new_first_rowno_in_frame++;
           continue;
         } else if (w.after_frame()) {
           w.set_last_rowno_in_range_frame(rowno - 1);
-          if (!found_first) w.set_first_rowno_in_range_frame(rowno);
+          if (!found_first) {
+            w.set_first_rowno_in_range_frame(rowno);
+            if (rowno > first)  // if equal, we just copied hint above
+              w.copy_pos(Window_retrieve_cached_row_reason::LAST_IN_FRAME,
+                         Window_retrieve_cached_row_reason::FIRST_IN_FRAME);
+          }
           /*
             We read one row too far, so reinstate previous hint for last in
             frame. We will likely be reading the last row in frame

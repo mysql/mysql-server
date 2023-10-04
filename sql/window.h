@@ -327,6 +327,13 @@ class Window {
     See #m_tmp_pos
   */
   void restore_pos(Window_retrieve_cached_row_reason reason) {
+    if (reason == Window_retrieve_cached_row_reason::LAST_IN_FRAME &&
+        m_tmp_pos.m_rowno == -1) {
+      // restore the more useful position of first in frame row instead of -1 in
+      // order to get the sliding window positions (first,last) started
+      save_pos(Window_retrieve_cached_row_reason::FIRST_IN_FRAME);
+    }
+
     const int reason_index = static_cast<int>(reason);
     m_frame_buffer_positions[reason_index].m_rowno = m_tmp_pos.m_rowno;
     std::memcpy(m_frame_buffer_positions[reason_index].m_position,
