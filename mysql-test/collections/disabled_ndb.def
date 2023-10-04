@@ -22,6 +22,7 @@ ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAILURE
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_restore_encrypted_backups :BUG#11761083 NDB : MYSQLD DEFAULT VALUES IN FRM EMBEDDED IN BACKUP NOT ENDIAN-CONVERTE
+ndb.ndb_suma_handover     : Bug#35539093 Error insert 13048 never hit in ndb.ndb_suma_handover 
 
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
