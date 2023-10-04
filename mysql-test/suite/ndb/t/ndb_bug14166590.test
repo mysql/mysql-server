@@ -31,6 +31,10 @@ begin;
 # next operation, but delay informing Ndb API to simulate
 # a TCROLLBACKREP signal in flight.
 --exec $NDB_MGM -e "all error 8100" >> $NDB_TOOLS_OUTPUT
+let $injected_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+
 select * from t1 where attr1 = 9412 order by pk1;
 disable_query_log;
 while (`select @@error_count = 0`)
@@ -43,6 +47,25 @@ begin;
 # Check that no overwritten transaction record is used
 select * from t1 where pk1 = 9410 order by pk1;
 commit;
+
+let $remaining_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+if ($remaining_error_count == $injected_error_count)
+{
+  SELECT * FROM ndbinfo.ndb$threadblock_details WHERE error_insert_value <> 0;
+  die Error injection not hit;
+}
+
+let $remaining_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value = 8101`;
+if ($remaining_error_count > 0) {
+  SELECT * FROM ndbinfo.ndb$threadblock_details WHERE error_insert_value <> 0;
+  die Error injection 8101 not consumed;
+}
+
+--exec $NDB_MGM -e "all error 0"
 
 connection con1;
 drop table t1;

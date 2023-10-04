@@ -14,4 +14,5 @@ select * from t1 where pk1 = 9410 order by pk1;
 pk1	attr1	attr2	attr3
 9410	9412	9412	9412
 commit;
+
 drop table t1;
