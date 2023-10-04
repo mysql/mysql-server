@@ -528,7 +528,6 @@ mkdir debug
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
-           -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
@@ -565,7 +564,6 @@ mkdir release
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
-           -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
@@ -740,7 +738,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
@@ -758,7 +755,6 @@ fi
 
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
@@ -792,7 +788,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -1244,6 +1239,9 @@ fi
 %endif # with_router
 
 %changelog
+* Mon Nov 14 2023 Gabor Buella <gabor.buella@oracle.com> - 8.3.0-1
+- Removed libmemcached plugin
+
 * Tue Nov 14 2023 Gipson Pulla <gipson.pulla@oracle.com> - 8.3.0-1
 - Removed the tool pathfix.py wich is deprecated in Python-3.12
 - Some C API removed, so increase the libmysqlclient major version to 23.

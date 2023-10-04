@@ -1032,7 +1032,6 @@ EXCLUDE                = cmd-line-utils \
                          include/sql_state.h \
                          internal \
                          libevent \
-                         plugin/innodb_memcached \
                          plugin/test_services \
                          plugin/test_service_sql_api \
                          source_downloads \
@@ -1048,7 +1047,6 @@ EXCLUDE                = cmd-line-utils \
                          storage/ndb/clusterj \
                          storage/ndb/include \
                          storage/ndb/mcc \
-                         storage/ndb/memcache \
                          storage/ndb/ndbapi-examples \
                          storage/ndb/nodejs \
                          storage/ndb/plugin \

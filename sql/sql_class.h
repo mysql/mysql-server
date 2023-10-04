@@ -846,12 +846,6 @@ class Global_read_lock {
   void unlock_global_read_lock(THD *thd);
 
   /**
-    Used by innodb memcached server to check if any connections
-    have global read lock
-  */
-  static bool global_read_lock_active() { return m_atomic_active_requests > 0; }
-
-  /**
     Check if this connection can acquire protection against GRL and
     emit error if otherwise.
   */
@@ -867,7 +861,6 @@ class Global_read_lock {
   void set_explicit_lock_duration(THD *thd);
 
  private:
-  static std::atomic<int32> m_atomic_active_requests;
   enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must

@@ -640,14 +640,6 @@ FOREACH(_base
 ENDFOREACH()
 
 
-IF(UNIX)
-  OPTION(WITH_INNODB_MEMCACHED "" OFF)
-  OPTION(ENABLE_MEMCACHED_SASL "Enable SASL on InnoDB Memcached" OFF)
-  OPTION(ENABLE_MEMCACHED_SASL_PWDB "Enable SASL on InnoDB Memcached" OFF)
-ELSE()
-  OPTION(WITH_INNODB_MEMCACHED "" OFF)
-ENDIF()
- 
 # Following autotools tradition, add preprocessor definitions
 # specified in environment variable CPPFLAGS
 IF(DEFINED ENV{CPPFLAGS})

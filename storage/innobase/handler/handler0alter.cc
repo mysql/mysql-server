@@ -7052,19 +7052,9 @@ when rebuilding the table.
   DBUG_EXECUTE_IF("ib_ddl_crash_after_rename", DBUG_SUICIDE(););
   DBUG_EXECUTE_IF("ib_rebuild_cannot_rename", error = DB_ERROR;);
 
-  if (user_table->get_ref_count() > 1) {
-    /* This should only occur when an innodb_memcached
-    connection with innodb_api_enable_mdl=off was started
-    before commit_inplace_alter_table() locked the data
-    dictionary. We must roll back the ALTER TABLE, because
-    we cannot drop a table while it is being used. */
-
-    /* Normally, n_ref_count must be 1, because purge
-    cannot be executing on this very table as we are
-    holding MDL lock. */
-    my_error(ER_TABLE_REFERENCED, MYF(0));
-    return true;
-  }
+  /* Normally, n_ref_count must be 1, because purge cannot be
+  executing on this very table as we are holding MDL lock. */
+  ut_a(user_table->get_ref_count() == 1);
 
   switch (error) {
     case DB_SUCCESS:

@@ -23,7 +23,6 @@ perl mysql-test-run.pl --force --timer  --comment=stress     --vardir=var-stress
 perl mysql-test-run.pl --force --timer  --comment=jp         --vardir=var-jp         --suite=jp
 perl mysql-test-run.pl --force --timer  --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer  --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
-perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached  --suite=memcached
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication

@@ -259,7 +259,7 @@ void my_thread_global_end() {
   @retval true   Fatal error; mysys/dbug functions can't be used
 */
 
-extern "C" bool my_thread_init() {
+bool my_thread_init() {
 #ifndef NDEBUG
   struct st_my_thread_var *tmp;
 #endif
@@ -294,7 +294,7 @@ extern "C" bool my_thread_init() {
   mysql_server_end() and then ends with a mysql_end().
 */
 
-extern "C" void my_thread_end() {
+void my_thread_end() {
 #ifndef NDEBUG
   struct st_my_thread_var *tmp = mysys_thread_var();
 #endif

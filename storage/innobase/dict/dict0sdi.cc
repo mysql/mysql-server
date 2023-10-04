@@ -314,9 +314,6 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                                 << " sdi_key: type: " << sdi_key->type
                                 << " id: " << sdi_key->id << ")";);
 
-  /* Used for testing purpose for DDLs from Memcached */
-  DBUG_EXECUTE_IF("skip_sdi", return (false););
-
   if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
     return (false);
@@ -420,9 +417,6 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                                 << "," << tablespace.id()
                                 << " sdi_key: type: " << sdi_key->type
                                 << " id: " << sdi_key->id << ")";);
-
-  /* Used for testing purpose for DDLs from Memcached */
-  DBUG_EXECUTE_IF("skip_sdi", return (false););
 
   if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
