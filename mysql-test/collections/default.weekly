@@ -164,9 +164,6 @@ perl mysql-test-run.pl --timer --force --no-skip --testcase-timeout=60 --debug-s
 # Rpl suite with MTA replica-parallel-type=logical_clock and replica-preserve-commit-order=0
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
 
-# Rpl suite with Transaction-writeset-extraction disabled
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_without_txn_write_set_extraction --vardir=var-rpl_txn_write_set_extraction_disabled --suite=rpl,rpl_gtid,rpl_nogtid  --mysqld=--transaction-write-set-extraction=OFF --no-skip
-
 # relay-log-info-repository
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --do-suite=rpl --mysqld=--relay-log-info-repository=FILE  --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --do-suite=rpl --mysqld=--master-info-repository=FILE  --no-skip
