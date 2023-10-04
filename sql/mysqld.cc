@@ -1131,6 +1131,7 @@ static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 static PSI_mutex_key key_LOCK_partial_revokes;
 static PSI_mutex_key key_LOCK_authentication_policy;
 static PSI_mutex_key key_LOCK_global_conn_mem_limit;
+static PSI_rwlock_key key_rwlock_LOCK_server_shutting_down;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1621,6 +1622,14 @@ mysql_mutex_t LOCK_authentication_policy;
 
 mysql_mutex_t LOCK_global_conn_mem_limit;
 
+mysql_rwlock_t LOCK_server_shutting_down;
+
+/*
+  Variable is reverted during shutdown command just before server's
+  internals are disabled.
+*/
+bool server_shutting_down = false;
+
 bool mysqld_server_started = false;
 /**
   Set to true to signal at startup if the process must die.
@@ -1672,7 +1681,6 @@ bool binlog_expire_logs_seconds_supplied = false;
 /* Static variables */
 
 static bool opt_myisam_log;
-static int cleanup_done;
 static ulong opt_specialflag;
 char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
@@ -2576,9 +2584,21 @@ static void free_connection_acceptors() {
 #endif
 }
 
+static bool set_server_shutting_down() {
+  /* Server shutting down already set. */
+  if (server_shutting_down) return true;
+
+  mysql_rwlock_wrlock(&LOCK_server_shutting_down);
+  server_shutting_down = true;
+  mysql_rwlock_unlock(&LOCK_server_shutting_down);
+
+  return false;
+}
+
 static void clean_up(bool print_message) {
   DBUG_PRINT("exit", ("clean_up"));
-  if (cleanup_done++) return; /* purecov: inspected */
+
+  if (set_server_shutting_down()) return;
 
   ha_pre_dd_shutdown();
   dd::shutdown();
@@ -2770,6 +2790,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
   mysql_mutex_destroy(&LOCK_global_conn_mem_limit);
+  mysql_rwlock_destroy(&LOCK_server_shutting_down);
 }
 
 /****************************************************************************
@@ -3648,7 +3669,7 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
           "thread.",
           errno);
 
-    if (error || cleanup_done) {
+    if (error || server_shutting_down) {
       my_thread_end();
       my_thread_exit(nullptr);  // Safety
       return nullptr;           // Avoid compiler warnings
@@ -5350,6 +5371,8 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_global_conn_mem_limit, &LOCK_global_conn_mem_limit,
                    MY_MUTEX_INIT_FAST);
+  mysql_rwlock_init(key_rwlock_LOCK_server_shutting_down,
+                    &LOCK_server_shutting_down);
   return 0;
 }
 
@@ -10109,7 +10132,7 @@ static int mysql_init_variables() {
   opt_tc_log_file = "tc.log";  // no hostname in tc_log file name !
   opt_myisam_log = false;
   mqh_used = false;
-  cleanup_done = 0;
+  server_shutting_down = false;
   server_id_supplied = false;
   test_flags = select_errors = ha_open_options = 0;
   atomic_replica_open_temp_tables = 0;
@@ -11921,6 +11944,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_resource_group_mgr_map_lock, "Resource_group_mgr::m_map_rwlock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_LOCK_server_shutting_down, "server_shutting_down", 0, 0, "This lock protects server shutting down flag."},
 #ifdef _WIN32
   { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_SINGLETON, 0,
      "This lock protects named pipe security attributes, preventing their "
