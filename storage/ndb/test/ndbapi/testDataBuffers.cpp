@@ -171,7 +171,7 @@ static char tab[20] = "";
 
 static struct col {
     char aAttrName[20];
-    AttrType aAttrType;
+    NdbSchemaOp::AttrType aAttrType;
     int aAttrSize;
     int aArraySize;
     KeyType aTupleKey;
@@ -246,13 +246,13 @@ testcase(Ndb_cluster_connection&cc, int flag)
 	memset(&c, 0, sizeof(c));
 	sprintf(c.aAttrName, "C%d", i);
 	if (i == 0) {
-	    c.aAttrType = UnSigned;
+            c.aAttrType = NdbSchemaOp::UnSigned;
 	    c.aAttrSize = 32;
 	    c.aArraySize = 1;
 	    c.aTupleKey = TupleKey;
 	    c.nullable = false;
 	} else {
-	    c.aAttrType = String;
+            c.aAttrType = NdbSchemaOp::String;
 	    c.aAttrSize = 8;
 	    c.aArraySize = makeSize(i);
 	    if (smax < c.aArraySize)

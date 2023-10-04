@@ -1067,12 +1067,6 @@ main(int argc, char * argv[])
   ndb_end_and_exit(0);
 }
 
-#define RETURN_FALSE() { \
-  ndbout_c("false: %d", __LINE__); \
-  /*abort();*/ \
-  return false; \
-}
-
 static bool endian = false;
 
 static inline Uint32 Twiddle32(Uint32 x)
@@ -1108,7 +1102,7 @@ aread(void * buf, size_t sz, size_t n, ndbxfrm_file* f)
 bool 
 readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
   if(aread(dst, 4, 3, f) != 3)
-    RETURN_FALSE();
+    return false;
 
   if(memcmp(dst->Magic, BACKUP_MAGIC, sizeof(BACKUP_MAGIC)) != 0)
   {
@@ -1122,7 +1116,7 @@ readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
       printf("0x%.2x ", (Uint32)(Uint8)BACKUP_MAGIC[i]);
     printf("\n");
     
-    RETURN_FALSE();
+    return false;
   }
 
   dst->BackupVersion = ntohl(dst->BackupVersion);
@@ -1131,16 +1125,16 @@ readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
     printf("incorrect versions, file: 0x%x expect: 0x%x\n",
            dst->BackupVersion,
            NDB_VERSION);
-    RETURN_FALSE();
+    return false;
   }
 
   if(aread(&dst->SectionType, 4, 2, f) != 2)
-    RETURN_FALSE();
+    return false;
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
 
   if(dst->SectionType != BackupFormat::FILE_HEADER)
-    RETURN_FALSE();
+    return false;
 
   const Uint32 file_header_section_length =
     ((dst->BackupVersion < NDBD_RAW_LCP)
@@ -1148,11 +1142,11 @@ readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
      : sizeof(BackupFormat::FileHeader))/4 - 3;
 
   if(dst->SectionLength != file_header_section_length)
-    RETURN_FALSE();
+    return false;
 
   if(aread(&dst->FileType, 4, dst->SectionLength - 2, f) !=
      (dst->SectionLength - 2))
-    RETURN_FALSE();
+    return false;
 
   dst->FileType = ntohl(dst->FileType);
   dst->BackupId = ntohl(dst->BackupId);
@@ -1185,10 +1179,10 @@ readFragHeader(ndbxfrm_file* f,
   dst->ChecksumType = ntohl(dst->ChecksumType);
 
   if(dst->SectionLength != (sizeof(* dst) >> 2))
-    RETURN_FALSE();
+    return false;
   
   if(dst->SectionType != BackupFormat::FRAGMENT_HEADER)
-    RETURN_FALSE();
+    return false;
 
   recNo = 0;
   recInsert = 0;
@@ -1204,7 +1198,7 @@ readFragFooter(ndbxfrm_file* f,
                BackupFormat::DataFile::FragmentFooter * dst)
 { 
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
-    RETURN_FALSE();
+    return false;
   
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
@@ -1214,10 +1208,10 @@ readFragFooter(ndbxfrm_file* f,
   dst->Checksum = ntohl(dst->Checksum);
   
   if(dst->SectionLength != (sizeof(* dst) >> 2))
-    RETURN_FALSE();
+    return false;
   
   if(dst->SectionType != BackupFormat::FRAGMENT_FOOTER)
-    RETURN_FALSE();
+    return false;
   return true;
 }
 
@@ -1240,7 +1234,7 @@ readRecord(ndbxfrm_file* f,
 {
   Uint32 len;
   if(aread(&len, 1, 4, f) != 4)
-    RETURN_FALSE();
+    return false;
 
   Uint32 header = ntohl(len);
   len = header & 0xFFFF;
@@ -1348,7 +1342,7 @@ readLogEntry(ndbxfrm_file* f,
 
   Uint32 len;
   if(aread(&len, word_size, 1, f) != 1)
-    RETURN_FALSE();
+    return false;
 
   len = ntohl(len);
 
@@ -1548,7 +1542,7 @@ readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret)
               sizeof(BackupFormat::FileHeader);
 
   if(aread(struct_dst, (struct_sz - 4), 1, f) != 1)
-    RETURN_FALSE();
+    return false;
 
   theData.LCPCtlFile.Checksum = ntohl(theData.LCPCtlFile.Checksum);
   theData.LCPCtlFile.ValidFlag = ntohl(theData.LCPCtlFile.ValidFlag);
@@ -1576,7 +1570,7 @@ readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret)
   size_t parts = theData.LCPCtlFile.NumPartPairs;
   char * part_dst = (char*)&theData.LCPCtlFile.partPairs[0];
   if(aread(part_dst, 3 * parts, 1, f) != 1)
-    RETURN_FALSE();
+    return false;
 
   decompress_part_pairs(&theData.LCPCtlFile, theData.LCPCtlFile.NumPartPairs);
   size_t file_header_sz = sizeof(BackupFormat::FileHeader);
@@ -1590,17 +1584,17 @@ readTableList(ndbxfrm_file* f, BackupFormat::CtlFile::TableList **ret){
   BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
   if(aread(dst, 4, 2, f) != 2)
-    RETURN_FALSE();
+    return false;
 
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
   
   if(dst->SectionType != BackupFormat::TABLE_LIST)
-    RETURN_FALSE();
+    return false;
   
   const Uint32 len = dst->SectionLength - 2;
   if(aread(&dst->TableIds[0], 4, len, f) != len)
-    RETURN_FALSE();
+    return false;
 
   for(Uint32 i = 0; i<len; i++){
     dst->TableIds[i] = ntohl(dst->TableIds[i]);
@@ -1618,18 +1612,18 @@ readTableDesc(ndbxfrm_file* f,
   BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
   
   if(aread(dst, 4, 3, f) != 3)
-    RETURN_FALSE();
+    return false;
 
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
   dst->TableType = ntohl(dst->TableType);
 
   if(dst->SectionType != BackupFormat::TABLE_DESCRIPTION)
-    RETURN_FALSE();
+    return false;
   
   const Uint32 len = dst->SectionLength - 3;
   if(aread(&dst->DictTabInfo[0], 4, len, f) != len)
-    RETURN_FALSE();
+    return false;
   
   * ret = dst;
   
@@ -1641,13 +1635,13 @@ readGCPEntry(ndbxfrm_file* f, BackupFormat::CtlFile::GCPEntry **ret){
   BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
   if(aread(dst, 4, 4, f) != 4)
-    RETURN_FALSE();
+    return false;
 
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
   
   if(dst->SectionType != BackupFormat::GCP_ENTRY)
-    RETURN_FALSE();
+    return false;
   
   dst->StartGCP = ntohl(dst->StartGCP);
   dst->StopGCP = ntohl(dst->StopGCP);

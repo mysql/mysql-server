@@ -30,32 +30,6 @@
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
   /**
-   * Type of attribute
-   *
-   * NOTE! AttrType is deprecated, use NdbDictionary::Column::Type instead!
-   */
-  enum AttrType { 
-    Signed,           ///< Attributes of this type can be read with:
-                      ///< NdbRecAttr::int64_value, 
-                      ///< NdbRecAttr::int32_value,
-                      ///< NdbRecAttr::short_value, 
-                      ///< NdbRecAttr::char_value
-    UnSigned,         ///< Attributes of this type can be read with:
-                      ///< NdbRecAttr::u_64_value, 
-                      ///< NdbRecAttr::u_32_value,
-                      ///< NdbRecAttr::u_short_value, 
-                      ///< NdbRecAttr::u_char_value
-    Float,            ///< Attributes of this type can be read with:
-                      ///< NdbRecAttr::float_value and 
-                      ///< NdbRecAttr::double_value
-    String,           ///< Attributes of this type can be read with:
-                      ///< NdbRecAttr::aRef, 
-                      ///< NdbRecAttr::getAttributeObject
-    NoAttrTypeDef     ///< Used for debugging only
-  };
-
-
-  /**
    * @deprecated
    */
   enum NullAttributeType { 
@@ -141,7 +115,32 @@ class NdbSchemaOp
 
 public:
 
-  
+
+ /**
+  * Type of attribute
+  *
+  * NOTE! AttrType is deprecated, use NdbDictionary::Column::Type instead!
+  */
+ enum AttrType {
+   Signed,           ///< Attributes of this type can be read with:
+            ///< NdbRecAttr::int64_value,
+            ///< NdbRecAttr::int32_value,
+            ///< NdbRecAttr::short_value,
+            ///< NdbRecAttr::char_value
+   UnSigned,         ///< Attributes of this type can be read with:
+              ///< NdbRecAttr::u_64_value,
+              ///< NdbRecAttr::u_32_value,
+              ///< NdbRecAttr::u_short_value,
+              ///< NdbRecAttr::u_char_value
+   Float,            ///< Attributes of this type can be read with:
+           ///< NdbRecAttr::float_value and
+           ///< NdbRecAttr::double_value
+   String,           ///< Attributes of this type can be read with:
+            ///< NdbRecAttr::aRef,
+            ///< NdbRecAttr::getAttributeObject
+   NoAttrTypeDef     ///< Used for debugging only
+ };
+
   /**
    * Create a new table in the database.
    * 
@@ -481,43 +480,6 @@ protected:
 
   class NdbDictionary::Table * m_currentTable;
 };
-
-
-/**
- * Get old attribute type from new type
- * 
- * NOTE! attrType is deprecated, use getType instead!
- *
- * @return Type of attribute: { Signed, UnSigned, Float,a String }
- */
-inline 
-AttrType 
-convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
-{      
-  
-  switch(_type){
-  case NdbDictionary::Column::Bigint:
-  case NdbDictionary::Column::Int:
-    return Signed;
-  case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Unsigned:
-    return UnSigned;
-  case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Olddecimal:
-  case NdbDictionary::Column::Olddecimalunsigned:
-  case NdbDictionary::Column::Decimal:
-  case NdbDictionary::Column::Decimalunsigned:
-  case NdbDictionary::Column::Double:
-    return Float;
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:
-    return String;
-  default:
-    return NoAttrTypeDef;
-  }
-}
 #endif
 
 #endif
