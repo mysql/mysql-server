@@ -40,10 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "config.h"
 #include "db0err.h"
 
-#if defined(WITH_INNODB_MEMCACHED) && !defined(NDEBUG)
-#define UNIV_MEMCACHED_SDI
-#endif
-
 /** Page number */
 typedef uint32_t page_no_t;
 /** Tablespace identifier */
@@ -789,117 +785,59 @@ transaction will be flushed to disk.
 @return DB_SUCCESS always */
 ib_err_t ib_sdi_flush(space_id_t space_id);
 
-#ifdef UNIV_MEMCACHED_SDI
-/** Wrapper function to retrieve SDI from tablespace.
-@param[in]      crsr            Memcached cursor
-@param[in]      key             Memcached key
-@param[in,out]  sdi             SDI data retrieved
-@param[in,out]  sdi_len         in:  Size of allocated memory
-                                out: Actual SDI length
-@return DB_SUCCESS if SDI retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key, void *sdi,
-                         uint64_t *sdi_len);
-
-/** Wrapper function to delete SDI from tablespace.
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key             Memcached key
-@return DB_SUCCESS if SDI deletion is successful, else error */
-ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key);
-
-/** Wrapper function to insert SDI into tablespace.
-@param[in]      crsr            Memcached cursor
-@param[in]      key             Memcached key
-@param[in]      sdi             SDI to be stored in tablespace
-@param[in]      sdi_len         SDI length
-@return DB_SUCCESS if SDI insertion is successful, else error */
-ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key, const void *sdi,
-                         uint64_t *sdi_len);
-
-/** Wrapper function to create SDI in a tablespace.
-@param[in,out]  crsr            Memcached cursor
-@return DB_SUCCESS if SDI creation is successful, else error */
-ib_err_t ib_memc_sdi_create(ib_crsr_t crsr);
-
-/** Wrapper function to drop SDI in a tablespace.
-@param[in,out]  crsr            Memcached cursor
-@return DB_SUCCESS if dropping of SDI is successful, else error */
-ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr);
-
-/* Wrapper function to retrieve list of SDI keys into the buffer
-The SDI keys are copied in the from x:y and separated by '|'.
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key             Memcached key
-@param[out]     sdi             The keys are copies into this buffer
-@return DB_SUCCESS if SDI keys retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,
-                              uint64_t list_buf_len);
-#endif /* UNIV_MEMCACHED_SDI */
-
 /** Check the table whether it contains virtual columns.
 @param[in]      crsr    InnoDB Cursor
 @return true if the table contains virtual column else failure. */
 bool ib_is_virtual_table(ib_crsr_t crsr);
 
-#ifdef UNIV_MEMCACHED_SDI
-#define ONLY_FOR_MEMCACHED_SDI(x) x
-#else
-#define ONLY_FOR_MEMCACHED_SDI(x)
-#endif
-
-#define FOR_EACH_API_METHOD_NAME_STEM(transform)                \
-  transform(cursor_open_table)                             /**/ \
-      transform(cursor_read_row)                           /**/ \
-      transform(cursor_insert_row)                         /**/ \
-      transform(cursor_delete_row)                         /**/ \
-      transform(cursor_update_row)                         /**/ \
-      transform(cursor_moveto)                             /**/ \
-      transform(cursor_first)                              /**/ \
-      transform(cursor_next)                               /**/ \
-      transform(cursor_set_match_mode)                     /**/ \
-      transform(sec_search_tuple_create)                   /**/ \
-      transform(clust_read_tuple_create)                   /**/ \
-      transform(tuple_delete)                              /**/ \
-      transform(tuple_read_u8)                             /**/ \
-      transform(tuple_read_u16)                            /**/ \
-      transform(tuple_read_u32)                            /**/ \
-      transform(tuple_read_u64)                            /**/ \
-      transform(tuple_read_i8)                             /**/ \
-      transform(tuple_read_i16)                            /**/ \
-      transform(tuple_read_i32)                            /**/ \
-      transform(tuple_read_i64)                            /**/ \
-      transform(tuple_get_n_cols)                          /**/ \
-      transform(col_set_value)                             /**/ \
-      transform(col_get_value)                             /**/ \
-      transform(col_get_meta)                              /**/ \
-      transform(trx_begin)                                 /**/ \
-      transform(trx_commit)                                /**/ \
-      transform(trx_rollback)                              /**/ \
-      transform(trx_start)                                 /**/ \
-      transform(trx_release)                               /**/ \
-      transform(cursor_lock)                               /**/ \
-      transform(cursor_close)                              /**/ \
-      transform(cursor_new_trx)                            /**/ \
-      transform(cursor_reset)                              /**/ \
-      transform(col_get_name)                              /**/ \
-      transform(cursor_open_index_using_name)              /**/ \
-      transform(cfg_get_cfg)                               /**/ \
-      transform(cursor_set_cluster_access)                 /**/ \
-      transform(cursor_commit_trx)                         /**/ \
-      transform(cfg_trx_level)                             /**/ \
-      transform(tuple_get_n_user_cols)                     /**/ \
-      transform(cursor_set_lock_mode)                      /**/ \
-      transform(get_idx_field_name)                        /**/ \
-      transform(trx_get_start_time)                        /**/ \
-      transform(cfg_bk_commit_interval)                    /**/ \
-      transform(ut_strerr)                                 /**/ \
-      transform(cursor_stmt_begin)                         /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_get))      /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_delete))   /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_set))      /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_create))   /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_drop))     /**/ \
-      ONLY_FOR_MEMCACHED_SDI(transform(memc_sdi_get_keys)) /**/ \
-      transform(trx_read_only)                             /**/ \
-      transform(is_virtual_table)                          /**/
+#define FOR_EACH_API_METHOD_NAME_STEM(transform)   \
+  transform(cursor_open_table)                /**/ \
+      transform(cursor_read_row)              /**/ \
+      transform(cursor_insert_row)            /**/ \
+      transform(cursor_delete_row)            /**/ \
+      transform(cursor_update_row)            /**/ \
+      transform(cursor_moveto)                /**/ \
+      transform(cursor_first)                 /**/ \
+      transform(cursor_next)                  /**/ \
+      transform(cursor_set_match_mode)        /**/ \
+      transform(sec_search_tuple_create)      /**/ \
+      transform(clust_read_tuple_create)      /**/ \
+      transform(tuple_delete)                 /**/ \
+      transform(tuple_read_u8)                /**/ \
+      transform(tuple_read_u16)               /**/ \
+      transform(tuple_read_u32)               /**/ \
+      transform(tuple_read_u64)               /**/ \
+      transform(tuple_read_i8)                /**/ \
+      transform(tuple_read_i16)               /**/ \
+      transform(tuple_read_i32)               /**/ \
+      transform(tuple_read_i64)               /**/ \
+      transform(tuple_get_n_cols)             /**/ \
+      transform(col_set_value)                /**/ \
+      transform(col_get_value)                /**/ \
+      transform(col_get_meta)                 /**/ \
+      transform(trx_begin)                    /**/ \
+      transform(trx_commit)                   /**/ \
+      transform(trx_rollback)                 /**/ \
+      transform(trx_start)                    /**/ \
+      transform(trx_release)                  /**/ \
+      transform(cursor_lock)                  /**/ \
+      transform(cursor_close)                 /**/ \
+      transform(cursor_new_trx)               /**/ \
+      transform(cursor_reset)                 /**/ \
+      transform(col_get_name)                 /**/ \
+      transform(cursor_open_index_using_name) /**/ \
+      transform(cfg_get_cfg)                  /**/ \
+      transform(cursor_set_cluster_access)    /**/ \
+      transform(cursor_commit_trx)            /**/ \
+      transform(cfg_trx_level)                /**/ \
+      transform(tuple_get_n_user_cols)        /**/ \
+      transform(cursor_set_lock_mode)         /**/ \
+      transform(get_idx_field_name)           /**/ \
+      transform(trx_get_start_time)           /**/ \
+      transform(cfg_bk_commit_interval)       /**/ \
+      transform(ut_strerr)                    /**/ \
+      transform(cursor_stmt_begin)            /**/ \
+      transform(trx_read_only)                /**/ \
+      transform(is_virtual_table)             /**/
 
 #endif /* api0api_h */

@@ -3738,13 +3738,7 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
     lock_remove_recovered_trx_record_locks
       (this seems to be used to remove locks of recovered transactions from
       table being dropped, and recovered transactions shouldn't call lock_table)
-  Also the InnoDB Memcached plugin causes a callchain:
-  innodb_store -> innodb_conn_init -> innodb_api_begin -> innodb_cb_cursor_lock
-  -> ib_cursor_set_lock_mode -> ib_cursor_lock -> ib_trx_lock_table_with_retry
-  -> lock_table_for_trx -> lock_table -> lock_table_has
-  in which lock_table_has sees trx->mysqld_thd different than current_thd.
-  In practice this call to lock_table_has was never protected in any way before,
-  so the situation now, after protecting it with trx->mutex, can't be worse. */
+  */
 
   if (lock_table_has(trx, table, mode)) {
     /* In Debug mode we assert the same condition again, to help catch cases of

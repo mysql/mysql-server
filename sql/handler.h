@@ -670,7 +670,7 @@ enum legacy_db_type {
   DB_TYPE_SOLID,
   DB_TYPE_PBXT,
   DB_TYPE_TABLE_FUNCTION,
-  DB_TYPE_MEMCACHE,
+  DB_TYPE_MEMCACHE [[deprecated]],
   DB_TYPE_FALCON,
   DB_TYPE_MARIA,
   /** Performance schema engine. */

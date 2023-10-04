@@ -2733,8 +2733,6 @@ static void clean_up(bool print_message) {
   Events::deinit();
   stop_handle_manager();
 
-  memcached_shutdown();
-
   release_keyring_handles();
   keyring_lockable_deinit();
 

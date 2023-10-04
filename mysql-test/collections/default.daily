@@ -46,7 +46,7 @@ perl mysql-test-run.pl --force --timer  --parallel=8 --comment=ps --vardir=var-p
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# engines, memcached, audit_null
+# engines, audit_null
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=audit_null-big  --vardir=var-audit_null-big --suite=audit_null --no-skip
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=funcs1-big  --vardir=var-funcs1-big --suite=funcs_1 --no-skip
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60    --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
@@ -57,9 +57,6 @@ perl mysql-test-run.pl --force --timer    --comment=nist+ps --vardir=var-ps_nist
 # Engine independent tests
 perl mysql-test-run.pl --timer --force     --comment=eits-tests-myisam-engine --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
 perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb  --no-skip
-
-# Memcached tests
-perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached  --suite=memcached  --no-skip
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360

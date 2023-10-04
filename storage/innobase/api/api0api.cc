@@ -2692,7 +2692,7 @@ static ib_err_t ib_cursor_open_table_using_id(
 }
 
 /** Create a tuple to search from SDI table
-@param[in,out]  ib_crsr         Memcached cursor
+@param[in,out]  ib_crsr         InnoDB cursor
 @param[in,out]  sdi_key         SDI Key
 @return search tuple */
 static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
@@ -2708,7 +2708,7 @@ static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
 }
 
 /** Create a tuple to insert into  SDI table
-@param[in,out]  ib_crsr         Memcached cursor
+@param[in,out]  ib_crsr         InnoDB cursor
 @param[in]      sdi_key         SDI Key
 @param[in]      uncomp_len      uncompressed length of SDI
 @param[in]      comp_len        compressed length of SDI
@@ -2733,7 +2733,7 @@ static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
 /** Open SDI table
 @param[in]      tablespace_id   tablespace id
 @param[in,out]  trx             innodb transaction
-@param[in,out]  ib_crsr         memcached cursor
+@param[in,out]  ib_crsr         InnoDB cursor
 @return DB_SUCCESS if SDI table is opened, else error */
 static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
                                   ib_crsr_t *ib_crsr) {
@@ -3174,223 +3174,3 @@ transaction will be flushed to disk.
 ib_err_t ib_sdi_flush(space_id_t space_id [[maybe_unused]]) {
   return (DB_SUCCESS);
 }
-
-#ifdef UNIV_MEMCACHED_SDI
-/** Parse string a unsigned long number
-@param[in]      num_str         input string which has number
-@param[out]     dest_num        Number converted from input string
-@return DB_SUCCESS on successful conversion, else DB_ERROR */
-static ib_err_t parse_string_to_number(const char *num_str,
-                                       uint64_t *dest_num) {
-  char *endptr;
-  errno = 0;
-  unsigned long result = strtoul(num_str, &endptr, 10);
-  if (endptr == num_str || *endptr != 0) {
-    /* nothing parsed from the string, return error */
-    return (DB_ERROR);
-  }
-  if (result == ULONG_MAX && errno == ERANGE) {
-    /* out of range */
-    return (DB_ERROR);
-  }
-
-  *dest_num = static_cast<uint64_t>(result);
-  return (DB_SUCCESS);
-}
-
-/** Extracts SDI key from the memcached key. For example if the key is
-"sdi_3:4", it parses as type:3, id:4
-@param[in]      key_str         Memcached key
-@param[in,out]  sk              SDI key
-@return DB_SUCCESS if SDI key extraction is successful, else error */
-static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
-  /* 25 is sufficient here, the prefix will be
-  sdi_number:number:number */
-  char key[25 + 1];
-  char *saveptr1;
-
-  strncpy(key, key_str + strlen("sdi_"), sizeof(key) - 1);
-  key[sizeof(key) - 1] = '\0';
-
-  char *type_str = strtok_r(key, ":", &saveptr1);
-  char *id_str = strtok_r(NULL, ":", &saveptr1);
-
-  if (id_str == NULL || type_str == NULL) {
-    return (DB_ERROR);
-  }
-
-  uint64_t number;
-  if (parse_string_to_number(type_str, &number) == DB_SUCCESS) {
-    sk->type = static_cast<uint32_t>(number);
-  } else {
-    return (DB_ERROR);
-  }
-
-  if (parse_string_to_number(id_str, &number) == DB_SUCCESS) {
-    sk->id = number;
-  } else {
-    return (DB_ERROR);
-  }
-
-  return (DB_SUCCESS);
-}
-
-/** Wrapper function to retrieve SDI from tablespace
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key_str         Memcached key
-@param[in,out]  sdi             SDI data retrieved
-@param[in,out]  sdi_len         Length of SDI data
-@return DB_SUCCESS if SDI retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
-                         uint64_t *sdi_len) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  ib_trx_t trx = crsr->prebuilt->trx;
-  ib_err_t err;
-  ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
-  ut_ad(trx != NULL);
-
-  sk.sdi_key = &sdi_key;
-  err = parse_mem_key_to_sdi_key(key_str, &sdi_key);
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  ut_ad(*sdi_len < UINT32_MAX);
-  uint32_t uncompressed_sdi_len;
-  uint32_t compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
-  byte *compressed_sdi = static_cast<byte *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, compressed_sdi_len));
-
-  err = ib_sdi_get(tablespace_id, &sk, compressed_sdi, &compressed_sdi_len,
-                   &uncompressed_sdi_len, trx);
-
-  if (err == DB_OUT_OF_MEMORY) {
-    *sdi_len = uncompressed_sdi_len;
-  } else if (err != DB_SUCCESS) {
-    *sdi_len = UINT64_MAX;
-  } else {
-    *sdi_len = uncompressed_sdi_len;
-    /* Decompress the data */
-    Sdi_Decompressor decompressor(static_cast<byte *>(sdi),
-                                  uncompressed_sdi_len, compressed_sdi,
-                                  compressed_sdi_len);
-    decompressor.decompress();
-  }
-
-  return (err);
-}
-
-/** Wrapper function to delete SDI from tablespace
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key_str         Memcached key
-@return DB_SUCCESS if SDI deletion is successful, else error */
-ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  ib_trx_t trx = crsr->prebuilt->trx;
-  ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
-  ib_err_t err;
-  ut_ad(trx != NULL);
-
-  sk.sdi_key = &sdi_key;
-  /* We only need sdi key */
-  err = parse_mem_key_to_sdi_key(key_str, &sdi_key);
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  err = ib_sdi_delete(tablespace_id, &sk, trx);
-
-  DBUG_EXECUTE_IF("ib_sdi_delete_crash", DBUG_SUICIDE(););
-
-  return (err);
-}
-
-/** Wrapper function to insert SDI into tablespace
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key_str         Memcached key
-@param[in]      sdi             SDI to be stored in tablespace
-@param[in]      sdi_len         SDI length
-@return DB_SUCCESS if SDI insertion is successful, else error */
-ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
-                         uint64_t *sdi_len) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  ib_trx_t trx = crsr->prebuilt->trx;
-  ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
-  ib_err_t err;
-  ut_ad(trx != NULL);
-
-  sk.sdi_key = &sdi_key;
-
-  err = parse_mem_key_to_sdi_key(key_str, &sdi_key);
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  Sdi_Compressor compressor(*sdi_len, sdi);
-  compressor.compress();
-  err = ib_sdi_set(tablespace_id, &sk, *sdi_len, compressor.get_comp_len(),
-                   compressor.get_data(), trx);
-
-  DBUG_EXECUTE_IF("ib_sdi_set_crash", DBUG_SUICIDE(););
-
-  return (err);
-}
-
-/** Wrapper function to create SDI in a tablespace
-@param[in,out]  crsr            Memcached cursor
-@return DB_SUCCESS if SDI creation is successful, else error */
-ib_err_t ib_memc_sdi_create(ib_crsr_t crsr) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  return (ib_sdi_create(tablespace_id));
-}
-
-/** Wrapper function to drop SDI in a tablespace
-@param[in,out]  crsr            Memcached cursor
-@return DB_SUCCESS if dropping of SDI is successful, else error */
-ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  return (ib_sdi_drop(tablespace_id));
-}
-
-/** Wrapper function to retrieve list of SDI keys into the buffer
-The SDI keys are copied in the from x:y and separated by '|'
-@param[in,out]  crsr            Memcached cursor
-@param[in]      key_str         Memcached key
-@param[in,out]  sdi             The keys are copies into this buffer
-@return DB_SUCCESS if SDI keys retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
-                              uint64_t list_buf_len) {
-  uint32_t tablespace_id = crsr->prebuilt->table->space;
-  ib_trx_t trx = crsr->prebuilt->trx;
-  ut_ad(trx != NULL);
-
-  uint32_t pattern_len = strlen("sdi_list_");
-  int diff_len = key_str != NULL ? strlen(key_str) - pattern_len : -1;
-  if (diff_len >= 0 && strncmp(key_str, "sdi_list_", pattern_len) == 0) {
-    /* Pattern matched exactly with "sdi_list_" */
-  }
-
-  sdi_vector_t sdi_vector;
-  ib_sdi_vector ib_vector;
-  ib_vector.sdi_vector = &sdi_vector;
-
-  ib_err_t err = ib_sdi_get_keys(tablespace_id, &ib_vector, trx);
-
-  char *ptr = static_cast<char *>(sdi);
-  uint64_t cur_len = 0;
-  uint64_t bytes_printed;
-  for (sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
-       it != ib_vector.sdi_vector->m_vec.end(); it++) {
-    bytes_printed = snprintf(ptr, list_buf_len - cur_len, "%" PRIu64 ":%u|",
-                             it->id, it->type);
-    ptr += bytes_printed;
-    cur_len += bytes_printed;
-  }
-  *ptr = 0;
-
-  return (err);
-}
-#endif /* UNIV_MEMCACHED_SDI */

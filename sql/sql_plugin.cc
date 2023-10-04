@@ -398,8 +398,6 @@ static const char *plugin_declarations_sym = "_mysql_plugin_declarations_";
 static int min_plugin_interface_version =
     MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
 
-static void *innodb_callback_data;
-
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
@@ -1313,16 +1311,7 @@ static int plugin_initialize(st_plugin_int *plugin) {
       goto err;
     }
 
-    /* FIXME: Need better solution to transfer the callback function
-    array to memcached */
-    if (strcmp(plugin->name.str, "InnoDB") == 0) {
-      innodb_callback_data = ((handlerton *)plugin->data)->data;
-    }
   } else if (plugin->plugin->init) {
-    if (strcmp(plugin->name.str, "daemon_memcached") == 0) {
-      plugin->data = innodb_callback_data;
-    }
-
     if (plugin->plugin->init(plugin)) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
       goto err;
@@ -2042,32 +2031,6 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 error:
   LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_LOAD, name.str, dl.str);
   return true;
-}
-
-/*
-  Shutdown memcached plugin before binlog shuts down
-*/
-void memcached_shutdown() {
-  if (initialized) {
-    for (st_plugin_int **it = plugin_array->begin(); it != plugin_array->end();
-         ++it) {
-      st_plugin_int *plugin = *it;
-
-      if (plugin->state == PLUGIN_IS_READY &&
-          strcmp(plugin->name.str, "daemon_memcached") == 0) {
-        plugin_deinitialize(plugin, true);
-
-        mysql_mutex_lock(&LOCK_plugin_delete);
-        mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-        mysql_mutex_lock(&LOCK_plugin);
-        plugin->state = PLUGIN_IS_DYING;
-        plugin_del(plugin);
-        mysql_mutex_unlock(&LOCK_plugin);
-        mysql_rwlock_unlock(&LOCK_system_variables_hash);
-        mysql_mutex_unlock(&LOCK_plugin_delete);
-      }
-    }
-  }
 }
 
 /*

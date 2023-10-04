@@ -55,8 +55,6 @@ keyring_file                            plugin_output_directory  no KEYRING_PLUG
 test_security_context                   plugin_output_directory  no TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example                       plugin_output_directory  no DAEMONEXAMPLE
 replication_observers_example_plugin    plugin_output_directory  no RPL_OBS_EXAMPLE
-libmemcached                            plugin_output_directory  no DAEMON_MEMCACHED
-# libmemcached     			plugin_output_directory  no DAEMON_MEMCACHED daemon_memcached
 innodb_engine      			plugin_output_directory  no INNODB_ENGINE
 validate_password  			plugin_output_directory  no VALIDATE_PASSWORD validate_password
 rewrite_example    			plugin_output_directory  no REWRITE_EXAMPLE

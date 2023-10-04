@@ -31,7 +31,6 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \\
 		-DSYSCONFDIR=/etc/mysql \\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
-		-DWITH_INNODB_MEMCACHED=1 \\
 		-DWITH_MECAB=system \\
 		-DWITH_NUMA=ON \\
 		-DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} - ${DEB_LICENSENAME} - Debug\" \\
@@ -78,7 +77,6 @@ usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
 usr/lib/mysql/plugin/debug/keyring_file.so
 usr/lib/mysql/plugin/debug/keyring_udf.so
-usr/lib/mysql/plugin/debug/libmemcached.so
 usr/lib/mysql/plugin/debug/libpluginmecab.so
 usr/lib/mysql/plugin/debug/locking_service.so
 usr/lib/mysql/plugin/debug/mypluglib.so

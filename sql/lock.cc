@@ -939,8 +939,6 @@ static void print_lock_error(int error, const char *table) {
   }
 }
 
-std::atomic<int32> Global_read_lock::m_atomic_active_requests;
-
 /****************************************************************************
   Handling of global read locks
 
@@ -1054,12 +1052,8 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::GLOBAL, "", "", MDL_SHARED,
                      MDL_EXPLICIT);
 
-    /* Increment static variable first to signal innodb memcached server
-       to release mdl locks held by it */
-    Global_read_lock::m_atomic_active_requests++;
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout)) {
-      Global_read_lock::m_atomic_active_requests--;
       return true;
     }
 
@@ -1097,7 +1091,6 @@ void Global_read_lock::unlock_global_read_lock(THD *thd) {
     m_mdl_blocks_commits_lock = nullptr;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
-  Global_read_lock::m_atomic_active_requests--;
   m_mdl_global_shared_lock = nullptr;
   m_state = GRL_NONE;
 }

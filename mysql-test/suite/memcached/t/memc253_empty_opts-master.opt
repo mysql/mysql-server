@@ -1,5 +1,0 @@
-$DAEMON_MEMCACHED_OPT
---loose-daemon_memcached_engine_lib_path=""
---loose-daemon_memcached_option="-p11253"
---log-error=$MYSQLTEST_VARDIR/log/memc253_empty_opts.err
-
