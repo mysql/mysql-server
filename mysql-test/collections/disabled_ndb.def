@@ -22,6 +22,7 @@ ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#29776083 EXPLICIT BINLOG INJECT
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_restore_encrypted_backups :BUG#11761083 NDB : MYSQLD DEFAULT VALUES IN FRM EMBEDDED IN BACKUP NOT ENDIAN-CONVERTE
+ndb.ndb_suma_handover     : Bug#35539093 Error insert 13048 never hit in ndb.ndb_suma_handover 
 
 # ndb_tls suite tests
 ndb_tls.clusterj  @windows: Bug#35645569 Cluster/J on Windows needs OpenSSL Applink
