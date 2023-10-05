@@ -230,28 +230,6 @@ class Bitmap<64> {
   }
 };
 
-/* An iterator to quickly walk over bits in unlonglong bitmap. */
-class Table_map_iterator {
-  ulonglong bmp;
-  uint no;
-
- public:
-  Table_map_iterator(ulonglong t) : bmp(t), no(0) {}
-  int next_bit() {
-    static const char last_bit[16] = {32, 0, 1, 0, 2, 0, 1, 0,
-                                      3,  0, 1, 0, 2, 0, 1, 0};
-    uint bit;
-    while ((bit = last_bit[bmp & 0xF]) == 32) {
-      no += 4;
-      bmp = bmp >> 4;
-      if (!bmp) return BITMAP_END;
-    }
-    bmp &= ~(1LL << bit);
-    return no + bit;
-  }
-  enum { BITMAP_END = 64 };
-};
-
 #if MAX_INDEXES <= 64
 typedef Bitmap<64> Key_map; /* Used for finding keys */
 #elif MAX_INDEXES > 255

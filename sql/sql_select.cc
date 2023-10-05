@@ -1331,13 +1331,11 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab) {
   Table_ref *embedding = join_tab->table_ref->embedding;
   if (join_tab->type() == JT_EQ_REF) {
     table_map depends_on = 0;
-    uint idx;
 
     for (uint kp = 0; kp < join_tab->ref().key_parts; kp++)
       depends_on |= join_tab->ref().items[kp]->used_tables();
 
-    Table_map_iterator it(depends_on & ~PSEUDO_TABLE_BITS);
-    while ((idx = it.next_bit()) != Table_map_iterator::BITMAP_END) {
+    for (size_t idx : BitsSetIn(depends_on & ~PSEUDO_TABLE_BITS)) {
       JOIN_TAB *ref_tab = join->map2table[idx];
       if (embedding != ref_tab->table_ref->embedding) return true;
     }

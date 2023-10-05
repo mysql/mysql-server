@@ -77,6 +77,7 @@
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key.h"
@@ -10983,11 +10984,10 @@ static void calculate_materialization_costs(JOIN *join, Table_ref *sj_nest,
       map |= item->used_tables();
     }
     map &= ~PSEUDO_TABLE_BITS;
-    Table_map_iterator tm_it(map);
-    int tableno;
     double rows = 1.0;
-    while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+    for (size_t tableno : BitsSetIn(map)) {
       rows *= join->map2table[tableno]->table()->quick_condition_rows;
+    }
     distinct_rowcount = min(mat_rowcount, rows);
   }
   /*
