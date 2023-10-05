@@ -180,7 +180,7 @@ size_t vio_read_buff(Vio *vio, uchar *buf, size_t size) {
   size_t rc;
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("sd: %d  buf: %p  size: %u",
+  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FMT "  buf: %p  size: %u",
                        mysql_socket_getfd(vio->mysql_socket), buf, (uint)size));
 
   if (vio->read_pos < vio->read_end) {
@@ -401,7 +401,7 @@ int vio_keepalive(Vio *vio, bool set_keep_alive) {
   uint opt = 0;
   DBUG_TRACE;
   DBUG_PRINT("enter",
-             ("sd: %d  set_keep_alive: %d",
+             ("sd: " MY_SOCKET_FMT "  set_keep_alive: %d",
               mysql_socket_getfd(vio->mysql_socket), (int)set_keep_alive));
   if (vio->type != VIO_TYPE_NAMEDPIPE) {
     if (set_keep_alive) opt = 1;

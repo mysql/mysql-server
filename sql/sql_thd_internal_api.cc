@@ -125,7 +125,7 @@ void thd_init(THD *thd, char *stack_start) {
 
   if (!thd->system_thread) {
     DBUG_PRINT("info",
-               ("init new connection. thd: %p fd: %d", thd,
+               ("init new connection. thd: %p fd: " MY_SOCKET_FMT, thd,
                 mysql_socket_getfd(
                     thd->get_protocol_classic()->get_vio()->mysql_socket)));
   }

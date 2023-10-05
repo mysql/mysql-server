@@ -53,10 +53,12 @@ typedef int MY_MODE;
 typedef int mode_t;
 typedef int socket_len_t;
 typedef SOCKET my_socket;
+#define MY_SOCKET_FMT "%llu"
 #else
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
 typedef int my_socket; /* File descriptor for sockets */
+#define MY_SOCKET_FMT "%d"
 #endif /* _WIN32 */
 
 #endif /* COMPONENTS_SERVICES_BITS_MY_IO_BITS_H */

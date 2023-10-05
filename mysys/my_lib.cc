@@ -197,7 +197,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   void *rawmem = nullptr;
 
   DBUG_TRACE;
-  DBUG_PRINT("my", ("path: '%s' stat: %d  MyFlags: %d", path, MyFlags));
+  DBUG_PRINT("my", ("path: '%s' MyFlags: %d", path, MyFlags));
 
   /* Put LIB-CHAR as last path-character if not there */
   tmp_file = tmp_path;

@@ -3606,7 +3606,7 @@ ulint dict_table_get_highest_foreign_id(
 
   biggest_id = (size > biggest_id) ? size : biggest_id;
 
-  DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: %lu", biggest_id));
+  DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: " ULINTPF, biggest_id));
 
   return biggest_id;
 }

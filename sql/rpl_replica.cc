@@ -4364,21 +4364,26 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
       if (sql_delay_end > now) {
         nap_time = sql_delay_end - now;
 
-        DBUG_PRINT("info",
-                   ("sql_delay= %lu "
-                    "now= %ld "
-                    "sql_delay_end= %ld "
-                    "nap_time= %ld",
-                    sql_delay, (long)now, (long)sql_delay_end, (long)nap_time));
-        DBUG_PRINT("info", ("delaying replication event %lu secs", nap_time));
+        DBUG_PRINT(
+            "info",
+            ("sql_delay= %lu "
+             "now= %ld "
+             "sql_delay_end= %ld "
+             "nap_time= %ld",
+             static_cast<unsigned long>(sql_delay), static_cast<long>(now),
+             static_cast<long>(sql_delay_end), static_cast<long>(nap_time)));
+        DBUG_PRINT("info", ("delaying replication event %lu secs",
+                            static_cast<unsigned long>(nap_time)));
         rli->start_sql_delay(sql_delay_end);
         mysql_mutex_unlock(&rli->data_lock);
         return slave_sleep(thd, nap_time, sql_slave_killed, rli);
       } else {
-        DBUG_PRINT("info", ("sql_delay= %lu "
-                            "now= %ld "
-                            "sql_delay_end= %ld ",
-                            sql_delay, (long)now, (long)sql_delay_end));
+        DBUG_PRINT("info",
+                   ("sql_delay= %lu "
+                    "now= %ld "
+                    "sql_delay_end= %ld ",
+                    static_cast<unsigned long>(sql_delay),
+                    static_cast<long>(now), static_cast<long>(sql_delay_end)));
       }
     }
   }

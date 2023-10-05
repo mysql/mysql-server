@@ -6681,9 +6681,9 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
 
       DBUG_PRINT("info", ("No success, try next address."));
     }
-    DBUG_PRINT("info",
-               ("End of connect attempts, sock: %d  status: %d  error: %d",
-                sock, status, saved_error));
+    DBUG_PRINT("info", ("End of connect attempts, sock: " MY_SOCKET_FMT
+                        "  status: %d  error: %d",
+                        sock, status, saved_error));
 
     freeaddrinfo(res_lst);
     if (client_bind_ai_lst) freeaddrinfo(client_bind_ai_lst);

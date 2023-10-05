@@ -8203,9 +8203,9 @@ void fix_win_paths(const char *val, size_t len [[maybe_unused]]) {
       DBUG_PRINT("info", ("Converted \\ to / in %s", val));
     }
   }
-  DBUG_PRINT("exit", (" val: %s, len: %d", val, len));
+  DBUG_PRINT("exit", (" val: %s, len: %zu", val, len));
 }
-#endif
+#endif  // _WIN32
 
 /*
   Append the result for one field to the dynamic string ds

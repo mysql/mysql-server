@@ -375,7 +375,7 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
   }
 
   DBUG_PRINT("que_graph_free_recursive",
-             ("node: %p, type: %lu", node, que_node_get_type(node)));
+             ("node: %p, type: " ULINTPF, node, que_node_get_type(node)));
 
   switch (que_node_get_type(node)) {
     case QUE_NODE_FORK:

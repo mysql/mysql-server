@@ -3159,8 +3159,9 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
   ut_ad(!node->table->skip_alter_undo);
 
   DBUG_PRINT("row_upd", ("table: %s", node->table->name.m_name));
-  DBUG_PRINT("row_upd", ("info bits in update vector: 0x%lx",
-                         node->update ? node->update->info_bits : 0));
+  DBUG_PRINT("row_upd",
+             ("info bits in update vector: " IF_WIN("0x%llx", "0x%lx"),
+              node->update ? node->update->info_bits : 0));
   DBUG_PRINT("row_upd",
              ("foreign_id: %s", node->foreign ? node->foreign->id : "NULL"));
 

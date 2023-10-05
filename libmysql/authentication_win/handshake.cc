@@ -60,7 +60,7 @@ Handshake::Handshake(const char *ssp, side_t side)
 
   if (ret != SEC_E_OK) {
     DBUG_PRINT("error", ("AcqireCredentialsHandle() failed"
-                         " with error %X",
+                         " with error %lX",
                          ret));
     ERROR_LOG(ERROR, ("Could not obtain local credentials"
                       " required for authentication"));
@@ -106,7 +106,7 @@ int Handshake::packet_processing_loop() {
       ERROR_LOG(ERROR, ("Error reading packet in round %d", m_round));
       return 1;
     }
-    DBUG_PRINT("info", ("Got packet of length %d", packet.len()));
+    DBUG_PRINT("info", ("Got packet of length %zu", packet.len()));
 
     /*
       Process received data, possibly generating new data to be sent.
@@ -127,7 +127,7 @@ int Handshake::packet_processing_loop() {
     if (!new_data.is_null()) {
       DBUG_PRINT("info", ("Round %d started", m_round));
 
-      DBUG_PRINT("info", ("Sending packet of length %d", new_data.len()));
+      DBUG_PRINT("info", ("Sending packet of length %zu", new_data.len()));
       const int ret = write_packet(new_data);
       if (ret) {
         ERROR_LOG(ERROR, ("Error writing packet in round %d", m_round));

@@ -2088,11 +2088,6 @@ INCLUDE(maintainer)
 INCLUDE(msvc_cppcheck)
 DO_MSVC_CPPCHECK()
 
-IF(WIN32_CLANG AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-  # Not yet fixed for Debug code
-  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-format")
-ENDIF()
-
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   INCLUDE(googletest)

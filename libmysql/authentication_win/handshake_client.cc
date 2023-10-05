@@ -144,8 +144,8 @@ int Handshake_client::write_packet(Blob &data) {
 
   if (m_round == 1 && data.len() > 254) {
     len2 = data.len() - 254;
-    DBUG_PRINT("info", ("Splitting first packet of length %lu"
-                        ", %lu bytes will be sent in a second part",
+    DBUG_PRINT("info", ("Splitting first packet of length %zu"
+                        ", %zu bytes will be sent in a second part",
                         data.len(), len2));
     /*
       Store in byte 255 the number of 512b blocks that are needed to
@@ -277,7 +277,7 @@ Blob Handshake_client::process_data(const Blob &data) {
 
   if (process_result(ret)) {
     DBUG_PRINT("error",
-               ("InitializeSecurityContext() failed with error %X", ret));
+               ("InitializeSecurityContext() failed with error %lX", ret));
     return Blob();
   }
 
@@ -447,7 +447,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     ERROR_LOG(ERROR, ("Error reading initial packet"));
     return CR_ERROR;
   }
-  DBUG_PRINT("info", ("Got initial packet of length %d", service_name.len()));
+  DBUG_PRINT("info", ("Got initial packet of length %zu", service_name.len()));
 
   // Create authentication handshake context using the given service name.
 
