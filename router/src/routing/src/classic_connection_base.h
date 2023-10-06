@@ -361,6 +361,8 @@ class MysqlRoutingClassicConnectionBase
 
   void async_recv_server(Function next);
 
+  void async_recv_both(Function next);
+
   void async_send_client_and_finish();
 
   void async_wait_client_closed();
