@@ -64,6 +64,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
+#include "process_wrapper.h"
 #include "random_generator.h"
 
 #ifdef USE_STD_REGEX
@@ -648,22 +649,31 @@ void ProcessManager::terminate_all_still_alive() {
   }
 }
 
+std::string ProcessManager::dump(ProcessWrapper &proc) {
+  std::stringstream ss;
+
+  ss << "# Process: (pid=" << proc.get_pid() << ")\n"
+     << proc.get_command_line() << "\n\n";
+
+  auto output = proc.get_current_output();
+  if (!output.empty()) {
+    ss << "## Console output:\n\n" << output << "\n";
+  }
+
+  auto log_content = proc.get_logfile_content("", "", 500);
+  if (!log_content.empty()) {
+    ss << "## Log content:\n\n" << log_content << "\n";
+  }
+
+  return ss.str();
+}
+
 void ProcessManager::dump_all() {
   std::stringstream ss;
   for (const auto &proc_and_exit_code : processes_) {
     const auto &proc = std::get<0>(proc_and_exit_code);
-    ss << "# Process: (pid=" << proc->get_pid() << ")\n"
-       << proc->get_command_line() << "\n\n";
 
-    auto output = proc->get_current_output();
-    if (!output.empty()) {
-      ss << "## Console output:\n\n" << output << "\n";
-    }
-
-    auto log_content = proc->get_logfile_content("", "", 500);
-    if (!log_content.empty()) {
-      ss << "## Log content:\n\n" << log_content << "\n";
-    }
+    ss << dump(*proc);
   }
 
   FAIL() << ss.str();
@@ -736,7 +746,9 @@ void ProcessManager::check_exit_code(ProcessWrapper &process,
     if (dump_res) std::cerr << *dump_res;
 
     ASSERT_EQ(expected_exit_status, result)
-        << "Process " << process.get_pid() << " terminated with " << result;
+        << "Process " << process.get_pid() << " terminated with " << result
+        << "\n"
+        << dump(process);
   } else if (auto sig = result.stopped()) {
     ASSERT_EQ(expected_exit_status, result)
         << "Process " << process.get_pid() << " stopped with " << result;

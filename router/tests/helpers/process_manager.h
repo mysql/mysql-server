@@ -237,6 +237,8 @@ class ProcessManager {
       ProcessWrapper &process, exit_status_type exit_status = EXIT_SUCCESS,
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
+  std::string dump(ProcessWrapper &proccess);
+
   void dump_all();
 
   /**
