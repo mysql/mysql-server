@@ -226,10 +226,6 @@ SqlClient::selectCountTable(const char * table)
    return result.columnAsLong("count");
 }
 
-
-/* Run Simple Queries */
-
-
 bool
 SqlClient::runQuery(const char* sql,
                  const Properties& args,
@@ -448,19 +444,70 @@ SqlClient::runQuery(const char* sql,
   return true;
 }
 
+bool SqlClient::runQueryBasic(const char *sql, SqlResultSet &rows) {
+  rows.clear();
+  if (!isConnected()) return false;
+  require(m_mysql);
+
+  g_debug << "runQueryBasic: " << endl << " sql: '" << sql << "'" << endl;
+
+  if (mysql_query(m_mysql, sql) != 0) {
+    report_error("Failed to run query");
+    return false;
+  }
+
+  uint row_count = 0;
+  MYSQL_RES *res = mysql_store_result(m_mysql);
+  if (res != nullptr) {
+    MYSQL_FIELD *const fields = mysql_fetch_fields(res);
+    const uint num_fields = mysql_num_fields(res);
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)) != nullptr) {
+      Properties curr(true);
+      for (uint i = 0; i < num_fields; i++) {
+          char *const field_data = row[i];
+          if (field_data == nullptr) {
+            // field is NULL
+            continue;
+          }
+
+          switch (fields[i].type) {
+          case MYSQL_TYPE_LONGLONG:
+            // Save as Uint64 in result
+            curr.put64(fields[i].name, std::stoull(field_data));
+            break;
+          default:
+            // Save as string in result
+            curr.put(fields[i].name, field_data);
+            break;
+          }
+      }
+      rows.put("row", row_count++, &curr);
+    }
+    mysql_free_result(res);
+  }
+
+  // Save stats in result set
+  rows.put("rows", row_count);
+  rows.put64("affected_rows", mysql_affected_rows(m_mysql));
+  rows.put("mysql_errno", mysql_errno(m_mysql));
+  rows.put("mysql_error", mysql_error(m_mysql));
+  rows.put("mysql_sqlstate", mysql_sqlstate(m_mysql));
+  rows.put64("insert_id", mysql_insert_id(m_mysql));
+  return true;
+}
 
 bool
 SqlClient::doQuery(const char* query){
-  const Properties args;
   SqlResultSet result;
-  return doQuery(query, args, result);
+  return doQuery(query, result);
 }
-
 
 bool
 SqlClient::doQuery(const char* query, SqlResultSet& result){
-  Properties args;
-  return doQuery(query, args, result);
+  if (!runQueryBasic(query, result)) return false;
+  result.get_row(0);  // Load first row
+  return true;
 }
 
 

@@ -120,10 +120,29 @@ public:
   };
 
 protected:
+  /**
+    Run query using prepared statement interface, this allow the query to
+    contain placeholders (i.e '?') which are replaced by arguments in "arg".
 
-  bool runQuery(const char* query,
-               const Properties& args,
-               SqlResultSet& rows);
+    @param query The SQL query to run
+    @param args List of query placeholder arguments
+    @param rows The resultset from running the query
+
+    @return true on success and false on error.
+
+  */
+  bool runQuery(const char *query, const Properties &args, SqlResultSet &rows);
+
+  /**
+    Run query using basic interface
+
+    @param query The SQL query to run
+    @param rows The resultset from running the query
+
+    @return true on success and false on error.
+
+   */
+  bool runQueryBasic(const char *query, SqlResultSet &rows);
 
   bool isConnected();
 
