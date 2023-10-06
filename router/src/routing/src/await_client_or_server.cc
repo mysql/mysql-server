@@ -48,9 +48,6 @@ stdx::expected<Processor::Result, std::error_code>
 AwaitClientOrServerProcessor::init() {
   stage(Stage::WaitBoth);
 
-  connection()->recv_from_either(
-      MysqlRoutingClassicConnectionBase::FromEither::Started);
-
   return Result::RecvFromBoth;
 }
 
