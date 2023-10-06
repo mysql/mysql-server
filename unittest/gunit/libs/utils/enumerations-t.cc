@@ -20,24 +20,34 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_UTILS_DEPRECATE_HEADER
-#define MYSQL_UTILS_DEPRECATE_HEADER
+#include <gtest/gtest.h>
+#include "mysql/utils/enumeration_utils.h"
 
-/// @file
-/// Experimental API header
-/// Contains macro that can be used to deprecate a header
+namespace mysql::utils {
 
-/// @addtogroup GroupLibsMysqlUtils
-/// @{
+enum class Enum1 : uint32_t { const_a = 0, const_b = 1, const_c = 2 };
 
-#define DEPRECATE_HEADER(header_name)                              \
-  namespace {                                                      \
-  [[deprecated("This header is deprecated")]] constexpr static int \
-      header_name##_header_deprecation = 0;                        \
-  constexpr static int header_name##_header_is_deprecated =        \
-      header_name##_header_deprecation;                            \
-  }  // namespace
+template <>
+constexpr inline Enum1 enum_max() {
+  return Enum1::const_c;
+}
 
-/// @}
+TEST(Enumerations, Functions) {
+  ASSERT_EQ(to_underlying(Enum1::const_a), 0);
+  ASSERT_EQ(to_underlying(Enum1::const_b), 1);
+  ASSERT_EQ(to_underlying(Enum1::const_c), 2);
+  auto r1 = to_enumeration<Enum1>(0UL);
+  auto r2 = to_enumeration<Enum1>(1UL);
+  auto r3 = to_enumeration<Enum1>(2UL);
+  auto r4 = to_enumeration<Enum1>(3UL);
+  ASSERT_EQ(r1.first, Enum1::const_a);
+  ASSERT_EQ(r2.first, Enum1::const_b);
+  ASSERT_EQ(r3.first, Enum1::const_c);
+  ASSERT_EQ(r4.first, Enum1::const_c);
+  ASSERT_EQ(r1.second, Return_status::ok);
+  ASSERT_EQ(r2.second, Return_status::ok);
+  ASSERT_EQ(r3.second, Return_status::ok);
+  ASSERT_EQ(r4.second, Return_status::error);
+}
 
-#endif  // MYSQL_UTILS_DEPRECATE_HEADER
+}  // namespace mysql::utils

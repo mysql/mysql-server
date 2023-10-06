@@ -20,6 +20,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-ADD_SUBDIRECTORY(utils)
-ADD_SUBDIRECTORY(gtid)
-ADD_SUBDIRECTORY(binlog)
+MY_CHECK_CXX_COMPILER_WARNING("-Wno-unused-local-typedefs" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
+
+# Add tests
+SET(TESTS
+  bit_operations
+)
+
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ADD_TEST ${test}
+    LINK_LIBRARIES gunit_small
+    COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
+ENDFOREACH()
+
+MYSQL_ADD_EXECUTABLE(
+  bit_operations_custom_impl-t bit_operations-t.cc
+  ADD_TEST bit_operations_custom_impl
+  LINK_LIBRARIES gunit_small
+  COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}" CALCULATE_BITS_CUSTOM_IMPL)

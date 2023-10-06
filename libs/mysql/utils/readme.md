@@ -30,3 +30,9 @@ MySQL Utility Library
 This is a header-only library, containing various utility functions, such as:
 
 - macro deprecating a header
+- definition of Error - base class for (C++) error handling
+- enumeration utilities: to_underlying (-std=C++<23>), to_enumeration
+- template utilities: Is_specialization
+- bit operations
+
+For code documentation, please refer to @ref GroupLibsMysqlUtils.

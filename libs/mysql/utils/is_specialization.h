@@ -20,24 +20,31 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_UTILS_DEPRECATE_HEADER
-#define MYSQL_UTILS_DEPRECATE_HEADER
+#ifndef MYSQL_UTILS_IS_SPECIALIZATION_H
+#define MYSQL_UTILS_IS_SPECIALIZATION_H
 
 /// @file
 /// Experimental API header
-/// Contains macro that can be used to deprecate a header
+
+#include <type_traits>
 
 /// @addtogroup GroupLibsMysqlUtils
 /// @{
 
-#define DEPRECATE_HEADER(header_name)                              \
-  namespace {                                                      \
-  [[deprecated("This header is deprecated")]] constexpr static int \
-      header_name##_header_deprecation = 0;                        \
-  constexpr static int header_name##_header_is_deprecated =        \
-      header_name##_header_deprecation;                            \
-  }  // namespace
+namespace mysql::utils {
+
+/// @brief Helper struct used to determine at compile time
+/// whether a given type T is a template specialization of the Primary
+template <typename Test, template <typename...> class Primary>
+struct Is_specialization : std::false_type {};
+
+/// @brief Helper struct used to determine at compile time
+/// whether a given type T is a template specialization of the Primary
+template <template <typename...> class Primary, typename... Args>
+struct Is_specialization<Primary<Args...>, Primary> : std::true_type {};
+
+}  // namespace mysql::utils
 
 /// @}
 
-#endif  // MYSQL_UTILS_DEPRECATE_HEADER
+#endif  // MYSQL_UTILS_IS_SPECIALIZATION_H

@@ -20,24 +20,30 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_UTILS_DEPRECATE_HEADER
-#define MYSQL_UTILS_DEPRECATE_HEADER
+#ifndef MYSQL_UTILS_RETURN_STATUS_H
+#define MYSQL_UTILS_RETURN_STATUS_H
 
 /// @file
 /// Experimental API header
-/// Contains macro that can be used to deprecate a header
+
+#include <memory>
+#include <sstream>
+#include <string>
 
 /// @addtogroup GroupLibsMysqlUtils
 /// @{
 
-#define DEPRECATE_HEADER(header_name)                              \
-  namespace {                                                      \
-  [[deprecated("This header is deprecated")]] constexpr static int \
-      header_name##_header_deprecation = 0;                        \
-  constexpr static int header_name##_header_is_deprecated =        \
-      header_name##_header_deprecation;                            \
-  }  // namespace
+namespace mysql::utils {
+
+/// @brief Simple, strongly-typed enumeration to indicate internal status:
+/// ok, error
+enum class Return_status {
+  ok,     ///< operation succeeded
+  error,  ///< operation failed
+};
+
+}  // namespace mysql::utils
 
 /// @}
 
-#endif  // MYSQL_UTILS_DEPRECATE_HEADER
+#endif  // MYSQL_UTILS_RETURN_STATUS_H
