@@ -86,6 +86,13 @@ static inline ulonglong uint6korr(const uchar *A) {
           (((ulonglong)(A[4])) << 32) + (((ulonglong)(A[5])) << 40));
 }
 
+static inline ulonglong uint7korr(const uchar *A) {
+  return ((ulonglong)(((uint32)(A[0])) + (((uint32)(A[1])) << 8) +
+                      (((uint32)(A[2])) << 16) + (((uint32)(A[3])) << 24)) +
+          (((ulonglong)(A[4])) << 32) + (((ulonglong)(A[5])) << 40) +
+          (((ulonglong)(A[6])) << 48));
+}
+
 /**
   int3store
 
