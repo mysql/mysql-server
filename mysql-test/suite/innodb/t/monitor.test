@@ -269,7 +269,9 @@ set global innodb_monitor_enable = module_dml;
 
 insert into monitor_test values(9);
 
-update monitor_test set col = 10 where col = 9;
+# The USE INDEX hint ensures both optimizers choose the same plan, so
+# that the counts below are the same.
+update monitor_test use index () set col = 10 where col = 9;
 
 select name, max_count, min_count, count,
 	max_count_reset, min_count_reset, count_reset, status
