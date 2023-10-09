@@ -105,6 +105,18 @@ ProcessWrapper &RouterComponentMetadataTest::launch_router(
     const std::string &routing_section,
     std::vector<uint16_t> metadata_server_ports, const int expected_exitcode,
     std::chrono::milliseconds wait_for_notify_ready) {
+  const std::string conf_file = setup_router_config(
+      metadata_cache_section, routing_section, metadata_server_ports);
+  auto &router = ProcessManager::launch_router(
+      {"-c", conf_file}, expected_exitcode, true, false, wait_for_notify_ready);
+
+  return router;
+}
+
+std::string RouterComponentMetadataTest::setup_router_config(
+    const std::string &metadata_cache_section,
+    const std::string &routing_section,
+    std::vector<uint16_t> metadata_server_ports) {
   auto default_section = get_DEFAULT_defaults();
   state_file_ = create_state_file(
       get_test_temp_dir_name(),
@@ -112,12 +124,7 @@ ProcessWrapper &RouterComponentMetadataTest::launch_router(
   init_keyring(default_section, get_test_temp_dir_name());
   default_section["dynamic_state"] = state_file_;
 
-  // launch the router
-  const std::string conf_file = create_config_file(
-      get_test_temp_dir_name(), metadata_cache_section + routing_section,
-      &default_section);
-  auto &router = ProcessManager::launch_router(
-      {"-c", conf_file}, expected_exitcode, true, false, wait_for_notify_ready);
-
-  return router;
+  return create_config_file(get_test_temp_dir_name(),
+                            metadata_cache_section + routing_section,
+                            &default_section);
 }

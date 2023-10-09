@@ -439,13 +439,19 @@ TEST_P(QuorumTest, Verify) {
   const std::string routing_ro = get_metadata_cache_routing_section(
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
-  const auto wait_ready = (expect_rw_ok || expect_ro_ok) ? 10s : -1s;
+  const auto sync_point = (expect_rw_ok || expect_ro_ok)
+                              ? ProcessManager::Spawner::SyncPoint::READY
+                              : ProcessManager::Spawner::SyncPoint::RUNNING;
 
-  /*auto &router = */ launch_router(
-      metadata_cache_section, routing_rw + routing_ro, cluster_classic_ports,
-      EXIT_SUCCESS, wait_ready);
+  const std::string conf_file = setup_router_config(
+      metadata_cache_section, routing_rw + routing_ro, cluster_classic_ports);
 
-  if (wait_ready == -1s) {
+  router_spawner()
+      .expected_exit_code(EXIT_SUCCESS)
+      .wait_for_sync_point(sync_point)
+      .spawn({"-c", conf_file});
+
+  if (sync_point == ProcessManager::Spawner::SyncPoint::RUNNING) {
     EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 2));
   }
 
@@ -784,17 +790,22 @@ TEST_P(AccessToPartitionWithNoQuorum, Spec) {
   std::vector<uint16_t> metadata_server_ports{
       classic_ports[0], classic_ports[1], classic_ports[2]};
 
-  const auto wait_ready = (GetParam().expect_rw_connection_ok ||
+  const auto sync_point = (GetParam().expect_rw_connection_ok ||
                            GetParam().expect_ro_connection_ok ||
                            GetParam().expect_rw_split_connection_ok)
-                              ? 10s
-                              : -1s;
+                              ? ProcessManager::Spawner::SyncPoint::READY
+                              : ProcessManager::Spawner::SyncPoint::RUNNING;
 
-  /*auto &router = */ launch_router(
+  const std::string conf_file = setup_router_config(
       metadata_cache_section, routing_rw + routing_ro + routing_rw_split,
-      metadata_server_ports, EXIT_SUCCESS, wait_ready);
+      metadata_server_ports);
 
-  if (wait_ready == -1s) {
+  router_spawner()
+      .expected_exit_code(EXIT_SUCCESS)
+      .wait_for_sync_point(sync_point)
+      .spawn({"-c", conf_file});
+
+  if (sync_point == ProcessManager::Spawner::SyncPoint::RUNNING) {
     EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[2], 2));
   }
 
@@ -1124,17 +1135,22 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   const auto metadata_server_ports =
       clusterset_data_.get_md_servers_classic_ports();
 
-  const auto wait_ready = (GetParam().expect_rw_connection_ok ||
+  const auto sync_point = (GetParam().expect_rw_connection_ok ||
                            GetParam().expect_ro_connection_ok ||
                            GetParam().expect_rw_split_connection_ok)
-                              ? 10s
-                              : -1s;
+                              ? ProcessManager::Spawner::SyncPoint::READY
+                              : ProcessManager::Spawner::SyncPoint::RUNNING;
 
-  /*auto &router = */ launch_router(
+  const std::string conf_file = setup_router_config(
       metadata_cache_section, routing_rw + routing_ro + routing_rw_split,
-      metadata_server_ports, EXIT_SUCCESS, wait_ready);
+      metadata_server_ports);
 
-  if (wait_ready == -1s) {
+  router_spawner()
+      .expected_exit_code(EXIT_SUCCESS)
+      .wait_for_sync_point(sync_point)
+      .spawn({"-c", conf_file});
+
+  if (sync_point == ProcessManager::Spawner::SyncPoint::RUNNING) {
     EXPECT_TRUE(wait_for_transaction_count_increase(http_port, 1));
   }
 
