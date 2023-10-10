@@ -115,14 +115,9 @@ bool Ndb_dd_client::mdl_lock_table(const char *schema_name,
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, m_thd->variables.lock_wait_timeout)) {
     return false;
   }
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(schema_request.ticket);
-  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
 
   return true;
 }
@@ -155,14 +150,9 @@ bool Ndb_dd_client::mdl_lock_schema_exclusive(const char *schema_name,
     lock_wait_timeout = m_thd->variables.lock_wait_timeout;
   }
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, lock_wait_timeout)) {
     return false;
   }
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(schema_request.ticket);
-  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
-  m_acquired_mdl_tickets.push_back(grl_request.ticket);
 
   return true;
 }
@@ -175,8 +165,7 @@ bool Ndb_dd_client::mdl_lock_schema(const char *schema_name) {
                    MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
   mdl_requests.push_front(&schema_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, m_thd->variables.lock_wait_timeout)) {
     return false;
   }
 
@@ -185,9 +174,6 @@ bool Ndb_dd_client::mdl_lock_schema(const char *schema_name) {
     option we can safely re-check its value.
   */
   if (check_readonly(m_thd, true)) return false;
-
-  // Remember ticket(s) of the acquired mdl lock
-  m_acquired_mdl_tickets.push_back(schema_request.ticket);
 
   return true;
 }
@@ -220,7 +206,7 @@ bool Ndb_dd_client::mdl_lock_logfile_group_exclusive(
     lock_wait_timeout = m_thd->variables.lock_wait_timeout;
   }
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, lock_wait_timeout)) {
     return false;
   }
 
@@ -229,11 +215,6 @@ bool Ndb_dd_client::mdl_lock_logfile_group_exclusive(
     option we can safely re-check its value.
   */
   if (check_readonly(m_thd, true)) return false;
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
-  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
-  m_acquired_mdl_tickets.push_back(grl_request.ticket);
 
   return true;
 }
@@ -250,13 +231,9 @@ bool Ndb_dd_client::mdl_lock_logfile_group(const char *logfile_group_name,
 
   mdl_requests.push_front(&logfile_group_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, m_thd->variables.lock_wait_timeout)) {
     return false;
   }
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
 
   return true;
 }
@@ -289,7 +266,7 @@ bool Ndb_dd_client::mdl_lock_tablespace_exclusive(const char *tablespace_name,
     lock_wait_timeout = m_thd->variables.lock_wait_timeout;
   }
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, lock_wait_timeout)) {
     return false;
   }
 
@@ -298,11 +275,6 @@ bool Ndb_dd_client::mdl_lock_tablespace_exclusive(const char *tablespace_name,
     option we can safely re-check its value.
   */
   if (check_readonly(m_thd, true)) return false;
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(tablespace_request.ticket);
-  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
-  m_acquired_mdl_tickets.push_back(grl_request.ticket);
 
   return true;
 }
@@ -319,13 +291,9 @@ bool Ndb_dd_client::mdl_lock_tablespace(const char *tablespace_name,
 
   mdl_requests.push_front(&tablespace_request);
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
-                                       m_thd->variables.lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, m_thd->variables.lock_wait_timeout)) {
     return false;
   }
-
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(tablespace_request.ticket);
 
   return true;
 }
@@ -361,7 +329,7 @@ bool Ndb_dd_client::mdl_locks_acquire_exclusive(const char *schema_name,
     lock_wait_timeout = m_thd->variables.lock_wait_timeout;
   }
 
-  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+  if (!mdl_locks_acquire(mdl_requests, lock_wait_timeout)) {
     return false;
   }
 
@@ -371,12 +339,20 @@ bool Ndb_dd_client::mdl_locks_acquire_exclusive(const char *schema_name,
   */
   if (check_readonly(m_thd, true)) return false;
 
-  // Remember tickets of the acquired mdl locks
-  m_acquired_mdl_tickets.push_back(schema_request.ticket);
-  m_acquired_mdl_tickets.push_back(mdl_request.ticket);
-  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
-  m_acquired_mdl_tickets.push_back(grl_request.ticket);
+  return true;
+}
 
+bool Ndb_dd_client::mdl_locks_acquire(MDL_request_list mdl_requests,
+                                      ulong lock_wait_timeout) {
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+    return false;
+  }
+  // Remember tickets of the acquired mdl locks
+  MDL_request_list::Iterator it(mdl_requests);
+  MDL_request *request;
+  while ((request = it++)) {
+    m_acquired_mdl_tickets.push_back(request->ticket);
+  }
   return true;
 }
 

@@ -1,0 +1,34 @@
+# Bug#32969309
+# This test validates that the applier replica worker does not get
+# stuck in a deadlock scenario, when the NDB metadata change monitor
+# thread has failed to release the locks it had acquired on an object
+# (schema).
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo Setup replication and CREATE DATABASE
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE test_readonly;
+
+--echo Replicate CREATE DATABASE and set read_only on replica
+--source include/sync_slave_sql_with_master.inc
+
+set global read_only=1;
+
+--echo Time delay from CREATE to DROP lets the NDB metadata change monitor lock the schema
+sleep 1;
+
+--source include/rpl_connection_master.inc 
+DROP DATABASE test_readonly;
+
+--echo Sync DROP statement. If OK, it won't timeout
+--source include/sync_slave_sql_with_master.inc
+
+--echo Cleanup
+--source include/rpl_connection_slave.inc
+set global read_only=0;
+
+--source include/rpl_end.inc
