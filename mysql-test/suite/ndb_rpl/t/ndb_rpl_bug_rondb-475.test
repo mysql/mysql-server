@@ -1,0 +1,37 @@
+# This is a regression test for bug:
+# RONDB-475 Mysqld Segfault when reversing replication role
+
+# This bug causes mysqld on the replica to crash when replicating a GRANT
+# NDB_STORED_USER statement while replication filtering is active.
+
+# For this test case, replication filtering is activated in file
+# suite/ndb_rpl/t/ndb_rpl_bug_rondb-475-slave.opt
+
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+# Create tables and user on master then execute GRANT NDB_STORED_USER
+connection master;
+CREATE TABLE t1 (a INT) ENGINE=NDB;
+CREATE TABLE t2 (a INT) ENGINE=NDB;
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by 'pass1';
+GRANT NDB_STORED_USER ON *.* TO 'ndb_u1'@'localhost';
+--source include/wait_for_ndb_committed_to_binlog.inc
+sync_slave_with_master;
+
+# Check that t2 and ndb_u1 replicates but not t1
+connection slave;
+SHOW TABLES;
+SELECT user, host FROM mysql.user WHERE user LIKE 'ndb_%';
+SELECT grantee FROM information_schema.user_privileges
+ WHERE privilege_type='NDB_STORED_USER';
+
+# Cleanup
+connection master;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP USER ndb_u1@localhost;
+--source include/wait_for_ndb_committed_to_binlog.inc
+sync_slave_with_master;
+
+--source include/rpl_end.inc

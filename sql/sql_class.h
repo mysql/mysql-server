@@ -2697,6 +2697,18 @@ class THD : public MDL_context_owner,
   /// instead /sven
   bool slave_thread;
 
+  // override_slave_filtering is used to indicate that we want to execute a
+  // query that normally would be suppressed in a slave thread.
+  enum enum_override_slave_filtering {
+    // Use a couple of semi-random constants to ensure initialization. They are
+    // chosen to encode "OSFY" and "OSFN" (meaning "override slave filtering
+    // yes/no") to aid debugging.
+    // Debug search terms: OSFY, OSFN, YFSO, NFSO
+    OVERRIDE_SLAVE_FILTERING = 0x4f534659,
+    NO_OVERRIDE_SLAVE_FILTERING = 0x4f53464e,
+  };
+  enum enum_override_slave_filtering override_slave_filtering;
+
   uchar password;
 
  private:
