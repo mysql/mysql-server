@@ -24,18 +24,22 @@
 
 #include "mrs/http/header_accept.h"
 
+#include "helper/string/trim.h"
+
 #include "mysql/harness/string_utils.h"
 
 namespace mrs {
 namespace http {
 
-static bool parse_mime_type(const std::string &mime_type, MimeClass *out_class,
+static bool parse_mime_type(std::string mime_type, MimeClass *out_class,
                             MimeClass *out_subclass,
                             const bool is_accept = true) {
-  auto b = mime_type.find_first_not_of(" ");
-  auto p = mime_type.find("/");
-  auto e = mime_type.find_last_not_of(" ");
+  auto b = mime_type.find(";");
+  if (std::string::npos != b) mime_type = mime_type.substr(0, b);
 
+  helper::trim(&mime_type);
+
+  auto p = mime_type.find("/");
   if (std::string::npos == p) {
     out_class->emplace(mime_type);
 
@@ -46,8 +50,8 @@ static bool parse_mime_type(const std::string &mime_type, MimeClass *out_class,
     return false;
   }
 
-  auto p1 = mime_type.substr(b, p - b);
-  auto p2 = mime_type.substr(p + 1, e - p);
+  auto p1 = mime_type.substr(0, p);
+  auto p2 = mime_type.substr(p + 1);
 
   if (is_accept && (p1.empty() || p1 == "*"))
     out_class->reset();

@@ -54,6 +54,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_rest_handler.cc
     ./test_rest_mrs_user_manager.cc
     ./test_rest_user_entry.cc
+    ./test_mrs_http_header_accept.cc
     ./test_mrs_json_template.cc
     ./test_mrs_query_entries_db_object.cc
     ./test_mrs_user_cache.cc
