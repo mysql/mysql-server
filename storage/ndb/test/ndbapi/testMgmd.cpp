@@ -434,6 +434,35 @@ static bool create_expired_cert(NDBT_Workingdir &wd) {
   return (r && (ret == 0));
 }
 
+/* Print some information about a cert, and check that its validity is at
+   least 120 days. Return true if ok.
+*/
+static bool check_cert(const NDBT_Workingdir &wd, Node::Type type) {
+  static constexpr int MinDuration = 120 * CertLifetime::SecondsPerDay;
+
+  int duration = 0;
+  PkiFile::PathName certFile;
+  TlsSearchPath searchPath(wd.path());
+  if (ActiveCertificate::find(&searchPath, 0, type, certFile)) {
+    fprintf(stderr, "Reading cert file: %s \n", certFile.c_str());
+    X509 *cert = Certificate::open_one(certFile);
+    if (cert) {
+      char name[65];
+      Certificate::get_common_name(cert, name, sizeof(name));
+      const NodeCertificate *nc = NodeCertificate::for_peer(cert);
+      if (nc) {
+        duration = nc->duration();
+        printf(" ... Cert CN:       %s\n", name);
+        printf(" ... Cert Duration: %d\n", duration);
+        printf(" ... Cert Serial:   %s\n", nc->serial_number().c_str());
+        delete nc;
+      }
+      Certificate::free(cert);
+    }
+  }
+  return (duration >= MinDuration);
+}
+
 bool Print_find_in_file(const char *path, Vector<BaseString> search_string) {
   std::ifstream indata;
   indata.open(path);
@@ -1593,6 +1622,7 @@ int runTestSshKeySigning(NDBT_Context *ctx, NDBT_Step *step) {
 
   NDBT_Workingdir wd("test_mgmd");  // temporary working directory
   Properties config = ConfigFactory::create();
+  ConfigFactory::put(config, "ndb_mgmd", 1, "RequireCertificate", "true");
   BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
   CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
 
@@ -1607,18 +1637,58 @@ int runTestSshKeySigning(NDBT_Context *ctx, NDBT_Step *step) {
   /* There will be a parent ndb_sign_keys process plus 3 ssh invocations */
   NdbProcess::Args args;
   int ret;
-  args.add("--config-file=", cfg_path.c_str());
-  args.add("--passphrase=", "Trondheim");
-  args.add("--ndb-tls-search-path=", wd.path());
-  args.add("--create-key");
-  args.add("--remote-exec-path=", exe.c_str());
-  args.add("--remote-CA-host=", "localhost");
-  auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
-  bool r = proc->wait(ret, 3000);
-  if (!r) proc->stop();
-  CHECK(r);
+  {
+    args.add("--config-file=", cfg_path.c_str());
+    args.add("--passphrase=", "Trondheim");
+    args.add("--ndb-tls-search-path=", wd.path());
+    args.add("--create-key");
+    args.add("--remote-exec-path=", exe.c_str());
+    args.add("--remote-CA-host=", "localhost");
+    auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+    bool r = proc->wait(ret, 5000);
+    if (!r) proc->stop();
+    CHECK(r);
+    CHECK(ret == 0);
+  }
+  CHECK(check_cert(wd, Node::Type::DB));
 
-  CHECK(ret == 0);
+  /* Sign again, this time using openssl. ndb_sign_keys is called with
+     the --remote-openssl option, and with --CA-cert and --CA-key holding
+     the full paths to the CA PEM files on the remote server.
+  */
+  {
+    BaseString ca_cert(wd.path());
+    ca_cert.append(DIR_SEPARATOR).append(ClusterCertAuthority::CertFile);
+    BaseString ca_key(wd.path());
+    ca_key.append(DIR_SEPARATOR).append(ClusterCertAuthority::KeyFile);
+
+    args.clear();
+    args.add("--config-file=", cfg_path.c_str());
+    args.add("--passphrase=", "Trondheim");
+    args.add("--ndb-tls-search-path=", wd.path());
+    args.add("--remote-openssl");
+    args.add("--remote-CA-host=", "localhost");
+    args.add("--CA-cert=", ca_cert.c_str());
+    args.add("--CA-key=", ca_key.c_str());
+    auto proc = NdbProcess::create("OpenSSL", exe, wd.path(), args);
+    bool r = proc->wait(ret, 5000);
+    if (!r) proc->stop();
+    CHECK(r);
+    CHECK(ret == 0);
+  }
+  CHECK(check_cert(wd, Node::Type::DB));
+
+  /* Prove that the certificates created above are usable, by starting the mgmd.
+   */
+  args.clear();
+  Mgmd mgmd(1);
+  mgmd.common_args(args, wd.path());
+  args.add("--ndb-tls-search-path=", wd.path());
+  CHECK(mgmd.start(wd.path(), args));
+  CHECK(mgmd.connect(config, 1, 5));
+  CHECK(mgmd.wait_confirmed_config());
+  CHECK(mgmd.stop());
+
   return NDBT_OK;
 }
 

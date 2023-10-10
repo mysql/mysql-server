@@ -79,9 +79,9 @@ class NdbProcess {
     void add(const char *str);
     void add(const char *str, const char *str2);
     void add(const char *str, int val);
-    void add(Uint64 val);
     void add(const Args &args);
     const Vector<BaseString> &args(void) const { return m_args; }
+    void clear() { m_args.clear(); }
   };
 
   ~NdbProcess() { assert(!running()); }
@@ -189,12 +189,6 @@ inline void NdbProcess::Args::add(const char *str, int val) {
   m_args.push_back(tmp);
 }
 
-inline void NdbProcess::Args::add(Uint64 val) {
-  BaseString tmp;
-  tmp.assfmt("%ju", uintmax_t{val});
-  m_args.push_back(tmp);
-}
-
 inline void NdbProcess::Args::add(const Args &args) {
   for (unsigned i = 0; i < args.m_args.size(); i++) add(args.m_args[i].c_str());
 }
@@ -262,15 +256,20 @@ inline bool NdbProcess::wait(int &ret, int timeout) {
 inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
                                       const char *cwd, const Args &args,
                                       Pipes *pipes) {
-  /* Extract the command name from the full path, then append the arguments */
+  /* Extract the command name from the full path */
   std::filesystem::path cmdName(std::filesystem::path(path).filename());
   BaseString cmdLine(cmdName.string().c_str());
-  BaseString argStr;
-  argStr.assign(args.args(), " ");
-  cmdLine.append(" ");
-  cmdLine.append(argStr);
-  char *command_line = strdup(cmdLine.c_str());
 
+  /* Quote each argument, and append it to the command line */
+  for (uint i = 0; i < args.length(); i++) {
+    bool doQuote = strchr(args[i].c_str(), ' ');
+    cmdLine.append(" ");
+    if (doQuote) cmdLine.append("\"");
+    cmdLine.append(args[i]);
+    if (doQuote) cmdLine.append("\"");
+  }
+
+  char *command_line = strdup(cmdLine.c_str());
   STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
@@ -419,7 +418,7 @@ inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
   char **argv = BaseString::argify(path, args_str.c_str());
   execvp(path, argv);
 
-  fprintf(stderr, "execv failed, errno: %d\n", errno);
+  fprintf(stderr, "execv failed, error %d '%s'\n", errno, strerror(errno));
   exit(1);
 }
 

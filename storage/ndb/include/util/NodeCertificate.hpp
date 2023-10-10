@@ -334,11 +334,21 @@ inline SigningRequest *SigningRequest::open(const PkiFile::PathName &p) {
 
 class SerialNumber {
  public:
-  static constexpr const size_t MaxLength = 20;
-  // Create a random serial number; caller should free using ASN1_STRING_free()
+  static constexpr size_t MaxLengthInBytes = 20;
   static struct asn1_string_st *random(size_t length = 10);
   static int print(char *buf, int len, const struct asn1_string_st *);
+  static std::string_view print_0x(const asn1_string_st *serial);
   static void free(struct asn1_string_st *);
+
+  class HexString {
+   public:
+    HexString(const struct asn1_string_st *);
+    const char *c_str() { return buf.c_str(); }
+
+   private:
+    static constexpr size_t Length = 2 + (MaxLengthInBytes * 2) + 1;
+    cstrbuf<Length> buf;
+  };
 };
 
 class ClusterCertAuthority {

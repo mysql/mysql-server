@@ -560,8 +560,8 @@ bool SigningRequest::parse_name() {
  *    SerialNumber class
  */
 ASN1_STRING *SerialNumber::random(size_t length) {
-  unsigned char buff[MaxLength];
-  if (length > MaxLength) length = MaxLength;
+  unsigned char buff[MaxLengthInBytes];
+  if (length > MaxLengthInBytes) length = MaxLengthInBytes;
   if (RAND_bytes(buff, length) != 1) return nullptr;
   ASN1_INTEGER *serial = ASN1_STRING_type_new(V_ASN1_INTEGER);
   ASN1_STRING_set(serial, buff, length);
@@ -577,6 +577,14 @@ int SerialNumber::print(char *buf, int len, const ASN1_STRING *serial) {
 }
 
 void SerialNumber::free(ASN1_STRING *serial) { ASN1_STRING_free(serial); }
+
+SerialNumber::HexString::HexString(const ASN1_STRING *serial) {
+  buf.append("0x");
+  int truncated = 0;
+  for (int i = 0; i < serial->length; i++)
+    truncated = buf.appendf("%02x", serial->data[i]);
+  assert(!truncated);
+}
 
 /*
  *    Certificate class
