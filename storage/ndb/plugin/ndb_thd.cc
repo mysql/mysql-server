@@ -48,6 +48,12 @@ Ndb *check_ndb_in_thd(THD *thd, bool validate_ndb) {
     if (!thd_ndb->recycle_ndb()) return nullptr;
   }
 
+  DBUG_ASSERT(thd->override_slave_filtering ==
+              THD::NO_OVERRIDE_SLAVE_FILTERING ||
+              (thd->override_slave_filtering ==
+               THD::OVERRIDE_SLAVE_FILTERING &&
+               thd->slave_thread));
+
   return thd_ndb->ndb;
 }
 

@@ -289,8 +289,29 @@ void ThreadContext::deserialize_users(std::string &str) {
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
   assert(m_closed);
+
+  /* Many queries can be ignored if we are a slave thread. Since this query is
+     executed for internal purposes, we always want it to execute. We therefore
+     set a flag to override suppression of query execution in slave thread. */
+  DBUG_ASSERT(m_thd->override_slave_filtering ==
+              THD::NO_OVERRIDE_SLAVE_FILTERING);
+  if(m_thd->slave_thread) {
+    m_thd->override_slave_filtering = THD::OVERRIDE_SLAVE_FILTERING;
+  }
+
   /* execute_query_iso() returns false on success */
   m_closed = execute_query_iso(statement, nullptr);
+
+  /* Restore the flag for overriding suppression of query execution */
+  if(m_thd->slave_thread) {
+    DBUG_ASSERT(m_thd->override_slave_filtering ==
+                THD::OVERRIDE_SLAVE_FILTERING);
+    m_thd->override_slave_filtering = THD::NO_OVERRIDE_SLAVE_FILTERING;
+  } else {
+    DBUG_ASSERT(m_thd->override_slave_filtering ==
+                THD::NO_OVERRIDE_SLAVE_FILTERING);
+  }
+
   return m_closed;
 }
 

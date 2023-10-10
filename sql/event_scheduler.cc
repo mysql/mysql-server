@@ -219,6 +219,7 @@ void pre_init_event_thread(THD *thd) {
   thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
   thd->get_protocol_classic()->get_net()->read_timeout = replica_net_timeout;
   thd->slave_thread = false;
+  thd->override_slave_filtering = THD::NO_OVERRIDE_SLAVE_FILTERING;
   thd->variables.option_bits |= OPTION_AUTO_IS_NULL;
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
 
