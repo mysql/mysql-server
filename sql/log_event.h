@@ -1390,7 +1390,7 @@ class Query_log_event : public virtual binary_log::Query_event,
     if (data_buf) my_free(data_buf);
   }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1551,7 +1551,7 @@ class Format_description_log_event : public Format_description_event,
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  protected:
 #if defined(MYSQL_SERVER)
@@ -1605,7 +1605,7 @@ class Intvar_log_event : public binary_log::Intvar_event, public Log_event {
                    const Format_description_event *description_event);
   ~Intvar_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override {
     return 9; /* sizeof(type) + sizeof(val) */
@@ -1670,7 +1670,7 @@ class Rand_log_event : public binary_log::Rand_event, public Log_event {
                  const Format_description_event *description_event);
   ~Rand_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
@@ -1754,7 +1754,7 @@ class Xid_log_event : public binary_log::Xid_event, public Xid_apply_log_event {
                 const Format_description_event *description_event);
   ~Xid_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override { return sizeof(xid); }
 #ifdef MYSQL_SERVER
@@ -1807,7 +1807,7 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
     return xid_bufs_size + my_xid.gtrid_length + my_xid.bqual_length;
   }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1866,7 +1866,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
                      const Format_description_event *description_event);
   ~User_var_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1923,7 +1923,7 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
 
   ~Stop_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   Log_event_type get_type_code() const override {
     return binary_log::STOP_EVENT;
@@ -1986,7 +1986,7 @@ class Rotate_log_event : public binary_log::Rotate_event, public Log_event {
     return ident_len + Binary_log_event::ROTATE_HEADER_LEN;
   }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -2040,7 +2040,7 @@ class Append_block_log_event : public virtual binary_log::Append_block_event,
                          const Format_description_event *description_event);
   ~Append_block_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override {
     return block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN;
@@ -2102,7 +2102,7 @@ class Delete_file_log_event : public binary_log::Delete_file_event,
                         const Format_description_event *description_event);
   ~Delete_file_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override {
     return Binary_log_event::DELETE_FILE_HEADER_LEN;
@@ -2170,7 +2170,7 @@ class Begin_load_query_log_event : public Append_block_log_event,
                              const Format_description_event *description_event);
   ~Begin_load_query_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  private:
 #if defined(MYSQL_SERVER)
@@ -2242,7 +2242,7 @@ class Execute_load_query_log_event
 
   bool is_sbr_logging_format() const override { return true; }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  private:
 #if defined(MYSQL_SERVER)
@@ -2376,7 +2376,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
   Table_map_log_event(const char *buf,
                       const Format_description_event *description_event);
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   ~Table_map_log_event() override;
 
@@ -3211,7 +3211,7 @@ class Write_rows_log_event : public Rows_log_event,
   }
 #endif
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  protected:
   int write_row(const Relay_log_info *const, const bool);
@@ -3309,7 +3309,7 @@ class Update_rows_log_event : public Rows_log_event,
   }
 #endif
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  protected:
   Log_event_type get_general_type_code() override {
@@ -3415,7 +3415,7 @@ class Delete_rows_log_event : public Rows_log_event,
   }
 #endif
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
  protected:
   Log_event_type get_general_type_code() override {
@@ -3509,7 +3509,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
 
   ~Incident_log_event() override;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
@@ -3573,7 +3573,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
                       const Format_description_event *descr_event);
   ~Ignorable_log_event() override;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *) override;
@@ -3648,7 +3648,7 @@ class Rows_query_log_event : public Ignorable_log_event,
   Rows_query_log_event(const char *buf,
                        const Format_description_event *descr_event);
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   ~Rows_query_log_event() override {
     if (m_rows_query) my_free(m_rows_query);
@@ -3749,7 +3749,7 @@ class Transaction_payload_log_event
 
   ~Transaction_payload_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
@@ -3834,7 +3834,7 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
 
   ~Gtid_log_event() override = default;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
@@ -4030,7 +4030,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
 
   size_t get_data_size() override { return buf_size; }
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
@@ -4163,7 +4163,7 @@ class Transaction_context_log_event
 
   ~Transaction_context_log_event() override;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override;
 
@@ -4285,7 +4285,7 @@ class View_change_log_event : public binary_log::View_change_event,
 
   ~View_change_log_event() override;
 
-  virtual void claim_memory_ownership(bool claim) override;
+  void claim_memory_ownership(bool claim) override;
 
   size_t get_data_size() override;
 
