@@ -26,7 +26,7 @@ GRANT R2 TO ndb_u2@a, local_u2@a;
 GRANT SELECT,INSERT,DELETE ON auth_test_db.t2 to R3, L3;
 GRANT SELECT ON auth_test_db.t1 to ndb_u1@a;
 GRANT SELECT ON auth_test_db.t1 to local_u1@a;
-GRANT INSERT ON auth_test_db.t1 to local_u2@a;
+GRANT SELECT ON auth_test_db.t1 to local_u2@a;
 GRANT SELECT,INSERT ON auth_test_db.t1 to ndb_u2@a,  ndb_u3@a, local_u3@a;
 GRANT ALL ON auth_test_db.* to ndb_u4@a;
 GRANT UPDATE ON auth_test_db.t2 to ndb_u2@a;
