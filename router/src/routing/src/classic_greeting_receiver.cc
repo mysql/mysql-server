@@ -761,15 +761,6 @@ ClientGreetor::authenticated() {
       tr.trace(Tracer::Event().stage("greeting::error"));
     }
 
-    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-      // RouterRoutingTest.RoutingTooManyServerConnections expects this
-      // message.
-      log_debug(
-          "Error from the server while waiting for greetings message: "
-          "%u, '%s'",
-          connect_err_.error_code(), connect_err_.message().c_str());
-    }
-
     stage(Stage::Error);
 
     auto send_res =
