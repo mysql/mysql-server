@@ -26,9 +26,10 @@
 #include <gtest/gtest.h>
 #include "helper/string/contains.h"
 #include "helper/string/hex.h"
+#include "helper/string/trim.h"
 #include "mrs/database/entry/auth_user.h"
 
-using namespace helper::string;
+using helper::string::hex;
 
 TEST(helper_string, hex_c_array_one_byte_with_zeros1) {
   uint8_t buffer[1]{0x0A};
@@ -116,7 +117,7 @@ TEST(helper_string_ends_with, basic) {
   ASSERT_TRUE(helper::ends_with("my first string", "my first string"));
 }
 
-TEST(helper_string_unhex, first) {
+TEST(helper_string_unhex, basic) {
   auto user_id =
       helper::string::unhex<UserIdContainer>("11ed67759d414ca7b69502001709c99c")
           .get_user_id();
@@ -126,3 +127,70 @@ TEST(helper_string_unhex, first) {
   ASSERT_EQ(0x67, user_id.raw[2]);
   ASSERT_EQ("11ed67759d414ca7b69502001709c99c", user_id.to_string());
 }
+
+using Function = void (*)(std::string *);
+using MakeFunction = std::string (*)(const std::string &);
+
+template <Function f>
+std::string test_make(const std::string &str) {
+  std::string result = str;
+  f(&result);
+  return result;
+}
+
+class StringTrimSuite : public testing::TestWithParam<MakeFunction> {
+ public:
+  void SetUp() override { sut_ = GetParam(); }
+
+  MakeFunction sut_;
+};
+
+class LeftStringTrimSuite : public StringTrimSuite {};
+
+TEST_P(LeftStringTrimSuite, basic) {
+  ASSERT_EQ("", sut_(""));
+  ASSERT_EQ("", sut_("   "));
+  ASSERT_EQ("first", sut_(" first"));
+  ASSERT_EQ("first", sut_("     first"));
+  ASSERT_EQ("first   ", sut_(" first   "));
+  ASSERT_EQ("a   second", sut_("     a   second"));
+  ASSERT_EQ("a   second   ", sut_("     a   second   "));
+}
+
+INSTANTIATE_TEST_SUITE_P(Instantation, LeftStringTrimSuite,
+                         testing::Values(test_make<helper::left>,
+                                         helper::make_left));
+
+class RightStringTrimSuite : public StringTrimSuite {};
+
+TEST_P(RightStringTrimSuite, basic) {
+  ASSERT_EQ("", sut_(""));
+  ASSERT_EQ("", sut_("   "));
+  ASSERT_EQ(" first", sut_(" first"));
+  ASSERT_EQ("first", sut_("first "));
+  ASSERT_EQ("first", sut_("first    "));
+  ASSERT_EQ(" first", sut_(" first   "));
+  ASSERT_EQ("a   second", sut_("a   second   "));
+  ASSERT_EQ("   a   second", sut_("   a   second   "));
+}
+
+INSTANTIATE_TEST_SUITE_P(Instantation, RightStringTrimSuite,
+                         testing::Values(test_make<helper::right>,
+                                         helper::make_right));
+
+class TrimStringTrimSuite : public StringTrimSuite {};
+
+TEST_P(TrimStringTrimSuite, basic) {
+  ASSERT_EQ("", sut_(""));
+  ASSERT_EQ("", sut_("   "));
+  ASSERT_EQ("first", sut_(" first"));
+  ASSERT_EQ("first", sut_("first "));
+  ASSERT_EQ("first", sut_("first    "));
+  ASSERT_EQ("first", sut_(" first   "));
+  ASSERT_EQ("a   second", sut_("a   second   "));
+  ASSERT_EQ("a   second", sut_("   a   second   "));
+}
+
+INSTANTIATE_TEST_SUITE_P(Instantation, TrimStringTrimSuite,
+                         testing::Values(test_make<helper::trim>,
+                                         helper::make_trim));

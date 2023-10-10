@@ -333,6 +333,85 @@ GET /svc/test/num
 OK
 
 #
+# III.3
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": -10,
+            "d": -15923,
+            "id": -10,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+            }
+        },
+        {
+            "b": 1,
+            "d": 0,
+            "id": 0,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "5DD0A16A9D4E386ECA2700732A8DED0CFE0AD0EBBB45F5EEBDDECF6A99A05E12"
+            }
+        },
+        {
+            "b": 10,
+            "d": 10,
+            "id": 10,
+            "ub": 10,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "E3AFC46F9A38692CCE34ABA118988EB4A735C0B79A74D6B1AC0F7217421F57C3"
+            }
+        },
+        {
+            "b": 9223372036854775807,
+            "d": 15923,
+            "id": 2147483647,
+            "ub": 18446744073709551615,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+
+#
 # IV.1
 GET /svc/test/num/-10
 {
