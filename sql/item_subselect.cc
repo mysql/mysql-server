@@ -2735,16 +2735,17 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
   auto *info = pointer_cast<Collect_scalar_subquery_info *>(arg);
   Item *i = unit->first_query_block()->single_visible_field();
 
+  // Skip transformations for row subqueries:
+  if (i == nullptr) return false;
+
   if (!info->m_collect_unconditionally) {
-    // Skip transformation if more than one column is selected [1]
-    // or column contains a non-deterministic function [3]
-    // Also exclude scalar subqueries with references to outer query blocks [2]
-    // and Item_maxmin_subselect (ALL/ANY -> MAX/MIN transform artifact) [4]
+    // Skip transformation if column contains a non-deterministic function [2]
+    // Also exclude scalar subqueries with references to outer query blocks [1]
+    // and Item_maxmin_subselect (ALL/ANY -> MAX/MIN transform artifact) [3]
     // Merely correlation to the current query block are ok
-    if (i == nullptr ||                                    // [1]
-        info->is_stopped(this) || is_outer_reference() ||  // [2]
-        is_non_deterministic() ||                          // [3]
-        is_maxmin()) {                                     // [4]
+    if (info->is_stopped(this) || is_outer_reference() ||  // [1]
+        is_non_deterministic() ||                          // [2]
+        is_maxmin()) {                                     // [3]
       return false;
     }
   }
