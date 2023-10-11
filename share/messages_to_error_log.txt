@@ -11124,7 +11124,7 @@ ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST
 ER_RPL_ASYNC_CHANNEL_CANT_CONNECT_NO_QUORUM
   eng "The IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
 
-ER_RPL_ASYNC_EXECUTING_QUERY
+OBSOLETE_ER_RPL_ASYNC_EXECUTING_QUERY
   eng "%s on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
 
 ER_RPL_REPLICA_MONITOR_IO_THREAD_EXITING
@@ -12552,6 +12552,18 @@ ER_GROUP_REPLICATION_RECOVERY_STOPPED_GTID_PRESENT
 
 ER_IB_MSG_DDL_FAIL_NO_BUILDER
   eng "DDL Failed as Builder is already freed"
+
+ER_RPL_ASYNC_CHECK_CONNECTION_ERROR
+  eng "The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: %s. The query failed to execute on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_ASYNC_MONITOR_IO_THD_FETCH_GROUP_MAJORITY_ERROR
+  eng "The Monitor IO thread failed to detect if the source belongs to the group majority. Error: %s. The query failed to execute on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_ASYNC_REPLICA_IO_THD_FETCH_GROUP_MAJORITY_ERROR
+  eng "The replica IO thread failed to detect if the source belongs to the group majority. Error: %s. The query failed to execute on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_ASYNC_GET_GROUP_MEMBERSHIP_DETAILS_ERROR
+  eng "The Monitor IO thread failed to get group membership details. Error: %s. The query failed to execute on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

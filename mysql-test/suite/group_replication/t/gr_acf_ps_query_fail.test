@@ -132,7 +132,7 @@ SET sql_log_bin=1;
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.replication_asynchronous_connection_failover, count, 1]= 2
 --source include/assert.inc
 
---let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-013684' AND data LIKE "The IO thread failed to detect if the source belongs to the group majority on the source % for channel 'ch1_3'."
+--let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-015089' AND data LIKE "The replica IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user'@%' for table 'replication_group_members'. The query failed to execute on the source % for channel 'ch1_3'."
 --source include/wait_condition.inc
 
 
@@ -182,7 +182,7 @@ call mtr.add_suppression("The source (.*) does not belong to the group majority,
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1_3', thence it will try to connect to another source.");
-call mtr.add_suppression("The .* thread failed to detect if the source belongs to the group majority on the source .* for channel.*");
+call mtr.add_suppression("The .* thread failed to detect if the source belongs to the group majority.*");
 SET SESSION sql_log_bin = 1;
 
 --source include/group_replication_end.inc

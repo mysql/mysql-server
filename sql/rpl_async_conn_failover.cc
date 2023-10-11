@@ -325,10 +325,8 @@ Async_conn_failover_manager::get_source_quorum_status(MYSQL *mysql,
       mi->set_network_error();
       quorum_status = SourceQuorumStatus::transient_network_error;
     } else {
-      LogErr(WARNING_LEVEL, ER_RPL_ASYNC_EXECUTING_QUERY,
-             "The IO thread failed to detect if the source belongs to the "
-             "group majority",
-             mi->host, mi->port, "", mi->get_channel());
+      Async_conn_failover_manager::log_error_for_async_executing_query_failure(
+          ER_RPL_ASYNC_REPLICA_IO_THD_FETCH_GROUP_MAJORITY_ERROR, mysql, mi);
       quorum_status = SourceQuorumStatus::fatal_error;
     }
   }

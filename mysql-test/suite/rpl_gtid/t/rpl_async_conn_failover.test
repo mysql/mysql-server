@@ -72,6 +72,10 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
+SET SESSION sql_log_bin = 1;
+
 SET @old_debug= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
 

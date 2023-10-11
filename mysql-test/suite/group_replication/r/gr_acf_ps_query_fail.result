@@ -87,6 +87,6 @@ call mtr.add_suppression("The source (.*) does not belong to the group majority,
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1_3', thence it will try to connect to another source.");
-call mtr.add_suppression("The .* thread failed to detect if the source belongs to the group majority on the source .* for channel.*");
+call mtr.add_suppression("The .* thread failed to detect if the source belongs to the group majority.*");
 SET SESSION sql_log_bin = 1;
 include/group_replication_end.inc

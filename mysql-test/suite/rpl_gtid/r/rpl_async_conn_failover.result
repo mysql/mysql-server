@@ -20,6 +20,9 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc
 [connection server_4]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
+SET SESSION sql_log_bin = 1;
 SET @old_debug= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
 include/assert.inc ['There is one row on replica']

@@ -9,6 +9,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    connected to server_1.
 #
 [connection server_2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
+SET SESSION sql_log_bin = 1;
 include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #
 # 2. Enable Asynchronous Replication Connection Failover and set retry
