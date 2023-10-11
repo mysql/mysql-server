@@ -136,7 +136,6 @@
   easier to read and review your code.
 
   - @subpage GENERAL_DEVELOPMENT_GUIDELINES
-  - @subpage CPP_CODING_GUIDELINES_FOR_NDB_SE
   - @subpage DBUG_TAGS
 
 */
