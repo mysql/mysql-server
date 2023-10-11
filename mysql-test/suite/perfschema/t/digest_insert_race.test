@@ -38,12 +38,14 @@ SET DEBUG_SYNC='now SIGNAL continue';
 
 # This uses a full table scan.
 # Expect only one row for `SET `DEBUG_SYNC`.
+--sorted_result
 SELECT schema_name, digest, digest_text, count_star
   FROM performance_schema.events_statements_summary_by_digest USE INDEX()
   where schema_name = 'test';
 
 # This uses an index scan (key SCHEMA_NAME)
 # Expect only one row for `SET `DEBUG_SYNC`, not 2.
+--sorted_result
 SELECT schema_name, digest, digest_text, count_star
   FROM performance_schema.events_statements_summary_by_digest
   WHERE schema_name = 'test';
