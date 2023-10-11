@@ -24,14 +24,14 @@
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <DbUtil.hpp>
+#include "SqlClient.hpp"
 #include <AtrtClient.hpp>
 
 #include <NdbRestarts.hpp>
 
 
 int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   if (!sql.doQuery("CREATE TABLE reconnect ("
                    "pk bigint, "
@@ -44,7 +44,7 @@ int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   if (!sql.doQuery("DROP TABLE IF EXISTS reconnect"))
     return NDBT_FAILED;
@@ -56,7 +56,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
                   const char* query)
 {
   int result = -1;
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   unsigned failed = 0;
   unsigned i = 0;
@@ -65,11 +65,12 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
   {
     Properties args;
     args.put("0", i);
-    if (!sql.doQuery(query, args))
+    SqlResultSet resultSet;
+    if (!sql.doQuery(query, args, resultSet))
     {
-      switch(sql.last_errno()){
+      switch(resultSet.mysqlErrno()){
       case 2006: // MySQL server has gone away(ie. crash)
-        g_err << "Fatal error: " << sql.last_error() << endl;
+        g_err << "Fatal error: " << resultSet.mysqlError() << endl;
         g_err.print("query: %s", query);
         result = NDBT_FAILED;
         break;
@@ -81,7 +82,6 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
     }
     else
       g_info << query << endl;
-    sql.silent(); // Late, to catch any SQL syntax errors
     i++;
 
     if (ctx->isTestStopped())
@@ -100,10 +100,10 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
         if (extra_loops < 10)
         {
           // Check that last query succeeded
-          if (sql.last_errno() != 0)
+          if (resultSet.mysqlErrno() != 0)
           {
             g_err << "Fatal error during shutdown queries: "
-                  << sql.last_error() << endl;
+                  << resultSet.mysqlError() << endl;
             g_err.print("query: %s", query);
             result = NDBT_FAILED;
           }
@@ -204,7 +204,7 @@ TESTCASE("AllAndRestart",
   STEP(runRestartCluster);
 }
 
-NDBT_TESTSUITE_END(testReconnect);
+NDBT_TESTSUITE_END(testReconnect)
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -23,13 +23,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef SQL_CLIENT_HPP
-#define SQL_CLIENT_HPP
+// Interface for the database utilities class that supplies an object
+// oriented way to work with MySQL in test applications
 
-#include <Vector.hpp>
+#ifndef NDB_SQL_CLIENT_HPP
+#define NDB_SQL_CLIENT_HPP
+
+#include <string_view>
+
 #include <BaseString.hpp>
 #include <Properties.hpp>
-#include <mysql.h>
+
+struct MYSQL;
 
 class SqlResultSet : public Properties {
 public:
@@ -37,27 +42,32 @@ public:
   // Get row with number
   bool get_row(int row_num);
   // Load next row
-  bool next(void);
+  bool next();
   // Reset iterator
-  void reset(void);
+  void reset();
   // Remove current row from resultset
   void remove();
+  // Clear result
+  void clear();
 
   SqlResultSet();
   ~SqlResultSet();
 
   const char* column(const char* col_name);
+  std::string_view columnAsString(const char* col_name);
   uint columnAsInt(const char* col_name);
+  unsigned long long columnAsLong(const char* col_name);
 
-  uint insertId();
-  uint affectedRows();
-  uint numRows(void);
+  unsigned long long insertId();
+  unsigned long long affectedRows();
+  uint numRows();
   uint mysqlErrno();
   const char* mysqlError();
   const char* mysqlSqlstate();
 
 private:
   uint get_int(const char* name);
+  unsigned long long get_long(const char* name);
   const char* get_string(const char* name);
 
   const Properties* m_curr_row;
@@ -65,43 +75,92 @@ private:
 };
 
 
-class SqlClient {
+class SqlClient
+{
 public:
+
+  /*
+   The SqlClient class can be used in two modes.
+    1) The class owns its MySQL object which it will create,
+       connect and release.
+    2) The class only uses a MYSQL object which is passed in by the
+       caller, in this mode it's assumed that the MYSQL object has been
+       created and is connected. The class will not release the MySQL
+       object (since it's not owned by the class).
+   */
   SqlClient(MYSQL* mysql);
-  SqlClient(const char* _user= "root",
-             const char* _password= "",
-             const char* _suffix= 0);
+  SqlClient(const char* dbname = "mysql",
+         const char* suffix = NULL);
   ~SqlClient();
 
   bool doQuery(const char* query);
   bool doQuery(const char* query, SqlResultSet& result);
   bool doQuery(const char* query, const Properties& args, SqlResultSet& result);
+  bool doQuery(const char* query, const Properties& args);
 
   bool doQuery(BaseString& str);
   bool doQuery(BaseString& str, SqlResultSet& result);
   bool doQuery(BaseString& str, const Properties& args, SqlResultSet& result);
+  bool doQuery(BaseString& str, const Properties& args);
 
-  bool waitConnected(int timeout);
+  bool waitConnected(int timeout = 120);
+
+  unsigned long long selectCountTable(const char * table);
+
+  /*
+     Usage of SqlClient initializes the MySQL library and allocates resources in
+     the thread that need to be released.
+     */
+  static void thread_end();
+
+  // Helper which run thread_end() when going out of scope, should be used
+  // when using SqlClient in more than on thread.
+  struct ThreadScopeGuard {
+    ~ThreadScopeGuard() { thread_end(); }
+  };
 
 protected:
+  /**
+    Run query using prepared statement interface, this allow the query to
+    contain placeholders (i.e '?') which are replaced by arguments in "arg".
 
-  bool runQuery(const char* query,
-               const Properties& args,
-               SqlResultSet& rows);
+    @param query The SQL query to run
+    @param args List of query placeholder arguments
+    @param rows The resultset from running the query
+
+    @return true on success and false on error.
+
+  */
+  bool runQuery(const char *query, const Properties &args, SqlResultSet &rows);
+
+  /**
+    Run query using basic interface
+
+    @param query The SQL query to run
+    @param rows The resultset from running the query
+
+    @return true on success and false on error.
+
+   */
+  bool runQueryBasic(const char *query, SqlResultSet &rows);
 
   bool isConnected();
 
-  int connect();
+private:
+  MYSQL * m_mysql{nullptr};
+  const bool m_owns_mysql{true}; // The MYSQL object is owned by this class
+
+  const BaseString m_user;    // MySQL User
+  const BaseString m_pass;    // MySQL User Password
+  const BaseString m_dbname;  // Database to use
+  BaseString m_default_file;
+  BaseString m_default_group;
+
+  bool connect();
   void disconnect();
 
-protected:
-  bool connected;
-  MYSQL* mysql;
-  bool free_mysql; /* Don't free mysql* if allocated elsewhere */
-  BaseString default_file;
-  BaseString default_group;
-  BaseString user;
-  BaseString password;
+  void report_error(const char* message) const;
+  void printError(const char *msg) const;
 };
-
 #endif
+

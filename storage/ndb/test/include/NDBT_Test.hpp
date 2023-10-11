@@ -144,7 +144,6 @@ private:
   Vector<const NdbDictionary::Table*> tables;
   NDBT_TestSuite* suite;
   NDBT_TestCase* testcase;
-  Ndb* ndb;
   int records;
   int loops;
   bool stopped;
@@ -153,7 +152,7 @@ private:
   NdbCondition* propertyCondPtr;
 
   int m_env_timeout;
-  Uint64 m_test_start_time;
+  const Uint64 m_test_start_time;
 };
 
 typedef int (NDBT_TESTFUNC)(NDBT_Context*, NDBT_Step*);

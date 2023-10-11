@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ INCLUDE_DIRECTORIES(
 ADD_LIBRARY(ndbNDBT STATIC
   AtrtClient.cpp
   CpcClient.cpp
-  DbUtil.cpp
+  SqlClient.cpp
   HugoAsynchTransactions.cpp
   HugoCalculator.cpp
   HugoOperations.cpp

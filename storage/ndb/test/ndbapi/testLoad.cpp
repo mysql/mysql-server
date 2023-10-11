@@ -34,13 +34,10 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
-#include "mysql/strings/m_ctype.h"
-#include "my_sys.h"
 #include <ndb_rand.h>
 #include <NdbHost.h>
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
-#include <DbUtil.hpp>
 
 #define PK_READ_LOCK 0
 #define PK_INSERT 1

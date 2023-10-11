@@ -228,6 +228,16 @@ void Ndb_opts::usage() const
   ndb_usage(short_usage_fn, mycnf_default_groups, options);
 }
 
+const char *Ndb_opts::get_defaults_extra_file() const {
+  return my_defaults_extra_file;
+}
+
+const char *Ndb_opts::get_defaults_file() const { return my_defaults_file; }
+
+const char *Ndb_opts::get_defaults_group_suffix() const {
+  return my_defaults_group_suffix;
+}
+
 // ndb_option
 
 ndb_option* ndb_option::m_first = nullptr;
