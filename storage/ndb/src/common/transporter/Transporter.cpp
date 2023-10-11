@@ -47,7 +47,7 @@
 #define DEBUG_FPRINTF(a)
 #endif
 
-//#define DEBUG_MULTI_TRP 1
+// #define DEBUG_MULTI_TRP 1
 
 #ifdef DEBUG_MULTI_TRP
 #define DEB_MULTI_TRP(arglist)   \
@@ -324,15 +324,18 @@ bool Transporter::connect_client() {
       struct ssl_st *ssl = NdbSocket::get_client_ssl(ctx);
       if (ssl == nullptr) {
         tls_error(TlsKeyError::no_local_cert);
+        secureSocket.close();
         DBUG_RETURN(false);
       }
       if (!secureSocket.associate(ssl)) {
         tls_error(TlsKeyError::openssl_error);
         NdbSocket::free_ssl(ssl);
+        secureSocket.close();
         DBUG_RETURN(false);
       }
       if (!secureSocket.do_tls_handshake()) {
         tls_error(TlsKeyError::authentication_failure);
+        // secureSocket closed by do_tls_handshake
         DBUG_RETURN(false);
       }
 
@@ -341,6 +344,7 @@ bool Transporter::connect_client() {
           TlsKeyManager::check_server_host_auth(secureSocket, remoteHostName);
       if (auth) {
         tls_error(auth);
+        secureSocket.close();
         DBUG_RETURN(false);
       }
     }

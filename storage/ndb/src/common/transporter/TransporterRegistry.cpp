@@ -129,13 +129,22 @@ SocketServer::Session *TransporterService::newSession(
       struct ssl_ctx_st *ctx = m_transporter_registry->m_tls_keys.ctx();
       struct ssl_st *ssl = NdbSocket::get_server_ssl(ctx);
       if (ssl == nullptr) {
+        DEBUG_FPRINTF((stderr,
+                       "Failed to authenticate new session, no server "
+                       "cerificate\n"));
+        secureSocket.close_with_reset();
         DBUG_RETURN(nullptr);
       }
       if (!secureSocket.associate(ssl)) {
+        DEBUG_FPRINTF((stderr,
+                       "Failed to authenticate new session, fail to "
+                       "associate certificate with connection\n"));
         NdbSocket::free_ssl(ssl);
+        secureSocket.close_with_reset();
         DBUG_RETURN(nullptr);
       }
       if (!secureSocket.do_tls_handshake()) {
+        // secureSocket closed by do_tls_handshake
         DBUG_RETURN(nullptr);
       }
     }
