@@ -88,15 +88,16 @@ class NdbLinkedOperandImpl;
  *  for most buffer usage. If required it will allocate a buffer extension to
  *  satisfy larger buffer requests.
  *
- * NOTE: When buffer grows, it contents may be relocated ta another memory area.
- *       Pointers returned to ::alloc'ed objects or ::addr() request are
- * therefore not valid after another ::append() or ::alloc() has been performed.
- *       If pointer persistency is required, use ::getSize() to store the
- * current end of buffer before the persistent object is allocated or appended.
- *       You may then later use 'size' as a handle to ::addr() to get the
- * address.
+ * NOTE:
+ * When buffer grows, it contents may be relocated ta another memory area.
+ * Pointers returned to ::alloc'ed objects or ::addr() request are therefore
+ * not valid after another ::append() or ::alloc() has been performed. If
+ * pointer persistency is required, use ::getSize() to store the current end
+ * of buffer before the persistent object is allocated or appended. You may
+ * then later use 'size' as a handle to ::addr() to get the address.
  *
- * NOTE: If memory allocation fails during append / alloc, a 'memoryExhausted'
+ * NOTE:
+ * If memory allocation fails during append / alloc, a 'memoryExhausted'
  * state is set. Further allocation or append will then fail or be ignored.
  * Before using the contents in the Uint32Buffer, always check
  * ::isMemoryExhausted() to validate the contents of your buffer.

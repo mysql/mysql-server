@@ -86,9 +86,9 @@ struct Ndb_free_list_t {
    * 3) Other peak values, less than the current mean:
    *    These are observed over a period of such smaller peaks, and their
    *    max value collected in 'm_sample_max'. When the windows size has
-   * expired, the 'm_sample_max' value is sampled. Intention with this heuristic
-   * is that temporary reduced usage of objects should be ignored, but longer
-   * term changes should be acounted for.
+   *    expired, the 'm_sample_max' value is sampled. Intention with this
+   *    heuristic is that temporary reduced usage of objects should be
+   *    ignored, but longer term changes should be acounted for.
    *
    * When we have taken a valid sample, we use the statistics to calculate the
    * 95% percentile for max objects in use of 'class T'.

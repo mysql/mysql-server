@@ -442,7 +442,7 @@ class NdbQueryImpl {
 
   /** Current global cursor position. Refers the current NdbQueryOperation which
    *  should be advanced to 'next' position for producing a new global set of
-   * results.
+   *  results.
    */
   Uint32 m_globalCursor;
 
@@ -471,7 +471,7 @@ class NdbQueryImpl {
   NdbWorker *m_workers;
 
   /** Root fragments that the application is currently iterating over. Only
-   * accessed by application thread.
+   *  accessed by application thread.
    */
   OrderedFragSet m_applFrags;
 
@@ -504,9 +504,9 @@ class NdbQueryImpl {
   bool m_commitIndicator;
 
   /** This field tells if the root operation is a prunable range scan. A range
-   * scan is pruned if the ranges are such that only a subset of the fragments
-   * need to be scanned for matching tuples. (Currently, pushed scans can only
-   * be pruned if is there is a single range that maps to a single fragment.
+   *  scan is pruned if the ranges are such that only a subset of the fragments
+   *  need to be scanned for matching tuples. (Currently, pushed scans can only
+   *  be pruned if is there is a single range that maps to a single fragment.
    */
   enum {
     /** Call NdbQueryOperationDef::checkPrunable() to determine prunability.*/

@@ -94,10 +94,11 @@ static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
 /**
  * Two new manual(recompile) error-injections in mt.cpp :
  *
- *     NDB_BAD_SEND : Causes send buffer code to mess with a byte in a send
- * buffer NDB_LUMPY_SEND : Causes transporters to be given small, oddly aligned
- * and sized IOVECs to send, testing ability of new and existing code to handle
- * this.
+ *     NDB_BAD_SEND: Causes send buffer code to mess with a byte in a send
+ *                   buffer
+ *     NDB_LUMPY_SEND: Causes transporters to be given small, oddly aligned
+ *                     and sized IOVECs to send, testing ability of new and
+ *                     existing code to handle this.
  *
  *   These are useful for testing the correctness of the new code, and
  *   the resulting behaviour / debugging output.

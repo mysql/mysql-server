@@ -71,9 +71,9 @@ class FsConf {
    * Length of signal
    */
   /**
-   *  FSOPENCONF: static const UintR SignalLength = 2;
-   *  FSCLOSECONF, FSREADCONF, FSWRITECONF, FSSYNCCONF: static const UintR
-   * SignalLength = 2;
+   * FSOPENCONF: static const UintR SignalLength = 2;
+   * FSCLOSECONF, FSREADCONF, FSWRITECONF, FSSYNCCONF:
+   *   static const UintR SignalLength = 2;
    */
 
  private:
