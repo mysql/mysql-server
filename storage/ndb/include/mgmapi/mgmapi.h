@@ -125,10 +125,15 @@
  *
  * @code
  *   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
- *   NdbEventLogHandle le_handle= ndb_mgm_create_logevent_handle(handle,
- * filter); struct ndb_logevent le; int r=
- * ndb_logevent_get_next(le_handle,&le,0); if (r < 0) error else if (r == 0) no
- * event
+ *   NdbEventLogHandle le_handle = ndb_mgm_create_logevent_handle(handle,
+ *     filter);
+ *   struct ndb_logevent le;
+ *   int r = ndb_logevent_get_next(le_handle, &le, 0);
+ *   if (r < 0) {
+ *     // error
+ *   } else if (r == 0) {
+ *     // no event
+ *   }
  *
  *   switch (le.type)
  *   {

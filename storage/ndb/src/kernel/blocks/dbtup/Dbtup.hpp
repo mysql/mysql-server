@@ -1434,116 +1434,105 @@ class Dbtup : public SimulatedBlock {
   Uint32 c_storedProcCountNonAPI;
   void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
 
-  /* **************************** TABLE_DESCRIPTOR RECORD
-   * ******************************** */
-  /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS
-   * STORED AS A */
-  /* CONTIGUOUS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS ADDED A CHUNK IS
-   * ALLOCATED IN  */
-  /* THIS RECORD. WHEN ATTRIBUTES ARE ADDED TO THE TABLE, A NEW CHUNK OF PROPER
-   * SIZE IS    */
-  /* ALLOCATED AND ALL DATA IS COPIED TO THIS NEW CHUNK AND THEN THE OLD CHUNK
-   * IS PUT IN   */
-  /* THE FREE LIST. EACH TABLE IS DESCRIBED BY A NUMBER OF TABLE DESCRIPTIVE
-   * ATTRIBUTES    */
-  /* AND A NUMBER OF ATTRIBUTE DESCRIPTORS AS SHOWN IN FIGURE BELOW */
-  /*                                                                                       */
-  /* WHEN ALLOCATING A TABLE DESCRIPTOR THE SIZE IS ALWAYS A MULTIPLE OF 16
-   * WORDS.         */
-  /*                                                                                       */
-  /*               ---------------------------------------------- */
-  /*               |    TRAILER USED FOR ALLOC/DEALLOC          | */
-  /*               ---------------------------------------------- */
-  /*               |    TABLE DESCRIPTIVE ATTRIBUTES            | */
-  /*               ---------------------------------------------- */
-  /*               |    ATTRIBUTE DESCRIPTION 1                 | */
-  /*               ---------------------------------------------- */
-  /*               |    ATTRIBUTE DESCRIPTION 2                 | */
-  /*               ---------------------------------------------- */
-  /*               |                                            | */
-  /*               |                                            | */
-  /*               |                                            | */
-  /*               ---------------------------------------------- */
-  /*               |    ATTRIBUTE DESCRIPTION N                 | */
-  /*               ---------------------------------------------- */
-  /*                                                                                       */
-  /* THE TABLE DESCRIPTIVE ATTRIBUTES CONTAINS THE FOLLOWING ATTRIBUTES: */
-  /*                                                                                       */
-  /*               ---------------------------------------------- */
-  /*               |    HEADER (TYPE OF INFO)                   | */
-  /*               ---------------------------------------------- */
-  /*               |    SIZE OF WHOLE CHUNK (INCL. TRAILER)     | */
-  /*               ---------------------------------------------- */
-  /*               |    TABLE IDENTITY                          | */
-  /*               ---------------------------------------------- */
-  /*               |    FRAGMENT IDENTITY                       | */
-  /*               ---------------------------------------------- */
-  /*               |    NUMBER OF ATTRIBUTES                    | */
-  /*               ---------------------------------------------- */
-  /*               |    SIZE OF FIXED ATTRIBUTES                | */
-  /*               ---------------------------------------------- */
-  /*               |    NUMBER OF NULL FIELDS                   | */
-  /*               ---------------------------------------------- */
-  /*               |    NOT USED                                | */
-  /*               ---------------------------------------------- */
-  /*                                                                                       */
-  /* THESE ATTRIBUTES ARE ALL ONE R-VARIABLE IN THE RECORD. */
-  /* NORMALLY ONLY ONE TABLE DESCRIPTOR IS USED. DURING SCHEMA CHANGES THERE
-   * COULD         */
-  /* HOWEVER EXIST MORE THAN ONE TABLE DESCRIPTION SINCE THE SCHEMA CHANGE OF
-   * VARIOUS      */
-  /* FRAGMENTS ARE NOT SYNCHRONISED. THIS MEANS THAT ALTHOUGH THE SCHEMA HAS
-   * CHANGED       */
-  /* IN ALL FRAGMENTS, BUT THE FRAGMENTS HAVE NOT REMOVED THE ATTRIBUTES IN THE
-   * SAME       */
-  /* TIME-FRAME. THEREBY SOME ATTRIBUTE INFORMATION MIGHT DIFFER BETWEEN
-   * FRAGMENTS.        */
-  /* EXAMPLES OF ATTRIBUTES THAT MIGHT DIFFER ARE SIZE OF FIXED ATTRIBUTES,
-   * NUMBER OF      */
-  /* ATTRIBUTES, FIELD START WORD, START BIT. */
-  /*                                                                                       */
-  /* AN ATTRIBUTE DESCRIPTION CONTAINS THE FOLLOWING ATTRIBUTES: */
-  /*                                                                                       */
-  /*               ---------------------------------------------- */
-  /*               |    Field Type, 4 bits (LSB Bits)           | */
-  /*               ---------------------------------------------- */
-  /*               |    Attribute Size, 4 bits                  | */
-  /*               ---------------------------------------------- */
-  /*               |    NULL indicator 1 bit                    | */
-  /*               ---------------------------------------------- */
-  /*               |    Indicator if TUP stores attr. 1 bit     | */
-  /*               ---------------------------------------------- */
-  /*               |    Not used 6 bits                         | */
-  /*               ---------------------------------------------- */
-  /*               |    No. of elements in fixed array 16 bits  | */
-  /*               ---------------------------------------------- */
-  /*               ---------------------------------------------- */
-  /*               |    Field Start Word, 21 bits (LSB Bits)    | */
-  /*               ---------------------------------------------- */
-  /*               |    NULL Bit, 11 bits                       | */
-  /*               ---------------------------------------------- */
-  /*                                                                                       */
-  /* THE ATTRIBUTE SIZE CAN BE 1,2,4,8,16,32,64 AND 128 BITS. */
-  /*                                                                                       */
-  /* THE UNUSED PARTS OF THE RECORDS ARE PUT IN A LINKED LIST OF FREE PARTS.
-   * EACH OF       */
-  /* THOSE FREE PARTS HAVE THREE RECORDS ASSIGNED AS SHOWN IN THIS STRUCTURE */
-  /* ALL FREE PARTS ARE SET INTO A CHUNK LIST WHERE EACH CHUNK IS AT LEAST 16
-   * WORDS        */
-  /*                                                                                       */
-  /*               ---------------------------------------------- */
-  /*               |    HEADER = RNIL                           | */
-  /*               ---------------------------------------------- */
-  /*               |    SIZE OF FREE AREA                       | */
-  /*               ---------------------------------------------- */
-  /*               |    POINTER TO PREVIOUS FREE AREA           | */
-  /*               ---------------------------------------------- */
-  /*               |    POINTER TO NEXT FREE AREA               | */
-  /*               ---------------------------------------------- */
-  /*                                                                                       */
-  /* IF THE POINTER TO THE NEXT AREA IS RNIL THEN THIS IS THE LAST FREE AREA. */
-  /*                                                                                       */
-  /*****************************************************************************************/
+  /* **************************** TABLE_DESCRIPTOR RECORD ****************** */
+  /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION  */
+  /* IS STORED AS A CONTIGUOUS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS   */
+  /* ADDED A CHUNK IS ALLOCATED IN THIS RECORD. WHEN ATTRIBUTES ARE ADDED TO */
+  /* THE TABLE, A NEW CHUNK OF PROPER SIZE IS ALLOCATED AND ALL DATA IS      */
+  /* COPIED TO THIS NEW CHUNK AND THEN THE OLD CHUNK IS PUT IN THE FREE      */
+  /* LIST. EACH TABLE IS DESCRIBED BY A NUMBER OF TABLE DESCRIPTIVE          */
+  /* ATTRIBUTES AND A NUMBER OF ATTRIBUTE DESCRIPTORS AS SHOWN IN FIGURE     */
+  /* BELOW.                                                                  */
+  /* WHEN ALLOCATING A TABLE DESCRIPTOR THE SIZE IS ALWAYS A MULTIPLE        */
+  /* OF 16 WORDS.                                                            */
+  /*                                                                         */
+  /*               ----------------------------------------------            */
+  /*               |    TRAILER USED FOR ALLOC/DEALLOC          |            */
+  /*               ----------------------------------------------            */
+  /*               |    TABLE DESCRIPTIVE ATTRIBUTES            |            */
+  /*               ----------------------------------------------            */
+  /*               |    ATTRIBUTE DESCRIPTION 1                 |            */
+  /*               ----------------------------------------------            */
+  /*               |    ATTRIBUTE DESCRIPTION 2                 |            */
+  /*               ----------------------------------------------            */
+  /*               |                                            |            */
+  /*               |                                            |            */
+  /*               |                                            |            */
+  /*               ----------------------------------------------            */
+  /*               |    ATTRIBUTE DESCRIPTION N                 |            */
+  /*               ----------------------------------------------            */
+  /*                                                                         */
+  /* THE TABLE DESCRIPTIVE ATTRIBUTES CONTAINS THE FOLLOWING ATTRIBUTES:     */
+  /*                                                                         */
+  /*               ----------------------------------------------            */
+  /*               |    HEADER (TYPE OF INFO)                   |            */
+  /*               ----------------------------------------------            */
+  /*               |    SIZE OF WHOLE CHUNK (INCL. TRAILER)     |            */
+  /*               ----------------------------------------------            */
+  /*               |    TABLE IDENTITY                          |            */
+  /*               ----------------------------------------------            */
+  /*               |    FRAGMENT IDENTITY                       |            */
+  /*               ----------------------------------------------            */
+  /*               |    NUMBER OF ATTRIBUTES                    |            */
+  /*               ----------------------------------------------            */
+  /*               |    SIZE OF FIXED ATTRIBUTES                |            */
+  /*               ----------------------------------------------            */
+  /*               |    NUMBER OF NULL FIELDS                   |            */
+  /*               ----------------------------------------------            */
+  /*               |    NOT USED                                |            */
+  /*               ----------------------------------------------            */
+  /*                                                                         */
+  /* THESE ATTRIBUTES ARE ALL ONE R-VARIABLE IN THE RECORD.                  */
+  /* NORMALLY ONLY ONE TABLE DESCRIPTOR IS USED. DURING SCHEMA CHANGES THERE */
+  /* COULD HOWEVER EXIST MORE THAN ONE TABLE DESCRIPTION SINCE THE SCHEMA    */
+  /* CHANGE OF VARIOUS FRAGMENTS ARE NOT SYNCHRONISED. THIS MEANS THAT       */
+  /* ALTHOUGH THE SCHEMA HAS CHANGED IN ALL FRAGMENTS, BUT THE FRAGMENTS     */
+  /* HAVE NOT REMOVED THE ATTRIBUTES IN THE SAME TIME-FRAME. THEREBY SOME    */
+  /* ATTRIBUTE INFORMATION MIGHT DIFFER BETWEEN FRAGMENTS. EXAMPLES OF       */
+  /* ATTRIBUTES THAT MIGHT DIFFER ARE SIZE OF FIXED ATTRIBUTES, NUMBER OF    */
+  /* ATTRIBUTES, FIELD START WORD, START BIT.                                */
+  /*                                                                         */
+  /* AN ATTRIBUTE DESCRIPTION CONTAINS THE FOLLOWING ATTRIBUTES:             */
+  /*                                                                         */
+  /*               ----------------------------------------------            */
+  /*               |    Field Type, 4 bits (LSB Bits)           |            */
+  /*               ----------------------------------------------            */
+  /*               |    Attribute Size, 4 bits                  |            */
+  /*               ----------------------------------------------            */
+  /*               |    NULL indicator 1 bit                    |            */
+  /*               ----------------------------------------------            */
+  /*               |    Indicator if TUP stores attr. 1 bit     |            */
+  /*               ----------------------------------------------            */
+  /*               |    Not used 6 bits                         |            */
+  /*               ----------------------------------------------            */
+  /*               |    No. of elements in fixed array 16 bits  |            */
+  /*               ----------------------------------------------            */
+  /*               ----------------------------------------------            */
+  /*               |    Field Start Word, 21 bits (LSB Bits)    |            */
+  /*               ----------------------------------------------            */
+  /*               |    NULL Bit, 11 bits                       |            */
+  /*               ----------------------------------------------            */
+  /*                                                                         */
+  /* THE ATTRIBUTE SIZE CAN BE 1,2,4,8,16,32,64 AND 128 BITS.                */
+  /*                                                                         */
+  /* THE UNUSED PARTS OF THE RECORDS ARE PUT IN A LINKED LIST OF FREE PARTS. */
+  /* EACH OF THOSE FREE PARTS HAVE THREE RECORDS ASSIGNED AS SHOWN IN THIS   */
+  /* STRUCTURE ALL FREE PARTS ARE SET INTO A CHUNK LIST WHERE EACH CHUNK IS  */
+  /* AT LEAST 16 WORDS                                                       */
+  /*                                                                         */
+  /*               ----------------------------------------------            */
+  /*               |    HEADER = RNIL                           |            */
+  /*               ----------------------------------------------            */
+  /*               |    SIZE OF FREE AREA                       |            */
+  /*               ----------------------------------------------            */
+  /*               |    POINTER TO PREVIOUS FREE AREA           |            */
+  /*               ----------------------------------------------            */
+  /*               |    POINTER TO NEXT FREE AREA               |            */
+  /*               ----------------------------------------------            */
+  /*                                                                         */
+  /* IF THE POINTER TO THE NEXT AREA IS RNIL THEN THIS IS THE LAST FREE AREA.*/
+  /*                                                                         */
+  /***************************************************************************/
   struct TableDescriptor {
     Uint32 tabDescr;
   };

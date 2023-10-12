@@ -1538,7 +1538,7 @@ int NdbDictionary::Dictionary::prepareHashMap(const Table &oldTableF,
     if (newcnt == 0) {
       /**
        * reorg...we don't know how many fragments new table should have
-       *   create if exist a default map...which will "know" how many fragments
+       * create if exist a default map...which will "know" how many fragments
        * there are
        */
       ObjectId tmp;
@@ -1571,7 +1571,7 @@ int NdbDictionary::Dictionary::prepareHashMap(const Table &oldTableF,
       if (newcnt < oldcnt) {
         /**
          * drop partition is currently not supported...
-         *   and since this is a "reorg" (newcnt == 0) we silently change it to
+         * and since this is a "reorg" (newcnt == 0) we silently change it to
          * a nop
          */
         newcnt = oldcnt;

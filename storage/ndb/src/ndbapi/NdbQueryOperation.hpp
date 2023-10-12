@@ -77,7 +77,7 @@ class NdbQueryOperationImpl;
  *  - Specify a scan ordering for the result set (parent only)
  *  - Add multiple bounds to a range scan, (::setBound()) (parent only)
  *  - Append a filter condition for each operation (aka mysqlds pushed
- *condition)
+ *    condition)
  *
  * The NdbQuery is then executed together with other pending operations
  * in the next NdbTransaction::execute().
@@ -92,12 +92,12 @@ class NdbQueryOperationImpl;
  *
  * The 'local cursor' (NdbQueryOperation::firstResult(), ::nextResult())
  *   Will navigate the resultset, and fetch results, from this specific
- *operation. It will only be possible to navigate within those rows which
- *depends on the current row(s) from any ancestor of the operation. The local
- *cursor will only retrieve the results, or a NULL row, resulting from its own
- *operation. -> All child operations of a renavigated local cursor should be
- *navigated to ::firstResult() to ensure that they contain results related to
- *the renavigated parent.
+ *   operation. It will only be possible to navigate within those rows which
+ *   depends on the current row(s) from any ancestor of the operation. The
+ *   local cursor will only retrieve the results, or a NULL row, resulting
+ *   from its own operation. -> All child operations of a renavigated local
+ *   cursor should be navigated to ::firstResult() to ensure that they contain
+ *   results related to the renavigated parent.
  *
  * The 'global cursor' (NdbQuery::nextResult())
  *   Will present the result set as a scan on the root operation
@@ -133,8 +133,8 @@ class NdbQuery {
   // when the NdbQueryOperationDef was created.
   NdbQueryOperation *getQueryOperation(const char *ident) const;
   NdbQueryOperation *getQueryOperation(Uint32 index) const;
-  // NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def)
-  // const;
+  // NdbQueryOperation* getQueryOperation(
+  //   const NdbQueryOperationDef* def) const;
 
   int setBound(const NdbRecord *keyRecord,
                const struct NdbIndexScanOperation::IndexBound *bound);
@@ -298,22 +298,37 @@ class NdbQueryOperation {
    * The behaviour of mixing NdbRecord retrieval style with NdbRecAttr is
    * is undefined - It should probably not be allowed.
    *
-   * @param rec  Is a pointer to a NdbRecord specifying the byte layout of the
-   *             result row.
-   *
-   * @resBuffer  Defines a buffer sufficient large to hold the result row.
-   *
-   * @bufRef     Refers a pointer which will be updated to refer the current
-   * result row for this operand.
-   *
-   * @param  result_mask defines as subset of attributes to read.
-   *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId &
-   * 7))' is set
-   * @return 0 on success, -1 otherwise (call getNdbError() for details).
+   * @param rec         Is a pointer to a NdbRecord specifying the byte layout
+   *                    of the result row.
+   * @param resBuffer   Defines a buffer sufficient large to hold the result
+   *                    row.
+   * @param result_mask Defines a subset of attributes to read. The column is
+   *                    only affected if 'mask[attrId >> 3] &
+   *                    (1<<(attrId & 7))' is set
+   * @return            0 on success,
+   *                    -1 otherwise (call getNdbError() for details).
    */
   int setResultRowBuf(const NdbRecord *rec, char *resBuffer,
                       const unsigned char *result_mask = nullptr);
 
+
+  /**
+   * Retrieval of entire or partial rows may also be specified. For partial
+   * retrieval a bitmask should supplied.
+   *
+   * The behaviour of mixing NdbRecord retrieval style with NdbRecAttr is
+   * is undefined - It should probably not be allowed.
+   *
+   * @param rec         Is a pointer to a NdbRecord specifying the byte layout
+   *                    of the result row.
+   * @param bufRef      Refers a pointer which will be updated to refer the
+   *                    current result row for this operand.
+   * @param result_mask Defines a subset of attributes to read. The column is
+   *                    only affected if 'mask[attrId >> 3] &
+   *                    (1<<(attrId & 7))' is set
+   * @return            0 on success,
+   *                    -1 otherwise (call getNdbError() for details).
+   */
   int setResultRowRef(const NdbRecord *rec, const char *&bufRef,
                       const unsigned char *result_mask = nullptr);
 

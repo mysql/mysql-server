@@ -61,10 +61,10 @@
  *   The TableMetadata wraps an NdbDictionary::Table
  *   The ColumnMetadata objects each wrap an NdbDictionary::Column
  *   The IndexMetadata objects for SECONDARY indexes wrap an
- * NdbDictionary::Index,
+ *   NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
  *   The ForeignKeyMetadata objects are literals and do *not* wrap any native
- * object
+ *   object
  */
 Envelope NdbDictTableEnv("const NdbDictionary::Table");
 Envelope NdbDictColumnEnv("const NdbDictionary::Column");

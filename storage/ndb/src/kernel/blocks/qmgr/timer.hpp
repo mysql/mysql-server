@@ -27,9 +27,10 @@
 
 /**
  *  @class Timer
- *  @brief A timer class that can't be fooled by NTP:ing the system clock to old
- * time The 'time' used by this class is 'ticks' since some platform specific
- * epoch start. Typically retrieved by NdbTick_getCurrentTicks()
+ *  @brief A timer class that can't be fooled by NTP:ing the system clock to
+ *         old time. The 'time' used by this class is 'ticks' since some
+ *         platform specific epoch start. Typically retrieved by
+ *         NdbTick_getCurrentTicks().
  */
 class Timer {
  public:

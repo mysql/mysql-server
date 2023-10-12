@@ -1545,16 +1545,16 @@ int BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size,
         /*
          * We read(consume) data from the end of the buffer.
          * If the left data is not enough for next read in buffer,
-         *   we move the residual data to the end of buffer.
-         *   Then we will fill the start of buffer with new data from log file.
+         * we move the residual data to the end of buffer.
+         * Then we will fill the start of buffer with new data from log file.
          * eg. If the buffer length is 10. "+" denotes useless content.
-         *                          top        end
-         *   Bytes in file        abcdefgh0123456789
-         *   Byte in buffer       0123456789             --after first read
-         *   Consume data...      (6789) (2345)
-         *   Bytes in buffer      01++++++++             --after several
-         * consumes Move data to end     ++++++++01 Bytes in buffer abcdefgh01
-         * --after second read
+         *                          top                      end
+         * Bytes in file        abcdefgh0123456789
+         * Byte in buffer       0123456789             --after first read
+         * Consume data...      (6789) (2345)
+         * Bytes in buffer      01++++++++             --after several consumes
+         * Move data to end     ++++++++01
+         * Bytes in buffer      abcdefgh01             --after second read
          */
         file_left_entry_data = m_file_pos - sizeof(m_fileHeader);
         if (file_left_entry_data <= buffer_free_space) {

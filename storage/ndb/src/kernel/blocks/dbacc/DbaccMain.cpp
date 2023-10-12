@@ -213,24 +213,18 @@ extern Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
 void Dbacc::prepare_scan_ctx(Uint32 scanPtrI) { (void)scanPtrI; }
 
 // Signal entries and statement blocks
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       COMMON SIGNAL RECEPTION MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       COMMON SIGNAL RECEPTION MODULE                                     */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
 
-/* ---------------------------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* CONTINUEB                                       CONTINUE SIGNAL */
-/* ******************------------------------------+ */
+/* -------------------------------------------------------------------------*/
+/* ******************------------------------------------------------------ */
+/* CONTINUEB                                       CONTINUE SIGNAL          */
+/* ******************------------------------------+                        */
 /*   SENDER: ACC,    LEVEL B       */
 void Dbacc::execCONTINUEB(Signal *signal) {
   jamEntry();
@@ -390,11 +384,9 @@ void Dbacc::execSTTOR(Signal *signal) {
   }
 }  // Dbacc::execSTTOR()
 
-/* ---------------------------------------------------------------------------------
- */
-/* ZSPH1 */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* ZSPH1                                                                    */
+/* -------------------------------------------------------------------------*/
 void Dbacc::initialiseRecordsLab(Signal *signal, Uint32 index, Uint32 ref,
                                  Uint32 data) {
   switch (index) {
@@ -473,12 +465,10 @@ void Dbacc::execREAD_CONFIG_REQ(Signal *signal) {
   return;
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* INITIALISE_FRAG_REC */
-/*              INITIALATES THE FRAGMENT RECORDS. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* INITIALISE_FRAG_REC                                                      */
+/*              INITIALATES THE FRAGMENT RECORDS.                           */
+/* -------------------------------------------------------------------------*/
 void Dbacc::initialiseFragRec() {
   if (m_is_query_block) {
     cfirstfreefrag = RNIL;
@@ -499,23 +489,19 @@ void Dbacc::initialiseFragRec() {
   cfirstfreefrag = 0;
 }  // Dbacc::initialiseFragRec()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INITIALISE_PAGE_REC */
-/*              INITIALATES THE PAGE RECORDS. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* INITIALISE_PAGE_REC                                                      */
+/*              INITIALATES THE PAGE RECORDS.                               */
+/* -------------------------------------------------------------------------*/
 void Dbacc::initialisePageRec() {
   cnoOfAllocatedPages = 0;
   cnoOfAllocatedPagesMax = 0;
 }  // Dbacc::initialisePageRec()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INITIALISE_TABLE_REC */
-/*              INITIALATES THE TABLE RECORDS. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* INITIALISE_TABLE_REC                                                     */
+/*              INITIALATES THE TABLE RECORDS.                              */
+/* -------------------------------------------------------------------------*/
 void Dbacc::initialiseTableRec() {
   if (m_is_query_block) {
     return;
@@ -537,32 +523,22 @@ void Dbacc::set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr) {
   fragrecptr.p->tupFragptr = tup_fragptr;
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF SYSTEM RESTART MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       ADD/DELETE FRAGMENT MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* ------------------------------------------------------------------------ */
+/*                                                                          */
+/*       END OF SYSTEM RESTART MODULE                                       */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       ADD/DELETE FRAGMENT MODULE                                         */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
 void Dbacc::execACCFRAGREQ(Signal *signal) {
   const AccFragReq *const req = (AccFragReq *)&signal->theData[0];
   jamEntry();
@@ -886,45 +862,32 @@ bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) const {
   return false;
 }  // Dbacc::addfragtotab()
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF ADD/DELETE FRAGMENT MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       CONNECTION MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* ACCSEIZEREQ                                           SEIZE REQ */
-/*                                                    SENDER: LQH,    LEVEL B */
-/*          ENTER ACCSEIZEREQ WITH */
-/*                    TUSERPTR ,                     CONNECTION PTR OF LQH */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       END OF ADD/DELETE FRAGMENT MODULE                                  */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       CONNECTION MODULE                                                  */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* ******************-------------------------------------------------------*/
+/* ACCSEIZEREQ                                           SEIZE REQ          */
+/*                                                  SENDER: LQH,    LEVEL B */
+/*          ENTER ACCSEIZEREQ WITH                                          */
+/*                    TUSERPTR ,                     CONNECTION PTR OF LQH  */
 /*                    TUSERBLOCKREF                  BLOCK REFERENCE OF LQH */
-/* ******************---------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* ACCSEIZEREQ                                           SEIZE REQ */
-/* ******************------------------------------+ */
+/* ******************-------------------------------------------------------*/
+/* ******************-------------------------------------------------------*/
+/* ACCSEIZEREQ                                           SEIZE REQ          */
+/* ******************------------------------------+                        */
 /*   SENDER: LQH,    LEVEL B       */
 void Dbacc::execACCSEIZEREQ(Signal *signal) {
   jamEntry();
@@ -972,39 +935,27 @@ bool Dbacc::seize_op_rec(Uint32 userptr, BlockReference ref, Uint32 &i_val,
   return true;
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF CONNECTION MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       EXECUTE OPERATION MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* INIT_OP_REC */
-/*           INFORMATION WHICH IS RECEIVED BY ACCKEYREQ WILL BE SAVED */
-/*           IN THE OPERATION RECORD. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       END OF CONNECTION MODULE                                           */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       EXECUTE OPERATION MODULE                                           */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* INIT_OP_REC                                                              */
+/*           INFORMATION WHICH IS RECEIVED BY ACCKEYREQ WILL BE SAVED       */
+/*           IN THE OPERATION RECORD.                                       */
+/* -------------------------------------------------------------------------*/
 void Dbacc::initOpRec(const AccKeyReq *signal, Uint32 siglen) const {
   Uint32 Treqinfo;
 
@@ -1072,11 +1023,9 @@ void Dbacc::initOpRec(const AccKeyReq *signal, Uint32 siglen) const {
   }
 }  // Dbacc::initOpRec()
 
-/* ---------------------------------------------------------------------------------
- */
-/* SEND_ACCKEYCONF */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* SEND_ACCKEYCONF                                                          */
+/* -------------------------------------------------------------------------*/
 void Dbacc::sendAcckeyconf(Signal *signal) const {
   signal->theData[0] = operationRecPtr.p->userptr;
   signal->theData[1] = operationRecPtr.p->m_op_bits & Operationrec::OP_MASK;
@@ -1085,26 +1034,20 @@ void Dbacc::sendAcckeyconf(Signal *signal) const {
   signal->theData[4] = operationRecPtr.p->localdata.m_page_idx;
 }  // Dbacc::sendAcckeyconf()
 
-/* ******************---------------------------------------------------------------
- */
-/* ACCKEYREQ                                         REQUEST FOR INSERT, DELETE,
- */
-/*                                                   RERAD AND UPDATE, A TUPLE.
- */
-/*                                                   SENDER: LQH,    LEVEL B */
-/*  SIGNAL DATA:      OPERATION_REC_PTR,             CONNECTION PTR */
-/*                    TABPTR,                        TABLE ID = TABLE RECORD
- * POINTER */
-/*                    TREQINFO, */
-/*                    THASHVALUE,                    HASH VALUE OF THE TUP */
-/*                    TKEYLEN,                       LENGTH OF THE PRIMARY KEYS
- */
-/*                    TKEY1,                         PRIMARY KEY 1 */
-/*                    TKEY2,                         PRIMARY KEY 2 */
-/*                    TKEY3,                         PRIMARY KEY 3 */
-/*                    TKEY4,                         PRIMARY KEY 4 */
-/* ******************---------------------------------------------------------------
- */
+/* ******************-------------------------------------------------------*/
+/* ACCKEYREQ                                REQUEST FOR INSERT, DELETE,     */
+/*                                          RERAD AND UPDATE, A TUPLE.      */
+/*                                          SENDER: LQH,    LEVEL B         */
+/*  SIGNAL DATA:      OPERATION_REC_PTR,    CONNECTION PTR                  */
+/*                    TABPTR,               TABLE ID = TABLE RECORD POINTER */
+/*                    TREQINFO,                                             */
+/*                    THASHVALUE,           HASH VALUE OF THE TUP           */
+/*                    TKEYLEN,              LENGTH OF THE PRIMARY KEYS      */
+/*                    TKEY1,                PRIMARY KEY 1                   */
+/*                    TKEY2,                PRIMARY KEY 2                   */
+/*                    TKEY3,                PRIMARY KEY 3                   */
+/*                    TKEY4,                PRIMARY KEY 4                   */
+/* ******************-------------------------------------------------------*/
 void Dbacc::execACCKEYREQ(Signal *signal, Uint32 opPtrI,
                           Dbacc::Operationrec *opPtrP) {
   jamEntryDebug();
@@ -1670,11 +1613,9 @@ void Dbacc::insertExistElemLab(Signal *signal, OperationrecPtr lockOwnerPtr) {
   accIsLockedLab(signal, lockOwnerPtr);
 }  // Dbacc::insertExistElemLab()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INSERTELEMENT */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* INSERTELEMENT                                                            */
+/* -------------------------------------------------------------------------*/
 void Dbacc::insertelementLab(Signal *signal, Page8Ptr bucketPageptr,
                              Uint32 bucketConidx) {
   if (unlikely(fragrecptr.p->dirRangeFull)) {
@@ -2513,14 +2454,11 @@ void Dbacc::removerow(Uint32 opPtrI, const Local_key *key) {
 #endif
 }  // Dbacc::execACCMINUPDATE()
 
-/* ******************---------------------------------------------------------------
- */
-/* ACC_COMMITREQ                                        COMMIT  TRANSACTION */
-/*                                                     SENDER: LQH,    LEVEL B
- */
-/*       INPUT:  OPERATION_REC_PTR , */
-/* ******************---------------------------------------------------------------
- */
+/* ******************-------------------------------------------------------*/
+/* ACC_COMMITREQ                                     COMMIT  TRANSACTION    */
+/*                                                 SENDER: LQH,    LEVEL B  */
+/*       INPUT:  OPERATION_REC_PTR ,                                        */
+/* ******************-------------------------------------------------------*/
 void Dbacc::execACC_COMMITREQ(Signal *signal, Uint32 opPtrI,
                               Dbacc::Operationrec *opPtrP) {
   Uint8 Toperation;
@@ -2726,19 +2664,14 @@ void Dbacc::execACC_LOCKREQ(Signal *signal) {
   ndbabort();
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF EXECUTE OPERATION MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       END OF EXECUTE OPERATION MODULE                                    */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
 
 /**
  * HASH TABLE MODULE
@@ -2984,75 +2917,62 @@ void Dbacc::execACC_LOCKREQ(Signal *signal) {
  *
  */
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       MODULE:         INSERT */
-/*               THE FOLLOWING SUBROUTINES ARE ONLY USED BY INSERT_ELEMENT. THIS
- */
-/*               ROUTINE IS THE SOLE INTERFACE TO INSERT ELEMENTS INTO THE
- * INDEX.    */
-/*               CURRENT USERS ARE INSERT REQUESTS, EXPAND CONTAINER AND SHRINK
- */
-/*               CONTAINER. */
-/*                                                                                   */
-/*               THE FOLLOWING SUBROUTINES ARE INCLUDED IN THIS MODULE: */
-/*               INSERT_ELEMENT */
-/*               INSERT_CONTAINER */
-/*               ADDNEWCONTAINER */
-/*               GETFREELIST */
-/*               INCREASELISTCONT */
-/*               SEIZE_LEFTLIST */
-/*               SEIZE_RIGHTLIST */
-/*                                                                                   */
-/*               THESE ROUTINES ARE ONLY USED BY THIS MODULE AND BY NO ONE ELSE.
- */
-/*               ALSO THE ROUTINES MAKE NO USE OF ROUTINES IN OTHER MODULES. */
-/*               TAKE_REC_OUT_OF_FREE_OVERPAGE AND RELEASE_OVERFLOW_REC ARE */
-/*               EXCEPTIONS TO THIS RULE. */
-/*                                                                                   */
-/*               THE ONLY SHORT-LIVED VARIABLES USED IN OTHER PARTS OF THE BLOCK
- * ARE */
-/*               THOSE DEFINED AS INPUT AND OUTPUT IN INSERT_ELEMENT */
-/*               SHORT-LIVED VARIABLES INCLUDE TEMPORARY VARIABLES, COMMON
- * VARIABLES */
-/*               AND POINTER VARIABLES. */
-/*               THE ONLY EXCEPTION TO THIS RULE IS FRAGRECPTR WHICH POINTS TO
- * THE   */
-/*               FRAGMENT RECORD. THIS IS MORE LESS STATIC ALWAYS DURING A
- * SIGNAL    */
-/*               EXECUTION. */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* INSERT_ELEMENT */
-/*       INPUT: */
-/*               IDR_PAGEPTR (POINTER TO THE ACTIVE PAGE REC) */
-/*               TIDR_PAGEINDEX (INDEX OF THE CONTAINER) */
-/*               TIDR_FORWARD (DIRECTION FORWARD OR BACKWARD) */
-/*               TIDR_ELEMHEAD (HEADER OF ELEMENT TO BE INSERTED */
-/*               CIDR_KEYS(ARRAY OF TUPLE KEYS) */
-/*               CLOCALKEY(ARRAY OF LOCAL KEYS). */
-/*               FRAGRECPTR */
-/*               IDR_OPERATION_REC_PTR */
-/*               TIDR_KEY_LEN */
-/*               conScanMask - ANY_SCANBITS or scan bits container must */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       MODULE:         INSERT                                             */
+/*               THE FOLLOWING SUBROUTINES ARE ONLY USED BY INSERT_ELEMENT. */
+/*               THIS ROUTINE IS THE SOLE INTERFACE TO INSERT ELEMENTS INTO */
+/*               THE INDEX. CURRENT USERS ARE INSERT REQUESTS, EXPAND       */
+/*               CONTAINER AND SHRINK CONTAINER.                            */
+/*                                                                          */
+/*               THE FOLLOWING SUBROUTINES ARE INCLUDED IN THIS MODULE:     */
+/*               INSERT_ELEMENT                                             */
+/*               INSERT_CONTAINER                                           */
+/*               ADDNEWCONTAINER                                            */
+/*               GETFREELIST                                                */
+/*               INCREASELISTCONT                                           */
+/*               SEIZE_LEFTLIST                                             */
+/*               SEIZE_RIGHTLIST                                            */
+/*                                                                          */
+/*               THESE ROUTINES ARE ONLY USED BY THIS MODULE AND BY NO ONE  */
+/*               ELSE. ALSO THE ROUTINES MAKE NO USE OF ROUTINES IN OTHER   */
+/*               MODULES. TAKE_REC_OUT_OF_FREE_OVERPAGE AND                 */
+/*               RELEASE_OVERFLOW_REC ARE EXCEPTIONS TO THIS RULE.          */
+/*                                                                          */
+/*               THE ONLY SHORT-LIVED VARIABLES USED IN OTHER PARTS OF THE  */
+/*               BLOCK ARE THOSE DEFINED AS INPUT AND OUTPUT IN             */
+/*               INSERT_ELEMENT                                             */
+/*               SHORT-LIVED VARIABLES INCLUDE TEMPORARY VARIABLES, COMMON  */
+/*               VARIABLES AND POINTER VARIABLES.                           */
+/*               THE ONLY EXCEPTION TO THIS RULE IS FRAGRECPTR WHICH POINTS */
+/*               TO THE FRAGMENT RECORD. THIS IS MORE LESS STATIC ALWAYS    */
+/*               DURING A SIGNAL EXECUTION.                                 */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* INSERT_ELEMENT                                                           */
+/*       INPUT:                                                             */
+/*               IDR_PAGEPTR (POINTER TO THE ACTIVE PAGE REC)               */
+/*               TIDR_PAGEINDEX (INDEX OF THE CONTAINER)                    */
+/*               TIDR_FORWARD (DIRECTION FORWARD OR BACKWARD)               */
+/*               TIDR_ELEMHEAD (HEADER OF ELEMENT TO BE INSERTED            */
+/*               CIDR_KEYS(ARRAY OF TUPLE KEYS)                             */
+/*               CLOCALKEY(ARRAY OF LOCAL KEYS).                            */
+/*               FRAGRECPTR                                                 */
+/*               IDR_OPERATION_REC_PTR                                      */
+/*               TIDR_KEY_LEN                                               */
+/*               conScanMask - ANY_SCANBITS or scan bits container must     */
 /*                 have. Note elements inserted are never more scanned than */
-/*                 container. */
-/*                                                                                   */
-/*       OUTPUT: */
-/*               TIDR_PAGEINDEX (PAGE INDEX OF INSERTED ELEMENT) */
-/*               IDR_PAGEPTR    (PAGE POINTER OF INSERTED ELEMENT) */
-/*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT) */
-/*               NONE */
-/* ---------------------------------------------------------------------------------
- */
+/*                 container.                                               */
+/*                                                                          */
+/*       OUTPUT:                                                            */
+/*               TIDR_PAGEINDEX (PAGE INDEX OF INSERTED ELEMENT)            */
+/*               IDR_PAGEPTR    (PAGE POINTER OF INSERTED ELEMENT)          */
+/*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT)   */
+/*               NONE                                                       */
+/* -------------------------------------------------------------------------*/
 void Dbacc::insertElement(const Element elem, OperationrecPtr oprecptr,
                           Page8Ptr &pageptr, Uint32 &conidx, bool &isforward,
                           Uint32 &conptr, Uint16 conScanMask,
@@ -3197,13 +3117,10 @@ void Dbacc::insertContainer(const Element elem, const OperationrecPtr oprecptr,
   Uint32 tidrIndex;
 
   result = ZFALSE;
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER
-   * TO THE  */
-  /*       CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* -----------------------------------------------------------------------*/
+  /* CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER TO */
+  /* THE CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER.                  */
+  /* -----------------------------------------------------------------------*/
   conptr = getForwardContainerPtr(conidx);
   if (isforward) {
     jam();
@@ -3247,33 +3164,25 @@ void Dbacc::insertContainer(const Element elem, const OperationrecPtr oprecptr,
     return;
   }  // if
   tidrConfreelen = ZBUF_SIZE - tidrContainerlen;
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       WE CALCULATE THE TOTAL LENGTH THE CONTAINER CAN EXPAND TO */
-  /*       THIS INCLUDES THE OTHER SIDE OF THE BUFFER IF POSSIBLE TO EXPAND
-   * THERE.     */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* -----------------------------------------------------------------------*/
+  /* WE CALCULATE THE TOTAL LENGTH THE CONTAINER CAN EXPAND TO THIS         */
+  /* INCLUDES THE OTHER SIDE OF THE BUFFER IF POSSIBLE TO EXPAND THERE.     */
+  /* -----------------------------------------------------------------------*/
   if (!containerhead.isUsingBothEnds()) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       WE HAVE NOT EXPANDED TO THE ENTIRE BUFFER YET. WE CAN THUS READ THE
-     * OTHER   */
-    /*       SIDE'S CONTAINER HEADER TO READ HIS LENGTH. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ---------------------------------------------------------------------*/
+    /* WE HAVE NOT EXPANDED TO THE ENTIRE BUFFER YET. WE CAN THUS READ THE  */
+    /* OTHER SIDE'S CONTAINER HEADER TO READ HIS LENGTH.                    */
+    /* ---------------------------------------------------------------------*/
     ContainerHeader conhead(pageptr.p->word32[tidrNextSide]);
     tidrNextConLen = conhead.getLength();
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
       ndbabort();
-      /* ---------------------------------------------------------------------------------
-       */
-      /*       THE BUFFERS ARE PLACED ON TOP OF EACH OTHER. THIS SHOULD NEVER
-       * OCCUR.       */
-      /* ---------------------------------------------------------------------------------
-       */
+      /* -------------------------------------------------------------------*/
+      /* THE BUFFERS ARE PLACED ON TOP OF EACH OTHER. THIS SHOULD NEVER     */
+      /* OCCUR.                                                             */
+      /* -------------------------------------------------------------------*/
       return;
     }  // if
   } else {
@@ -3282,13 +3191,10 @@ void Dbacc::insertContainer(const Element elem, const OperationrecPtr oprecptr,
   }                     // if
   if (tidrConfreelen < fragrecptr.p->elementLength) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       THE CONTAINER COULD NOT BE EXPANDED TO FIT THE NEW ELEMENT. WE HAVE
-     * TO      */
-    /*       RETURN AND FIND A NEW CONTAINER TO INSERT IT INTO. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ---------------------------------------------------------------------*/
+    /* THE CONTAINER COULD NOT BE EXPANDED TO FIT THE NEW ELEMENT. WE HAVE  */
+    /* TO RETURN AND FIND A NEW CONTAINER TO INSERT IT INTO.                */
+    /* ---------------------------------------------------------------------*/
     return;
   }  // if
   tidrContainerlen = tidrContainerlen + fragrecptr.p->elementLength;
@@ -3311,23 +3217,16 @@ void Dbacc::insertContainer(const Element elem, const OperationrecPtr oprecptr,
     }    // if
   }      // if
   /* OF THE FREE CONTAINERS */
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       WE HAVE NOW FOUND A FREE SPOT IN THE CURRENT CONTAINER. WE INSERT THE
-   */
-  /*       ELEMENT HERE. THE ELEMENT CONTAINS A HEADER, A LOCAL KEY AND A TUPLE
-   * KEY.   */
-  /*       BEFORE INSERTING THE ELEMENT WE WILL UPDATE THE OPERATION RECORD WITH
-   * THE   */
-  /*       DATA CONCERNING WHERE WE INSERTED THE ELEMENT. THIS MAKES IT EASY TO
-   * FIND   */
-  /*       THIS INFORMATION WHEN WE RETURN TO UPDATE THE LOCAL KEY OR RETURN TO
-   * COMMIT */
-  /*       OR ABORT THE INSERT. IF NO OPERATION RECORD EXIST IT MEANS THAT WE
-   * ARE      */
-  /*       PERFORMING THIS AS A PART OF THE EXPAND OR SHRINK PROCESS. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* -----------------------------------------------------------------------*/
+  /* WE HAVE NOW FOUND A FREE SPOT IN THE CURRENT CONTAINER. WE INSERT THE  */
+  /* ELEMENT HERE. THE ELEMENT CONTAINS A HEADER, A LOCAL KEY AND A TUPLE   */
+  /* KEY. BEFORE INSERTING THE ELEMENT WE WILL UPDATE THE OPERATION RECORD  */
+  /* WITH THE DATA CONCERNING WHERE WE INSERTED THE ELEMENT. THIS MAKES IT  */
+  /* EASY TO FIND THIS INFORMATION WHEN WE RETURN TO UPDATE THE LOCAL KEY   */
+  /* OR RETURN TO COMMIT OR ABORT THE INSERT. IF NO OPERATION RECORD EXIST  */
+  /* IT MEANS THAT WE ARE PERFORMING THIS AS A PART OF THE EXPAND OR SHRINK */
+  /* PROCESS.                                                               */
+  /* -----------------------------------------------------------------------*/
   const Uint32 elemhead = elem.getHeader();
   ContainerHeader conthead = pageptr.p->word32[conptr];
   if (oprecptr.i != RNIL) {
@@ -3339,21 +3238,15 @@ void Dbacc::insertContainer(const Element elem, const OperationrecPtr oprecptr,
   } else {
     ndbassert(!ElementHeader::getLocked(elemhead));
   }
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO
-   * LOG.  */
-  /*       WE COULD ALSO HAVE DONE THIS BY WRITING THIS BEFORE VALUE WHEN
-   * DELETING     */
-  /*       ELEMENTS. WE CHOOSE TO PUT IT HERE SINCE WE THEREBY ENSURE THAT WE
-   * ALWAYS   */
-  /*       UNDO LOG ALL WRITES TO PAGE MEMORY. IT SHOULD BE EASIER TO MAINTAIN
-   * SUCH A  */
-  /*       STRUCTURE. IT IS RATHER DIFFICULT TO MAINTAIN A LOGICAL STRUCTURE
-   * WHERE     */
-  /*       DELETES ARE INSERTS AND INSERTS ARE PURELY DELETES. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* -----------------------------------------------------------------------*/
+  /* WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO  */
+  /* LOG. WE COULD ALSO HAVE DONE THIS BY WRITING THIS BEFORE VALUE WHEN    */
+  /* DELETING ELEMENTS. WE CHOOSE TO PUT IT HERE SINCE WE THEREBY ENSURE    */
+  /* THAT WE ALWAYS UNDO LOG ALL WRITES TO PAGE MEMORY. IT SHOULD BE EASIER */
+  /* TO MAINTAIN SUCH A STRUCTURE. IT IS RATHER DIFFICULT TO MAINTAIN A     */
+  /* LOGICAL STRUCTURE WHERE DELETES ARE INSERTS AND INSERTS ARE PURELY     */
+  /* DELETES.                                                               */
+  /* -----------------------------------------------------------------------*/
   ndbrequire(fragrecptr.p->localkeylen == 1);
   arrGuard(tidrIndex + 1, 2048);
   pageptr.p->word32[tidrIndex] = elem.getHeader();
@@ -3383,23 +3276,19 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr, Uint32 conptr, Uint32 nextConidx,
   pageptr.p->word32[conptr + 1] = nextPagei;
 }  // Dbacc::addnewcontainer()
 
-/* ---------------------------------------------------------------------------------
- */
-/* GETFREELIST */
-/*         INPUT: */
-/*               GFL_PAGEPTR (POINTER TO A PAGE RECORD). */
-/*         OUTPUT: */
-/*                TGFL_PAGEINDEX(POINTER TO A FREE BUFFER IN THE FREEPAGE), AND
- */
-/*                TGFL_BUF_TYPE( TYPE OF THE FREE BUFFER). */
-/*         DESCRIPTION: SEARCHES IN THE FREE LIST OF THE FREE BUFFER IN THE PAGE
- * HEAD*/
-/*                     (WORD32(1)),AND RETURN ADDRESS OF A FREE BUFFER OR NIL.
- */
-/*                     THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE */
-/*                     THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* GETFREELIST                                                              */
+/*         INPUT:                                                           */
+/*               GFL_PAGEPTR (POINTER TO A PAGE RECORD).                    */
+/*         OUTPUT:                                                          */
+/*               TGFL_PAGEINDEX(POINTER TO A FREE BUFFER IN THE FREEPAGE),  */
+/*               AND TGFL_BUF_TYPE( TYPE OF THE FREE BUFFER).               */
+/*         DESCRIPTION:                                                     */
+/*               SEARCHES IN THE FREE LIST OF THE FREE BUFFER IN THE PAGE   */
+/*               HEAD(WORD32(1)),AND RETURN ADDRESS OF A FREE BUFFER OR NIL.*/
+/*               THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE     */
+/*               THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE.       */
+/* ------------------------------------------------------------------------ */
 void Dbacc::getfreelist(Page8Ptr pageptr, Uint32 &pageindex, Uint32 &buftype) {
   const Uint32 emptylist = pageptr.p->word32[Page8::EMPTY_LIST];
   pageindex = (emptylist >> 7) & 0x7f; /* LEFT FREE LIST */
@@ -3413,20 +3302,15 @@ void Dbacc::getfreelist(Page8Ptr pageptr, Uint32 &pageindex, Uint32 &buftype) {
              (pageindex == Container::NO_CONTAINER_INDEX));
 }  // Dbacc::getfreelist()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INCREASELISTCONT */
-/*       INPUT: */
-/*               ILC_PAGEPTR     PAGE POINTER TO INCREASE NUMBER OF CONTAINERS
- * IN    */
-/*           A CONTAINER OF AN OVERFLOW PAGE (FREEPAGEPTR) IS ALLOCATED, NR OF
- */
-/*           ALLOCATED CONTAINER HAVE TO BE INCREASED BY ONE. */
-/*           IF THE NUMBER OF ALLOCATED CONTAINERS IS ABOVE THE FREE LIMIT WE
- * WILL   */
-/*           REMOVE THE PAGE FROM THE FREE LIST. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* INCREASELISTCONT                                                         */
+/*   INPUT:                                                                 */
+/*             ILC_PAGEPTR  PAGE POINTER TO INCREASE NUMBER OF CONTAINERS IN*/
+/*           A CONTAINER OF AN OVERFLOW PAGE (FREEPAGEPTR) IS ALLOCATED, NR */
+/*           OF ALLOCATED CONTAINER HAVE TO BE INCREASED BY ONE.            */
+/*           IF THE NUMBER OF ALLOCATED CONTAINERS IS ABOVE THE FREE LIMIT  */
+/*           WE WILL REMOVE THE PAGE FROM THE FREE LIST.                    */
+/* -------------------------------------------------------------------------*/
 void Dbacc::increaselistcont(Page8Ptr ilcPageptr) {
   ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] =
       ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] + 1;
@@ -3445,26 +3329,20 @@ void Dbacc::increaselistcont(Page8Ptr ilcPageptr) {
   }    // if
 }  // Dbacc::increaselistcont()
 
-/* ---------------------------------------------------------------------------------
- */
-/* SEIZE_LEFTLIST */
-/*       INPUT: */
-/*               TSL_PAGEINDEX           PAGE INDEX OF CONTAINER TO SEIZE */
-/*               SL_PAGEPTR              PAGE POINTER OF CONTAINER TO SEIZE */
-/*               TSL_UPDATE_HEADER       SHOULD WE UPDATE THE CONTAINER HEADER
- */
-/*                                                                                   */
-/*       OUTPUT: */
-/*               NONE */
-/*         DESCRIPTION: THE BUFFER NOTED BY TSL_PAGEINDEX WILL BE REMOVED FROM
- * THE   */
-/*                      LIST OF LEFT FREE CONTAINER, IN THE HEADER OF THE PAGE
- */
-/*                      (FREEPAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED
- * BUFFER    */
-/*                      WILL BE UPDATED. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* SEIZE_LEFTLIST                                                           */
+/*   INPUT:                                                                 */
+/*           TSL_PAGEINDEX           PAGE INDEX OF CONTAINER TO SEIZE       */
+/*           SL_PAGEPTR              PAGE POINTER OF CONTAINER TO SEIZE     */
+/*           TSL_UPDATE_HEADER       SHOULD WE UPDATE THE CONTAINER HEADER  */
+/*                                                                          */
+/*   OUTPUT:                                                                */
+/*           NONE                                                           */
+/*   DESCRIPTION: THE BUFFER NOTED BY TSL_PAGEINDEX WILL BE REMOVED FROM    */
+/*                THE LIST OF LEFT FREE CONTAINER, IN THE HEADER OF THE     */
+/*                PAGE(FREEPAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED    */
+/*                BUFFER WILL BE UPDATED.                                   */
+/* -------------------------------------------------------------------------*/
 void Dbacc::seizeLeftlist(Page8Ptr slPageptr, Uint32 tslPageindex) {
   Uint32 tsllTmp1;
   Uint32 tsllHeadIndex;
@@ -3499,18 +3377,13 @@ void Dbacc::seizeLeftlist(Page8Ptr slPageptr, Uint32 tslPageindex) {
   increaselistcont(slPageptr);
 }  // Dbacc::seizeLeftlist()
 
-/* ---------------------------------------------------------------------------------
- */
-/* SEIZE_RIGHTLIST */
-/*         DESCRIPTION: THE BUFFER NOTED BY TSL_PAGEINDEX WILL BE REMOVED FROM
- * THE   */
-/*                      LIST OF RIGHT FREE CONTAINER, IN THE HEADER OF THE PAGE
- */
-/*                      (SL_PAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED BUFFER
- */
-/*                      WILL BE UPDATED. */
-/* ---------------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------*/
+/* SEIZE_RIGHTLIST                                                          */
+/*   DESCRIPTION: THE BUFFER NOTED BY TSL_PAGEINDEX WILL BE REMOVED FROM    */
+/*                THE LIST OF RIGHT FREE CONTAINER, IN THE HEADER OF THE    */
+/*                PAGE(SL_PAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED     */
+/*                BUFFER WILL BE UPDATED. */
+/* -------------------------------------------------------------------------*/
 void Dbacc::seizeRightlist(Page8Ptr slPageptr, Uint32 tslPageindex) {
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
@@ -3541,75 +3414,57 @@ void Dbacc::seizeRightlist(Page8Ptr slPageptr, Uint32 tslPageindex) {
   increaselistcont(slPageptr);
 }  // Dbacc::seizeRightlist()
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF INSERT_ELEMENT MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       MODULE:         GET_ELEMENT */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       END OF INSERT_ELEMENT MODULE                                       */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/*                                                                          */
+/*       MODULE:         GET_ELEMENT                                        */
 /*               THE FOLLOWING SUBROUTINES ARE ONLY USED BY GET_ELEMENT AND */
-/*               GETDIRINDEX. THIS ROUTINE IS THE SOLE INTERFACE TO GET ELEMENTS
- */
-/*               FROM THE INDEX. CURRENT USERS ARE ALL REQUESTS AND EXECUTE UNDO
- * LOG */
-/*                                                                                   */
-/*               THE FOLLOWING SUBROUTINES ARE INCLUDED IN THIS MODULE: */
-/*               GET_ELEMENT */
-/*               GET_DIRINDEX */
-/*               SEARCH_LONG_KEY */
-/*                                                                                   */
-/*               THESE ROUTINES ARE ONLY USED BY THIS MODULE AND BY NO ONE ELSE.
- */
-/*               ALSO THE ROUTINES MAKE NO USE OF ROUTINES IN OTHER MODULES. */
-/*               THE ONLY SHORT-LIVED VARIABLES USED IN OTHER PARTS OF THE BLOCK
- * ARE */
-/*               THOSE DEFINED AS INPUT AND OUTPUT IN GET_ELEMENT AND
- * GETDIRINDEX    */
-/*               SHORT-LIVED VARIABLES INCLUDE TEMPORARY VARIABLES, COMMON
- * VARIABLES */
-/*               AND POINTER VARIABLES. */
-/*               THE ONLY EXCEPTION TO THIS RULE IS FRAGRECPTR WHICH POINTS TO
- * THE   */
-/*               FRAGMENT RECORD. THIS IS MORE LESS STATIC ALWAYS DURING A
- * SIGNAL    */
-/*               EXECUTION. */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* GETDIRINDEX */
-/*       SUPPORT ROUTINE FOR INSERT ELEMENT, GET ELEMENT AND COMMITDELETE */
-/*         INPUT:FRAGRECPTR ( POINTER TO THE ACTIVE FRAGMENT REC) */
-/*               OPERATION_REC_PTR  (POINTER TO THE OPERATION REC). */
-/*                                                                                   */
-/*         OUTPUT:GDI_PAGEPTR ( POINTER TO THE PAGE OF THE ELEMENT) */
-/*                TGDI_PAGEINDEX ( INDEX OF THE ELEMENT IN THE PAGE). */
-/*                                                                                   */
-/*         DESCRIPTION: CHECK THE HASH VALUE OF THE OPERATION REC AND CALCULATE
- * THE  */
-/*                     THE ADDRESS OF THE ELEMENT IN THE HASH
- * TABLE,(GDI_PAGEPTR,    */
-/*                     TGDI_PAGEINDEX) ACCORDING TO LH3. */
-/* ---------------------------------------------------------------------------------
- */
+/*               GETDIRINDEX. THIS ROUTINE IS THE SOLE INTERFACE TO GET     */
+/*               ELEMENTS FROM THE INDEX. CURRENT USERS ARE ALL REQUESTS    */
+/*               AND EXECUTE UNDO LOG */
+/*                                                                          */
+/*               THE FOLLOWING SUBROUTINES ARE INCLUDED IN THIS MODULE:     */
+/*               GET_ELEMENT                                                */
+/*               GET_DIRINDEX                                               */
+/*               SEARCH_LONG_KEY                                            */
+/*                                                                          */
+/*               THESE ROUTINES ARE ONLY USED BY THIS MODULE AND BY NO ONE  */
+/*               ELSE.                                                      */
+/*               ALSO THE ROUTINES MAKE NO USE OF ROUTINES IN OTHER MODULES */
+/*               THE ONLY SHORT-LIVED VARIABLES USED IN OTHER PARTS OF THE  */
+/*               BLOCK ARE THOSE DEFINED AS INPUT AND OUTPUT IN GET_ELEMENT */
+/*               AND GETDIRINDEX                                            */
+/*               SHORT-LIVED VARIABLES INCLUDE TEMPORARY VARIABLES, COMMON  */
+/*               VARIABLES AND POINTER VARIABLES.                           */
+/*               THE ONLY EXCEPTION TO THIS RULE IS FRAGRECPTR WHICH POINTS */
+/*               TO THE FRAGMENT RECORD. THIS IS MORE LESS STATIC ALWAYS    */
+/*               DURING A SIGNAL EXECUTION.                                 */
+/*                                                                          */
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+/* GETDIRINDEX                                                              */
+/*       SUPPORT ROUTINE FOR INSERT ELEMENT, GET ELEMENT AND COMMITDELETE   */
+/*         INPUT:FRAGRECPTR ( POINTER TO THE ACTIVE FRAGMENT REC)           */
+/*               OPERATION_REC_PTR  (POINTER TO THE OPERATION REC).         */
+/*                                                                          */
+/*         OUTPUT:GDI_PAGEPTR ( POINTER TO THE PAGE OF THE ELEMENT)         */
+/*                TGDI_PAGEINDEX ( INDEX OF THE ELEMENT IN THE PAGE).       */
+/*                                                                          */
+/*         DESCRIPTION: CHECK THE HASH VALUE OF THE OPERATION REC AND       */
+/*                      CALCULATE THE ADDRESS OF THE ELEMENT IN THE HASH    */
+/*                      TABLE,(GDI_PAGEPTR, TGDI_PAGEINDEX) ACCORDING TO    */
+/*                      LH3.                                                */
+/* -------------------------------------------------------------------------*/
 Uint32 Dbacc::getPagePtr(DynArr256::Head &directory, Uint32 index) {
   DynArr256 dir(directoryPoolPtr, directory);
   Uint32 *ptr = dir.get(index);
@@ -4161,24 +4016,19 @@ void Dbacc::commitdelete(Signal *signal) {
   if (operationRecPtr.p->elementPage == lastPageptr.i &&
       operationRecPtr.p->elementPointer == tlastElementptr) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT. */
-    /*  Setting it to an invalid value only for sanity, the value should never
-     * be read.  */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /* THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.  */
+    /* Setting it to an invalid value only for sanity, the value should      */
+    /* never be read.                                                        */
+    /* ----------------------------------------------------------------------*/
     jamLineDebug(Uint16(delPageptr.i));
     jamLineDebug(Uint16(delElemptr));
     delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
   } else {
-    /* ---------------------------------------------------------------------------------
-     */
-    /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND
-     * OVERWRITE THE  */
-    /*  DELETED ELEMENT. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /* THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND     */
+    /* OVERWRITE THE DELETED ELEMENT.                                        */
+    /* ----------------------------------------------------------------------*/
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
     jamDebug();
     jamLineDebug(Uint16(delPageptr.i));
@@ -4240,14 +4090,11 @@ void Dbacc::deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
     delPageptr.p->word32[delElemptr + 1] =
         lastPageptr.p->word32[lastElemptr + 1];
     if (ElementHeader::getLocked(tdeElemhead)) {
-      /* ---------------------------------------------------------------------------------
-       */
-      /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION
-       * RECORD. WE NEED */
-      /* TO UPDATE THE OPERATION RECORD WITH THE NEW REFERENCE TO THE ELEMENT.
-       */
-      /* ---------------------------------------------------------------------------------
-       */
+      /* --------------------------------------------------------------------*/
+      /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION   */
+      /* RECORD. WE NEED UPDATE THE OPERATION RECORD WITH THE NEW REFERENCE  */
+      /* TO THE ELEMENT.                                                     */
+      /* --------------------------------------------------------------------*/
       deOperationRecPtr.i = ElementHeader::getOpPtrI(tdeElemhead);
       ndbrequire(oprec_pool.getValidPtr(deOperationRecPtr));
       deOperationRecPtr.p->elementPage = delPageptr.i;
@@ -4360,19 +4207,14 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr, Uint32 tlastPrevconptr,
                       tlastContainerlen;
   }  // if
   if (containerhead.isUsingBothEnds()) {
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       WE HAVE OWNERSHIP OF BOTH PARTS OF THE CONTAINER ENDS. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*       WE HAVE OWNERSHIP OF BOTH PARTS OF THE CONTAINER ENDS.          */
+    /* ----------------------------------------------------------------------*/
     if (tlastContainerlen < Container::DOWN_LIMIT) {
-      /* ---------------------------------------------------------------------------------
-       */
-      /*       WE HAVE DECREASED THE SIZE BELOW THE DOWN LIMIT, WE MUST GIVE UP
-       * THE OTHER  */
-      /*       SIDE OF THE BUFFER. */
-      /* ---------------------------------------------------------------------------------
-       */
+      /* --------------------------------------------------------------------*/
+      /*       WE HAVE DECREASED THE SIZE BELOW THE DOWN LIMIT, WE MUST GIVE */
+      /*       UP THE OTHER SIDE OF THE BUFFER.                              */
+      /* --------------------------------------------------------------------*/
       containerhead.clearUsingBothEnds();
       if (lastIsforward) {
         jam();
@@ -4391,15 +4233,12 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr, Uint32 tlastPrevconptr,
     ndbrequire(tlastContainerlen == Container::HEADER_SIZE);
     if (lastPrevpageptr.i != RNIL) {
       jam();
-      /* ---------------------------------------------------------------------------------
-       */
-      /*  THE LAST CONTAINER IS EMPTY AND IS NOT THE FIRST CONTAINER WHICH IS
-       * NOT REMOVED. */
-      /*  DELETE THE LAST CONTAINER AND UPDATE THE PREVIOUS CONTAINER. ALSO PUT
-       * THIS       */
-      /*  CONTAINER IN FREE CONTAINER LIST OF THE PAGE. */
-      /* ---------------------------------------------------------------------------------
-       */
+      /* --------------------------------------------------------------------*/
+      /*  THE LAST CONTAINER IS EMPTY AND IS NOT THE FIRST CONTAINER WHICH   */
+      /*  IS NOT REMOVED. DELETE THE LAST CONTAINER AND UPDATE THE PREVIOUS  */
+      /*  CONTAINER. ALSO PUT THIS CONTAINER IN FREE CONTAINER LIST OF THE   */
+      /*  PAGE.                                                              */
+      /* --------------------------------------------------------------------*/
       ndbrequire(tlastPrevconptr < 2048);
       ContainerHeader prevConhead(lastPrevpageptr.p->word32[tlastPrevconptr]);
       ndbrequire(containerhead.isInUse());
@@ -4458,26 +4297,21 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr, Uint32 tlastPrevconptr,
   lastPageptr.p->word32[tlastContainerptr] = containerhead;
 }  // Dbacc::getLastAndRemove()
 
-/* ---------------------------------------------------------------------------------
- */
-/* RELEASE_LEFTLIST */
-/*       INPUT: */
-/*               RL_PAGEPTR              PAGE POINTER OF CONTAINER TO BE
- * RELEASED    */
-/*               TRL_PAGEINDEX           PAGE INDEX OF CONTAINER TO BE RELEASED
- */
-/*               TURL_INDEX              INDEX OF CONTAINER TO BE RELEASED */
-/*               TRL_REL_CON             TRUE IF CONTAINER RELEASED OTHERWISE
- * ONLY   */
-/*                                       A PART IS RELEASED. */
-/*                                                                                   */
-/*       OUTPUT: */
-/*               NONE */
-/*                                                                                   */
-/*          THE FREE LIST OF LEFT FREE BUFFER IN THE PAGE WILL BE UPDATE */
-/*     TULL_INDEX IS INDEX TO THE FIRST WORD IN THE LEFT SIDE OF THE BUFFER */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* RELEASE_LEFTLIST                                                          */
+/*   INPUT:                                                                  */
+/*     RL_PAGEPTR              PAGE POINTER OF CONTAINER TO BE RELEASED      */
+/*     TRL_PAGEINDEX           PAGE INDEX OF CONTAINER TO BE RELEASED        */
+/*     TURL_INDEX              INDEX OF CONTAINER TO BE RELEASED             */
+/*     TRL_REL_CON             TRUE IF CONTAINER RELEASED OTHERWISE ONLY     */
+/*                              A PART IS RELEASED.                          */
+/*                                                                           */
+/*   OUTPUT:                                                                 */
+/*      NONE                                                                 */
+/*                                                                           */
+/*          THE FREE LIST OF LEFT FREE BUFFER IN THE PAGE WILL BE UPDATE     */
+/*     TULL_INDEX IS INDEX TO THE FIRST WORD IN THE LEFT SIDE OF THE BUFFER  */
+/* --------------------------------------------------------------------------*/
 void Dbacc::releaseLeftlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr) {
   Uint32 tullTmp;
   Uint32 tullTmp1;
@@ -4508,27 +4342,22 @@ void Dbacc::releaseLeftlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr) {
   }  // if
 }  // Dbacc::releaseLeftlist()
 
-/* ---------------------------------------------------------------------------------
- */
-/* RELEASE_RIGHTLIST */
-/*       INPUT: */
-/*               RL_PAGEPTR              PAGE POINTER OF CONTAINER TO BE
- * RELEASED    */
-/*               TRL_PAGEINDEX           PAGE INDEX OF CONTAINER TO BE RELEASED
- */
-/*               TURL_INDEX              INDEX OF CONTAINER TO BE RELEASED */
-/*               TRL_REL_CON             TRUE IF CONTAINER RELEASED OTHERWISE
- * ONLY   */
-/*                                       A PART IS RELEASED. */
-/*                                                                                   */
-/*       OUTPUT: */
-/*               NONE */
-/*                                                                                   */
-/*         THE FREE LIST OF RIGHT FREE BUFFER IN THE PAGE WILL BE UPDATE. */
-/*         TURL_INDEX IS INDEX TO THE FIRST WORD IN THE RIGHT SIDE OF */
-/*         THE BUFFER, WHICH IS THE LAST WORD IN THE BUFFER. */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* RELEASE_RIGHTLIST                                                         */
+/*   INPUT:                                                                  */
+/*     RL_PAGEPTR              PAGE POINTER OF CONTAINER TO BE RELEASED      */
+/*     TRL_PAGEINDEX           PAGE INDEX OF CONTAINER TO BE RELEASED        */
+/*     TURL_INDEX              INDEX OF CONTAINER TO BE RELEASED             */
+/*     TRL_REL_CON             TRUE IF CONTAINER RELEASED OTHERWISE ONLY     */
+/*                             A PART IS RELEASED.                           */
+/*                                                                           */
+/*   OUTPUT:                                                                 */
+/*     NONE                                                                  */
+/*                                                                           */
+/*         THE FREE LIST OF RIGHT FREE BUFFER IN THE PAGE WILL BE UPDATE.    */
+/*         TURL_INDEX IS INDEX TO THE FIRST WORD IN THE RIGHT SIDE OF        */
+/*         THE BUFFER, WHICH IS THE LAST WORD IN THE BUFFER.                 */
+/* --------------------------------------------------------------------------*/
 void Dbacc::releaseRightlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr) {
   Uint32 turlTmp1;
   Uint32 turlTmp;
@@ -4557,17 +4386,13 @@ void Dbacc::releaseRightlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr) {
   }  // if
 }  // Dbacc::releaseRightlist()
 
-/* ---------------------------------------------------------------------------------
- */
-/* CHECKOVERFREELIST */
-/*        INPUT: COL_PAGEPTR, POINTER OF AN OVERFLOW PAGE RECORD. */
-/*        DESCRIPTION: CHECKS IF THE PAGE HAVE TO PUT IN FREE LIST OF OVER FLOW
- */
-/*                     PAGES. WHEN IT HAVE TO, AN OVERFLOW REC PTR WILL BE
- * ALLOCATED */
-/*                     TO KEEP NFORMATION  ABOUT THE PAGE. */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* CHECKOVERFREELIST                                                         */
+/*        INPUT: COL_PAGEPTR, POINTER OF AN OVERFLOW PAGE RECORD.            */
+/*        DESCRIPTION: CHECKS IF THE PAGE HAVE TO PUT IN FREE LIST OF OVER   */
+/*                     FLOW PAGES. WHEN IT HAVE TO, AN OVERFLOW REC PTR WILL */
+/*                     BE ALLOCATED TO KEEP NFORMATION  ABOUT THE PAGE.      */
+/* --------------------------------------------------------------------------*/
 void Dbacc::checkoverfreelist(Page8Ptr colPageptr) {
   Uint32 tcolTmp;
 
@@ -5568,29 +5393,20 @@ ref:
   return;
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF COMMIT AND ABORT MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ALLOC_OVERFLOW_PAGE */
-/*          DESCRIPTION: */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/*                                                                           */
+/*       END OF COMMIT AND ABORT MODULE                                      */
+/*                                                                           */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* ALLOC_OVERFLOW_PAGE                                                       */
+/*          DESCRIPTION:                                                     */
+/* --------------------------------------------------------------------------*/
 bool Dbacc::get_lock_information(Dbacc **acc_block, Dblqh **lqh_block) {
   bool lock_flag = false;
   if (m_is_query_block) {
@@ -5641,32 +5457,24 @@ Uint32 Dbacc::allocOverflowPage() {
   return 0;
 }  // Dbacc::allocOverflowPage()
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       EXPAND/SHRINK MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/*EXPANDCHECK                                        EXPAND BUCKET ORD */
-/* SENDER: ACC,    LEVEL B         */
-/*   INPUT:   FRAGRECPTR, POINTS TO A FRAGMENT RECORD. */
-/*   DESCRIPTION: A BUCKET OF A FRAGMENT PAGE WILL BE EXPAND INTO TWO BUCKETS */
-/*                                 ACCORDING TO LH3. */
-/* ******************---------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* EXPANDCHECK                                        EXPAND BUCKET ORD */
-/* ******************------------------------------+ */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/*                                                                           */
+/*       EXPAND/SHRINK MODULE                                                */
+/*                                                                           */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* ******************--------------------------------------------------------*/
+/* EXPANDCHECK                                        EXPAND BUCKET ORD      */
+/* SENDER: ACC,    LEVEL B                                                   */
+/*   INPUT:   FRAGRECPTR, POINTS TO A FRAGMENT RECORD.                       */
+/*   DESCRIPTION: A BUCKET OF A FRAGMENT PAGE WILL BE EXPAND INTO TWO BUCKETS*/
+/*                                 ACCORDING TO LH3.                         */
+/* ******************--------------------------------------------------------*/
+/* ******************--------------------------------------------------------*/
+/* EXPANDCHECK                                        EXPAND BUCKET ORD      */
+/* ******************------------------------------+                         */
 /* SENDER: ACC,    LEVEL B         */
 /* A BUCKET OF THE FRAGMENT WILL   */
 /* BE EXPANDED ACCORDING TO LH3,   */
@@ -5913,13 +5721,10 @@ void Dbacc::endofexpLab(Signal *signal) {
   {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT
-     * FROM HERE  */
-    /*       WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*   IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT    */
+    /*   FROM HERE WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT.          */
+    /* ----------------------------------------------------------------------*/
     signal->theData[0] = fragrecptr.i;
     fragrecptr.p->expandOrShrinkQueued = true;
     sendSignal(reference(), GSN_EXPANDCHECK2, signal, 1, JBB);
@@ -6011,18 +5816,15 @@ LHBits32 Dbacc::getElementHash(Uint32 const *elemptr, OperationrecPtr &oprec) {
   }
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* EXPANDCONTAINER */
-/*        INPUT: EXC_PAGEPTR (POINTER TO THE ACTIVE PAGE RECORD) */
-/*               CEXC_PAGEINDEX (INDEX OF THE BUCKET). */
-/*                                                                                   */
-/*        DESCRIPTION: THE HASH VALUE OF ALL ELEMENTS IN THE CONTAINER WILL BE
- */
-/*                  CHECKED. SOME OF THIS ELEMENTS HAVE TO MOVE TO THE NEW
- * CONTAINER */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* EXPANDCONTAINER                                                           */
+/*        INPUT: EXC_PAGEPTR (POINTER TO THE ACTIVE PAGE RECORD)             */
+/*               CEXC_PAGEINDEX (INDEX OF THE BUCKET).                       */
+/*                                                                           */
+/*        DESCRIPTION: THE HASH VALUE OF ALL ELEMENTS IN THE CONTAINER WILL  */
+/*                     BE CHECKED. SOME OF THIS ELEMENTS HAVE TO MOVE TO THE */
+/*                     NEW CONTAINER                                         */
+/* --------------------------------------------------------------------------*/
 void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx) {
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
@@ -6068,18 +5870,16 @@ EXP_CONTAINER_LOOP:
 NEXT_ELEMENT_LOOP:
   oprecptr.i = RNIL;
   ptrNull(oprecptr);
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       CEXC_PAGEINDEX         PAGE INDEX OF CURRENT CONTAINER BEING
-   * EXAMINED.      */
+  /* ------------------------------------------------------------------------*/
+  /*       CEXC_PAGEINDEX         PAGE INDEX OF CURRENT CONTAINER BEING      */
+  /*                              EXAMINED.                                  */
   /*       CEXC_CONTAINERPTR      INDEX OF CURRENT CONTAINER BEING EXAMINED. */
-  /*       CEXC_ELEMENTPTR        INDEX OF CURRENT ELEMENT BEING EXAMINED. */
-  /*       EXC_PAGEPTR            PAGE WHERE CURRENT ELEMENT RESIDES. */
-  /*       CEXC_PREVPAGEPTR        PAGE OF PREVIOUS CONTAINER. */
-  /*       CEXC_PREVCONPTR        INDEX OF PREVIOUS CONTAINER */
-  /*       CEXC_FORWARD           DIRECTION OF CURRENT CONTAINER */
-  /* ---------------------------------------------------------------------------------
-   */
+  /*       CEXC_ELEMENTPTR        INDEX OF CURRENT ELEMENT BEING EXAMINED.   */
+  /*       EXC_PAGEPTR            PAGE WHERE CURRENT ELEMENT RESIDES.        */
+  /*       CEXC_PREVPAGEPTR        PAGE OF PREVIOUS CONTAINER.               */
+  /*       CEXC_PREVCONPTR        INDEX OF PREVIOUS CONTAINER                */
+  /*       CEXC_FORWARD           DIRECTION OF CURRENT CONTAINER             */
+  /* ------------------------------------------------------------------------*/
   arrGuard(elemptr, 2048);
   tidrElemhead = pageptr.p->word32[elemptr];
   bool move;
@@ -6116,34 +5916,22 @@ NEXT_ELEMENT_LOOP:
     jam();
     if (ElementHeader::getUnlocked(tidrElemhead))
       pageptr.p->word32[elemptr] = tidrElemhead;
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       THIS ELEMENT IS NOT TO BE MOVED. WE CALCULATE THE WHEREABOUTS OF
-     * THE NEXT   */
-    /*       ELEMENT AND PROCEED WITH THAT OR END THE SEARCH IF THERE ARE NO
-     * MORE        */
-    /*       ELEMENTS IN THIS CONTAINER. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /* THIS ELEMENT IS NOT TO BE MOVED. WE CALCULATE THE WHEREABOUTS OF THE  */
+    /* NEXT ELEMENT AND PROCEED WITH THAT OR END THE SEARCH IF THERE ARE NO  */
+    /* MORE ELEMENTS IN THIS CONTAINER.                                      */
+    /* ----------------------------------------------------------------------*/
     goto NEXT_ELEMENT;
   }  // if
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       THE HASH BIT WAS SET AND WE SHALL MOVE THIS ELEMENT TO THE NEW
-   * BUCKET.      */
-  /*       WE START BY READING THE ELEMENT TO BE ABLE TO INSERT IT INTO THE NEW
-   * BUCKET.*/
-  /*       THEN WE INSERT THE ELEMENT INTO THE NEW BUCKET. THE NEXT STEP IS TO
-   * DELETE  */
-  /*       THE ELEMENT FROM THIS BUCKET. THIS IS PERFORMED BY REPLACING IT WITH
-   * THE    */
-  /*       LAST ELEMENT IN THE BUCKET. IF THIS ELEMENT IS TO BE MOVED WE MOVE IT
-   * AND   */
-  /*       GET THE LAST ELEMENT AGAIN UNTIL WE EITHER FIND ONE THAT STAYS OR
-   * THIS      */
-  /*       ELEMENT IS THE LAST ELEMENT. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /* THE HASH BIT WAS SET AND WE SHALL MOVE THIS ELEMENT TO THE NEW BUCKET.  */
+  /* WE START BY READING THE ELEMENT TO BE ABLE TO INSERT IT INTO THE NEW    */
+  /* BUCKET. THEN WE INSERT THE ELEMENT INTO THE NEW BUCKET. THE NEXT STEP   */
+  /* IS TO DELETE THE ELEMENT FROM THIS BUCKET. THIS IS PERFORMED BY         */
+  /* REPLACING IT WITH THE  LAST ELEMENT IN THE BUCKET. IF THIS ELEMENT IS   */
+  /* TO BE MOVED WE MOVE IT AND GET THE LAST ELEMENT AGAIN UNTIL WE EITHER   */
+  /* FIND ONE THAT STAYS OR THIS ELEMENT IS THE LAST ELEMENT.                */
+  /* ------------------------------------------------------------------------*/
   {
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
@@ -6183,23 +5971,18 @@ REMOVE_LAST_LOOP:
   if (pageptr.i == lastPageptr.i) {
     if (elemptr == tlastElementptr) {
       jam();
-      /* ---------------------------------------------------------------------------------
-       */
-      /*       THE CURRENT ELEMENT WAS ALSO THE LAST ELEMENT. */
-      /* ---------------------------------------------------------------------------------
-       */
+      /* --------------------------------------------------------------------*/
+      /*       THE CURRENT ELEMENT WAS ALSO THE LAST ELEMENT.                */
+      /* --------------------------------------------------------------------*/
       return;
     }  // if
   }    // if
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       THE CURRENT ELEMENT WAS NOT THE LAST ELEMENT. IF THE LAST ELEMENT
-   * SHOULD    */
-  /*       STAY WE COPY IT TO THE POSITION OF THE CURRENT ELEMENT, OTHERWISE WE
-   * INSERT */
-  /*       INTO THE NEW BUCKET, REMOVE IT AND TRY WITH THE NEW LAST ELEMENT. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*     THE CURRENT ELEMENT WAS NOT THE LAST ELEMENT. IF THE LAST ELEMENT   */
+  /*     SHOULD STAY WE COPY IT TO THE POSITION OF THE CURRENT ELEMENT,      */
+  /*     OTHERWISE WE INSERT INTO THE NEW BUCKET, REMOVE IT AND TRY WITH THE */
+  /*     NEW LAST ELEMENT.                                                   */
+  /* ------------------------------------------------------------------------*/
   oprecptr.i = RNIL;
   ptrNull(oprecptr);
   arrGuard(tlastElementptr, 2048);
@@ -6236,12 +6019,10 @@ REMOVE_LAST_LOOP:
     jam();
     if (ElementHeader::getUnlocked(tidrElemhead))
       lastPageptr.p->word32[tlastElementptr] = tidrElemhead;
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       THE LAST ELEMENT IS NOT TO BE MOVED. WE COPY IT TO THE CURRENT
-     * ELEMENT.     */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*       THE LAST ELEMENT IS NOT TO BE MOVED. WE COPY IT TO THE CURRENT  */
+    /*       ELEMENT.                                                        */
+    /* ----------------------------------------------------------------------*/
     const Page8Ptr delPageptr = pageptr;
     const Uint32 delConptr = conptr;
     const Uint32 delElemptr = elemptr;
@@ -6249,11 +6030,9 @@ REMOVE_LAST_LOOP:
                   tlastElementptr);
   } else {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       THE LAST ELEMENT IS ALSO TO BE MOVED. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*       THE LAST ELEMENT IS ALSO TO BE MOVED.                           */
+    /* ----------------------------------------------------------------------*/
     {
       ndbrequire(fragrecptr.p->localkeylen == 1);
       const Uint32 localkey = lastPageptr.p->word32[tlastElementptr + 1];
@@ -6278,27 +6057,20 @@ NEXT_ELEMENT:
   cexcMovedLen = cexcMovedLen + fragrecptr.p->elementLength;
   if (containerhead.getLength() > cexcMovedLen) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       WE HAVE NOT YET MOVED THE COMPLETE CONTAINER. WE PROCEED WITH THE
-     * NEXT      */
-    /*       ELEMENT IN THE CONTAINER. IT IS IMPORTANT TO READ THE CONTAINER
-     * LENGTH      */
-    /*       FROM THE CONTAINER HEADER SINCE IT MIGHT CHANGE BY REMOVING THE
-     * LAST        */
-    /*       ELEMENT IN THE BUCKET. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*       WE HAVE NOT YET MOVED THE COMPLETE CONTAINER. WE PROCEED WITH   */
+    /*       THE NEXT ELEMENT IN THE CONTAINER. IT IS IMPORTANT TO READ THE  */
+    /*       CONTAINER LENGTH FROM THE CONTAINER HEADER SINCE IT MIGHT       */
+    /*       CHANGE BY REMOVING THE LAST ELEMENT IN THE BUCKET.              */
+    /* ----------------------------------------------------------------------*/
     elemptr = elemptr + elemStep;
     goto NEXT_ELEMENT_LOOP;
   }  // if
   if (containerhead.getNextEnd() != 0) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       WE PROCEED TO THE NEXT CONTAINER IN THE BUCKET. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /*       WE PROCEED TO THE NEXT CONTAINER IN THE BUCKET.                 */
+    /* ----------------------------------------------------------------------*/
     prevPageptr = pageptr.i;
     prevConptr = conptr;
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
@@ -6306,19 +6078,16 @@ NEXT_ELEMENT:
   }  // if
 }  // Dbacc::expandcontainer()
 
-/* ******************---------------------------------------------------------------
- */
-/* SHRINKCHECK                                        JOIN BUCKET ORD */
+/* ******************--------------------------------------------------------*/
+/* SHRINKCHECK                                        JOIN BUCKET ORD        */
 /*                                                   SENDER: ACC,    LEVEL B */
-/*   INPUT:   FRAGRECPTR, POINTS TO A FRAGMENT RECORD. */
-/*   DESCRIPTION: TWO BUCKET OF A FRAGMENT PAGE WILL BE JOINED TOGETHER */
-/*                                 ACCORDING TO LH3. */
-/* ******************---------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* SHRINKCHECK                                            JOIN BUCKET ORD */
-/* ******************------------------------------+ */
+/*   INPUT:   FRAGRECPTR, POINTS TO A FRAGMENT RECORD.                       */
+/*   DESCRIPTION: TWO BUCKET OF A FRAGMENT PAGE WILL BE JOINED TOGETHER      */
+/*                                 ACCORDING TO LH3.                         */
+/* ******************--------------------------------------------------------*/
+/* ******************--------------------------------------------------------*/
+/* SHRINKCHECK                                            JOIN BUCKET ORD    */
+/* ******************------------------------------+                         */
 /*   SENDER: ACC,    LEVEL B       */
 /* TWO BUCKETS OF THE FRAGMENT     */
 /* WILL BE JOINED ACCORDING TO LH3 */
@@ -6633,20 +6402,20 @@ void Dbacc::execSHRINKCHECK2(Signal *signal) {
     containerhead = pageptr.p->word32[conptr];
     conlen = containerhead.getLength();
     ndbrequire(conlen > Container::HEADER_SIZE);
-    /*--------------------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
     /*       THIS CONTAINER IS NOT YET EMPTY AND WE REMOVE ALL THE ELEMENTS. */
-    /*--------------------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
     shrinkcontainer(pageptr, conptr, isforward, conlen);
     const Uint32 prevPageptr = pageptr.i;
     const Uint32 cexcPrevpageindex = cexcPageindex;
     const Uint32 cexcPrevisforward = isforward;
     if (containerhead.getNextEnd() != 0) {
       jam();
-      /*--------------------------------------------------------------------------*/
-      /*       WE MUST CALL THE NEXT CONTAINER INFO ROUTINE BEFORE WE RELEASE
-       * THE */
-      /*       CONTAINER SINCE THE RELEASE WILL OVERWRITE THE NEXT POINTER. */
-      /*--------------------------------------------------------------------------*/
+      /*---------------------------------------------------------------------*/
+      /*       WE MUST CALL THE NEXT CONTAINER INFO ROUTINE BEFORE WE        */
+      /*       RELEASE THE CONTAINER SINCE THE RELEASE WILL OVERWRITE THE    */
+      /*       NEXT POINTER.                                                 */
+      /*---------------------------------------------------------------------*/
       nextcontainerinfo(pageptr, conptr, containerhead, cexcPageindex,
                         isforward);
     }  // if
@@ -6765,18 +6534,16 @@ void Dbacc::endofshrinkbucketLab(Signal *signal) {
   return;
 }  // Dbacc::endofshrinkbucketLab()
 
-/* ---------------------------------------------------------------------------------
- */
-/* SHRINKCONTAINER */
-/*        INPUT: EXC_PAGEPTR (POINTER TO THE ACTIVE PAGE RECORD) */
-/*               CEXC_CONTAINERLEN (LENGTH OF THE CONTAINER). */
-/*               CEXC_CONTAINERPTR (ARRAY INDEX OF THE CONTAINER). */
-/*               CEXC_FORWARD (CONTAINER FORWARD (+1) OR BACKWARD (-1)) */
-/*                                                                                   */
-/*        DESCRIPTION: SCAN ALL ELEMENTS IN DESTINATION BUCKET BEFORE MERGE */
-/*               AND ADJUST THE STORED REDUCED HASH VALUE (SHIFT IN ZERO). */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* SHRINKCONTAINER                                                           */
+/*        INPUT: EXC_PAGEPTR (POINTER TO THE ACTIVE PAGE RECORD)             */
+/*               CEXC_CONTAINERLEN (LENGTH OF THE CONTAINER).                */
+/*               CEXC_CONTAINERPTR (ARRAY INDEX OF THE CONTAINER).           */
+/*               CEXC_FORWARD (CONTAINER FORWARD (+1) OR BACKWARD (-1))      */
+/*                                                                           */
+/*        DESCRIPTION: SCAN ALL ELEMENTS IN DESTINATION BUCKET BEFORE MERGE  */
+/*               AND ADJUST THE STORED REDUCED HASH VALUE (SHIFT IN ZERO).   */
+/* --------------------------------------------------------------------------*/
 void Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number) {
   /*
    * Note: function are a copy paste from getElement() with modified inner loop
@@ -6903,28 +6670,20 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr, Uint32 conptr, bool isforward,
 SHR_LOOP:
   oprecptr.i = RNIL;
   ptrNull(oprecptr);
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       THE CODE BELOW IS ALL USED TO PREPARE FOR THE CALL TO INSERT_ELEMENT
-   * AND    */
-  /*       HANDLE THE RESULT FROM INSERT_ELEMENT. INSERT_ELEMENT INSERTS THE
-   * ELEMENT   */
-  /*       INTO ANOTHER BUCKET. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /* THE CODE BELOW IS ALL USED TO PREPARE FOR THE CALL TO INSERT_ELEMENT    */
+  /* AND HANDLE THE RESULT FROM INSERT_ELEMENT. INSERT_ELEMENT INSERTS THE   */
+  /* ELEMENT INTO ANOTHER BUCKET.                                            */
+  /* ------------------------------------------------------------------------*/
   arrGuard(tshrElementptr, 2048);
   tidrElemhead = pageptr.p->word32[tshrElementptr];
   if (ElementHeader::getLocked(tidrElemhead)) {
     jam();
-    /* ---------------------------------------------------------------------------------
-     */
-    /*       IF THE ELEMENT IS LOCKED WE MUST UPDATE THE ELEMENT INFO IN THE
-     * OPERATION   */
-    /*       RECORD OWNING THE LOCK. WE DO THIS BY READING THE OPERATION RECORD
-     * POINTER  */
-    /*       FROM THE ELEMENT HEADER. */
-    /* ---------------------------------------------------------------------------------
-     */
+    /* ----------------------------------------------------------------------*/
+    /* IF THE ELEMENT IS LOCKED WE MUST UPDATE THE ELEMENT INFO IN THE       */
+    /* OPERATION RECORD OWNING THE LOCK. WE DO THIS BY READING THE OPERATION */
+    /* RECORD POINTER FROM THE ELEMENT HEADER.                               */
+    /* ----------------------------------------------------------------------*/
     oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
     ndbrequire(oprec_pool.getValidPtr(oprecptr));
     oprecptr.p->reducedHashValue.shift_in(true);
@@ -7101,11 +6860,9 @@ void Dbacc::execACC_SCANREQ(Signal *signal)  // Direct Executed
   return;
 }  // Dbacc::execACC_SCANREQ()
 
-/* ******************---------------------------------------------------------------
- */
-/*  NEXT_SCANREQ                                       REQUEST FOR NEXT ELEMENT
- * OF   */
-/* ******************------------------------------+   A FRAGMENT. */
+/* ******************--------------------------------------------------------*/
+/*  NEXT_SCANREQ                               REQUEST FOR NEXT ELEMENT OF   */
+/* ******************----------------------+   A FRAGMENT.                   */
 /*   SENDER: LQH,    LEVEL B       */
 void Dbacc::execNEXT_SCANREQ(Signal *signal) {
   Uint32 tscanNextFlag;
@@ -7579,17 +7336,14 @@ void Dbacc::releaseAndAbortLockedOps(Signal *signal) {
 }  // Dbacc::releaseAndAbortLockedOps()
 
 /* 3.18.3  ACC_CHECK_SCAN */
-/* ******************---------------------------------------------------------------
- */
-/* ACC_CHECK_SCAN */
-/*          ENTER ACC_CHECK_SCAN WITH */
-/*                    SCAN_PTR */
-/* ******************---------------------------------------------------------------
- */
-/* ******************---------------------------------------------------------------
- */
-/* ACC_CHECK_SCAN */
-/* ******************------------------------------+ */
+/* ******************--------------------------------------------------------*/
+/* ACC_CHECK_SCAN                                                            */
+/*          ENTER ACC_CHECK_SCAN WITH                                        */
+/*                    SCAN_PTR                                               */
+/* ******************--------------------------------------------------------*/
+/* ******************--------------------------------------------------------*/
+/* ACC_CHECK_SCAN                                                            */
+/* ******************------------------------------+                         */
 void Dbacc::execACC_CHECK_SCAN(Signal *signal) {
   Uint32 TcheckLcpStop;
   jamEntryDebug();
@@ -7875,11 +7629,9 @@ NEXTSEARCH_SCAN_LOOP:
   return false;
 }  // Dbacc::getScanElement()
 
-/* ---------------------------------------------------------------------------------
- */
-/*  INIT_SCAN_OP_REC */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/*  INIT_SCAN_OP_REC                                                         */
+/* --------------------------------------------------------------------------*/
 void Dbacc::initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
                           Uint32 elemptr) const {
   Uint32 tisoLocalPtr;
@@ -7966,11 +7718,9 @@ void Dbacc::nextcontainerinfo(Page8Ptr &pageptr, Uint32 conptr,
   }  // if
 }  // Dbacc::nextcontainerinfo()
 
-/* ---------------------------------------------------------------------------------
- */
-/* PUT_ACTIVE_SCAN_OP */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* PUT_ACTIVE_SCAN_OP                                                        */
+/* --------------------------------------------------------------------------*/
 void Dbacc::putActiveScanOp() const {
   OperationrecPtr pasOperationRecPtr;
   pasOperationRecPtr.i = scanPtr.p->scanFirstActiveOp;
@@ -8019,11 +7769,9 @@ void Dbacc::putOpScanLockQue() const {
 
 }  // Dbacc::putOpScanLockQue()
 
-/* ---------------------------------------------------------------------------------
- */
-/* PUT_READY_SCAN_QUEUE */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* PUT_READY_SCAN_QUEUE                                                      */
+/* --------------------------------------------------------------------------*/
 void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const {
   OperationrecPtr prsOperationRecPtr;
   ScanRecPtr TscanPtr;
@@ -8121,11 +7869,9 @@ void Dbacc::releaseScanContainer(const Page8Ptr pageptr, const Uint32 conptr,
   }  // if
 }  // Dbacc::releaseScanContainer()
 
-/* ---------------------------------------------------------------------------------
- */
-/* RELEASE_SCAN_REC */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* RELEASE_SCAN_REC                                                          */
+/* --------------------------------------------------------------------------*/
 void Dbacc::releaseScanRec() {
   // Check that all ops this scan has allocated have been
   // released
@@ -8151,24 +7897,20 @@ void Dbacc::releaseScanRec() {
   checkPoolShrinkNeed(DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX, scanRec_pool);
 }  // Dbacc::releaseScanRec()
 
-/* ---------------------------------------------------------------------------------
- */
-/*  SEARCH_SCAN_CONTAINER */
-/*       INPUT:           TSSC_CONTAINERLEN */
-/*                        TSSC_CONTAINERPTR */
-/*                        TSSC_ISFORWARD */
-/*                        SSC_PAGEIDPTR */
-/*                        SCAN_PTR */
-/*       OUTPUT:          TSSC_IS_LOCKED */
-/*                                                                                   */
-/*            DESCRIPTION: SEARCH IN A CONTAINER TO FIND THE NEXT SCAN ELEMENT.
- */
-/*                    TO DO THIS THE SCAN BIT OF THE ELEMENT HEADER IS CHECKED.
- * IF   */
-/*                    THIS BIT IS ZERO, IT IS SET TO ONE AND THE ELEMENT IS
- * RETURNED.*/
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/*  SEARCH_SCAN_CONTAINER                                                    */
+/*       INPUT:           TSSC_CONTAINERLEN                                  */
+/*                        TSSC_CONTAINERPTR                                  */
+/*                        TSSC_ISFORWARD                                     */
+/*                        SSC_PAGEIDPTR                                      */
+/*                        SCAN_PTR                                           */
+/*       OUTPUT:          TSSC_IS_LOCKED                                     */
+/*                                                                           */
+/*       DESCRIPTION: SEARCH IN A CONTAINER TO FIND THE NEXT SCAN ELEMENT.   */
+/*                    TO DO THIS THE SCAN BIT OF THE ELEMENT HEADER IS       */
+/*                    CHECKED. IF THIS BIT IS ZERO, IT IS SET TO ONE AND THE */
+/*                    ELEMENT IS RETURNED.                                   */
+/* --------------------------------------------------------------------------*/
 bool Dbacc::searchScanContainer(Page8Ptr pageptr, Uint32 conptr, bool isforward,
                                 Uint32 conlen, Uint32 &elemptr,
                                 Uint32 &islocked) const {
@@ -8235,11 +7977,9 @@ SCANELEMENTLOOP001:
   return false;
 }  // Dbacc::searchScanContainer()
 
-/* ---------------------------------------------------------------------------------
- */
-/*  SEND THE RESPONSE NEXT_SCANCONF AND POSSIBLE KEYINFO SIGNALS AS WELL. */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/*  SEND THE RESPONSE NEXT_SCANCONF AND POSSIBLE KEYINFO SIGNALS AS WELL.    */
+/* --------------------------------------------------------------------------*/
 void Dbacc::sendNextScanConf(Signal *signal) {
   const Local_key localKey = operationRecPtr.p->localdata;
 
@@ -8284,14 +8024,12 @@ void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const {
   pageptr.p->word32[elemptr] = tselTmp1;
 }  // Dbacc::setlock()
 
-/* ---------------------------------------------------------------------------------
- */
-/*  TAKE_OUT_ACTIVE_SCAN_OP */
-/*         DESCRIPTION: AN ACTIVE SCAN OPERATION IS BELOGED TO AN ACTIVE LIST OF
- * THE */
-/*                      SCAN RECORD. BY THIS SUBRUTIN THE LIST IS UPDATED. */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/*  TAKE_OUT_ACTIVE_SCAN_OP                                                  */
+/*         DESCRIPTION: AN ACTIVE SCAN OPERATION IS BELOGED TO AN ACTIVE     */
+/*                      LIST OF THE SCAN RECORD. BY THIS SUBRUTIN THE LIST   */
+/*                      IS UPDATED.                                          */
+/* --------------------------------------------------------------------------*/
 void Dbacc::takeOutActiveScanOp() const {
   OperationrecPtr tasOperationRecPtr;
 
@@ -8354,11 +8092,9 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const {
   TscanPtr.p->scanLockHeld--;
 }  // Dbacc::takeOutScanLockQueue()
 
-/* ---------------------------------------------------------------------------------
- */
-/* TAKE_OUT_READY_SCAN_QUEUE */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* TAKE_OUT_READY_SCAN_QUEUE                                                 */
+/* --------------------------------------------------------------------------*/
 void Dbacc::takeOutReadyScanQueue() const {
   OperationrecPtr trsOperationRecPtr;
 
@@ -8382,19 +8118,14 @@ void Dbacc::takeOutReadyScanQueue() const {
   }  // if
 }  // Dbacc::takeOutReadyScanQueue()
 
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
-/*                                                                                   */
-/*       END OF SCAN MODULE */
-/*                                                                                   */
-/* ---------------------------------------------------------------------------------
- */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
+/*                                                                           */
+/*       END OF SCAN MODULE                                                  */
+/*                                                                           */
+/* --------------------------------------------------------------------------*/
+/* --------------------------------------------------------------------------*/
 
 bool Dbacc::getfragmentrec(FragmentrecPtr &rootPtr, Uint32 fid) {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
@@ -8409,15 +8140,13 @@ bool Dbacc::getfragmentrec(FragmentrecPtr &rootPtr, Uint32 fid) {
   return false;
 }  // Dbacc::getrootfragmentrec()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INIT_OVERPAGE */
-/*         INPUT. IOP_PAGEPTR, POINTER TO AN OVERFLOW PAGE RECORD */
-/*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE
- * VALUE    */
-/*         ACCORDING TO LH3 AND PAGE STRUCTOR DESCRIPTION OF NDBACC BLOCK */
-/* ---------------------------------------------------------------------------------
- */
+/* ---------------------------------------------------------------------------*/
+/* INIT_OVERPAGE                                                              */
+/*         INPUT. IOP_PAGEPTR, POINTER TO AN OVERFLOW PAGE RECORD             */
+/*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIAL    */
+/*                      VALUE ACCORDING TO LH3 AND PAGE STRUCTOR DESCRIPTION  */
+/*                      OF NDBACC BLOCK                                       */
+/* ---------------------------------------------------------------------------*/
 void Dbacc::initOverpage(Page8Ptr iopPageptr) {
   Page32 *p32 = reinterpret_cast<Page32 *>(iopPageptr.p - (iopPageptr.i % 4));
   ndbrequire(p32->magic == Page32::MAGIC);
@@ -8435,12 +8164,9 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr) {
   iopPageptr.p->word32[Page8::PREV_PAGE] = prevPage;
 
   iopPageptr.p->word32[Page8::EMPTY_LIST] = (1 << ZPOS_PAGE_TYPE_BIT);
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS.
-   */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*     INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS. */
+  /* ------------------------------------------------------------------------*/
   Uint32 iopIndex = ZHEAD_SIZE + 1;
   iopPageptr.p->word32[iopIndex] = Container::NO_CONTAINER_INDEX;
   for (tiopPrevFree = 0; tiopPrevFree <= Container::MAX_CONTAINER_INDEX - 1;
@@ -8448,11 +8174,9 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr) {
     iopIndex = iopIndex + ZBUF_SIZE;
     iopPageptr.p->word32[iopIndex] = tiopPrevFree;
   }  // for
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS.   */
+  /* ------------------------------------------------------------------------*/
   iopIndex = ZHEAD_SIZE;
   for (tiopNextFree = 1; tiopNextFree <= Container::MAX_CONTAINER_INDEX;
        tiopNextFree++) {
@@ -8461,12 +8185,9 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr) {
   }  // for
   iopPageptr.p->word32[iopIndex] =
       Container::NO_CONTAINER_INDEX; /* LEFT_LIST IS UPDATED */
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.
-   */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*   INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.  */
+  /* ------------------------------------------------------------------------*/
   iopIndex = (ZBUF_SIZE + ZHEAD_SIZE) - 1;
   iopPageptr.p->word32[iopIndex] = Container::NO_CONTAINER_INDEX;
   for (tiopPrevFree = 0; tiopPrevFree <= Container::MAX_CONTAINER_INDEX - 1;
@@ -8474,11 +8195,9 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr) {
     iopIndex = iopIndex + ZBUF_SIZE;
     iopPageptr.p->word32[iopIndex] = tiopPrevFree;
   }  // for
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.  */
+  /* ------------------------------------------------------------------------*/
   iopIndex = (ZBUF_SIZE + ZHEAD_SIZE) - 2;
   for (tiopNextFree = 1; tiopNextFree <= Container::MAX_CONTAINER_INDEX;
        tiopNextFree++) {
@@ -8489,15 +8208,13 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr) {
       Container::NO_CONTAINER_INDEX; /* RIGHT_LIST IS UPDATED */
 }  // Dbacc::initOverpage()
 
-/* ---------------------------------------------------------------------------------
- */
-/* INIT_PAGE */
-/*         INPUT. INP_PAGEPTR, POINTER TO A PAGE RECORD */
-/*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE
- * VALUE    */
-/*         ACCORDING TO LH3 AND PAGE STRUCTOR DISACRIPTION OF NDBACC BLOCK */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* INIT_PAGE                                                                 */
+/*         INPUT: INP_PAGEPTR, POINTER TO A PAGE RECORD                      */
+/*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIAL   */
+/*                      VALUE ACCORDING TO LH3 AND PAGE STRUCTOR DESCRIPTION */
+/*                       OF NDBACC BLOCK                                     */
+/* --------------------------------------------------------------------------*/
 void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
   Uint32 tinpIndex;
   Uint32 tinpTmp;
@@ -8513,21 +8230,17 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
 
     inpPageptr.p->word32[i] = 0;
   }  // for
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       SET PAGE ID FOR USE OF CHECKPOINTER. */
-  /*       PREPARE CONTAINER HEADERS INDICATING EMPTY CONTAINERS WITHOUT NEXT.
-   */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       SET PAGE ID FOR USE OF CHECKPOINTER.                              */
+  /*       PREPARE CONTAINER HEADERS INDICATING EMPTY CONTAINERS WITHOUT     */
+  /*       NEXT.                                                             */
+  /* ------------------------------------------------------------------------*/
   inpPageptr.p->word32[Page8::PAGE_ID] = tipPageId;
   ContainerHeader tinpTmp1;
   tinpTmp1.initInUse();
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE ZNO_CONTAINERS PREDEFINED HEADERS ON LEFT SIZE. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE ZNO_CONTAINERS PREDEFINED HEADERS ON LEFT SIZE.        */
+  /* ------------------------------------------------------------------------*/
   tinpIndex = ZHEAD_SIZE;
   for (tinpTmp = 0; tinpTmp <= ZNO_CONTAINERS - 1; tinpTmp++) {
     inpPageptr.p->word32[tinpIndex] = tinpTmp1;
@@ -8539,21 +8252,17 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
   /*|     1    |  LIST   |  LIST            */
   /*|    BIT   | 7 BITS  | 7 BITS           */
   /*--------------------------------------- */
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE FIRST POINTER TO DOUBLY LINKED LIST OF FREE CONTAINERS. */
-  /*       INITIALISE LEFT FREE LIST TO 64 AND RIGHT FREE LIST TO ZERO. */
-  /*       ALSO INITIALISE PAGE TYPE TO NOT OVERFLOW PAGE. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE FIRST POINTER TO DOUBLY LINKED LIST OF FREE CONTAINERS */
+  /*       INITIALISE LEFT FREE LIST TO 64 AND RIGHT FREE LIST TO ZERO.      */
+  /*       ALSO INITIALISE PAGE TYPE TO NOT OVERFLOW PAGE.                   */
+  /* ------------------------------------------------------------------------*/
   tinpTmp = (ZNO_CONTAINERS << 7);
   inpPageptr.p->word32[Page8::EMPTY_LIST] = tinpTmp;
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.
-   */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT          */
+  /*       CONTAINERS.                                                       */
+  /* ------------------------------------------------------------------------*/
   tinpIndex = (ZHEAD_SIZE + ZBUF_SIZE) - 1;
   inpPageptr.p->word32[tinpIndex] = Container::NO_CONTAINER_INDEX;
   for (tinpPrevFree = 0; tinpPrevFree <= Container::MAX_CONTAINER_INDEX - 1;
@@ -8561,11 +8270,9 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
     tinpIndex = tinpIndex + ZBUF_SIZE;
     inpPageptr.p->word32[tinpIndex] = tinpPrevFree;
   }  // for
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.  */
+  /* ------------------------------------------------------------------------*/
   tinpIndex = (ZHEAD_SIZE + ZBUF_SIZE) - 2;
   for (tinpNextFree = 1; tinpNextFree <= Container::MAX_CONTAINER_INDEX;
        tinpNextFree++) {
@@ -8573,14 +8280,12 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
     tinpIndex = tinpIndex + ZBUF_SIZE;
   }  // for
   inpPageptr.p->word32[tinpIndex] = Container::NO_CONTAINER_INDEX;
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS.
-   */
-  /*       THE FIRST ZNO_CONTAINERS ARE NOT PUT INTO FREE LIST SINCE THEY ARE */
-  /*       PREDEFINED AS OCCUPIED. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR LEFT           */
+  /*       CONTAINERS.                                                       */
+  /*       THE FIRST ZNO_CONTAINERS ARE NOT PUT INTO FREE LIST SINCE THEY    */
+  /*       ARE PREDEFINED AS OCCUPIED.                                       */
+  /* ------------------------------------------------------------------------*/
   tinpIndex = (ZNO_CONTAINERS * ZBUF_SIZE) + ZHEAD_SIZE;
   for (tinpNextFree = ZNO_CONTAINERS + 1;
        tinpNextFree <= Container::MAX_CONTAINER_INDEX; tinpNextFree++) {
@@ -8588,13 +8293,11 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
     tinpIndex = tinpIndex + ZBUF_SIZE;
   }  // for
   inpPageptr.p->word32[tinpIndex] = Container::NO_CONTAINER_INDEX;
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS. */
-  /*       THE FIRST ZNO_CONTAINERS ARE NOT PUT INTO FREE LIST SINCE THEY ARE */
-  /*       PREDEFINED AS OCCUPIED. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE NEXT PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS.   */
+  /*       THE FIRST ZNO_CONTAINERS ARE NOT PUT INTO FREE LIST SINCE THEY    */
+  /*       ARE PREDEFINED AS OCCUPIED.                                       */
+  /* ------------------------------------------------------------------------*/
   tinpIndex = ((ZNO_CONTAINERS * ZBUF_SIZE) + ZHEAD_SIZE) + 1;
   inpPageptr.p->word32[tinpIndex] = Container::NO_CONTAINER_INDEX;
   for (tinpPrevFree = ZNO_CONTAINERS;
@@ -8602,23 +8305,18 @@ void Dbacc::initPage(Page8Ptr inpPageptr, Uint32 tipPageId) {
     tinpIndex = tinpIndex + ZBUF_SIZE;
     inpPageptr.p->word32[tinpIndex] = tinpPrevFree;
   }  // for
-  /* ---------------------------------------------------------------------------------
-   */
-  /*       INITIALISE HEADER POSITIONS NOT CURRENTLY USED AND ENSURE USE OF
-   * OVERFLOW   */
-  /*       RECORD POINTER ON THIS PAGE LEADS TO ERROR. */
-  /* ---------------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------*/
+  /*       INITIALISE HEADER POSITIONS NOT CURRENTLY USED AND ENSURE USE OF  */
+  /*       OVERFLOW RECORD POINTER ON THIS PAGE LEADS TO ERROR.              */
+  /* ------------------------------------------------------------------------*/
   inpPageptr.p->word32[Page8::CHECKSUM] = 0;
   inpPageptr.p->word32[Page8::ALLOC_CONTAINERS] = 0;
 }  // Dbacc::initPage()
 
-/* ---------------------------------------------------------------------------------
- */
-/* RELEASE OP RECORD */
-/*         PUT A FREE OPERATION IN A FREE LIST OF THE OPERATIONS */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* RELEASE OP RECORD                                                         */
+/*         PUT A FREE OPERATION IN A FREE LIST OF THE OPERATIONS             */
+/* --------------------------------------------------------------------------*/
 void Dbacc::releaseOpRec() {
   ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
   if (likely(operationRecPtr.i != c_copy_frag_oprec)) {
@@ -8656,11 +8354,9 @@ void Dbacc::releaseFreeOpRec() {
   }
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* RELEASE_OVERPAGE */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* RELEASE_OVERPAGE                                                          */
+/* --------------------------------------------------------------------------*/
 void Dbacc::releaseOverpage(Page8Ptr ropPageptr) {
   jam();
   {
@@ -8734,11 +8430,9 @@ Uint64 Dbacc::getLinHashByteSize(Uint32 fragId) const {
   }
 }
 
-/* ---------------------------------------------------------------------------------
- */
-/* SEIZE    FRAGREC */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* SEIZE    FRAGREC                                                          */
+/* --------------------------------------------------------------------------*/
 void Dbacc::seizeFragrec() {
   RSS_OP_ALLOC(cnoOfFreeFragrec);
   fragrecptr.i = cfirstfreefrag;
@@ -8805,11 +8499,9 @@ Uint32 Dbacc::seizePage(Page8Ptr &spPageptr, int sub_page_id,
   return Uint32(0);
 }  // Dbacc::seizePage()
 
-/* ---------------------------------------------------------------------------------
- */
-/* SEND_SYSTEMERROR */
-/* ---------------------------------------------------------------------------------
- */
+/* --------------------------------------------------------------------------*/
+/* SEND_SYSTEMERROR                                                          */
+/* --------------------------------------------------------------------------*/
 void Dbacc::sendSystemerror(int line) const {
   progError(line, NDBD_EXIT_PRGERR);
 }  // Dbacc::sendSystemerror()
