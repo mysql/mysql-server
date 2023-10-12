@@ -32,6 +32,7 @@
 #include "helper/container/generic.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
+#include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/universal_id.h"
 #include "mrs/json/parse_file_sharing_options.h"
@@ -41,10 +42,38 @@ namespace mrs {
 namespace database {
 
 using DbObjectEntries = std::vector<entry::DbObject>;
+using ContentFileEntries = std::vector<entry::ContentFile>;
 
 class FileFromOptions {
  public:
   using Counters = std::map<UniversalId, uint64_t>;
+
+  void analyze_global(bool enabled, const std::string &options) {
+    Counters local_global_files;
+
+    content_files_.clear();
+
+    extract_files(get_global_config(enabled, options), &global_files_,
+                  &local_global_files);
+    assign(&global_files_, local_global_files);
+  }
+
+  void analyze(const ContentFileEntries &entries) {
+    Counters local_service_files;
+    Counters local_content_set_files;
+
+    content_files_.clear();
+
+    for (const entry::ContentFile &e : entries) {
+      extract_files(get_service_config(e), &service_files_,
+                    &local_service_files);
+      extract_files(get_content_set_config(e), &content_set_files_,
+                    &local_content_set_files);
+    }
+
+    assign(&service_files_, local_service_files);
+    assign(&content_set_files_, local_content_set_files);
+  }
 
   void analyze(const DbObjectEntries &entries) {
     Counters local_service_files;
@@ -95,6 +124,30 @@ class FileFromOptions {
             false};
   }
 
+  Config get_global_config(bool enabled, const std::string &options) {
+    return {{}, {}, {}, enabled, options, {{}, {}, {}}, false};
+  }
+
+  Config get_service_config(const entry::ContentFile &o) {
+    return {o.service_path,
+            {},
+            {},
+            o.active_service,
+            o.options_json_service,
+            {o.service_id, {}, o.service_id},
+            false};
+  }
+
+  Config get_content_set_config(const entry::ContentFile &o) {
+    return {o.service_path,
+            o.schema_path,
+            {},
+            o.active_service && o.active_set,
+            o.options_json_schema,
+            {o.service_id, o.content_set_id, o.content_set_id},
+            o.schema_requires_authentication};
+  }
+
   Config get_schema_config(const entry::DbObject &o) {
     return {o.service_path,
             o.schema_path,
@@ -102,7 +155,7 @@ class FileFromOptions {
             o.active_service && o.active_schema,
             o.options_json_schema,
             {o.service_id, o.schema_id, o.schema_id},
-            o.requires_authentication || o.schema_requires_authentication};
+            o.schema_requires_authentication};
   }
 
   Config get_db_object_config(const entry::DbObject &o) {
@@ -112,7 +165,7 @@ class FileFromOptions {
             o.active_service && o.active_schema && o.active_object,
             o.options_json,
             {o.service_id, o.schema_id, o.id},
-            o.schema_requires_authentication};
+            o.requires_authentication || o.schema_requires_authentication};
   }
 
   void assign(Counters *destination, const Counters source) {
@@ -150,7 +203,7 @@ class FileFromOptions {
 
     for (const auto &[k, v] : fs.default_static_content_) {
       rest::entry::AppContentFile cf;
-      cf.active = conf.active;
+      cf.active_service = cf.active_set = cf.active_file = conf.active;
       cf.deleted = false;
       cf.key_entry_type = entry::EntryType::key_static_sub;
       cf.key_subtype = ++(*local_counters)[conf.ids.object];
@@ -167,7 +220,7 @@ class FileFromOptions {
       cf.size = v.size();
       cf.schema_requires_authentication = conf.require_auth;
       cf.requires_authentication = conf.require_auth;
-      cf.options_json = conf.options;
+      cf.options_json_schema = conf.options;
       if (helper::container::has(fs.directory_index_directive_, k)) {
         cf.is_index = true;
       }
@@ -177,7 +230,7 @@ class FileFromOptions {
 
     for (const auto &[k, v] : fs.default_redirects_) {
       rest::entry::AppContentFile cf;
-      cf.active = conf.active;
+      cf.active_service = cf.active_set = cf.active_file = conf.active;
       cf.deleted = false;
       cf.key_entry_type = entry::EntryType::key_static_sub;
       cf.key_subtype = ++(*local_counters)[conf.ids.object];
@@ -194,7 +247,7 @@ class FileFromOptions {
       cf.size = v.size();
       cf.schema_requires_authentication = conf.require_auth;
       cf.requires_authentication = conf.require_auth;
-      cf.options_json = conf.options;
+      cf.options_json_schema = conf.options;
       if (helper::container::has(fs.directory_index_directive_, k)) {
         cf.is_index = true;
       }
@@ -234,8 +287,10 @@ class FileFromOptions {
     //    }
   }
 
+  Counters global_files_;
   Counters service_files_;
   Counters schema_files_;
+  Counters content_set_files_;
   Counters db_objects_files_;
 };
 

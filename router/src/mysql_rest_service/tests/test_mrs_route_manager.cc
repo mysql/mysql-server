@@ -147,7 +147,7 @@ class RouteManagerTests : public Test {
     using namespace std::string_literals;
     for (auto &entry : ids) {
       ContentFile item;
-      item.active = true;
+      item.active_service = item.active_set = item.active_file = true;
       item.deleted = false;
       item.service_id = service_id;
 

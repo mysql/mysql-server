@@ -83,7 +83,7 @@ void SchemaMonitor::run() {
   //  using RowProcessor = mysqlrouter::MySQLSession::RowProcessor;
   log_system("Starting monitor");
   bool full_fetch_compleated = false;
-  mrs::database::FileFromOptions file_from_options_monitor;
+  mrs::database::FileFromOptions options_files;
   std::unique_ptr<database::QueryState> turn_state{new database::QueryState()};
   std::unique_ptr<database::QueryEntryDbObject> route_fetcher{
       new database::QueryEntryDbObject()};
@@ -105,12 +105,18 @@ void SchemaMonitor::run() {
 
       if (turn_state->was_changed()) {
         auto global_json_config = turn_state->get_json_data();
-        dbobject_manager_->turn(turn_state->get_state(), global_json_config);
+        auto state = turn_state->get_state();
+        dbobject_manager_->turn(state, global_json_config);
         gtid_manager_->configure(global_json_config);
 
         log_debug("route turn=%s, changed=%s",
                   (turn_state->get_state() == stateOn ? "on" : "off"),
                   turn_state->was_changed() ? "yes" : "no");
+
+        options_files.analyze_global(state == mrs::stateOn, global_json_config);
+        if (options_files.content_files_.size()) {
+          dbobject_manager_->update(options_files.content_files_);
+        }
       }
 
       if (!authentication_fetcher->entries.empty()) {
@@ -120,13 +126,13 @@ void SchemaMonitor::run() {
       }
 
       if (!route_fetcher->entries.empty()) {
-        file_from_options_monitor.analyze(route_fetcher->entries);
+        options_files.analyze(route_fetcher->entries);
         dbobject_manager_->update(route_fetcher->entries);
         EntityCounter<kEntityCounterUpdatesObjects>::increment(
             route_fetcher->entries.size());
 
-        if (!file_from_options_monitor.content_files_.empty()) {
-          dbobject_manager_->update(file_from_options_monitor.content_files_);
+        if (options_files.content_files_.size()) {
+          dbobject_manager_->update(options_files.content_files_);
         }
       }
 
@@ -134,6 +140,11 @@ void SchemaMonitor::run() {
         dbobject_manager_->update(content_file_fetcher->entries);
         EntityCounter<kEntityCounterUpdatesFiles>::increment(
             content_file_fetcher->entries.size());
+
+        options_files.analyze(content_file_fetcher->entries);
+        if (options_files.content_files_.size()) {
+          dbobject_manager_->update(options_files.content_files_);
+        }
       }
 
       if (!full_fetch_compleated) {

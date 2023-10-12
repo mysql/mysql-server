@@ -232,7 +232,9 @@ const std::string &Object::get_schema_name() { return schema_name_; }
 const std::string &Object::get_options() {
   if (!pe_.options_json.empty()) return pe_.options_json;
 
-  return pe_.options_json_schema;
+  if (!pe_.options_json_schema.empty()) return pe_.options_json_schema;
+
+  return pe_.options_json_service;
 }
 
 bool Object::requires_authentication() const {

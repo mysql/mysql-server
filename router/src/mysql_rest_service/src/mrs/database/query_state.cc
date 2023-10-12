@@ -39,7 +39,11 @@ uint64_t QueryState::get_last_update() { return audit_log_id_; }
 void QueryState::on_row(const ResultRow &r) {
   if (r.size() < 2) return;
   auto state_new = atoi(r[0]) ? stateOn : stateOff;
-  json_data = r[1];
+
+  if (r[1])
+    json_data = r[1];
+  else
+    json_data.clear();
 
   if (state_ != state_new) {
     changed_ = true;

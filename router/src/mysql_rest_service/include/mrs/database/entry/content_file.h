@@ -44,12 +44,14 @@ struct ContentFile {
   std::string service_path;
   std::string schema_path;
   std::string file_path;
-  bool active;
+  bool active_service;
+  bool active_set;
+  bool active_file;
   bool schema_requires_authentication;
   bool requires_authentication;
   bool deleted;
-  std::string options_json;
   std::string options_json_schema;
+  std::string options_json_service;
 };
 
 }  // namespace entry
