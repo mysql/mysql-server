@@ -92,17 +92,19 @@ class GtidManager {
     using helper::to_string;
     using std::to_string;
 
-    log_debug("GtidManager - configured with:");
-    log_debug("GtidManager::enable_: %s", to_string(enable_).c_str());
-    log_debug("GtidManager::timeout_: %s",
-              to_string(refresh_timeout_.count()).c_str());
-    log_debug("GtidManager::after_: %s", to_string(refresh_after_).c_str());
+    //    log_debug("GtidManager - configured with:");
+    //    log_debug("GtidManager::enable_: %s", to_string(enable_).c_str());
+    //    log_debug("GtidManager::timeout_: %s",
+    //              to_string(refresh_timeout_.count()).c_str());
+    //    log_debug("GtidManager::after_: %s",
+    //    to_string(refresh_after_).c_str());
   }
 
   GtidAction is_executed_on_server(const TCPaddress &addr, const Gtid &gtid) {
     if (!enable_) return GtidAction::k_not_found;
-    log_debug("GtidManager - is_executed_on_server %s - %s", addr.str().c_str(),
-              gtid.to_string().c_str());
+    //    log_debug("GtidManager - is_executed_on_server %s - %s",
+    //    addr.str().c_str(),
+    //              gtid.to_string().c_str());
     GtidSet *set;
     auto ctxt = get_context(addr);
 
@@ -130,8 +132,8 @@ class GtidManager {
   void remember(const TCPaddress &addr, const Gtid &gtid) {
     if (!enable_) return;
 
-    log_debug("GtidManager - remember (%s - %s)", addr.str().c_str(),
-              gtid.to_string().c_str());
+    //    log_debug("GtidManager - remember (%s - %s)", addr.str().c_str(),
+    //              gtid.to_string().c_str());
 
     GtidSet *set;
     auto ctxt = get_context(addr);
@@ -156,7 +158,7 @@ class GtidManager {
   void reinitialize(const TCPaddress &addr, const std::vector<GtidSet> &sets) {
     if (!enable_) return;
 
-    log_debug("GtidManager - reinitialize %s", addr.str().c_str());
+    //    log_debug("GtidManager - reinitialize %s", addr.str().c_str());
 
     auto ctxt = get_context(addr);
     auto l = std::unique_lock<std::shared_mutex>(ctxt->mutex_gtid_access_);

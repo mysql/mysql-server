@@ -36,12 +36,12 @@ QueryEntriesContentFile::QueryEntriesContentFile() {
       "   h.name, "
       "   service.url_context_root as service_path, s.request_path as "
       "   set_path, f.request_path as file_path,"
-      "   s.enabled and f.enabled as enabled,"
+      "   service.enabled as srv_enabled, s.enabled as set_enabled, f.enabled "
+      "as enabled,"
       "   s.requires_auth as set_requires_auth,f.requires_auth as "
       "   requires_auth, "
       "   s.service_id,"
-      "    IF(s.options IS NOT NULL, s.options, service.options) as options,"
-      "    IF(s.options IS NOT NULL, s.options, service.options) as db_options,"
+      "    s.options as db_options, service.options as service_options,"
       "    h.id as url_host_id"
       " FROM mysql_rest_service_metadata.content_file as f"
       " JOIN mysql_rest_service_metadata.content_set as s ON "
@@ -81,13 +81,15 @@ void QueryEntriesContentFile::on_row(const ResultRow &row) {
   mysql_row.unserialize(&entry.service_path);
   mysql_row.unserialize(&entry.schema_path);
   mysql_row.unserialize(&entry.file_path);
-  mysql_row.unserialize(&entry.active);
+  mysql_row.unserialize(&entry.active_service);
+  mysql_row.unserialize(&entry.active_set);
+  mysql_row.unserialize(&entry.active_file);
   mysql_row.unserialize(&entry.schema_requires_authentication);
   mysql_row.unserialize(&entry.requires_authentication);
   mysql_row.unserialize_with_converter(&entry.service_id,
                                        entry::UniversalId::from_raw);
-  mysql_row.unserialize(&entry.options_json);
   mysql_row.unserialize(&entry.options_json_schema);
+  mysql_row.unserialize(&entry.options_json_service);
 
   entry.deleted = false;
 }

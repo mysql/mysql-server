@@ -59,7 +59,7 @@ class RouteStaticFileTests : public Test {
                       const std::string &schema, const std::string &object) {
     ContentFile obj;
 
-    obj.active = true;
+    obj.active_service = obj.active_set = obj.active_file = true;
     obj.deleted = false;
 
     obj.id = mrs::UniversalId{{static_cast<uint8_t>(last_id_ % 256),
@@ -185,7 +185,7 @@ TEST_F(RouteStaticFileTests, route_turnon_on_deactivated_route_does_nothing) {
   const mrs::UniversalId kServiceId{22};
   const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
-  pe.active = false;
+  pe.active_service = pe.active_set = pe.active_file = false;
   make_sut(pe);
   sut_->turn(mrs::stateOn);
   delete_sut();

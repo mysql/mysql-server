@@ -5,7 +5,6 @@
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/basic_schema.sql
 
-
 ## Test starts here
 --echo
 --echo

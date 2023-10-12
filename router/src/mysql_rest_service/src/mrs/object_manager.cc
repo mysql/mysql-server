@@ -55,8 +55,8 @@ class ParsePluginOptions
  public:
   template <typename ValueType>
   void handle_object_value(const std::string &key, const ValueType &vt) {
-    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
-              cvt::to_string(vt).c_str());
+    //    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
+    //              cvt::to_string(vt).c_str());
     static const std::string kHttpContent = "defaultContent.";
     using std::to_string;
 
@@ -223,10 +223,13 @@ ObjectManager::RouteSchemaPtr ObjectManager::handle_schema(
 
   if (pe.content_set_id == UniversalId()) return {};
 
+  const std::string &option =
+      (pe.options_json_schema.empty() ? pe.options_json_service
+                                      : pe.options_json_schema);
   auto value = factory_->create_router_schema(
       this, cache_, pe.service_path, pe.schema_path, is_ssl_, pe.host,
-      pe.requires_authentication, pe.service_id, pe.content_set_id,
-      pe.options_json_schema, auth_manager_);
+      pe.requires_authentication, pe.service_id, pe.content_set_id, option,
+      auth_manager_);
 
   value->turn(state_);
 
@@ -274,10 +277,14 @@ ObjectManager::RouteSchemaPtr ObjectManager::handle_schema(const DbObject &pe) {
     return s->second;
   }
 
+  const std::string &options =
+      (pe.options_json_schema.empty() ? pe.options_json_service
+                                      : pe.options_json_schema);
+
   auto value = factory_->create_router_schema(
       this, cache_, pe.service_path, pe.schema_path, is_ssl_, pe.host,
-      pe.schema_requires_authentication, pe.service_id, pe.schema_id,
-      pe.options_json_schema, auth_manager_);
+      pe.schema_requires_authentication, pe.service_id, pe.schema_id, options,
+      auth_manager_);
 
   value->turn(state_);
 

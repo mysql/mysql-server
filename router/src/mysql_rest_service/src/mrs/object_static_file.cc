@@ -50,7 +50,8 @@ ObjectStaticFile::ObjectStaticFile(
 }
 
 void ObjectStaticFile::turn(const State state) {
-  if (stateOff == state || !cse_.active) {
+  auto active = cse_.active_file && cse_.active_service && cse_.active_set;
+  if (stateOff == state || !active) {
     handle_file_.reset();
 
     return;
@@ -139,7 +140,10 @@ const std::string &ObjectStaticFile::get_object_name() {
 
 const std::string &ObjectStaticFile::get_version() { return version_; }
 
-const std::string &ObjectStaticFile::get_options() { return cse_.options_json; }
+const std::string &ObjectStaticFile::get_options() {
+  if (!cse_.options_json_schema.empty()) return cse_.options_json_schema;
+  return cse_.options_json_service;
+}
 
 interface::Object::EntryObject ObjectStaticFile::get_cached_object() {
   static EntryObject empty;

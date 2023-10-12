@@ -605,8 +605,8 @@ class ParseOptions
  public:
   template <typename ValueType>
   void handle_object_value(const std::string &key, const ValueType &vt) {
-    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
-              cvt::to_string(vt).c_str());
+    //    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
+    //              cvt::to_string(vt).c_str());
     static const std::string kHeaders = "headers.";
     using std::to_string;
 
@@ -621,7 +621,7 @@ class ParseOptions
     } else if (key == "logging.response.headers") {
       result_.debug.http.response.header_ = to_bool(vt);
     } else if (key == "logging.response.body") {
-      log_debug("handle_object_value hit %s", to_cstr(to_bool(vt)));
+      //      log_debug("handle_object_value hit %s", to_cstr(to_bool(vt)));
       result_.debug.http.response.body_ = to_bool(vt);
     } else if (key == "returnInternalErrorDetails") {
       result_.debug.http.response.detailed_errors_ = to_bool(vt);

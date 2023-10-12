@@ -39,7 +39,7 @@ if ($mrs_sql_id_variable_ob)
 
 eval INSERT INTO mysql_rest_service_metadata.object_field
        (id, name, object_id, enabled, position, db_column)
-       SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, $mrs_sql_id_variable_ob, true, z.pos, z.js
+       SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, $mrs_sql_id_variable_ob, IF(INSTR(z.cname,"hidden"),false,true), z.pos, z.js
        FROM
          (SELECT COLUMN_NAME as cname,
                  ORDINAL_POSITION as pos,
