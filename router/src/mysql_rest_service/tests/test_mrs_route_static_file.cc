@@ -42,7 +42,6 @@ using namespace helper::json;
 
 using helper::MakeSharedPtr;
 using mrs::ObjectStaticFile;
-using mrs::database::entry::ContentFile;
 using mrs::interface::Object;
 using testing::_;
 using testing::Eq;
@@ -51,6 +50,7 @@ using testing::Mock;
 using testing::Return;
 using testing::StrictMock;
 using testing::Test;
+using ContentFile = mrs::rest::entry::AppContentFile;
 
 class RouteStaticFileTests : public Test {
  public:
