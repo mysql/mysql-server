@@ -27,6 +27,8 @@
 
 #include <string>
 
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+
 namespace helper {
 
 inline void left(std::string *to_trim) {
