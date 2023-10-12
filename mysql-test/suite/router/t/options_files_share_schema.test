@@ -243,11 +243,12 @@ exec $MRS_CLIENT_ARGS
   --path /svc2/sch2/
   --response-type RAW;
 
+--replace_regex /^Date.*/Date -> %DATE%/
 exec $MRS_CLIENT_ARGS
   --path /svc2/sch2/redirect.html
   --display REQUEST,STATUS,HEADER
   --expected-status 307
-  --response-type RAW;
+  --response-type RAW  2>&1;
 
 exec $MRS_CLIENT_ARGS
   --path /svc2/sch2/index.html
