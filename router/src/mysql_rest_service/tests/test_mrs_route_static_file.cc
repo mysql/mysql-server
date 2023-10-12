@@ -73,7 +73,7 @@ class RouteStaticFileTests : public Test {
 
     obj.host = "mysql.com";
     obj.requires_authentication = false;
-    obj.set_requires_authentication = false;
+    obj.schema_requires_authentication = false;
     obj.size = 100;
 
     return obj;
@@ -153,7 +153,7 @@ TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
   pe.schema_path = kNewSchemaPath;
   pe.file_path = kNewObjectPath;
   pe.host = kNewHost;
-  pe.set_requires_authentication = true;
+  pe.schema_requires_authentication = true;
   pe.requires_authentication = true;
   pe.size = 200;
 

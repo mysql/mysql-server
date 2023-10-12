@@ -22,7 +22,7 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs/add_service.inc
+--source ../include/mrs/service/add.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic

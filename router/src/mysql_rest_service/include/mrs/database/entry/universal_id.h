@@ -76,6 +76,14 @@ struct UniversalId {
     return false;
   }
 
+  bool operator>(const UniversalId &other) const {
+    for (int i = k_size - 1; i >= 0; --i) {
+      if (raw[i] != other.raw[i]) return raw[i] > other.raw[i];
+    }
+
+    return false;
+  }
+
   static UniversalId from_cstr(const char *p, uint32_t length) {
     if (length != k_size) return {};
     UniversalId result;

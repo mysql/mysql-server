@@ -22,28 +22,38 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_REST_ENTRY_APP_CONTENT_FILE_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_REST_ENTRY_APP_CONTENT_FILE_H_
 
+#include <optional>
 #include <string>
 
-namespace helper {
-namespace string {
+#include "mrs/database/entry/content_file.h"
 
-inline bool is_empty(const std::string &str) { return str.empty(); }
-inline bool is_empty(const char *str) { return *str == 0; }
-inline const char *cstr(const char *str) { return str; }
-inline const char *cstr(const std::string &str) { return str.c_str(); }
-inline size_t size(const char *str) { return strlen(str); }
-inline size_t size(const std::string &str) { return str.length(); }
+namespace mrs {
+namespace rest {
+namespace entry {
 
-}  // namespace string
+struct AppContentFile : public mrs::database::entry::ContentFile {
+  using ContentFile = mrs::database::entry::ContentFile;
+  using EntryKey = database::entry::EntryKey;
+  using EntryType = database::entry::EntryType;
 
-template <typename Container>
-inline std::string as_string(const Container &c) {
-  return std::string(c.begin(), c.end());
-}
+  AppContentFile() {}
+  explicit AppContentFile(const ContentFile &cf) : ContentFile(cf) {}
 
-}  // namespace helper
+  EntryType key_entry_type{EntryType::key_static};
+  uint64_t key_subtype{0};
+  EntryKey get_key() const { return {key_entry_type, id, key_subtype}; }
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_GENERIC_H_
+  std::optional<std::string> content;
+  std::optional<std::string> redirect;
+  bool default_handling_directory_index{true};
+  bool is_index{false};
+};
+
+}  // namespace entry
+}  // namespace rest
+}  // namespace mrs
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_REST_ENTRY_APP_CONTENT_FILE_H_

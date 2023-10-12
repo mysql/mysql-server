@@ -26,6 +26,9 @@
 
 #include "mysql/harness/logging/logging.h"
 
+#include "helper/string/contains.h"
+#include "helper/string/generic.h"
+#include "mrs/database/helper/content_file_from_options.h"
 #include "mrs/database/query_changes_auth_app.h"
 #include "mrs/database/query_changes_content_file.h"
 #include "mrs/database/query_changes_db_object.h"
@@ -80,6 +83,7 @@ void SchemaMonitor::run() {
   //  using RowProcessor = mysqlrouter::MySQLSession::RowProcessor;
   log_system("Starting monitor");
   bool full_fetch_compleated = false;
+  mrs::database::FileFromOptions file_from_options_monitor;
   std::unique_ptr<database::QueryState> turn_state{new database::QueryState()};
   std::unique_ptr<database::QueryEntryDbObject> route_fetcher{
       new database::QueryEntryDbObject()};
@@ -116,9 +120,14 @@ void SchemaMonitor::run() {
       }
 
       if (!route_fetcher->entries.empty()) {
+        file_from_options_monitor.analyze(route_fetcher->entries);
         dbobject_manager_->update(route_fetcher->entries);
         EntityCounter<kEntityCounterUpdatesObjects>::increment(
             route_fetcher->entries.size());
+
+        if (!file_from_options_monitor.content_files_.empty()) {
+          dbobject_manager_->update(file_from_options_monitor.content_files_);
+        }
       }
 
       if (!content_file_fetcher->entries.empty()) {

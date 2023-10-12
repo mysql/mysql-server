@@ -30,19 +30,19 @@
 #include <string>
 #include <vector>
 
-#include "mrs/database/entry/content_file.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/rest_handler.h"
 #include "mrs/interface/state.h"
+#include "mrs/rest/entry/app_content_file.h"
 
 namespace mrs {
 
 class ObjectStaticFile : public mrs::interface::Object {
  public:
   using RouteSchema = mrs::interface::ObjectSchema;
-  using ContentFile = database::entry::ContentFile;
+  using ContentFile = rest::entry::AppContentFile;
   using HandlerFactory = mrs::interface::HandlerFactory;
   using AuthManager = mrs::interface::AuthorizeManager;
   using MysqlCacheManager = collector::MysqlCacheManager;
@@ -85,6 +85,8 @@ class ObjectStaticFile : public mrs::interface::Object {
 
   const RowUserOwnership &get_user_row_ownership() const override;
   const VectorOfRowGroupOwnership &get_group_row_ownership() const override;
+  const std::string *get_default_content() override;
+  const std::string *get_redirection() override;
 
  private:
   void update_variables();

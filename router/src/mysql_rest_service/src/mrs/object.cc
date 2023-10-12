@@ -55,7 +55,7 @@ Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
       gtid_manager_{gtid_manager},
       handler_factory_{handler_factory},
       query_factory_{query_factory} {
-  schema_->route_register(this);
+  if (schema_) schema_->route_register(this);
   update_variables();
 }
 
@@ -64,7 +64,7 @@ Object::~Object() {
 }
 
 void Object::turn(const State state) {
-  if (stateOff == state || !pe_.active) {
+  if (stateOff == state || !is_active()) {
     handle_object_.reset();
     handle_metadata_.reset();
 
@@ -229,7 +229,11 @@ const std::string &Object::get_object_path() { return pe_.object_path; }
 const std::string &Object::get_object_name() { return object_name_; }
 const std::string &Object::get_schema_name() { return schema_name_; }
 
-const std::string &Object::get_options() { return pe_.options_json; }
+const std::string &Object::get_options() {
+  if (!pe_.options_json.empty()) return pe_.options_json;
+
+  return pe_.options_json_schema;
+}
 
 bool Object::requires_authentication() const {
   return pe_.requires_authentication || pe_.schema_requires_authentication;
@@ -282,5 +286,13 @@ const Object::VectorOfRowGroupOwnership &Object::get_group_row_ownership()
 }
 
 const Fields &Object::get_parameters() { return pe_.fields; }
+
+bool Object::is_active() const {
+  return pe_.active_object && pe_.active_schema && pe_.active_service;
+}
+
+const std::string *Object::get_default_content() { return nullptr; }
+
+const std::string *Object::get_redirection() { return {}; }
 
 }  // namespace mrs

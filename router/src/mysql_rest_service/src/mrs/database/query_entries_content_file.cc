@@ -82,7 +82,7 @@ void QueryEntriesContentFile::on_row(const ResultRow &row) {
   mysql_row.unserialize(&entry.schema_path);
   mysql_row.unserialize(&entry.file_path);
   mysql_row.unserialize(&entry.active);
-  mysql_row.unserialize(&entry.set_requires_authentication);
+  mysql_row.unserialize(&entry.schema_requires_authentication);
   mysql_row.unserialize(&entry.requires_authentication);
   mysql_row.unserialize_with_converter(&entry.service_id,
                                        entry::UniversalId::from_raw);

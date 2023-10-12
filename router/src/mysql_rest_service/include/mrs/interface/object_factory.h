@@ -27,13 +27,13 @@
 
 #include <memory>
 
-#include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/object_manager.h"
 #include "mrs/interface/object_schema.h"
+#include "mrs/rest/entry/app_content_file.h"
 
 namespace mrs {
 
@@ -43,7 +43,7 @@ class ObjectFactory {
  public:
   using Object = mrs::interface::Object;
   using ObjectSchema = mrs::interface::ObjectSchema;
-  using ContentFile = mrs::database::entry::ContentFile;
+  using ContentFile = mrs::rest::entry::AppContentFile;
   using DbObject = mrs::database::entry::DbObject;
   using AuthManager = mrs::interface::AuthorizeManager;
   using DbObjectManager = mrs::interface::ObjectManager;

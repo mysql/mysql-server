@@ -107,22 +107,28 @@ void HandlerFile::authorization(rest::RequestContext *ctxt) {
 }
 
 HttpResult HandlerFile::handle_get(rest::RequestContext *ctxt) {
-  auto file = factory_->create_query_content_file();
   mysql_harness::Path path{route_->get_object_path()};
   auto if_not_matched = ctxt->request->get_input_headers().get("If-None-Match");
 
-  if (if_not_matched && route_->get_version() == if_not_matched) {
+  if (auto redirection = route_->get_redirection())
+    throw http::ErrorRedirect(*redirection);
+
+  if (if_not_matched && route_->get_version() == if_not_matched)
     throw http::Error(HttpStatusCode::NotModified);
-  }
+
+  auto result_type = get_result_type_from_extension(
+      mysql_harness::make_lower(path.extension()));
+
+  if (auto content = route_->get_default_content())
+    return {*content, result_type, route_->get_version()};
 
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionMetadataRO);
-  auto result_type = get_result_type_from_extension(
-      mysql_harness::make_lower(path.extension()));
 
   if (nullptr == session.get())
     throw http::Error(HttpStatusCode::InternalError);
 
+  auto file = factory_->create_query_content_file();
   file->query_file(session.get(), route_->get_id());
 
   return {std::move(file->result), result_type, route_->get_version()};
