@@ -15,3 +15,7 @@ let SEARCH_PATTERN= 'keyring_file plugin' is deprecated and will be removed in a
 --remove_file $MYSQLTEST_VARDIR/log/deprecation.log
 --remove_file $MYSQL_TMP_DIR/kf_keys
 UNINSTALL PLUGIN keyring_file;
+
+# Must restart to clear special options added above
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
