@@ -2365,6 +2365,7 @@ extern "C" int ndb_mgm_start_tls(NdbMgmHandle handle) {
   if (r) return 0;  // success
 
   SET_ERROR(handle, NDB_MGM_TLS_HANDSHAKE_FAILED, "Handshake failed");
+  handle->connected = 0;
   return -5;
 }
 

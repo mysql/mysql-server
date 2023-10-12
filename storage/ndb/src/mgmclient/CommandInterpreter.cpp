@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <atomic>
+
 #include <ndb_global.h>
 
 #include <mgmapi.h>
@@ -118,6 +120,8 @@ class CommandInterpreter {
   int setBackupEncryptionPassword(BaseString &encryption_password,
                                   bool &encryption_password_set,
                                   bool interactive);
+  void startEventThread(const char * host, unsigned short port);
+  void waitForEventThread();
 
  public:
   int executeStop(int processId, const char *parameters, bool all);
@@ -152,7 +156,6 @@ class CommandInterpreter {
     return m_prompt;
   }
 
- public:
   int test_tls();
   bool connect(bool interactive);
   void disconnect(void);
@@ -160,7 +163,6 @@ class CommandInterpreter {
   /**
    * A execute function definition
    */
- public:
   typedef int (CommandInterpreter::*ExecuteFunction)(int processId,
                                                      const char *param,
                                                      bool all);
@@ -987,10 +989,9 @@ static void printLogEvent(struct ndb_logevent *event) {
 struct event_thread_param {
   NdbMgmHandle *m;
   NdbMutex **p;
-  int tls_req;
 };
 
-static int do_event_thread = 0;
+static std::atomic<int> do_event_thread;
 
 static void *event_thread_run(void *p) {
   DBUG_ENTER("event_thread_run");
@@ -998,26 +999,15 @@ static void *event_thread_run(void *p) {
   struct event_thread_param param = *(struct event_thread_param *)p;
   NdbMgmHandle handle = *(param.m);
   NdbMutex *printmutex = *(param.p);
-  int tls_req = param.tls_req;
 
   int filter[] = {
       15, NDB_MGM_EVENT_CATEGORY_BACKUP,    1, NDB_MGM_EVENT_CATEGORY_STARTUP,
       5,  NDB_MGM_EVENT_CATEGORY_STATISTIC, 0};
 
-  NdbLogEventHandle log_handle = NULL;
-  struct ndb_logevent log_event;
-
-  if (tls_req != CLIENT_TLS_DEFERRED) {
-    int r = ndb_mgm_start_tls(handle);
-    if (r != 0 && tls_req == CLIENT_TLS_STRICT) {
-      do_event_thread = -1;
-      DBUG_RETURN(NULL);
-    }
-  }
-
-  log_handle = ndb_mgm_create_logevent_handle(handle, filter);
+  NdbLogEventHandle log_handle = ndb_mgm_create_logevent_handle(handle, filter);
   if (log_handle) {
-    do_event_thread = 1;
+    struct ndb_logevent log_event;
+    do_event_thread.store(1);
     do {
       int res = ndb_logevent_get_next(log_handle, &log_event, 2000);
       if (res > 0) {
@@ -1025,10 +1015,10 @@ static void *event_thread_run(void *p) {
         printLogEvent(&log_event);
       } else if (res < 0)
         break;
-    } while (do_event_thread);
+    } while (do_event_thread.load());
     ndb_mgm_destroy_logevent_handle(&log_handle);
   } else {
-    do_event_thread = 0;
+    do_event_thread.store(-1); // prevent 30-second wait in parent thread
   }
 
   DBUG_RETURN(NULL);
@@ -1039,17 +1029,79 @@ int CommandInterpreter::test_tls() {
   return connect(false) ? 0 : 1;
 }
 
+void CommandInterpreter::startEventThread(const char * host,
+                                          unsigned short port) {
+  m_mgmsrv2 = ndb_mgm_create_handle();
+  if (m_mgmsrv2 == nullptr) {
+    ndbout_c("Can't create 2:nd handle to management server.");
+    ndb_mgm_destroy_handle(&m_mgmsrv);
+    exit(-1);
+  }
+
+  BaseString constr;
+  constr.assfmt("%s %d", host, port);
+  if (ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) ||
+      ndb_mgm_connect(m_mgmsrv2, m_try_reconnect - 1, m_connect_retry_delay, 1))
+    return;
+
+  DBUG_PRINT("info", ("2:ndb connected to Management Server ok at: %s",
+                      constr.c_str()));
+
+  ndb_mgm_set_ssl_ctx(m_mgmsrv2, m_tlsKeyManager.ctx());
+  if (ndb_mgm_has_tls(m_mgmsrv)) {  // TLS on main handle
+    if (ndb_mgm_start_tls(m_mgmsrv2) != 0) {
+      ndb_mgm_disconnect(m_mgmsrv2);
+      return;
+    }
+  } else {  // Test whether server requires TLS
+    ndb_mgm_severity dummy;
+    if (ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv2, &dummy,
+                                               sizeof(dummy))) {
+      int err = ndb_mgm_get_latest_error(m_mgmsrv2);
+      if ((err == NDB_MGM_NOT_AUTHORIZED) ||
+          (err == NDB_MGM_AUTH_REQUIRES_TLS) ||
+          (err == NDB_MGM_AUTH_REQUIRES_CLIENT_CERT)) {
+        ndbout_c("Server requires TLS. Not starting event thread.");
+        ndb_mgm_disconnect(m_mgmsrv2);
+        return;
+      }
+    }
+  }
+
+  assert(m_event_thread == nullptr);
+  do_event_thread.store(0);
+  struct event_thread_param p;
+  p.m = &m_mgmsrv2;
+  p.p = &m_print_mutex;
+  m_event_thread = NdbThread_Create(event_thread_run, (void **)&p,
+                                    0,  // default stack size
+                                    "CommandInterpreted_event_thread",
+                                    NDB_THREAD_PRIO_LOW);
+  if (m_event_thread) {
+    DBUG_PRINT("info", ("Thread created ok, waiting for started..."));
+    int iter = 1000;  // try for 30 seconds
+    while (do_event_thread.load() == 0 && iter-- > 0) NdbSleep_MilliSleep(30);
+  }
+
+  if (do_event_thread.load() < 1)
+    waitForEventThread();
+}
+
+void CommandInterpreter::waitForEventThread() {
+  void *res;
+  if (m_event_thread) {
+    NdbThread_WaitFor(m_event_thread, &res);
+    NdbThread_Destroy(&m_event_thread);
+    m_event_thread = nullptr;
+  }
+  ndb_mgm_disconnect(m_mgmsrv2);
+  ndb_mgm_destroy_handle(&m_mgmsrv2);
+}
+
 bool CommandInterpreter::connect(bool interactive) {
   DBUG_ENTER("CommandInterpreter::connect");
 
   if (m_connected) DBUG_RETURN(m_connected);
-
-  m_mgmsrv = ndb_mgm_create_handle();
-  if (m_mgmsrv == NULL) {
-    ndbout_c("Can't create handle to management server.");
-    exit(-1);
-  }
-  ndb_mgm_set_ssl_ctx(m_mgmsrv, m_tlsKeyManager.ctx());
 
   if ((m_tls_start_type == CLIENT_TLS_STRICT) &&
       (m_tlsKeyManager.ctx() == nullptr)) {
@@ -1057,131 +1109,51 @@ bool CommandInterpreter::connect(bool interactive) {
     exit(-1);
   }
 
-  if (interactive) {
-    m_mgmsrv2 = ndb_mgm_create_handle();
-    if (m_mgmsrv2 == NULL) {
-      ndbout_c("Can't create 2:nd handle to management server.");
-      /**
-       * Disconnect(), in class destructor calls ndb_mgm_destroy_handle only
-       * when m_event_thread & m_connected is set. So, ndb_mgm_destroy_handle()
-       * has to be called on failures before setting m_event_thread &
-       * m_connected.
-       */
-      ndb_mgm_destroy_handle(&m_mgmsrv);
-      exit(-1);
-    }
-    ndb_mgm_set_ssl_ctx(m_mgmsrv2, m_tlsKeyManager.ctx());
-  } else {
-    m_mgmsrv2 = nullptr;
+  if ((m_mgmsrv = ndb_mgm_create_handle()) == nullptr) {
+    ndbout_c("Can't create handle to management server.");
+    exit(-1);
   }
 
   if (ndb_mgm_set_connectstring(m_mgmsrv, m_constr)) {
     printError();
     ndb_mgm_destroy_handle(&m_mgmsrv);
-    if (interactive) {
-      ndb_mgm_destroy_handle(&m_mgmsrv2);
-    }
     exit(-1);
   }
 
+  ndb_mgm_set_ssl_ctx(m_mgmsrv, m_tlsKeyManager.ctx());
   if (ndb_mgm_connect(m_mgmsrv, m_try_reconnect - 1, m_connect_retry_delay,
                       1)) {
     ndb_mgm_destroy_handle(&m_mgmsrv);
-    if (interactive) {
-      ndb_mgm_destroy_handle(&m_mgmsrv2);
-    }
     DBUG_RETURN(m_connected);  // couldn't connect, always false
   }
 
-  ndb_mgm_set_ssl_ctx(m_mgmsrv, m_tlsKeyManager.ctx());
-
   if (m_tls_start_type != CLIENT_TLS_DEFERRED) {
     if (ndb_mgm_start_tls(m_mgmsrv) != 0) {
-      if (interactive) {
-        ndbout_c("Connected to server, but failed to start TLS.");
-      }
-
-      if (m_tls_start_type == CLIENT_TLS_STRICT) {
+      if (m_tls_start_type == CLIENT_TLS_STRICT ||
+          ndb_mgm_get_latest_error(m_mgmsrv) == NDB_MGM_TLS_HANDSHAKE_FAILED) {
         printError();
         ndb_mgm_destroy_handle(&m_mgmsrv);
-        if (interactive) {
-          ndb_mgm_destroy_handle(&m_mgmsrv2);
-        }
-        DBUG_RETURN(m_connected);
+        DBUG_RETURN(m_connected);  // still false
       }
     }
   }
 
-  const char *host = ndb_mgm_get_connected_host(m_mgmsrv);
-  unsigned port = ndb_mgm_get_connected_port(m_mgmsrv);
-  if (interactive) {
-    BaseString constr;
-    constr.assfmt("%s %d", host, port);
-    if (!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-        !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect - 1, m_connect_retry_delay,
-                         1)) {
-      DBUG_PRINT("info", ("2:ndb connected to Management Server ok at: %s:%d",
-                          host, port));
-      if (m_tls_start_type != CLIENT_TLS_DEFERRED) {
-        ndb_mgm_start_tls(m_mgmsrv2);
-      }
-      assert(m_event_thread == NULL);
-      assert(do_event_thread == 0);
-      do_event_thread = 0;
-      struct event_thread_param p;
-      p.m = &m_mgmsrv2;
-      p.p = &m_print_mutex;
-      p.tls_req = m_tls_start_type;
-      m_event_thread = NdbThread_Create(event_thread_run, (void **)&p,
-                                        0,  // default stack size
-                                        "CommandInterpreted_event_thread",
-                                        NDB_THREAD_PRIO_LOW);
-      if (m_event_thread) {
-        DBUG_PRINT("info", ("Thread created ok, waiting for started..."));
-        int iter = 1000;  // try for 30 seconds
-        while (do_event_thread == 0 && iter-- > 0) NdbSleep_MilliSleep(30);
-      }
-      if (m_event_thread == NULL || do_event_thread == 0 ||
-          do_event_thread == -1) {
-        DBUG_PRINT("info", ("Warning, event thread startup failed, "
-                            "degraded printouts as result, errno=%d",
-                            errno));
-        printf(
-            "Warning, event thread startup failed, "
-            "degraded printouts as result, errno=%d\n",
-            errno);
-        do_event_thread = 0;
-        if (m_event_thread) {
-          void *res;
-          NdbThread_WaitFor(m_event_thread, &res);
-          NdbThread_Destroy(&m_event_thread);
-        }
-        ndb_mgm_disconnect(m_mgmsrv2);
-      }
-    } else {
-      DBUG_PRINT(
-          "warning",
-          ("Could not do 2:nd connect to mgmtserver for event listening"));
-      DBUG_PRINT("info",
-                 ("code: %d, msg: %s", ndb_mgm_get_latest_error(m_mgmsrv2),
-                  ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
-      printf("Warning, event connect failed, degraded printouts as result\n");
-      printf("code: %d, msg: %s\n", ndb_mgm_get_latest_error(m_mgmsrv2),
-             ndb_mgm_get_latest_error_msg(m_mgmsrv2));
-    }
-  }
   m_connected = true;
+  const char *host = ndb_mgm_get_connected_host(m_mgmsrv);
+  unsigned short port = ndb_mgm_get_connected_port(m_mgmsrv);
 
-  char buf[512];
-  const char *sockaddr_string =
-      Ndb_combine_address_port(buf, sizeof(buf), host, port);
+  if (interactive) {
+    startEventThread(host, port);
 
-  DBUG_PRINT("info",
-             ("Connected to Management Server at: %s", sockaddr_string));
-
-  if (m_verbose) {
-    printf("Connected to Management Server at: %s\n", sockaddr_string);
+    if (!m_event_thread)
+      printf("Warning, event connect failed, degraded printouts as result\n"
+             "code: %d, msg: %s\n", ndb_mgm_get_latest_error(m_mgmsrv2),
+             ndb_mgm_get_latest_error_msg(m_mgmsrv2));
   }
+
+  if (m_verbose || interactive)
+    printf("Connected to management server at %s port %d (using %s)\n",
+           host, port, ndb_mgm_has_tls(m_mgmsrv) ? "TLS" : "cleartext");
 
   DBUG_RETURN(m_connected);
 }
@@ -1190,12 +1162,8 @@ void CommandInterpreter::disconnect(void) {
   DBUG_ENTER("CommandInterpreter::disconnect");
 
   if (m_event_thread) {
-    void *res;
-    do_event_thread = 0;
-    NdbThread_WaitFor(m_event_thread, &res);
-    NdbThread_Destroy(&m_event_thread);
-    m_event_thread = NULL;
-    ndb_mgm_destroy_handle(&m_mgmsrv2);
+    do_event_thread.store(0);
+    waitForEventThread();
   }
   if (m_connected) {
     ndb_mgm_destroy_handle(&m_mgmsrv);
