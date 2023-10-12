@@ -75,7 +75,7 @@ COUNT(*)
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
 WHERE TRACE LIKE '%Constructed hypergraph%';
 COUNT(*)
-1
+0
 # Case 2.a: Preparation: 'hypergraph_optimizer=off', execution: 'hypergraph_optimizer=on'
 SET optimizer_switch = 'hypergraph_optimizer=off';
 PREPARE ps_set FROM 'SET @x = (SELECT COUNT(*) FROM t)';
@@ -91,7 +91,7 @@ COUNT(*)
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
 WHERE TRACE LIKE '%Constructed hypergraph%';
 COUNT(*)
-0
+1
 # Case 2.b: Preparation: 'hypergraph_optimizer=off', execution: 'hypergraph_optimizer=off'
 SET optimizer_switch = 'hypergraph_optimizer=off';
 EXECUTE ps_set;

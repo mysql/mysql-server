@@ -331,6 +331,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
     if (!query_expression->is_prepared()) {
       // Use the desired optimizer during following preparation
+
       lex->set_using_hypergraph_optimizer(need_hypergraph_optimizer);
     }
     if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer() &&
@@ -349,7 +350,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
         return false;
       } else {
         my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
-        return false;
+        return true;
       }
     }
 

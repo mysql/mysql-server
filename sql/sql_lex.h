@@ -3837,11 +3837,12 @@ struct LEX : public Query_tables_list {
   bool is_explain_analyze = false;
 
   /**
-    Whether the currently-running query should be (attempted) executed in
-    the hypergraph optimizer. This will not change after the query is
-    done parsing, so you can use it in any query phase to e.g. figure out
+    Whether the currently-running statement should be prepared and executed
+    with the hypergraph optimizer. This will not change after the statement is
+    prepared, so you can use it in any optimization phase to e.g. figure out
     whether to inhibit some transformation that the hypergraph optimizer
-    does not properly understand yet.
+    does not properly understand yet. If a different optimizer is requested,
+    the statement must be re-prepared with the proper optimizer settings.
    */
 
   bool using_hypergraph_optimizer() const {

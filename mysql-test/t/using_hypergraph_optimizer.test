@@ -56,8 +56,8 @@ WHERE TRACE LIKE '%Constructed hypergraph%';
 SELECT @x;
 
 # Verify that prepared SET statements use the optimizer that was active
-# when PREPARE was called and that the behaviour is consistent with prepared
-# SELECT statements
+# when PREPARE was called. Prepared SELECT statements use the optimizer that
+# is active during execution.
 
 --echo # Case 1.a: Preparation: 'hypergraph_optimizer=on', execution: 'hypergraph_optimizer=on'
 PREPARE ps_set FROM 'SET @x = (SELECT COUNT(*) FROM t)';

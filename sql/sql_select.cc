@@ -504,7 +504,6 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   assert(!lex->unit->is_prepared() && !lex->unit->is_optimized() &&
          !lex->unit->is_executed());
-
   /*
     Constant folding could cause warnings during preparation. Make
     sure they are promoted to errors when strict mode is enabled.
@@ -728,7 +727,6 @@ bool Sql_cmd_dml::execute(THD *thd) {
     if (sql_command_code() == SQLCOM_SELECT)
       DEBUG_SYNC(thd, "after_table_open");
 #endif
-
     // Use the hypergraph optimizer for the SELECT statement, if enabled.
     const bool need_hypergraph_optimizer =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
@@ -740,7 +738,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
     assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer());
 
     // Bind table and field information
-    if (restore_cmd_properties(thd)) return true;
+    if (restore_cmd_properties(thd)) goto err;
     if (check_privileges(thd)) goto err;
 
     if (m_lazy_result) {

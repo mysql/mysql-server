@@ -1093,3 +1093,75 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 
 DROP TABLE t1,t2;
+
+--echo # Bug#5889990: Setting secondary_engine to OFF causes offload issues
+
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 2), (2, 3);
+ANALYZE TABLE t;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+PREPARE ps FROM
+'SELECT *
+ FROM t AS t1 LEFT JOIN t AS t2 ON t1.x=t2.x AND t1.y IN (SELECT x FROM t)';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+PREPARE ps FROM
+'SELECT *
+ FROM t AS t1 LEFT JOIN t AS t2 ON t1.x=t2.x AND t1.y IN (SELECT x FROM t)';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+EXECUTE ps;
+
+DROP TABLE t;
+
+CREATE TABLE t(x VARCHAR(100), FULLTEXT KEY (x));
+INSERT INTO t VALUES ('abc'), ('xyz'), ('abc abc');
+ANALYZE TABLE t;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+PREPARE ps FROM
+'SELECT x, MATCH(x) AGAINST (''abc'') AS score FROM t
+ GROUP BY x HAVING MATCH(x) AGAINST(''abc'') > 0';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=off';
+
+PREPARE ps FROM
+'SELECT x, MATCH(x) AGAINST (''abc'') AS score FROM t
+ GROUP BY x HAVING MATCH(x) AGAINST(''abc'') > 0';
+
+EXECUTE ps;
+
+SET optimizer_switch='hypergraph_optimizer=on';
+
+EXECUTE ps;
+
+DROP TABLE t;
+
+SET optimizer_switch='hypergraph_optimizer=default';
