@@ -767,6 +767,7 @@ class MaterializeIterator final : public TableRowIterator {
   // Iff m_use_hash_map, the MEM_ROOT on which all of the hash map keys and
   // values are allocated. The actual hash map is on the regular heap.
   unique_ptr_destroy_only<MEM_ROOT> m_mem_root;
+  MEM_ROOT *m_overflow_mem_root{nullptr};
   size_t m_row_size_upper_bound;
 
   using hash_map_type = robin_hood::unordered_flat_map<
@@ -824,7 +825,8 @@ class MaterializeIterator final : public TableRowIterator {
                                     bool *spill);
   void backup_or_restore_blob_pointers(bool backup);
   void update_row_in_hash_map();
-  bool store_row_in_hash_map();
+  enum Operand_type { LEFT_OPERAND, RIGHT_OPERAND };
+  bool store_row_in_hash_map(Operand_type type = LEFT_OPERAND);
   bool handle_hash_map_full(const materialize_iterator::Operand &operand,
                             ha_rows *stored_rows);
   bool process_row(const materialize_iterator::Operand &operand,
@@ -1320,7 +1322,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     return true;
   }
 
-  spill = store_row_in_hash_map();
+  spill = store_row_in_hash_map(RIGHT_OPERAND);
   if (spill) {
     // It fit before, should fit now
     assert(false);
@@ -1415,6 +1417,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     TableCollection tc(ta, false, 0, 0);
     m_table_collection = tc;
     m_row_size_upper_bound = ComputeRowSizeUpperBound(m_table_collection);
+    m_overflow_mem_root = thd()->mem_root;
   }
 
   ulonglong primary_hash = 0;
@@ -1579,17 +1582,34 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(
   positioned on it.  Links any existing entry behind it, i.e. we insert at
   front of the hash bucket, cf.  StoreLinkedImmutableStringFromTableBuffers.
   Update \c m_rows_in_hash_map.
+  @param type indicates whether we are processing the left operand or one of the
+              right operands in the set operation
   @returns true on error
  */
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::store_row_in_hash_map() {
+bool MaterializeIterator<Profiler>::store_row_in_hash_map(Operand_type type) {
   // Save the contents of all columns and make the hash map iterator's value
   // field ("->second") point to it.
+  bool dummy = false;
+  // Special case: when we are re-reading a HF chunk set for operand 2..n
+  // (right_operand), we can in some rare cases overflow even though the HF
+  // chunk fit in our dedicated mem_root for the left operand, the reason being
+  // that rows are entered into the hash table in a different order, leading to
+  // another fragmentation of the heap, typically if we have blobs of varying
+  // sizes.  This can happen if statistics of expected number of rows in the
+  // left operand is significantly too low so that chunk files just barely fit
+  // in the dedicated mem_root when we process the left operand. In such a
+  // case, we just fall back on the thread's mem_root, cf. the argument for
+  // overflow_mem_root below. Since the rows fit in the dedicated mem_root when
+  // processing the left operand, this would only happen for a minority of
+  // chunks and then typically only for the last row.
+  assert(m_overflow_mem_root != nullptr);
   LinkedImmutableString last_row_stored =
       StoreLinkedImmutableStringFromTableBuffers(
           m_mem_root.get(),
-          /*overflow_mem_root*/ nullptr, m_table_collection, m_next_ptr,
-          m_row_size_upper_bound, /*full*/ nullptr);
+          (type == RIGHT_OPERAND ? m_overflow_mem_root : nullptr),
+          m_table_collection, m_next_ptr, m_row_size_upper_bound,
+          (type == RIGHT_OPERAND ? &dummy : nullptr));
   if (last_row_stored == nullptr) {
     return true;
   }
@@ -2223,11 +2243,17 @@ bool materialize_iterator::SpillState::save_offending_row() {
 
 bool materialize_iterator::SpillState::compute_chunk_file_sets(
     const Operand *current_operand) {
-  const double total_estimated_rows = current_operand->m_estimated_output_rows;
-
   /// This could be 1 too high, if we managed to insert key but not value, but
   /// never mind.
   const size_t rows_in_hash_map = m_hash_map->size();
+
+  double total_estimated_rows =
+      // Check sanity of estimate and override if (way) too low. We
+      // make a shot in the dark and guess 800% of hash table size. If that
+      // proves too low, we will revert to tmp table index based de-duplication.
+      (current_operand->m_estimated_output_rows <= rows_in_hash_map
+           ? rows_in_hash_map * 8
+           : current_operand->m_estimated_output_rows);
 
   // Slightly underestimate number of rows in hash map to avoid
   // hash map overflow when reading chunk files.
@@ -2608,11 +2634,11 @@ bool materialize_iterator::SpillState::write_partially_completed_HFs(
   // |------+------+------+    +------+    +------|
   //                   :
   // |------+------+------+    +------+    +------|
-  // |   r  |   r  |   r  | .. |   r  | .. |   I  |  m_current_chunk_file_set
+  // |   r  |   r  |   r  | .. |   r  | .. |   i  |  m_current_chunk_file_set
   // |------+------+------+    +------+    +------|
   //                   :
   // |------+------+------+    +------+    +------|
-  // |   I  |   I  |   I  | .. |   I  | .. |   I  |  m_no_of_chunk_file_sets - 1
+  // |   i  |   i  |   i  | .. |   i  | .. |   i  |  m_no_of_chunk_file_sets - 1
   // |------+------+------+    +------+    +------|
   //
   // 2.generation
@@ -2628,11 +2654,11 @@ bool materialize_iterator::SpillState::write_partially_completed_HFs(
   // |      |      |      | .. |      | .. |      |  m_no_of_chunk_file_sets - 1
   // |------+------+------+    +------+    +------|
   //
-  // We sucessfully read all chunks labelled r and matched them with their
+  // We successfully read all chunks labelled r and matched them with their
   // respective IF chunks, so they exist in 2. generation labeled C ("complete")
   //
   // Now, read and write to output table the already de-duplicated rows.
-  // First the remaining chunk files from the 1. generation labeled I
+  // First the remaining chunk files from the 1. generation labeled i
   // ("incomplete").  Reading 1. generation chunks first ensures that the
   // reading positions are correct for reading the 2. generation chunks in the
   // next step.

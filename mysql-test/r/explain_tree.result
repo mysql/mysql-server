@@ -1320,7 +1320,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT LAST_VALUE((SELECT x1.a FROM t1))
 OVER (PARTITION BY b) FROM t1 x1;
 EXPLAIN
--> Window aggregate with buffering: last_value((select #2)) OVER (PARTITION BY x1.b ) 
+-> Window aggregate with buffering: last_value((select #2)) OVER (PARTITION BY x1.b )   (...)
     -> Sort: x1.b  (...)
         -> Table scan on x1  (...)
     -> Select #2 (subquery in projection; dependent)

@@ -1,0 +1,83 @@
+#
+# Bug#35686098 Assertion `n < size()' failed in Element_type& Mem_root_array_YY
+#
+CREATE TABLE t1(
+c1 TEXT,
+c2 CHAR(255) DEFAULT NULL
+);
+LOAD DATA INFILE '../../std_data/t1_2cols.csv' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+SET optimizer_trace="enabled=on";
+SELECT MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW ) FROM t1
+INTERSECT DISTINCT
+SELECT "can't" OR 447938560 FROM t1;
+MAX( c1 ) OVER ( ORDER BY c2 ROWS CURRENT ROW )
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'can't'
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+FROM information_schema.optimizer_trace;
+JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+[
+  {
+    "steps": [
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": [
+                  {
+                    "sorting_table": "t1",
+                    "filesort_summary": {
+                      "key_size": 4089,
+                      "row_size": 70653,
+                      "sort_mode": "<varlen_sort_key, packed_additional_fields>",
+                      "num_rows_found": 501,
+                      "sort_algorithm": "std::sort",
+                      "memory_available": 262144,
+                      "peak_memory_used": "elided",
+                      "num_rows_estimate": 501,
+                      "max_rows_per_buffer": 3,
+                      "num_initial_chunks_spilled_to_disk": "elided"
+                    },
+                    "filesort_execution": [],
+                    "filesort_information": [
+                      {
+                        "direction": "asc",
+                        "expression": "`t1`.`c2`"
+                      }
+                    ],
+                    "filesort_priority_queue_optimization": {
+                      "cause": "not applicable (no LIMIT)",
+                      "usable": false
+                    }
+                  },
+                  {
+                    "spill to disk initiated": {
+                      "chunk sets": 1,
+                      "chunk files": 4
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "select#": 1
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": []
+              }
+            }
+          ],
+          "select#": 2
+        }
+      }
+    ]
+  }
+]
+SET optimizer_trace=default;
+DROP TABLE t1;

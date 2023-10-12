@@ -476,9 +476,9 @@ EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1
 WHERE f1 > 2;
 EXPLAIN
 -> Filter: (dt.f1 > 2)  (rows=2.33)
-    -> Table scan on dt  (rows=0)
-        -> Materialize  (rows=0)
-            -> Window aggregate with buffering: sum(t1.f2) OVER () 
+    -> Table scan on dt  (rows=7)
+        -> Materialize  (rows=7)
+            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (rows=7)
                 -> Table scan on <temporary>  (rows=7)
                     -> Temporary table with deduplication  (rows=7)
                         -> Covering index skip scan for deduplication on t1 using f1_2  (rows=7)
@@ -629,9 +629,9 @@ EXPLAIN
                     -> Temporary table  (rows=0)
                         -> Window aggregate with buffering: avg(t1.f3) OVER (PARTITION BY t1.f2,t1.f1 ) 
                             -> Sort: t1.f2, t1.f1
-                                -> Table scan on <temporary>  (rows=0)
-                                    -> Temporary table  (rows=0)
-                                        -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1,t1.f2 ) 
+                                -> Table scan on <temporary>  (rows=4)
+                                    -> Temporary table  (rows=4)
+                                        -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1,t1.f2 )   (rows=4)
                                             -> Sort: t1.f1, t1.f2  (rows=4)
                                                 -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (rows=4)
 
@@ -657,9 +657,9 @@ EXPLAIN
         -> Materialize  (rows=0)
             -> Window aggregate with buffering: avg(t1.f2) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1
-                    -> Table scan on <temporary>  (rows=0)
-                        -> Temporary table  (rows=0)
-                            -> Window aggregate with buffering: sum(t1.f1) OVER (PARTITION BY t1.f2 ) 
+                    -> Table scan on <temporary>  (rows=12)
+                        -> Temporary table  (rows=12)
+                            -> Window aggregate with buffering: sum(t1.f1) OVER (PARTITION BY t1.f2 )   (rows=12)
                                 -> Sort: t1.f2  (rows=12)
                                     -> Covering index scan on t1 using f1_2  (rows=12)
 
@@ -744,9 +744,9 @@ EXPLAIN FORMAT=tree SELECT * FROM
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand()))  (rows=3.33)
-    -> Table scan on dt  (rows=0)
-        -> Materialize  (rows=0)
-            -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 ) 
+    -> Table scan on dt  (rows=10)
+        -> Materialize  (rows=10)
+            -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 )   (rows=10)
                 -> Sort: t1.f1  (rows=10)
                     -> Filter: (t1.f1 < 10)  (rows=10)
                         -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (rows=10)

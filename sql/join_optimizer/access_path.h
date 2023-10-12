@@ -1673,6 +1673,7 @@ inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
   path->window().temp_table_param = temp_table_param;
   path->window().ref_slice = ref_slice;
   path->window().needs_buffering = needs_buffering;
+  path->set_num_output_rows(child->num_output_rows());
   return path;
 }
 

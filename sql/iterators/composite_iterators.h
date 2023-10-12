@@ -926,6 +926,7 @@ class SpillState {
   // Save away the contents of the row that made the hash table run out of
   // memory - for later processing
   bool save_offending_row();
+  THD *thd() { return m_thd; }
 
  private:
   /**

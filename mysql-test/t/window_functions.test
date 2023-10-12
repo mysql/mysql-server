@@ -1,6 +1,7 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
+--source include/elide_costs.inc
 SET NAMES utf8mb3;
 
 --echo
@@ -2873,6 +2874,7 @@ CREATE TABLE b (pk int PRIMARY KEY,  c varchar(255));
 INSERT INTO b VALUES (9,'s');
 
 --skip_if_hypergraph  # Does not currently push the sort, so gets a different plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT ROW_NUMBER() OVER (ORDER BY a.c)
 FROM  a LEFT JOIN b
       ON a.c = b.c
