@@ -2829,6 +2829,20 @@ sub executable_setup () {
     $exe_ndb_waiter =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_waiter");
 
+    # There are additional NDB test binaries which are only built when
+    # using WITH_NDB_TEST. Detect if those are available by looking for
+    # the `testNDBT` executable and in such case setup variables to
+    # indicate that they are available. Detecting this early makes it possible
+    # to quickly skip these tests without each individual test having to look
+    # for its binary.
+    my $test_ndbt =
+      my_find_bin($bindir,
+                  [ "runtime_output_directory", "bin" ],
+                   "testNDBT", NOT_REQUIRED);
+    if ($test_ndbt) {
+      mtr_verbose("Found NDBT binaries");
+      $ENV{'NDBT_BINARIES_AVAILABLE'} = 1;
+    }
   }
 
   if (defined $ENV{'MYSQL_TEST'}) {
