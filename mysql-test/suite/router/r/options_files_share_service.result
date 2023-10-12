@@ -115,7 +115,7 @@ OK
 GET /svc2/redirect.html
 Temporary Redirect(307)
 Location  ->  /svc1/sch1/obj1/1
-Date  ->  Thu, 12 Oct 2023 04:58:40 GMT
+Date -> %DATE%
 Content-Length  ->  0
 Content-Type  ->  text/html; charset=ISO-8859-1
 GET /svc2/index.html

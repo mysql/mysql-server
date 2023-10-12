@@ -153,7 +153,6 @@ EOF
 --echo # III.3
 --exec $MRS_CLIENT_ARGS_LIST --path /svc/test/num --accept "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
 
-sleep 10000;
 --echo
 --echo #
 --echo # IV.1

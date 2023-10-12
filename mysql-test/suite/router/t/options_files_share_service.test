@@ -244,6 +244,7 @@ exec $MRS_CLIENT_ARGS
   --path /svc2/
   --response-type RAW;
 
+--replace_regex /^Date.*/Date -> %DATE%/
 exec $MRS_CLIENT_ARGS
   --path /svc2/redirect.html
   --display REQUEST,STATUS,HEADER
