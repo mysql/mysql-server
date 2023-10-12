@@ -50,7 +50,7 @@
 START TRANSACTION;
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
---source ../include/mrs/add_service.inc
+--source ../include/mrs/service/add.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic1
@@ -76,7 +76,7 @@ START TRANSACTION;
 --echo # I.2
 --let $mrs_add_service_path="/svc2"
 --let $mrs_add_host_name=""
---source ../include/mrs/add_service.inc
+--source ../include/mrs/service/add.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic2

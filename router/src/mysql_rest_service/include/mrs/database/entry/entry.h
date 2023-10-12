@@ -32,17 +32,23 @@ namespace mrs {
 namespace database {
 namespace entry {
 
-enum EntryType { key_static, key_rest };
+enum EntryType { key_static, key_rest, key_static_sub };
 
 struct EntryKey {
   EntryType type;
   UniversalId id;
+  // sub_id is introduced to create virtual objects under
+  // given category.
+  uint64_t sub_id{0};
 
   bool operator<(const EntryKey &other) const {
     if (type < other.type) return true;
     if (type > other.type) return false;
 
-    return id < other.id;
+    if (id < other.id) return true;
+    if (id > other.id) return false;
+
+    return sub_id < other.sub_id;
   }
 };
 

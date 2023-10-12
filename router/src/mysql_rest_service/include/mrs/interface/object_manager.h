@@ -31,6 +31,7 @@
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/state.h"
+#include "mrs/rest/entry/app_content_file.h"
 
 namespace mrs {
 namespace interface {
@@ -39,6 +40,7 @@ class ObjectManager {
  public:
   using DbObject = database::entry::DbObject;
   using ContentFile = database::entry::ContentFile;
+  using AppContentFile = rest::entry::AppContentFile;
   using RouteSchema = mrs::interface::ObjectSchema;
 
  public:
@@ -46,6 +48,7 @@ class ObjectManager {
 
   virtual void turn(const State state, const std::string &options) = 0;
   virtual void update(const std::vector<DbObject> &paths) = 0;
+  virtual void update(const std::vector<AppContentFile> &contents) = 0;
   virtual void update(const std::vector<ContentFile> &contents) = 0;
   virtual void schema_not_used(RouteSchema *route) = 0;
 };

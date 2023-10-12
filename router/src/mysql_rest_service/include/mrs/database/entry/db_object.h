@@ -51,7 +51,9 @@ class DbObject {
   UniversalId schema_id;
   std::string host;
   std::string host_alias;
-  bool active;
+  bool active_service;
+  bool active_schema;
+  bool active_object;
   std::string service_path;
   std::string schema_path;
   std::string object_path;
@@ -70,6 +72,7 @@ class DbObject {
   std::vector<RowGroupOwnership> row_group_security;
   std::string options_json;
   std::string options_json_schema;
+  std::string options_json_service;
   ResultSets fields;
 };
 

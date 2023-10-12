@@ -126,7 +126,7 @@ class RouteManagerTests : public Test {
     using namespace std::string_literals;
     for (auto &entry : ids) {
       DbObject item;
-      item.active = true;
+      item.active_object = item.active_schema = item.active_service = true;
       item.deleted = false;
       item.autodetect_media_type = false;
       item.service_id = service_id;

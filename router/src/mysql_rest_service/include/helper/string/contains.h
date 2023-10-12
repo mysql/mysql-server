@@ -71,8 +71,8 @@ inline bool ends_with(const std::string &value, const std::string &sst) {
 }
 
 template <typename String>
-bool index(const std::string &value, const String &inside, uint32_t *idx) {
-  auto pos = value.find(inside);
+bool index(const std::string &value, const String &search_for, uint32_t *idx) {
+  auto pos = value.find(search_for);
 
   if (value.npos == pos) return false;
   if (idx) *idx = static_cast<uint32_t>(pos);
@@ -80,20 +80,20 @@ bool index(const std::string &value, const String &inside, uint32_t *idx) {
   return true;
 }
 
-inline bool index(const char *value, const char *inside, uint32_t *idx) {
-  auto ptr = strstr(value, inside);
+inline bool index(const char *value, const char *search_for, uint32_t *idx) {
+  auto ptr = strstr(value, search_for);
   if (nullptr == ptr) return false;
   if (idx) *idx = static_cast<uint32_t>(std::distance(value, ptr));
   return true;
 }
 
 template <typename String1, typename String2>
-bool starts_with(const String1 &value, const String2 &sst) {
+bool starts_with(const String1 &value, const String2 &search_for) {
   using namespace helper::string;
-  if (is_empty(sst)) return false;
+  if (is_empty(search_for)) return false;
 
   uint32_t idx;
-  if (index(value, sst, &idx)) {
+  if (index(value, search_for, &idx)) {
     return idx == 0;
   }
   return false;

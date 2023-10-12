@@ -83,6 +83,8 @@ class Object {
     static std::string empty;
     return empty;
   }
+  virtual const std::string *get_default_content() = 0;
+  virtual const std::string *get_redirection() = 0;
   virtual const Fields &get_parameters() = 0;
   virtual EntryObject get_cached_object() = 0;
   virtual const std::vector<Column> &get_cached_columnes() = 0;

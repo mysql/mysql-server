@@ -44,6 +44,8 @@ ObjectStaticFile::ObjectStaticFile(
       is_ssl_{is_ssl},
       auth_{auth_manager},
       handler_factory_{handler_factory} {
+  log_debug("src.cse_.default_handling_directory_index=%s",
+            pe.default_handling_directory_index ? "true" : "false");
   update(&pe, schema);
 }
 
@@ -93,14 +95,21 @@ const std::string &ObjectStaticFile::get_json_description() {
 }
 
 const std::vector<std::string> ObjectStaticFile::get_rest_path() {
+  log_debug("cse_.default_handling_directory_index=%s",
+            cse_.default_handling_directory_index ? "true" : "false");
   const static std::string k_index_html = "/index.html$";
-  if (helper::ends_with(rest_path_, "/index.html$")) {
+  if (cse_.default_handling_directory_index &&
+      helper::ends_with(rest_path_, "/index.html$")) {
     auto rest_path2 =
         rest_path_.substr(0, rest_path_.length() - k_index_html.length() + 1) +
         "$";
     auto rest_path3 =
         rest_path_.substr(0, rest_path_.length() - k_index_html.length()) + "$";
     return {rest_path_, rest_path2, rest_path3};
+  } else if (cse_.is_index) {
+    using namespace std::string_literals;  // NOLINT(build/namespaces)
+    return {rest_path_, "^"s + cse_.service_path + cse_.schema_path + "$",
+            "^"s + cse_.service_path + cse_.schema_path + "/$"};
   }
   return {rest_path_};
 }
@@ -150,7 +159,7 @@ const mrs::interface::Object::Fields &ObjectStaticFile::get_parameters() {
 uint32_t ObjectStaticFile::get_on_page() { return 1; }
 
 bool ObjectStaticFile::requires_authentication() const {
-  return cse_.requires_authentication || cse_.set_requires_authentication;
+  return cse_.requires_authentication || cse_.schema_requires_authentication;
 }
 
 UniversalId ObjectStaticFile::get_id() const { return cse_.id; }
@@ -200,6 +209,18 @@ ObjectStaticFile::get_group_row_ownership() const {
   static VectorOfRowGroupOwnership result;
 
   return result;
+}
+
+const std::string *ObjectStaticFile::get_default_content() {
+  if (cse_.content) return &cse_.content.value();
+
+  return nullptr;
+}
+
+const std::string *ObjectStaticFile::get_redirection() {
+  if (cse_.redirect) return &cse_.redirect.value();
+
+  return nullptr;
 }
 
 }  // namespace mrs

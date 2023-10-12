@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_MANAGER_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_MANAGER_H_
 
+#include <vector>
+
 #include "mrs/interface/object_manager.h"
 
 class MockRouteManager : public mrs::interface::ObjectManager {
@@ -33,6 +35,8 @@ class MockRouteManager : public mrs::interface::ObjectManager {
               (override));
   MOCK_METHOD(void, update, (const std::vector<DbObject> &paths), (override));
   MOCK_METHOD(void, update, (const std::vector<ContentFile> &contents),
+              (override));
+  MOCK_METHOD(void, update, (const std::vector<AppContentFile> &contents),
               (override));
   MOCK_METHOD(void, schema_not_used, (RouteSchema * route), (override));
 };

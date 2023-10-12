@@ -36,8 +36,6 @@ namespace database {
 namespace entry {
 
 struct ContentFile {
-  EntryKey get_key() const { return {key_static, id}; }
-
   UniversalId id;
   UniversalId content_set_id;
   UniversalId service_id;
@@ -47,7 +45,7 @@ struct ContentFile {
   std::string schema_path;
   std::string file_path;
   bool active;
-  bool set_requires_authentication;
+  bool schema_requires_authentication;
   bool requires_authentication;
   bool deleted;
   std::string options_json;

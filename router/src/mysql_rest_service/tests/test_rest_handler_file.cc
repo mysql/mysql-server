@@ -67,6 +67,9 @@ class RestHandlerFileTests : public Test {
   void make_sut(const mrs::UniversalId id, const std::string &path,
                 const std::string &version) {
     std::string options;
+    EXPECT_CALL(mock_route_, get_redirection()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(mock_route_, get_default_content())
+        .WillRepeatedly(Return(nullptr));
     EXPECT_CALL(mock_route_, get_cache())
         .WillRepeatedly(Return(&mock_cache_manager_));
     EXPECT_CALL(mock_route_, get_options()).WillRepeatedly(ReturnRef(options));

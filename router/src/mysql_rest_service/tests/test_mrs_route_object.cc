@@ -88,7 +88,8 @@ class RouteObjectTests : public Test {
     ++last_id_;
     obj.id = mrs::UniversalId({static_cast<uint8_t>(last_id_ / 256),
                                static_cast<uint8_t>(last_id_ % 256)});
-    obj.active = true;
+    obj.active_object = obj.active_schema = obj.active_service = true;
+
     obj.service_id = service_id;
     obj.schema_id = schema_id;
 
@@ -304,7 +305,7 @@ TEST_F(RouteObjectTests, route_turnon_on_deactivated_route_does_nothing) {
   const mrs::UniversalId kServiceId{22};
   const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
-  pe.active = false;
+  pe.active_object = pe.active_schema = pe.active_service = false;
   make_sut(pe);
   sut_->turn(mrs::stateOn);
   delete_sut();

@@ -48,7 +48,9 @@ QueryEntryDbObject::QueryEntryDbObject() {
       "mysql_rest_service_metadata.`url_host_alias` as a where "
       "h.id=a.url_host_id limit 1) as alias, "
       "     o.requires_auth, db.requires_auth as schema_requires_auth, "
-      "    (o.enabled and db.enabled and s.enabled) as `active`, "
+      "    s.enabled as enable_service, "
+      "    db.enabled as enable_schema, "
+      "    o.enabled as enable_object, "
       "    url_context_root as `service_path`, "
       "    db.request_path as `schema_path`, "
       "    o.request_path as `object_path`, "
@@ -62,9 +64,9 @@ QueryEntryDbObject::QueryEntryDbObject() {
       "    s.id as service_id, o.id as db_object_id, db.id as db_schema_id, "
       "    h.id as url_host_id, o.object_type, o.row_user_ownership_enforced,"
       "    o.row_user_ownership_column,"
-      "    IF(o.options IS NOT NULL, o.options, IF(db.options IS NOT NULL, "
-      "       db.options, s.options)) as options,"
-      "    IF(db.options IS NOT NULL, db.options, s.options) as db_options !"
+      "    o.options as options,"
+      "    db.options as db_options,"
+      "    s.options as service_options !"
       " FROM mysql_rest_service_metadata.`db_object` as o "
       "  JOIN mysql_rest_service_metadata.`db_schema` as db on "
       "      o.db_schema_id = db.id "
@@ -145,7 +147,9 @@ void QueryEntryDbObject::on_row(const ResultRow &row) {
   mysql_row.unserialize(&entry.host_alias);
   mysql_row.unserialize(&entry.requires_authentication);
   mysql_row.unserialize(&entry.schema_requires_authentication);
-  mysql_row.unserialize(&entry.active);
+  mysql_row.unserialize(&entry.active_service);
+  mysql_row.unserialize(&entry.active_schema);
+  mysql_row.unserialize(&entry.active_object);
   mysql_row.unserialize(&entry.service_path);
   mysql_row.unserialize(&entry.schema_path);
   mysql_row.unserialize(&entry.object_path);
@@ -164,6 +168,7 @@ void QueryEntryDbObject::on_row(const ResultRow &row) {
   mysql_row.unserialize(&entry.row_security.user_ownership_column);
   mysql_row.unserialize(&entry.options_json);
   mysql_row.unserialize(&entry.options_json_schema);
+  mysql_row.unserialize(&entry.options_json_service);
 
   QueryEntryGroupRowSecurity group_security;
   //  group_security.

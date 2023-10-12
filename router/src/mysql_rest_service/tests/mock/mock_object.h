@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_OBJECT_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_OBJECT_H_
+
+#include <string>
 
 #include "mrs/interface/object.h"
 
@@ -60,6 +62,8 @@ class MockRoute : public mrs::interface::Object {
               (override, const));
   MOCK_METHOD(mrs::interface::ObjectSchema *, get_schema, (), (override));
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
+  MOCK_METHOD(const std::string *, get_default_content, (), (override));
+  MOCK_METHOD(const std::string *, get_redirection, (), (override));
 
   MOCK_METHOD(void, destroy, (), ());
 };

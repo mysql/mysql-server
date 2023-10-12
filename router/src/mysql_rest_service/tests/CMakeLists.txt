@@ -35,12 +35,14 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_database_rest_table.cc
     ./test_database_rest_sp.cc
     ./test_database_entries.cc
+    ./test_database_content_files_options.cc
     ./test_mrs_database_rest_table.cc
     ./test_mrs_database_rest_table_get.cc
     ./test_mrs_database_rest_table_put.cc
     ./test_mrs_database_rest_table_post.cc
     ./test_mrs_database_rest_table_delete.cc
     ./test_mrs_database_filter_object_generator.cc
+    ./test_mrs_parse_json.cc
     ./test_helper_media_detector.cc
     ./test_helper_plugin_monitor.cc
     ./test_helper_string.cc
