@@ -1594,7 +1594,13 @@ int ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx);
  *
  * @param handle          Management handle
  *
- * @return                0 on success.
+ * @return                Returns 0 on success. On failure, caller should
+ *                        check the error code. On error conditions
+ *                        NDB_MGM_TLS_ERROR and NDB_MGM_TLS_REFUSED,
+ *                        TLS has not been established, but the cleartext
+ *                        connection remains usable. On error condition
+ *                        NDB_MGM_TLS_HANDSHAKE_FAILED, the connection is
+ *                        closed, and the handle is valid but unconnected.
  */
 int ndb_mgm_start_tls(NdbMgmHandle handle);
 
