@@ -164,7 +164,10 @@ void ObjectManager::update(const std::vector<ContentFile> &contents) {
   }
 
   std::vector<AppContentFile> copy;
-  std::copy(contents.begin(), contents.end(), std::back_inserter(copy));
+
+  for (const auto &c : contents) {
+    copy.emplace_back(c);
+  }
   update(copy);
 }
 

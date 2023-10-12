@@ -153,7 +153,7 @@ class FileFromOptions {
       cf.active = conf.active;
       cf.deleted = false;
       cf.key_entry_type = entry::EntryType::key_static_sub;
-      cf.key_subtype = ++local_counters[conf.ids.object];
+      cf.key_subtype = ++(*local_counters)[conf.ids.object];
 
       cf.service_id = conf.ids.service;
       cf.content_set_id = conf.ids.schema;
@@ -180,7 +180,7 @@ class FileFromOptions {
       cf.active = conf.active;
       cf.deleted = false;
       cf.key_entry_type = entry::EntryType::key_static_sub;
-      cf.key_subtype = ++local_counters[conf.ids.object];
+      cf.key_subtype = ++(*local_counters)[conf.ids.object];
 
       cf.service_id = conf.ids.service;
       cf.content_set_id = conf.ids.schema;
