@@ -1342,3 +1342,89 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
 
 DROP TABLE t1,t2;
+# Bug#5889990: Setting secondary_engine to OFF causes offload issues
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 2), (2, 3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_switch='hypergraph_optimizer=off';
+PREPARE ps FROM
+'SELECT *
+ FROM t AS t1 LEFT JOIN t AS t2 ON t1.x=t2.x AND t1.y IN (SELECT x FROM t)';
+EXECUTE ps;
+x	y	x	y
+1	2	1	2
+2	3	NULL	NULL
+SET optimizer_switch='hypergraph_optimizer=on';
+Warnings:
+Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
+EXECUTE ps;
+x	y	x	y
+1	2	1	2
+2	3	NULL	NULL
+SET optimizer_switch='hypergraph_optimizer=off';
+EXECUTE ps;
+x	y	x	y
+1	2	1	2
+2	3	NULL	NULL
+SET optimizer_switch='hypergraph_optimizer=on';
+Warnings:
+Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
+PREPARE ps FROM
+'SELECT *
+ FROM t AS t1 LEFT JOIN t AS t2 ON t1.x=t2.x AND t1.y IN (SELECT x FROM t)';
+EXECUTE ps;
+x	y	x	y
+1	2	1	2
+2	3	NULL	NULL
+SET optimizer_switch='hypergraph_optimizer=off';
+EXECUTE ps;
+x	y	x	y
+1	2	1	2
+2	3	NULL	NULL
+DROP TABLE t;
+CREATE TABLE t(x VARCHAR(100), FULLTEXT KEY (x));
+INSERT INTO t VALUES ('abc'), ('xyz'), ('abc abc');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_switch='hypergraph_optimizer=on';
+Warnings:
+Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
+PREPARE ps FROM
+'SELECT x, MATCH(x) AGAINST (''abc'') AS score FROM t
+ GROUP BY x HAVING MATCH(x) AGAINST(''abc'') > 0';
+EXECUTE ps;
+x	score
+abc	0.031008131802082062
+abc abc	0.062016263604164124
+SET optimizer_switch='hypergraph_optimizer=off';
+EXECUTE ps;
+x	score
+abc	0.031008131802082062
+abc abc	0.062016263604164124
+SET optimizer_switch='hypergraph_optimizer=on';
+Warnings:
+Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
+EXECUTE ps;
+x	score
+abc	0.031008131802082062
+abc abc	0.062016263604164124
+SET optimizer_switch='hypergraph_optimizer=off';
+PREPARE ps FROM
+'SELECT x, MATCH(x) AGAINST (''abc'') AS score FROM t
+ GROUP BY x HAVING MATCH(x) AGAINST(''abc'') > 0';
+EXECUTE ps;
+x	score
+abc	0.031008131802082062
+abc abc	0.062016263604164124
+SET optimizer_switch='hypergraph_optimizer=on';
+Warnings:
+Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
+EXECUTE ps;
+x	score
+abc	0.031008131802082062
+abc abc	0.062016263604164124
+DROP TABLE t;
+SET optimizer_switch='hypergraph_optimizer=default';

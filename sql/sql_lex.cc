@@ -396,6 +396,7 @@ LEX::~LEX() {
   unit = nullptr;  // Created in mem_root - no destructor
   query_block = nullptr;
   m_current_query_block = nullptr;
+  assert(m_secondary_engine_context == nullptr);
 }
 
 /**

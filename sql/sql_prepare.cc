@@ -1056,15 +1056,15 @@ static bool mysql_test_set_fields(THD *thd,
   DBUG_TRACE;
   assert(stmt->m_arena.is_stmt_prepare());
 
-  thd->lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
-
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
     return true; /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     return true; /* purecov: inspected */
+
+  thd->lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
   const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -1134,7 +1134,6 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
     query_block->context.resolve_in_select_list = true;
 
-    // Use the hypergraph optimizer for the SELECT statement, if enabled.
     lex->using_hypergraph_optimizer =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
@@ -1160,9 +1159,13 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
     if (open_tables_for_query(thd, lex->query_tables,
                               MYSQL_OPEN_FORCE_SHARED_MDL))
       return true;
+
+    lex->using_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
   }
 
   set_prepared();
+
   return false;
 }
 
@@ -1903,7 +1906,6 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   // Initially, optimize the statement for the primary storage engine.
   // If an eligible secondary storage engine is found, the statement
   // may be reprepared for the secondary storage engine later.
-  const auto saved_secondary_engine = thd->secondary_engine_optimization();
   thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
@@ -1917,8 +1919,6 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
     const bool open_cursor = execute_flags & (ulong)CURSOR_TYPE_READ_ONLY;
     stmt->execute_loop(thd, &expanded_query, open_cursor);
   }
-
-  thd->set_secondary_engine_optimization(saved_secondary_engine);
 
   if (switch_protocol) thd->pop_protocol();
 
@@ -3022,7 +3022,9 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   bool general_log_temporarily_disabled = false;
 
   // Reprepare statement unconditionally if it contains UDF references
-  if (m_lex->has_udf() && reprepare(thd)) return true;
+  if (m_lex->has_udf() && reprepare(thd)) {
+    return true;
+  }
 
   // Reprepare statement if protocol has changed.
   // Note: this is not possible in current code base, hence the assert.

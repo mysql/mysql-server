@@ -870,6 +870,7 @@ void sp_lex_instr::free_lex() {
   m_lex->sphead = nullptr;
   lex_end(m_lex);
   if (m_lex->result != nullptr) ::destroy_at(m_lex->result);
+  m_lex->set_secondary_engine_execution_context(nullptr);
   m_lex->destroy();
   delete (st_lex_local *)m_lex;
 
