@@ -3121,10 +3121,6 @@ reexecute:
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !m_lex->unit->is_executed()) {
-        if (has_external_table(m_lex)) {
-          set_external_engine_fail_reason(m_lex,
-                                          thd->get_stmt_da()->message_text());
-        }
         if (!thd->is_secondary_engine_forced()) {
           thd->clear_error();
           thd->set_secondary_engine_optimization(

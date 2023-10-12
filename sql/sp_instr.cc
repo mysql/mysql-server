@@ -786,10 +786,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !m_lex->unit->is_executed()) {
-        if (has_external_table(m_lex)) {
-          set_external_engine_fail_reason(m_lex,
-                                          thd->get_stmt_da()->message_text());
-        }
         if (!thd->is_secondary_engine_forced()) {
           /*
             Some error occurred during resolving or optimization in

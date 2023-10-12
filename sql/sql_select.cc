@@ -390,16 +390,6 @@ void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
   }
 }
 
-static void external_engine_fail_reason(const LEX *lex) {
-  for (Table_ref *ref = lex->query_tables; ref != nullptr;
-       ref = ref->next_global) {
-    if (ref->is_external()) {
-      ref->table->get_primary_handler()->external_table_offload_error();
-      return;
-    }
-  }
-}
-
 std::string_view find_secondary_engine_fail_reason(const LEX *lex) {
   const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
@@ -683,19 +673,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
-bool has_external_table(const LEX *lex) {
-  if (lex->m_sql_cmd == nullptr) {
-    return false;
-  }
-  for (Table_ref *ref = lex->query_tables; ref != nullptr;
-       ref = ref->next_global) {
-    if (ref->is_external()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
@@ -761,25 +738,6 @@ bool Sql_cmd_dml::execute(THD *thd) {
       if (result->prepare(thd, *unit->get_unit_column_types(), unit)) goto err;
       m_lazy_result = false;
     }
-  }
-
-  if (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
-    if (has_external_table(lex)) {
-      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
-               "Query could not be offloaded to the secondary engine");
-      goto err;  // NOLINT
-    }
-  } else if ((thd->secondary_engine_optimization() ==
-                  Secondary_engine_optimization::PRIMARY_ONLY &&
-              !thd->is_secondary_engine_forced()) &&
-             has_external_table(lex)) {
-    // throw the propagated error from the external engine in case there is an
-    // external table
-    external_engine_fail_reason(lex);
-
-    // reset error message
-    set_external_engine_fail_reason(lex, nullptr);
-    goto err;  // NOLINT
   }
 
   if (validate_use_secondary_engine(lex)) goto err;
@@ -951,11 +909,8 @@ static bool retry_with_secondary_engine(THD *thd) {
 
   // Only attempt to use the secondary engine if the estimated cost of the query
   // is higher than the specified cost threshold.
-  // We allow any query to be executed in the secondary_engine when it involves
-  // external tables.
-  if (!has_external_table(thd->lex) &&
-      (thd->m_current_query_cost <=
-       thd->variables.secondary_engine_cost_threshold)) {
+  if (thd->m_current_query_cost <=
+      thd->variables.secondary_engine_cost_threshold) {
     Opt_trace_context *const trace = &thd->opt_trace;
     if (trace->is_started()) {
       const Opt_trace_object wrapper(trace);

@@ -4343,6 +4343,24 @@ bool LEX::locate_var_assignment(const Name_string &name) {
 }
 
 /**
+  Get the reason why a query cannot be executed in the primary engine.
+
+  @returns a text representation of the reason the query is not supported in the
+  primary engine.
+*/
+const char *LEX::get_not_supported_in_primary_reason() {
+  assert(can_execute_only_in_secondary_engine());
+  switch (m_execute_only_in_secondary_engine_reason) {
+    case CUBE:
+      return "CUBE";
+    case EXTERNAL:
+      return "External engine as primary storage engine";
+    default:
+      return "UNDEFINED";
+  }
+}
+
+/**
   Save properties for ORDER clauses so that they can be reconstructed
   for a new optimization of the query block.
 

@@ -6865,6 +6865,14 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
                   &prelocking_strategy))
     goto end;
 
+  for (Table_ref *tr = tables; tr != nullptr; tr = tr->next_global) {
+    if (tr->is_external()) {
+      thd->lex->set_execute_only_in_secondary_engine(
+          /*execute_only_in_secondary_engine_param=*/true, EXTERNAL);
+      break;
+    }
+  }
+
   if (open_secondary_engine_tables(thd, flags)) goto end;
 
   return false;
