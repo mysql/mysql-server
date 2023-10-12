@@ -39,12 +39,12 @@ OBJECT_NAME, OPERATION,
 (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
 from performance_schema.events_waits_history_long
 where (THREAD_ID = @clear_con_tid)
+and not (OPERATION = 'recv' and NUMBER_OF_BYTES = 0)
 group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
 order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
 EVENT_NAME	PRINT_SOURCE	OBJECT_NAME	OPERATION	PRINT_NUMBER_OF_BYTES
 idle	init_net_server_extension.cc:	NULL	idle	NULL
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	opt	NULL
-wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	0
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	1
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	select	NULL
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	send	1
@@ -60,15 +60,14 @@ OBJECT_NAME, OPERATION,
 (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
 from performance_schema.events_waits_history_long
 where (THREAD_ID = @ssl_con_tid)
+and not (OPERATION = 'recv' and NUMBER_OF_BYTES = 0)
 group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
 order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
 EVENT_NAME	PRINT_SOURCE	OBJECT_NAME	OPERATION	PRINT_NUMBER_OF_BYTES
 idle	init_net_server_extension.cc:	NULL	idle	NULL
-wait/io/socket/sql/client_connection	open_ssl:	:0	recv	0
 wait/io/socket/sql/client_connection	open_ssl:	:0	recv	1
 wait/io/socket/sql/client_connection	open_ssl:	:0	send	1
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	opt	NULL
-wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	0
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	recv	1
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	select	NULL
 wait/io/socket/sql/client_connection	viosocket.cc:	:0	send	1

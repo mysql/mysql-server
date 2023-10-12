@@ -82,6 +82,7 @@ select EVENT_NAME,
   (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
   from performance_schema.events_waits_history_long
   where (THREAD_ID = @clear_con_tid)
+    and not (OPERATION = 'recv' and NUMBER_OF_BYTES = 0)
   group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
   order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
 
@@ -101,6 +102,7 @@ select EVENT_NAME,
   (NUMBER_OF_BYTES >= 1) as PRINT_NUMBER_OF_BYTES
   from performance_schema.events_waits_history_long
   where (THREAD_ID = @ssl_con_tid)
+    and not (OPERATION = 'recv' and NUMBER_OF_BYTES = 0)
   group by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES
   order by EVENT_NAME, PRINT_SOURCE, OBJECT_NAME, OPERATION, PRINT_NUMBER_OF_BYTES;
 
