@@ -21,28 +21,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 
 #include <NdbApi.hpp>
 
-namespace
-{
-  inline void test_connection(const Ndb_cluster_connection &connection)
-  {
-    std::cout << "Connected to: " << connection.get_system_name()
-              << ",\n\ton port: " << connection.get_connected_port()
-              << ",\n\tactive NDBDs: " << connection.get_active_ndb_objects()
-              << std::endl;
-  }
+namespace {
+inline void test_connection(const Ndb_cluster_connection &connection) {
+  std::cout << "Connected to: " << connection.get_system_name()
+            << ",\n\ton port: " << connection.get_connected_port()
+            << ",\n\tactive NDBDs: " << connection.get_active_ndb_objects()
+            << std::endl;
 }
+}  // namespace
 
-int main(int argc, char **argv)
-{
-  if (argc != 2)
-  {
-    std::cout << "Usage: ndb_ndbapi_basic_connect <connectstring>"
-              << std::endl;
+int main(int argc, char **argv) {
+  if (argc != 2) {
+    std::cout << "Usage: ndb_ndbapi_basic_connect <connectstring>" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -51,14 +46,12 @@ int main(int argc, char **argv)
   ndb_init();
   {
     Ndb_cluster_connection connection(connectstring);
-    if (connection.connect() != 0)
-    {
+    if (connection.connect() != 0) {
       std::cout << "Cannot connect to cluster management server" << std::endl;
       return EXIT_FAILURE;
     }
 
-    if (connection.wait_until_ready(30, 0) != 0)
-    {
+    if (connection.wait_until_ready(30, 0) != 0) {
       std::cout << "Cluster was not ready within 30 secs" << std::endl;
       return EXIT_FAILURE;
     }
@@ -70,4 +63,3 @@ int main(int argc, char **argv)
 
   return EXIT_SUCCESS;
 }
-

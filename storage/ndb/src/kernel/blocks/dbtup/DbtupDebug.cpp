@@ -22,17 +22,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #define DBTUP_C
 #define DBTUP_DEBUG_CPP
-#include "Dbtup.hpp"
-#include <RefConvert.hpp>
 #include <ndb_limits.h>
+#include <RefConvert.hpp>
+#include <Vector.hpp>
 #include <pc.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EventReport.hpp>
-#include <Vector.hpp>
+#include "Dbtup.hpp"
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
@@ -48,191 +47,182 @@
 /* ------------------------ DEBUG MODULE -------------------------- */
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
-void Dbtup::execDEBUG_SIG(Signal* signal) 
-{
+void Dbtup::execDEBUG_SIG(Signal *signal) {
   PagePtr regPagePtr;
   jamEntry();
   regPagePtr.i = signal->theData[0];
   c_page_pool.getPtr(regPagePtr);
-}//Dbtup::execDEBUG_SIG()
+}  // Dbtup::execDEBUG_SIG()
 
 #ifdef TEST_MR
 
-void startTimer(struct timespec *tp)
-{
+void startTimer(struct timespec *tp) {
   clock_gettime(CLOCK_REALTIME, tp);
-}//startTimer()
+}  // startTimer()
 
-int stopTimer(struct timespec *tp)
-{
+int stopTimer(struct timespec *tp) {
   double timer_count;
   struct timespec theStopTime;
   clock_gettime(CLOCK_REALTIME, &theStopTime);
-  timer_count = (double)(1000000*((double)theStopTime.tv_sec - (double)tp->tv_sec)) + 
-                (double)((double)((double)theStopTime.tv_nsec - (double)tp->tv_nsec)/(double)1000);
+  timer_count =
+      (double)(1000000 * ((double)theStopTime.tv_sec - (double)tp->tv_sec)) +
+      (double)((double)((double)theStopTime.tv_nsec - (double)tp->tv_nsec) /
+               (double)1000);
   return (int)timer_count;
-}//stopTimer()
+}  // stopTimer()
 
-#endif // end TEST_MR
+#endif  // end TEST_MR
 
 struct Chunk {
   Uint32 pageId;
   Uint32 pageCount;
 };
 
-void Dbtup::execDBINFO_SCANREQ(Signal* signal)
-{
+void Dbtup::execDBINFO_SCANREQ(Signal *signal) {
   jamEntry();
-  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  const Ndbinfo::ScanCursor* cursor =
-    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+  DbinfoScanReq req = *(DbinfoScanReq *)signal->theData;
+  const Ndbinfo::ScanCursor *cursor =
+      CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
 
   Ndbinfo::Ratelimit rl;
 
-  switch(req.tableId){
-  case Ndbinfo::POOLS_TABLEID:
-  {
-    jam();
-    const DynArr256Pool::Info pmpInfo = c_page_map_pool.getInfo();
-    
-    const Ndbinfo::pool_entry pools[] =
-    {
-      { "Scan Lock",
-        c_scanLockPool.getUsed(),
-        c_scanLockPool.getSize(),
-        c_scanLockPool.getEntrySize(),
-        c_scanLockPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,CFG_DB_BATCH_SIZE,0,0 },
-        0},
-      { "Scan Operation",
-        c_scanOpPool.getUsed(),
-        c_scanOpPool.getSize(),
-        c_scanOpPool.getEntrySize(),
-        c_scanOpPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
-        0},
-      { "Trigger",
-        c_triggerPool.getUsed(),
-        c_triggerPool.getSize(),
-        c_triggerPool.getEntrySize(),
-        c_triggerPool.getUsedHi(),
-        { CFG_DB_NO_TRIGGERS,0,0,0 },
-        0},
-      { "Stored Proc",
-        c_storedProcPool.getUsed(),
-        c_storedProcPool.getSize(),
-        c_storedProcPool.getEntrySize(),
-        c_storedProcPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
-        0},
-      { "Build Index",
-        c_buildIndexPool.getUsed(),
-        c_buildIndexPool.getSize(),
-        c_buildIndexPool.getEntrySize(),
-        c_buildIndexPool.getUsedHi(),
-        { 0,0,0,0 },
-        0},
-      { "Operation",
-        c_operation_pool.getUsed(),
-        c_operation_pool.getSize(),
-        c_operation_pool.getEntrySize(),
-        c_operation_pool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 },
-        0},
-      { "L2PMap pages",
-        pmpInfo.pg_count,
-        0,                  /* No real limit */
-        pmpInfo.pg_byte_sz,
-        /*
-          No HWM for this row as it would be a fixed fraction of "Data memory"
-          and therefore of limited interest.
-        */
-        0,
-        { 0, 0, 0},
-        RG_DATAMEM},
-      { "L2PMap nodes",
-        pmpInfo.inuse_nodes,
-        pmpInfo.pg_count * pmpInfo.nodes_per_page, /* Max within current pages */
-        pmpInfo.node_byte_sz,
-        /*
-          No HWM for this row as it would be a fixed fraction of "Data memory"
-          and therefore of limited interest.
-        */
-        0,
-        { 0, 0, 0 },
-        RT_DBTUP_PAGE_MAP},
-      { "Data memory",
-        m_pages_allocated,
-        0, // Allocated from global resource group RG_DATAMEM
-        sizeof(Page),
-        m_pages_allocated_max,
-        { CFG_DB_DATA_MEM,0,0,0 },
-        0},
-      { NULL, 0,0,0,0, { 0,0,0,0 }, 0}
-    };
-
-    const size_t num_config_params =
-      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
-    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
-    Uint32 pool = cursor->data[0];
-    ndbrequire(pool < numPools);
-    BlockNumber bn = blockToMain(number());
-    while(pools[pool].poolname)
-    {
+  switch (req.tableId) {
+    case Ndbinfo::POOLS_TABLEID: {
       jam();
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(getOwnNodeId());
-      row.write_uint32(bn);           // block number
-      row.write_uint32(instance());   // block instance
-      row.write_string(pools[pool].poolname);
+      const DynArr256Pool::Info pmpInfo = c_page_map_pool.getInfo();
 
-      row.write_uint64(pools[pool].used);
-      row.write_uint64(pools[pool].total);
-      row.write_uint64(pools[pool].used_hi);
-      row.write_uint64(pools[pool].entry_size);
-      for (size_t i = 0; i < num_config_params; i++)
-        row.write_uint32(pools[pool].config_params[i]);
-      row.write_uint32(GET_RG(pools[pool].record_type));
-      row.write_uint32(GET_TID(pools[pool].record_type));
-      ndbinfo_send_row(signal, req, row, rl);
-      pool++;
-      if (rl.need_break(req))
-      {
+      const Ndbinfo::pool_entry pools[] = {
+          {"Scan Lock",
+           c_scanLockPool.getUsed(),
+           c_scanLockPool.getSize(),
+           c_scanLockPool.getEntrySize(),
+           c_scanLockPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, CFG_DB_BATCH_SIZE, 0, 0},
+           0},
+          {"Scan Operation",
+           c_scanOpPool.getUsed(),
+           c_scanOpPool.getSize(),
+           c_scanOpPool.getEntrySize(),
+           c_scanOpPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, 0, 0, 0},
+           0},
+          {"Trigger",
+           c_triggerPool.getUsed(),
+           c_triggerPool.getSize(),
+           c_triggerPool.getEntrySize(),
+           c_triggerPool.getUsedHi(),
+           {CFG_DB_NO_TRIGGERS, 0, 0, 0},
+           0},
+          {"Stored Proc",
+           c_storedProcPool.getUsed(),
+           c_storedProcPool.getSize(),
+           c_storedProcPool.getEntrySize(),
+           c_storedProcPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, 0, 0, 0},
+           0},
+          {"Build Index",
+           c_buildIndexPool.getUsed(),
+           c_buildIndexPool.getSize(),
+           c_buildIndexPool.getEntrySize(),
+           c_buildIndexPool.getUsedHi(),
+           {0, 0, 0, 0},
+           0},
+          {"Operation",
+           c_operation_pool.getUsed(),
+           c_operation_pool.getSize(),
+           c_operation_pool.getEntrySize(),
+           c_operation_pool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_OPS, CFG_DB_NO_OPS, 0, 0},
+           0},
+          {"L2PMap pages",
+           pmpInfo.pg_count,
+           0, /* No real limit */
+           pmpInfo.pg_byte_sz,
+           /*
+             No HWM for this row as it would be a fixed fraction of "Data
+             memory" and therefore of limited interest.
+           */
+           0,
+           {0, 0, 0},
+           RG_DATAMEM},
+          {"L2PMap nodes",
+           pmpInfo.inuse_nodes,
+           pmpInfo.pg_count *
+               pmpInfo.nodes_per_page, /* Max within current pages */
+           pmpInfo.node_byte_sz,
+           /*
+             No HWM for this row as it would be a fixed fraction of "Data
+             memory" and therefore of limited interest.
+           */
+           0,
+           {0, 0, 0},
+           RT_DBTUP_PAGE_MAP},
+          {"Data memory",
+           m_pages_allocated,
+           0,  // Allocated from global resource group RG_DATAMEM
+           sizeof(Page),
+           m_pages_allocated_max,
+           {CFG_DB_DATA_MEM, 0, 0, 0},
+           0},
+          {NULL, 0, 0, 0, 0, {0, 0, 0, 0}, 0}};
+
+      const size_t num_config_params =
+          sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+      const Uint32 numPools = NDB_ARRAY_SIZE(pools);
+      Uint32 pool = cursor->data[0];
+      ndbrequire(pool < numPools);
+      BlockNumber bn = blockToMain(number());
+      while (pools[pool].poolname) {
         jam();
-        ndbinfo_send_scan_break(signal, req, rl, pool);
-        return;
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(bn);          // block number
+        row.write_uint32(instance());  // block instance
+        row.write_string(pools[pool].poolname);
+
+        row.write_uint64(pools[pool].used);
+        row.write_uint64(pools[pool].total);
+        row.write_uint64(pools[pool].used_hi);
+        row.write_uint64(pools[pool].entry_size);
+        for (size_t i = 0; i < num_config_params; i++)
+          row.write_uint32(pools[pool].config_params[i]);
+        row.write_uint32(GET_RG(pools[pool].record_type));
+        row.write_uint32(GET_TID(pools[pool].record_type));
+        ndbinfo_send_row(signal, req, row, rl);
+        pool++;
+        if (rl.need_break(req)) {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, pool);
+          return;
+        }
       }
+      break;
     }
-    break;
-  }
-  case Ndbinfo::TEST_TABLEID:
-  {
-    Uint32 counter = cursor->data[0];
-    BlockNumber bn = blockToMain(number());
-    while(counter < 1000)
-    {
-      jam();
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(getOwnNodeId());
-      row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
-      row.write_uint32(counter);
-      Uint64 counter2 = counter;
-      counter2 = counter2 << 32;
-      row.write_uint64(counter2);
-      ndbinfo_send_row(signal, req, row, rl);
-      counter++;
-      if (rl.need_break(req))
-      {
+    case Ndbinfo::TEST_TABLEID: {
+      Uint32 counter = cursor->data[0];
+      BlockNumber bn = blockToMain(number());
+      while (counter < 1000) {
         jam();
-        ndbinfo_send_scan_break(signal, req, rl, counter);
-        return;
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(bn);          // block number
+        row.write_uint32(instance());  // block instance
+        row.write_uint32(counter);
+        Uint64 counter2 = counter;
+        counter2 = counter2 << 32;
+        row.write_uint64(counter2);
+        ndbinfo_send_row(signal, req, row, rl);
+        counter++;
+        if (rl.need_break(req)) {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, counter);
+          return;
+        }
       }
+      break;
     }
-    break;
-  }
-  default:
-    break;
+    default:
+      break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
@@ -242,9 +232,7 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
 static Uint32 fc_left = 0, fc_right = 0, fc_remove = 0;
 #endif
 
-void
-Dbtup::execDUMP_STATE_ORD(Signal* signal)
-{
+void Dbtup::execDUMP_STATE_ORD(Signal *signal) {
   Uint32 type = signal->theData[0];
 
   (void)type;
@@ -312,19 +300,18 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #ifdef ERROR_INSERT
   if (type == DumpStateOrd::EnableUndoDelayDataWrite) {
-    DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
-    ndbout << "Dbtup:: delay write of datapages for table = " 
-	   << dumpState->args[1]<< endl;
+    DumpStateOrd *const dumpState = (DumpStateOrd *)&signal->theData[0];
+    ndbout << "Dbtup:: delay write of datapages for table = "
+           << dumpState->args[1] << endl;
     c_errorInsert4000TableId = dumpState->args[1];
     SET_ERROR_INSERT_VALUE(4000);
     return;
-  }//if
+  }  // if
 #endif
 #if defined VM_TRACE
-  if (type == 1211 || type == 1212 || type == 1213){
+  if (type == 1211 || type == 1212 || type == 1213) {
     Uint32 seed = (Uint32)time(0);
-    if (signal->getLength() > 1)
-      seed = signal->theData[1];
+    if (signal->getLength() > 1) seed = signal->theData[1];
     g_eventLogger->info("Startar modul test av Page Manager (seed: 0x%x)",
                         seed);
     srand(seed);
@@ -335,87 +322,81 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     Uint32 sum_conf = 0;
     Uint32 sum_loop = 0;
     Uint32 max_loop = 0;
-    for(Uint32 i = 0; i<LOOPS; i++){
-
+    for (Uint32 i = 0; i < LOOPS; i++) {
       // Case
       Uint32 c = (rand() % 3);
       Resource_limit rl;
       m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
       const Uint32 free = rl.m_max - rl.m_curr;
-      
+
       Uint32 alloc = 0;
-      if(free <= 1){
-	c = 0;
-	alloc = 1;
-      } else 
-	alloc = 1 + (rand() % (free - 1));
-      
-      if(chunks.size() == 0 && c == 0){
-	c = 1 + rand() % 2;
+      if (free <= 1) {
+        c = 0;
+        alloc = 1;
+      } else
+        alloc = 1 + (rand() % (free - 1));
+
+      if (chunks.size() == 0 && c == 0) {
+        c = 1 + rand() % 2;
       }
-      
+
       if (type == 1211)
         g_eventLogger->info("loop=%d case=%d free=%d alloc=%d", i, c, free,
                             alloc);
 
-      if (type == 1213)
-      {
+      if (type == 1213) {
         c = 1;
         alloc = 2 + (sum_conf >> 3) + (sum_conf >> 4);
       }
-      switch(c){ 
-      case 0:{ // Release
-	const int ch = rand() % chunks.size();
-	Chunk chunk = chunks[ch];
-	chunks.erase(ch);
-	returnCommonArea(chunk.pageId, chunk.pageCount);
-      }
-	break;
-      case 2: { // Seize(n) - fail
-	alloc += free;
-        sum_req += free;
-        goto doalloc;
-      }
-      case 1: { // Seize(n) (success)
-        sum_req += alloc;
-    doalloc:
-	Chunk chunk;
-	allocConsPages(jamBuffer(), alloc, chunk.pageCount, chunk.pageId);
-	ndbrequire(chunk.pageCount <= alloc);
-	if(chunk.pageCount != 0){
-	  chunks.push_back(chunk);
-	  if(chunk.pageCount != alloc) {
-	    if (type == 1211)
-              g_eventLogger->info(
-                  "  Tried to allocate %d - only allocated %d - free: %d",
-                  alloc, chunk.pageCount, free);
+      switch (c) {
+        case 0: {  // Release
+          const int ch = rand() % chunks.size();
+          Chunk chunk = chunks[ch];
+          chunks.erase(ch);
+          returnCommonArea(chunk.pageId, chunk.pageCount);
+        } break;
+        case 2: {  // Seize(n) - fail
+          alloc += free;
+          sum_req += free;
+          goto doalloc;
+        }
+        case 1: {  // Seize(n) (success)
+          sum_req += alloc;
+        doalloc:
+          Chunk chunk;
+          allocConsPages(jamBuffer(), alloc, chunk.pageCount, chunk.pageId);
+          ndbrequire(chunk.pageCount <= alloc);
+          if (chunk.pageCount != 0) {
+            chunks.push_back(chunk);
+            if (chunk.pageCount != alloc) {
+              if (type == 1211)
+                g_eventLogger->info(
+                    "  Tried to allocate %d - only allocated %d - free: %d",
+                    alloc, chunk.pageCount, free);
+            }
+          } else {
+            g_eventLogger->info("  Failed to alloc %d pages with %d pages free",
+                                alloc, free);
           }
-        } else {
-          g_eventLogger->info("  Failed to alloc %d pages with %d pages free",
-                              alloc, free);
-        }
 
-        sum_conf += chunk.pageCount;
-        Uint32 tot = fc_left + fc_right + fc_remove;
-        sum_loop += tot;
-        if (tot > max_loop)
-          max_loop = tot;
+          sum_conf += chunk.pageCount;
+          Uint32 tot = fc_left + fc_right + fc_remove;
+          sum_loop += tot;
+          if (tot > max_loop) max_loop = tot;
 
-	for(Uint32 i = 0; i<chunk.pageCount; i++){
-	  PagePtr pagePtr;
-	  pagePtr.i = chunk.pageId + i;
-	  c_page_pool.getPtr(pagePtr);
-	}
+          for (Uint32 i = 0; i < chunk.pageCount; i++) {
+            PagePtr pagePtr;
+            pagePtr.i = chunk.pageId + i;
+            c_page_pool.getPtr(pagePtr);
+          }
 
-	if(alloc == 1 && free > 0)
-        {
-	  ndbrequire(chunk.pageCount == alloc);
-        }
-      }
-	break;
+          if (alloc == 1 && free > 0) {
+            ndbrequire(chunk.pageCount == alloc);
+          }
+        } break;
       }
     }
-    while(chunks.size() > 0){
+    while (chunks.size() > 0) {
       Chunk chunk = chunks.back();
       returnCommonArea(chunk.pageId, chunk.pageCount);
       chunks.erase(chunks.size() - 1);
@@ -428,14 +409,13 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 
 #ifdef ERROR_INSERT
-  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
-  {
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot) {
     {
-      Uint64 defaultValueWords= 0;
+      Uint64 defaultValueWords = 0;
       if (DefaultValuesFragment.i != RNIL)
-        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
-      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
-      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+        defaultValueWords = calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi = (Uint32)(defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo = (Uint32)(defaultValueWords & 0xFFFFFFFF);
       RSS_OP_SNAPSHOT_SAVE(defaultValueWordsHi);
       RSS_OP_SNAPSHOT_SAVE(defaultValueWordsLo);
     }
@@ -447,14 +427,13 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
-  {
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak) {
     {
-      Uint64 defaultValueWords= 0;
+      Uint64 defaultValueWords = 0;
       if (DefaultValuesFragment.i != RNIL)
-        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
-      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
-      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+        defaultValueWords = calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi = (Uint32)(defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo = (Uint32)(defaultValueWords & 0xFFFFFFFF);
       RSS_OP_SNAPSHOT_CHECK(defaultValueWordsHi);
       RSS_OP_SNAPSHOT_CHECK(defaultValueWordsLo);
     }
@@ -467,41 +446,34 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-  if (type == DumpStateOrd::TupSetTransientPoolMaxSize)
-  {
+  if (type == DumpStateOrd::TupSetTransientPoolMaxSize) {
     jam();
-    if (signal->getLength() < 3)
-      return;
+    if (signal->getLength() < 3) return;
     const Uint32 pool_index = signal->theData[1];
     const Uint32 new_size = signal->theData[2];
-    if (pool_index >= c_transient_pool_count)
-      return;
+    if (pool_index >= c_transient_pool_count) return;
     c_transient_pools[pool_index]->setMaxSize(new_size);
     return;
   }
-  if (type == DumpStateOrd::TupResetTransientPoolMaxSize)
-  {
+  if (type == DumpStateOrd::TupResetTransientPoolMaxSize) {
     jam();
-    if(signal->getLength() < 2)
-      return;
+    if (signal->getLength() < 2) return;
     const Uint32 pool_index = signal->theData[1];
-    if (pool_index >= c_transient_pool_count)
-      return;
+    if (pool_index >= c_transient_pool_count) return;
     c_transient_pools[pool_index]->resetMaxSize();
     return;
   }
 #endif
-}//Dbtup::execDUMP_STATE_ORD()
+}  // Dbtup::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */
 /* ---------      MEMORY       CHECK        ----------------------- */
 /* ---------------------------------------------------------------- */
-void Dbtup::execMEMCHECKREQ(Signal* signal) 
-{
+void Dbtup::execMEMCHECKREQ(Signal *signal) {
   TablerecPtr regTabPtr;
   regTabPtr.i = 2;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
-  if(tablerec && regTabPtr.p->tableStatus == DEFINED)
+  if (tablerec && regTabPtr.p->tableStatus == DEFINED)
     validate_page(regTabPtr.p, 0);
 
 #if 0
@@ -529,15 +501,14 @@ void Dbtup::execMEMCHECKREQ(Signal* signal)
   }//for
   sendSignal(blockref, GSN_MEMCHECKCONF, signal, 25, JBB);
 #endif
-}//Dbtup::memCheck()
+}  // Dbtup::memCheck()
 
 // ------------------------------------------------------------------------
 // Help function to be used when debugging. Prints out a tuple page.
-// printLimit is the number of bytes that is printed out from the page. A 
+// printLimit is the number of bytes that is printed out from the page. A
 // page is of size 32768 bytes as of March 2003.
 // ------------------------------------------------------------------------
-void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit) 
-{
+void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit) {
   PagePtr tmpPageP;
   FragrecordPtr tmpFragP;
   TablerecPtr tmpTableP;
@@ -551,16 +522,14 @@ void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit)
   ptrCheckGuard(tmpTableP, cnoOfTablerec, tablerec);
 
   ndbout << "Fragid: " << fragid << " Pageid: " << pageid << endl
-	 << "----------------------------------------" << endl;
+         << "----------------------------------------" << endl;
 
   ndbout << "PageHead : ";
   ndbout << endl;
-}//Dbtup::printoutTuplePage
+}  // Dbtup::printoutTuplePage
 
 #ifdef VM_TRACE
-NdbOut&
-operator<<(NdbOut& out, const Dbtup::Operationrec& op)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtup::Operationrec &op) {
   out << "[Operationrec " << hex << &op;
   // table
   out << " [fragmentPtr " << hex << op.fragmentPtr << "]";
@@ -571,7 +540,8 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
   // state
   out << " [tuple_state " << dec << op.tuple_state << "]";
   out << " [trans_state " << dec << op.trans_state << "]";
-  out << " [in_active_list " << dec << op.op_struct.bit_field.in_active_list << "]";
+  out << " [in_active_list " << dec << op.op_struct.bit_field.in_active_list
+      << "]";
   // links
   out << " [prevActiveOp " << hex << op.prevActiveOp << "]";
   out << " [nextActiveOp " << hex << op.nextActiveOp << "]";
@@ -584,9 +554,7 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
 }
 
 // uses global tabptr
-NdbOut&
-operator<<(NdbOut& out, const Dbtup::Th& th)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtup::Th &th) {
   unsigned i = 0;
   out << "[Th " << hex << &th;
   out << " [op " << hex << th.data[i++] << "]";
@@ -601,73 +569,59 @@ template class Vector<Chunk>;
 #endif
 // uses global tabptr
 
-NdbOut&
-operator<<(NdbOut& out, const Local_key & key)
-{
+NdbOut &operator<<(NdbOut &out, const Local_key &key) {
   out << "[ m_page_no: " << dec << key.m_page_no << " m_file_no: " << dec
       << key.m_file_no << " m_page_idx: " << dec << key.m_page_idx << "]";
   return out;
 }
 
-char*
-printLocal_Key(char buf[], int bufsize, const Local_key& key)
-{
+char *printLocal_Key(char buf[], int bufsize, const Local_key &key) {
   BaseString::snprintf(buf, bufsize,
                        "[ m_page_no: %u m_file_no: %u m_page_idx: %u ]",
                        key.m_page_no, key.m_file_no, key.m_page_idx);
   return buf;
 }
 
-static
-NdbOut&
-operator<<(NdbOut& out, const Dbtup::Tablerec::Tuple_offsets& off)
-{
+static NdbOut &operator<<(NdbOut &out,
+                          const Dbtup::Tablerec::Tuple_offsets &off) {
   out << "[ null_words: " << (Uint32)off.m_null_words
       << " null off: " << (Uint32)off.m_null_offset
       << " disk_off: " << off.m_disk_ref_offset
       << " fixheadsz: " << off.m_fix_header_size
-      << " max_var_off: " << off.m_max_var_offset
-      << " ]";
+      << " max_var_off: " << off.m_max_var_offset << " ]";
 
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtup::Tablerec& tab)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtup::Tablerec &tab) {
   out << "[ total_rec_size: " << tab.total_rec_size
       << " checksum: " << !!(tab.m_bits & Dbtup::Tablerec::TR_Checksum)
       << " attr: " << tab.m_no_of_attributes
-      << " disk: " << tab.m_no_of_disk_attributes 
+      << " disk: " << tab.m_no_of_disk_attributes
       << " mm: " << tab.m_offsets[Dbtup::MM]
       << " [ fix: " << tab.m_attributes[Dbtup::MM].m_no_of_fixsize
       << " var: " << tab.m_attributes[Dbtup::MM].m_no_of_varsize << "]"
-    
+
       << " dd: " << tab.m_offsets[Dbtup::DD]
       << " [ fix: " << tab.m_attributes[Dbtup::DD].m_no_of_fixsize
       << " var: " << tab.m_attributes[Dbtup::DD].m_no_of_varsize << "]"
-      << " ]"  << endl;
+      << " ]" << endl;
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const AttributeDescriptor& off)
-{
+NdbOut &operator<<(NdbOut &out, const AttributeDescriptor &off) {
   Uint32 word;
   memcpy(&word, &off, 4);
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const AttributeOffset& off)
-{
+NdbOut &operator<<(NdbOut &out, const AttributeOffset &off) {
   Uint32 word;
   memcpy(&word, &off, 4);
   out << "[ offset: " << AttributeOffset::getOffset(word)
       << " nullpos: " << AttributeOffset::getNullFlagPos(word);
-  if(AttributeOffset::getCharsetFlag(word))
+  if (AttributeOffset::getCharsetFlag(word))
     out << " charset: %d" << AttributeOffset::getCharsetPos(word);
   out << " ]";
   return out;
 }
-

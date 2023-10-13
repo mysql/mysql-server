@@ -30,19 +30,19 @@
 #include "openssl/x509.h"
 
 #include "debugger/EventLogger.hpp"
-#include "portlib/ndb_sockaddr.h"
 #include "portlib/NdbGetRUsage.h"
 #include "portlib/NdbMutex.h"
 #include "portlib/NdbSleep.h"
 #include "portlib/NdbTCP.h"
 #include "portlib/NdbTick.h"
+#include "portlib/ndb_sockaddr.h"
 #include "unittest/mytap/tap.h"
-#include "util/ndb_openssl3_compat.h"
-#include "util/ndb_opts.h"
-#include "util/require.h"
 #include "util/NdbSocket.h"
 #include "util/SocketClient.hpp"
 #include "util/SocketServer.hpp"
+#include "util/ndb_openssl3_compat.h"
+#include "util/ndb_opts.h"
+#include "util/require.h"
 
 /* This can be run with no args as a TAP test. It will start echo servers on
    ports 3400 and 3401 and run the first 12 tests.
@@ -109,127 +109,120 @@ bool opt_skip_warmup = false;
 bool opt_tls12 = false;
 bool opt_list = false;
 int opt_verbose = 0;
-const char * opt_remote_host = nullptr;
-const char * opt_data_source = nullptr; // set in main()
-const char * opt_data_dest = nullptr;
+const char *opt_remote_host = nullptr;
+const char *opt_data_source = nullptr;  // set in main()
+const char *opt_data_dest = nullptr;
 
-static struct my_option options[] =
-{
-  NdbStdOpt::usage,
-  NdbStdOpt::help,
-  { "client", 'c', "run test client: arg is remote server name or address",
-    & opt_remote_host, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "list", 'l', "list client tests and exit",
-    & opt_list, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "mb", 'm', "MB of data for client to send per test",
-    & opt_send_MB, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_send_MB, 0, 0, nullptr, 0, nullptr },
-  { "port", 'p', "server base port number (echo on p, TLS echo on p+1)",
-    & opt_port, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_port, 0, 0, nullptr, 0, nullptr },
-  { "server", 's', "run server",
-    & opt_server, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "source", NDB_OPT_NOSHORT, "source of data for SendRecv tests",
-    & opt_data_source, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "dest", NDB_OPT_NOSHORT, "file where received data will be written",
-    & opt_data_dest, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "ack", NDB_OPT_NOSHORT, "server: do not echo, just send acknowledgements",
-    & opt_sink, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "no-delay", NDB_OPT_NOSHORT, "value of TCP_NODELAY on client sockets",
-    & opt_tcp_no_delay, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_tcp_no_delay, 0, 1, nullptr, 0, nullptr },
-  { "test", 't', "run client test #n",
-    & opt_test_number, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "start", NDB_OPT_NOSHORT, "start at test #n",
-    & opt_start_test_number, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "stop", NDB_OPT_NOSHORT, "stop after test #n",
-    & opt_end_test_number, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_end_test_number, 0, 0, nullptr, 0, nullptr },
-  { "tls12", NDB_OPT_NOSHORT, "force client TLS version 1.2",
-    & opt_tls12, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "timeout", NDB_OPT_NOSHORT, "client socket poll timeout in msec.",
-    & opt_timeout, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_timeout, 0, 0, nullptr, 0, nullptr },
-  { "buffer-size", 'z', "client network buffer size",
-    & opt_buff_size, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    opt_buff_size, 0, 0, nullptr, 0, nullptr },
-  { "skip-warmup", NDB_OPT_NOSHORT, "skip warmup",
-    & opt_skip_warmup, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "verbose", 'v', "print more messages",
-    & opt_verbose, nullptr, nullptr, GET_INT, OPT_ARG,
-    0, 0, 4, nullptr, 0, nullptr },
-  NdbStdOpt::end_of_options
-};
+static struct my_option options[] = {
+    NdbStdOpt::usage,
+    NdbStdOpt::help,
+    {"client", 'c', "run test client: arg is remote server name or address",
+     &opt_remote_host, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"list", 'l', "list client tests and exit", &opt_list, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"mb", 'm', "MB of data for client to send per test", &opt_send_MB, nullptr,
+     nullptr, GET_INT, REQUIRED_ARG, opt_send_MB, 0, 0, nullptr, 0, nullptr},
+    {"port", 'p', "server base port number (echo on p, TLS echo on p+1)",
+     &opt_port, nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_port, 0, 0,
+     nullptr, 0, nullptr},
+    {"server", 's', "run server", &opt_server, nullptr, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"source", NDB_OPT_NOSHORT, "source of data for SendRecv tests",
+     &opt_data_source, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"dest", NDB_OPT_NOSHORT, "file where received data will be written",
+     &opt_data_dest, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"ack", NDB_OPT_NOSHORT, "server: do not echo, just send acknowledgements",
+     &opt_sink, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"no-delay", NDB_OPT_NOSHORT, "value of TCP_NODELAY on client sockets",
+     &opt_tcp_no_delay, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+     opt_tcp_no_delay, 0, 1, nullptr, 0, nullptr},
+    {"test", 't', "run client test #n", &opt_test_number, nullptr, nullptr,
+     GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"start", NDB_OPT_NOSHORT, "start at test #n", &opt_start_test_number,
+     nullptr, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"stop", NDB_OPT_NOSHORT, "stop after test #n", &opt_end_test_number,
+     nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_end_test_number, 0, 0,
+     nullptr, 0, nullptr},
+    {"tls12", NDB_OPT_NOSHORT, "force client TLS version 1.2", &opt_tls12,
+     nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"timeout", NDB_OPT_NOSHORT, "client socket poll timeout in msec.",
+     &opt_timeout, nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_timeout, 0, 0,
+     nullptr, 0, nullptr},
+    {"buffer-size", 'z', "client network buffer size", &opt_buff_size, nullptr,
+     nullptr, GET_INT, REQUIRED_ARG, opt_buff_size, 0, 0, nullptr, 0, nullptr},
+    {"skip-warmup", NDB_OPT_NOSHORT, "skip warmup", &opt_skip_warmup, nullptr,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "print more messages", &opt_verbose, nullptr, nullptr,
+     GET_INT, OPT_ARG, 0, 0, 4, nullptr, 0, nullptr},
+    NdbStdOpt::end_of_options};
 
 /*** Server ****/
 
 class EchoSession : public SocketServer::Session {
-public:
-  EchoSession(NdbSocket&& s, bool sink, SSL_CTX * ctx) :
-    SocketServer::Session(m_secure_socket),
-    m_sink(sink),
-    m_ssl_ctx(ctx),
-    m_secure_socket(std::move(s)) {}
+ public:
+  EchoSession(NdbSocket &&s, bool sink, SSL_CTX *ctx)
+      : SocketServer::Session(m_secure_socket),
+        m_sink(sink),
+        m_ssl_ctx(ctx),
+        m_secure_socket(std::move(s)) {}
   void runSession() override;
   void stopSession() override;
-private:
+
+ private:
   bool m_sink;
-  SSL_CTX * m_ssl_ctx;
+  SSL_CTX *m_ssl_ctx;
   NdbSocket m_secure_socket;
 };
 
 class PlainService : public SocketServer::Service {
-public:
+ public:
   PlainService(bool sink) : m_sink(sink) {}
-  EchoSession * newSession(NdbSocket&& s) override {
+  EchoSession *newSession(NdbSocket &&s) override {
     return new EchoSession(std::move(s), m_sink, nullptr);
   }
-private:
+
+ private:
   const bool m_sink;
 };
 
 class TlsService : public SocketServer::Service {
-public:
+ public:
   TlsService(bool sink);
-  ~TlsService() override { if (m_ssl_ctx) SSL_CTX_free(m_ssl_ctx); }
-  EchoSession * newSession(NdbSocket&& s) override {
+  ~TlsService() override {
+    if (m_ssl_ctx) SSL_CTX_free(m_ssl_ctx);
+  }
+  EchoSession *newSession(NdbSocket &&s) override {
     return new EchoSession(std::move(s), m_sink, m_ssl_ctx);
   }
   static int on_ssl_verify(int, X509_STORE_CTX *);
 
-private:
-  SSL_CTX * m_ssl_ctx;
+ private:
+  SSL_CTX *m_ssl_ctx;
   const bool m_sink;
 };
 
 TlsService::TlsService(bool sink) : m_sink(sink) {
   int r;
-  static constexpr const char * cipher_list =
-    "TLS_CHACHA20_POLY1305_SHA256:"
-    "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_128_CCM_8_SHA256:"
-    "ECDHE-ECDSA-AES128-GCM-SHA256";
-  static constexpr const char * common_name = "Test Certificate";
+  static constexpr const char *cipher_list =
+      "TLS_CHACHA20_POLY1305_SHA256:"
+      "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_128_CCM_8_SHA256:"
+      "ECDHE-ECDSA-AES128-GCM-SHA256";
+  static constexpr const char *common_name = "Test Certificate";
 
   /* Create a key and certificate */
-  EVP_PKEY * tls_key = EVP_EC_generate("P-256");
-  X509 * tls_cert = X509_new();
+  EVP_PKEY *tls_key = EVP_EC_generate("P-256");
+  X509 *tls_cert = X509_new();
   X509_set_version(tls_cert, 2);
   X509_set_pubkey(tls_cert, tls_key);
 
   /* Set the names */
-  X509_NAME * name = X509_get_subject_name(tls_cert);
+  X509_NAME *name = X509_get_subject_name(tls_cert);
   X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-                             (const unsigned char *) common_name, -1, -1, 0);
+                             (const unsigned char *)common_name, -1, -1, 0);
   X509_set_issuer_name(tls_cert, X509_get_subject_name(tls_cert));
 
   /* Set the expiration date */
@@ -270,27 +263,26 @@ void EchoSession::runSession() {
   size_t total = 0;
   ssize_t n;
 
-  if(m_ssl_ctx) {
-    SSL * ssl = NdbSocket::get_server_ssl(m_ssl_ctx);
-    if(! m_secure_socket.associate(ssl)) {
+  if (m_ssl_ctx) {
+    SSL *ssl = NdbSocket::get_server_ssl(m_ssl_ctx);
+    if (!m_secure_socket.associate(ssl)) {
       NdbSocket::free_ssl(ssl);
       return;
     }
-    if(! m_secure_socket.do_tls_handshake()) {
+    if (!m_secure_socket.do_tls_handshake()) {
       return;
     }
   }
 
-  while(! m_stop) {
-    if( (n = m_secure_socket.read(50, buffer, echo_buffer_size)) < 0) {
+  while (!m_stop) {
+    if ((n = m_secure_socket.read(50, buffer, echo_buffer_size)) < 0) {
       return;
     }
     total += n;
-    if(m_sink && n) { /* Send acknowledgement */
-      int sz = sprintf(message,"Sink ack: %zd\n", total);
+    if (m_sink && n) { /* Send acknowledgement */
+      int sz = sprintf(message, "Sink ack: %zd\n", total);
       m_secure_socket.send(message, sz);
-    }
-    else {      /* Echo data back to client */
+    } else { /* Echo data back to client */
       m_secure_socket.send(buffer, n);
     }
   }
@@ -304,34 +296,32 @@ void EchoSession::stopSession() {
 /*** Client ****/
 
 /* Class Client simply manages two connections (plain and TLS)
-*/
+ */
 class Client : public SocketClient {
-public:
-  Client(const char * hostname);
-  ~Client()                              {  SSL_CTX_free(m_ssl_ctx); }
-  NdbSocket & connect_plain();
-  NdbSocket & connect_tls();
+ public:
+  Client(const char *hostname);
+  ~Client() { SSL_CTX_free(m_ssl_ctx); }
+  NdbSocket &connect_plain();
+  NdbSocket &connect_tls();
   void disconnect();
 
-private:
-  SSL_CTX * m_ssl_ctx;
-  const char * m_server_host;
+ private:
+  SSL_CTX *m_ssl_ctx;
+  const char *m_server_host;
   NdbSocket m_tls_socket;
   NdbSocket m_plain_socket;
 };
 
-Client::Client(const char * hostname) : SocketClient(nullptr),
-                                        m_server_host(hostname)
-{
+Client::Client(const char *hostname)
+    : SocketClient(nullptr), m_server_host(hostname) {
   m_ssl_ctx = SSL_CTX_new(TLS_method());
-  if(opt_tls12) SSL_CTX_set_max_proto_version(m_ssl_ctx, TLS1_2_VERSION);
+  if (opt_tls12) SSL_CTX_set_max_proto_version(m_ssl_ctx, TLS1_2_VERSION);
 }
 
-NdbSocket & Client::connect_plain() {
+NdbSocket &Client::connect_plain() {
   require(!m_plain_socket.is_valid());
   ndb_sockaddr server_addr;
-  if (Ndb_getAddr(&server_addr, m_server_host))
-  {
+  if (Ndb_getAddr(&server_addr, m_server_host)) {
     puts("Plain connection lookup server address failed.");
     return m_plain_socket;
   }
@@ -339,15 +329,14 @@ NdbSocket & Client::connect_plain() {
   if (!init(server_addr.get_address_family())) return m_plain_socket;
   m_plain_socket = connect(server_addr);
   ndb_setsockopt(m_plain_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
-                 & opt_tcp_no_delay);
+                 &opt_tcp_no_delay);
   return m_plain_socket;
 }
 
-NdbSocket & Client::connect_tls() {
+NdbSocket &Client::connect_tls() {
   require(!m_tls_socket.is_valid());
   ndb_sockaddr server_addr;
-  if (Ndb_getAddr(&server_addr, m_server_host))
-  {
+  if (Ndb_getAddr(&server_addr, m_server_host)) {
     puts("TLS connection lookup server address failed.");
     return m_tls_socket;
   }
@@ -355,21 +344,21 @@ NdbSocket & Client::connect_tls() {
   if (!init(server_addr.get_address_family())) return m_tls_socket;
   m_tls_socket = connect(server_addr);
 
-  if(! m_tls_socket.is_valid())
+  if (!m_tls_socket.is_valid())
     puts("Could not connect to server");
   else {
-    SSL * ssl = NdbSocket::get_client_ssl(m_ssl_ctx);
-    if(m_tls_socket.associate(ssl)) {
-      if(m_tls_socket.do_tls_handshake()) {
+    SSL *ssl = NdbSocket::get_client_ssl(m_ssl_ctx);
+    if (m_tls_socket.associate(ssl)) {
+      if (m_tls_socket.do_tls_handshake()) {
         return m_tls_socket;  // success
       }
-    }
-    else NdbSocket::free_ssl(ssl);
+    } else
+      NdbSocket::free_ssl(ssl);
     puts("TLS connection failed.");
     m_tls_socket.close();
   }
   ndb_setsockopt(m_tls_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
-                 & opt_tcp_no_delay);
+                 &opt_tcp_no_delay);
   return m_tls_socket;
 }
 
@@ -378,69 +367,68 @@ void Client::disconnect() {
   m_tls_socket.close();
 }
 
-
 /* Class ClientTest provides time-keeping and some thread scaffolding;
    functional tests are implemented in derived classes
 */
 class ClientTest {
-public:
-  ClientTest(NdbSocket & s) : m_socket(s), m_timeout(opt_timeout)  { }
+ public:
+  ClientTest(NdbSocket &s) : m_socket(s), m_timeout(opt_timeout) {}
 
-  virtual ~ClientTest() { }
+  virtual ~ClientTest() {}
 
-  int run(int n);                        // n is ordinal in list of all tests
-  bool verbose() const              { return opt_verbose > m_verbose_level; }
+  int run(int n);  // n is ordinal in list of all tests
+  bool verbose() const { return opt_verbose > m_verbose_level; }
   void rusage12() const;
   void rusage13() const;
 
   /* Interface for derived test classes */
-  virtual void printTestName(int n) = 0; // n is ordinal in list of all tests
-  virtual void setup() { }
-  virtual int runTest() = 0;             // returns 0 on success, or error code
-  virtual int testSend() = 0;            // returns 0 on success, or error code
-  virtual int testRecv() = 0;            // returns 0 on success, or error code
+  virtual void printTestName(int n) = 0;  // n is ordinal in list of all tests
+  virtual void setup() {}
+  virtual int runTest() = 0;   // returns 0 on success, or error code
+  virtual int testSend() = 0;  // returns 0 on success, or error code
+  virtual int testRecv() = 0;  // returns 0 on success, or error code
   virtual void printTestResult() {
     Uint64 elapsed_msec = NdbTick_Elapsed(t1, t2).milliSec();
     printf("elapsed msec.: %lld\n", elapsed_msec);
   }
 
-protected:
+ protected:
   void runTestSend();
   void runTestRecv();
-  friend void * runClientSendThread(void *);
-  friend void * runClientRecvThread(void *);
+  friend void *runClientSendThread(void *);
+  friend void *runClientRecvThread(void *);
 
   NDB_TICKS t1, t2, t3;
   int sendStatus, recvStatus;
   struct ndb_rusage ru1, ru2, ru3;
-  NdbSocket & m_socket;
+  NdbSocket &m_socket;
   const int m_timeout;
   int m_verbose_level{1};
 };
 
-void * runClientSendThread(void * p) {
-  ClientTest * t = (ClientTest *) p;
+void *runClientSendThread(void *p) {
+  ClientTest *t = (ClientTest *)p;
   t->runTestSend();
-  my_thread_exit(& t->sendStatus);
+  my_thread_exit(&t->sendStatus);
 }
 
-void * runClientRecvThread(void * p) {
-  ClientTest * t = (ClientTest *) p;
+void *runClientRecvThread(void *p) {
+  ClientTest *t = (ClientTest *)p;
   t->runTestRecv();
-  my_thread_exit(& t->recvStatus);
+  my_thread_exit(&t->recvStatus);
 }
 
 void ClientTest::runTestSend() {
   t1 = NdbTick_getCurrentTicks();
-  Ndb_GetRUsage(& ru1, false);
+  Ndb_GetRUsage(&ru1, false);
   sendStatus = testSend();
-  Ndb_GetRUsage(& ru3, false);
+  Ndb_GetRUsage(&ru3, false);
   t3 = NdbTick_getCurrentTicks();
 }
 
 void ClientTest::runTestRecv() {
   recvStatus = testRecv();
-  Ndb_GetRUsage(& ru2, false);
+  Ndb_GetRUsage(&ru2, false);
   t2 = NdbTick_getCurrentTicks();
 }
 
@@ -460,43 +448,42 @@ int ClientTest::run(int n) {
 }
 
 void ClientTest::rusage12() const {
-  printf("CPU user: %lld, system: %lld usec\n",
-         ru2.ru_utime - ru1.ru_utime, ru2.ru_stime - ru1.ru_stime);
+  printf("CPU user: %lld, system: %lld usec\n", ru2.ru_utime - ru1.ru_utime,
+         ru2.ru_stime - ru1.ru_stime);
 }
 
 void ClientTest::rusage13() const {
-  printf("CPU user: %lld, system: %lld usec\n",
-         ru3.ru_utime - ru1.ru_utime, ru3.ru_stime - ru1.ru_stime);
+  printf("CPU user: %lld, system: %lld usec\n", ru3.ru_utime - ru1.ru_utime,
+         ru3.ru_stime - ru1.ru_stime);
 }
-
-
 
 /* Class SendRecvTest tests low-level NdbSocket send() and recv() calls,
    with both blocking and non-blocking sockets, with or without mutex locking.
 */
 class SendRecvTest : public ClientTest {
-public:
-  SendRecvTest(NdbSocket & s, const char * name,
-               bool blocking, int buff_size = opt_buff_size) :
-    ClientTest(s),  m_name(name), m_test_bytes(opt_send_MB * 1000000),
-    m_buff_size(buff_size), m_block(blocking)
-  {
-    m_send_buffer = (char *) malloc(m_buff_size);
-    m_recv_buffer = (char *) malloc(m_buff_size);
+ public:
+  SendRecvTest(NdbSocket &s, const char *name, bool blocking,
+               int buff_size = opt_buff_size)
+      : ClientTest(s),
+        m_name(name),
+        m_test_bytes(opt_send_MB * 1000000),
+        m_buff_size(buff_size),
+        m_block(blocking) {
+    m_send_buffer = (char *)malloc(m_buff_size);
+    m_recv_buffer = (char *)malloc(m_buff_size);
     int d = m_test_bytes / m_buff_size;
-    if(m_test_bytes % m_buff_size)
-      m_test_bytes = (d+1) * m_buff_size; // round up
+    if (m_test_bytes % m_buff_size)
+      m_test_bytes = (d + 1) * m_buff_size;  // round up
   }
 
-  ~SendRecvTest() override
-  {
+  ~SendRecvTest() override {
     free(m_send_buffer);
     free(m_recv_buffer);
   }
 
-protected:
+ protected:
   void assert_sent_received() {
-    if(m_bytes_sent != m_bytes_received)
+    if (m_bytes_sent != m_bytes_received)
       BAIL_OUT("sent %llu != received %llu\n", m_bytes_sent, m_bytes_received);
   }
 
@@ -512,40 +499,36 @@ protected:
   void printTestName(int) override;
   void printTestResult() override;
 
-  const char * m_name;
-  char * m_send_buffer, * m_recv_buffer;
+  const char *m_name;
+  char *m_send_buffer, *m_recv_buffer;
   Uint64 m_test_bytes;
-  Uint64 m_bytes_sent {0};
-  Uint64 m_bytes_received {0};
+  Uint64 m_bytes_sent{0};
+  Uint64 m_bytes_received{0};
   int m_buff_size;
-  int m_update_keys {0};
+  int m_update_keys{0};
   bool m_block;
-  //bool m_locking;
-  bool m_repeat_input {true};
+  // bool m_locking;
+  bool m_repeat_input{true};
 };
 
-void SendRecvTest::setup() {
-  m_socket.set_nonblocking(! m_block);
-}
+void SendRecvTest::setup() { m_socket.set_nonblocking(!m_block); }
 
 void SendRecvTest::printTestName(int n) {
-  printf("(t%d) %s %s ", n, m_name,
-         m_block   ? "  blocking  " : "non-blocking");
+  printf("(t%d) %s %s ", n, m_name, m_block ? "  blocking  " : "non-blocking");
 }
 
 int SendRecvTest::runTest() {
   my_thread_handle sendThd;
 
   /* Start the send thread (start time = t1) */
-  my_thread_create(& sendThd, nullptr, runClientSendThread, this);
+  my_thread_create(&sendThd, nullptr, runClientSendThread, this);
 
   /* Receive in this thread (end time = t2) */
   runTestRecv();
-  if(recvStatus != 0)
-    my_thread_cancel(& sendThd);
+  if (recvStatus != 0) my_thread_cancel(&sendThd);
 
   /* Wait for the send thread */
-  my_thread_join(& sendThd, nullptr);
+  my_thread_join(&sendThd, nullptr);
 
   return recvStatus;
 }
@@ -557,13 +540,12 @@ void SendRecvTest::printTestResult() {
 }
 
 inline int try_again(int r) {
-  return (    (r == TLS_BUSY_TRY_AGAIN)
-           || (r == POLL_TIMEOUT)
-           || (errno == EAGAIN));
+  return ((r == TLS_BUSY_TRY_AGAIN) || (r == POLL_TIMEOUT) ||
+          (errno == EAGAIN));
 }
 
-inline int error_message(const char * prefix, int code) {
-  if(code == POLL_TIMEOUT)
+inline int error_message(const char *prefix, int code) {
+  if (code == POLL_TIMEOUT)
     printf("%s error: poll timeout\n", prefix);
   else
     printf("%s error: %d [%d] [%s]\n", prefix, code, errno, strerror(errno));
@@ -574,7 +556,7 @@ inline int error_message(const char * prefix, int code) {
  * Sending
  */
 int SendRecvTest::send(size_t sent, size_t len) {
-  if(m_block || m_socket.poll_writable(m_timeout))
+  if (m_block || m_socket.poll_writable(m_timeout))
     return m_socket.send(m_send_buffer + sent, len - sent);
   return POLL_TIMEOUT;
 }
@@ -582,8 +564,8 @@ int SendRecvTest::send(size_t sent, size_t len) {
 int SendRecvTest::retry_send(size_t ndata) {
   size_t nsent = 0;
 
-  while(nsent < ndata) {
-    if(m_update_keys == 2) {
+  while (nsent < ndata) {
+    if (m_update_keys == 2) {
       printf("[size %d] UPDATING KEYS ", m_buff_size);
       bool ok = m_socket.update_keys();
       require(ok);
@@ -591,18 +573,20 @@ int SendRecvTest::retry_send(size_t ndata) {
     }
 
     int r = send(nsent, ndata);
-    if(verbose()) printf("SEND    .. %d .. %llu \n", r,
-                         m_bytes_sent + nsent + (r > 0 ? r : 0));
-    if(r > 0) nsent += r;
-    else if (! try_again(r))
+    if (verbose())
+      printf("SEND    .. %d .. %llu \n", r,
+             m_bytes_sent + nsent + (r > 0 ? r : 0));
+    if (r > 0)
+      nsent += r;
+    else if (!try_again(r))
       return error_message("send()", r);
   }
   return nsent;
 }
 
 int SendRecvTest::testSend() {
-  FILE * infp = fopen(opt_data_source, "r");
-  if(infp == nullptr) return errno;
+  FILE *infp = fopen(opt_data_source, "r");
+  if (infp == nullptr) return errno;
   int r = 0;
 
   do {
@@ -610,39 +594,41 @@ int SendRecvTest::testSend() {
     r = 0;
     Uint64 remaining = m_test_bytes - m_bytes_sent;
     int to_send = m_buff_size;
-    if(remaining < (Uint64) to_send) to_send = (int) remaining;
-    if((m_update_keys == 1) && (remaining < m_bytes_sent))
-      m_update_keys = 2; // trigger update now
-    if(to_send > 0) {
-      int len = fread(m_send_buffer, 1, to_send, infp); // read from input
-      if(len < 1 && feof(infp) && m_repeat_input) {
+    if (remaining < (Uint64)to_send) to_send = (int)remaining;
+    if ((m_update_keys == 1) && (remaining < m_bytes_sent))
+      m_update_keys = 2;  // trigger update now
+    if (to_send > 0) {
+      int len = fread(m_send_buffer, 1, to_send, infp);  // read from input
+      if (len < 1 && feof(infp) && m_repeat_input) {
         fseek(infp, 0, SEEK_SET);
         len = fread(m_send_buffer, 1, to_send, infp);
       }
-      if(len > 0) r = retry_send(len);
-      else if(len == 0) r = 0;  // End of file
-      else printf("fread() error: [%d] %d \n", len, ferror(infp));
+      if (len > 0)
+        r = retry_send(len);
+      else if (len == 0)
+        r = 0;  // End of file
+      else
+        printf("fread() error: [%d] %d \n", len, ferror(infp));
     }
-  } while(r > 0);
+  } while (r > 0);
 
   fclose(infp);
-  assert(! m_socket.key_update_pending());
+  assert(!m_socket.key_update_pending());
   return (r > 0) ? 0 : r;
 }
-
 
 /*
  * Receiving
  */
 int SendRecvTest::recv(size_t len) {
-  if(m_block || m_socket.poll_readable(m_timeout))
+  if (m_block || m_socket.poll_readable(m_timeout))
     return m_socket.recv(m_recv_buffer, len);
   return POLL_TIMEOUT;
 }
 
-bool SendRecvTest::writeOutputFile(FILE * outfp, size_t r) const {
-  if(outfp) {
-    if(fwrite(m_recv_buffer, 1, r, outfp) != r) {
+bool SendRecvTest::writeOutputFile(FILE *outfp, size_t r) const {
+  if (outfp) {
+    if (fwrite(m_recv_buffer, 1, r, outfp) != r) {
       printf("Error writing destination file: %s\n", strerror(errno));
       fclose(outfp);
       return false;
@@ -652,20 +638,21 @@ bool SendRecvTest::writeOutputFile(FILE * outfp, size_t r) const {
 }
 
 int SendRecvTest::testRecv() {
-  FILE * outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
+  FILE *outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
   int r = 0;
   bool one_timeout = false;
-  while(m_bytes_received < m_test_bytes) {
+  while (m_bytes_received < m_test_bytes) {
     do {
       r = recv(m_buff_size);
-      if(verbose()) printf("                    RECV    .. %d .. %llu \n",
-                           r, m_bytes_received + (r > 0 ? r : 0));
+      if (verbose())
+        printf("                    RECV    .. %d .. %llu \n", r,
+               m_bytes_received + (r > 0 ? r : 0));
       bool this_timeout = (r == POLL_TIMEOUT);
-      if(one_timeout && this_timeout) break; // two consecutive timeouts
+      if (one_timeout && this_timeout) break;  // two consecutive timeouts
       one_timeout = this_timeout;
-    } while(try_again(r));
-    if(r < 1) break;
-    if(! writeOutputFile(outfp, r)) return -1;
+    } while (try_again(r));
+    if (r < 1) break;
+    if (!writeOutputFile(outfp, r)) return -1;
     m_bytes_received += r;
   }
 
@@ -673,16 +660,14 @@ int SendRecvTest::testRecv() {
   return (r < 0) ? error_message("recv()", r) : 0;
 }
 
-
 /* Class SendTest measures just time spent in sending.
  * The receive thread runs only until it receives a timeout.
  * The remote end can be echo an server or data sink.
  */
 class SendTest : public SendRecvTest {
-public:
-  SendTest(NdbSocket & s, const char * name,
-           size_t buff = opt_buff_size) :
-    SendRecvTest(s, name, false, buff)               {}
+ public:
+  SendTest(NdbSocket &s, const char *name, size_t buff = opt_buff_size)
+      : SendRecvTest(s, name, false, buff) {}
 
   void printTestName(int n) override {
     printf("(t%d) SendTest: %s ", n, m_name);
@@ -696,94 +681,86 @@ int SendTest::runTest() {
   my_thread_handle recvThd;
 
   /* Start the receive thread */
-  my_thread_create(& recvThd, nullptr, runClientRecvThread, this);
+  my_thread_create(&recvThd, nullptr, runClientRecvThread, this);
 
   /* Send from this thread; start time is t1, end time is t3 */
   runTestSend();
-  if(sendStatus != 0)
-    my_thread_cancel(& recvThd);
+  if (sendStatus != 0) my_thread_cancel(&recvThd);
 
   /* Wait for the receive thread to time out */
-  my_thread_join(& recvThd, nullptr);
+  my_thread_join(&recvThd, nullptr);
 
   return sendStatus;
 }
 
 int SendTest::testRecv() {
-  while(1) {
+  while (1) {
     int r = recv(m_buff_size);
-    if(verbose()) printf("                    RECV    .. %d \n", r);
-    if(r < 1 && r != TLS_BUSY_TRY_AGAIN) return r;
+    if (verbose()) printf("                    RECV    .. %d \n", r);
+    if (r < 1 && r != TLS_BUSY_TRY_AGAIN) return r;
   }
 }
 
 void SendTest::printTestResult() {
   Uint64 msec = NdbTick_Elapsed(t1, t3).milliSec();
-  printf("sent %llu bytes %llu msec [Buf: %d] ",
-         m_bytes_sent, msec, m_buff_size);
+  printf("sent %llu bytes %llu msec [Buf: %d] ", m_bytes_sent, msec,
+         m_buff_size);
   rusage13();
 }
 
 /* Class WarmupTest
-*/
+ */
 class WarmupTest : public SendRecvTest {
-public:
-  WarmupTest(NdbSocket &s) :
-    SendRecvTest(s, "", false, 4096)
-  {
+ public:
+  WarmupTest(NdbSocket &s) : SendRecvTest(s, "", false, 4096) {
     m_test_bytes = 2000000;
     m_verbose_level = 2;
   }
 
-  void printTestName(int n) override
-  {
+  void printTestName(int n) override {
     printf("Warm up %s connection: ", n ? "TLS" : "plain");
   }
 
-  void printTestResult() override {
-    puts("complete.");
-  }
+  void printTestResult() override { puts("complete."); }
 };
 
 /* Class ReadLineTest
-*/
+ */
 class ReadLineTest : public SendRecvTest {
-public:
-  ReadLineTest(NdbSocket & s, const char * name) :
-    SendRecvTest(s, name, false)
-  {
-    m_repeat_input = false; // don't read the file more than once
-    m_test_bytes = 1000000; // don't send more than this
+ public:
+  ReadLineTest(NdbSocket &s, const char *name) : SendRecvTest(s, name, false) {
+    m_repeat_input = false;  // don't read the file more than once
+    m_test_bytes = 1000000;  // don't send more than this
   }
 
   int testRecv() final;
   void printTestResult() final;
 
-private:
-  int m_lines_received {0};
+ private:
+  int m_lines_received{0};
 };
 
 int ReadLineTest::testRecv() {
-  FILE * outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
-  if(opt_data_dest && ! outfp) return error_message("Destination file", -1);
+  FILE *outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
+  if (opt_data_dest && !outfp) return error_message("Destination file", -1);
   int r = 0;
   int elapsed_time;
-  while(1) {
+  while (1) {
     elapsed_time = 0;
-    r = m_socket.readln(m_timeout, & elapsed_time,
-                        m_recv_buffer, m_buff_size, nullptr);
-    if(elapsed_time >= m_timeout) break;
-    if(r == -1) continue; // buffer full, no line found
+    r = m_socket.readln(m_timeout, &elapsed_time, m_recv_buffer, m_buff_size,
+                        nullptr);
+    if (elapsed_time >= m_timeout) break;
+    if (r == -1) continue;  // buffer full, no line found
     assert(r > 0);
     assert(m_recv_buffer[r] == '\0');
-    assert(m_recv_buffer[r-1] == '\n');
-    if(! writeOutputFile(outfp, r)) return -1;
+    assert(m_recv_buffer[r - 1] == '\n');
+    if (!writeOutputFile(outfp, r)) return -1;
     m_lines_received++;
   };
 
   if (outfp) fclose(outfp);
 
-  if(r > 0 || elapsed_time >= m_timeout) return 0;
+  if (r > 0 || elapsed_time >= m_timeout) return 0;
   return r;
 }
 
@@ -793,81 +770,83 @@ void ReadLineTest::printTestResult() {
 }
 
 /* Class IovList
-*/
+ */
 class IovList {
-public:
+ public:
   IovList() : nbuf(0) {}
   IovList(const IovList &) = default;
-  void set_count(int n)                                           { nbuf = n; }
-  int count() const                                            { return nbuf; }
-  struct iovec & iov(int n)                              { return m_iovec[n]; }
-  void free_all()     { for(int n = 0; n < nbuf ; n++) free(iov(n).iov_base); }
+  void set_count(int n) { nbuf = n; }
+  int count() const { return nbuf; }
+  struct iovec &iov(int n) {
+    return m_iovec[n];
+  }
+  void free_all() {
+    for (int n = 0; n < nbuf; n++) free(iov(n).iov_base);
+  }
   int writev(const NdbSocket &, int);
   int adjust(size_t);
 
   static constexpr int MaxBuffers = 8;
-private:
+
+ private:
   int nbuf;
   struct iovec m_iovec[MaxBuffers];
 };
 
 int IovList::writev(const NdbSocket &s, int timeout) {
-  if(s.poll_writable(timeout))
-    return s.writev(m_iovec, nbuf);
+  if (s.poll_writable(timeout)) return s.writev(m_iovec, nbuf);
   return POLL_TIMEOUT;
 }
 
 int IovList::adjust(size_t x) {
-  for(int n = 0; n < nbuf ; n++) {
+  for (int n = 0; n < nbuf; n++) {
     size_t a = m_iovec[n].iov_len;
-    if(x > a) {
+    if (x > a) {
       m_iovec[n].iov_len = 0;
       x -= a;
     } else {
-      m_iovec[n].iov_base = ((char *) m_iovec[n].iov_base + x);
+      m_iovec[n].iov_base = ((char *)m_iovec[n].iov_base + x);
       m_iovec[n].iov_len -= x;
       return n;
     }
   }
-  assert(false); // only called after a partial send
+  assert(false);  // only called after a partial send
   return -1;
 }
 
-
 /* Class WritevTest
-*/
+ */
 class WritevTest : public SendTest {
-public:
-  WritevTest(NdbSocket &, const char *, size_t buff, std::vector<int>
-             dist = { 25, 60, 250, 600, 2500, 6000, 25000, -1 });
- ~WritevTest() override  { m_iov.free_all(); }
+ public:
+  WritevTest(NdbSocket &, const char *, size_t buff,
+             std::vector<int> dist = {25, 60, 250, 600, 2500, 6000, 25000, -1});
+  ~WritevTest() override { m_iov.free_all(); }
 
   int testSend() override;
   int retry_writev();
 
-private:
+ private:
   std::vector<int> m_buffer_dist;
   IovList m_iov;
 };
 
-WritevTest::WritevTest(NdbSocket & s, const char * name,
-                       size_t buff, std::vector<int> dist) :
-  SendTest(s, name, buff), m_buffer_dist(dist)
-{
+WritevTest::WritevTest(NdbSocket &s, const char *name, size_t buff,
+                       std::vector<int> dist)
+    : SendTest(s, name, buff), m_buffer_dist(dist) {
   size_t size = m_buff_size;
   int n = 0;
-  for(n = 0 ; n < IovList::MaxBuffers ; n++) m_iov.iov(n).iov_len = 0;
-  for(n = 0 ; size ; n++) {
+  for (n = 0; n < IovList::MaxBuffers; n++) m_iov.iov(n).iov_len = 0;
+  for (n = 0; size; n++) {
     int vec_size = m_buffer_dist[n];
-    if((vec_size > (int) size) || (vec_size == -1)) vec_size = size;
-    if(vec_size) m_iov.iov(n).iov_base = malloc(vec_size);
+    if ((vec_size > (int)size) || (vec_size == -1)) vec_size = size;
+    if (vec_size) m_iov.iov(n).iov_base = malloc(vec_size);
     m_iov.iov(n).iov_len = vec_size;
     size -= vec_size;
   }
   assert(size == 0);
-  if(opt_verbose)
+  if (opt_verbose)
     printf("WRITEV %d buffers: %lu %lu %lu %lu %lu %lu %lu %lu\n", n,
-           m_iov.iov(0).iov_len, m_iov.iov(1).iov_len,m_iov.iov(2).iov_len,
+           m_iov.iov(0).iov_len, m_iov.iov(1).iov_len, m_iov.iov(2).iov_len,
            m_iov.iov(3).iov_len, m_iov.iov(4).iov_len, m_iov.iov(5).iov_len,
            m_iov.iov(6).iov_len, m_iov.iov(7).iov_len);
   m_iov.set_count(n);
@@ -876,37 +855,37 @@ WritevTest::WritevTest(NdbSocket & s, const char * name,
 int WritevTest::retry_writev() {
   IovList iov(m_iov);
   int nsent = 0;
-  while(1) {
+  while (1) {
     int r = iov.writev(m_socket, m_timeout);
-    if(r > 0) nsent += r;
-    if(verbose())
-      printf("WRITEV  .. %d .. %llu \n", r, m_bytes_sent + nsent);
-    if(nsent == m_buff_size) break;  // all sent
+    if (r > 0) nsent += r;
+    if (verbose()) printf("WRITEV  .. %d .. %llu \n", r, m_bytes_sent + nsent);
+    if (nsent == m_buff_size) break;  // all sent
     assert(nsent < m_buff_size);
-    if(r > 0) iov.adjust(r);  // partially sent
-    else if( ! try_again(r))
+    if (r > 0)
+      iov.adjust(r);  // partially sent
+    else if (!try_again(r))
       return error_message("writev()", r);
   }
   return nsent;
 }
 
 int WritevTest::testSend() {
-  FILE * infp = fopen(opt_data_source, "r");
+  FILE *infp = fopen(opt_data_source, "r");
   int sent = 0;
 
-  while(1) {
+  while (1) {
     m_bytes_sent += sent;
-    if(m_bytes_sent >= m_test_bytes) break;
+    if (m_bytes_sent >= m_test_bytes) break;
 
     /* Read data from source into buffers */
-    for(int i = 0; i < m_iov.count() ; i++) {
+    for (int i = 0; i < m_iov.count(); i++) {
       size_t len = m_iov.iov(i).iov_len;
       len = fread(m_iov.iov(i).iov_base, 1, len, infp);
     }
 
     /* Write to socket */
     sent = retry_writev();
-    if((sent == 0) || (sent == -1) || feof(infp)) break;
+    if ((sent == 0) || (sent == -1) || feof(infp)) break;
   }
 
   fclose(infp);
@@ -914,47 +893,44 @@ int WritevTest::testSend() {
 }
 
 /* Class BigWritevTest
-*/
+ */
 class BigWritevTest : public WritevTest {
-public:
-  BigWritevTest(NdbSocket & s, const char * name) :
-    WritevTest(s, name, 262144,
-               { 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768 }) {}
+ public:
+  BigWritevTest(NdbSocket &s, const char *name)
+      : WritevTest(s, name, 262144,
+                   {32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768}) {}
 };
 
 /* Class KeyUpdateTest
-*/
+ */
 class KeyUpdateTest : public SendRecvTest {
-public:
-  KeyUpdateTest(NdbSocket &s, const char * name) :
-    SendRecvTest(s, name, false)
-  {
+ public:
+  KeyUpdateTest(NdbSocket &s, const char *name) : SendRecvTest(s, name, false) {
     m_update_keys = 1;
   }
 };
 
-
 /* Client */
 /* Returns true if tests were run */
-int run_client(const char * server_host) {
-  if(! server_host) {
+int run_client(const char *server_host) {
+  if (!server_host) {
     ok(false, "server hostname on command line");
     return -10;
   }
 
   Client client(server_host);
 
-  NdbSocket & plain_socket = client.connect_plain();
+  NdbSocket &plain_socket = client.connect_plain();
   bool r = plain_socket.is_valid();
-  ok(r, "client connection to plain port %d on server %s",
-     opt_port, server_host);
-  if(!r ) return -11;
+  ok(r, "client connection to plain port %d on server %s", opt_port,
+     server_host);
+  if (!r) return -11;
 
-  NdbSocket & tls_socket = client.connect_tls();
+  NdbSocket &tls_socket = client.connect_tls();
   r = tls_socket.is_valid();
-  ok(r, "client connection to  TLS  port %d on server %s",
-     opt_port + 1, server_host);
-  if(!r ) return -12;
+  ok(r, "client connection to  TLS  port %d on server %s", opt_port + 1,
+     server_host);
+  if (!r) return -12;
 
   printf("Client reading data from %s\n", opt_data_source);
 
@@ -962,76 +938,71 @@ int run_client(const char * server_host) {
      It is best to run all SendRecv tests before any Send tests; otherwise a
      SendRecv test might receive spurious data from an earlier test.
    */
-  std::vector<ClientTest *> tests =
-  {
-    new SendRecvTest(plain_socket, "plain", true),
-    // As TLS set locks, it cant be blocking at the same time?
-    //  ... recv() may block while holding the lock, waiting for send
-    //      to become 'unblocked'.
-    //  ... Sender is waiting for lock, thus cant unblock recv()
-    //new SendRecvTest(tls_socket,   " TLS ", true),
-    new SendRecvTest(plain_socket, "plain", false),
-    new SendRecvTest(tls_socket,   " TLS ", false),
+  std::vector<ClientTest *> tests = {
+      new SendRecvTest(plain_socket, "plain", true),
+      // As TLS set locks, it cant be blocking at the same time?
+      //  ... recv() may block while holding the lock, waiting for send
+      //      to become 'unblocked'.
+      //  ... Sender is waiting for lock, thus cant unblock recv()
+      // new SendRecvTest(tls_socket,   " TLS ", true),
+      new SendRecvTest(plain_socket, "plain", false),
+      new SendRecvTest(tls_socket, " TLS ", false),
 
-    new ReadLineTest(plain_socket, "plain readline"),
-    new ReadLineTest(tls_socket,   " TLS  readline"),
+      new ReadLineTest(plain_socket, "plain readline"),
+      new ReadLineTest(tls_socket, " TLS  readline"),
 
-    new KeyUpdateTest(tls_socket,
-                      opt_tls12 ? "TLS 1.2 renegotiate" : "TLS 1.3 key update"),
+      new KeyUpdateTest(
+          tls_socket, opt_tls12 ? "TLS 1.2 renegotiate" : "TLS 1.3 key update"),
 
-    new SendTest(plain_socket, " plain basic"),
-    new SendTest(tls_socket, " TLS  basic"),
+      new SendTest(plain_socket, " plain basic"),
+      new SendTest(tls_socket, " TLS  basic"),
 
-    new WritevTest(plain_socket,   "plain writev", opt_buff_size),
-    new WritevTest(tls_socket,     " TLS  writev", opt_buff_size),
-    new BigWritevTest(plain_socket, "plain big writev"),
-    new BigWritevTest(tls_socket,   " TLS  big writev")
-  };
+      new WritevTest(plain_socket, "plain writev", opt_buff_size),
+      new WritevTest(tls_socket, " TLS  writev", opt_buff_size),
+      new BigWritevTest(plain_socket, "plain big writev"),
+      new BigWritevTest(tls_socket, " TLS  big writev")};
 
   /* Print list of tests and exit */
-  if(opt_list) {
-    for(int t = 1 ; t <= (int) tests.size(); t++) {
-      tests[t-1]->printTestName(t);
+  if (opt_list) {
+    for (int t = 1; t <= (int)tests.size(); t++) {
+      tests[t - 1]->printTestName(t);
       printf("\n");
     }
     return 0;
   }
 
   /* "Warm up" each socket past TCP's slow start phase */
-  if(! opt_skip_warmup) {
-    if(WarmupTest(plain_socket).run(0))
-      return -13;
-    if(WarmupTest(tls_socket).run(1))
-      return -14;
+  if (!opt_skip_warmup) {
+    if (WarmupTest(plain_socket).run(0)) return -13;
+    if (WarmupTest(tls_socket).run(1)) return -14;
     puts("");
   }
 
-  if(opt_test_number)
+  if (opt_test_number)
     opt_start_test_number = opt_end_test_number = opt_test_number;
 
-  int rft = 0;   // result of final test
-  for(int t = 1 ; t <= (int) tests.size(); t++)
-    if(t >= opt_start_test_number && t <= opt_end_test_number)
-      rft = tests[t-1]->run(t);
+  int rft = 0;  // result of final test
+  for (int t = 1; t <= (int)tests.size(); t++)
+    if (t >= opt_start_test_number && t <= opt_end_test_number)
+      rft = tests[t - 1]->run(t);
 
-  for(ClientTest * t : tests) delete t;
+  for (ClientTest *t : tests) delete t;
 
   client.disconnect();
   return rft;
 }
 
-
 /* Server */
 void run_server(bool standalone = false) {
   SocketServer server;
-  PlainService * s1 = new PlainService(opt_sink);
-  TlsService * s2 = new TlsService(opt_sink);
+  PlainService *s1 = new PlainService(opt_sink);
+  TlsService *s2 = new TlsService(opt_sink);
   unsigned short port = opt_port;
-  const char * srvType = opt_sink ? "sink" : "echo";
+  const char *srvType = opt_sink ? "sink" : "echo";
 
   ndb_sockaddr addr(port);
   server.setup(s1, &addr);
-  port =  addr.get_port();
+  port = addr.get_port();
   printf("Plain %s server running on port %d\n", srvType, port);
 
   port++;
@@ -1040,9 +1011,9 @@ void run_server(bool standalone = false) {
   port = addr.get_port();
   printf("  TLS %s server running on port %d\n", srvType, port);
 
-  NdbThread * thd = server.startServer();
+  NdbThread *thd = server.startServer();
 
-  if(standalone) {
+  if (standalone) {
     int r = run_client("localhost");
     ok((r == 0), "client tests (%d)", r);
     server.stopServer();
@@ -1054,7 +1025,7 @@ void run_server(bool standalone = false) {
 }
 
 #ifdef _WIN32
-void platform_specific(char * exePath, char **) {
+void platform_specific(char *exePath, char **) {
   GetModuleFileNameA(nullptr, exePath, PATH_MAX);
 }
 #else
@@ -1064,10 +1035,10 @@ void sigpipe_handler(int) {
   exit(-1);
 }
 
-void platform_specific(char * exePath, char ** argv) {
+void platform_specific(char *exePath, char **argv) {
   signal(SIGPIPE, sigpipe_handler);
-  char * source = getenv("_");
-  if(source == nullptr) source = argv[0];
+  char *source = getenv("_");
+  if (source == nullptr) source = argv[0];
   require(source);
   require(strlen(source) < PATH_MAX);
   strncpy(exePath, source, PATH_MAX);
@@ -1075,7 +1046,7 @@ void platform_specific(char * exePath, char ** argv) {
 #endif
 
 /* Main */
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   char exePath[PATH_MAX];
   NDB_INIT("testSecureSocket-t");
   Ndb_opts opts(argc, argv, options);
@@ -1088,20 +1059,19 @@ int main(int argc, char** argv) {
 
   int r = opts.handle_options();
   ok(!r, "options ok");
-  if(r) return r;
+  if (r) return r;
 
   g_eventLogger->createConsoleHandler();
-  if(opt_verbose > 3)
-    g_eventLogger->enable(Logger::LL_DEBUG);
+  if (opt_verbose > 3) g_eventLogger->enable(Logger::LL_DEBUG);
 
-  if(opt_server) run_server();
-  else if(opt_remote_host)
+  if (opt_server)
+    run_server();
+  else if (opt_remote_host)
     return run_client(opt_remote_host);
   else {
     /* stand-alone mode: run server and client both */
 
-    if(! (opt_start_test_number || opt_test_number))
-      opt_end_test_number = 12;
+    if (!(opt_start_test_number || opt_test_number)) opt_end_test_number = 12;
 
     run_server(true);
   }
@@ -1109,5 +1079,4 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-#endif  /* OPENSSL_VERSION_NUMBER < x */
-
+#endif /* OPENSSL_VERSION_NUMBER < x */

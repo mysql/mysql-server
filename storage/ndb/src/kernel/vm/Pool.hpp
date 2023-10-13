@@ -27,25 +27,24 @@
 
 #include <climits>
 
-#include <ndb_global.h>
 #include <kernel_types.h>
+#include <ndb_global.h>
 
 #define JAM_FILE_ID 315
-
 
 /**
  * Type bits
  *
  * Type id is 11 bits record type, and 5 bits resource id
  *   -> 2048 different kind of records and 32 different resource groups
- * 
+ *
  * Resource id is used to handle configuration parameters
  *
  * see blocks/records_types.hpp
  */
 #define RG_BITS 5
 #define RG_MASK ((1 << RG_BITS) - 1)
-#define MAKE_TID(TID,RG) Uint32((TID << RG_BITS) | RG)
+#define MAKE_TID(TID, RG) Uint32((TID << RG_BITS) | RG)
 #define GET_RG(rt) (rt & RG_MASK)
 #define GET_TID(rt) (rt >> RG_BITS)
 
@@ -59,8 +58,7 @@
  * Record_info
  *
  */
-struct Record_info
-{
+struct Record_info {
   Uint16 m_size;
   Uint16 m_type_id;
   Uint16 m_offset_next_pool;
@@ -72,8 +70,7 @@ struct Record_info
   usage.
  */
 
-struct Resource_limit
-{
+struct Resource_limit {
   static constexpr Uint32 HIGHEST_LIMIT = UINT32_MAX;
 
   /**
@@ -137,39 +134,39 @@ struct Resource_limit
   Uint32 m_spare_pct;
 };
 
-class Magic
-{
-public:
+class Magic {
+ public:
   explicit Magic(Uint32 type_id) { m_magic = make(type_id); }
   bool check(Uint32 type_id) { return match(m_magic, type_id); }
-  template<typename T> static bool check_ptr(const T* ptr) { return match(ptr->m_magic, T::TYPE_ID); }
-static bool match(Uint32 magic, Uint32 type_id);
-static Uint32 make(Uint32 type_id);
-private:
+  template <typename T>
+  static bool check_ptr(const T *ptr) {
+    return match(ptr->m_magic, T::TYPE_ID);
+  }
+  static bool match(Uint32 magic, Uint32 type_id);
+  static Uint32 make(Uint32 type_id);
+
+ private:
   Uint32 m_magic;
 };
 
-inline Uint32 Magic::make(Uint32 type_id)
-{
+inline Uint32 Magic::make(Uint32 type_id) {
   return type_id ^ ((~type_id) << 16);
 }
 
-inline bool Magic::match(Uint32 magic, Uint32 type_id)
-{
+inline bool Magic::match(Uint32 magic, Uint32 type_id) {
   return magic == make(type_id);
 }
 
 class Ndbd_mem_manager;
-struct Pool_context
-{
+struct Pool_context {
   Pool_context() {}
-  class SimulatedBlock* m_block;
+  class SimulatedBlock *m_block;
 
   /**
    * Get mem root
    */
-  void* get_memroot() const;
-  Ndbd_mem_manager* get_mem_manager() const;
+  void *get_memroot() const;
+  Ndbd_mem_manager *get_mem_manager() const;
 
   /**
    * Alloc page.
@@ -179,10 +176,10 @@ struct Pool_context
    *
    * Will handle resource limit
    */
-  void* alloc_page19(Uint32 type_id, Uint32 *i);
-  void* alloc_page27(Uint32 type_id, Uint32 *i);
-  void* alloc_page30(Uint32 type_id, Uint32 *i);
-  void* alloc_page32(Uint32 type_id, Uint32 *i);
+  void *alloc_page19(Uint32 type_id, Uint32 *i);
+  void *alloc_page27(Uint32 type_id, Uint32 *i);
+  void *alloc_page30(Uint32 type_id, Uint32 *i);
+  void *alloc_page32(Uint32 type_id, Uint32 *i);
 
   /**
    * Release page
@@ -203,7 +200,7 @@ struct Pool_context
    *
    * Will handle resource limit
    */
-  void* alloc_pages(Uint32 type_id, Uint32 *i, Uint32 *cnt, Uint32 min =1);
+  void *alloc_pages(Uint32 type_id, Uint32 *i, Uint32 *cnt, Uint32 min = 1);
 
   /**
    * Release pages
@@ -213,118 +210,117 @@ struct Pool_context
    */
   void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
 
-  void* get_valid_page(Uint32 page_num) const;
+  void *get_valid_page(Uint32 page_num) const;
 
   /**
    * Abort
    */
-  [[noreturn]] void handleAbort(int code, const char* msg) const;
+  [[noreturn]] void handleAbort(int code, const char *msg) const;
 };
 
 template <typename T>
-struct Ptr 
-{
+struct Ptr {
   typedef Uint32 I;
-  T * p;
+  T *p;
   Uint32 i;
 
-  static Ptr get(T* _p, Uint32 _i) { Ptr x; x.p = _p; x.i = _i; return x; }
+  static Ptr get(T *_p, Uint32 _i) {
+    Ptr x;
+    x.p = _p;
+    x.i = _i;
+    return x;
+  }
 
   /**
     Initialize to ffff.... in debug mode. The purpose of this is to detect
     use of uninitialized values by causing an error. To maximize performance,
     this is done in debug mode only (when asserts are enabled).
    */
-  Ptr(){assert(memset(this, 0xff, sizeof(*this)));}
-  Ptr(T* pVal, Uint32 iVal):p(pVal), i(iVal){}
+  Ptr() { assert(memset(this, 0xff, sizeof(*this))); }
+  Ptr(T *pVal, Uint32 iVal) : p(pVal), i(iVal) {}
 
-
-  bool isNull() const 
-  { 
+  bool isNull() const {
     assert(i <= RNIL);
-    return i == RNIL; 
+    return i == RNIL;
   }
 
-  inline void setNull()
-  {
-    i = RNIL;
-  }
+  inline void setNull() { i = RNIL; }
 };
 
 template <typename T>
-struct ConstPtr 
-{
-  const T * p;
+struct ConstPtr {
+  const T *p;
   Uint32 i;
 
-  static ConstPtr get(T const* _p, Uint32 _i) { ConstPtr x; x.p = _p; x.i = _i; return x; }
+  static ConstPtr get(T const *_p, Uint32 _i) {
+    ConstPtr x;
+    x.p = _p;
+    x.i = _i;
+    return x;
+  }
 
   /**
     Initialize to ffff.... in debug mode. The purpose of this is to detect
     use of uninitialized values by causing an error. To maximize performance,
     this is done in debug mode only (when asserts are enabled).
    */
-  ConstPtr(){assert(memset(this, 0xff, sizeof(*this)));}
-  ConstPtr(T* pVal, Uint32 iVal):p(pVal), i(iVal){}
+  ConstPtr() { assert(memset(this, 0xff, sizeof(*this))); }
+  ConstPtr(T *pVal, Uint32 iVal) : p(pVal), i(iVal) {}
 
-  bool isNull() const 
-  { 
+  bool isNull() const {
     assert(i <= RNIL);
-    return i == RNIL; 
+    return i == RNIL;
   }
 
-  inline void setNull()
-  {
-    i = RNIL;
-  }
+  inline void setNull() { i = RNIL; }
 };
 
 #ifdef XX_DOCUMENTATION_XX
 /**
  * Any pool should implement the following
  */
-struct PoolImpl
-{
+struct PoolImpl {
   Pool_context m_ctx;
   Record_info m_record_info;
-  
-  void init(const Record_info& ri, const Pool_context& pc);
-  void init(const Record_info& ri, const Pool_context& pc);
-  
-  bool seize(Ptr<void>&);
+
+  void init(const Record_info &ri, const Pool_context &pc);
+  void init(const Record_info &ri, const Pool_context &pc);
+
+  bool seize(Ptr<void> &);
   void release(Ptr<void>);
-  void * getPtr(Uint32 i) const;
+  void *getPtr(Uint32 i) const;
 };
 #endif
 
-struct ArenaHead; // forward decl.
-class ArenaAllocator; // forward decl.
+struct ArenaHead;      // forward decl.
+class ArenaAllocator;  // forward decl.
 
 template <typename P, typename T = typename P::Type>
 class RecordPool {
-public:
+ public:
   typedef T Type;
   RecordPool();
   ~RecordPool();
-  
-  void init(Uint32 type_id, const Pool_context& pc);
-  void wo_pool_init(Uint32 type_id, const Pool_context& pc);
-  void arena_pool_init(ArenaAllocator*, Uint32 type_id, const Pool_context& pc);
-  
+
+  void init(Uint32 type_id, const Pool_context &pc);
+  void wo_pool_init(Uint32 type_id, const Pool_context &pc);
+  void arena_pool_init(ArenaAllocator *, Uint32 type_id,
+                       const Pool_context &pc);
+
   /**
-   * Update p value for ptr according to i value 
+   * Update p value for ptr according to i value
    */
   void getPtr(Ptr<T> &) const;
   void getPtr(ConstPtr<T> &) const;
-  
+
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i) const;
-  const T * getConstPtr(Uint32 i) const;
+  T *getPtr(Uint32 i) const;
+  const T *getConstPtr(Uint32 i) const;
 
   /**
-   * Update p & i value for ptr according to <b>i</b> value 
+   * Update p & i value for ptr according to <b>i</b> value
    */
   [[nodiscard]] bool getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
@@ -339,7 +335,7 @@ public:
   /**
    * Allocate object from arena - update Ptr
    */
-  bool seize(ArenaHead&, Ptr<T>&);
+  bool seize(ArenaHead &, Ptr<T> &);
 
   /**
    * Return an object to pool
@@ -350,25 +346,20 @@ public:
    * Return an object to pool
    */
   void release(Ptr<T>);
-private:
+
+ private:
   P m_pool;
 };
 
 template <typename P, typename T>
-inline
-RecordPool<P, T>::RecordPool()
-{
-}
+inline RecordPool<P, T>::RecordPool() {}
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::init(Uint32 type_id, const Pool_context& pc)
-{
+inline void RecordPool<P, T>::init(Uint32 type_id, const Pool_context &pc) {
   T tmp;
-  const char * off_base = (char*)&tmp;
-  const char * off_next = (char*)&tmp.nextPool;
-  const char * off_magic = (char*)&tmp.m_magic;
+  const char *off_base = (char *)&tmp;
+  const char *off_next = (char *)&tmp.nextPool;
+  const char *off_magic = (char *)&tmp.m_magic;
 
   Record_info ri;
   ri.m_size = sizeof(T);
@@ -379,14 +370,12 @@ RecordPool<P, T>::init(Uint32 type_id, const Pool_context& pc)
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
-{
+inline void RecordPool<P, T>::wo_pool_init(Uint32 type_id,
+                                           const Pool_context &pc) {
   T tmp;
-  const char * off_base = (char*)&tmp;
-  const char * off_magic = (char*)&tmp.m_magic;
-  
+  const char *off_base = (char *)&tmp;
+  const char *off_magic = (char *)&tmp.m_magic;
+
   Record_info ri;
   ri.m_size = sizeof(T);
   ri.m_offset_next_pool = 0;
@@ -396,15 +385,13 @@ RecordPool<P, T>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::arena_pool_init(ArenaAllocator* alloc,
-                                  Uint32 type_id, const Pool_context& pc)
-{
+inline void RecordPool<P, T>::arena_pool_init(ArenaAllocator *alloc,
+                                              Uint32 type_id,
+                                              const Pool_context &pc) {
   T tmp;
-  const char * off_base = (char*)&tmp;
-  const char * off_next = (char*)&tmp.nextPool;
-  const char * off_magic = (char*)&tmp.m_magic;
+  const char *off_base = (char *)&tmp;
+  const char *off_next = (char *)&tmp.nextPool;
+  const char *off_magic = (char *)&tmp.m_magic;
 
   Record_info ri;
   ri.m_size = sizeof(T);
@@ -414,105 +401,70 @@ RecordPool<P, T>::arena_pool_init(ArenaAllocator* alloc,
   m_pool.init(alloc, ri, pc);
 }
 
+template <typename P, typename T>
+inline RecordPool<P, T>::~RecordPool() {}
 
 template <typename P, typename T>
-inline
-RecordPool<P, T>::~RecordPool()
-{
-}
-
-  
-template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::getPtr(Ptr<T> & ptr) const
-{
-  ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));
+inline void RecordPool<P, T>::getPtr(Ptr<T> &ptr) const {
+  ptr.p = static_cast<T *>(m_pool.getPtr(ptr.i));
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::getPtr(ConstPtr<T> & ptr) const 
-{
-  ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));
+inline void RecordPool<P, T>::getPtr(ConstPtr<T> &ptr) const {
+  ptr.p = static_cast<const T *>(m_pool.getPtr(ptr.i));
 }
 
 template <typename P, typename T>
-inline
-bool
-RecordPool<P, T>::getPtr(Ptr<T> & ptr, Uint32 i) const
-{
-  if (unlikely(i >= RNIL))
-  {
+inline bool RecordPool<P, T>::getPtr(Ptr<T> &ptr, Uint32 i) const {
+  if (unlikely(i >= RNIL)) {
     assert(i == RNIL);
     return false;
   }
   ptr.i = i;
-  ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
+  ptr.p = static_cast<T *>(m_pool.getPtr(ptr.i));
   return true;
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const 
-{
+inline void RecordPool<P, T>::getPtr(ConstPtr<T> &ptr, Uint32 i) const {
   ptr.i = i;
-  ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));  
-}
-  
-template <typename P, typename T>
-inline
-T * 
-RecordPool<P, T>::getPtr(Uint32 i) const
-{
-  return static_cast<T*>(m_pool.getPtr(i));  
+  ptr.p = static_cast<const T *>(m_pool.getPtr(ptr.i));
 }
 
 template <typename P, typename T>
-inline
-const T * 
-RecordPool<P, T>::getConstPtr(Uint32 i) const 
-{
-  return static_cast<const T*>(m_pool.getPtr(i)); 
+inline T *RecordPool<P, T>::getPtr(Uint32 i) const {
+  return static_cast<T *>(m_pool.getPtr(i));
 }
-  
+
 template <typename P, typename T>
-inline
-bool
-RecordPool<P, T>::seize(Ptr<T> & ptr)
-{
+inline const T *RecordPool<P, T>::getConstPtr(Uint32 i) const {
+  return static_cast<const T *>(m_pool.getPtr(i));
+}
+
+template <typename P, typename T>
+inline bool RecordPool<P, T>::seize(Ptr<T> &ptr) {
   Ptr<T> tmp;
   bool ret = m_pool.seize(tmp);
-  if(likely(ret))
-  {
+  if (likely(ret)) {
     ptr.i = tmp.i;
-    ptr.p = static_cast<T*>(tmp.p);
+    ptr.p = static_cast<T *>(tmp.p);
   }
   return ret;
 }
 
 template <typename P, typename T>
-inline
-bool
-RecordPool<P, T>::seize(ArenaHead & ah, Ptr<T> & ptr)
-{
+inline bool RecordPool<P, T>::seize(ArenaHead &ah, Ptr<T> &ptr) {
   Ptr<T> tmp;
   bool ret = m_pool.seize(ah, tmp);
-  if(likely(ret))
-  {
+  if (likely(ret)) {
     ptr.i = tmp.i;
-    ptr.p = static_cast<T*>(tmp.p);
+    ptr.p = static_cast<T *>(tmp.p);
   }
   return ret;
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::release(Uint32 i)
-{
+inline void RecordPool<P, T>::release(Uint32 i) {
   Ptr<T> ptr;
   ptr.i = i;
   ptr.p = m_pool.getPtr(i);
@@ -520,16 +472,12 @@ RecordPool<P, T>::release(Uint32 i)
 }
 
 template <typename P, typename T>
-inline
-void
-RecordPool<P, T>::release(Ptr<T> ptr)
-{
+inline void RecordPool<P, T>::release(Ptr<T> ptr) {
   Ptr<T> tmp;
   tmp.i = ptr.i;
   tmp.p = ptr.p;
   m_pool.release(tmp);
 }
-
 
 #undef JAM_FILE_ID
 

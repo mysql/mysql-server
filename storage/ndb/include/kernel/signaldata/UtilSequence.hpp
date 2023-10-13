@@ -29,14 +29,12 @@
 
 #define JAM_FILE_ID 186
 
-
 class UtilSequenceReq {
-  
   /**
    * Receiver
    */
   friend class DbUtil;
-  
+
   /**
    * Sender
    */
@@ -45,39 +43,41 @@ class UtilSequenceReq {
   friend class Suma;
 
   friend bool printUTIL_SEQUENCE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
-  
+
   enum RequestType {
-    NextVal = 1, // Return uniq value
-    CurrVal = 2, // Read
-    Create  = 3,  // Create a sequence
-    SetVal  = 4  // Set a new sequence
+    NextVal = 1,  // Return uniq value
+    CurrVal = 2,  // Read
+    Create = 3,   // Create a sequence
+    SetVal = 4    // Set a new sequence
   };
-private:
-  Uint32 senderData;  
+
+ private:
+  Uint32 senderData;
   Uint32 sequenceId;  // Number of sequence variable
   Uint32 requestType;
   Uint32 value;
 };
 
 class UtilSequenceConf {
-  
   /**
    * Receiver
    */
   friend class Backup;
-  friend class Suma;  
+  friend class Suma;
   /**
    * Sender
    */
   friend class DbUtil;
 
   friend bool printUTIL_SEQUENCE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 5;
-  
-private:
+
+ private:
   Uint32 senderData;
   Uint32 sequenceId;
   Uint32 requestType;
@@ -85,7 +85,6 @@ private:
 };
 
 class UtilSequenceRef {
-  
   /**
    * Reciver
    */
@@ -95,23 +94,21 @@ class UtilSequenceRef {
    * Sender
    */
   friend class DbUtil;
-  
+
   friend bool printUTIL_SEQUENCE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 5;
-  
-  enum ErrorCode {
-    NoSuchSequence = 1,
-    TCError = 2
-  };
-private:
+
+  enum ErrorCode { NoSuchSequence = 1, TCError = 2 };
+
+ private:
   Uint32 senderData;
   Uint32 sequenceId;
   Uint32 requestType;
   Uint32 errorCode;
   Uint32 TCErrorCode;
 };
-
 
 #undef JAM_FILE_ID
 

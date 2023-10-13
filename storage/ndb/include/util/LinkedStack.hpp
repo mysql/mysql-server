@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef NDB_LINKEDSTACK_HPP
 #define NDB_LINKEDSTACK_HPP
 
@@ -44,22 +43,19 @@
  * storage.
  */
 template <typename E, typename A>
-class LinkedStack
-{
-private:
-  struct BlockHeader
-  {
-    BlockHeader* next;
-    BlockHeader* prev;
-    E* elements;
+class LinkedStack {
+ private:
+  struct BlockHeader {
+    BlockHeader *next;
+    BlockHeader *prev;
+    E *elements;
   };
 
-  BlockHeader* allocBlock()
-  {
+  BlockHeader *allocBlock() {
     /* Alloc blockheader and element array */
-    BlockHeader* h = (BlockHeader*) A::alloc(allocatorContext,
-                                             sizeof(BlockHeader));
-    E* e = (E*) A::mem_calloc(allocatorContext, blockElements, sizeof(E));
+    BlockHeader *h =
+        (BlockHeader *)A::alloc(allocatorContext, sizeof(BlockHeader));
+    E *e = (E *)A::mem_calloc(allocatorContext, blockElements, sizeof(E));
 
     h->next = nullptr;
     h->prev = nullptr;
@@ -68,25 +64,20 @@ private:
     return h;
   }
 
-  bool valid()
-  {
-    if (stackTop)
-    {
+  bool valid() {
+    if (stackTop) {
       assert(firstBlock != nullptr);
       assert(currBlock != nullptr);
       /* Check that currBlock is positioned on correct
        * block, except for block boundary case
        */
       Uint32 blockNum = (stackTop - 1) / blockElements;
-      BlockHeader* bh = firstBlock;
-      while(blockNum--)
-      {
+      BlockHeader *bh = firstBlock;
+      while (blockNum--) {
         bh = bh->next;
       }
       assert(bh == currBlock);
-    }
-    else
-    {
+    } else {
       assert(currBlock == nullptr);
     }
     return true;
@@ -96,62 +87,51 @@ private:
    * currBlock points to block last inserted to.
    * On block boundaries, they refer to different blocks
    */
-  void* allocatorContext;
-  BlockHeader* firstBlock;
-  BlockHeader* currBlock;
+  void *allocatorContext;
+  BlockHeader *firstBlock;
+  BlockHeader *currBlock;
   Uint32 stackTop;
   Uint32 blockElements;
 
-public:
-  LinkedStack(Uint32 _blockElements, void* _allocatorContext=nullptr)
-    : allocatorContext(_allocatorContext),
-      firstBlock(nullptr),
-      currBlock(nullptr),
-      stackTop(0),
-      blockElements(_blockElements)
-  {
+ public:
+  LinkedStack(Uint32 _blockElements, void *_allocatorContext = nullptr)
+      : allocatorContext(_allocatorContext),
+        firstBlock(nullptr),
+        currBlock(nullptr),
+        stackTop(0),
+        blockElements(_blockElements) {
     assert(blockElements > 0);
     assert(valid());
   }
 
-  ~LinkedStack()
-  {
+  ~LinkedStack() {
     assert(valid());
     /* Release block storage if present */
     release();
   }
 
-  bool push(E& elem)
-  {
+  bool push(E &elem) {
     assert(valid());
     Uint32 blockOffset = stackTop % blockElements;
 
-    if (blockOffset == 0)
-    {
+    if (blockOffset == 0) {
       /* On block boundary */
-      if (stackTop)
-      {
+      if (stackTop) {
         /* Some elements exist already */
-        if (!currBlock->next)
-        {
+        if (!currBlock->next) {
           /* End of block list, alloc another */
-          BlockHeader* newBlock = allocBlock();
-          if (!newBlock)
-            return false;
+          BlockHeader *newBlock = allocBlock();
+          if (!newBlock) return false;
 
           currBlock->next = newBlock;
           currBlock->next->prev = currBlock;
         }
         currBlock = currBlock->next;
-      }
-      else
-      {
+      } else {
         /* First element */
-        if (!firstBlock)
-        {
-          BlockHeader* newBlock = allocBlock();
-          if (!newBlock)
-            return false;
+        if (!firstBlock) {
+          BlockHeader *newBlock = allocBlock();
+          if (!newBlock) return false;
 
           firstBlock = currBlock = newBlock;
         }
@@ -159,27 +139,23 @@ public:
       }
     }
 
-    currBlock->elements[ blockOffset ] = elem;
+    currBlock->elements[blockOffset] = elem;
     stackTop++;
 
     assert(valid());
     return true;
   }
 
-  bool pop(E& elem)
-  {
+  bool pop(E &elem) {
     assert(valid());
-    if (stackTop)
-    {
+    if (stackTop) {
       stackTop--;
       Uint32 blockOffset = stackTop % blockElements;
-      elem = currBlock->elements[ blockOffset ];
+      elem = currBlock->elements[blockOffset];
 
-      if (blockOffset == 0)
-      {
+      if (blockOffset == 0) {
         /* Block boundary, shift back to prev block. */
-        if (stackTop)
-          assert(currBlock->prev);
+        if (stackTop) assert(currBlock->prev);
 
         currBlock = currBlock->prev;
       }
@@ -190,26 +166,20 @@ public:
     return false;
   }
 
-  Uint32 size() const
-  {
-    return stackTop;
-  }
+  Uint32 size() const { return stackTop; }
 
-  void reset()
-  {
+  void reset() {
     assert(valid());
     stackTop = 0;
     currBlock = nullptr;
     assert(valid());
   }
 
-  void release()
-  {
+  void release() {
     assert(valid());
-    BlockHeader* h = firstBlock;
-    while (h)
-    {
-      BlockHeader* n = h->next;
+    BlockHeader *h = firstBlock;
+    while (h) {
+      BlockHeader *n = h->next;
       A::mem_free(allocatorContext, h->elements);
       A::mem_free(allocatorContext, h);
       h = n;

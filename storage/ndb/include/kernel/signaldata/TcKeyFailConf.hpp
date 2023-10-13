@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 94
 
-
 /**
  * This is signal is sent from "Take-Over" TC after a node crash
  * It means that the transaction was committed
@@ -39,7 +38,7 @@ class TcKeyFailConf {
    * Sender(s)
    */
   friend class Dbtc;
-  
+
   /**
    *  Reciver(s)
    */
@@ -49,21 +48,20 @@ class TcKeyFailConf {
 
   friend class TransporterFacade;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
-  
+
+ private:
   /**
    * apiConnectPtr
    *
-   * Bit 0 (lowest) is used as indicator 
+   * Bit 0 (lowest) is used as indicator
    *                if == 1 then tc expects a commit ack
    */
   Uint32 apiConnectPtr;
   Uint32 transId1;
   Uint32 transId2;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -25,14 +25,13 @@
 #ifndef FAIL_REP_HPP
 #define FAIL_REP_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 24
 
-
 /**
- * 
+ *
  */
 class FailRep {
   /**
@@ -40,13 +39,13 @@ class FailRep {
    */
   friend class Qmgr;
   friend class Ndbcntr;
-  
+
   /**
    * For printing
    */
   friend bool printFAIL_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
+ public:
   static constexpr Uint32 OrigSignalLength = 2;
   /**
    * PartitionedExtraLength_v1 can be reduced to 1 by removing
@@ -58,51 +57,46 @@ public:
   static constexpr Uint32 PartitionedExtraLength_v1 = 1 + 2;
   static constexpr Uint32 SourceExtraLength = 1;
   static constexpr Uint32 SignalLength = OrigSignalLength + SourceExtraLength;
-  
+
   enum FailCause {
-    ZOWN_FAILURE=0,
-    ZOTHER_NODE_WHEN_WE_START=1,
-    ZIN_PREP_FAIL_REQ=2,
-    ZSTART_IN_REGREQ=3,
-    ZHEARTBEAT_FAILURE=4,
-    ZLINK_FAILURE=5,
-    ZOTHERNODE_FAILED_DURING_START=6,
+    ZOWN_FAILURE = 0,
+    ZOTHER_NODE_WHEN_WE_START = 1,
+    ZIN_PREP_FAIL_REQ = 2,
+    ZSTART_IN_REGREQ = 3,
+    ZHEARTBEAT_FAILURE = 4,
+    ZLINK_FAILURE = 5,
+    ZOTHERNODE_FAILED_DURING_START = 6,
     ZMULTI_NODE_SHUTDOWN = 7,
     ZPARTITIONED_CLUSTER = 8,
     ZCONNECT_CHECK_FAILURE = 9,
     ZFORCED_ISOLATION = 10
   };
 
-  Uint32 getFailSourceNodeId(Uint32 sigLen) const
-  {
+  Uint32 getFailSourceNodeId(Uint32 sigLen) const {
     /* Get failSourceNodeId from signal given length
-     * 2 cases of 2 existing cases : 
+     * 2 cases of 2 existing cases :
      *   1) Old node, no source id
      *   2) New node, source id
      *   a) ZPARTITIONED_CLUSTER, extra info
      *   b) Other error, no extra info
      */
-    if (failCause == ZPARTITIONED_CLUSTER)
-    {
-      return (sigLen == (SignalLength + PartitionedExtraLength_v1)) ?
-        partitioned.partitionFailSourceNodeId : 
-        0;
+    if (failCause == ZPARTITIONED_CLUSTER) {
+      return (sigLen == (SignalLength + PartitionedExtraLength_v1))
+                 ? partitioned.partitionFailSourceNodeId
+                 : 0;
     }
 
-    return (sigLen == SignalLength) ? failSourceNodeId :
-      0;
+    return (sigLen == SignalLength) ? failSourceNodeId : 0;
   }
 
-private:
-  
+ private:
   Uint32 failNodeId;
   Uint32 failCause;
   /**
    * Used when failCause == ZPARTITIONED_CLUSTER
    */
   union {
-    struct
-    {
+    struct {
       Uint32 president;
       Uint32 partition_v1[2];
       Uint32 partitionFailSourceNodeId;
@@ -110,8 +104,6 @@ private:
     Uint32 failSourceNodeId;
   };
 };
-
-
 
 #undef JAM_FILE_ID
 

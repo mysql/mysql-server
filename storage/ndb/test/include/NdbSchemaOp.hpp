@@ -29,74 +29,72 @@
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
-  /**
-   * @deprecated
-   */
-  enum NullAttributeType { 
-    NoNullTypeDefined = -1,
-    NotNullAttribute, 
-    NullAttribute,
-    AttributeDefined 
-  };
-  /**
-   * Indicates whether the attribute is part of a primary key or not
-   */
-  enum KeyType { 
-    Undefined = -1,               ///< Used for debugging only
-    NoKey,                        ///< Attribute is not part of primary key 
-                                  ///< or tuple identity
-    TupleKey,                     ///< Attribute is part of primary key
-    TupleId                       ///< Attribute is part of tuple identity 
-                                  ///< (This type of attribute is created 
-                                  ///< internally, and should not be 
-                                  ///< manually created.)
-  };
-  /**
-   * Indicate whether the attribute should be stored on disk or not
-   * Only for legacy createAttribute().
-   */
-  enum StorageMode { 
-    MMBased = NDB_STORAGETYPE_MEMORY,
-    DiskBased = NDB_STORAGETYPE_DISK
-  };
-  
-  /**
-   *  Type of fragmentation used for a table
-   */
-  enum FragmentType { 
-    Default = 0,                  ///<  (All is default!)
-    Single = 1,                   ///< Only one fragment
-    All = 2,                      ///< Default value.  One fragment per node group
-    DistributionGroup = 3,        ///< Distribution Group used for fragmentation.
-                                  ///< One fragment per node group
-    DistributionKey = 4,          ///< Distribution Key used for fragmentation.
-                                  ///< One fragment per node group.
-    AllLarge = 5,                 ///< Sixten fragments per node group.
-    DGroupLarge = 6,              ///< Distribution Group used for fragmentation.
-                                  ///< Sixten fragments per node group
-    DKeyLarge = 7                 ///< Distribution Key used for fragmentation.
-                                  ///< Sixten fragments per node group
-  };
-  
-  /**
-   *  Type of table or index.
-   */
-  enum TableType {
-    UndefTableType = 0,
-    SystemTable = 1,              ///< Internal.Table cannot be updated by user
-    UserTable = 2,                  ///< Normal application table
-    UniqueHashIndex = 3,          ///< Unique un-ordered hash index
-    HashIndex = 4,                ///< Non-unique un-ordered hash index
-    UniqueOrderedIndex = 5,       ///< Unique ordered index
-    OrderedIndex = 6              ///< Non-unique ordered index
-  };
+/**
+ * @deprecated
+ */
+enum NullAttributeType {
+  NoNullTypeDefined = -1,
+  NotNullAttribute,
+  NullAttribute,
+  AttributeDefined
+};
+/**
+ * Indicates whether the attribute is part of a primary key or not
+ */
+enum KeyType {
+  Undefined = -1,  ///< Used for debugging only
+  NoKey,           ///< Attribute is not part of primary key
+                   ///< or tuple identity
+  TupleKey,        ///< Attribute is part of primary key
+  TupleId          ///< Attribute is part of tuple identity
+                   ///< (This type of attribute is created
+                   ///< internally, and should not be
+                   ///< manually created.)
+};
+/**
+ * Indicate whether the attribute should be stored on disk or not
+ * Only for legacy createAttribute().
+ */
+enum StorageMode {
+  MMBased = NDB_STORAGETYPE_MEMORY,
+  DiskBased = NDB_STORAGETYPE_DISK
+};
 
+/**
+ *  Type of fragmentation used for a table
+ */
+enum FragmentType {
+  Default = 0,            ///<  (All is default!)
+  Single = 1,             ///< Only one fragment
+  All = 2,                ///< Default value.  One fragment per node group
+  DistributionGroup = 3,  ///< Distribution Group used for fragmentation.
+                          ///< One fragment per node group
+  DistributionKey = 4,    ///< Distribution Key used for fragmentation.
+                          ///< One fragment per node group.
+  AllLarge = 5,           ///< Sixten fragments per node group.
+  DGroupLarge = 6,        ///< Distribution Group used for fragmentation.
+                          ///< Sixten fragments per node group
+  DKeyLarge = 7           ///< Distribution Key used for fragmentation.
+                          ///< Sixten fragments per node group
+};
+
+/**
+ *  Type of table or index.
+ */
+enum TableType {
+  UndefTableType = 0,
+  SystemTable = 1,         ///< Internal.Table cannot be updated by user
+  UserTable = 2,           ///< Normal application table
+  UniqueHashIndex = 3,     ///< Unique un-ordered hash index
+  HashIndex = 4,           ///< Non-unique un-ordered hash index
+  UniqueOrderedIndex = 5,  ///< Unique ordered index
+  OrderedIndex = 6         ///< Non-unique ordered index
+};
 
 class NdbSchemaCon;
 class Ndb;
-  
 
-/** 
+/**
  * @class NdbSchemaOp
  * @brief Represents various operations for use in schema transactions
  *
@@ -104,102 +102,99 @@ class Ndb;
  * attributes.
  *
  * The NdbSchemaOp object is created using NdbSchemaCon::getNdbSchemaOp.
- * 
+ *
  * @note  This class is deprecated and is now replaced with the class
  *        NdbDictionary.
  */
-class NdbSchemaOp 
-{
+class NdbSchemaOp {
   friend class Ndb;
   friend class NdbSchemaCon;
 
-public:
-
-
- /**
-  * Type of attribute
-  *
-  * NOTE! AttrType is deprecated, use NdbDictionary::Column::Type instead!
-  */
- enum AttrType {
-   Signed,           ///< Attributes of this type can be read with:
-            ///< NdbRecAttr::int64_value,
-            ///< NdbRecAttr::int32_value,
-            ///< NdbRecAttr::short_value,
-            ///< NdbRecAttr::char_value
-   UnSigned,         ///< Attributes of this type can be read with:
-              ///< NdbRecAttr::u_64_value,
-              ///< NdbRecAttr::u_32_value,
-              ///< NdbRecAttr::u_short_value,
-              ///< NdbRecAttr::u_char_value
-   Float,            ///< Attributes of this type can be read with:
-           ///< NdbRecAttr::float_value and
-           ///< NdbRecAttr::double_value
-   String,           ///< Attributes of this type can be read with:
-            ///< NdbRecAttr::aRef,
-            ///< NdbRecAttr::getAttributeObject
-   NoAttrTypeDef     ///< Used for debugging only
- };
+ public:
+  /**
+   * Type of attribute
+   *
+   * NOTE! AttrType is deprecated, use NdbDictionary::Column::Type instead!
+   */
+  enum AttrType {
+    Signed,        ///< Attributes of this type can be read with:
+                   ///< NdbRecAttr::int64_value,
+                   ///< NdbRecAttr::int32_value,
+                   ///< NdbRecAttr::short_value,
+                   ///< NdbRecAttr::char_value
+    UnSigned,      ///< Attributes of this type can be read with:
+                   ///< NdbRecAttr::u_64_value,
+                   ///< NdbRecAttr::u_32_value,
+                   ///< NdbRecAttr::u_short_value,
+                   ///< NdbRecAttr::u_char_value
+    Float,         ///< Attributes of this type can be read with:
+                   ///< NdbRecAttr::float_value and
+                   ///< NdbRecAttr::double_value
+    String,        ///< Attributes of this type can be read with:
+                   ///< NdbRecAttr::aRef,
+                   ///< NdbRecAttr::getAttributeObject
+    NoAttrTypeDef  ///< Used for debugging only
+  };
 
   /**
    * Create a new table in the database.
-   * 
-   * @note The NdbSchemaCon should be closed with 
+   *
+   * @note The NdbSchemaCon should be closed with
    *       Ndb::closeSchemaTransaction, even if this method fails.
    *
    * @param  aTableName   Table name.  Should not be NULL.
    * @param  aTableSize	  (Performance parameter.)
    *                      Initial size of the data part of the table
-   *                      expressed in kByte. 
+   *                      expressed in kByte.
    *                      The database handles
-   * 			  bad parameter setting but at a certain 
+   * 			  bad parameter setting but at a certain
    *                      loss in performance.
    *                      The size given here is
-   * 			  the initial size allocated for the table 
+   * 			  the initial size allocated for the table
    *                      storage (the data part).
-   * 			  When calculating the data storage one should 
+   * 			  When calculating the data storage one should
    *                      add the size of all attributes (each attribute
    *                      consumes at least 4 bytes) and also an overhead
-   *                      of 12 byte. 
+   *                      of 12 byte.
    *                      Variable size attributes (not supported yet)
-   * 			  will have a size of 12 bytes plus the actual 
-   *                      data storage parts where there is an 
+   * 			  will have a size of 12 bytes plus the actual
+   *                      data storage parts where there is an
    *                      additional overhead based on the size of the
    * 			  variable part.
    *                      <br>
-   * 	                  An example table with 5 attributes: 
-   *                      one 64 bit attribute, one 32 bit attribute, 
-   *                      two 16 bit attributes and one array of 64 8 bits. 
-   *                      This table will consume 
-   *                        12 (overhead) + 8 + 4 + 2*4 (4 is minimum) + 64 = 
+   * 	                  An example table with 5 attributes:
+   *                      one 64 bit attribute, one 32 bit attribute,
+   *                      two 16 bit attributes and one array of 64 8 bits.
+   *                      This table will consume
+   *                        12 (overhead) + 8 + 4 + 2*4 (4 is minimum) + 64 =
    *                        96 bytes per record.
-   * 	                  Additionally an overhead of about 2 % as page 
-   *                      headers and waste should be allocated. 
+   * 	                  Additionally an overhead of about 2 % as page
+   *                      headers and waste should be allocated.
    *                      Thus, 1 million records should consume 96 MBytes
-   * 	                  plus the overhead 2 MByte and rounded up to 
+   * 	                  plus the overhead 2 MByte and rounded up to
    *                      100 000 kBytes.
    *                      <br><em>
    *                      This parameter is currently not used.
    *                      </em>
    * @param  aTupleKey	  Indicates if the table has a primary key or not.
    * 			  <br>
-   *                        <b>TupleKey</b> means that a <em>primary key</em> 
+   *                        <b>TupleKey</b> means that a <em>primary key</em>
    *                        consisting of one to four attributes
-   * 			    (at most one of variable size) 
+   * 			    (at most one of variable size)
    *                        uniquely identifies each record in the created
    *                        table.
    * 			    <br>
    *                        <b>TupleId</b> means that a <em>tuple identity</em>
-   *                        is used.  The tuple identity is 
-   *                        a unique key identifying each record of the 
+   *                        is used.  The tuple identity is
+   *                        a unique key identifying each record of the
    *                        created table.
    *                        The tuple identity is a (non-stored)
    *                        64 bit attribute named <b>NDB$TID</b>.
    * 			    <br>
-   *                        When inserting a record (tuple), the method 
-   *                        NdbOperation::setTupleId 
+   *                        When inserting a record (tuple), the method
+   *                        NdbOperation::setTupleId
    *                        will generate a unique tuple identity
-   *                        and return it to the user. 
+   *                        and return it to the user.
    *                        <br>
    *                        When reading, updating or deleting a record
    *                        in a table with <b>TupleId</b>,
@@ -208,79 +203,74 @@ public:
    *                        <br>
    *                        Legal values: TupleKey or TupleId.
    * @param aNrOfPages	  (Performance parameter.)
-   *                      Specifies the initial size of the index storage. 
+   *                      Specifies the initial size of the index storage.
    *                      When calculating the index storage,
-   * 			  each key has approximately 14 byte of 
-   *                      overhead plus the size of the key. 
-   *                      Each key attribute takes up at least 4 bytes 
-   *                      of storage. 
-   *                      Thus a mixed key consisting of a 
+   * 			  each key has approximately 14 byte of
+   *                      overhead plus the size of the key.
+   *                      Each key attribute takes up at least 4 bytes
+   *                      of storage.
+   *                      Thus a mixed key consisting of a
    *                      64 bit attribute, a 32 bit attribute
-   * 			  and a 16 bit attribute will 
+   * 			  and a 16 bit attribute will
    *                      consume approx. 30 bytes per key.
    * 			  Thus, the if initial size is to be 1 million rows,
-   *                      then aNrOfPages should be set to 
+   *                      then aNrOfPages should be set to
    *                      30 M / 8k = 2670 pages.
    *                      <br><em>
    *                      This parameter is currently not used.
    *                       </em>
    * @param aFragmentType Type of fragmentation.<br>
-   *                      <b>All</b> (default) means that the 
-   *                      table fragments are automatically 
+   *                      <b>All</b> (default) means that the
+   *                      table fragments are automatically
    *                      distributed on all nodes in the system.<br>
-   *                      <b>DistributionGroup</b> and 
-   *                      <b>DistributionKey</b> are 
+   *                      <b>DistributionGroup</b> and
+   *                      <b>DistributionKey</b> are
    *                      also supported. For further details about
-   *                      these types see the documentation of 
+   *                      these types see the documentation of
    *                      Ndb::startTransaction.
    * @param aKValue	  (Hash parameter.)
    *                      Only allowed value is 6.
    *                      Later implementations might add flexibility
    * 			  in this parameter.
    * @param aMinLoadFactor  (Hash parameter.)
-   *                        This value specifies the load factor when 
-   *                        starting to shrink the hash table. 
+   *                        This value specifies the load factor when
+   *                        starting to shrink the hash table.
    *                        It must be smaller than aMaxLoadFactor.
    *                        Both these factors are given in percentage.
    * @param aMaxLoadFactor  (Hash parameter.)
-   *                        This value specifies the load factor when 
+   *                        This value specifies the load factor when
    *                        starting to split the containers in the local
    *                        hash tables. 100 is the maximum which will
-   * 		     	    optimize memory usage (this is the figure 
+   * 		     	    optimize memory usage (this is the figure
    *                        used for the above calculations).
-   * 		       	    A lower figure will store less information in 
+   * 		       	    A lower figure will store less information in
    *                        each container and thus
    * 		            find the key faster but consume more memory.
-   * @param aMemoryType	    Currently only 1 is allowed which specifies 
-   *                        storage of table in main memory. 
+   * @param aMemoryType	    Currently only 1 is allowed which specifies
+   *                        storage of table in main memory.
    *                        Later 2 will be added where the table is stored
-   * 	       		    completely on disk 
+   * 	       		    completely on disk
    *                        and 3 where the index is in main memory but
-   * 		            data is on disk. 
+   * 		            data is on disk.
    *                        If 1 is chosen an individual attribute can
    * 		            still be specified as a disk attribute.
-   * @param aStoredTable    If set to false it indicates that the table is 
-   *                        a temporary table and should not be logged 
+   * @param aStoredTable    If set to false it indicates that the table is
+   *                        a temporary table and should not be logged
    *                        to disk.
    *                        In case of a system restart the table will still
-   * 	      	   	    be defined and exist but will be empty. 
+   * 	      	   	    be defined and exist but will be empty.
    *                        Thus no checkpointing and
    * 		       	    no logging is performed on the table.
-   * 			    The default value is true and indicates a 
-   *                        normal table with full checkpointing and 
+   * 			    The default value is true and indicates a
+   *                        normal table with full checkpointing and
    *                        logging activated.
    * @return                Returns 0 when successful and returns -1 otherwise.
    */
-  int		createTable(	const char* aTableName, 
-				Uint32 aTableSize = 8, 
-				KeyType aTupleKey = TupleKey,
-				int aNrOfPages = 2, 
-				FragmentType aFragmentType = All, 
-				int aKValue = 6,
-				int aMinLoadFactor = 78,
-				int aMaxLoadFactor = 80,
-				int aMemoryType = 1,
-				bool aStoredTable = true);
+  int createTable(const char *aTableName, Uint32 aTableSize = 8,
+                  KeyType aTupleKey = TupleKey, int aNrOfPages = 2,
+                  FragmentType aFragmentType = All, int aKValue = 6,
+                  int aMinLoadFactor = 78, int aMaxLoadFactor = 80,
+                  int aMemoryType = 1, bool aStoredTable = true);
 
   /**
    * Add a new attribute to a database table.
@@ -288,20 +278,20 @@ public:
    * Attributes can only be added to a table in the same transaction
    * as the transaction creating the table.
    *
-   * @note The NdbSchemaCon transaction should be closed with 
+   * @note The NdbSchemaCon transaction should be closed with
    *       Ndb::closeSchemaTransaction, even if this method fails.
    *
    * Example creating an unsigned int attribute belonging to the primary key
    * of the table it is created in:
-   * @code 
+   * @code
    *   MySchemaOp->createAttribute("Attr1",   // Attribute name
    *                               TupleKey,  // Belongs to primary key
    *                               32,        // 32 bits
    *                               1,         // Not an array attribute
    *                               UnSigned,  // Unsigned type
    *                              );
-   * @endcode 
-   * 
+   * @endcode
+   *
    * Example creating a string attribute belonging to the primary key
    * of the table it is created in:
    * @code
@@ -315,18 +305,18 @@ public:
    *
    * A <em>distribution key</em> is a set of attributes which are used
    * to distribute the tuples onto the NDB nodes.
-   * A <em>distribution group</em> is a part (currently 16 bits) 
+   * A <em>distribution group</em> is a part (currently 16 bits)
    * of an attribute used to distribute the tuples onto the NDB nodes.
    * The distribution key uses the NDB Cluster hashing function,
    * while the distribution group uses a simpler function.
    *
    * @param  aAttrName   Attribute name.  Should not be NULL.
-   * @param  aTupleKey	 This parameter specifies whether the 
+   * @param  aTupleKey	 This parameter specifies whether the
    *                     attribute is part of the primary key or not.
    *                     Floats are not allowed in the primary key.
    *                     <br>
    *                     Legal values: NoKey, TupleKey
-   * @param  aAttrSize	 Specifies the size of the elements of the 
+   * @param  aAttrSize	 Specifies the size of the elements of the
    *                     attribute.  (An attribute can consist
    *                     of an array of elements.)
    *                     <br>
@@ -334,19 +324,19 @@ public:
    * @param  aArraySize	 Size of array.
    *                     <br>
    *                     Legal values:
-   *                     0 = variable-sized array, 
+   *                     0 = variable-sized array,
    *                     1 = no array, and
    *                     2- = fixed size array.
    *                     <br>
    *                     <em>
-   *                     Variable-sized array attributes are 
+   *                     Variable-sized array attributes are
    *                     not yet supported.
    *                     </em>
    *                     <br>
    *                     There is no upper limit of the array size
-   *                     for a single attribute. 
+   *                     for a single attribute.
    * @param  aAttrType   The attribute type.
-   * 			 This is only of interest if calculations are 
+   * 			 This is only of interest if calculations are
    *                     made within NDB.
    *                     <br>
    *                     Legal values: UnSigned, Signed, Float, String
@@ -362,35 +352,35 @@ public:
    *                     Legal values: true, false
    * @param aStType      Obsolete since wl-2066
    * @param aDistributionKey    Sometimes it is preferable to use a subset
-   *                            of the primary key as the distribution key. 
+   *                            of the primary key as the distribution key.
    *                            An example is TPC-C where it might be
-   *                            good to use the warehouse id and district id 
-   *                            as the distribution key. 
+   *                            good to use the warehouse id and district id
+   *                            as the distribution key.
    *                            <br>
-   *                            Locally in the fragments the full primary key 
+   *                            Locally in the fragments the full primary key
    *                            will still be used with the hashing algorithm.
-   *                            Set to 1 if this attribute is part of the 
+   *                            Set to 1 if this attribute is part of the
    *                            distribution key.
-   *                            All distribution key attributes must be 
+   *                            All distribution key attributes must be
    *                            defined before
    *                            any other attributes are defined.
-   * @param aDistributionGroup    In other applications it is desirable to use 
-   *                              only a part of an attribute to create the 
+   * @param aDistributionGroup    In other applications it is desirable to use
+   *                              only a part of an attribute to create the
    *                              distribution key.
    *                              This is applicable for some telecom
    *                              applications.
    *                              <br>
-   *                              In these situations one must provide how many 
+   *                              In these situations one must provide how many
    *                              bits of the attribute that is to
    *                              be used as the distribution hash value.
    *                              <br>
    *                              This provides some control to the
-   *                              application of the distribution. 
+   *                              application of the distribution.
    *                              It still needs to be part of a primary key
-   *                              the attribute and must be defined as the 
+   *                              the attribute and must be defined as the
    *                              first attribute.
    * @param  aDistributionGroupNoOfBits
-   *                              Number of bits to use of the 
+   *                              Number of bits to use of the
    *                              distribution group attribute in the
    *                              distribution hash value.
    *                              <br>
@@ -402,86 +392,66 @@ public:
    *
    * @return Returns 0 when successful and returns -1 otherwise.
    ****************************************************************************/
-  int createAttribute(const char* aAttrName,
-		      KeyType aTupleKey = NoKey,
-		      int aAttrSize = 32,
-		      int aArraySize = 1,
-		      AttrType aAttrType = UnSigned,
-		      StorageMode aStorageMode = MMBased,
-		      bool nullable = false,
-		      int aStType= 0, // obsolete
-		      int aDistributionKey = 0,
-		      int aDistributionGroup = 0,
-		      int aDistributionGroupNoOfBits = 16,
+  int createAttribute(const char *aAttrName, KeyType aTupleKey = NoKey,
+                      int aAttrSize = 32, int aArraySize = 1,
+                      AttrType aAttrType = UnSigned,
+                      StorageMode aStorageMode = MMBased, bool nullable = false,
+                      int aStType = 0,  // obsolete
+                      int aDistributionKey = 0, int aDistributionGroup = 0,
+                      int aDistributionGroupNoOfBits = 16,
                       bool aAutoIncrement = false,
-                      const char* aDefaultValue = 0);
+                      const char *aDefaultValue = 0);
 
   /**
    * @deprecated do not use!
    */
-  int createAttribute(const char* aAttrName,
-		      KeyType aTupleKey,
-		      int aAttrSize,
-		      int aArraySize,
-		      AttrType aAttrType,
-		      StorageMode aStorageMode,
-		      NullAttributeType aNullAttr,
-		      int aStType, // obsolete
-		      int aDistributionKey = 0,
-		      int aDistributionGroup = 0,
-		      int aDistributionGroupNoOfBits = 16){
-    return createAttribute(aAttrName,
-			   aTupleKey,
-			   aAttrSize,
-			   aArraySize,
-			   aAttrType,
-			   aStorageMode,
-			   aNullAttr == NullAttribute,
-			   aStType,
-			   aDistributionKey,
-			   aDistributionGroup,
-			   aDistributionGroupNoOfBits);
+  int createAttribute(const char *aAttrName, KeyType aTupleKey, int aAttrSize,
+                      int aArraySize, AttrType aAttrType,
+                      StorageMode aStorageMode, NullAttributeType aNullAttr,
+                      int aStType,  // obsolete
+                      int aDistributionKey = 0, int aDistributionGroup = 0,
+                      int aDistributionGroupNoOfBits = 16) {
+    return createAttribute(aAttrName, aTupleKey, aAttrSize, aArraySize,
+                           aAttrType, aStorageMode, aNullAttr == NullAttribute,
+                           aStType, aDistributionKey, aDistributionGroup,
+                           aDistributionGroupNoOfBits);
   }
 
-  const NdbError & getNdbError() const;
+  const NdbError &getNdbError() const;
 
-protected:
+ protected:
+  /*****************************************************************************
+   *   These are the methods used to create and delete the NdbOperation objects.
+   ****************************************************************************/
+  NdbSchemaOp(Ndb *aNdb);
 
-/*****************************************************************************
- *   These are the methods used to create and delete the NdbOperation objects.
- ****************************************************************************/
-  			NdbSchemaOp(Ndb* aNdb);
+  ~NdbSchemaOp();
 
-  			~NdbSchemaOp();     
+  /******************************************************************************
+   *	These methods are service routines used by the other NDBAPI classes.
+   *****************************************************************************/
 
-/******************************************************************************
- *	These methods are service routines used by the other NDBAPI classes.
- *****************************************************************************/
+  void release();  // Release all memory connected
+                   // to the operations object.
 
-  void			release();	// Release all memory connected
-  					      // to the operations object.	    
+  /****************************************************************************
+   *	The methods below is the execution part of the NdbSchemaOp class.
+   *****************************************************************************/
 
-/****************************************************************************
- *	The methods below is the execution part of the NdbSchemaOp class. 
- *****************************************************************************/
-
-  int sendRec();	
+  int sendRec();
   int sendSignals(Uint32 aNodeId, bool HaveMutex);
 
-  int init(NdbSchemaCon* aSchemaCon);
+  int init(NdbSchemaCon *aSchemaCon);
 
   /**************************************************************************
-   * These are the private variables that are defined in the operation 
+   * These are the private variables that are defined in the operation
    * objects.
    **************************************************************************/
-  Ndb*			theNdb;		// Point back to the Ndb object.      
-  NdbSchemaCon* 	theSchemaCon;	// Point back to the connection object.
-  
+  Ndb *theNdb;                 // Point back to the Ndb object.
+  NdbSchemaCon *theSchemaCon;  // Point back to the connection object.
 
-  class NdbDictionary::Table * m_currentTable;
+  class NdbDictionary::Table *m_currentTable;
 };
 #endif
 
 #endif
-
-

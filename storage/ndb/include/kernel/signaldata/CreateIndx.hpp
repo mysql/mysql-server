@@ -25,22 +25,19 @@
 #ifndef CREATE_INDX_HPP
 #define CREATE_INDX_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 8
 
-
-struct CreateIndxReq 
-{
+struct CreateIndxReq {
   static constexpr Uint32 SignalLength = 9;
-  SECTION( ATTRIBUTE_LIST_SECTION = 0 );
-  SECTION( INDEX_NAME_SECTION = 1 );
+  SECTION(ATTRIBUTE_LIST_SECTION = 0);
+  SECTION(INDEX_NAME_SECTION = 1);
 
-  enum RequestType
-  {
-    RF_BUILD_OFFLINE = 1 << 8 // See BuildIndxReq
+  enum RequestType {
+    RF_BUILD_OFFLINE = 1 << 8  // See BuildIndxReq
   };
 
   Uint32 clientRef;
@@ -101,7 +98,6 @@ struct CreateIndxRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -22,28 +22,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <ndb_global.h>
+#include "util/require.h"
 
-#include <cstring>
-#include <TransporterRegistry.hpp>
-#include <FastScheduler.hpp>
 #include <Emulator.hpp>
 #include <ErrorHandlingMacros.hpp>
+#include <FastScheduler.hpp>
+#include <TransporterRegistry.hpp>
+#include <cstring>
 
 #include "LongSignal.hpp"
 #include "LongSignalImpl.hpp"
 
-#include <signaldata/EventReport.hpp>
-#include <signaldata/TestOrd.hpp>
-#include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/DisconnectRep.hpp>
+#include <signaldata/EventReport.hpp>
+#include <signaldata/SignalDroppedRep.hpp>
+#include <signaldata/TestOrd.hpp>
 
-#include "VMSignal.hpp"
-#include <NdbOut.hpp>
-#include "TransporterCallbackKernel.hpp"
 #include <DebuggerNames.hpp>
+#include <NdbOut.hpp>
 #include <trpman.hpp>
+#include "TransporterCallbackKernel.hpp"
+#include "VMSignal.hpp"
 
 #include <EventLogger.hpp>
 
@@ -52,13 +52,17 @@
 #endif
 
 #ifdef DEBUG_MULTI_TRP
-#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_MULTI_TRP(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_MULTI_TRP(arglist) do { } while (0)
+#define DEB_MULTI_TRP(arglist) \
+  do {                         \
+  } while (0)
 #endif
 
 #define JAM_FILE_ID 226
-
 
 /**
  * The instance
@@ -68,8 +72,8 @@ SectionSegmentPool g_sectionSegmentPool;
 /* Instance debugging vars
  * Set from DBTC
  */
-Uint32 ErrorSignalReceive= 0;      //Block to inject signal errors into
-Uint32 ErrorMaxSegmentsToSeize= 0;
+Uint32 ErrorSignalReceive = 0;  // Block to inject signal errors into
+Uint32 ErrorMaxSegmentsToSeize = 0;
 
 /**
  * This variable controls if ErrorSignalReceive/ErrorMaxSegmentsToSeize
@@ -78,25 +82,20 @@ Uint32 ErrorMaxSegmentsToSeize= 0;
  */
 extern bool ErrorImportActive;
 
-struct ConnectionError
-{
+struct ConnectionError {
   enum TransporterError err;
   const char *text;
 };
 
-static const ConnectionError connectionError[] =
-{
-  { TE_NO_ERROR, "No error"},
-  { TE_SHM_UNABLE_TO_CREATE_SEGMENT, "Unable to create shared memory segment"},
-  { (enum TransporterError) -1, "No connection error message available (please report a bug)"}
-};
+static const ConnectionError connectionError[] = {
+    {TE_NO_ERROR, "No error"},
+    {TE_SHM_UNABLE_TO_CREATE_SEGMENT, "Unable to create shared memory segment"},
+    {(enum TransporterError) - 1,
+     "No connection error message available (please report a bug)"}};
 
-const char *lookupConnectionError(Uint32 err)
-{
-  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(connectionError); i++)
-  {
-    if ((Uint32)connectionError[i].err == err)
-    {
+const char *lookupConnectionError(Uint32 err) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(connectionError); i++) {
+    if ((Uint32)connectionError[i].err == err) {
       return connectionError[i].text;
     }
   }
@@ -105,17 +104,16 @@ const char *lookupConnectionError(Uint32 err)
 
 #ifndef NDBD_MULTITHREADED
 
-class TransporterCallbackKernelNonMT :
-  public TransporterCallback,
-  public TransporterSendBufferHandle,
-  public TransporterReceiveHandleKernel
-{
+class TransporterCallbackKernelNonMT : public TransporterCallback,
+                                       public TransporterSendBufferHandle,
+                                       public TransporterReceiveHandleKernel {
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
 
-public:
+ public:
   TransporterCallbackKernelNonMT()
-  : m_send_buffers(NULL), m_page_freelist(NULL), m_send_buffer_memory(NULL)
-  {}
+      : m_send_buffers(NULL),
+        m_page_freelist(NULL),
+        m_send_buffer_memory(NULL) {}
 
   ~TransporterCallbackKernelNonMT() override;
 
@@ -135,8 +133,7 @@ public:
   void enable_send_buffer(TrpId) override;
   void disable_send_buffer(TrpId) override;
 
-  Uint32 get_bytes_to_send_iovec(TrpId trp_id,
-                                 struct iovec *dst,
+  Uint32 get_bytes_to_send_iovec(TrpId trp_id, struct iovec *dst,
                                  Uint32 max) override;
   Uint32 bytes_sent(TrpId, Uint32 bytes) override;
 
@@ -144,22 +141,18 @@ public:
    * These are the TransporterSendBufferHandle methods used by the
    * single-threaded ndbd.
    */
-  Uint32 *getWritePtr(TrpId,
-                      Uint32 lenBytes,
-                      Uint32 prio,
-                      Uint32 max_use,
+  Uint32 *getWritePtr(TrpId, Uint32 lenBytes, Uint32 prio, Uint32 max_use,
                       SendStatus *error) override;
   Uint32 updateWritePtr(TrpId, Uint32 lenBytes, Uint32 prio) override;
-  //void getSendBufferLevel(TrpId, SB_LevelType &level) override;
+  // void getSendBufferLevel(TrpId, SB_LevelType &level) override;
   bool forceSend(TrpId) override;
 
-private:
+ private:
   /* Send buffer pages. */
   struct SendBufferPage {
     /* This is the number of words that will fit in one page of send buffer. */
     static const Uint32 PGSIZE = 32768;
-    static Uint32 max_data_bytes()
-    {
+    static Uint32 max_data_bytes() {
       return PGSIZE - offsetof(SendBufferPage, m_data);
     }
 
@@ -196,66 +189,50 @@ private:
   SendBufferPage *m_page_freelist;
   /* Original block of memory for pages (so we can free it at exit). */
   unsigned char *m_send_buffer_memory;
-  
+
   Uint64 m_tot_send_buffer_memory;
   Uint64 m_tot_used_buffer_memory;
-}; //class TransporterCallbackKernelNonMT
+};  // class TransporterCallbackKernelNonMT
 
 static TransporterCallbackKernelNonMT myTransporterCallback;
 
-TransporterSendBufferHandle *getNonMTTransporterSendHandle()
-{
+TransporterSendBufferHandle *getNonMTTransporterSendHandle() {
   return &myTransporterCallback;
 }
 
 TransporterRegistry globalTransporterRegistry(&myTransporterCallback,
-					      &myTransporterCallback);
+                                              &myTransporterCallback);
 
 #else
 
-TransporterSendBufferHandle *getNonMTTransporterSendHandle()
-{
-  return NULL;
-}
-#endif // not NDBD_MULTITHREADED
+TransporterSendBufferHandle *getNonMTTransporterSendHandle() { return NULL; }
+#endif  // not NDBD_MULTITHREADED
 
 #ifdef NDBD_MULTITHREADED
-static struct ReceiverThreadCache
-{
+static struct ReceiverThreadCache {
   SectionSegmentPool::Cache cache_instance;
   char pad[64 - sizeof(SectionSegmentPool::Cache)];
 } g_receiver_thread_cache[MAX_NDBMT_RECEIVE_THREADS];
 
-void
-mt_init_receiver_cache()
-{
-  for (unsigned i = 0; i < NDB_ARRAY_SIZE(g_receiver_thread_cache); i++)
-  {
-    g_receiver_thread_cache[i].cache_instance.init_cache(1024,1024);
+void mt_init_receiver_cache() {
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(g_receiver_thread_cache); i++) {
+    g_receiver_thread_cache[i].cache_instance.init_cache(1024, 1024);
   }
 }
 
-void
-mt_set_section_chunk_size()
-{
-  g_sectionSegmentPool.setChunkSize(256);
-}
+void mt_set_section_chunk_size() { g_sectionSegmentPool.setChunkSize(256); }
 
 #else
-void mt_init_receiver_cache(){}
-void mt_set_section_chunk_size(){}
+void mt_init_receiver_cache() {}
+void mt_set_section_chunk_size() {}
 #endif
 
-bool
-TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
-                                               Uint8 prio,
-                                               TransporterError &error_code,
-                                               Uint32 * const theData,
-                                               LinearSectionPtr ptr[3])
-{
+bool TransporterReceiveHandleKernel::deliver_signal(
+    SignalHeader *const header, Uint8 prio, TransporterError &error_code,
+    Uint32 *const theData, LinearSectionPtr ptr[3]) {
 #ifdef NDBD_MULTITHREADED
-  SectionSegmentPool::Cache & cache =
-    g_receiver_thread_cache[m_receiver_thread_idx].cache_instance;
+  SectionSegmentPool::Cache &cache =
+      g_receiver_thread_cache[m_receiver_thread_idx].cache_instance;
 #endif
 
   const Uint32 secCount = header->m_noOfSections;
@@ -285,25 +262,23 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
 #endif
 
 #if defined(ERROR_INSERT)
-  if (secCount > 0)
-  {
+  if (secCount > 0) {
     const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
-    if (unlikely(ErrorSignalReceive == receiverBlock))
-    {
+    if (unlikely(ErrorSignalReceive == receiverBlock)) {
       ErrorImportActive = true;
     }
   }
 #endif
 
-  switch(secCount){
-  case 3:
-    ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
-    [[fallthrough]];
-  case 2:
-    ok &= import(SPC_CACHE_ARG secPtr[1], ptr[1].p, ptr[1].sz);
-    [[fallthrough]];
-  case 1:
-    ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
+  switch (secCount) {
+    case 3:
+      ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
+      [[fallthrough]];
+    case 2:
+      ok &= import(SPC_CACHE_ARG secPtr[1], ptr[1].p, ptr[1].sz);
+      [[fallthrough]];
+    case 1:
+      ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }
 #if defined(ERROR_INSERT)
   ErrorImportActive = false;
@@ -313,11 +288,11 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
    * Check that we haven't received a too long signal
    */
   ok &= (length + secCount <= 25);
-  
+
   Uint32 secPtrI[3];
-  if(ok){
+  if (ok) {
     /**
-     * Normal path 
+     * Normal path
      */
     secPtrI[0] = secPtr[0].i;
     secPtrI[1] = secPtr[1].i;
@@ -325,8 +300,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
 
 #ifdef NDBD_MULTITHREADED
     const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
-    if (receiverBlock == V_QUERY)
-    {
+    if (receiverBlock == V_QUERY) {
       /**
        * Signal was sent from remote DBTC or DBSPJ containing a
        * LQHKEYREQ or SCAN_FRAGREQ signal. These signals can be
@@ -409,10 +383,9 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
        */
       require(prio == JBB);
       const Uint32 instance_no =
-        blockToInstance(header->theReceiversBlockNumber);
-      Uint32 ref = ((Trpman*)m_trpman)->distribute_signal(header, instance_no);
-      if (likely(ref != 0))
-      {
+          blockToInstance(header->theReceiversBlockNumber);
+      Uint32 ref = ((Trpman *)m_trpman)->distribute_signal(header, instance_no);
+      if (likely(ref != 0)) {
         header->theReceiversBlockNumber = refToBlock(ref);
         sendlocal(m_thr_no, header, theData, secPtrI);
         return false;
@@ -422,35 +395,31 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     }
 #endif
 #ifndef NDBD_MULTITHREADED
-    globalScheduler.execute(header, prio, theData, secPtrI);  
+    globalScheduler.execute(header, prio, theData, secPtrI);
 #else
     if (prio == JBB)
-      sendlocal(m_thr_no /* self */,
-                header, theData, secPtrI);
+      sendlocal(m_thr_no /* self */, header, theData, secPtrI);
     else
-      sendprioa(m_thr_no /* self */,
-                header, theData, secPtrI);
+      sendprioa(m_thr_no /* self */, header, theData, secPtrI);
 
 #endif
     return false;
   }
-  
+
   /**
    * Out of memory
    */
-  for(Uint32 i = 0; i<secCount; i++){
-    if(secPtr[i].p != 0){
-      g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
-                                       relSz(secPtr[i].p->m_sz),
-                                       secPtr[i].i, 
-				       secPtr[i].p->m_lastSegment);
+  for (Uint32 i = 0; i < secCount; i++) {
+    if (secPtr[i].p != 0) {
+      g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG relSz(secPtr[i].p->m_sz),
+                                       secPtr[i].i, secPtr[i].p->m_lastSegment);
     }
   }
 
-  SignalDroppedRep * rep = (SignalDroppedRep*)theData;
+  SignalDroppedRep *rep = (SignalDroppedRep *)theData;
   Uint32 gsn = header->theVerId_signalNumber;
   Uint32 len = header->theLength;
-  Uint32 newLen= (len > 22 ? 22 : len);
+  Uint32 newLen = (len > 22 ? 22 : len);
   memmove(rep->originalData, theData, (4 * newLen));
   rep->originalGsn = gsn;
   rep->originalLength = len;
@@ -459,86 +428,75 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   header->theLength = newLen + 3;
   header->m_noOfSections = 0;
 #ifndef NDBD_MULTITHREADED
-  globalScheduler.execute(header, prio, theData, secPtrI);    
+  globalScheduler.execute(header, prio, theData, secPtrI);
 #else
   if (prio == JBB)
-    sendlocal(m_thr_no /* self */,
-              header, theData, NULL);
+    sendlocal(m_thr_no /* self */, header, theData, NULL);
   else
-    sendprioa(m_thr_no /* self */,
-              header, theData, NULL);
+    sendprioa(m_thr_no /* self */, header, theData, NULL);
 #endif
   return false;
 }
 
-NdbOut & 
-operator<<(NdbOut& out, const SectionSegment & ss){
+NdbOut &operator<<(NdbOut &out, const SectionSegment &ss) {
   out << "[ last= " << ss.m_lastSegment << " next= " << ss.nextPool << " ]";
   return out;
 }
 
-void
-TransporterReceiveHandleKernel::reportError(NodeId nodeId,
-                                            TransporterError errorCode,
-                                            const char *info)
-{
+void TransporterReceiveHandleKernel::reportError(NodeId nodeId,
+                                                 TransporterError errorCode,
+                                                 const char *info) {
 #ifdef DEBUG_TRANSPORTER
   g_eventLogger->info("reportError (%d, 0x%x) %s", nodeId, errorCode,
                       info ? info : "");
 #endif
 
   DBUG_ENTER("reportError");
-  DBUG_PRINT("info",("nodeId %d  errorCode: 0x%x  info: %s",
-		     nodeId, errorCode, info));
+  DBUG_PRINT("info",
+             ("nodeId %d  errorCode: 0x%x  info: %s", nodeId, errorCode, info));
 
-  switch (errorCode)
-  {
-  case TE_SIGNAL_LOST_SEND_BUFFER_FULL:
-  {
-    char msg[64];
-    BaseString::snprintf(msg, sizeof(msg), "Remote node id %d.%s%s", nodeId,
-	     info ? " " : "", info ? info : "");
-    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL,
-			       msg, __FILE__, NST_ErrorHandler);
+  switch (errorCode) {
+    case TE_SIGNAL_LOST_SEND_BUFFER_FULL: {
+      char msg[64];
+      BaseString::snprintf(msg, sizeof(msg), "Remote node id %d.%s%s", nodeId,
+                           info ? " " : "", info ? info : "");
+      ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL, msg,
+                                 __FILE__, NST_ErrorHandler);
+    }
+    case TE_SIGNAL_LOST: {
+      char msg[64];
+      BaseString::snprintf(msg, sizeof(msg), "Remote node id %d,%s%s", nodeId,
+                           info ? " " : "", info ? info : "");
+      ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST, msg, __FILE__,
+                                 NST_ErrorHandler);
+    }
+    case TE_SHM_IPC_PERMANENT: {
+      char msg[128];
+      BaseString::snprintf(msg, sizeof(msg), "Remote node id %d.%s%s", nodeId,
+                           info ? " " : "", info ? info : "");
+      ErrorReporter::handleError(NDBD_EXIT_CONNECTION_SETUP_FAILED, msg,
+                                 __FILE__, NST_ErrorHandler);
+    }
+    default:
+      break;
   }
-  case TE_SIGNAL_LOST:
-  {
-    char msg[64];
-    BaseString::snprintf(msg, sizeof(msg), "Remote node id %d,%s%s", nodeId,
-	     info ? " " : "", info ? info : "");
-    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST,
-			       msg, __FILE__, NST_ErrorHandler);
-  }
-  case TE_SHM_IPC_PERMANENT:
-  {
-    char msg[128];
-    BaseString::snprintf(msg, sizeof(msg),
-	     "Remote node id %d.%s%s",
-	     nodeId, info ? " " : "", info ? info : "");
-    ErrorReporter::handleError(NDBD_EXIT_CONNECTION_SETUP_FAILED,
-			       msg, __FILE__, NST_ErrorHandler);
-  }
-  default:
-    break;
-  }
- 
-  if(errorCode & TE_DO_DISCONNECT){
+
+  if (errorCode & TE_DO_DISCONNECT) {
     reportDisconnect(nodeId, errorCode);
   }
-  
+
   SignalT<3> signal;
   std::memset(&signal.header, 0, sizeof(signal.header));
 
-
-  if(errorCode & TE_DO_DISCONNECT)
+  if (errorCode & TE_DO_DISCONNECT)
     signal.theData[0] = NDB_LE_TransporterError;
   else
     signal.theData[0] = NDB_LE_TransporterWarning;
-  
+
   signal.theData[1] = nodeId;
   signal.theData[2] = errorCode;
-  
-  signal.header.theLength = 3;  
+
+  signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theReceiversBlockNumber = CMVMI;
@@ -547,8 +505,7 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(m_thr_no /* self */,
-            &signal.header, signal.theData, NULL);
+  sendprioa(m_thr_no /* self */, &signal.header, signal.theData, NULL);
 #endif
 
   DBUG_VOID_RETURN;
@@ -558,17 +515,14 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
  * Report average send length in bytes (4096 last sends)
  */
 #ifndef NDBD_MULTITHREADED
-TransporterCallbackKernelNonMT::~TransporterCallbackKernelNonMT()
-{
-   m_page_freelist = NULL;
-   delete[] m_send_buffers;
-   delete[] m_send_buffer_memory;
+TransporterCallbackKernelNonMT::~TransporterCallbackKernelNonMT() {
+  m_page_freelist = NULL;
+  delete[] m_send_buffers;
+  delete[] m_send_buffer_memory;
 }
 
-void
-TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
-                                              Uint64 bytes)
-{
+void TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
+                                                   Uint64 bytes) {
   SignalT<3> signal;
   std::memset(&signal.header, 0, sizeof(signal.header));
 
@@ -580,44 +534,37 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
 
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = Uint32(bytes/count);
+  signal.theData[2] = Uint32(bytes / count);
 
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
-
 #define MIN_SEND_BUFFER_SIZE (4 * 1024 * 1024)
 
-void
-TransporterCallbackKernelNonMT::allocate_send_buffers(
-                                           Uint64 total_send_buffer,
-                                           Uint64 extra_send_buffer)
-{
+void TransporterCallbackKernelNonMT::allocate_send_buffers(
+    Uint64 total_send_buffer, Uint64 extra_send_buffer) {
   const int maxTransporters = MAX_NTRANSPORTERS;
-  const int nTransporters   = globalTransporterRegistry.get_transporter_count();
+  const int nTransporters = globalTransporterRegistry.get_transporter_count();
 
   if (total_send_buffer == 0)
     total_send_buffer = globalTransporterRegistry.get_total_max_send_buffer();
 
   total_send_buffer += extra_send_buffer;
 
-  if (!extra_send_buffer)
-  {
+  if (!extra_send_buffer) {
     /**
      * If extra send buffer memory is 0 it means we can decide on an
      * appropriate value for it. We select to always ensure that the
      * minimum send buffer memory is 4M, otherwise we simply don't
      * add any extra send buffer memory at all.
      */
-    if (total_send_buffer < MIN_SEND_BUFFER_SIZE)
-    {
+    if (total_send_buffer < MIN_SEND_BUFFER_SIZE) {
       total_send_buffer = (Uint64)MIN_SEND_BUFFER_SIZE;
     }
   }
 
-  if (m_send_buffers)
-  {
+  if (m_send_buffers) {
     /* Send buffers already allocated -> resize the buffer pages */
     assert(m_send_buffer_memory);
 
@@ -632,8 +579,7 @@ TransporterCallbackKernelNonMT::allocate_send_buffers(
    */
   assert(nTransporters <= maxTransporters);
   m_send_buffers = new SendBuffer[maxTransporters];
-  for (int i = 0; i < maxTransporters; i++)
-  {
+  for (int i = 0; i < maxTransporters; i++) {
     SendBuffer &b = m_send_buffers[i];
     b.m_first_page = NULL;
     b.m_last_page = NULL;
@@ -643,14 +589,13 @@ TransporterCallbackKernelNonMT::allocate_send_buffers(
 
   /* Initialize the page freelist. */
   Uint64 send_buffer_pages =
-    (total_send_buffer + SendBufferPage::PGSIZE - 1)/SendBufferPage::PGSIZE;
+      (total_send_buffer + SendBufferPage::PGSIZE - 1) / SendBufferPage::PGSIZE;
   /* Add one extra page of internal fragmentation overhead per transporter. */
   send_buffer_pages += nTransporters;
 
   m_send_buffer_memory =
-    new unsigned char[UintPtr(send_buffer_pages * SendBufferPage::PGSIZE)];
-  if (m_send_buffer_memory == NULL)
-  {
+      new unsigned char[UintPtr(send_buffer_pages * SendBufferPage::PGSIZE)];
+  if (m_send_buffer_memory == NULL) {
     ndbout << "Unable to allocate "
            << send_buffer_pages * SendBufferPage::PGSIZE
            << " bytes of memory for send buffers, aborting." << endl;
@@ -658,10 +603,9 @@ TransporterCallbackKernelNonMT::allocate_send_buffers(
   }
 
   m_page_freelist = NULL;
-  for (unsigned i = 0; i < send_buffer_pages; i++)
-  {
+  for (unsigned i = 0; i < send_buffer_pages; i++) {
     SendBufferPage *page =
-      (SendBufferPage *)(m_send_buffer_memory + i * SendBufferPage::PGSIZE);
+        (SendBufferPage *)(m_send_buffer_memory + i * SendBufferPage::PGSIZE);
     page->m_bytes = 0;
     page->m_next = m_page_freelist;
     m_page_freelist = page;
@@ -671,11 +615,9 @@ TransporterCallbackKernelNonMT::allocate_send_buffers(
 }
 
 TransporterCallbackKernelNonMT::SendBufferPage *
-TransporterCallbackKernelNonMT::alloc_page()
-{
+TransporterCallbackKernelNonMT::alloc_page() {
   SendBufferPage *page = m_page_freelist;
-  if (page != NULL)
-  {
+  if (page != NULL) {
     m_tot_used_buffer_memory += SendBufferPage::PGSIZE;
     m_page_freelist = page->m_next;
     return page;
@@ -685,35 +627,27 @@ TransporterCallbackKernelNonMT::alloc_page()
   return NULL;
 }
 
-void
-TransporterCallbackKernelNonMT::release_page(SendBufferPage *page)
-{
+void TransporterCallbackKernelNonMT::release_page(SendBufferPage *page) {
   assert(page != NULL);
   page->m_next = m_page_freelist;
   m_tot_used_buffer_memory -= SendBufferPage::PGSIZE;
   m_page_freelist = page;
 }
 
-Uint32
-TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(TrpId trp_id,
-                                                        struct iovec *dst,
-                                                        Uint32 max)
-{
+Uint32 TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(
+    TrpId trp_id, struct iovec *dst, Uint32 max) {
   SendBuffer *b = m_send_buffers + trp_id;
 
-  if (unlikely(!b->m_enabled))
-  {
+  if (unlikely(!b->m_enabled)) {
     discard_send_buffer(trp_id);
     return 0;
   }
-  if (unlikely(max == 0))
-    return 0;
+  if (unlikely(max == 0)) return 0;
 
   Uint32 count = 0;
   SendBufferPage *page = b->m_first_page;
-  while (page != NULL && count < max)
-  {
-    dst[count].iov_base = page->m_data+page->m_start;
+  while (page != NULL && count < max) {
+    dst[count].iov_base = page->m_data + page->m_start;
     dst[count].iov_len = page->m_bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
@@ -723,35 +657,27 @@ TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(TrpId trp_id,
   return count;
 }
 
-Uint32
-TransporterCallbackKernelNonMT::bytes_sent(TrpId trp_id,
-                                           Uint32 bytes)
-{
+Uint32 TransporterCallbackKernelNonMT::bytes_sent(TrpId trp_id, Uint32 bytes) {
   SendBuffer *b = m_send_buffers + trp_id;
   Uint32 used_bytes = b->m_used_bytes;
 
-  if (bytes == 0)
-    return used_bytes;
+  if (bytes == 0) return used_bytes;
 
   used_bytes -= bytes;
   b->m_used_bytes = used_bytes;
 
   SendBufferPage *page = b->m_first_page;
-  while (bytes && bytes >= page->m_bytes)
-  {
-    SendBufferPage * tmp = page;
+  while (bytes && bytes >= page->m_bytes) {
+    SendBufferPage *tmp = page;
     bytes -= page->m_bytes;
     page = page->m_next;
     release_page(tmp);
   }
 
-  if (used_bytes == 0)
-  {
+  if (used_bytes == 0) {
     b->m_first_page = 0;
     b->m_last_page = 0;
-  }
-  else
-  {
+  } else {
     page->m_start += bytes;
     page->m_bytes -= bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
@@ -761,30 +687,23 @@ TransporterCallbackKernelNonMT::bytes_sent(TrpId trp_id,
   return used_bytes;
 }
 
-void
-TransporterCallbackKernelNonMT::enable_send_buffer(TrpId trp_id)
-{
+void TransporterCallbackKernelNonMT::enable_send_buffer(TrpId trp_id) {
   SendBuffer *b = m_send_buffers + trp_id;
   assert(b->m_enabled == false);
-  assert(b->m_first_page == NULL);  //Disabled buffer is empty
+  assert(b->m_first_page == NULL);  // Disabled buffer is empty
   b->m_enabled = true;
 }
 
-void
-TransporterCallbackKernelNonMT::disable_send_buffer(TrpId trp_id)
-{
+void TransporterCallbackKernelNonMT::disable_send_buffer(TrpId trp_id) {
   SendBuffer *b = m_send_buffers + trp_id;
   b->m_enabled = false;
   discard_send_buffer(trp_id);
 }
 
-void
-TransporterCallbackKernelNonMT::discard_send_buffer(TrpId trp_id)
-{
+void TransporterCallbackKernelNonMT::discard_send_buffer(TrpId trp_id) {
   SendBuffer *b = m_send_buffers + trp_id;
   SendBufferPage *page = b->m_first_page;
-  while (page != NULL)
-  {
+  while (page != NULL) {
     SendBufferPage *next = page->m_next;
     release_page(page);
     page = next;
@@ -798,39 +717,32 @@ TransporterCallbackKernelNonMT::discard_send_buffer(TrpId trp_id)
  * These are the TransporterSendBufferHandle methods used by the
  * single-threaded ndbd.
  */
-Uint32 *
-TransporterCallbackKernelNonMT::getWritePtr(TrpId trp_id,
-                                            Uint32 lenBytes,
-                                            Uint32 prio,
-                                            Uint32 max_use,
-                                            SendStatus *error)
-{
+Uint32 *TransporterCallbackKernelNonMT::getWritePtr(TrpId trp_id,
+                                                    Uint32 lenBytes,
+                                                    Uint32 prio, Uint32 max_use,
+                                                    SendStatus *error) {
   SendBuffer *b = m_send_buffers + trp_id;
 
   /* First check if we have room in already allocated page. */
   SendBufferPage *page = b->m_last_page;
   if (page != NULL &&
-      page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
-  {
+      page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes()) {
     return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
   }
 
-  if (unlikely(b->m_used_bytes + lenBytes > max_use))
-  {
+  if (unlikely(b->m_used_bytes + lenBytes > max_use)) {
     *error = SEND_BUFFER_FULL;
     return NULL;
   }
 
-  if (unlikely(lenBytes > SendBufferPage::max_data_bytes()))
-  {
+  if (unlikely(lenBytes > SendBufferPage::max_data_bytes())) {
     *error = SEND_MESSAGE_TOO_BIG;
     return NULL;
   }
 
   /* Allocate a new page. */
   page = alloc_page();
-  if (unlikely(page == NULL))
-  {
+  if (unlikely(page == NULL)) {
     *error = SEND_BUFFER_FULL;
     return NULL;
   }
@@ -838,13 +750,10 @@ TransporterCallbackKernelNonMT::getWritePtr(TrpId trp_id,
   page->m_bytes = 0;
   page->m_start = 0;
 
-  if (b->m_last_page == NULL)
-  {
+  if (b->m_last_page == NULL) {
     b->m_first_page = page;
     b->m_last_page = page;
-  }
-  else
-  {
+  } else {
     assert(b->m_first_page != NULL);
     b->m_last_page->m_next = page;
     b->m_last_page = page;
@@ -852,11 +761,9 @@ TransporterCallbackKernelNonMT::getWritePtr(TrpId trp_id,
   return (Uint32 *)(page->m_data);
 }
 
-Uint32
-TransporterCallbackKernelNonMT::updateWritePtr(TrpId trp_id,
-                                               Uint32 lenBytes,
-                                               Uint32 prio)
-{
+Uint32 TransporterCallbackKernelNonMT::updateWritePtr(TrpId trp_id,
+                                                      Uint32 lenBytes,
+                                                      Uint32 prio) {
   SendBuffer *b = m_send_buffers + trp_id;
   SendBufferPage *page = b->m_last_page;
   assert(page != NULL);
@@ -887,26 +794,22 @@ TransporterCallbackKernelNonMT::getSendBufferLevel(TrpId trp_id,
 }
 **/
 
-bool
-TransporterCallbackKernelNonMT::forceSend(TrpId trp_id)
-{
+bool TransporterCallbackKernelNonMT::forceSend(TrpId trp_id) {
   return globalTransporterRegistry.performSend(trp_id);
 }
 
-#endif //'not NDBD_MULTITHREADED'
+#endif  //'not NDBD_MULTITHREADED'
 
 /**
  * Report average receive length in bytes (4096 last receives)
  */
-void
-TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
-                                            Uint64 bytes)
-{
-
+void TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId,
+                                                      Uint32 count,
+                                                      Uint64 bytes) {
   SignalT<3> signal;
   std::memset(&signal.header, 0, sizeof(signal.header));
 
-  signal.header.theLength = 3;  
+  signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theReceiversBlockNumber = CMVMI;
@@ -914,13 +817,12 @@ TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
 
   signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = Uint32(bytes/count);
+  signal.theData[2] = Uint32(bytes / count);
 #ifndef NDBD_MULTITHREADED
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(m_thr_no /* self */,
-            &signal.header, signal.theData, NULL);
+  sendprioa(m_thr_no /* self */, &signal.header, signal.theData, NULL);
 #endif
 }
 
@@ -928,10 +830,7 @@ TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
  * Report connection established
  */
 
-void
-TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
-{
-
+void TransporterReceiveHandleKernel::reportConnect(NodeId nodeId) {
   SignalT<1> signal;
   std::memset(&signal.header, 0, sizeof(signal.header));
 
@@ -943,7 +842,8 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
   signal.header.theLength = 1;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-  signal.header.theReceiversBlockNumber = numberToBlock(TRPMAN,trpman_instance);
+  signal.header.theReceiversBlockNumber =
+      numberToBlock(TRPMAN, trpman_instance);
   signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
 
   signal.theData[0] = nodeId;
@@ -956,17 +856,15 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
    * The first argument to sendprioa is from which thread number this
    * signal is sent, it is always sent from a receive thread
    */
-  sendprioa(m_thr_no /* self */,
-            &signal.header, signal.theData, NULL);
+  sendprioa(m_thr_no /* self */, &signal.header, signal.theData, NULL);
 #endif
 }
 
 /**
  * Report connection broken
  */
-void
-TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
-{
+void TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId,
+                                                      Uint32 errNo) {
   DBUG_ENTER("reportDisconnect");
 
   SignalT<DisconnectRep::SignalLength> signal;
@@ -982,9 +880,10 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theTrace = TestOrd::TraceDisconnect;
   signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
-  signal.header.theReceiversBlockNumber = numberToBlock(TRPMAN,trpman_instance);
+  signal.header.theReceiversBlockNumber =
+      numberToBlock(TRPMAN, trpman_instance);
 
-  DisconnectRep * rep = CAST_PTR(DisconnectRep, &signal.theData[0]);
+  DisconnectRep *rep = CAST_PTR(DisconnectRep, &signal.theData[0]);
   rep->nodeId = nodeId;
   rep->err = errNo;
 
@@ -992,26 +891,22 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(m_thr_no /* self */,
-            &signal.header, signal.theData, NULL);
+  sendprioa(m_thr_no /* self */, &signal.header, signal.theData, NULL);
 #endif
 
   DBUG_VOID_RETURN;
 }
 
-void
-SignalLoggerManager::printSegmentedSection(FILE * output,
-                                           const SignalHeader & sh,
-                                           const SegmentedSectionPtr ptr[3],
-                                           unsigned i)
-{
+void SignalLoggerManager::printSegmentedSection(
+    FILE *output, const SignalHeader &sh, const SegmentedSectionPtr ptr[3],
+    unsigned i) {
   fprintf(output, "SECTION %u type=segmented", i);
   if (i >= 3) {
     fprintf(output, " *** invalid ***\n");
     return;
   }
   const Uint32 len = ptr[i].sz;
-  SectionSegment * ssp = ptr[i].p;
+  SectionSegment *ssp = ptr[i].p;
   Uint32 pos = 0;
   fprintf(output, " size=%u\n", (unsigned)len);
   while (pos < len) {
@@ -1020,17 +915,14 @@ SignalLoggerManager::printSegmentedSection(FILE * output,
     }
     printDataWord(output, pos, ssp->theData[pos % SectionSegment::DataLength]);
   }
-  if (len > 0)
-    putc('\n', output);
+  if (len > 0) putc('\n', output);
 }
 
 /**
  * Check to see if jobbbuffers are starting to get full
  * and if so call doJob
  */
-int
-TransporterReceiveHandleKernel::checkJobBuffer()
-{
+int TransporterReceiveHandleKernel::checkJobBuffer() {
 #ifndef NDBD_MULTITHREADED
   return globalScheduler.checkDoJob();
 #else
@@ -1039,16 +931,13 @@ TransporterReceiveHandleKernel::checkJobBuffer()
 }
 
 #ifdef NDBD_MULTITHREADED
-void
-TransporterReceiveHandleKernel::assign_trps(Uint32 *recv_thread_idx_array)
-{
+void TransporterReceiveHandleKernel::assign_trps(
+    Uint32 *recv_thread_idx_array) {
   m_transporters.clear(); /* Clear all first */
-  for (Uint32 trp_id = 1; trp_id < MAX_NTRANSPORTERS; trp_id++)
-  {
-    if (recv_thread_idx_array[trp_id] == m_receiver_thread_idx)
-    {
-      DEB_MULTI_TRP(("trp_id %u assigned to recv thread %u",
-                     trp_id, m_receiver_thread_idx));
+  for (Uint32 trp_id = 1; trp_id < MAX_NTRANSPORTERS; trp_id++) {
+    if (recv_thread_idx_array[trp_id] == m_receiver_thread_idx) {
+      DEB_MULTI_TRP(("trp_id %u assigned to recv thread %u", trp_id,
+                     m_receiver_thread_idx));
       m_transporters.set(trp_id); /* Belongs to our receive thread */
     }
   }
@@ -1056,25 +945,20 @@ TransporterReceiveHandleKernel::assign_trps(Uint32 *recv_thread_idx_array)
 }
 #endif
 
-void
-TransporterReceiveHandleKernel::transporter_recv_from(NodeId nodeId)
-{
-  if (globalData.get_hb_count(nodeId) != 0)
-  {
+void TransporterReceiveHandleKernel::transporter_recv_from(NodeId nodeId) {
+  if (globalData.get_hb_count(nodeId) != 0) {
     globalData.set_hb_count(nodeId) = 0;
   }
 }
 
 #ifndef NDBD_MULTITHREADED
-class TransporterReceiveHandle *
-mt_get_trp_receive_handle(unsigned instance)
-{
+class TransporterReceiveHandle *mt_get_trp_receive_handle(unsigned instance) {
   assert(instance == 0);
   return &myTransporterCallback;
 }
 #endif
 
-/** 
+/**
  * #undef is needed since this file is included by TransporterCallback_nonmt.cpp
  * and TransporterCallback_mt.cpp
  */

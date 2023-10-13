@@ -22,31 +22,31 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <time.h>
+#include "util/require.h"
 
-#include "portlib/ndb_compiler.h"
 #include <portlib/NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include "atrt.hpp"
+#include "portlib/ndb_compiler.h"
 
-static bool generate_my_cnf(BaseString mycnf, atrt_config& config);
-static bool create_directory(const char* path);
-static bool delete_file_if_exists(const char* path);
-static bool copy_file(const char* src, const char* dst);
-static bool generate_mysql_init_file_configurations(const char* fileName);
+static bool generate_my_cnf(BaseString mycnf, atrt_config &config);
+static bool create_directory(const char *path);
+static bool delete_file_if_exists(const char *path);
+static bool copy_file(const char *src, const char *dst);
+static bool generate_mysql_init_file_configurations(const char *fileName);
 
-bool setup_directories(atrt_config& config, int setup) {
+bool setup_directories(atrt_config &config, int setup) {
   /**
    * 0 = validate
    * 1 = setup
    * 2 = setup+clean
    */
   for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster& cluster = *config.m_clusters[i];
+    atrt_cluster &cluster = *config.m_clusters[i];
     for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
-      atrt_process& proc = *cluster.m_processes[j];
-      const char* dir = proc.m_proc.m_cwd.c_str();
+      atrt_process &proc = *cluster.m_processes[j];
+      const char *dir = proc.m_proc.m_cwd.c_str();
       struct stat sbuf;
       int exists = 0;
       if (lstat(dir, &sbuf) == 0) {
@@ -99,12 +99,12 @@ bool setup_directories(atrt_config& config, int setup) {
   return true;
 }
 
-static void printfile(FILE* out, Properties& props, const char* section, ...)
+static void printfile(FILE *out, Properties &props, const char *section, ...)
     ATTRIBUTE_FORMAT(printf, 3, 4);
 
-static void printfile(FILE* out, Properties& props, const char* section, ...) {
+static void printfile(FILE *out, Properties &props, const char *section, ...) {
   Properties::Iterator it(&props);
-  const char* name = it.first();
+  const char *name = it.first();
   if (name) {
     va_list ap;
     va_start(ap, section);
@@ -113,7 +113,7 @@ static void printfile(FILE* out, Properties& props, const char* section, ...) {
     fprintf(out, "\n");
 
     for (; name; name = it.next()) {
-      const char* val;
+      const char *val;
       props.get(name, &val);
       fprintf(out, "%s %s\n", name + 2, val);
     }
@@ -127,8 +127,8 @@ static void printfile(FILE* out, Properties& props, const char* section, ...) {
 #define pclose _pclose
 #endif
 
-static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
-  FILE* out = fopen(mycnf.c_str(), "a+");
+static bool generate_my_cnf(BaseString mycnf, atrt_config &config) {
+  FILE *out = fopen(mycnf.c_str(), "a+");
   if (out == NULL) {
     g_logger.error("Failed to open %s for append", mycnf.c_str());
     return false;
@@ -139,12 +139,12 @@ static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
   fprintf(out, "# %s\n", ctime(&now));
 
   for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster& cluster = *config.m_clusters[i];
+    atrt_cluster &cluster = *config.m_clusters[i];
     printfile(out, cluster.m_options.m_generated, "[mysql_cluster%s]",
               cluster.m_name.c_str());
 
     for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
-      atrt_process& proc = *cluster.m_processes[j];
+      atrt_process &proc = *cluster.m_processes[j];
 
       switch (proc.m_type) {
         case atrt_process::AP_NDB_MGMD:
@@ -184,13 +184,13 @@ static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
   return true;
 }
 
-bool exists_file(const char* path) {
+bool exists_file(const char *path) {
   struct stat sbuf;
   int ret = lstat(path, &sbuf);
   return ret == 0;
 }
 
-static bool delete_file_if_exists(const char* path) {
+static bool delete_file_if_exists(const char *path) {
   if (!exists_file(path)) {
     return true;
   }
@@ -203,7 +203,7 @@ static bool delete_file_if_exists(const char* path) {
   return true;
 }
 
-static bool copy_file(const char* src, const char* dst) {
+static bool copy_file(const char *src, const char *dst) {
   BaseString cp;
   cp.assfmt("cp %s %s", src, dst);
   to_fwd_slashes(cp);
@@ -215,7 +215,7 @@ static bool copy_file(const char* src, const char* dst) {
   return true;
 }
 
-bool setup_files(atrt_config& config, int setup, int sshx) {
+bool setup_files(atrt_config &config, int setup, int sshx) {
   /**
    * 0 = validate
    * 1 = setup
@@ -243,8 +243,8 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
 
   if (config.m_config_type == atrt_config::INI) {
     for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-      atrt_cluster& cluster = *config.m_clusters[i];
-      const char* cluster_name = cluster.m_name.c_str();
+      atrt_cluster &cluster = *config.m_clusters[i];
+      const char *cluster_name = cluster.m_name.c_str();
 
       if (strcmp(cluster_name, ".atrt") == 0) {
         continue;
@@ -277,7 +277,7 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
           g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
       BaseString tmp;
       tmp.assfmt("%s --help --verbose", mysqld_bin_path.c_str());
-      FILE* f = popen(tmp.c_str(), "re");
+      FILE *f = popen(tmp.c_str(), "re");
       char buf[1000];
       while (NULL != fgets(buf, sizeof(buf), f)) {
         if (strncmp(buf, "initialize-insecure ", 20) == 0) {
@@ -290,13 +290,13 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
      * Do mysql_install_db
      */
     for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-      atrt_cluster& cluster = *config.m_clusters[i];
+      atrt_cluster &cluster = *config.m_clusters[i];
       for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
-        atrt_process& proc = *cluster.m_processes[j];
+        atrt_process &proc = *cluster.m_processes[j];
         if (proc.m_type == atrt_process::AP_MYSQLD)
 #ifndef _WIN32
         {
-          const char* val;
+          const char *val;
           require(proc.m_options.m_loaded.get("--datadir=", &val));
           BaseString tmp;
           if (use_mysqld) {
@@ -372,9 +372,9 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
   }
 
   for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster& cluster = *config.m_clusters[i];
+    atrt_cluster &cluster = *config.m_clusters[i];
     for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
-      atrt_process& proc = *cluster.m_processes[j];
+      atrt_process &proc = *cluster.m_processes[j];
 
       /**
        * Create env.sh
@@ -382,10 +382,10 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
       BaseString tmp;
       tmp.assfmt("%s/env.sh", proc.m_proc.m_cwd.c_str());
       to_native(tmp);
-      char** env = BaseString::argify(0, proc.m_proc.m_env.c_str());
+      char **env = BaseString::argify(0, proc.m_proc.m_env.c_str());
       if (env[0] || proc.m_proc.m_path.length()) {
         Vector<BaseString> keys;
-        FILE* fenv = fopen(tmp.c_str(), "w+");
+        FILE *fenv = fopen(tmp.c_str(), "w+");
         if (fenv == 0) {
           g_logger.error("Failed to open %s for writing", tmp.c_str());
           return false;
@@ -415,12 +415,12 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
         keys.push_back("PATH");
 
         {
-        /**
-         * In 5.5...binaries aren't compiled with rpath
-         * So we need an explicit LD_LIBRARY_PATH
-         *
-         * Use path from libmysqlclient.so
-         */
+          /**
+           * In 5.5...binaries aren't compiled with rpath
+           * So we need an explicit LD_LIBRARY_PATH
+           *
+           * Use path from libmysqlclient.so
+           */
 #if defined(__MACH__)
           BaseString libdir =
               g_resources.getLibraryDirectory(g_resources.LIBMYSQLCLIENT_DYLIB)
@@ -448,7 +448,7 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
 
       {
         tmp.assfmt("%s/ssh-login.sh", proc.m_proc.m_cwd.c_str());
-        FILE* fenv = fopen(tmp.c_str(), "w+");
+        FILE *fenv = fopen(tmp.c_str(), "w+");
         if (fenv == 0) {
           g_logger.error("Failed to open %s for writing", tmp.c_str());
           return false;
@@ -468,7 +468,7 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
   return true;
 }
 
-static bool create_directory(const char* path) {
+static bool create_directory(const char *path) {
   BaseString native(path);
   to_native(native);
   BaseString tmp(path);
@@ -497,7 +497,7 @@ static bool create_directory(const char* path) {
   return true;
 }
 
-bool remove_dir(const char* path, bool inclusive) {
+bool remove_dir(const char *path, bool inclusive) {
   if (access(path, 0)) return true;
 
   const int max_retries = 20;
@@ -524,8 +524,8 @@ bool remove_dir(const char* path, bool inclusive) {
   return false;
 }
 
-bool generate_mysql_init_file_configurations(const char* fileName) {
-  FILE* fp = fopen(fileName, "w");
+bool generate_mysql_init_file_configurations(const char *fileName) {
+  FILE *fp = fopen(fileName, "w");
   if (fp == NULL) {
     g_logger.error("Failed to open mysql init file: %s", fileName);
     return false;

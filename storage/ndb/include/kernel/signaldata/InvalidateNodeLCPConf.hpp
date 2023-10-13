@@ -27,28 +27,25 @@
 
 #define JAM_FILE_ID 159
 
-
 /**
  * This signal is sent from the non-master DIH to master DIHs
  *
  */
 class InvalidateNodeLCPConf {
-  
   /**
    * Sender/Receiver
    */
   friend class Dbdih;
-  
+
   /**
    * NodeId of sending node
    * which is "done"
    */
   Uint32 sendingNodeId;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 1;
 };
-
 
 #undef JAM_FILE_ID
 

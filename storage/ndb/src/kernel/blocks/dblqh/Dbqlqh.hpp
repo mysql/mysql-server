@@ -29,17 +29,16 @@
 
 #define JAM_FILE_ID 517
 
-class Dbqlqh : public Dblqh
-{
+class Dbqlqh : public Dblqh {
   friend class DbqlqhProxy;
 
-public:
-  Dbqlqh(Block_context& ctx,
-         Uint32 instanceNumber = 0);
+ public:
+  Dbqlqh(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~Dbqlqh();
 
   static Uint64 getTransactionMemoryNeed();
-private:
+
+ private:
   BLOCK_DEFINES(Dblqh);
 };
 

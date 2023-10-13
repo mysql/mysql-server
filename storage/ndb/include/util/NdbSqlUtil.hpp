@@ -25,8 +25,8 @@
 #ifndef NDB_SQL_UTIL_HPP
 #define NDB_SQL_UTIL_HPP
 
-#include <ndb_global.h>
 #include <kernel/ndb_limits.h>
+#include <ndb_global.h>
 
 struct CHARSET_INFO;
 
@@ -41,7 +41,7 @@ struct CHARSET_INFO;
  * (in contrast to other type utility classes, like ./NdbTypesUtil).
  */
 class NdbSqlUtil {
-public:
+ public:
   /**
    * Compare attribute values.  Returns negative, zero, positive for
    * less, equal, greater.  We trust DBTUP to validate all data and
@@ -54,7 +54,8 @@ public:
    * their lengths in bytes.  First parameter is a pointer to type
    * specific extra info.  Char types receive CHARSET_INFO in it.
    */
-  typedef int Cmp(const void* info, const void* p1, uint n1, const void* p2, uint n2);
+  typedef int Cmp(const void *info, const void *p1, uint n1, const void *p2,
+                  uint n2);
 
   /**
    * Prototype for "like" comparison.  Defined for string types.  First
@@ -63,7 +64,8 @@ public:
    *
    * Uses default special chars ( \ % _ ).
    */
-  typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
+  typedef int Like(const void *info, const void *p1, unsigned n1,
+                   const void *p2, unsigned n2);
 
   /**
    * Prototype for mask comparisons.  Defined for bit type.
@@ -72,7 +74,8 @@ public:
    * return 0, else return 1.
    * If cmpZero, compare data AND Mask to zero.
    */
-  typedef int AndMask(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero); 
+  typedef int AndMask(const void *data, unsigned dataLen, const void *mask,
+                      unsigned maskLen, bool cmpZero);
 
   struct Type {
     enum Enum {
@@ -111,41 +114,37 @@ public:
       Datetime2 = NDB_TYPE_DATETIME2,
       Timestamp2 = NDB_TYPE_TIMESTAMP2
     };
-    Enum m_typeId;      // redundant
-    Cmp* m_cmp;         // comparison method
-    Like* m_like;       // "like" comparison method
-    AndMask* m_mask;    // Mask comparison method
+    Enum m_typeId;    // redundant
+    Cmp *m_cmp;       // comparison method
+    Like *m_like;     // "like" comparison method
+    AndMask *m_mask;  // Mask comparison method
   };
 
   /**
    * Get type by id.  Can return the Undefined type.
    */
-  static const Type& getType(Uint32 typeId);
+  static const Type &getType(Uint32 typeId);
 
   /**
    * Check character set.
    */
-  static uint check_column_for_pk(Uint32 typeId, const void* info);
-  static uint check_column_for_hash_index(Uint32 typeId, const void* info);
-  static uint check_column_for_ordered_index(Uint32 typeId, const void* info);
+  static uint check_column_for_pk(Uint32 typeId, const void *info);
+  static uint check_column_for_hash_index(Uint32 typeId, const void *info);
+  static uint check_column_for_ordered_index(Uint32 typeId, const void *info);
 
   /**
    * Get number of length bytes and length from variable length string.
    * Returns false on error (invalid data).  For other types returns
    * zero length bytes and the fixed attribute length.
    */
-  static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
+  static bool get_var_length(Uint32 typeId, const void *p, unsigned attrlen,
+                             Uint32 &lb, Uint32 &len);
 
-  static int strnxfrm_hash(const CHARSET_INFO* cs,
-                           Uint32 typeId,
-                           uchar* dst, unsigned dstLen,
-                           const uchar* src, unsigned srcLen,
+  static int strnxfrm_hash(const CHARSET_INFO *cs, Uint32 typeId, uchar *dst,
+                           unsigned dstLen, const uchar *src, unsigned srcLen,
                            unsigned maxLen);
 
-  static Uint32 strnxfrm_hash_len(
-                           const CHARSET_INFO* cs,
-                           unsigned maxLen);
-  
+  static Uint32 strnxfrm_hash_len(const CHARSET_INFO *cs, unsigned maxLen);
 
   /**
    * Convert attribute data to/from network byte order
@@ -153,11 +152,8 @@ public:
    * between host and network byte order.
    * On little-endian (network order) hosts, it has no effect.
    */
-  static void convertByteOrder(Uint32 typeId, 
-                               Uint32 typeLog2Size, 
-                               Uint32 arrayType, 
-                               Uint32 arraySize,
-                               uchar* data,
+  static void convertByteOrder(Uint32 typeId, Uint32 typeLog2Size,
+                               Uint32 arrayType, Uint32 arraySize, uchar *data,
                                Uint32 dataByteSize);
 
   /**
@@ -174,7 +170,7 @@ public:
     uint year, month, day;
   };
   struct Time {
-    uint sign; // as in Time2
+    uint sign;  // as in Time2
     uint hour, minute, second;
   };
   struct Datetime {
@@ -201,25 +197,25 @@ public:
     uint fraction;
   };
   // bytes to struct
-  static void unpack_year(Year&, const uchar*);
-  static void unpack_date(Date&, const uchar*);
-  static void unpack_time(Time&, const uchar*);
-  static void unpack_datetime(Datetime&, const uchar*);
-  static void unpack_timestamp(Timestamp&, const uchar*);
-  static void unpack_time2(Time2&, const uchar*, uint prec);
-  static void unpack_datetime2(Datetime2&, const uchar*, uint prec);
-  static void unpack_timestamp2(Timestamp2&, const uchar*, uint prec);
+  static void unpack_year(Year &, const uchar *);
+  static void unpack_date(Date &, const uchar *);
+  static void unpack_time(Time &, const uchar *);
+  static void unpack_datetime(Datetime &, const uchar *);
+  static void unpack_timestamp(Timestamp &, const uchar *);
+  static void unpack_time2(Time2 &, const uchar *, uint prec);
+  static void unpack_datetime2(Datetime2 &, const uchar *, uint prec);
+  static void unpack_timestamp2(Timestamp2 &, const uchar *, uint prec);
   // struct to bytes
-  static void pack_year(const Year&, uchar*);
-  static void pack_date(const Date&, uchar*);
-  static void pack_time(const Time&, uchar*);
-  static void pack_datetime(const Datetime&, uchar*);
-  static void pack_timestamp(const Timestamp&, uchar*);
-  static void pack_time2(const Time2&, uchar*, uint prec);
-  static void pack_datetime2(const Datetime2&, uchar*, uint prec);
-  static void pack_timestamp2(const Timestamp2&, uchar*, uint prec);
+  static void pack_year(const Year &, uchar *);
+  static void pack_date(const Date &, uchar *);
+  static void pack_time(const Time &, uchar *);
+  static void pack_datetime(const Datetime &, uchar *);
+  static void pack_timestamp(const Timestamp &, uchar *);
+  static void pack_time2(const Time2 &, uchar *, uint prec);
+  static void pack_datetime2(const Datetime2 &, uchar *, uint prec);
+  static void pack_timestamp2(const Timestamp2 &, uchar *, uint prec);
 
-private:
+ private:
   friend class NdbPack;
   /**
    * List of all types.  Must match Type::Enum.

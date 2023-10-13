@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 14
 
-
 class DropTabFileReq {
   /**
    * Sender(s)
@@ -42,10 +41,11 @@ class DropTabFileReq {
   friend class Dbdih;
   friend class Dbacc;
   friend class Dbtup;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
 
-private:
+ private:
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 primaryTableId;
@@ -63,15 +63,15 @@ class DropTabFileConf {
   friend class Dbdih;
   friend class Dbacc;
   friend class Dbtup;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
 
-private:
+ private:
   Uint32 userPtr;
   Uint32 senderRef;
   Uint32 nodeId;
 };
-
 
 #undef JAM_FILE_ID
 

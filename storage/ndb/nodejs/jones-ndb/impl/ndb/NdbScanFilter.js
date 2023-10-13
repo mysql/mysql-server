@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,32 +24,31 @@
 
 "use strict";
 
-var conf               = require("./path_config"),
-    assert             = require("assert"),
-    adapter            = require(conf.binary),
+var conf = require("./path_config"), assert = require("assert"),
+    adapter = require(conf.binary),
     NdbInterpretedCode = adapter.ndb.ndbapi.NdbInterpretedCode,
-    NdbScanFilter      = adapter.ndb.ndbapi.NdbScanFilter,
-    udebug             = unified_debug.getLogger("NdbScanFilter.js");
+    NdbScanFilter = adapter.ndb.ndbapi.NdbScanFilter,
+    udebug = unified_debug.getLogger("NdbScanFilter.js");
 
 
 function QueryTerm(offset, column, param) {
-  this.param        = param;
-  this.column       = column;
-  this.offset       = offset;
-  this.constBuffer  = null;
+  this.param = param;
+  this.column = column;
+  this.offset = offset;
+  this.constBuffer = null;
 }
 
-/* Encode value into buffer. 
+/* Encode value into buffer.
    If params are supplied, then this.param is assumed to be a QueryParameter.
    Otherwise, this.param is treated as a query constant term, and we retain
    a reference to the buffer.
 */
 QueryTerm.prototype.encode = function(buffer, params) {
   var value;
-  if(params) {
-    value = params[this.param.name]; // a QueryParameter (from Jones Query.js)
+  if (params) {
+    value = params[this.param.name];  // a QueryParameter (from Jones Query.js)
   } else {
-    value = this.param;              // a query constant
+    value = this.param;  // a query constant
     this.constBuffer = buffer;
   }
   adapter.ndb.impl.encoderWrite(this.column, value, buffer, this.offset);
@@ -60,8 +59,8 @@ QueryTerm.prototype.encode = function(buffer, params) {
    values in that buffer.
 */
 function BufferSchema() {
-  this.layout  = [];    // an array of QueryTerm
-  this.size    = 0;     // length of the buffer
+  this.layout = [];  // an array of QueryTerm
+  this.size = 0;     // length of the buffer
 }
 
 /* Create a buffer;
@@ -72,9 +71,9 @@ BufferSchema.prototype.encode = function(params) {
   var i, buffer;
   buffer = null;
 
-  if(this.size > 0) {
+  if (this.size > 0) {
     buffer = Buffer.alloc(this.size);
-    for(i = 0; i < this.layout.length ; i++) {
+    for (i = 0; i < this.layout.length; i++) {
       this.layout[i].encode(buffer, params);
     }
   }
@@ -82,7 +81,7 @@ BufferSchema.prototype.encode = function(params) {
 };
 
 /* Add a query term to layout, and return it
-*/
+ */
 BufferSchema.prototype.addTerm = function(column, param) {
   var term = new QueryTerm(this.size, column, param);
   this.layout.push(term);
@@ -98,21 +97,17 @@ BufferSchema.prototype.addTerm = function(column, param) {
 */
 function markNode(node) {
   var opcode = node.operationCode || null;
-  node.ndb = {
-    "opcode"     : opcode,
-    "layout"     : null,
-    "intervals"  : {}
-  };
+  node.ndb = {"opcode": opcode, "layout": null, "intervals": {}};
 }
 
 
 /*************************************** BufferManagerVisitor ************
  *
  * This is the first pass, run when the operation is declared.
- * 
- * Visit nodes, marking them for NdbScanFilter.  Calculate buffer layout 
+ *
+ * Visit nodes, marking them for NdbScanFilter.  Calculate buffer layout
  * and needed space.
- */ 
+ */
 function BufferManagerVisitor(filterSpec) {
   this.spec = filterSpec;
 }
@@ -121,7 +116,7 @@ function BufferManagerVisitor(filterSpec) {
 BufferManagerVisitor.prototype.visitQueryNaryPredicate = function(node) {
   var i;
   markNode(node);
-  for(i = 0 ; i < node.predicates.length ; i++) {
+  for (i = 0; i < node.predicates.length; i++) {
     node.predicates[i].visit(this);
   }
 };
@@ -152,26 +147,26 @@ BufferManagerVisitor.prototype.visitQueryBetweenOperator = function(node) {
   spec2 = schema2.addTerm(col, node.parameter2);
 
   markNode(node);
-  node.ndb.layout = { "between" : [ spec1 , spec2 ] };
+  node.ndb.layout = {"between": [spec1, spec2]};
 };
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 BufferManagerVisitor.prototype.visitQueryUnaryOperator = function(node) {
   markNode(node);
-  node.ndb.layout = { "columnNumber" : node.queryField.field.columnNumber };
+  node.ndb.layout = {"columnNumber": node.queryField.field.columnNumber};
 };
 
 
 /************************************** FilterBuildingVisitor ************
  *
  * This is the second pass, run each time the operation is executed.
- * 
+ *
  * Visit nodes and build NdbScanFilter.
- */ 
+ */
 function FilterBuildingVisitor(dbTable, paramBuffer) {
-  this.paramBuffer        = paramBuffer;
+  this.paramBuffer = paramBuffer;
   this.ndbInterpretedCode = NdbInterpretedCode.create(dbTable);
-  this.ndbScanFilter      = NdbScanFilter.create(this.ndbInterpretedCode);
+  this.ndbScanFilter = NdbScanFilter.create(this.ndbInterpretedCode);
   this.ndbScanFilter.begin(1);  // implicit top-level AND group
 }
 
@@ -179,7 +174,7 @@ function FilterBuildingVisitor(dbTable, paramBuffer) {
 FilterBuildingVisitor.prototype.visitQueryNaryPredicate = function(node) {
   var i = 0;
   this.ndbScanFilter.begin(node.ndb.opcode);
-  for(i = 0 ; i < node.predicates.length ; i++) {
+  for (i = 0; i < node.predicates.length; i++) {
     node.predicates[i].visit(this);
   }
   udebug.log(node.operator);
@@ -190,9 +185,10 @@ FilterBuildingVisitor.prototype.visitQueryNaryPredicate = function(node) {
 FilterBuildingVisitor.prototype.visitQueryComparator = function(node) {
   var opcode = node.ndb.opcode;
   var layout = node.ndb.layout;
-  this.ndbScanFilter.cmp(opcode, layout.column.columnNumber, 
-                         layout.constBuffer || this.paramBuffer,
-                         layout.offset, layout.column.columnSpace);
+  this.ndbScanFilter.cmp(
+      opcode, layout.column.columnNumber,
+      layout.constBuffer || this.paramBuffer, layout.offset,
+      layout.column.columnSpace);
   udebug.log(node.queryField.field.fieldName, node.comparator, "value");
 };
 
@@ -209,10 +205,9 @@ FilterBuildingVisitor.prototype.visitQueryUnaryOperator = function(node) {
   var opcode = node.ndb.opcode;
   var colId = node.ndb.layout.columnNumber;
 
-  if(opcode === 7) {
+  if (opcode === 7) {
     this.ndbScanFilter.isnull(colId);
-  }
-  else {
+  } else {
     assert(opcode === 8);
     this.ndbScanFilter.isnotnull(colId);
   }
@@ -222,14 +217,14 @@ FilterBuildingVisitor.prototype.visitQueryUnaryOperator = function(node) {
 /** Handle node QueryBetween */
 FilterBuildingVisitor.prototype.visitQueryBetweenOperator = function(node) {
   var col1 = node.ndb.layout.between[0];
-  var col2 = node.ndb.layout.between[1];  
+  var col2 = node.ndb.layout.between[1];
   this.ndbScanFilter.begin(1);  // AND
-  this.ndbScanFilter.cmp(2, col1.column.columnNumber,
-                         col1.constBuffer || this.paramBuffer,
-                         col1.offset, col1.column.columnSpace); // >= col1
-  this.ndbScanFilter.cmp(0, col2.column.columnNumber,
-                         col2.constBuffer || this.paramBuffer,
-                         col2.offset, col2.column.columnSpace); // <= col2
+  this.ndbScanFilter.cmp(
+      2, col1.column.columnNumber, col1.constBuffer || this.paramBuffer,
+      col1.offset, col1.column.columnSpace);  // >= col1
+  this.ndbScanFilter.cmp(
+      0, col2.column.columnNumber, col2.constBuffer || this.paramBuffer,
+      col2.offset, col2.column.columnSpace);  // <= col2
   this.ndbScanFilter.end();
   udebug.log(node.queryField.field.fieldName, "BETWEEN values");
 };
@@ -241,14 +236,14 @@ FilterBuildingVisitor.prototype.finalise = function() {
 /*************************************************/
 
 /* FilterSpec describes filter implementation; will be stored in QueryHandler
-*/
+ */
 function FilterSpec(queryHandler) {
-  this.predicate       = queryHandler.predicate;
-  this.dbTable         = queryHandler.dbTableHandler.dbTable;
-  this.constSchema     = new BufferSchema();
-  this.paramSchema     = new BufferSchema();
-  this.constFilter     = null;
-  this.constBuffer     = null;
+  this.predicate = queryHandler.predicate;
+  this.dbTable = queryHandler.dbTableHandler.dbTable;
+  this.constSchema = new BufferSchema();
+  this.paramSchema = new BufferSchema();
+  this.constFilter = null;
+  this.constBuffer = null;
   this.markQuery();
 }
 
@@ -257,13 +252,13 @@ FilterSpec.prototype.markQuery = function() {
   this.predicate.visit(new BufferManagerVisitor(this));
 
   /* Encode buffer for constant query terms */
-  if(this.predicate.constants) {
+  if (this.predicate.constants) {
     this.constBuffer = this.constSchema.encode();
 
     /* If paramSchema.size is zero, then the query uses *only* constant terms.
        Optimize by building a filter just once in advance.
     */
-    if(this.paramSchema.size === 0) {
+    if (this.paramSchema.size === 0) {
       this.constFilter = this.buildFilter(null);
     }
   }
@@ -279,7 +274,7 @@ FilterSpec.prototype.buildFilter = function(paramBuffer) {
 FilterSpec.prototype.getScanFilterCode = function(params) {
   var paramBuffer;
 
-  if(this.constFilter) {
+  if (this.constFilter) {
     udebug.log("getScanFilterCode: ScanFilter is const");
     return this.constFilter.ndbInterpretedCode;
   }
@@ -293,7 +288,7 @@ FilterSpec.prototype.getScanFilterCode = function(params) {
 
 
 function prepareFilterSpec(queryHandler) {
-  if(queryHandler.predicate && !queryHandler.ndbFilterSpec) {
+  if (queryHandler.predicate && !queryHandler.ndbFilterSpec) {
     queryHandler.ndbFilterSpec = new FilterSpec(queryHandler);
   }
 }

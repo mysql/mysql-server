@@ -25,8 +25,8 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
-#include "ndbapi/NdbIndexScanOperation.hpp"
 #include "NdbQueryBuilder.hpp"
+#include "ndbapi/NdbIndexScanOperation.hpp"
 
 // this file is currently not located in include/ndbapi
 // which means that we need to use <> to include instead of ""
@@ -44,7 +44,6 @@
 // #include "NdbQueryBuilder.hpp"
 // #include <NdbIndexScanOperation.hpp>
 
-
 class Ndb;
 struct NdbError;
 class NdbParamOperand;
@@ -59,28 +58,28 @@ class NdbInterpretedCode;
 class NdbQueryImpl;
 class NdbQueryOperationImpl;
 
-
 /**********************  OVERVIEW    ***********************
  *
  * a NdbQuery is created when a NdbQueryDefinition is added to a
  * NdbTransaction for execution with NdbTransaction::creatQuery().
  *
- * A NdbQuery is associated with a collection of NdbQueryOperation which 
+ * A NdbQuery is associated with a collection of NdbQueryOperation which
  * are instantiated (1::1) to reflect the NdbQueryOperationDef objects
  * which the NdbQueryDef consists of. The same NdbQueryDef may be used to
  * instantiate multiple NdbQuery obejects.
  *
  * When we have an instantiated NdbQuery, we should either bind result buffers
- * for retrieving entire rows from each operation, 
+ * for retrieving entire rows from each operation,
  * (aka NdbRecord interface,::setResultRowRef(), ::setResultRowBuf())
  * or set up retrieval operations for each attribute values, (::getValue()).
- * 
+ *
  * Optionally we may also:
  *  - Specify a scan ordering for the result set (parent only)
  *  - Add multiple bounds to a range scan, (::setBound()) (parent only)
- *  - Append a filter condition for each operation (aka mysqlds pushed condition)  
+ *  - Append a filter condition for each operation (aka mysqlds pushed
+ *condition)
  *
- * The NdbQuery is then executed together with other pending operations 
+ * The NdbQuery is then executed together with other pending operations
  * in the next NdbTransaction::execute().
  * The resultset available from a NdbQuery is natively a 'left outer join'
  * between the parent / child operations. If an application is not interested
@@ -92,37 +91,36 @@ class NdbQueryOperationImpl;
  * We provide two different interfaces for iterating the result set:
  *
  * The 'local cursor' (NdbQueryOperation::firstResult(), ::nextResult())
- *   Will navigate the resultset, and fetch results, from this specific operation.
- *   It will only be possible to navigate within those rows which depends
- *   on the current row(s) from any ancestor of the operation.
- *   The local cursor will only retrieve the results, or a NULL row, 
- *   resulting from its own operation. -> All child operations of a 
- *   renavigated local cursor should be navigated to ::firstResult() 
- *   to ensure that they contain results related to the renavigated parent. 
- *   
+ *   Will navigate the resultset, and fetch results, from this specific
+ *operation. It will only be possible to navigate within those rows which
+ *depends on the current row(s) from any ancestor of the operation. The local
+ *cursor will only retrieve the results, or a NULL row, resulting from its own
+ *operation. -> All child operations of a renavigated local cursor should be
+ *navigated to ::firstResult() to ensure that they contain results related to
+ *the renavigated parent.
+ *
  * The 'global cursor' (NdbQuery::nextResult())
  *   Will present the result set as a scan on the root operation
- *   with rows from its child operations appearing in an unpredictable 
- *   order. A new set of results, or NULL rows, from *all* operations 
+ *   with rows from its child operations appearing in an unpredictable
+ *   order. A new set of results, or NULL rows, from *all* operations
  *   in the query tree are retrieved for each ::nextResult().
- *   NULL rows resulting from the outer joins may appear anywhere 
+ *   NULL rows resulting from the outer joins may appear anywhere
  *   inside the resultset.
  *
  * As the global cursor is implemented on top of the local cursors, it is
  * possible to mix the usage of global and local cursors.
  *
  ************************************************************************/
-class NdbQuery
-{
-private:
-  // Only constructable through ::buildQuery() 
+class NdbQuery {
+ private:
+  // Only constructable through ::buildQuery()
   friend class NdbQueryImpl;
-  explicit NdbQuery(NdbQueryImpl& impl);
+  explicit NdbQuery(NdbQueryImpl &impl);
   ~NdbQuery();
 
-public:
+ public:
   /** Possible return values from nextResult().*/
-  enum NextResultOutcome{
+  enum NextResultOutcome {
     NextResult_error = -1,
     NextResult_gotRow = 0,
     NextResult_scanComplete = 1,
@@ -133,9 +131,10 @@ public:
 
   // Get a specific NdbQueryOperation by ident specified
   // when the NdbQueryOperationDef was created.
-  NdbQueryOperation* getQueryOperation(const char* ident) const;
-  NdbQueryOperation* getQueryOperation(Uint32 index) const;
-//NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
+  NdbQueryOperation *getQueryOperation(const char *ident) const;
+  NdbQueryOperation *getQueryOperation(Uint32 index) const;
+  // NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def)
+  // const;
 
   int setBound(const NdbRecord *keyRecord,
                const struct NdbIndexScanOperation::IndexBound *bound);
@@ -152,7 +151,7 @@ public:
    * Result row / columns will be updated in the respective result handlers
    * as previously specified on each NdbQueryOperation either by assigning a
    * NdbRecord/rowBuffer or assigning NdbRecAttr to each column to be retrieved.
-   * 
+   *
    * @param fetchAllowed  If set to false, then fetching is disabled
    * @param forceSend If true send will occur immediately (see @ref secAdapt)
    *
@@ -175,35 +174,35 @@ public:
    *    or constraint violations associated with each specific row in the
    *    result set.)
    *
-   * @return 
+   * @return
    * -  NextResult_error (-1):       if unsuccessful,<br>
-   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br>
    * -  NextResult_scanComplete (1): if there are no more tuples to scan.
    * -  NextResult_bufferEmpty (2):  if there are no more cached records
    *                                 in NdbApi
    */
-  NextResultOutcome nextResult(bool fetchAllowed = true, 
+  NextResultOutcome nextResult(bool fetchAllowed = true,
                                bool forceSend = false);
 
   /**
    * Get NdbTransaction object for this query operation
    */
-  NdbTransaction* getNdbTransaction() const;
+  NdbTransaction *getNdbTransaction() const;
 
   /**
    * Close query.
    *
-   * Will release most of the internally allocated objects owned 
+   * Will release most of the internally allocated objects owned
    * by this NdbQuery and detach itself from the NdbQueryDef
    * used to instantiate it.
    *
-   * The application may destruct the NdbQueryDef after 
+   * The application may destruct the NdbQueryDef after
    * ::close() has been called on *all* NdbQuery objects
    * instantiated from it.
    */
   void close(bool forceSend = false);
 
-  /** 
+  /**
    * @name Error Handling
    * @{
    */
@@ -213,60 +212,53 @@ public:
    *
    * @return An error object with information about the latest error.
    */
-  const NdbError& getNdbError() const;
+  const NdbError &getNdbError() const;
 
   /** Get object implementing NdbQuery interface.*/
-  NdbQueryImpl& getImpl() const
-  { return m_impl; }
+  NdbQueryImpl &getImpl() const { return m_impl; }
 
   /**
    * Check if this is a pruned range scan. A range scan is pruned if the ranges
-   * are such that only a subset of the fragments need to be scanned for 
+   * are such that only a subset of the fragments need to be scanned for
    * matching tuples.
    *
-   * @param pruned This will be set to true if the operation is a pruned range 
+   * @param pruned This will be set to true if the operation is a pruned range
    * scan.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int isPrunable(bool& pruned) const;
+  int isPrunable(bool &pruned) const;
 
-private:
+ private:
   /** Opaque implementation NdbQuery interface.*/
-  NdbQueryImpl& m_impl;
+  NdbQueryImpl &m_impl;
 
-}; // class NdbQuery
+};  // class NdbQuery
 
-
-
-
-class NdbQueryOperation
-{
-private:
+class NdbQueryOperation {
+ private:
   // Only constructable through executing a NdbQueryDef
   friend class NdbQueryOperationImpl;
-  explicit NdbQueryOperation(NdbQueryOperationImpl& impl);
+  explicit NdbQueryOperation(NdbQueryOperationImpl &impl);
   ~NdbQueryOperation();
 
-public:
+ public:
   // Collection of get'ers to navigate in root, parent/child hierarchy
 
   Uint32 getNoOfParentOperations() const;
-  NdbQueryOperation* getParentOperation(Uint32 parentNo) const;
+  NdbQueryOperation *getParentOperation(Uint32 parentNo) const;
 
   Uint32 getNoOfChildOperations() const;
-  NdbQueryOperation* getChildOperation(Uint32 childNo) const;
+  NdbQueryOperation *getChildOperation(Uint32 childNo) const;
 
-  const NdbQueryOperationDef& getQueryOperationDef() const;
+  const NdbQueryOperationDef &getQueryOperationDef() const;
 
   // Get the entire query object which this operation is part of
-  NdbQuery& getQuery() const;
-
-
+  NdbQuery &getQuery() const;
 
   /**
    * Defines a retrieval operation of an attribute value.
    * The NDB API allocate memory for the NdbRecAttr object that
-   * will hold the returned attribute value. 
+   * will hold the returned attribute value.
    *
    * @note Note that it is the applications responsibility
    *       to allocate enough memory for resultBuffer (if non-NULL).
@@ -280,24 +272,24 @@ public:
    * @note There are three versions of NdbQueryOperation::getValue with
    *       slightly different parameters.
    *
-   * @note This method does not fetch the attribute value from 
-   *       the database!  The NdbRecAttr object returned by this method 
-   *       is <em>not</em> readable/printable before the 
+   * @note This method does not fetch the attribute value from
+   *       the database!  The NdbRecAttr object returned by this method
+   *       is <em>not</em> readable/printable before the
    *       transaction has been executed with NdbTransaction::execute.
    *
-   * @param anAttrName   Attribute name 
-   * @param resultBuffer If this is non-NULL, then the attribute value 
+   * @param anAttrName   Attribute name
+   * @param resultBuffer If this is non-NULL, then the attribute value
    *                     will be returned in this parameter.<br>
-   *                     If NULL, then the attribute value will only 
+   *                     If NULL, then the attribute value will only
    *                     be stored in the returned NdbRecAttr object.
-   * @return             An NdbRecAttr object to hold the value of 
-   *                     the attribute, or a NULL pointer 
+   * @return             An NdbRecAttr object to hold the value of
+   *                     the attribute, or a NULL pointer
    *                     (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = nullptr);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = nullptr);
-  NdbRecAttr* getValue(const NdbDictionary::Column* column, 
-		       char* resultBuffer = nullptr);
+  NdbRecAttr *getValue(const char *anAttrName, char *resultBuffer = nullptr);
+  NdbRecAttr *getValue(Uint32 anAttrId, char *resultBuffer = nullptr);
+  NdbRecAttr *getValue(const NdbDictionary::Column *column,
+                       char *resultBuffer = nullptr);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
@@ -311,31 +303,29 @@ public:
    *
    * @resBuffer  Defines a buffer sufficient large to hold the result row.
    *
-   * @bufRef     Refers a pointer which will be updated to refer the current result row
-   *             for this operand.
+   * @bufRef     Refers a pointer which will be updated to refer the current
+   * result row for this operand.
    *
-   * @param  result_mask defines as subset of attributes to read. 
-   *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId & 7))' is set
+   * @param  result_mask defines as subset of attributes to read.
+   *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId &
+   * 7))' is set
    * @return 0 on success, -1 otherwise (call getNdbError() for details).
    */
-  int setResultRowBuf (const NdbRecord *rec,
-                       char* resBuffer,
-                       const unsigned char* result_mask = nullptr);
+  int setResultRowBuf(const NdbRecord *rec, char *resBuffer,
+                      const unsigned char *result_mask = nullptr);
 
-  int setResultRowRef (const NdbRecord* rec,
-                       const char* & bufRef,
-                       const unsigned char* result_mask = nullptr);
+  int setResultRowRef(const NdbRecord *rec, const char *&bufRef,
+                      const unsigned char *result_mask = nullptr);
 
   // TODO: define how BLOB/CLOB should be retrieved.
   // ... Replicate ::getBlobHandle() from NdbOperation class?
 
   /** Get object implementing NdbQueryOperation interface.*/
-  NdbQueryOperationImpl& getImpl() const
-  { return m_impl; }
+  NdbQueryOperationImpl &getImpl() const { return m_impl; }
 
   /** Define result ordering for ordered index scan. It is an error to call
    * this method on an operation that is not a scan, or to call it if an
-   * ordering was already set on the operation definition by calling 
+   * ordering was already set on the operation definition by calling
    * NdbQueryOperationDef::setOrdering().
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
@@ -345,7 +335,7 @@ public:
   /** Get the result ordering for this operation.*/
   NdbQueryOptions::ScanOrdering getOrdering() const;
 
-  /** 
+  /**
    * Set the number of fragments to be scanned in parallel. This only applies
    * to table scans and non-sorted scans of ordered indexes. This method is
    * only implemented for then root scan operation.
@@ -380,8 +370,8 @@ public:
   int setBatchSize(Uint32 batchSize);
 
   /**
-   * Set the NdbInterpretedCode needed for defining a conditional filter 
-   * (aka: predicate) for this operation. Might be used both on scan 
+   * Set the NdbInterpretedCode needed for defining a conditional filter
+   * (aka: predicate) for this operation. Might be used both on scan
    * and lookup operations.
    *
    * Typically, one would create NdbScanFilter and NdbInterpretedCode objects
@@ -393,27 +383,27 @@ public:
    *   filter.end();
    *   queryOp->setInterpretedCode(code);
    *
-   * @param code The interpreted code. This object is copied internally, 
+   * @param code The interpreted code. This object is copied internally,
    * meaning that 'code' may be destroyed as soon as this method returns.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int setInterpretedCode(const NdbInterpretedCode& code) const;
+  int setInterpretedCode(const NdbInterpretedCode &code) const;
 
-  /**  
+  /**
    * Local cursor:
    *
-   * Navigate to first result row in this batch of results which 
+   * Navigate to first result row in this batch of results which
    * depends on the current row(s) from all its ancestors.
-   * @return 
+   * @return
    * -  NextResult_error (-1):       if unsuccessful,<br>
-   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br>
    * -  NextResult_scanComplete (1): if there are no more tuples to scan.
    * -  NextResult_bufferEmpty (2):  if there are no more cached records
    *                                 in NdbApi
    */
   NdbQuery::NextResultOutcome firstResult();
 
-  /**  
+  /**
    * Local cursor:
    *
    * Get the next tuple(s) from this operation (and all its descendants?)
@@ -428,42 +418,38 @@ public:
    *    - This NdbOperation is the root of the entire pushed NdbQuery.
    *    - 'fetchAllowed==true'
    *
-   * The arguments fetchAllowed and forceSend are ignored if this operation is 
+   * The arguments fetchAllowed and forceSend are ignored if this operation is
    * not the root of the pushed query.
    *
-   * @return 
+   * @return
    * -  NextResult_error (-1):       if unsuccessful,<br>
-   * -  NextResult_gotRow (0):       if another tuple was received, and<br> 
+   * -  NextResult_gotRow (0):       if another tuple was received, and<br>
    * -  NextResult_scanComplete (1): if there are no more tuples to scan.
    * -  NextResult_bufferEmpty (2):  if there are no more cached records
    *                                 in NdbApi
    */
-  NdbQuery::NextResultOutcome nextResult(
-                               bool fetchAllowed = true, 
-                               bool forceSend = false);
+  NdbQuery::NextResultOutcome nextResult(bool fetchAllowed = true,
+                                         bool forceSend = false);
 
   // Result handling for this NdbQueryOperation
-  bool isRowNULL() const;    // Row associated with Operation is NULL value?
+  bool isRowNULL() const;  // Row associated with Operation is NULL value?
 
-private:
+ private:
   // Opaque implementation class instance.
-  NdbQueryOperationImpl& m_impl;
+  NdbQueryOperationImpl &m_impl;
 
-}; // class NdbQueryOperation
+};  // class NdbQueryOperation
 
- 
-class NdbQueryParamValue
-{
-public:
-
+class NdbQueryParamValue {
+ public:
   // Raw data formatted according to bound Column format.
   // NOTE: This is how mysqld prepare parameter values!
-  NdbQueryParamValue(const void* val, bool shrinkVarChar= false);
+  NdbQueryParamValue(const void *val, bool shrinkVarChar = false);
 
   // C-type string, terminated by '\0'
-  NdbQueryParamValue(const char* val);
+  NdbQueryParamValue(const char *val);
 
-  // NULL-value, also used as optional end marker 
+  // NULL-value, also used as optional end marker
   NdbQueryParamValue();
   NdbQueryParamValue(Uint16 val);
   NdbQueryParamValue(Uint32 val);
@@ -471,43 +457,40 @@ public:
   NdbQueryParamValue(double val);
 
   // More parameter C'tor to be added when required:
-//NdbQueryParamValue(Uint8 val);
-//NdbQueryParamValue(Int8 val);
-//NdbQueryParamValue(Int16 val);
-//NdbQueryParamValue(Int32 val);
-//NdbQueryParamValue(Int64 val);
+  // NdbQueryParamValue(Uint8 val);
+  // NdbQueryParamValue(Int8 val);
+  // NdbQueryParamValue(Int16 val);
+  // NdbQueryParamValue(Int32 val);
+  // NdbQueryParamValue(Int64 val);
 
   /**
    * Serialize value into a seuqence of words suitable to be sent to the data
    * nodes.
-   * @param column Specifies the format that the value should be serialized 
+   * @param column Specifies the format that the value should be serialized
    * into.
    * @param dst Seralized data are appended to this.
    * @param len Length of serialized data (in number of bytes).
    * @param isNull Will be set to true iff this is a NULL value.
-   * @return 0 if ok, otherwise an error code. 
+   * @return 0 if ok, otherwise an error code.
    */
-  int serializeValue(const class NdbColumnImpl& column,
-                     class Uint32Buffer& dst,
-                     Uint32& len,
-                     bool& isNull) const;
+  int serializeValue(const class NdbColumnImpl &column, class Uint32Buffer &dst,
+                     Uint32 &len, bool &isNull) const;
 
-private:
+ private:
   int m_type;
 
-  union
-  {
-    Uint8     uint8;
-    Int8      int8;
-    Uint16    uint16;
-    Int16     int16;
-    Uint32    uint32;
-    Int32     int32;
-    Uint64    uint64;
-    Int64     int64;
-    double    dbl;
-    const char* string;
-    const void* raw;
+  union {
+    Uint8 uint8;
+    Int8 int8;
+    Uint16 uint16;
+    Int16 int16;
+    Uint32 uint32;
+    Int32 int32;
+    Uint64 uint64;
+    Int64 int64;
+    double dbl;
+    const char *string;
+    const void *raw;
   } m_value;
 };
 

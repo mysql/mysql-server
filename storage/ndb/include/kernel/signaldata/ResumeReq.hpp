@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 118
 
-
 class ResumeReq {
-
   /**
    * Reciver(s)
    */
@@ -42,38 +40,36 @@ class ResumeReq {
    */
   friend class MgmtSrvr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
-public:
-  
+
+ public:
   Uint32 senderRef;
   Uint32 senderData;
 };
 
 class ResumeRef {
-
   /**
    * Reciver(s)
    */
   friend class MgmtSrvr;
-  
+
   /**
    * Sender
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
+
   enum ErrorCode {
     OK = 0,
     NodeShutdownInProgress = 1,
     SystemShutdownInProgress = 2,
     NodeShutdownWouldCauseSystemCrash = 3
   };
-  
-public:
+
+ public:
   Uint32 senderData;
   Uint32 errorCode;
 };

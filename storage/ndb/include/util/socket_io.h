@@ -31,12 +31,12 @@
 
 #include "portlib/NdbMutex.h"
 
-int read_socket(ndb_socket_t, int timeout_msec, char * buf, int len);
+int read_socket(ndb_socket_t, int timeout_msec, char *buf, int len);
 
-int readln_socket(ndb_socket_t, int timeout_msec, int * time,
-                  char * buf, int len, NdbMutex *mutex);
+int readln_socket(ndb_socket_t, int timeout_msec, int *time, char *buf, int len,
+                  NdbMutex *mutex);
 
-int write_socket(ndb_socket_t, int timeout_msec, int * time,
-                 const char[], int len);
+int write_socket(ndb_socket_t, int timeout_msec, int *time, const char[],
+                 int len);
 
 #endif

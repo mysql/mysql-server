@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2012, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -28,52 +28,51 @@
 
 /* Template Specializations that are specific to NDBAPI */
 
-
 /*****************************************************************
- JsValueConverter 
+ JsValueConverter
  Value conversion from JavaScript to C
 ******************************************************************/
 
 template <>
-class JsValueConverter <NdbTransaction::ExecType> {
-public:
+class JsValueConverter<NdbTransaction::ExecType> {
+ public:
   jsvalue jsval;
-  
+
   JsValueConverter(jsvalue v) : jsval(v) {}
-  NdbTransaction::ExecType toC() { 
+  NdbTransaction::ExecType toC() {
     return static_cast<NdbTransaction::ExecType>(GetInt32Value(jsval));
   }
 };
 
 template <>
-class JsValueConverter <NdbTransaction::CommitStatusType> {
-public:
+class JsValueConverter<NdbTransaction::CommitStatusType> {
+ public:
   jsvalue jsval;
-  
+
   JsValueConverter(jsvalue v) : jsval(v) {}
-  NdbTransaction::CommitStatusType toC() { 
+  NdbTransaction::CommitStatusType toC() {
     return static_cast<NdbTransaction::CommitStatusType>(GetInt32Value(jsval));
   }
 };
 
 template <>
-class JsValueConverter <NdbOperation::AbortOption> {
-public:
+class JsValueConverter<NdbOperation::AbortOption> {
+ public:
   jsvalue jsval;
-  
+
   JsValueConverter(jsvalue v) : jsval(v) {}
-  NdbOperation::AbortOption toC() { 
+  NdbOperation::AbortOption toC() {
     return static_cast<NdbOperation::AbortOption>(GetInt32Value(jsval));
   }
 };
 
 template <>
-class JsValueConverter <NdbScanFilter::Group> {
-public:
+class JsValueConverter<NdbScanFilter::Group> {
+ public:
   jsvalue jsval;
-  
+
   JsValueConverter(jsvalue v) : jsval(v) {}
-  NdbScanFilter::Group toC() { 
+  NdbScanFilter::Group toC() {
     return static_cast<NdbScanFilter::Group>(GetInt32Value(jsval));
   }
 };
@@ -85,9 +84,7 @@ public:
 
 // int
 template <>
-inline Local<Value> toJS<NdbTransaction::CommitStatusType>
-                        (Isolate * isolate,
-                         NdbTransaction::CommitStatusType cval) {
+inline Local<Value> toJS<NdbTransaction::CommitStatusType>(
+    Isolate *isolate, NdbTransaction::CommitStatusType cval) {
   return v8::Number::New(isolate, static_cast<int>(cval));
 }
-

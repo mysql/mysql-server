@@ -24,4 +24,3 @@
 #include "LongSignal.cpp"
 
 #define JAM_FILE_ID 300
-

@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,13 +24,12 @@
 
 #include <NdbApi.hpp>
 
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
-#include "Record.h"
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
+#include "Record.h"
 #include "ScanOperation.h"
-
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 V8WrapperFn newScanOperation;
 V8WrapperFn prepareAndExecute;
@@ -42,7 +41,7 @@ V8WrapperFn getNdbError;
 V8WrapperFn ScanOp_readBlobResults;
 
 class ScanOperationEnvelopeClass : public Envelope {
-public: 
+ public:
   ScanOperationEnvelopeClass() : Envelope("ScanOperation") {
     addMethod("getNdbError", getNdbError<ScanOperation>);
     addMethod("prepareAndExecute", prepareAndExecute);
@@ -55,70 +54,66 @@ public:
 
 ScanOperationEnvelopeClass ScanOperationEnvelope;
 
-Envelope * getScanOperationEnvelope() {
-  return & ScanOperationEnvelope;
-}
-
+Envelope *getScanOperationEnvelope() { return &ScanOperationEnvelope; }
 
 // Constructor wrapper
 void newScanOperation(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
-  ScanOperation * s = new ScanOperation(args);
+  ScanOperation *s = new ScanOperation(args);
   Local<Value> wrapper = ScanOperationEnvelope.wrap(s);
   // freeFromGC: Disabled as it leads to segfaults during garbage collection
   // ScanOperationEnvelope.freeFromGC(helper, wrapper);
   args.GetReturnValue().Set(scope.Escape(wrapper));
 }
 
-// void prepareAndExecute() 
+// void prepareAndExecute()
 // ASYNC
 void prepareAndExecute(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   DEBUG_MARKER(UDEB_DEBUG);
   REQUIRE_ARGS_LENGTH(1);
   typedef NativeMethodCall_0_<int, ScanOperation> MCALL;
-  MCALL * mcallptr = new MCALL(& ScanOperation::prepareAndExecute, args);
+  MCALL *mcallptr = new MCALL(&ScanOperation::prepareAndExecute, args);
   mcallptr->errorHandler = getNdbErrorIfLessThanZero;
   mcallptr->runAsync();
-  
+
   args.GetReturnValue().SetUndefined();
 }
 
 // void close()
 // ASYNC
-void ScanOperation_close(const Arguments & args) {
+void ScanOperation_close(const Arguments &args) {
   typedef NativeVoidMethodCall_0_<ScanOperation> NCALL;
-  NCALL * ncallptr = new NCALL(& ScanOperation::close, args);
+  NCALL *ncallptr = new NCALL(&ScanOperation::close, args);
   ncallptr->runAsync();
   args.GetReturnValue().SetUndefined();
 }
 
-// int nextResult(buffer) 
+// int nextResult(buffer)
 // IMMEDIATE
-void scanNextResult(const Arguments & args) {
+void scanNextResult(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
   typedef NativeMethodCall_1_<int, ScanOperation, char *> MCALL;
-  MCALL mcall(& ScanOperation::nextResult, args);
+  MCALL mcall(&ScanOperation::nextResult, args);
   mcall.run();
   args.GetReturnValue().Set(scope.Escape(mcall.jsReturnVal()));
 }
 
-
-// int fetchResults(buffer, forceSend, callback) 
-// ASYNC; CALLBACK GETS (Null-Or-Error, Int) 
-void scanFetchResults(const Arguments & args) {
+// int fetchResults(buffer, forceSend, callback)
+// ASYNC; CALLBACK GETS (Null-Or-Error, Int)
+void scanFetchResults(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   REQUIRE_ARGS_LENGTH(3);
   typedef NativeMethodCall_2_<int, ScanOperation, char *, bool> MCALL;
-  MCALL * ncallptr = new MCALL(& ScanOperation::fetchResults, args);
+  MCALL *ncallptr = new MCALL(&ScanOperation::fetchResults, args);
   ncallptr->errorHandler = getNdbErrorIfLessThanZero;
   ncallptr->runAsync();
   args.GetReturnValue().SetUndefined();
 }
 
-void ScanOp_readBlobResults(const Arguments & args) {
-  ScanOperation * op = unwrapPointer<ScanOperation *>(args.Holder());
+void ScanOp_readBlobResults(const Arguments &args) {
+  ScanOperation *op = unwrapPointer<ScanOperation *>(args.Holder());
   op->readBlobResults(args);
 }
 
@@ -131,7 +126,7 @@ void ScanHelper_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(scanObj, "create", newScanOperation);
 
   Local<Object> ScanHelper = Object::New(Isolate::GetCurrent());
-  Local<Object> ScanFlags =  Object::New(Isolate::GetCurrent());
+  Local<Object> ScanFlags = Object::New(Isolate::GetCurrent());
 
   SetProp(scanObj, "helper", ScanHelper);
   SetProp(scanObj, "flags", ScanFlags);
@@ -144,7 +139,7 @@ void ScanHelper_initOnLoad(Local<Object> target) {
   WRAP_CONSTANT(ScanFlags, SF_ReadRangeNo);
   WRAP_CONSTANT(ScanFlags, SF_MultiRange);
   WRAP_CONSTANT(ScanFlags, SF_KeyInfo);
-  
+
   DEFINE_JS_INT(ScanHelper, "table_record", SCAN_TABLE_RECORD);
   DEFINE_JS_INT(ScanHelper, "index_record", SCAN_INDEX_RECORD);
   DEFINE_JS_INT(ScanHelper, "lock_mode", SCAN_LOCK_MODE);
@@ -154,4 +149,3 @@ void ScanHelper_initOnLoad(Local<Object> target) {
   DEFINE_JS_INT(ScanHelper, "parallel", SCAN_OPTION_PARALLELISM);
   DEFINE_JS_INT(ScanHelper, "filter_code", SCAN_FILTER_CODE);
 }
-

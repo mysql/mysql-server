@@ -38,9 +38,9 @@
 //#include "ndbd_exit_codes.h"
 
 // libraries
-#include "ndbjtie_defs.hpp"
 #include "helpers.hpp"
 #include "jtie.hpp"
+#include "ndbjtie_defs.hpp"
 
 // ---------------------------------------------------------------------------
 // MGMAPI JTie Type Definitions
@@ -70,6 +70,6 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-} // extern "C"
+}  // extern "C"
 
-#endif // mgmapi_jtie_hpp
+#endif  // mgmapi_jtie_hpp

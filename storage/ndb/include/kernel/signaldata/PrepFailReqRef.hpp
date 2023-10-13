@@ -25,11 +25,10 @@
 #ifndef PREP_FAILREQREF_HPP
 #define PREP_FAILREQREF_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 160
-
 
 /**
  * The Req signal is sent by Qmgr to Qmgr
@@ -38,26 +37,25 @@
  * NOTE that the signals are identical
  */
 class PrepFailReqRef {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Qmgr;
 
-  friend bool printPREPFAILREQREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-  
-public:
+  friend bool printPREPFAILREQREF(FILE *output, const Uint32 *theData,
+                                  Uint32 len, Uint16 receiverBlockNo);
+
+ public:
   static constexpr Uint32 SignalLength = 3;
   static constexpr Uint32 SignalLength_v1 = 3 + NdbNodeBitmask48::Size;
-private:
-  
+
+ private:
   Uint32 xxxBlockRef;
   Uint32 failNo;
-  
+
   Uint32 noOfNodes;
   Uint32 theNodes[NdbNodeBitmask48::Size];
 };
-
 
 #undef JAM_FILE_ID
 

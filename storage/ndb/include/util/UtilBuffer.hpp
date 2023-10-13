@@ -33,18 +33,17 @@
  * for you.
  */
 class UtilBuffer {
-public:
-  UtilBuffer() : data(nullptr), len(0), alloc_size(0) { }
+ public:
+  UtilBuffer() : data(nullptr), len(0), alloc_size(0) {}
   ~UtilBuffer() { free(data); }
   UtilBuffer(const UtilBuffer &) = delete;
-  UtilBuffer& operator=(const UtilBuffer &) = delete;
+  UtilBuffer &operator=(const UtilBuffer &) = delete;
 
   /* Grow buffer to specified length.
      On success, returns 0. On failure, returns -1 and sets errno.
   */
   int grow(size_t l) {
-    if(l > alloc_size)
-      return reallocate(l);
+    if (l > alloc_size) return reallocate(l);
     return 0;
   }
 
@@ -52,17 +51,14 @@ public:
      On success, returns 0. On failure, returns -1 and sets errno.
   */
   int append(const void *d, size_t l) {
-    if (likely(l > 0))
-    {
-      if (unlikely(d == nullptr))
-      {
+    if (likely(l > 0)) {
+      if (unlikely(d == nullptr)) {
         errno = EINVAL;
         return -1;
       }
 
-      void * pos = append(l);
-      if(pos == nullptr)
-      {
+      void *pos = append(l);
+      if (pos == nullptr) {
         return -1;
       }
 
@@ -75,68 +71,66 @@ public:
      Returns pointer where data of length l can be written.
      On failure, returns nullptr and sets errno.
   */
-  void * append(size_t l){
-    if(grow(len+l) != 0)
-      return nullptr;
+  void *append(size_t l) {
+    if (grow(len + l) != 0) return nullptr;
 
-    void * ret = (char*)data+len;
+    void *ret = (char *)data + len;
     len += l;
     return ret;
   }
-  
+
   /* Free the current buffer memory, and assign new content.
      On success, returns 0. On failure, returns -1 and sets errno.
   */
-  int assign(const void * d, size_t l) {
+  int assign(const void *d, size_t l) {
     /* Free the old data only after copying, in case d==data. */
-    void *old_data= data;
+    void *old_data = data;
     data = nullptr;
     len = 0;
     alloc_size = 0;
-    int ret= append(d, l);
-    if (old_data)
-      free(old_data);
+    int ret = append(d, l);
+    if (old_data) free(old_data);
     return ret;
   }
 
   /* Truncate contents to 0 length without freeing buffer memory. */
-  void clear() {
-    len = 0;
-  }
+  void clear() { len = 0; }
 
-  int length() const { assert(Uint64(len) == Uint32(len)); return (int)len; }
+  int length() const {
+    assert(Uint64(len) == Uint32(len));
+    return (int)len;
+  }
 
   void *get_data() { return data; }
   const void *get_data() const { return data; }
 
-  bool empty () const { return len == 0; }
+  bool empty() const { return len == 0; }
 
   bool equal(const UtilBuffer &cmp) const {
-    if(len==0 && cmp.len==0)
+    if (len == 0 && cmp.len == 0)
       return true;
-    else if(len!=cmp.len)
+    else if (len != cmp.len)
       return false;
     else
       return (memcmp(get_data(), cmp.get_data(), len) == 0);
   }
 
-  int assign(const UtilBuffer& buf) {
+  int assign(const UtilBuffer &buf) {
     int ret = 0;
-    if(this != &buf) {
+    if (this != &buf) {
       ret = assign(buf.get_data(), buf.length());
     }
     return ret;
   }
 
-private:
-
+ private:
   int reallocate(size_t newsize) {
-    if(newsize < len) {
+    if (newsize < len) {
       errno = EINVAL;
       return -1;
     }
     void *newdata;
-    if((newdata = realloc(data, newsize)) == nullptr) {
+    if ((newdata = realloc(data, newsize)) == nullptr) {
       errno = ENOMEM;
       return -1;
     }
@@ -145,10 +139,10 @@ private:
     return 0;
   }
 
-  void *data;          /* Pointer to data storage */
-  size_t len;          /* Size of the stored data */
-  size_t alloc_size;   /* Size of the allocated space,
-			*  i.e. len can grow to this size */
+  void *data;        /* Pointer to data storage */
+  size_t len;        /* Size of the stored data */
+  size_t alloc_size; /* Size of the allocated space,
+                      *  i.e. len can grow to this size */
 };
 
 #endif /* !__BUFFER_HPP_INCLUDED__ */

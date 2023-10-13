@@ -22,38 +22,25 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
+#include "TransientPagePool.hpp"
+#include "Pool.hpp"
+#include "debugger/EventLogger.hpp"
 #include "ndb_limits.h"
 #include "ndbd_malloc_impl.hpp"
-#include "Pool.hpp"
-#include "TransientPagePool.hpp"
-#include "debugger/EventLogger.hpp"
+#include "util/require.h"
 
 #define JAM_FILE_ID 503
 
-
 TransientPagePool::TransientPagePool()
-: m_mem_manager(NULL),
-  m_root_page(NULL),
-  m_top(RNIL),
-  m_type_id(0)
-{
-}
+    : m_mem_manager(NULL), m_root_page(NULL), m_top(RNIL), m_type_id(0) {}
 
 TransientPagePool::TransientPagePool(Uint32 type_id,
-                                     Ndbd_mem_manager* mem_manager)
-: m_mem_manager(NULL),
-  m_root_page(NULL),
-  m_top(RNIL),
-  m_type_id(0)
-{
+                                     Ndbd_mem_manager *mem_manager)
+    : m_mem_manager(NULL), m_root_page(NULL), m_top(RNIL), m_type_id(0) {
   init(type_id, mem_manager);
 }
 
-
-void TransientPagePool::init(Uint32 type_id,
-                             Ndbd_mem_manager* mem_manager)
-{
+void TransientPagePool::init(Uint32 type_id, Ndbd_mem_manager *mem_manager) {
   assert(m_mem_manager == NULL);
   assert(m_root_page == NULL);
   assert(m_top == RNIL);
@@ -67,48 +54,38 @@ void TransientPagePool::init(Uint32 type_id,
    */
   Uint32 page_count = 2;
   Uint32 page_number;
-  m_mem_manager->alloc_pages(m_type_id,
-                             &page_number,
-                             &page_count,
-                             1,
+  m_mem_manager->alloc_pages(m_type_id, &page_number, &page_count, 1,
                              Ndbd_mem_manager::NDB_ZONE_LE_32);
 
-  if (unlikely(page_count == 0))
-  {
+  if (unlikely(page_count == 0)) {
     return;
   }
 
-  void* p = m_mem_manager->get_page(page_number);
+  void *p = m_mem_manager->get_page(page_number);
   m_root_page = new (p) MapPage(m_type_id);
 
-  if (unlikely(page_count == 1))
-  {
+  if (unlikely(page_count == 1)) {
     return;
   }
 
-  (void) new (m_root_page + 1) MapPage(m_type_id);
+  (void)new (m_root_page + 1) MapPage(m_type_id);
   m_root_page->set(0, page_number + 1);
 }
 
-bool TransientPagePool::seize(Ptr<Page>& p)
-{
+bool TransientPagePool::seize(Ptr<Page> &p) {
   Uint32 index = get_next_index(m_top);
-  if (unlikely(index == RNIL))
-  {
+  if (unlikely(index == RNIL)) {
     return false;
   }
   Uint32 page_number;
-  void* vpage = m_mem_manager->alloc_page(m_type_id,
-                                          &page_number,
+  void *vpage = m_mem_manager->alloc_page(m_type_id, &page_number,
                                           Ndbd_mem_manager::NDB_ZONE_LE_32);
-  if (unlikely(vpage == NULL))
-  {
+  if (unlikely(vpage == NULL)) {
     return false;
   }
   require(page_number != MapPage::NO_VALUE);
   assert(page_number < RNIL);
-  if (unlikely(!set(index, page_number)))
-  {
+  if (unlikely(!set(index, page_number))) {
     m_mem_manager->release_page(m_type_id, page_number);
     return false;
   }
@@ -120,8 +97,7 @@ bool TransientPagePool::seize(Ptr<Page>& p)
   return true;
 }
 
-bool TransientPagePool::release(Uint32 i)
-{
+bool TransientPagePool::release(Uint32 i) {
   assert(i == m_top);
   Uint32 page_number = get(i);
   require(page_number != MapPage::NO_VALUE);
@@ -132,79 +108,60 @@ bool TransientPagePool::release(Uint32 i)
   return true;
 }
 
-bool TransientPagePool::getPtr(Ptr<Page>& p) const
-{
-  if (unlikely(!getUncheckedPtr(p)))
-  {
+bool TransientPagePool::getPtr(Ptr<Page> &p) const {
+  if (unlikely(!getUncheckedPtr(p))) {
     return false;
   }
-  if (unlikely(!(p.p != NULL && Magic::match(p.p->m_magic, m_type_id))))
-  {
-    g_eventLogger->info("Magic::match failed in %s: "
-                        "type_id %08x rg %u tid %u: "
-                        "slot_size -: ptr.i %u: ptr.p %p: "
-                        "magic %08x expected %08x",
-                        __func__,
-                        m_type_id,
-                        GET_RG(m_type_id),
-                        GET_TID(m_type_id),
-                        p.i,
-                        p.p,
-                        p.p->m_magic,
-                        Magic::make(m_type_id));
+  if (unlikely(!(p.p != NULL && Magic::match(p.p->m_magic, m_type_id)))) {
+    g_eventLogger->info(
+        "Magic::match failed in %s: "
+        "type_id %08x rg %u tid %u: "
+        "slot_size -: ptr.i %u: ptr.p %p: "
+        "magic %08x expected %08x",
+        __func__, m_type_id, GET_RG(m_type_id), GET_TID(m_type_id), p.i, p.p,
+        p.p->m_magic, Magic::make(m_type_id));
     require(p.p != NULL && Magic::match(p.p->m_magic, m_type_id));
   }
   return true;
 }
 
-Uint64 TransientPagePool::getMemoryNeed(Uint32 pages)
-{
-  const Uint64 map_pages = 1 + (pages + MapPage::PAGE_WORDS - 1) /
-                                   MapPage::PAGE_WORDS;
+Uint64 TransientPagePool::getMemoryNeed(Uint32 pages) {
+  const Uint64 map_pages =
+      1 + (pages + MapPage::PAGE_WORDS - 1) / MapPage::PAGE_WORDS;
   return map_pages * sizeof(MapPage);
 }
 
-bool TransientPagePool::getUncheckedPtr(Ptr<Page>& p) const
-{
-  if (unlikely(p.i == RNIL))
-  {
+bool TransientPagePool::getUncheckedPtr(Ptr<Page> &p) const {
+  if (unlikely(p.i == RNIL)) {
     p.p = NULL;
     return false;
   }
   Uint32 page_number = get_valid(p.i);
-  if (unlikely(page_number == MapPage::NO_VALUE))
-  {
+  if (unlikely(page_number == MapPage::NO_VALUE)) {
     return false;
   }
   assert(page_number < RNIL);
-  void* page = m_mem_manager->get_page(page_number);
-  p.p = static_cast<Page*>(page);
+  void *page = m_mem_manager->get_page(page_number);
+  p.p = static_cast<Page *>(page);
   return true;
 }
 
-bool TransientPagePool::getValidPtr(Ptr<Page>& p) const
-{
-  if (unlikely(!getUncheckedPtr(p)))
-  {
+bool TransientPagePool::getValidPtr(Ptr<Page> &p) const {
+  if (unlikely(!getUncheckedPtr(p))) {
     return false;
   }
-  if (unlikely(p.p == NULL))
-  {
+  if (unlikely(p.p == NULL)) {
     return false;
   }
   return Magic::match(p.p->m_magic, m_type_id);
 }
 
-inline
-bool TransientPagePool::is_valid_index(Uint32 index)
-{
+inline bool TransientPagePool::is_valid_index(Uint32 index) {
   return (index <= MapPage::MAX_PAGE_ID_2L) &&
          ((index & MapPage::VALUE_INDEX_MASK) <= MapPage::MAX_PAGE_ID_1L);
 }
 
-inline
-Uint32 TransientPagePool::get_next_index(Uint32 index)
-{
+inline Uint32 TransientPagePool::get_next_index(Uint32 index) {
   if (unlikely(index == RNIL)) return 0;
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   require(is_valid_index(index));
@@ -215,9 +172,7 @@ Uint32 TransientPagePool::get_next_index(Uint32 index)
   return index + 1 + MapPage::PAGE_ID_GAP;
 }
 
-inline
-Uint32 TransientPagePool::get_prev_index(Uint32 index)
-{
+inline Uint32 TransientPagePool::get_prev_index(Uint32 index) {
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   require(is_valid_index(index));
 #endif
@@ -227,7 +182,8 @@ Uint32 TransientPagePool::get_prev_index(Uint32 index)
 }
 
 /*
-Uint32 TransientPagePool::get_next_indexes(Uint32 index, Uint32 indexes[], Uint32 n) const
+Uint32 TransientPagePool::get_next_indexes(Uint32 index, Uint32 indexes[],
+Uint32 n) const
 {
   Uint32 i;
   for (i = 0; i < n; i++)
@@ -243,80 +199,73 @@ Uint32 TransientPagePool::get_next_indexes(Uint32 index, Uint32 indexes[], Uint3
   return i;
 }
 */
-inline
-bool TransientPagePool::set(Uint32 index, Uint32 value)
-{
+inline bool TransientPagePool::set(Uint32 index, Uint32 value) {
   require(value != MapPage::NO_VALUE);
   assert(value < RNIL);
   assert(index <= get_next_index(m_top));
   require(m_root_page != NULL);
 
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
+  Uint32 high =
+      (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
   require(high < MapPage::PAGE_WORDS);
 
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
   require(low < MapPage::PAGE_WORDS);
 
   Uint32 leaf_page_id = m_root_page->get(high);
-  MapPage* leaf_page;
-  if (unlikely(leaf_page_id == MapPage::NO_VALUE))
-  {
-    void* p = m_mem_manager->alloc_page(m_type_id, &leaf_page_id, Ndbd_mem_manager::NDB_ZONE_LE_32);
-    if (unlikely(p == NULL))
-    {
+  MapPage *leaf_page;
+  if (unlikely(leaf_page_id == MapPage::NO_VALUE)) {
+    void *p = m_mem_manager->alloc_page(m_type_id, &leaf_page_id,
+                                        Ndbd_mem_manager::NDB_ZONE_LE_32);
+    if (unlikely(p == NULL)) {
       return false;
     }
     require(leaf_page_id != MapPage::NO_VALUE);
     assert(leaf_page_id < RNIL);
     leaf_page = new (p) MapPage(m_type_id);
     m_root_page->set(high, leaf_page_id);
-  }
-  else
-  {
+  } else {
     assert(leaf_page_id < RNIL);
-    void* page = m_mem_manager->get_page(leaf_page_id);
-    leaf_page = static_cast<MapPage*>(page);
+    void *page = m_mem_manager->get_page(leaf_page_id);
+    leaf_page = static_cast<MapPage *>(page);
   }
   leaf_page->set(low, value);
-  if (m_top == RNIL || index > m_top)
-  {
+  if (m_top == RNIL || index > m_top) {
     require(index == get_next_index(m_top));
     m_top = index;
   }
   return true;
 }
 
-inline
-bool TransientPagePool::clear(Uint32 index)
-{
-  require(index == m_top); // Can only clear from top
+inline bool TransientPagePool::clear(Uint32 index) {
+  require(index == m_top);  // Can only clear from top
   require(m_top != RNIL && index <= m_top);
   require(m_root_page != NULL);
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
+  Uint32 high =
+      (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
   require(high < MapPage::PAGE_WORDS);
   Uint32 leaf_page_id = m_root_page->get(high);
   require(leaf_page_id != MapPage::NO_VALUE);
   assert(leaf_page_id < RNIL);
-  void* vpage = m_mem_manager->get_page(leaf_page_id);
-  MapPage* leaf_page = static_cast<MapPage*>(vpage);
+  void *vpage = m_mem_manager->get_page(leaf_page_id);
+  MapPage *leaf_page = static_cast<MapPage *>(vpage);
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
   require(low < MapPage::PAGE_WORDS);
   leaf_page->set(low, MapPage::NO_VALUE);
   return true;
 }
 
-inline
-Uint32 TransientPagePool::get(Uint32 index) const
-{
+inline Uint32 TransientPagePool::get(Uint32 index) const {
   require(m_top != RNIL && index <= m_top);
   require(m_root_page != NULL);
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
+  Uint32 high =
+      (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
   require(high < MapPage::PAGE_WORDS);
   Uint32 leaf_page_id = m_root_page->get(high);
   require(leaf_page_id != MapPage::NO_VALUE);
   assert(leaf_page_id < RNIL);
-  void* vpage = m_mem_manager->get_page(leaf_page_id);
-  MapPage* leaf_page = static_cast<MapPage*>(vpage);
+  void *vpage = m_mem_manager->get_page(leaf_page_id);
+  MapPage *leaf_page = static_cast<MapPage *>(vpage);
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
   require(low < MapPage::PAGE_WORDS);
   const Uint32 value = leaf_page->get(low);
@@ -324,38 +273,32 @@ Uint32 TransientPagePool::get(Uint32 index) const
   return value;
 }
 
-inline
-Uint32 TransientPagePool::get_valid(Uint32 index) const
-{
-  if (unlikely(m_top == RNIL || index > m_top))
-  {
+inline Uint32 TransientPagePool::get_valid(Uint32 index) const {
+  if (unlikely(m_top == RNIL || index > m_top)) {
     return MapPage::NO_VALUE;
   }
-  if (unlikely(m_root_page == NULL))
-  {
+  if (unlikely(m_root_page == NULL)) {
     return MapPage::NO_VALUE;
   }
 
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
-  if (unlikely(high >= MapPage::PAGE_WORDS))
-  {
+  Uint32 high =
+      (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
+  if (unlikely(high >= MapPage::PAGE_WORDS)) {
     return MapPage::NO_VALUE;
   }
 
   Uint32 leaf_page_id = m_root_page->get(high);
-  if (unlikely(leaf_page_id == MapPage::NO_VALUE))
-  {
+  if (unlikely(leaf_page_id == MapPage::NO_VALUE)) {
     return MapPage::NO_VALUE;
   }
 
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
-  if (unlikely(low >= MapPage::PAGE_WORDS))
-  {
+  if (unlikely(low >= MapPage::PAGE_WORDS)) {
     return MapPage::NO_VALUE;
   }
 
-  void* vpage = m_mem_manager->get_page(leaf_page_id);
-  MapPage* leaf_page = static_cast<MapPage*>(vpage);
+  void *vpage = m_mem_manager->get_page(leaf_page_id);
+  MapPage *leaf_page = static_cast<MapPage *>(vpage);
   return leaf_page->get(low);
 }
 
@@ -363,23 +306,21 @@ Uint32 TransientPagePool::get_valid(Uint32 index) const
  * Return true if a map page was removed and the there are a new top that may
  * be removed.
  */
-inline
-bool TransientPagePool::shrink()
-{
-  if (unlikely(m_root_page == NULL || m_top == RNIL))
-  {
+inline bool TransientPagePool::shrink() {
+  if (unlikely(m_root_page == NULL || m_top == RNIL)) {
     return false;
   }
 
   Uint32 index = m_top;
   Uint32 new_top = get_prev_index(index);
 
-  Uint32 high = (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
+  Uint32 high =
+      (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
   require(high < MapPage::PAGE_WORDS);
   Uint32 leaf_page_id = m_root_page->get(high);
   require(leaf_page_id != MapPage::NO_VALUE);
-  void* vpage = m_mem_manager->get_page(leaf_page_id);
-  MapPage* leaf_page = static_cast<MapPage*>(vpage);
+  void *vpage = m_mem_manager->get_page(leaf_page_id);
+  MapPage *leaf_page = static_cast<MapPage *>(vpage);
 
   Uint32 low = index & MapPage::VALUE_INDEX_MASK;
   require(low < MapPage::PAGE_WORDS);
@@ -396,8 +337,7 @@ bool TransientPagePool::shrink()
   return true;
 }
 
-inline TransientPagePool::MapPage::MapPage(Uint32 magic)
-{
+inline TransientPagePool::MapPage::MapPage(Uint32 magic) {
   static_assert(NO_VALUE == 0);
   /* zero fill both m_reserved and m_values */
   memset(this, 0, sizeof(*this));
@@ -405,14 +345,12 @@ inline TransientPagePool::MapPage::MapPage(Uint32 magic)
   m_magic = magic;
 }
 
-inline Uint32 TransientPagePool::MapPage::get(Uint32 i) const
-{
+inline Uint32 TransientPagePool::MapPage::get(Uint32 i) const {
   require(i < PAGE_WORDS);
   return m_values[i];
 }
 
-inline void TransientPagePool::MapPage::set(Uint32 i, Uint32 v)
-{
+inline void TransientPagePool::MapPage::set(Uint32 i, Uint32 v) {
   require(i < PAGE_WORDS);
   m_values[i] = v;
 }
@@ -430,21 +368,20 @@ inline void TransientPagePool::MapPage::set(Uint32 i, Uint32 v)
  * class Test is friend of TransientPagePool.
  */
 
-class Test
-{
-public:
+class Test {
+ public:
   Test();
 };
 
-Test::Test()
-{
+Test::Test() {
   // RNIL indicates no pages mapped, first index is 0
   ok1(TransientPagePool::get_next_index(RNIL) == 0);
   ok1(TransientPagePool::get_next_index(0) == 1);
   // 8183 is last valid id on a map page, 8192 is the first id on next page
   ok1(TransientPagePool::get_next_index(8183) == 8192);
   ok1(TransientPagePool::get_next_index(8183 + 8192) == 16384);
-  ok1(TransientPagePool::get_next_index(8182 + 8183 * 8192) == (8183 + 8183 * 8192));
+  ok1(TransientPagePool::get_next_index(8182 + 8183 * 8192) ==
+      (8183 + 8183 * 8192));
   // Last valid id is 8183 + 8183 * 8192, nothing after that.
   ok1(TransientPagePool::get_next_index(8183 + 8183 * 8192) == RNIL);
 
@@ -453,11 +390,11 @@ Test::Test()
   ok1(TransientPagePool::get_prev_index(1) == 0);
   ok1(TransientPagePool::get_prev_index(8192) == 8183);
   ok1(TransientPagePool::get_prev_index(16384) == (8183 + 8192));
-  ok1(TransientPagePool::get_prev_index(8183 + 8183 * 8192) == (8182 + 8183 * 8192));
+  ok1(TransientPagePool::get_prev_index(8183 + 8183 * 8192) ==
+      (8182 + 8183 * 8192));
 }
 
-int main(int argc, char*argv[])
-{
+int main(int argc, char *argv[]) {
   plan(11);
 
   Test dummy;

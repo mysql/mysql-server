@@ -22,47 +22,45 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "kernel/statedesc.hpp"
 #include "kernel/DblqhState.hpp"
+#include "kernel/statedesc.hpp"
 
 #define JAM_FILE_ID 446
 
+#define SDESC(a, b, c) \
+  { (unsigned)dblqh_tcconnect_state::a, #a, b, c }
 
-#define SDESC(a,b,c) { (unsigned)dblqh_tcconnect_state::a, #a, b, c }
+struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] = {
+    SDESC(IDLE, "Idle", ""),
+    SDESC(WAIT_ACC, "WaitLock", ""),
+    SDESC(WAIT_TUP, "WaitTup", ""),
+    SDESC(LOG_QUEUED, "LogPrepare", ""),
+    SDESC(PREPARED, "Prepared", ""),
+    SDESC(LOG_COMMIT_WRITTEN_WAIT_SIGNAL, "", ""),
+    SDESC(LOG_COMMIT_QUEUED_WAIT_SIGNAL, "", ""),
 
-struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
-{
-  SDESC(IDLE, "Idle", ""),
-  SDESC(WAIT_ACC, "WaitLock", ""),
-  SDESC(WAIT_TUP, "WaitTup", ""),
-  SDESC(LOG_QUEUED, "LogPrepare", ""),
-  SDESC(PREPARED, "Prepared", ""),
-  SDESC(LOG_COMMIT_WRITTEN_WAIT_SIGNAL, "", ""),
-  SDESC(LOG_COMMIT_QUEUED_WAIT_SIGNAL, "", ""),
+    // Commit in progress states
+    /* -------------------------------------------------------------------- */
+    SDESC(LOG_COMMIT_QUEUED, "Committing", ""),
+    SDESC(COMMITTED, "Committed", ""),
+    SDESC(WAIT_TUP_COMMIT, "Committing", ""),
 
-  // Commit in progress states
-  /* -------------------------------------------------------------------- */
-  SDESC(LOG_COMMIT_QUEUED, "Committing", ""),
-  SDESC(COMMITTED, "Committed", ""),
-  SDESC(WAIT_TUP_COMMIT, "Committing", ""),
+    /* -------------------------------------------------------------------- */
+    // Abort in progress states
+    /* -------------------------------------------------------------------- */
+    SDESC(WAIT_ACC_ABORT, "Aborting", ""),
+    SDESC(LOG_ABORT_QUEUED, "Aborting", ""),
+    SDESC(WAIT_TUP_TO_ABORT, "Aborting", ""),
 
-  /* -------------------------------------------------------------------- */
-  // Abort in progress states
-  /* -------------------------------------------------------------------- */
-  SDESC(WAIT_ACC_ABORT, "Aborting", ""),
-  SDESC(LOG_ABORT_QUEUED, "Aborting", ""),
-  SDESC(WAIT_TUP_TO_ABORT, "Aborting", ""),
+    /* -------------------------------------------------------------------- */
+    // Scan in progress states
+    /* -------------------------------------------------------------------- */
+    SDESC(SCAN_STATE_USED, "Scanning", ""),
+    SDESC(SCAN_TUPKEY, "Scanning", ""),
+    SDESC(COPY_TUPKEY, "NodeRecoveryScanning", ""),
 
-  /* -------------------------------------------------------------------- */
-  // Scan in progress states
-  /* -------------------------------------------------------------------- */
-  SDESC(SCAN_STATE_USED, "Scanning", ""),
-  SDESC(SCAN_TUPKEY, "Scanning", ""),
-  SDESC(COPY_TUPKEY, "NodeRecoveryScanning", ""),
+    SDESC(TC_NOT_CONNECTED, "Idle", ""),
+    SDESC(PREPARED_RECEIVED_COMMIT, "Committing", ""),
+    SDESC(LOG_COMMIT_WRITTEN, "Committing", ""),
 
-  SDESC(TC_NOT_CONNECTED, "Idle", ""),
-  SDESC(PREPARED_RECEIVED_COMMIT, "Committing", ""),
-  SDESC(LOG_COMMIT_WRITTEN, "Committing", ""),
-
-  { 0, nullptr, nullptr, nullptr }
-};
+    {0, nullptr, nullptr, nullptr}};

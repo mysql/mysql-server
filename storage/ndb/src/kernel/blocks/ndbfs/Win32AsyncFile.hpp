@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -36,19 +36,18 @@
 class Ndbfs;
 class Request;
 
-class Win32AsyncFile : public AsyncFile
-{
+class Win32AsyncFile : public AsyncFile {
   friend class Ndbfs;
-public:
-  Win32AsyncFile(Ndbfs& fs);
+
+ public:
+  Win32AsyncFile(Ndbfs &fs);
 
   virtual void removeReq(Request *request);
-  virtual void rmrfReq(Request *request, const char * path, bool removePath);
+  virtual void rmrfReq(Request *request, const char *path, bool removePath);
 
-private:
+ private:
   void createDirectories();
 };
-
 
 #undef JAM_FILE_ID
 

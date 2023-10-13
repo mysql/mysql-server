@@ -22,11 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <ndb_global.h>
+#include "util/require.h"
 
-#include "SimpleProperties.hpp"
 #include <NdbOut.hpp>
+#include "SimpleProperties.hpp"
 
 Uint32 page[8192];
 
@@ -36,7 +36,7 @@ int unpack(Uint32 *, Uint32 len);
 void pack();
 void testBuffered();
 
-int main(){ 
+int main() {
   ndb_init();
   int len = writer();
   reader(page, len);
@@ -46,8 +46,7 @@ int main(){
   return 0;
 }
 
-int
-writer(){
+int writer() {
   LinearWriter w(&page[0], 8192);
   w.first();
   w.add(1, 2);
@@ -58,16 +57,15 @@ writer(){
   w.add(3, "e cool");
   w.add(5, "9876543210");
   w.add(9, "elephantastic allostatic acrobat (external)");
-  
+
   ndbout_c("WordsUsed = %d", w.getWordsUsed());
-  
+
   return w.getWordsUsed();
 }
 
-int 
-reader(Uint32 * pages, Uint32 len){
+int reader(Uint32 *pages, Uint32 len) {
   SimplePropertiesLinearReader it(pages, len);
-  
+
   it.printAll(ndbout);
   return 0;
 }
@@ -78,29 +76,24 @@ struct Test {
   char val3[100];
 };
 
-static const
-SimpleProperties::SP2StructMapping
-test_map [] = {
-  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value,  0, 0 },
-  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value,  0, 0 },
-  { 3, offsetof(Test, val3), SimpleProperties::StringValue,  0, 0 },
-  { 5,                    0, SimpleProperties::InvalidValue, 0, 0 },
-  { 9,                    0, SimpleProperties::StringValue,  0,
-                             SimpleProperties::SP2StructMapping::ExternalData }
-};
+static const SimpleProperties::SP2StructMapping test_map[] = {
+    {1, offsetof(Test, val1), SimpleProperties::Uint32Value, 0, 0},
+    {7, offsetof(Test, val7), SimpleProperties::Uint32Value, 0, 0},
+    {3, offsetof(Test, val3), SimpleProperties::StringValue, 0, 0},
+    {5, 0, SimpleProperties::InvalidValue, 0, 0},
+    {9, 0, SimpleProperties::StringValue, 0,
+     SimpleProperties::SP2StructMapping::ExternalData}};
 
-static unsigned
-test_map_sz = sizeof(test_map)/sizeof(test_map[0]);
+static unsigned test_map_sz = sizeof(test_map) / sizeof(test_map[0]);
 
-void indirectReader(SimpleProperties::Reader & it, void * ) {
+void indirectReader(SimpleProperties::Reader &it, void *) {
   char buf[80];
   it.getString(buf);
-  ndbout << "indirectReader: key= " << it.getKey() << " length= " <<
-    it.getValueLen() << endl;
+  ndbout << "indirectReader: key= " << it.getKey()
+         << " length= " << it.getValueLen() << endl;
 }
 
-int 
-unpack(Uint32 * pages, Uint32 len){
+int unpack(Uint32 *pages, Uint32 len) {
   Test test;
   test.val1 = 0xFFFFFFFF;
   test.val7 = 0xFFFFFFFF;
@@ -108,9 +101,9 @@ unpack(Uint32 * pages, Uint32 len){
 
   SimplePropertiesLinearReader it(pages, len);
   SimpleProperties::UnpackStatus status;
-  while((status = SimpleProperties::unpack(it, &test, test_map,
-                                           test_map_sz, indirectReader))
-          == SimpleProperties::Break){
+  while ((status = SimpleProperties::unpack(it, &test, test_map, test_map_sz,
+                                            indirectReader)) ==
+         SimpleProperties::Break) {
     ndbout << "test.val1 = " << test.val1 << endl;
     ndbout << "test.val7 = " << test.val7 << endl;
     ndbout << "test.val3 = " << test.val3 << endl;
@@ -120,8 +113,7 @@ unpack(Uint32 * pages, Uint32 len){
   return 0;
 }
 
-bool
-indirectWriter(SimpleProperties::Writer & it, Uint16 key, const void *) {
+bool indirectWriter(SimpleProperties::Writer &it, Uint16 key, const void *) {
   ndbout << "indirectWriter: key= " << key << endl;
   it.add(9, "109");
   return true;
@@ -161,7 +153,7 @@ void testBuffered() {
   nwritten = w.append(smallbuf, sizeof(smallbuf));
   require(nwritten == 8);
 
-  sprintf(smallbuf,"Ij");
+  sprintf(smallbuf, "Ij");
   smallbuf[2] = '\0';
   nwritten = w.append(smallbuf, sizeof(smallbuf));
   require(nwritten == 3);
@@ -172,7 +164,7 @@ void testBuffered() {
   /* write key 2 */
   memset(test2, '\0', sizeof(test2));
   sprintf(test2, "In Xanadu did Kubla Khan a stately");
-  printf("Length for key 2: %zu/%zu \n", strlen(test2)+1, sizeof(test2));
+  printf("Length for key 2: %zu/%zu \n", strlen(test2) + 1, sizeof(test2));
   w.add(2, test2);
 
   SimplePropertiesLinearReader r(page, w.getWordsUsed());
@@ -195,11 +187,11 @@ void testBuffered() {
 
   nreadcalls = 0;
   memset(smallbuf, '\0', sizeof(smallbuf));
-  while((nread = r.getBuffered(smallbuf, 8)) > 0) {
+  while ((nread = r.getBuffered(smallbuf, 8)) > 0) {
     nreadcalls++;
-    printf("%d => %c%c%c%c%c%c%c%c \n",
-           nread, smallbuf[0], smallbuf[1], smallbuf[2], smallbuf[3],
-                  smallbuf[4], smallbuf[5], smallbuf[6], smallbuf[7]);
+    printf("%d => %c%c%c%c%c%c%c%c \n", nread, smallbuf[0], smallbuf[1],
+           smallbuf[2], smallbuf[3], smallbuf[4], smallbuf[5], smallbuf[6],
+           smallbuf[7]);
     memset(smallbuf, '\0', sizeof(smallbuf));
   }
   printf("Total buffered read calls: %d \n", nreadcalls);

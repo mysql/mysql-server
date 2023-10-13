@@ -20,33 +20,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
-#include "util/require.h"
 #include "ArenaPool.hpp"
 #include <ndbd_exit_codes.h>
 #include <EventLogger.hpp>
+#include "my_config.h"
+#include "util/require.h"
 
 #define JAM_FILE_ID 309
 
-
-static
-Uint32
-computeBlockSize(Uint32 blockSz, Uint32 wpp)
-{
+static Uint32 computeBlockSize(Uint32 blockSz, Uint32 wpp) {
   Uint32 minspill = wpp % blockSz;
   Uint32 minspill_bs = blockSz;
 
-  for (Uint32 i = 16; i<blockSz/4; i += 16)
-  {
+  for (Uint32 i = 16; i < blockSz / 4; i += 16) {
     Uint32 spillsz = wpp % (blockSz - i);
-    if (spillsz == 0)
-    {
+    if (spillsz == 0) {
       return blockSz - i;
-    }
-    else if (spillsz < minspill)
-    {
+    } else if (spillsz < minspill) {
       minspill = spillsz;
-      minspill_bs = blockSz -i;
+      minspill_bs = blockSz - i;
     }
   }
 #ifdef VM_TRACE
@@ -56,9 +48,7 @@ computeBlockSize(Uint32 blockSz, Uint32 wpp)
   return minspill_bs;
 }
 
-void
-ArenaAllocator::init(Uint32 sz, Uint32 type_id, const Pool_context& pc)
-{
+void ArenaAllocator::init(Uint32 sz, Uint32 type_id, const Pool_context &pc) {
   Uint32 blocksz = ArenaBlock::computeBlockSizeInWords(sz);
   Uint32 wpp = m_pool.WORDS_PER_PAGE;
 
@@ -67,9 +57,9 @@ ArenaAllocator::init(Uint32 sz, Uint32 type_id, const Pool_context& pc)
   ri.m_size = 4 * bs;
   {
     ArenaBlock tmp;
-    const char * off_base = (char*)&tmp;
-    const char * off_next = (char*)&tmp.nextPool;
-    const char * off_magic = (char*)&tmp.m_magic;
+    const char *off_base = (char *)&tmp;
+    const char *off_next = (char *)&tmp.nextPool;
+    const char *off_magic = (char *)&tmp.m_magic;
 
     ri.m_offset_next_pool = Uint32(off_next - off_base);
     ri.m_offset_magic = Uint32(off_magic - off_base);
@@ -79,31 +69,25 @@ ArenaAllocator::init(Uint32 sz, Uint32 type_id, const Pool_context& pc)
   m_block_size = bs - ArenaBlock::HeaderSize;
 }
 
-bool
-ArenaAllocator::seize(ArenaHead& ah)
-{
+bool ArenaAllocator::seize(ArenaHead &ah) {
   Ptr<void> tmp;
-  if (m_pool.seize(tmp))
-  {
+  if (m_pool.seize(tmp)) {
     ah.m_first_block = tmp.i;
     ah.m_current_block = tmp.i;
     ah.m_block_size = m_block_size;
-    ah.m_current_block_ptr = static_cast<ArenaBlock*>(tmp.p);
+    ah.m_current_block_ptr = static_cast<ArenaBlock *>(tmp.p);
     ah.m_current_block_ptr->m_next_block = RNIL;
     return true;
   }
   return false;
 }
 
-void
-ArenaAllocator::release(ArenaHead& ah)
-{
+void ArenaAllocator::release(ArenaHead &ah) {
   Ptr<void> curr;
   curr.i = ah.m_first_block;
-  while (curr.i != RNIL)
-  {
+  while (curr.i != RNIL) {
     curr.p = m_pool.getPtr(curr.i);
-    Uint32 next = static_cast<ArenaBlock*>(curr.p)->m_next_block;
+    Uint32 next = static_cast<ArenaBlock *>(curr.p)->m_next_block;
     m_pool.release(curr);
     curr.i = next;
   }

@@ -27,11 +27,11 @@
 #define NdbBlobImpl_H
 
 class NdbBlobImpl {
-public:
+ public:
   static constexpr Uint32 BlobTableNameSize = 40;
   // "Invalid blob attributes or invalid blob parts table"
   static constexpr Uint32 ErrTable = 4263;
-  // "Invalid usage of blob attribute" 
+  // "Invalid usage of blob attribute"
   static constexpr Uint32 ErrUsage = 4264;
   // "The blob method is not valid in current blob state"
   static constexpr Uint32 ErrState = 4265;

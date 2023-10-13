@@ -27,63 +27,44 @@
 
 #include <NDBT.hpp>
 
-typedef int (ReadCallBackFn)(NDBT_ResultRow*);
+typedef int(ReadCallBackFn)(NDBT_ResultRow *);
 
 class UtilTransactions {
-public:
+ public:
   Uint64 m_util_latest_gci{0};
-  Uint32 get_high_latest_gci()
-  {
+  Uint32 get_high_latest_gci() {
     assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci >> 32));
   }
-  Uint32 get_low_latest_gci()
-  {
+  Uint32 get_low_latest_gci() {
     assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci & 0xFFFFFFFF));
   }
-  UtilTransactions(const NdbDictionary::Table&,
-		   const NdbDictionary::Index* idx = 0);
-  UtilTransactions(Ndb* ndb, 
-		   const char * tableName, const char * indexName = 0);
-  
-  int closeTransaction(Ndb*);
-  
-  int clearTable(Ndb*, 
-                 NdbScanOperation::ScanFlag,
-		 int records = 0,
-		 int parallelism = 0);
+  UtilTransactions(const NdbDictionary::Table &,
+                   const NdbDictionary::Index *idx = 0);
+  UtilTransactions(Ndb *ndb, const char *tableName, const char *indexName = 0);
 
-  int clearTable(Ndb*, 
-		 int records = 0,
-		 int parallelism = 0);
-  
+  int closeTransaction(Ndb *);
+
+  int clearTable(Ndb *, NdbScanOperation::ScanFlag, int records = 0,
+                 int parallelism = 0);
+
+  int clearTable(Ndb *, int records = 0, int parallelism = 0);
+
   // Delete all records from the table using a scan
-  int clearTable1(Ndb*, 
-		  int records = 0,
-		  int parallelism = 0);
+  int clearTable1(Ndb *, int records = 0, int parallelism = 0);
   // Delete all records from the table using a scan
   // Using batching
-  int clearTable2(Ndb*, 
-		  int records = 0,
-		  int parallelism = 0);
-  
-  int clearTable3(Ndb*, 
-		  int records = 0,
-		  int parallelism = 0);
-  
-  int selectCount(Ndb*, 
-		  int parallelism = 0,
-		  int* count_rows = NULL,
-		  NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead);
+  int clearTable2(Ndb *, int records = 0, int parallelism = 0);
 
-  int scanReadRecords(Ndb*,
-		      int parallelism,
-		      NdbOperation::LockMode lm,
-		      int records,
-		      int noAttribs,
-		      int* attrib_list,
-		      ReadCallBackFn* fn = NULL);
+  int clearTable3(Ndb *, int records = 0, int parallelism = 0);
+
+  int selectCount(Ndb *, int parallelism = 0, int *count_rows = NULL,
+                  NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead);
+
+  int scanReadRecords(Ndb *, int parallelism, NdbOperation::LockMode lm,
+                      int records, int noAttribs, int *attrib_list,
+                      ReadCallBackFn *fn = NULL);
 
   /**
    * verify index content relative to table.
@@ -92,11 +73,8 @@ public:
    *   via the index
    * This is a legacy method, see newer variants below.
    */
-  int verifyIndex(Ndb*,
-		  const char* indexName,
-		  int parallelism = 0,
-		  bool transactional = false);
-
+  int verifyIndex(Ndb *, const char *indexName, int parallelism = 0,
+                  bool transactional = false);
 
   /**
    * Verifying consistency
@@ -183,10 +161,9 @@ public:
    * Using the table as source ensures all stored rows are indexed.
    * Using an index as source ensures that all indexed rows are stored.
    */
-  int verifyIndex(Ndb*,
-                  const NdbDictionary::Index* targetIndex,
-                  bool checkFromIndex,     /* false= tab scan, true = index scan */
-                  bool findNulls);         /* Match entries with NULL values */
+  int verifyIndex(Ndb *, const NdbDictionary::Index *targetIndex,
+                  bool checkFromIndex, /* false= tab scan, true = index scan */
+                  bool findNulls);     /* Match entries with NULL values */
 
   /**
    * verifyTableReplicas
@@ -201,7 +178,7 @@ public:
    * ensures that all scan reachable rows in every view
    * are replicated correctly.
    */
-  int verifyTableReplicas(Ndb*, bool allSources = false);
+  int verifyTableReplicas(Ndb *, bool allSources = false);
 
   /**
    * verifyIndexViews
@@ -214,8 +191,7 @@ public:
    *
    * Currently only checks for ordered indexes.
    */
-  int verifyIndexViews(Ndb* pNdb,
-                       const NdbDictionary::Index* pIndex);
+  int verifyIndexViews(Ndb *pNdb, const NdbDictionary::Index *pIndex);
 
   /**
    * verifyAllIndexes
@@ -226,10 +202,8 @@ public:
    *   - [views] : Check that the index contains the same content when viewed
    *               from every data node
    */
-  int verifyAllIndexes(Ndb* pNdb,
-                       bool findNulls = true,
-                       bool bidirectional = true,
-                       bool views = true);
+  int verifyAllIndexes(Ndb *pNdb, bool findNulls = true,
+                       bool bidirectional = true, bool views = true);
 
   /**
    * verifyTable
@@ -239,15 +213,12 @@ public:
    *   - Verify all indexes of the table using verifyAllIndexes, and the
    *     - findNulls, bidirectional, views parameters
    */
-  int verifyTableAndAllIndexes(Ndb* pNdb,
-                               bool findNulls = true,
-                               bool bidirectional = true,
-                               bool views = true,
+  int verifyTableAndAllIndexes(Ndb *pNdb, bool findNulls = true,
+                               bool bidirectional = true, bool views = true,
                                bool allSources = true);
 
-  int copyTableData(Ndb*,
-		const char* destName);
-		
+  int copyTableData(Ndb *, const char *destName);
+
   /**
    * Compare this table with other_table
    *
@@ -255,84 +226,62 @@ public:
    *       -1 - on error
    *      >0 - otherwise
    */
-  int compare(Ndb*, const char * other_table, int flags);
+  int compare(Ndb *, const char *other_table, int flags);
 
   void setVerbosity(Uint32);
   Uint32 getVerbosity() const;
 
-private:
-  static int takeOverAndDeleteRecord(Ndb*, 
-				     NdbOperation*);
+ private:
+  static int takeOverAndDeleteRecord(Ndb *, NdbOperation *);
 
-  int addRowToDelete(Ndb* pNdb, 
-		     NdbConnection* pDelTrans,
-		     NdbOperation* pOrgOp);
+  int addRowToDelete(Ndb *pNdb, NdbConnection *pDelTrans, NdbOperation *pOrgOp);
 
-  
-  int addRowToInsert(Ndb* pNdb, 
-		     NdbConnection* pInsTrans,
-		     NDBT_ResultRow & row,
-		     const char* insertTabName);
+  int addRowToInsert(Ndb *pNdb, NdbConnection *pInsTrans, NDBT_ResultRow &row,
+                     const char *insertTabName);
 
+  int verifyUniqueIndex(Ndb *, const NdbDictionary::Index *,
+                        int parallelism = 0, bool transactional = false);
 
-  int verifyUniqueIndex(Ndb*,
-			const NdbDictionary::Index *,
-			int parallelism = 0,
-			bool transactional = false);
+  int scanAndCompareUniqueIndex(Ndb *pNdb, const NdbDictionary::Index *,
+                                int parallelism, bool transactional);
 
-  int scanAndCompareUniqueIndex(Ndb* pNdb,
-				const NdbDictionary::Index *,
-				int parallelism,
-				bool transactional);
-  
-  int readRowFromTableAndIndex(Ndb* pNdb,
-			       NdbConnection* pTrans,
-			       const NdbDictionary::Index *,
-			       NDBT_ResultRow& row );
+  int readRowFromTableAndIndex(Ndb *pNdb, NdbConnection *pTrans,
+                               const NdbDictionary::Index *,
+                               NDBT_ResultRow &row);
 
-  int verifyOrderedIndex(Ndb*,
-			 const NdbDictionary::Index *sourceIndex,
+  int verifyOrderedIndex(Ndb *, const NdbDictionary::Index *sourceIndex,
                          const NdbDictionary::Index *destIndex,
-			 int parallelism = 0,
-			 bool transactional = false,
+                         int parallelism = 0, bool transactional = false,
                          bool findNulls = false);
 
-  int verifyTableReplicasPkCompareRow(Ndb* pNdb, Uint32 nodeId,
-                                      const NDBT_ResultRow& scanRow);
-  int verifyTableReplicasScanAndCompareNodes(Ndb* pNdb, Uint32 sourceNodeId,
+  int verifyTableReplicasPkCompareRow(Ndb *pNdb, Uint32 nodeId,
+                                      const NDBT_ResultRow &scanRow);
+  int verifyTableReplicasScanAndCompareNodes(Ndb *pNdb, Uint32 sourceNodeId,
                                              Uint32 numDataNodes,
                                              Uint32 dataNodes[256]);
-  int verifyTableReplicasWithSource(Ndb*, Uint32 sourceNodeId=0);
+  int verifyTableReplicasWithSource(Ndb *, Uint32 sourceNodeId = 0);
 
-  int verifyOrderedIndexViews(Ndb* pNdb,
-                              const NdbDictionary::Index* index);
-  int verifyTwoOrderedIndexViews(Ndb* pNdb,
-                                 const NdbDictionary::Index* index,
-                                 Uint32 node1,
-                                 Uint32 node2);
-  int defineOrderedScan(Ndb* pNdb,
-                        const NdbDictionary::Index* index,
-                        Uint32 nodeId,
-                        NdbTransaction*& scanTrans,
-                        NdbIndexScanOperation*& scanOp,
-                        NDBT_ResultRow& row);
+  int verifyOrderedIndexViews(Ndb *pNdb, const NdbDictionary::Index *index);
+  int verifyTwoOrderedIndexViews(Ndb *pNdb, const NdbDictionary::Index *index,
+                                 Uint32 node1, Uint32 node2);
+  int defineOrderedScan(Ndb *pNdb, const NdbDictionary::Index *index,
+                        Uint32 nodeId, NdbTransaction *&scanTrans,
+                        NdbIndexScanOperation *&scanOp, NDBT_ResultRow &row);
 
-  int get_values(NdbOperation* op, NDBT_ResultRow& dst);
-  int equal(const NdbDictionary::Table*, NdbOperation*, const NDBT_ResultRow&);
-  int equal(const NdbDictionary::Index*,
-            NdbOperation*,
-            const NDBT_ResultRow&,
-            bool skipNull=false);
+  int get_values(NdbOperation *op, NDBT_ResultRow &dst);
+  int equal(const NdbDictionary::Table *, NdbOperation *,
+            const NDBT_ResultRow &);
+  int equal(const NdbDictionary::Index *, NdbOperation *,
+            const NDBT_ResultRow &, bool skipNull = false);
 
-protected:
-  const NdbDictionary::Table& tab;
-  const NdbDictionary::Index* idx;
-  NdbConnection* pTrans{nullptr};
+ protected:
+  const NdbDictionary::Table &tab;
+  const NdbDictionary::Index *idx;
+  NdbConnection *pTrans{nullptr};
   Uint32 m_verbosity{0};
-  
-  NdbOperation* getOperation(NdbConnection*, 
-			     NdbOperation::OperationType);
-  NdbScanOperation* getScanOperation(NdbConnection*);
+
+  NdbOperation *getOperation(NdbConnection *, NdbOperation::OperationType);
+  NdbScanOperation *getScanOperation(NdbConnection *);
 };
 
 #endif

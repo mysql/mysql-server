@@ -27,9 +27,9 @@
 #ifndef Driver_hpp
 #define Driver_hpp
 
+#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -37,72 +37,70 @@
 
 #include "Properties.hpp"
 
-using std::string;
-using std::vector;
 using std::ofstream;
 using std::ostringstream;
+using std::string;
+using std::vector;
 
 using utils::Properties;
 
 class Driver {
-public:
+ public:
+  /**
+   * Parses the benchmark's command-line arguments.
+   */
+  static void parseArguments(int argc, const char *argv[]);
 
-    /**
-     * Parses the benchmark's command-line arguments.
-     */
-    static void parseArguments(int argc, const char* argv[]);
+  /**
+   * Creates an instance.
+   */
+  Driver() {}
 
-    /**
-     * Creates an instance.
-     */
-    Driver() {}
+  /**
+   * Deletes an instance.
+   */
+  virtual ~Driver() {}
 
-    /**
-     * Deletes an instance.
-     */
-    virtual ~Driver() {}
+  /**
+   * Runs the benchmark.
+   */
+  void run();
 
-    /**
-     * Runs the benchmark.
-     */
-    void run();
+ protected:
+  // command-line arguments
+  static vector<string> propFileNames;
+  static string logFileName;
 
-protected:
+  static void exitUsage();
 
-    // command-line arguments
-    static vector< string > propFileNames;
-    static string logFileName;
+  // driver settings
+  Properties props;
+  int warmupRuns;
 
-    static void exitUsage();
+  // driver resources
+  ofstream log;
+  string descr;
+  bool logHeader;
+  ostringstream header;
+  ostringstream rtimes;
+  struct timeval t0, t1;
+  long rta;
 
-    // driver settings
-    Properties props;
-    int warmupRuns;
+  // driver initializers/finalizers
+  virtual void init();
+  virtual void close();
+  virtual void loadProperties();
+  virtual void initProperties();
+  virtual void printProperties();
+  virtual void openLogFile();
+  virtual void closeLogFile();
 
-    // driver resources
-    ofstream log;
-    string descr;
-    bool logHeader;
-    ostringstream header;
-    ostringstream rtimes;
-    struct timeval t0, t1;
-    long rta;
-
-    // driver initializers/finalizers
-    virtual void init();
-    virtual void close();
-    virtual void loadProperties();
-    virtual void initProperties();
-    virtual void printProperties();
-    virtual void openLogFile();
-    virtual void closeLogFile();
-
-    // benchmark operations
-    virtual void runTests() = 0;
-    virtual void clearLogBuffers();
-    virtual void writeLogBuffers();
-    virtual void begin(const string& name);
-    virtual void finish(const string& name);
+  // benchmark operations
+  virtual void runTests() = 0;
+  virtual void clearLogBuffers();
+  virtual void writeLogBuffers();
+  virtual void begin(const string &name);
+  virtual void finish(const string &name);
 };
 
-#endif // Driver_hpp
+#endif  // Driver_hpp

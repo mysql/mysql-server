@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef CREATE_FK_HPP
 #define CREATE_FK_HPP
 
@@ -30,9 +29,7 @@
 
 #define JAM_FILE_ID 173
 
-
-struct CreateFKReq
-{
+struct CreateFKReq {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -42,7 +39,7 @@ struct CreateFKReq
   /**
    * For printing
    */
-  friend bool printCREATE_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_FK_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 10;
 
@@ -59,8 +56,7 @@ struct CreateFKReq
   Uint32 transKey;
 };
 
-struct CreateFKRef
-{
+struct CreateFKRef {
   /**
    * Sender(s)
    */
@@ -74,7 +70,7 @@ struct CreateFKRef
   /**
    * For printing
    */
-  friend bool printCREATE_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_FK_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
@@ -107,8 +103,7 @@ struct CreateFKRef
   Uint32 transId;
 };
 
-struct CreateFKConf
-{
+struct CreateFKConf {
   /**
    * Sender(s)
    */
@@ -122,7 +117,7 @@ struct CreateFKConf
   /**
    * For printing
    */
-  friend bool printCREATE_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_FK_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 5;
 
@@ -132,7 +127,6 @@ struct CreateFKConf
   Uint32 fkId;
   Uint32 fkVersion;
 };
-
 
 #undef JAM_FILE_ID
 

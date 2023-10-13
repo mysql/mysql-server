@@ -59,22 +59,19 @@
  *
  * First slot is aligned to 8 words within page.
  */
-class TransientSlotPool
-{
-public:
+class TransientSlotPool {
+ public:
   TransientSlotPool();
   ~TransientSlotPool();
 
   bool may_shrink() const;
-  bool rearrange_free_list_and_shrink(Uint32* max_shrinks, Uint32 slot_size);
+  bool rearrange_free_list_and_shrink(Uint32 *max_shrinks, Uint32 slot_size);
   Uint32 getNoOfFree() const { return m_free_list.getCount(); }
   Uint32 getSize() const { return m_use_count + m_free_list.getCount(); }
   Uint32 getUsed() const { return m_use_count; }
   typedef Slot Type;
 
-  void init(Uint32 type_id,
-            Uint32 slot_size,
-            Uint32* min_recs,
+  void init(Uint32 type_id, Uint32 slot_size, Uint32 *min_recs,
             const Pool_context &pool_ctx);
 
   bool seize(Ptr<Type> &p, Uint32 slot_size);
@@ -85,24 +82,28 @@ public:
   bool getUncheckedPtrRO(Ptr<Type> &p, Uint32 slot_size) const;
   bool getUncheckedPtrRW(Ptr<Type> &p, Uint32 slot_size) const;
 
-  Uint32 getUncheckedPtrs(Uint32* from, Ptr<Type> ptrs[], Uint32 cnt, Uint32 slot_size) const;
-  bool checkPtr(Type* p) const;
+  Uint32 getUncheckedPtrs(Uint32 *from, Ptr<Type> ptrs[], Uint32 cnt,
+                          Uint32 slot_size) const;
+  bool checkPtr(Type *p) const;
 
   static Uint64 getMemoryNeed(Uint32 slot_size, Uint32 entry_count);
-private:
+
+ private:
   friend class LocalSlotPool<TransientSlotPool>;
   class Page;
-  typedef LocalDLCFifoList<LocalSlotPool<TransientSlotPool> > Slot_list;
+  typedef LocalDLCFifoList<LocalSlotPool<TransientSlotPool>> Slot_list;
 
   bool expand(Uint32 slot_size);
   bool shrink(Uint32 slot_size);
 
-  Page* get_page_from_slot(Ptr<Type> p, Uint32 slot_size) const;
+  Page *get_page_from_slot(Ptr<Type> p, Uint32 slot_size) const;
 
-  TransientPagePool* m_page_pool;
+  TransientPagePool *m_page_pool;
   Slot_list::Head m_free_list;
-  Uint32 m_type_id; // Needed for page type when allocating new pages (in seize/expand)
-  Uint32 m_use_count; // Needed to release into right end of free list (approx).
+  Uint32 m_type_id;  // Needed for page type when allocating new pages (in
+                     // seize/expand)
+  Uint32
+      m_use_count;  // Needed to release into right end of free list (approx).
   /**
    * m_may_shrink - set when top page is unused.
    * Cleared by seize() when first slot on top page is seized.
@@ -113,23 +114,22 @@ private:
   bool m_may_shrink;
 };
 
-class TransientSlotPool::Page
-{
+class TransientSlotPool::Page {
   friend class TransientSlotPool;
-private:
+
+ private:
   static constexpr Uint32 WORDS_PER_PAGE = 8192;
   static constexpr Uint32 HEADER_WORDS = 8;
   static constexpr Uint32 DATA_WORDS_PER_PAGE = (WORDS_PER_PAGE - HEADER_WORDS);
   static constexpr Uint32 DATA_BYTE_OFFSET = HEADER_WORDS * sizeof(Uint32);
   Uint32 m_magic;
   Uint32 m_page_id;
-  Uint32 m_use_count; // use count for dynamic page, to know when it is empty
-  Uint32 m_first_in_free_array; // for lazy initialization of dynamic page
+  Uint32 m_use_count;  // use count for dynamic page, to know when it is empty
+  Uint32 m_first_in_free_array;  // for lazy initialization of dynamic page
   Uint32 m_reserved[4];
   Uint32 m_data[DATA_WORDS_PER_PAGE];
 
-  static void static_asserts()
-  {
+  static void static_asserts() {
     static_assert(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
   }
 };

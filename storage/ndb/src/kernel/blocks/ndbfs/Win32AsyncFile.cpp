@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,33 +28,25 @@
 
 #include "Win32AsyncFile.hpp"
 
-#include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsRef.hpp>
 
 #define JAM_FILE_ID 399
 
+Win32AsyncFile::Win32AsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 
-Win32AsyncFile::Win32AsyncFile(Ndbfs& fs) :
-  AsyncFile(fs)
-{
-}
-
-void
-Win32AsyncFile::removeReq(Request * request)
-{
-  if(!DeleteFile(theFileName.c_str())) {
+void Win32AsyncFile::removeReq(Request *request) {
+  if (!DeleteFile(theFileName.c_str())) {
     NDBFS_SET_REQUEST_ERROR(request, GetLastError());
   }
 }
 
-void
-Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
-  if (!request->par.rmrf.directory)
-  {
+void Win32AsyncFile::rmrfReq(Request *request, const char *src,
+                             bool removePath) {
+  if (!request->par.rmrf.directory) {
     // Remove file
-    if (!DeleteFile(src))
-    {
+    if (!DeleteFile(src)) {
       DWORD dwError = GetLastError();
       if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
         NDBFS_SET_REQUEST_ERROR(request, dwError);
@@ -70,53 +62,47 @@ Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
   HANDLE hFindFile;
 loop:
   hFindFile = FindFirstFile(path, &ffd);
-  if (INVALID_HANDLE_VALUE == hFindFile)
-  {
+  if (INVALID_HANDLE_VALUE == hFindFile) {
     DWORD dwError = GetLastError();
     if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
       NDBFS_SET_REQUEST_ERROR(request, dwError);
     return;
   }
-  path[strlen(path) - 1] = 0; // remove '*'
+  path[strlen(path) - 1] = 0;  // remove '*'
 
   do {
-    if (0 != strcmp(".", ffd.cFileName) && 0 != strcmp("..", ffd.cFileName))
-    {
+    if (0 != strcmp(".", ffd.cFileName) && 0 != strcmp("..", ffd.cFileName)) {
       int len = (int)strlen(path);
       strcat(path, ffd.cFileName);
-      if(DeleteFile(path) || RemoveDirectory(path)) 
-      {
+      if (DeleteFile(path) || RemoveDirectory(path)) {
         path[len] = 0;
-	continue;
-      }//if
+        continue;
+      }  // if
 
       FindClose(hFindFile);
       strcat(path, "\\*");
       goto loop;
     }
-  } while(FindNextFile(hFindFile, &ffd));
-  
+  } while (FindNextFile(hFindFile, &ffd));
+
   FindClose(hFindFile);
-  path[strlen(path)-1] = 0; // remove '\'
-  if (strcmp(src, path) != 0)
-  {
-    char * t = strrchr(path, '\\');
+  path[strlen(path) - 1] = 0;  // remove '\'
+  if (strcmp(src, path) != 0) {
+    char *t = strrchr(path, '\\');
     t[1] = '*';
     t[2] = 0;
     goto loop;
   }
 
-  if(removePath && !RemoveDirectory(src))
+  if (removePath && !RemoveDirectory(src))
     NDBFS_SET_REQUEST_ERROR(request, GetLastError());
 }
 
-void Win32AsyncFile::createDirectories()
-{
-  char* tmp;
-  const char * name = theFileName.c_str();
-  const char * base = theFileName.get_base_name();
-  while((tmp = (char *)strstr(base, DIR_SEPARATOR)))
-  {
+void Win32AsyncFile::createDirectories() {
+  char *tmp;
+  const char *name = theFileName.c_str();
+  const char *base = theFileName.get_base_name();
+  while ((tmp = (char *)strstr(base, DIR_SEPARATOR))) {
     char t = tmp[0];
     tmp[0] = 0;
     CreateDirectory(name, 0);

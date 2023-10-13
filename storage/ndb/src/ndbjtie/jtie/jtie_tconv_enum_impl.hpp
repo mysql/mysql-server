@@ -28,12 +28,12 @@
 #ifndef jtie_tconv_enum_impl_hpp
 #define jtie_tconv_enum_impl_hpp
 
-#include <assert.h> // not using namespaces yet
+#include <assert.h>  // not using namespaces yet
 #include <jni.h>
 
+#include "helpers.hpp"
 #include "jtie_tconv_enum.hpp"
 #include "jtie_tconv_impl.hpp"
-#include "helpers.hpp"
 
 // ---------------------------------------------------------------------------
 // Java value <-> C enum conversions
@@ -42,48 +42,47 @@
 // currently, only Java int <-> C enum mappings are supported
 
 // Implements enum parameter conversions.
-template< typename J, typename C >
+template <typename J, typename C>
 struct ParamEnumT {
-    // ok to pass J by value
-    static C
-    convert(cstatus & s, J j, JNIEnv * env) {
-        TRACE("C ParamEnumT.convert(cstatus &, J, JNIEnv *)");
-        (void)env;
-        s = 0;
-        return static_cast< C >(j.value);
-    }
+  // ok to pass J by value
+  static C convert(cstatus &s, J j, JNIEnv *env) {
+    TRACE("C ParamEnumT.convert(cstatus &, J, JNIEnv *)");
+    (void)env;
+    s = 0;
+    return static_cast<C>(j.value);
+  }
 
-    static void
-    release(C c, J j, JNIEnv * env) {
-        TRACE("void ParamEnumT.release(C, J, JNIEnv *)");
-        (void)c; (void)j; (void)env;
-    }
+  static void release(C c, J j, JNIEnv *env) {
+    TRACE("void ParamEnumT.release(C, J, JNIEnv *)");
+    (void)c;
+    (void)j;
+    (void)env;
+  }
 
-private:
-    // prohibit instantiation
-    ParamEnumT() {
-        // prohibit unsupported template specializations
-        /* is_valid_enum_type_mapping< J, C >(); */
-    }
+ private:
+  // prohibit instantiation
+  ParamEnumT() {
+    // prohibit unsupported template specializations
+    /* is_valid_enum_type_mapping< J, C >(); */
+  }
 };
 
 // Implements enum type result conversions.
-template< typename J, typename C >
+template <typename J, typename C>
 struct ResultEnumT {
-    // ok to return J by value
-    static J
-    convert(C c, JNIEnv * env) {
-        TRACE("J ResultEnumT.convert(C, JNIEnv *)");
-        (void)env;
-        return static_cast< J >(c);
-    }
+  // ok to return J by value
+  static J convert(C c, JNIEnv *env) {
+    TRACE("J ResultEnumT.convert(C, JNIEnv *)");
+    (void)env;
+    return static_cast<J>(c);
+  }
 
-private:
-    // prohibit instantiation
-    ResultEnumT() {
-        // prohibit unsupported template specializations
-        /* is_valid_enum_type_mapping< J, C >(); */
-    }
+ private:
+  // prohibit instantiation
+  ResultEnumT() {
+    // prohibit unsupported template specializations
+    /* is_valid_enum_type_mapping< J, C >(); */
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -109,15 +108,13 @@ struct is_valid_enum_type_mapping< const J, const C > {};
 */
 
 // non-const enum value parameter types
-template< typename C >
-struct Param< _jtie_jint_Enum, C >
-    : ParamEnumT< _jtie_jint_Enum, C > {};
+template <typename C>
+struct Param<_jtie_jint_Enum, C> : ParamEnumT<_jtie_jint_Enum, C> {};
 
 // non-const enum value result types
-template< typename C >
-struct Result< _jtie_jint_Enum, C >
-    : ResultEnumT< _jtie_jint_Enum, C > {};
+template <typename C>
+struct Result<_jtie_jint_Enum, C> : ResultEnumT<_jtie_jint_Enum, C> {};
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_enum_impl_hpp
+#endif  // jtie_tconv_enum_impl_hpp

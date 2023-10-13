@@ -47,13 +47,10 @@
 
 #define JAM_FILE_ID 377
 
-
-void
-Dbtux::execCREATE_TAB_REQ(Signal* signal)
-{
+void Dbtux::execCREATE_TAB_REQ(Signal *signal) {
   jamEntry();
-  const CreateTabReq copy = *(CreateTabReq*)signal->getDataPtr();
-  const CreateTabReq* req = &copy;
+  const CreateTabReq copy = *(CreateTabReq *)signal->getDataPtr();
+  const CreateTabReq *req = &copy;
 
   IndexPtr indexPtr;
   indexPtr.i = RNIL;
@@ -69,11 +66,10 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
       break;
     }
     ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
-    if (indexPtr.p->m_state != Index::NotDefined)
-    {
+    if (indexPtr.p->m_state != Index::NotDefined) {
       jam();
       errorCode = TuxFragRef::InvalidRequest;
-      indexPtr.i = RNIL;        // leave alone
+      indexPtr.i = RNIL;  // leave alone
       break;
     }
 
@@ -88,8 +84,8 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     fragOpPtr.p->m_numAttrsRecvd = 0;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      tuxDebugOut << "Seize frag op " << fragOpPtr.i << " "
-                  << *fragOpPtr.p << endl;
+      tuxDebugOut << "Seize frag op " << fragOpPtr.i << " " << *fragOpPtr.p
+                  << endl;
     }
 #endif
     // check if index has place for more fragments
@@ -105,7 +101,7 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     indexPtr.p->m_numAttrs = req->noOfAttributes;
     indexPtr.p->m_storeNullKey = true;  // not yet configurable
     // allocate attribute descriptors
-    if (! allocDescEnt(indexPtr)) {
+    if (!allocDescEnt(indexPtr)) {
       jam();
       errorCode = TuxFragRef::NoFreeAttributes;
       break;
@@ -120,40 +116,37 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
       break;
     }
     // success
-    CreateTabConf* conf = (CreateTabConf*)signal->getDataPtrSend();
+    CreateTabConf *conf = (CreateTabConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req->senderData;
     conf->tuxConnectPtr = fragOpPtr.i;
-    sendSignal(req->senderRef, GSN_CREATE_TAB_CONF,
-               signal, CreateTabConf::SignalLength, JBB);
+    sendSignal(req->senderRef, GSN_CREATE_TAB_CONF, signal,
+               CreateTabConf::SignalLength, JBB);
     return;
   } while (0);
   // error
 
-  CreateTabRef* const ref = (CreateTabRef*)signal->getDataPtrSend();
+  CreateTabRef *const ref = (CreateTabRef *)signal->getDataPtrSend();
   ref->senderData = req->senderData;
   ref->errorCode = errorCode;
-  sendSignal(req->senderRef, GSN_CREATE_TAB_REF,
-             signal, CreateTabRef::SignalLength, JBB);
+  sendSignal(req->senderRef, GSN_CREATE_TAB_REF, signal,
+             CreateTabRef::SignalLength, JBB);
 
   if (indexPtr.i != RNIL) {
     jam();
     // let DICT drop the unfinished index
   }
 
-  if (fragOpPtr.i != RNIL)
-  {
+  if (fragOpPtr.i != RNIL) {
     jam();
     c_fragOpPool.release(fragOpPtr);
   }
 }
 
-void
-Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
-{
+void Dbtux::execTUX_ADD_ATTRREQ(Signal *signal) {
   jamEntry();
-  const TuxAddAttrReq reqCopy = *(const TuxAddAttrReq*)signal->getDataPtr();
-  const TuxAddAttrReq* const req = &reqCopy;
+  const TuxAddAttrReq reqCopy = *(const TuxAddAttrReq *)signal->getDataPtr();
+  const TuxAddAttrReq *const req = &reqCopy;
   // get the records
   FragOpPtr fragOpPtr;
   IndexPtr indexPtr;
@@ -163,10 +156,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
   do {
     // expected attribute id
     const unsigned attrId = fragOpPtr.p->m_numAttrsRecvd++;
-    ndbrequire(
-        indexPtr.p->m_state == Index::Defining &&
-        attrId < indexPtr.p->m_numAttrs &&
-        attrId == req->attrId);
+    ndbrequire(indexPtr.p->m_state == Index::Defining &&
+               attrId < indexPtr.p->m_numAttrs && attrId == req->attrId);
     const Uint32 ad = req->attrDescriptor;
     const Uint32 typeId = AttributeDescriptor::getType(ad);
     const Uint32 sizeInBytes = AttributeDescriptor::getSizeInBytes(ad);
@@ -174,9 +165,9 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     const Uint32 csNumber = req->extTypeInfo >> 16;
     const Uint32 primaryAttrId = req->primaryAttrId;
 
-    DescHead& descHead = getDescHead(*indexPtr.p);
+    DescHead &descHead = getDescHead(*indexPtr.p);
     // add type to spec
-    KeySpec& keySpec = indexPtr.p->m_keySpec;
+    KeySpec &keySpec = indexPtr.p->m_keySpec;
     KeyType keyType(typeId, sizeInBytes, nullable, csNumber);
     if (keySpec.add(keyType) == -1) {
       jam();
@@ -184,8 +175,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       break;
     }
     // add primary attr to read keys array
-    AttributeHeader* keyAttrs = getKeyAttrs(descHead);
-    AttributeHeader& keyAttr = keyAttrs[attrId];
+    AttributeHeader *keyAttrs = getKeyAttrs(descHead);
+    AttributeHeader &keyAttr = keyAttrs[attrId];
     new (&keyAttr) AttributeHeader(primaryAttrId, sizeInBytes);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
@@ -199,45 +190,43 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       ndbrequire(cs != 0);
       if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
         jam();
-        errorCode = (TuxAddAttrRef::ErrorCode) err;
+        errorCode = (TuxAddAttrRef::ErrorCode)err;
         break;
       }
     }
-    const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
+    const bool lastAttr =
+        (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
     if ((ERROR_INSERTED(12003) && attrId == 0) ||
-        (ERROR_INSERTED(12004) && lastAttr))
-    {
+        (ERROR_INSERTED(12004) && lastAttr)) {
       errorCode = (TuxAddAttrRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;
       break;
     }
     if (lastAttr) {
       // compute min prefix
-      const KeySpec& keySpec = indexPtr.p->m_keySpec;
+      const KeySpec &keySpec = indexPtr.p->m_keySpec;
       unsigned attrs = 0;
       unsigned bytes = 0;
       unsigned maxAttrs = indexPtr.p->m_numAttrs;
 #ifdef VM_TRACE
 #ifdef NDB_USE_GET_ENV
       {
-        const char* p = NdbEnv_GetEnv("MAX_TTREE_PREF_ATTRS", (char*)0, 0);
+        const char *p = NdbEnv_GetEnv("MAX_TTREE_PREF_ATTRS", (char *)0, 0);
         if (p != 0 && p[0] != 0 && maxAttrs > (unsigned)atoi(p))
           maxAttrs = atoi(p);
       }
 #endif
 #endif
-      while (attrs < maxAttrs)
-      {
+      while (attrs < maxAttrs) {
         /**
          * Prefix is now saved as a normal Attrinfo data stream.
          * This means that each column uses 4 bytes Attrinfo header
          * the data is aligned on a word boundary.
          */
-        const KeyType& keyType = keySpec.get_type(attrs);
+        const KeyType &keyType = keySpec.get_type(attrs);
         const unsigned word_size = (keyType.get_byte_size() + 3) / 4;
         const unsigned newbytes = bytes + ((word_size + 1) * 4);
-        if (newbytes > (MAX_TTREE_PREF_SIZE << 2))
-          break;
+        if (newbytes > (MAX_TTREE_PREF_SIZE << 2)) break;
         attrs++;
         bytes = newbytes;
       }
@@ -253,31 +242,29 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       c_fragOpPool.release(fragOpPtr);
     }
     // success
-    TuxAddAttrConf* conf = (TuxAddAttrConf*)signal->getDataPtrSend();
+    TuxAddAttrConf *conf = (TuxAddAttrConf *)signal->getDataPtrSend();
     conf->userPtr = fragOpPtr.p->m_userPtr;
     conf->lastAttr = lastAttr;
-    sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRCONF,
-        signal, TuxAddAttrConf::SignalLength, JBB);
+    sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRCONF, signal,
+               TuxAddAttrConf::SignalLength, JBB);
     return;
   } while (0);
   // error
-  TuxAddAttrRef* ref = (TuxAddAttrRef*)signal->getDataPtrSend();
+  TuxAddAttrRef *ref = (TuxAddAttrRef *)signal->getDataPtrSend();
   ref->userPtr = fragOpPtr.p->m_userPtr;
   ref->errorCode = errorCode;
-  sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRREF,
-      signal, TuxAddAttrRef::SignalLength, JBB);
+  sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRREF, signal,
+             TuxAddAttrRef::SignalLength, JBB);
 #ifdef VM_TRACE
-    if (debugFlags & DebugMeta) {
-      tuxDebugOut << "Release on attr error frag op " << fragOpPtr.i << " "
-                  << *fragOpPtr.p << endl;
-    }
+  if (debugFlags & DebugMeta) {
+    tuxDebugOut << "Release on attr error frag op " << fragOpPtr.i << " "
+                << *fragOpPtr.p << endl;
+  }
 #endif
   // let DICT drop the unfinished index
 }
 
-void
-Dbtux::execTUXFRAGREQ(Signal* signal)
-{
+void Dbtux::execTUXFRAGREQ(Signal *signal) {
   jamEntry();
 
   if (signal->theData[0] == (Uint32)-1) {
@@ -286,8 +273,8 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     return;
   }
 
-  const TuxFragReq reqCopy = *(const TuxFragReq*)signal->getDataPtr();
-  const TuxFragReq* const req = &reqCopy;
+  const TuxFragReq reqCopy = *(const TuxFragReq *)signal->getDataPtr();
+  const TuxFragReq *const req = &reqCopy;
   IndexPtr indexPtr;
   indexPtr.i = RNIL;
   TuxFragRef::ErrorCode errorCode = TuxFragRef::NoError;
@@ -302,23 +289,21 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     if (false && indexPtr.p->m_state != Index::Defining) {
       jam();
       errorCode = TuxFragRef::InvalidRequest;
-      indexPtr.i = RNIL;        // leave alone
+      indexPtr.i = RNIL;  // leave alone
       break;
     }
 
     // check if index has place for more fragments
     ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
     // seize new fragment record
-    if (ERROR_INSERTED(12008))
-    {
+    if (ERROR_INSERTED(12008)) {
       CLEAR_ERROR_INSERT_VALUE;
       errorCode = TuxFragRef::InvalidRequest;
       break;
     }
 
     FragPtr fragPtr;
-    if (!c_fragPool.seize(fragPtr))
-    {
+    if (!c_fragPool.seize(fragPtr)) {
       jam();
       errorCode = TuxFragRef::NoFreeFragment;
       break;
@@ -350,7 +335,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
 
     // initialize tree header
-    TreeHead& tree = fragPtr.p->m_tree;
+    TreeHead &tree = fragPtr.p->m_tree;
     new (&tree) TreeHead();
     // make these configurable later
     tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
@@ -358,7 +343,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
     // size of header and min prefix
     const unsigned fixedSize = NodeHeadSize + tree.m_prefSize;
-    if (! (fixedSize <= tree.m_nodeSize)) {
+    if (!(fixedSize <= tree.m_nodeSize)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
       break;
@@ -366,7 +351,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     const unsigned slots = (tree.m_nodeSize - fixedSize) / TreeEntSize;
     tree.m_maxOccup = slots;
     // min occupancy of interior node must be at least 2
-    if (! (2 + maxSlack <= tree.m_maxOccup)) {
+    if (!(2 + maxSlack <= tree.m_maxOccup)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
       break;
@@ -390,22 +375,22 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
 #endif
 
     // success
-    TuxFragConf* const conf = (TuxFragConf*)signal->getDataPtrSend();
+    TuxFragConf *const conf = (TuxFragConf *)signal->getDataPtrSend();
     conf->userPtr = req->userPtr;
     conf->tuxConnectPtr = RNIL;
     conf->fragPtr = fragPtr.i;
     conf->fragId = fragPtr.p->m_fragId;
-    sendSignal(req->userRef, GSN_TUXFRAGCONF,
-        signal, TuxFragConf::SignalLength, JBB);
+    sendSignal(req->userRef, GSN_TUXFRAGCONF, signal, TuxFragConf::SignalLength,
+               JBB);
     return;
   } while (0);
 
   // error
-  TuxFragRef* const ref = (TuxFragRef*)signal->getDataPtrSend();
+  TuxFragRef *const ref = (TuxFragRef *)signal->getDataPtrSend();
   ref->userPtr = req->userPtr;
   ref->errorCode = errorCode;
-  sendSignal(req->userRef, GSN_TUXFRAGREF,
-      signal, TuxFragRef::SignalLength, JBB);
+  sendSignal(req->userRef, GSN_TUXFRAGREF, signal, TuxFragRef::SignalLength,
+             JBB);
 
   if (indexPtr.i != RNIL) {
     jam();
@@ -416,9 +401,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
 /*
  * LQH aborts on-going create index operation.
  */
-void
-Dbtux::abortAddFragOp(Signal* signal)
-{
+void Dbtux::abortAddFragOp(Signal *signal) {
   FragOpPtr fragOpPtr;
   IndexPtr indexPtr;
   ndbrequire(c_fragOpPool.getPtr(fragOpPtr, signal->theData[1]));
@@ -437,63 +420,60 @@ Dbtux::abortAddFragOp(Signal* signal)
  * Set index online.  Currently at system restart this arrives before
  * build and is therefore not correct.
  */
-void
-Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
-{
+void Dbtux::execALTER_INDX_IMPL_REQ(Signal *signal) {
   jamEntry();
-  const AlterIndxImplReq reqCopy = *(const AlterIndxImplReq*)signal->getDataPtr();
-  const AlterIndxImplReq* const req = &reqCopy;
+  const AlterIndxImplReq reqCopy =
+      *(const AlterIndxImplReq *)signal->getDataPtr();
+  const AlterIndxImplReq *const req = &reqCopy;
 
   IndexPtr indexPtr;
   ndbrequire(c_indexPool.getPtr(indexPtr, req->indexId));
 
   ndbassert(!m_is_query_block);
-  //Uint32 save = indexPtr.p->m_state;
-  if (! (refToBlock(req->senderRef) == DBDICT) &&
-      ! (isNdbMt() && refToMain(req->senderRef) == DBTUX && 
-         refToInstance(req->senderRef) == 0))
-  {
+  // Uint32 save = indexPtr.p->m_state;
+  if (!(refToBlock(req->senderRef) == DBDICT) &&
+      !(isNdbMt() && refToMain(req->senderRef) == DBTUX &&
+        refToInstance(req->senderRef) == 0)) {
     /**
      * DICT has a really distorted view of the world...
      *   ignore it :(
      */
     jam();
-    switch(req->requestType){
-    case AlterIndxImplReq::AlterIndexOffline:
-      jam();
-      /*
-       * This happens at failed index build, and before dropping an
-       * Online index.  It causes scans to terminate.
-       */
-      indexPtr.p->m_state = Index::Dropping;
-      break;
-    case AlterIndxImplReq::AlterIndexBuilding:
-      jam();
-      indexPtr.p->m_state = Index::Building;
-      break;
-    default:
-      jam();
-      [[fallthrough]];
-    case AlterIndxImplReq::AlterIndexOnline:
-      jam();
-      indexPtr.p->m_state = Index::Online;
-      break;
+    switch (req->requestType) {
+      case AlterIndxImplReq::AlterIndexOffline:
+        jam();
+        /*
+         * This happens at failed index build, and before dropping an
+         * Online index.  It causes scans to terminate.
+         */
+        indexPtr.p->m_state = Index::Dropping;
+        break;
+      case AlterIndxImplReq::AlterIndexBuilding:
+        jam();
+        indexPtr.p->m_state = Index::Building;
+        break;
+      default:
+        jam();
+        [[fallthrough]];
+      case AlterIndxImplReq::AlterIndexOnline:
+        jam();
+        indexPtr.p->m_state = Index::Online;
+        break;
     }
   }
-  
+
   // success
-  AlterIndxImplConf* const conf = (AlterIndxImplConf*)signal->getDataPtrSend();
+  AlterIndxImplConf *const conf = (AlterIndxImplConf *)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = req->senderData;
-  if (req->senderRef != 0)
-  {
+  if (req->senderRef != 0) {
     /**
      * TUP cheats and does execute direct
      *   setting UserRef to 0
      */
     jam();
-    sendSignal(req->senderRef, GSN_ALTER_INDX_IMPL_CONF,
-               signal, AlterIndxImplConf::SignalLength, JBB);
+    sendSignal(req->senderRef, GSN_ALTER_INDX_IMPL_CONF, signal,
+               AlterIndxImplConf::SignalLength, JBB);
   }
 }
 
@@ -503,12 +483,10 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
  * Uses same DROP_TAB_REQ signal as normal tables.
  */
 
-void
-Dbtux::execDROP_TAB_REQ(Signal* signal)
-{
+void Dbtux::execDROP_TAB_REQ(Signal *signal) {
   jamEntry();
-  const DropTabReq reqCopy = *(const DropTabReq*)signal->getDataPtr();
-  const DropTabReq* const req = &reqCopy;
+  const DropTabReq reqCopy = *(const DropTabReq *)signal->getDataPtr();
+  const DropTabReq *const req = &reqCopy;
   IndexPtr indexPtr;
 
   Uint32 tableId = req->tableId;
@@ -517,15 +495,15 @@ Dbtux::execDROP_TAB_REQ(Signal* signal)
   if (tableId >= c_indexPool.getSize()) {
     jam();
     // reply to sender
-    DropTabConf* const conf = (DropTabConf*)signal->getDataPtrSend();
+    DropTabConf *const conf = (DropTabConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;
     conf->tableId = tableId;
-    sendSignal(senderRef, GSN_DROP_TAB_CONF,
-	       signal, DropTabConf::SignalLength, JBB);
+    sendSignal(senderRef, GSN_DROP_TAB_CONF, signal, DropTabConf::SignalLength,
+               JBB);
     return;
   }
-  
+
   ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
   // drop works regardless of index state
 #ifdef VM_TRACE
@@ -537,9 +515,8 @@ Dbtux::execDROP_TAB_REQ(Signal* signal)
   dropIndex(signal, indexPtr, req->senderRef, req->senderData);
 }
 
-void
-Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData)
-{
+void Dbtux::dropIndex(Signal *signal, IndexPtr indexPtr, Uint32 senderRef,
+                      Uint32 senderData) {
   jam();
   /*
    * Index state should be Defining or Dropping but in 7.0 it can also
@@ -563,12 +540,12 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
   if (senderRef != 0) {
     jam();
     // reply to sender
-    DropTabConf* const conf = (DropTabConf*)signal->getDataPtrSend();
+    DropTabConf *const conf = (DropTabConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;
     conf->tableId = indexPtr.i;
-    sendSignal(senderRef, GSN_DROP_TAB_CONF,
-        signal, DropTabConf::SignalLength, JBB);
+    sendSignal(senderRef, GSN_DROP_TAB_CONF, signal, DropTabConf::SignalLength,
+               JBB);
   }
   new (indexPtr.p) Index();
 }
@@ -577,9 +554,7 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
  * Subroutines.
  */
 
-bool
-Dbtux::allocDescEnt(IndexPtr indexPtr)
-{
+bool Dbtux::allocDescEnt(IndexPtr indexPtr) {
   jam();
   const Uint32 size = getDescSize(*indexPtr.p);
   DescPagePtr pagePtr;
@@ -595,7 +570,7 @@ Dbtux::allocDescEnt(IndexPtr indexPtr)
   }
   if (pagePtr.i == RNIL) {
     jam();
-    if (! c_descPagePool.seize(pagePtr)) {
+    if (!c_descPagePool.seize(pagePtr)) {
       jam();
       return false;
     }
@@ -609,36 +584,33 @@ Dbtux::allocDescEnt(IndexPtr indexPtr)
   indexPtr.p->m_descPage = pagePtr.i;
   indexPtr.p->m_descOff = DescPageSize - pagePtr.p->m_numFree;
   pagePtr.p->m_numFree -= size;
-  DescHead& descHead = *(DescHead*)&pagePtr.p->m_data[indexPtr.p->m_descOff];
+  DescHead &descHead = *(DescHead *)&pagePtr.p->m_data[indexPtr.p->m_descOff];
   descHead.m_indexId = indexPtr.i;
   descHead.m_numAttrs = indexPtr.p->m_numAttrs;
   descHead.m_magic = DescHead::Magic;
-  KeySpec& keySpec = indexPtr.p->m_keySpec;
-  KeyType* keyTypes = getKeyTypes(descHead);
+  KeySpec &keySpec = indexPtr.p->m_keySpec;
+  KeyType *keyTypes = getKeyTypes(descHead);
   keySpec.set_buf(keyTypes, indexPtr.p->m_numAttrs);
   return true;
 }
 
-void
-Dbtux::freeDescEnt(IndexPtr indexPtr)
-{
+void Dbtux::freeDescEnt(IndexPtr indexPtr) {
   DescPagePtr pagePtr;
   ndbrequire(c_descPagePool.getPtr(pagePtr, indexPtr.p->m_descPage));
-  Uint32* const data = pagePtr.p->m_data;
+  Uint32 *const data = pagePtr.p->m_data;
   const Uint32 size = getDescSize(*indexPtr.p);
   Uint32 off = indexPtr.p->m_descOff;
   // move the gap to the free area at the top
   while (off + size < DescPageSize - pagePtr.p->m_numFree) {
     jam();
     // next entry to move over the gap
-    DescHead& descHead2 = *(DescHead*)&data[off + size];
+    DescHead &descHead2 = *(DescHead *)&data[off + size];
     Uint32 indexId2 = descHead2.m_indexId;
-    Index& index2 = *c_indexPool.getPtr(indexId2);
+    Index &index2 = *c_indexPool.getPtr(indexId2);
     Uint32 size2 = getDescSize(index2);
-    ndbrequire(
-        index2.m_descPage == pagePtr.i &&
-        index2.m_descOff == off + size &&
-        index2.m_numAttrs == descHead2.m_numAttrs);
+    ndbrequire(index2.m_descPage == pagePtr.i &&
+               index2.m_descOff == off + size &&
+               index2.m_numAttrs == descHead2.m_numAttrs);
     // move the entry (overlapping copy if size < size2)
     Uint32 i;
     for (i = 0; i < size2; i++) {
@@ -650,55 +622,49 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
     index2.m_descOff -= size;
     {
       // move KeySpec pointer
-      DescHead& descHead2 = getDescHead(index2);
-      KeyType* keyType2 = getKeyTypes(descHead2);
+      DescHead &descHead2 = getDescHead(index2);
+      KeyType *keyType2 = getKeyTypes(descHead2);
       index2.m_keySpec.set_buf(keyType2);
       ndbrequire(index2.m_keySpec.validate() == 0);
-     }
+    }
   }
   ndbrequire(off + size == DescPageSize - pagePtr.p->m_numFree);
   pagePtr.p->m_numFree += size;
 }
 
-void
-Dbtux::execDROP_FRAG_REQ(Signal* signal)
-{
-  DropFragReq copy = *(DropFragReq*)signal->getDataPtr();
+void Dbtux::execDROP_FRAG_REQ(Signal *signal) {
+  DropFragReq copy = *(DropFragReq *)signal->getDataPtr();
   DropFragReq *req = &copy;
 
   IndexPtr indexPtr;
   ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
 
-  for (Uint32 i = 0; i < indexPtr.p->m_numFrags; i++)
-  {
+  for (Uint32 i = 0; i < indexPtr.p->m_numFrags; i++) {
     jam();
-    if (indexPtr.p->m_fragId[i] == req->fragId)
-    {
+    if (indexPtr.p->m_fragId[i] == req->fragId) {
       jam();
       FragPtr fragPtr;
       ndbrequire(c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]));
       c_fragPool.release(fragPtr);
 
-      for (i++; i < indexPtr.p->m_numFrags; i++)
-      {
+      for (i++; i < indexPtr.p->m_numFrags; i++) {
         jam();
         /* Check array bounds to silence gcc 4.8.2 false warning bug */
         ndbrequire(i < NDB_ARRAY_SIZE(indexPtr.p->m_fragPtrI) &&
                    i < NDB_ARRAY_SIZE(indexPtr.p->m_fragId));
-        indexPtr.p->m_fragPtrI[i-1] = indexPtr.p->m_fragPtrI[i];
-        indexPtr.p->m_fragId[i-1] = indexPtr.p->m_fragId[i];
+        indexPtr.p->m_fragPtrI[i - 1] = indexPtr.p->m_fragPtrI[i];
+        indexPtr.p->m_fragId[i - 1] = indexPtr.p->m_fragId[i];
       }
       indexPtr.p->m_numFrags--;
       break;
     }
   }
 
-
   // reply to sender
-  DropFragConf* const conf = (DropFragConf*)signal->getDataPtrSend();
+  DropFragConf *const conf = (DropFragConf *)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = req->senderData;
   conf->tableId = req->tableId;
-  sendSignal(req->senderRef, GSN_DROP_FRAG_CONF,
-             signal, DropFragConf::SignalLength, JBB);
+  sendSignal(req->senderRef, GSN_DROP_FRAG_CONF, signal,
+             DropFragConf::SignalLength, JBB);
 }

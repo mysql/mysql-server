@@ -23,25 +23,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <kernel_types.h>
 #include <BlockNumbers.h>
+#include <kernel_types.h>
 #include <signaldata/SystemError.hpp>
 
-bool printSYSTEM_ERROR(FILE *output,
-                       const Uint32 *theData,
-                       Uint32 len,
-                       Uint16 /*receiverBlockNo*/)
-{
+bool printSYSTEM_ERROR(FILE *output, const Uint32 *theData, Uint32 len,
+                       Uint16 /*receiverBlockNo*/) {
   const SystemError *const sig = (const SystemError *)theData;
 
-  fprintf(output, "errorRef: H\'%.8x\n", 
-	  sig->errorRef);   
-  fprintf(output, "errorCode: %d\n", 
-	  sig->errorCode);  
-  if (len >= 2)
-  {
-    for (Uint32 i = 0; i<len - 2; i++)
-    {
+  fprintf(output, "errorRef: H\'%.8x\n", sig->errorRef);
+  fprintf(output, "errorCode: %d\n", sig->errorCode);
+  if (len >= 2) {
+    for (Uint32 i = 0; i < len - 2; i++) {
       fprintf(output, "data[%u]: H\'%.8x\n", i, sig->data[i]);
     }
   }

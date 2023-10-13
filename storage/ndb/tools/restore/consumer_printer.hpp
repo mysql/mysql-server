@@ -27,30 +27,30 @@
 
 #include "consumer.hpp"
 
-class BackupPrinter : public BackupConsumer 
-{
-  NdbOut & m_ndbout;
-public:
-  BackupPrinter(NdbOut & out = ndbout) : m_ndbout(out)
-  {
+class BackupPrinter : public BackupConsumer {
+  NdbOut &m_ndbout;
+
+ public:
+  BackupPrinter(NdbOut &out = ndbout) : m_ndbout(out) {
     m_print = false;
     m_print_log = false;
     m_print_sql_log = false;
     m_print_data = false;
     m_print_meta = false;
     m_logCount = 0;
-    m_dataCount = 0;  
+    m_dataCount = 0;
   }
-  
+
   bool table(const TableS &) override;
 #ifdef USE_MYSQL
-  virtual bool table(const TableS &, MYSQL* mysqlp);
+  virtual bool table(const TableS &, MYSQL *mysqlp);
 #endif
   bool tuple(const TupleS &, Uint32 fragId) override;
   bool logEntry(const LogEntry &) override;
   void endOfTuples() override {}
   void endOfLogEntrys() override;
-  bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
+  bool update_apply_status(const RestoreMetaData &metaData,
+                           bool snapshotstart) override;
   bool delete_epoch_tuple() override;
   bool m_print;
   bool m_print_log;
@@ -58,7 +58,7 @@ public:
   bool m_print_data;
   bool m_print_meta;
   Uint32 m_logCount;
-  Uint32 m_dataCount;  
+  Uint32 m_dataCount;
 };
 
 #endif

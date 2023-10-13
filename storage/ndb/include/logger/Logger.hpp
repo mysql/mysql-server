@@ -26,10 +26,10 @@
 #define Logger_H
 
 #include <ndb_global.h>
-#include "portlib/ndb_compiler.h"
 #include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
+#include "portlib/ndb_compiler.h"
 
 #define MAX_LOG_MESSAGE_SIZE 1024
 
@@ -39,13 +39,13 @@ class LogHandlerList;
 /**
  * Logger should be used whenever you need to log a message like
  * general information or debug messages. By creating/adding different
- * log handlers, a single log message can be sent to 
+ * log handlers, a single log message can be sent to
  * different outputs (stdout, file or syslog).
- * 
- * Each log entry is created with a log level (or severity) which is 
- * used to identity the type of the entry, e.g., if it is a debug 
+ *
+ * Each log entry is created with a log level (or severity) which is
+ * used to identity the type of the entry, e.g., if it is a debug
  * or an error message.
- * 
+ *
  * Example of a log entry:
  *
  *  09:17:39 2002-03-13 [myLogger] INFO -- Local checkpoint started.
@@ -56,7 +56,7 @@ class LogHandlerList;
  *
  *    Logger myLogger = new Logger();
  *
- * 2) Add the log handlers that you want, i.e., where the log entries 
+ * 2) Add the log handlers that you want, i.e., where the log entries
  *    should be written/shown.
  *
  *    myLogger->createConsoleHandler();  // Output to console/stdout
@@ -67,9 +67,9 @@ class LogHandlerList;
  *    myLogger->setCategory("myLogger");
  *
  * 4) Start log messages.
- *    
+ *
  *     myLogger->alert("T-9 to lift off");
- *     myLogger->info("Here comes the sun, la la"); 
+ *     myLogger->info("Here comes the sun, la la");
  *     myLogger->debug("Why does this not work!!!, We should not be here...")
  *
  * 5) Log only debug messages.
@@ -79,7 +79,7 @@ class LogHandlerList;
  * 6) Log only ALERTS and ERRORS.
  *
  *    myLogger->enable(Logger::LL_ERROR, Logger::LL_ALERT);
- * 
+ *
  * 7) Do not log any messages.
  *
  *    myLogger->disable(Logger::LL_ALL);
@@ -108,11 +108,8 @@ class LogHandlerList;
  *
  * @version #@ $Id: Logger.hpp,v 1.7 2003/09/01 10:15:53 innpeno Exp $
  */
-class Logger
-{
-public:
-
-
+class Logger {
+ public:
   /*
     Convert time to local timezone and print in timestamp format
     to string buffer. The function always write some null terminated
@@ -123,19 +120,26 @@ public:
       @len max length of result buffer
 
   */
-  static void format_timestamp(const time_t epoch,
-                               char* str, size_t len);
+  static void format_timestamp(const time_t epoch, char *str, size_t len);
 
-  /** The log levels. NOTE: Could not use the name LogLevel since 
+  /** The log levels. NOTE: Could not use the name LogLevel since
    * it caused conflicts with another class.
    */
-  enum LoggerLevel {LL_ON, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR,
-		    LL_CRITICAL, LL_ALERT, LL_ALL};
-  
+  enum LoggerLevel {
+    LL_ON,
+    LL_DEBUG,
+    LL_INFO,
+    LL_WARNING,
+    LL_ERROR,
+    LL_CRITICAL,
+    LL_ALERT,
+    LL_ALL
+  };
+
   /**
    * String representation of the the log levels.
    */
-  static const char* LoggerLevelNames[];
+  static const char *LoggerLevelNames[];
 
   /**
    * Default constructor.
@@ -146,20 +150,20 @@ public:
    * Destructor.
    */
   virtual ~Logger();
-  
+
   /**
    * Set a category/name that each log entry will have.
    *
    * @param pCategory the category.
    */
-  void setCategory(const char* pCategory);
+  void setCategory(const char *pCategory);
 
   /**
    * Create a default handler that logs to the console/stdout.
    *
    * @return true if successful.
    */
-  bool createConsoleHandler(NdbOut &out= ndbout);
+  bool createConsoleHandler(NdbOut &out = ndbout);
 
   /**
    * Remove the default console handler.
@@ -175,7 +179,7 @@ public:
    * @return true if successful.
    */
 #ifdef _WIN32
-  bool createEventLogHandler(const char* source_name);
+  bool createEventLogHandler(const char *source_name);
 #endif
 
   /**
@@ -183,7 +187,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createFileHandler(char* filename);
+  bool createFileHandler(char *filename);
 
   /**
    * Remove the default file handler.
@@ -195,7 +199,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createSyslogHandler();	
+  bool createSyslogHandler();
 
   /**
    * Remove the default syslog handler.
@@ -208,7 +212,7 @@ public:
    * @param pHandler a log handler.
    * @return true if successful.
    */
-  bool addHandler(LogHandler* pHandler);
+  bool addHandler(LogHandler *pHandler);
 
   /**
    * Remove a log handler.
@@ -216,7 +220,7 @@ public:
    * @param pHandler log handler to remove.
    * @return true if successful.
    */
-  bool removeHandler(LogHandler* pHandler);
+  bool removeHandler(LogHandler *pHandler);
 
   /**
    * Remove all log handlers.
@@ -228,7 +232,7 @@ public:
    *
    * @return true if enabled.
    */
-  bool isEnable(LoggerLevel logLevel) const; 
+  bool isEnable(LoggerLevel logLevel) const;
 
   /**
    * Enable the specified log level.
@@ -243,7 +247,7 @@ public:
    * @param fromLogLevel enable from log level.
    * @param toLogLevel enable to log level.
    */
-  void enable (LoggerLevel fromLogLevel, LoggerLevel toLogLevel);
+  void enable(LoggerLevel fromLogLevel, LoggerLevel toLogLevel);
 
   /**
    * Disable log level.
@@ -257,26 +261,28 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void alert(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void alert(const char *pMsg, ...) const
+      ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void alert(BaseString &pMsg) const { alert("%s", pMsg.c_str()); }
-  
+
   /**
    * Log a critical message.
    *
    * @param pMsg the message.
    */
-  virtual void critical(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void critical(BaseString &pMsg) const { critical("%s", pMsg.c_str()); }
+  virtual void critical(const char *pMsg, ...) const
+      ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void critical(BaseString &pMsg) const {
+    critical("%s", pMsg.c_str());
+  }
 
   /**
    * Log an error message.
    *
    * @param pMsg the message.
    */
-  virtual void error(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void error(const char *pMsg, ...) const
+      ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void error(BaseString &pMsg) const { error("%s", pMsg.c_str()); }
 
   /**
@@ -284,8 +290,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void warning(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void warning(const char *pMsg, ...) const
+      ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void warning(BaseString &pMsg) const { warning("%s", pMsg.c_str()); }
 
   /**
@@ -293,8 +299,7 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void info(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void info(const char *pMsg, ...) const ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void info(BaseString &pMsg) const { info("%s", pMsg.c_str()); }
 
   /**
@@ -302,8 +307,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void debug(const char* pMsg, ...) const
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  virtual void debug(const char *pMsg, ...) const
+      ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void debug(BaseString &pMsg) const { debug("%s", pMsg.c_str()); }
 
   /*
@@ -311,31 +316,30 @@ public:
    */
   virtual void setRepeatFrequency(unsigned val);
 
-protected:
-
+ protected:
   NdbMutex *m_mutex;
 
-  void log(LoggerLevel logLevel, const char* msg, va_list ap) const
-    ATTRIBUTE_FORMAT(printf, 3, 0);
+  void log(LoggerLevel logLevel, const char *msg, va_list ap) const
+      ATTRIBUTE_FORMAT(printf, 3, 0);
 
-private:
+ private:
   /** Prohibit */
-  Logger(const Logger&);
-  Logger operator = (const Logger&);
-  bool operator == (const Logger&);
+  Logger(const Logger &);
+  Logger operator=(const Logger &);
+  bool operator==(const Logger &);
 
   static constexpr Uint32 MAX_LOG_LEVELS = 8;
 
   bool m_logLevels[MAX_LOG_LEVELS];
-  
-  LogHandlerList* m_pHandlerList;
-  const char* m_pCategory;
+
+  LogHandlerList *m_pHandlerList;
+  const char *m_pCategory;
 
   /* Default handlers */
   NdbMutex *m_handler_mutex;
-  LogHandler* m_pConsoleHandler;
-  LogHandler* m_pFileHandler;
-  LogHandler* m_pSyslogHandler;
+  LogHandler *m_pConsoleHandler;
+  LogHandler *m_pFileHandler;
+  LogHandler *m_pSyslogHandler;
 };
 
 #endif

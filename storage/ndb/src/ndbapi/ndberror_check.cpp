@@ -27,16 +27,12 @@
 
 #include <NdbTap.hpp>
 
-TAPTEST(ndberror_check)
-{
-  int ok= 1;
+TAPTEST(ndberror_check) {
+  int ok = 1;
   /* check for duplicate error codes */
-  for(int i = 0; i < NbErrorCodes; i++)
-  {
-    for(int j = i + 1; j < NbErrorCodes; j++)
-    {
-      if (ErrorCodes[i].code == ErrorCodes[j].code)
-      {
+  for (int i = 0; i < NbErrorCodes; i++) {
+    for (int j = i + 1; j < NbErrorCodes; j++) {
+      if (ErrorCodes[i].code == ErrorCodes[j].code) {
         fprintf(stderr, "Duplicate error code %u\n", ErrorCodes[i].code);
         ok = 0;
       }
@@ -44,4 +40,3 @@ TAPTEST(ndberror_check)
   }
   return ok;
 }
-

@@ -32,18 +32,16 @@
 #ifndef SignalLoggerManager_H
 #define SignalLoggerManager_H
 
-
-#include <kernel_types.h>
 #include <BlockNumbers.h>
-#include <RefConvert.hpp>
 #include <NdbMutex.h>
+#include <kernel_types.h>
+#include <RefConvert.hpp>
 #include "portlib/ndb_compiler.h"
 
 struct SignalHeader;
 
-class SignalLoggerManager
-{
-public:
+class SignalLoggerManager {
+ public:
   SignalLoggerManager();
   virtual ~SignalLoggerManager();
 
@@ -51,98 +49,87 @@ public:
    * Sets output
    * @Returns old output stream
    */
-  FILE * setOutputStream(FILE * output);
-  
+  FILE *setOutputStream(FILE *output);
+
   /**
    * Gets current output
    */
-  FILE * getOutputStream() const;
+  FILE *getOutputStream() const;
 
   void flushSignalLog();
-  
+
   /**
    * For direct signals
    * @See also SimulatedBlock EXECUTE_DIRECT
-   */   
-  void executeDirect(const SignalHeader&, 
-		     Uint8 prio, const Uint32 * theData, Uint32 node);
-  
+   */
+  void executeDirect(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                     Uint32 node);
+
   /**
    * For input signals
    */
-  void executeSignal(const SignalHeader& sh, Uint8 prio,
-		     const Uint32 * theData, Uint32 node) {
-    executeSignal(sh, prio, theData, node, (LinearSectionPtr*)nullptr, 0);
+  void executeSignal(const SignalHeader &sh, Uint8 prio, const Uint32 *theData,
+                     Uint32 node) {
+    executeSignal(sh, prio, theData, node, (LinearSectionPtr *)nullptr, 0);
   }
 
-  void executeSignal(const SignalHeader&, Uint8 prio,
-                     const Uint32 * theData, Uint32 node,
-                     const SegmentedSectionPtr ptr[3], Uint32 secs);
+  void executeSignal(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                     Uint32 node, const SegmentedSectionPtr ptr[3],
+                     Uint32 secs);
 
-  void executeSignal(const SignalHeader&, Uint8 prio,
-                     const Uint32 * theData, Uint32 node,
-                     const LinearSectionPtr ptr[3], Uint32 secs);
+  void executeSignal(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                     Uint32 node, const LinearSectionPtr ptr[3], Uint32 secs);
 
   /**
    * For output signals
    */
-  void sendSignal(const SignalHeader& sh, Uint8 prio,
-		  const Uint32 * theData, Uint32 node) {
-    sendSignal(sh, prio, theData, node, (LinearSectionPtr*)nullptr, 0);
+  void sendSignal(const SignalHeader &sh, Uint8 prio, const Uint32 *theData,
+                  Uint32 node) {
+    sendSignal(sh, prio, theData, node, (LinearSectionPtr *)nullptr, 0);
   }
 
-  void sendSignal(const SignalHeader&, Uint8 prio,
-		  const Uint32 * theData, Uint32 node,
-                  const SegmentedSectionPtr ptr[3], Uint32 secs);
+  void sendSignal(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                  Uint32 node, const SegmentedSectionPtr ptr[3], Uint32 secs);
 
-  void sendSignal(const SignalHeader&, Uint8 prio, 
-		  const Uint32 * theData, Uint32 node,
-                  const LinearSectionPtr ptr[3], Uint32 secs);
+  void sendSignal(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                  Uint32 node, const LinearSectionPtr ptr[3], Uint32 secs);
 
-  void sendSignal(const SignalHeader&, Uint8 prio,
-                  const Uint32 * theData, Uint32 node,
-                  const GenericSectionPtr ptr[3], Uint32 secs);
-  
+  void sendSignal(const SignalHeader &, Uint8 prio, const Uint32 *theData,
+                  Uint32 node, const GenericSectionPtr ptr[3], Uint32 secs);
+
   /**
    * For output signals
    */
-  void sendSignalWithDelay(Uint32 delayInMilliSeconds, 
-			   const SignalHeader& sh,
-			   Uint8 prio, const Uint32 * data, Uint32 node){
+  void sendSignalWithDelay(Uint32 delayInMilliSeconds, const SignalHeader &sh,
+                           Uint8 prio, const Uint32 *data, Uint32 node) {
     sendSignalWithDelay(delayInMilliSeconds, sh, prio, data, node,
-			(SegmentedSectionPtr*)nullptr, 0);
+                        (SegmentedSectionPtr *)nullptr, 0);
   }
 
-  void sendSignalWithDelay(Uint32 delayInMilliSeconds,
-			   const SignalHeader&,
-			   Uint8 prio, const Uint32 * data, Uint32 node,
+  void sendSignalWithDelay(Uint32 delayInMilliSeconds, const SignalHeader &,
+                           Uint8 prio, const Uint32 *data, Uint32 node,
                            const SegmentedSectionPtr ptr[3], Uint32 secs);
-  
+
   /**
    * Generic messages in the signal log
    */
-  void log(BlockNumber bno, const char * msg, ...)
-    ATTRIBUTE_FORMAT(printf, 3, 4);
-  
+  void log(BlockNumber bno, const char *msg, ...)
+      ATTRIBUTE_FORMAT(printf, 3, 4);
+
   /**
    * LogModes
    */
-  enum LogMode {
-    LogOff   = 0,
-    LogIn    = 1,
-    LogOut   = 2,
-    LogInOut = 3
-  };
+  enum LogMode { LogOff = 0, LogIn = 1, LogOut = 2, LogInOut = 3 };
 
   /**
    * Returns no of loggers affected
    */
-  int log(LogMode logMode, const char * params);
+  int log(LogMode logMode, const char *params);
   int logOn(bool allBlocks, BlockNumber bno, LogMode logMode);
   int logOff(bool allBlocks, BlockNumber bno, LogMode logMode);
   int logToggle(bool allBlocks, BlockNumber bno, LogMode logMode);
-  
-  void setTrace(unsigned long trace);   
+
+  void setTrace(unsigned long trace);
   unsigned long getTrace() const;
 
   void setOwnNodeId(int nodeId);
@@ -151,75 +138,68 @@ public:
   /**
    * Print header
    */
-  static void printSignalHeader(FILE * output, 
-				const SignalHeader & sh,
-				Uint8 prio, 
-				Uint32 node,
-				bool printReceiversSignalId);
-  
+  static void printSignalHeader(FILE *output, const SignalHeader &sh,
+                                Uint8 prio, Uint32 node,
+                                bool printReceiversSignalId);
+
   /**
    * Function for printing the Signal Data
    */
-  static void printSignalData(FILE * out, 
-			      const SignalHeader & sh, const Uint32 *);
+  static void printSignalData(FILE *out, const SignalHeader &sh,
+                              const Uint32 *);
 
   /**
    * Print linear section.
    */
-  static void printLinearSection(FILE * output,
-                                 const SignalHeader & sh,
-                                 const LinearSectionPtr ptr[3],
-                                 unsigned i);
+  static void printLinearSection(FILE *output, const SignalHeader &sh,
+                                 const LinearSectionPtr ptr[3], unsigned i);
 
   /**
    * Print segmented section.
    */
-  static void printSegmentedSection(FILE * output,
-                                    const SignalHeader & sh,
+  static void printSegmentedSection(FILE *output, const SignalHeader &sh,
                                     const SegmentedSectionPtr ptr[3],
                                     unsigned i);
 
   /**
    * Print generic section.
    */
-  static void printGenericSection(FILE * output,
-                                  const SignalHeader & sh,
-                                  const GenericSectionPtr ptr[3],
-                                  unsigned i);
+  static void printGenericSection(FILE *output, const SignalHeader &sh,
+                                  const GenericSectionPtr ptr[3], unsigned i);
 
   /**
    * Print data word in hex.  Adds line break before the word
    * when pos > 0 && pos % 7 == 0.  Increments pos.
    */
-  static void printDataWord(FILE * output, Uint32 & pos, const Uint32 data);
+  static void printDataWord(FILE *output, Uint32 &pos, const Uint32 data);
 
-private:
+ private:
   bool m_logDistributed;
   Uint32 m_ownNodeId;
 
-  FILE * outputStream;
+  FILE *outputStream;
   int log(int cmd, BlockNumber bno, LogMode logMode);
-  
-  Uint32        traceId;
-  Uint8         logModes[NO_OF_BLOCKS];
 
-  NdbMutex* m_mutex;
+  Uint32 traceId;
+  Uint8 logModes[NO_OF_BLOCKS];
 
-public:
-  void lock() { if (m_mutex != nullptr) NdbMutex_Lock(m_mutex); }
-  void unlock() { if (m_mutex != nullptr) NdbMutex_Unlock(m_mutex); }
- 
-  inline bool
-  logMatch(BlockNumber bno, LogMode mask)
-  {
+  NdbMutex *m_mutex;
+
+ public:
+  void lock() {
+    if (m_mutex != nullptr) NdbMutex_Lock(m_mutex);
+  }
+  void unlock() {
+    if (m_mutex != nullptr) NdbMutex_Unlock(m_mutex);
+  }
+
+  inline bool logMatch(BlockNumber bno, LogMode mask) {
     // extract main block number
     bno = blockToMain(bno);
     // avoid addressing outside logModes
-    return
-      bno < MIN_BLOCK_NO || bno > MAX_BLOCK_NO ||
-      (logModes[bno-MIN_BLOCK_NO] & mask);
+    return bno < MIN_BLOCK_NO || bno > MAX_BLOCK_NO ||
+           (logModes[bno - MIN_BLOCK_NO] & mask);
   }
 };
 
-#endif // SignalLoggerManager_H
-
+#endif  // SignalLoggerManager_H

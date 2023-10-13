@@ -27,44 +27,39 @@
 
 #include "SqlClient.hpp"
 
-class AtrtClient: public SqlClient {
-public:
-
+class AtrtClient : public SqlClient {
+ public:
   enum AtrtCommandType {
-    ATCT_CHANGE_VERSION= 1,
-    ATCT_RESET_PROC= 2,
-    ATCT_START_PROCESS= 3,
-    ATCT_STOP_PROCESS= 4,
+    ATCT_CHANGE_VERSION = 1,
+    ATCT_RESET_PROC = 2,
+    ATCT_START_PROCESS = 3,
+    ATCT_STOP_PROCESS = 4,
     ATCT_SWITCH_CONFIG = 5
   };
 
-  AtrtClient(const char* _suffix= ".1.atrt");
-  AtrtClient(MYSQL*);
+  AtrtClient(const char *_suffix = ".1.atrt");
+  AtrtClient(MYSQL *);
   ~AtrtClient();
 
-
   // Command functions
-  bool changeVersion(int process_id, const char* process_args);
-  bool switchConfig(int process_id, const char* process_args);
+  bool changeVersion(int process_id, const char *process_args);
+  bool switchConfig(int process_id, const char *process_args);
   bool stopProcess(int process_id);
   bool startProcess(int process_id);
   bool resetProc(int process_id);
 
   // Query functions
-  bool getConnectString(int cluster_id, SqlResultSet& result);
-  bool getClusters(SqlResultSet& result);
-  bool getMgmds(int cluster_id, SqlResultSet& result);
-  bool getNdbds(int cluster_id, SqlResultSet& result);
+  bool getConnectString(int cluster_id, SqlResultSet &result);
+  bool getClusters(SqlResultSet &result);
+  bool getMgmds(int cluster_id, SqlResultSet &result);
+  bool getNdbds(int cluster_id, SqlResultSet &result);
   int getOwnProcessId();
 
-private:
-  int writeCommand(AtrtCommandType _type,
-                   const Properties& args);
-  bool readCommand(uint command_id,
-                   SqlResultSet& result);
+ private:
+  int writeCommand(AtrtCommandType _type, const Properties &args);
+  bool readCommand(uint command_id, SqlResultSet &result);
 
-  bool doCommand(AtrtCommandType _type,
-                 const Properties& args);
+  bool doCommand(AtrtCommandType _type, const Properties &args);
 };
 
 #endif

@@ -24,11 +24,11 @@
 
 #include <stdio.h>
 
-#include "adapter_global.h"
 #include "AsyncMethodCall.h"
 #include "JsValueAccess.h"
+#include "adapter_global.h"
 
-void report_error(TryCatch * err) {
+void report_error(TryCatch *err) {
   Local<Message> message = err->Message();
   Isolate *isolate = message->GetIsolate();
   String::Utf8Value exception(isolate, err->Exception());
@@ -37,24 +37,22 @@ void report_error(TryCatch * err) {
   String::Utf8Value file(isolate, message->GetScriptResourceName());
   int line = 0;
   Maybe<int> err_line = message->GetLineNumber(isolate->GetCurrentContext());
-  if(err_line.IsJust()) line = err_line.ToChecked();
+  if (err_line.IsJust()) line = err_line.ToChecked();
 
   fprintf(stderr, "%s [%s]\n", *exception, *msg);
   fprintf(stderr, "%s: line %d\n", *file, line);
-  if(stack.length() > 0)
-    fprintf(stderr, "%s\n", *stack);
+  if (stack.length() > 0) fprintf(stderr, "%s\n", *stack);
 }
 
-
 void work_thd_run(uv_work_t *req) {
-  AsyncCall *m = (AsyncCall *) req->data;
+  AsyncCall *m = (AsyncCall *)req->data;
 
   m->run();
   m->handleErrors();
 }
 
 void main_thd_complete_async_call(AsyncCall *m) {
-  v8::Isolate * isolate = Isolate::GetCurrent();
+  v8::Isolate *isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   v8::TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -62,17 +60,16 @@ void main_thd_complete_async_call(AsyncCall *m) {
   m->doAsyncCallback(isolate->GetCurrentContext()->Global());
 
   /* exceptions */
-  if(try_catch.HasCaught()) {
-    report_error(& try_catch);
+  if (try_catch.HasCaught()) {
+    report_error(&try_catch);
   }
 
   /* cleanup */
   delete m;
 }
 
-
 void main_thd_complete(uv_work_t *req, int) {
-  AsyncCall *m = (AsyncCall *) req->data;
+  AsyncCall *m = (AsyncCall *)req->data;
   main_thd_complete_async_call(m);
   delete req;
 }

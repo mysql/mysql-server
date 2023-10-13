@@ -27,15 +27,13 @@
 
 #define JAM_FILE_ID 143
 
-
 struct DictObjOp {
-  
   enum RequestType {
-    Prepare = 0, // Prepare create obj
-    Commit = 1,  // Commit create obj
-    Abort = 2    // Prepare failed, drop instead
+    Prepare = 0,  // Prepare create obj
+    Commit = 1,   // Commit create obj
+    Abort = 2     // Prepare failed, drop instead
   };
-  
+
   enum State {
     Defined = 0,
     Preparing = 1,
@@ -47,8 +45,7 @@ struct DictObjOp {
   };
 };
 
-struct DictCommitReq
-{
+struct DictCommitReq {
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 op_key;
@@ -57,21 +54,16 @@ struct DictCommitReq
   static constexpr Uint32 GSN = GSN_DICT_COMMIT_REQ;
 };
 
-struct DictCommitRef
-{
+struct DictCommitRef {
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
-  enum ErrorCode 
-  {
-    NF_FakeErrorREF = 1
-  };
+  enum ErrorCode { NF_FakeErrorREF = 1 };
   static constexpr Uint32 SignalLength = 3;
   static constexpr Uint32 GSN = GSN_DICT_COMMIT_REF;
 };
 
-struct DictCommitConf
-{
+struct DictCommitConf {
   Uint32 senderData;
   Uint32 senderRef;
 
@@ -79,8 +71,7 @@ struct DictCommitConf
   static constexpr Uint32 GSN = GSN_DICT_COMMIT_CONF;
 };
 
-struct DictAbortReq
-{
+struct DictAbortReq {
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 op_key;
@@ -89,29 +80,22 @@ struct DictAbortReq
   static constexpr Uint32 GSN = GSN_DICT_ABORT_REQ;
 };
 
-struct DictAbortRef
-{
+struct DictAbortRef {
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
-  enum ErrorCode 
-  {
-    NF_FakeErrorREF = 1
-  };
+  enum ErrorCode { NF_FakeErrorREF = 1 };
   static constexpr Uint32 SignalLength = 3;
   static constexpr Uint32 GSN = GSN_DICT_ABORT_REF;
 };
 
-struct DictAbortConf
-{
+struct DictAbortConf {
   Uint32 senderData;
   Uint32 senderRef;
 
   static constexpr Uint32 SignalLength = 2;
   static constexpr Uint32 GSN = GSN_DICT_ABORT_CONF;
 };
-
-
 
 #undef JAM_FILE_ID
 

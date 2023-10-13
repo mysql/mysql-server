@@ -26,23 +26,17 @@
 #include <DebuggerNames.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 
-bool printSIGNAL_DROPPED_REP(FILE* output,
-                             const Uint32* theData,
-                             Uint32 len,
-                             Uint16 /*recBlockNo*/)
-{
-  if (len < SignalDroppedRep::SignalLength)
-  {
+bool printSIGNAL_DROPPED_REP(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16 /*recBlockNo*/) {
+  if (len < SignalDroppedRep::SignalLength) {
     assert(false);
     return false;
   }
 
-  const SignalDroppedRep* sig = (const SignalDroppedRep*)theData;
+  const SignalDroppedRep *sig = (const SignalDroppedRep *)theData;
 
-  fprintf(output, " originalGsn: %s(%d) Length: %d SectionCount: %d\n", 
-	  getSignalName(sig->originalGsn),
-	  sig->originalGsn,
-	  sig->originalLength,
-	  sig->originalSectionCount);
+  fprintf(output, " originalGsn: %s(%d) Length: %d SectionCount: %d\n",
+          getSignalName(sig->originalGsn), sig->originalGsn,
+          sig->originalLength, sig->originalSectionCount);
   return false;
 }

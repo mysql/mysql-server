@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -25,7 +25,6 @@
 #ifndef NODEJS_ADAPTER_NDB_INCLUDE_QUERYOPERATION_H
 #define NODEJS_ADAPTER_NDB_INCLUDE_QUERYOPERATION_H
 
-
 #include "KeyOperation.h"
 
 class NdbQueryBuilder;
@@ -36,32 +35,40 @@ class NdbQueryOperand;
 class SessionImpl;
 
 class QueryBuffer {
-public:
+ public:
   /* Set at initialization time: */
-  Record      * record;
-  char        * buffer;
-  uint32_t      size;          // size of buffer
-  short         parent;        // index of parent in all QueryBuffers
-  uint16_t      static_flags;
+  Record *record;
+  char *buffer;
+  uint32_t size;  // size of buffer
+  short parent;   // index of parent in all QueryBuffers
+  uint16_t static_flags;
   /* Used in result construction: */
-  uint16_t      result_flags;
-  uint32_t      result;        // index of current result in all ResultHeaders
-  QueryBuffer() : record(0), buffer(0), size(0), parent(0),
-                  static_flags(0), result_flags(0), result(0)   {}
-  ~QueryBuffer()  { if(size) delete[] buffer; }
+  uint16_t result_flags;
+  uint32_t result;  // index of current result in all ResultHeaders
+  QueryBuffer()
+      : record(0),
+        buffer(0),
+        size(0),
+        parent(0),
+        static_flags(0),
+        result_flags(0),
+        result(0) {}
+  ~QueryBuffer() {
+    if (size) delete[] buffer;
+  }
 };
 
 class QueryResultHeader {
-public:
-  char        * data;
-  uint32_t      parent;    // index of current ResultHeader for parent sector
-  uint32_t      previous;  // index of previous ResultHeader for this sector
-  uint16_t      sector;
-  uint16_t      tag;
+ public:
+  char *data;
+  uint32_t parent;    // index of current ResultHeader for parent sector
+  uint32_t previous;  // index of previous ResultHeader for this sector
+  uint16_t sector;
+  uint16_t tag;
 };
 
 class QueryOperation {
-public:
+ public:
   QueryOperation(int);
   ~QueryOperation();
   void createRowBuffer(int level, Record *, int parent);
@@ -71,16 +78,16 @@ public:
   bool createNdbQuery(NdbTransaction *);
   void prepare(const NdbQueryOperationDef *, const SessionImpl *);
   int fetchAllResults();
-  NdbQueryBuilder * getBuilder() { return ndbQueryBuilder; }
-  const NdbQueryOperationDef * defineOperation(const NdbDictionary::Index * index,
-                                               const NdbDictionary::Table * table,
-                                               const NdbQueryOperand* const keys[]);
-  QueryResultHeader * getResult(int);
+  NdbQueryBuilder *getBuilder() { return ndbQueryBuilder; }
+  const NdbQueryOperationDef *defineOperation(
+      const NdbDictionary::Index *index, const NdbDictionary::Table *table,
+      const NdbQueryOperand *const keys[]);
+  QueryResultHeader *getResult(int);
   uint32_t getResultRowSize(int depth);
   void close();
-  const NdbError & getNdbError();
+  const NdbError &getNdbError();
 
-protected:
+ protected:
   bool growHeaderArray();
   bool pushResultValue(short);
   bool pushResultNull(short);
@@ -91,18 +98,18 @@ protected:
   bool isDuplicate(int);
   bool compareRowToAllPrevious();
 
-private:
-  int                           size;
-  QueryBuffer * const           buffers;
-  NdbQueryBuilder             * ndbQueryBuilder;
-  const NdbQueryOperationDef  * operationTree;
-  const NdbQueryDef           * definedQuery;
-  NdbQuery                    * ndbQuery;
-  TransactionImpl             * transaction;
-  QueryResultHeader           * results;
-  const NdbError              * latest_error;
-  int                           nresults, nheaders;
-  uint32_t                      nextHeaderAllocationSize;
+ private:
+  int size;
+  QueryBuffer *const buffers;
+  NdbQueryBuilder *ndbQueryBuilder;
+  const NdbQueryOperationDef *operationTree;
+  const NdbQueryDef *definedQuery;
+  NdbQuery *ndbQuery;
+  TransactionImpl *transaction;
+  QueryResultHeader *results;
+  const NdbError *latest_error;
+  int nresults, nheaders;
+  uint32_t nextHeaderAllocationSize;
 };
 
 inline uint32_t QueryOperation::getResultRowSize(int depth) {

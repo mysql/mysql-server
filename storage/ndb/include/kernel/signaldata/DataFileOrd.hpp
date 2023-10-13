@@ -25,7 +25,6 @@
 
 #define JAM_FILE_ID 39
 
-
 // sent to pgman instances to manipulate data file list
 struct DataFileOrd {
   enum Cmd {
@@ -35,13 +34,12 @@ struct DataFileOrd {
     FreeDataFile = 4
   };
   static constexpr Uint32 SignalLength = 5;
-  Uint32 ret; // expected return
+  Uint32 ret;  // expected return
   Uint32 cmd;
   Uint32 file_no;
   Uint32 fd;
   Uint32 version;
 };
-
 
 #undef JAM_FILE_ID
 

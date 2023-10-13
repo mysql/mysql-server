@@ -24,14 +24,14 @@
 
 #define DBTUP_C
 #define DBTUP_SCAN_CPP
-#include "Dbtup.hpp"
-#include "../backup/Backup.hpp"
+#include <portlib/ndb_prefetch.h>
+#include <md5_hash.hpp>
+#include <signaldata/AccLock.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/NextScan.hpp>
-#include <signaldata/AccLock.hpp>
-#include <md5_hash.hpp>
-#include <portlib/ndb_prefetch.h>
+#include "../backup/Backup.hpp"
 #include "../dblqh/Dblqh.hpp"
+#include "Dbtup.hpp"
 
 #define JAM_FILE_ID 408
 
@@ -54,75 +54,135 @@
 #endif
 
 #ifdef DEBUG_LCP_DELAY
-#define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_DELAY(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_DELAY(arglist) do { } while (0)
+#define DEB_LCP_DELAY(arglist) \
+  do {                         \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_FILTER
-#define DEB_LCP_FILTER(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_FILTER(arglist)  \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_FILTER(arglist) do { } while (0)
+#define DEB_LCP_FILTER(arglist) \
+  do {                          \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP
-#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP(arglist)         \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP(arglist) do { } while (0)
+#define DEB_LCP(arglist) \
+  do {                   \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_DEL
-#define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_DEL(arglist)     \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_DEL(arglist) do { } while (0)
+#define DEB_LCP_DEL(arglist) \
+  do {                       \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_DEL2
-#define DEB_LCP_DEL2(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_DEL2(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_DEL2(arglist) do { } while (0)
+#define DEB_LCP_DEL2(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_DEL_EXTRA
-#define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_DEL_EXTRA(arglist) \
+  do {                             \
+    g_eventLogger->info arglist;   \
+  } while (0)
 #else
-#define DEB_LCP_DEL_EXTRA(arglist) do { } while (0)
+#define DEB_LCP_DEL_EXTRA(arglist) \
+  do {                             \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_SKIP
-#define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_SKIP(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_SKIP(arglist) do { } while (0)
+#define DEB_LCP_SKIP(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_SKIP_EXTRA
-#define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_SKIP_EXTRA(arglist) \
+  do {                              \
+    g_eventLogger->info arglist;    \
+  } while (0)
 #else
-#define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
+#define DEB_LCP_SKIP_EXTRA(arglist) \
+  do {                              \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_KEEP
-#define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_KEEP(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_KEEP(arglist) do { } while (0)
+#define DEB_LCP_KEEP(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 #ifdef DEBUG_LCP_REL
-#define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_LCP_REL(arglist)     \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_LCP_REL(arglist) do { } while (0)
+#define DEB_LCP_REL(arglist) \
+  do {                       \
+  } while (0)
 #endif
 
 #ifdef DEBUG_NR_SCAN
-#define DEB_NR_SCAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_NR_SCAN(arglist)     \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_NR_SCAN(arglist) do { } while (0)
+#define DEB_NR_SCAN(arglist) \
+  do {                       \
+  } while (0)
 #endif
 
 #ifdef DEBUG_NR_SCAN_EXTRA
-#define DEB_NR_SCAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_NR_SCAN_EXTRA(arglist) \
+  do {                             \
+    g_eventLogger->info arglist;   \
+  } while (0)
 #else
-#define DEB_NR_SCAN_EXTRA(arglist) do { } while (0)
+#define DEB_NR_SCAN_EXTRA(arglist) \
+  do {                             \
+  } while (0)
 #endif
 
 #ifdef VM_TRACE
@@ -131,18 +191,12 @@
 #define dbg(x)
 #endif
 
-void
-Dbtup::prepare_scan_ctx(Uint32 scanPtrI)
-{
-  (void)scanPtrI;
-}
+void Dbtup::prepare_scan_ctx(Uint32 scanPtrI) { (void)scanPtrI; }
 
-void
-Dbtup::execACC_SCANREQ(Signal* signal)
-{
+void Dbtup::execACC_SCANREQ(Signal *signal) {
   jamEntry();
-  const AccScanReq reqCopy = *(const AccScanReq*)signal->getDataPtr();
-  const AccScanReq* const req = &reqCopy;
+  const AccScanReq reqCopy = *(const AccScanReq *)signal->getDataPtr();
+  const AccScanReq *const req = &reqCopy;
   ScanOpPtr scanPtr;
   scanPtr.i = RNIL;
   do {
@@ -155,12 +209,11 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     fragPtr.i = RNIL;
     getFragmentrec(fragPtr, fragId, tablePtr.p);
     ndbrequire(fragPtr.i != RNIL);
-    Fragrecord& frag = *fragPtr.p;
+    Fragrecord &frag = *fragPtr.p;
     // flags
     Uint32 bits = 0;
-    
-    if (AccScanReq::getLcpScanFlag(req->requestInfo))
-    {
+
+    if (AccScanReq::getLcpScanFlag(req->requestInfo)) {
       jam();
       ndbassert(!m_is_query_block);
       bits |= ScanOp::SCAN_LCP;
@@ -168,41 +221,33 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
       ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
       ndbrequire(scanPtr.p->m_state == ScanOp::First);
-    }
-    else if (AccScanReq::getCopyFragScanFlag(req->requestInfo))
-    {
+    } else if (AccScanReq::getCopyFragScanFlag(req->requestInfo)) {
       jam();
       bits |= ScanOp::SCAN_COPY_FRAG;
       scanPtr.i = c_copy_frag_scan_op;
       ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
       ndbrequire(scanPtr.p->m_state == ScanOp::First);
       ndbrequire(scanPtr.p->m_bits == 0);
-    }
-    else
-    {
+    } else {
       // seize from pool and link to per-fragment list
-      if (!c_scanOpPool.seize(scanPtr))
-      {
+      if (!c_scanOpPool.seize(scanPtr)) {
         jam();
         break;
       }
       jam();
     }
 
-    if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
-        && tablePtr.p->m_no_of_disk_attributes)
-    {
+    if (!AccScanReq::getNoDiskScanFlag(req->requestInfo) &&
+        tablePtr.p->m_no_of_disk_attributes) {
       jam();
       ndbassert(!m_is_query_block);
       bits |= ScanOp::SCAN_DD;
     }
-      
+
     bool mm = (bits & ScanOp::SCAN_DD);
     if ((tablePtr.p->m_attributes[mm].m_no_of_varsize +
-         tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) 
-    {
-      if (bits & ScanOp::SCAN_DD)
-      {
+         tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) {
+      if (bits & ScanOp::SCAN_DD) {
         // only dd scan varsize pages
         // mm always has a fixed part
         jam();
@@ -210,57 +255,43 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       }
     }
 
-    if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) 
-    {
-      if (AccScanReq::getLockMode(req->requestInfo) == 0)
-      {
+    if (!AccScanReq::getReadCommittedFlag(req->requestInfo)) {
+      if (AccScanReq::getLockMode(req->requestInfo) == 0) {
         jam();
         bits |= ScanOp::SCAN_LOCK_SH;
-      }
-      else
-      {
+      } else {
         jam();
         bits |= ScanOp::SCAN_LOCK_EX;
       }
     }
 
-    if (AccScanReq::getNRScanFlag(req->requestInfo))
-    {
+    if (AccScanReq::getNRScanFlag(req->requestInfo)) {
       jam();
       ndbassert(!m_is_query_block);
       bits |= ScanOp::SCAN_NR;
       scanPtr.p->m_endPage = req->maxPage;
-      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_cnt)
-      {
-        DEB_NR_SCAN(("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
-                     tablePtr.i,
-                     fragId,
-                     req->maxPage,
-                     fragPtr.p->noOfPages,
+      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_cnt) {
+        DEB_NR_SCAN(("%u %u endPage: %u (noOfPages: %u maxPage: %u)",
+                     tablePtr.i, fragId, req->maxPage, fragPtr.p->noOfPages,
                      fragPtr.p->m_max_page_cnt));
       }
-    }
-    else if (AccScanReq::getLcpScanFlag(req->requestInfo))
-    {
+    } else if (AccScanReq::getLcpScanFlag(req->requestInfo)) {
       jam();
       ndbrequire((bits & ScanOp::SCAN_DD) == 0);
       ndbrequire((bits & ScanOp::SCAN_LOCK) == 0);
-    }
-    else
-    {
+    } else {
       jam();
       scanPtr.p->m_endPage = RNIL;
     }
 
-    if (bits & ScanOp::SCAN_VS)
-    {
+    if (bits & ScanOp::SCAN_VS) {
       jam();
       ndbrequire((bits & ScanOp::SCAN_NR) == 0);
       ndbrequire((bits & ScanOp::SCAN_LCP) == 0);
     }
-    
+
     // set up scan op
-    ScanOp& scan = *scanPtr.p;
+    ScanOp &scan = *scanPtr.p;
     scan.m_state = ScanOp::First;
     scan.m_bits = bits;
     scan.m_userPtr = req->senderData;
@@ -275,7 +306,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     scan.m_last_seen = __LINE__;
 
     // conf
-    AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
+    AccScanConf *const conf = (AccScanConf *)signal->getDataPtrSend();
     conf->scanPtr = req->senderData;
     conf->accPtr = scanPtr.i;
     conf->flag = AccScanConf::ZNOT_EMPTY_FRAGMENT;
@@ -287,131 +318,117 @@ Dbtup::execACC_SCANREQ(Signal* signal)
   /* Return ACC_SCANREF */
 }
 
-void
-Dbtup::execNEXT_SCANREQ(Signal* signal)
-{
+void Dbtup::execNEXT_SCANREQ(Signal *signal) {
   jamEntryDebug();
-  const NextScanReq reqCopy = *(const NextScanReq*)signal->getDataPtr();
-  const NextScanReq* const req = &reqCopy;
+  const NextScanReq reqCopy = *(const NextScanReq *)signal->getDataPtr();
+  const NextScanReq *const req = &reqCopy;
   ScanOpPtr scanPtr;
   scanPtr.i = req->accPtr;
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   switch (req->scanFlag) {
-  case NextScanReq::ZSCAN_NEXT:
-    jam();
-    break;
-  case NextScanReq::ZSCAN_COMMIT:
-    jam();
-    [[fallthrough]];
-  case NextScanReq::ZSCAN_NEXT_COMMIT:
-    jam();
-    if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0)
-    {
+    case NextScanReq::ZSCAN_NEXT:
       jam();
-      ndbassert(!m_is_query_block);
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-      lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::Unlock;
-      lockReq->accOpPtr = req->accOperationPtr;
-      c_acc->execACC_LOCKREQ(signal);
-      jamEntryDebug();
-      ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      removeAccLockOp(scan, req->accOperationPtr);
-    }
-    if (req->scanFlag == NextScanReq::ZSCAN_COMMIT)
-    {
-      signal->theData[0] = 0; /* Success */
-      /**
-       * signal->theData[0] = 0 means return signal
-       * NEXT_SCANCONF for NextScanReq::ZSCAN_COMMIT
-       */
-      return;
-    }
-    break;
-  case NextScanReq::ZSCAN_CLOSE:
-    jam();
-    if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
+      break;
+    case NextScanReq::ZSCAN_COMMIT:
       jam();
-      ndbassert(!m_is_query_block);
-      ndbrequire(scan.m_accLockOp != RNIL);
-      // use ACC_ABORTCONF to flush out any reply in job buffer
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-      lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::AbortWithConf;
-      lockReq->accOpPtr = scan.m_accLockOp;
-      c_acc->execACC_LOCKREQ(signal);
-      jamEntryDebug();
-      ndbrequire(lockReq->returnCode == AccLockReq::Success);
+      [[fallthrough]];
+    case NextScanReq::ZSCAN_NEXT_COMMIT:
+      jam();
+      if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0) {
+        jam();
+        ndbassert(!m_is_query_block);
+        AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
+        lockReq->returnCode = RNIL;
+        lockReq->requestInfo = AccLockReq::Unlock;
+        lockReq->accOpPtr = req->accOperationPtr;
+        c_acc->execACC_LOCKREQ(signal);
+        jamEntryDebug();
+        ndbrequire(lockReq->returnCode == AccLockReq::Success);
+        removeAccLockOp(scan, req->accOperationPtr);
+      }
+      if (req->scanFlag == NextScanReq::ZSCAN_COMMIT) {
+        signal->theData[0] = 0; /* Success */
+        /**
+         * signal->theData[0] = 0 means return signal
+         * NEXT_SCANCONF for NextScanReq::ZSCAN_COMMIT
+         */
+        return;
+      }
+      break;
+    case NextScanReq::ZSCAN_CLOSE:
+      jam();
+      if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
+        jam();
+        ndbassert(!m_is_query_block);
+        ndbrequire(scan.m_accLockOp != RNIL);
+        // use ACC_ABORTCONF to flush out any reply in job buffer
+        AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
+        lockReq->returnCode = RNIL;
+        lockReq->requestInfo = AccLockReq::AbortWithConf;
+        lockReq->accOpPtr = scan.m_accLockOp;
+        c_acc->execACC_LOCKREQ(signal);
+        jamEntryDebug();
+        ndbrequire(lockReq->returnCode == AccLockReq::Success);
+        scan.m_last_seen = __LINE__;
+        scan.m_state = ScanOp::Aborting;
+        return;
+      }
+      if (scan.m_state == ScanOp::Locked) {
+        jam();
+        ndbassert(!m_is_query_block);
+        ndbrequire(scan.m_accLockOp != RNIL);
+        AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
+        lockReq->returnCode = RNIL;
+        lockReq->requestInfo = AccLockReq::Abort;
+        lockReq->accOpPtr = scan.m_accLockOp;
+        c_acc->execACC_LOCKREQ(signal);
+        jamEntryDebug();
+        ndbrequire(lockReq->returnCode == AccLockReq::Success);
+        scan.m_accLockOp = RNIL;
+      }
       scan.m_last_seen = __LINE__;
       scan.m_state = ScanOp::Aborting;
+      scanClose(signal, scanPtr);
       return;
-    }
-    if (scan.m_state == ScanOp::Locked) {
-      jam();
-      ndbassert(!m_is_query_block);
-      ndbrequire(scan.m_accLockOp != RNIL);
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-      lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::Abort;
-      lockReq->accOpPtr = scan.m_accLockOp;
-      c_acc->execACC_LOCKREQ(signal);
-      jamEntryDebug();
-      ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      scan.m_accLockOp = RNIL;
-    }
-    scan.m_last_seen = __LINE__;
-    scan.m_state = ScanOp::Aborting;
-    scanClose(signal, scanPtr);
-    return;
-  case NextScanReq::ZSCAN_NEXT_ABORT:
-    ndbabort();
-  default:
-    ndbabort();
+    case NextScanReq::ZSCAN_NEXT_ABORT:
+      ndbabort();
+    default:
+      ndbabort();
   }
   // start looking for next scan result
-  AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();
+  AccCheckScan *checkReq = (AccCheckScan *)signal->getDataPtrSend();
   checkReq->accPtr = scanPtr.i;
   checkReq->checkLcpStop = AccCheckScan::ZNOT_CHECK_LCP_STOP;
   execACC_CHECK_SCAN(signal);
   jamEntryDebug();
 }
 
-void
-Dbtup::execACC_CHECK_SCAN(Signal* signal)
-{
+void Dbtup::execACC_CHECK_SCAN(Signal *signal) {
   jamEntryDebug();
-  const AccCheckScan reqCopy = *(const AccCheckScan*)signal->getDataPtr();
-  const AccCheckScan* const req = &reqCopy;
+  const AccCheckScan reqCopy = *(const AccCheckScan *)signal->getDataPtr();
+  const AccCheckScan *const req = &reqCopy;
   ScanOpPtr scanPtr;
   scanPtr.i = req->accPtr;
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   // fragment
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
   bool wait_for_scan_lock_record = false;
-  if (scan.m_bits & ScanOp::SCAN_LOCK &&
-      c_freeScanLock == RNIL)
-  {
+  if (scan.m_bits & ScanOp::SCAN_LOCK && c_freeScanLock == RNIL) {
     ScanLockPtr allocPtr;
     ndbassert(!m_is_query_block);
-    if (likely((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0))
-    {
-      if (likely(c_scanLockPool.seize(allocPtr)))
-      {
+    if (likely((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0)) {
+      if (likely(c_scanLockPool.seize(allocPtr))) {
         c_freeScanLock = allocPtr.i;
-      }
-      else
-      {
+      } else {
         jam();
         wait_for_scan_lock_record = true;
       }
-    }
-    else
-    {
+    } else {
       jam();
       /**
        * Copy fragment scans use a preallocated scan lock record to avoid
@@ -421,9 +438,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     }
   }
   if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP &&
-      (scan.m_bits & ScanOp::SCAN_LOCK_WAIT ||
-       wait_for_scan_lock_record))
-  {
+      (scan.m_bits & ScanOp::SCAN_LOCK_WAIT || wait_for_scan_lock_record)) {
     /**
      * Go to sleep for 1 millisecond while we are waiting for a
      * row lock or the scan lock record to store the row lock in.
@@ -432,21 +447,17 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
      * available.
      */
     jam();
-    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    CheckLcpStop *cls = (CheckLcpStop *)signal->theData;
     cls->scanPtrI = scan.m_userPtr;
-    if (wait_for_scan_lock_record)
-    {
+    if (wait_for_scan_lock_record) {
       jam();
       cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-    }
-    else
-    {
+    } else {
       jam();
       cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
     }
     c_lqh->execCHECK_LCP_STOP(signal);
-    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
-    {
+    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
       jamEntryDebug();
       ndbassert(!m_is_query_block);
       release_c_free_scan_lock();
@@ -457,9 +468,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
     /* Fall through, we will send NEXT_SCANCONF, this will detect close */
   }
-  if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT ||
-      wait_for_scan_lock_record)
-  {
+  if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT || wait_for_scan_lock_record) {
     jam();
     /**
      * LQH asks if we are waiting for lock and we tell it to ask again
@@ -471,26 +480,21 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
      */
     ndbassert(!m_is_query_block);
     release_c_free_scan_lock();
-    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
-    conf->accOperationPtr = RNIL;       // no tuple returned
+    conf->accOperationPtr = RNIL;  // no tuple returned
     conf->fragId = frag.fragmentId;
     // if TC has ordered scan close, it will be detected here
     /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
-    sendSignal(scan.m_userRef,
-               GSN_NEXT_SCANCONF,
-               signal,
-               NextScanConf::SignalLengthNoTuple,
-               JBB);
-    return;     // stop
+    sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF, signal,
+               NextScanConf::SignalLengthNoTuple, JBB);
+    return;  // stop
   }
 
   const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
 
-  if (scan.m_state == ScanOp::First)
-  {
-    if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
-    {
+  if (scan.m_state == ScanOp::First) {
+    if (lcp && !fragPtr.p->m_lcp_keep_list_head.isNull()) {
       jam();
       /**
        * Handle lcp keep list already here
@@ -506,11 +510,10 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     jam();
     scanFirst(signal, scanPtr);
   }
-  if (scan.m_state == ScanOp::Next)
-  {
+  if (scan.m_state == ScanOp::Next) {
     jam();
     bool immediate = scanNext(signal, scanPtr);
-    if (! immediate) {
+    if (!immediate) {
       jam();
       // time-slicing via TUP or PGMAN
       release_c_free_scan_lock();
@@ -521,55 +524,49 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   scanReply(signal, scanPtr);
 }
 
-void
-Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
-{
-  ScanOp& scan = *scanPtr.p;
+void Dbtup::scanReply(Signal *signal, ScanOpPtr scanPtr) {
+  ScanOp &scan = *scanPtr.p;
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
   // for reading tuple key in Current state
-  Uint32* pkData = (Uint32*)c_dataBuffer;
+  Uint32 *pkData = (Uint32 *)c_dataBuffer;
   unsigned pkSize = 0;
-  if (scan.m_state == ScanOp::Current)
-  {
+  if (scan.m_state == ScanOp::Current) {
     // found an entry to return
     jamDebug();
     ndbrequire(scan.m_accLockOp == RNIL);
     Uint32 scan_bits = scan.m_bits;
-    if (scan_bits & ScanOp::SCAN_LOCK)
-    {
+    if (scan_bits & ScanOp::SCAN_LOCK) {
       jam();
       ndbrequire((scan_bits & ScanOp::SCAN_LCP) == 0);
       ndbassert(!m_is_query_block);
       scan.m_last_seen = __LINE__;
       // read tuple key - use TUX routine
-      const ScanPos& pos = scan.m_scanPos;
-      const Local_key& key_mm = pos.m_key_mm;
+      const ScanPos &pos = scan.m_scanPos;
+      const Local_key &key_mm = pos.m_key_mm;
       TablerecPtr tablePtr;
       tablePtr.i = fragPtr.p->fragTableId;
       ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-      int ret = tuxReadPk((Uint32*)fragPtr.p,
-                          (Uint32*)tablePtr.p,
-                          pos.m_realpid_mm,
-                          key_mm.m_page_idx,
-                          pkData,
+      int ret = tuxReadPk((Uint32 *)fragPtr.p, (Uint32 *)tablePtr.p,
+                          pos.m_realpid_mm, key_mm.m_page_idx, pkData,
                           /*hash=*/true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
       // get read lock or exclusive lock
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+      AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
-      lockReq->requestInfo = (scan.m_bits & ScanOp::SCAN_LOCK_SH) ?
-        AccLockReq::LockShared : AccLockReq::LockExclusive;
+      lockReq->requestInfo = (scan.m_bits & ScanOp::SCAN_LOCK_SH)
+                                 ? AccLockReq::LockShared
+                                 : AccLockReq::LockExclusive;
       lockReq->accOpPtr = RNIL;
       lockReq->userPtr = scanPtr.i;
       lockReq->userRef = reference();
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.fragmentId;
-      lockReq->fragPtrI = RNIL; // no cached frag ptr yet
+      lockReq->fragPtrI = RNIL;  // no cached frag ptr yet
       lockReq->hashValue = md5_hash(pkData, pkSize);
       lockReq->page_id = key_mm.m_page_no;
       lockReq->page_idx = key_mm.m_page_idx;
@@ -579,132 +576,118 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       c_acc->execACC_LOCKREQ(signal);
       jamEntryDebug();
       switch (lockReq->returnCode) {
-      case AccLockReq::Success:
-      {
-        jamDebug();
-        scan.m_state = ScanOp::Locked;
-        scan.m_accLockOp = lockReq->accOpPtr;
-        break;
-      }
-      case AccLockReq::IsBlocked:
-      {
-        jam();
-        // normal lock wait
-        scan.m_state = ScanOp::Blocked;
-        scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
-        scan.m_accLockOp = lockReq->accOpPtr;
-        // LQH will wake us up
-        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
-        cls->scanPtrI = scan.m_userPtr;
-        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        c_lqh->execCHECK_LCP_STOP(signal);
-        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
-        {
-          jamEntryDebug();
-          /* Normal path */
-          release_c_free_scan_lock();
-          /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
-          return;
+        case AccLockReq::Success: {
+          jamDebug();
+          scan.m_state = ScanOp::Locked;
+          scan.m_accLockOp = lockReq->accOpPtr;
+          break;
         }
-        jamEntryDebug();
-        /* DBTC has most likely aborted due to timeout */
-        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
-        /* Ensure that we send NEXT_SCANCONF immediately to close */
-        scan.m_state = ScanOp::Last;
-        break;
-      }
-      case AccLockReq::Refused:
-      {
-        jam();
-        // we cannot see deleted tuple (assert only)
-        ndbassert(false);
-        // skip it
-        scan.m_state = ScanOp::Next;
-        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
-        cls->scanPtrI = scan.m_userPtr;
-        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        c_lqh->execCHECK_LCP_STOP(signal);
-        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
-        {
+        case AccLockReq::IsBlocked: {
+          jam();
+          // normal lock wait
+          scan.m_state = ScanOp::Blocked;
+          scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
+          scan.m_accLockOp = lockReq->accOpPtr;
+          // LQH will wake us up
+          CheckLcpStop *cls = (CheckLcpStop *)signal->theData;
+          cls->scanPtrI = scan.m_userPtr;
+          cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+          c_lqh->execCHECK_LCP_STOP(signal);
+          if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
+            jamEntryDebug();
+            /* Normal path */
+            release_c_free_scan_lock();
+            /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
+            return;
+          }
           jamEntryDebug();
-          release_c_free_scan_lock();
-          /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
-          return;
+          /* DBTC has most likely aborted due to timeout */
+          ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+          /* Ensure that we send NEXT_SCANCONF immediately to close */
+          scan.m_state = ScanOp::Last;
+          break;
         }
-        jamEntryDebug();
-        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
-        /* Ensure that we send NEXT_SCANCONF immediately to close */
-        scan.m_state = ScanOp::Last;
-        break;
-      }
-      case AccLockReq::NoFreeOp:
-      {
-        jam();
-        // stay in Current state
-        ndbrequire((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0);
-        scan.m_state = ScanOp::Current;
-        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
-        cls->scanPtrI = scan.m_userPtr;
-        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-        c_lqh->execCHECK_LCP_STOP(signal);
-        if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
-        {
+        case AccLockReq::Refused: {
+          jam();
+          // we cannot see deleted tuple (assert only)
+          ndbassert(false);
+          // skip it
+          scan.m_state = ScanOp::Next;
+          CheckLcpStop *cls = (CheckLcpStop *)signal->theData;
+          cls->scanPtrI = scan.m_userPtr;
+          cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+          c_lqh->execCHECK_LCP_STOP(signal);
+          if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
+            jamEntryDebug();
+            release_c_free_scan_lock();
+            /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
+            return;
+          }
           jamEntryDebug();
-          release_c_free_scan_lock();
-          /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
-          return;
+          ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+          /* Ensure that we send NEXT_SCANCONF immediately to close */
+          scan.m_state = ScanOp::Last;
+          break;
         }
-        jamEntryDebug();
-        ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
-        /* Ensure that we send NEXT_SCANCONF immediately to close */
-        scan.m_state = ScanOp::Last;
-        break;
-      }
-      default:
-        ndbabort();
+        case AccLockReq::NoFreeOp: {
+          jam();
+          // stay in Current state
+          ndbrequire((scan.m_bits & ScanOp::SCAN_COPY_FRAG) == 0);
+          scan.m_state = ScanOp::Current;
+          CheckLcpStop *cls = (CheckLcpStop *)signal->theData;
+          cls->scanPtrI = scan.m_userPtr;
+          cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
+          c_lqh->execCHECK_LCP_STOP(signal);
+          if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
+            jamEntryDebug();
+            release_c_free_scan_lock();
+            /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
+            return;
+          }
+          jamEntryDebug();
+          ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
+          /* Ensure that we send NEXT_SCANCONF immediately to close */
+          scan.m_state = ScanOp::Last;
+          break;
+        }
+        default:
+          ndbabort();
       }
       ndbassert(c_freeScanLock != RNIL);
-    }
-    else
-    {
+    } else {
       ndbassert(c_freeScanLock == RNIL);
       scan.m_state = ScanOp::Locked;
     }
   }
 
-  if (scan.m_state == ScanOp::Locked)
-  {
+  if (scan.m_state == ScanOp::Locked) {
     // we have lock or do not need one
     jamDebug();
     // conf signal
-    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     // the lock is passed to LQH
     Uint32 accLockOp = scan.m_accLockOp;
-    if (accLockOp != RNIL)
-    {
+    if (accLockOp != RNIL) {
       scan.m_accLockOp = RNIL;
       // remember it until LQH unlocks it
       addAccLockOp(scan, accLockOp);
       scan.m_last_seen = __LINE__;
-    }
-    else
-    {
-      ndbrequire(! (scan.m_bits & ScanOp::SCAN_LOCK));
+    } else {
+      ndbrequire(!(scan.m_bits & ScanOp::SCAN_LOCK));
       // operation RNIL in LQH would signal no tuple returned
       accLockOp = (Uint32)-1;
       scan.m_last_seen = __LINE__;
     }
     release_c_free_scan_lock();
-    const ScanPos& pos = scan.m_scanPos;
+    const ScanPos &pos = scan.m_scanPos;
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.fragmentId;
     conf->localKey[0] = pos.m_key_mm.m_page_no;
     conf->localKey[1] = pos.m_key_mm.m_page_idx;
     // next time look for next entry
     scan.m_state = ScanOp::Next;
-    prepare_scanTUPKEYREQ(pos.m_key_mm.m_page_no,
-                          pos.m_key_mm.m_page_idx);
+    prepare_scanTUPKEYREQ(pos.m_key_mm.m_page_no, pos.m_key_mm.m_page_idx);
     /**
      * Running the lock code takes some extra execution time, one could
      * have this effect the number of tuples to read in one time slot.
@@ -714,24 +697,21 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     c_lqh->exec_next_scan_conf(signal);
     return;
   }
-  if (scan.m_state == ScanOp::Last)
-  {
+  if (scan.m_state == ScanOp::Last) {
     jam();
     release_c_free_scan_lock();
     scan.m_last_seen = __LINE__;
-    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
     signal->setLength(NextScanConf::SignalLengthNoTuple);
     c_lqh->exec_next_scan_conf(signal);
     return;
-  }
-  else if (scan.m_state == ScanOp::Invalid)
-  {
+  } else if (scan.m_state == ScanOp::Invalid) {
     jam();
     scan.m_last_seen = __LINE__;
-    NextScanRef* const ref = (NextScanRef*)signal->getDataPtrSend();
+    NextScanRef *const ref = (NextScanRef *)signal->getDataPtrSend();
     ref->scanPtr = scan.m_userPtr;
     ref->errorCode = m_scan_error_code;
     c_lqh->exec_next_scan_ref(signal);
@@ -746,9 +726,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
  * moved away from, simply unlock it.  Finally, if we are closing the
  * scan, do nothing since we have already sent an abort request.
  */
-void
-Dbtup::execACCKEYCONF(Signal* signal)
-{
+void Dbtup::execACCKEYCONF(Signal *signal) {
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
@@ -761,23 +739,20 @@ Dbtup::execACCKEYCONF(Signal* signal)
 
   ndbassert(!m_is_query_block);
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
-  scan.m_bits &= ~ ScanOp::SCAN_LOCK_WAIT;
+  scan.m_bits &= ~ScanOp::SCAN_LOCK_WAIT;
   if (scan.m_state == ScanOp::Blocked) {
     // the lock wait was for current entry
     jam();
 
     if (likely(scan.m_scanPos.m_key_mm.m_page_no == tmp.m_page_no &&
-               scan.m_scanPos.m_key_mm.m_page_idx == tmp.m_page_idx))
-    {
+               scan.m_scanPos.m_key_mm.m_page_idx == tmp.m_page_idx)) {
       jam();
       scan.m_state = ScanOp::Locked;
       // LQH has the ball
       return;
-    }
-    else
-    {
+    } else {
       jam();
       /**
        * This means that there was DEL/INS on rowid that we tried to lock
@@ -804,7 +779,7 @@ Dbtup::execACCKEYCONF(Signal* signal)
   if (scan.m_state != ScanOp::Aborting) {
     // we were moved, release lock
     jam();
-    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+    AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
@@ -824,20 +799,18 @@ Dbtup::execACCKEYCONF(Signal* signal)
  * Lock failed (after delay) in ACC.  Probably means somebody ahead of
  * us in lock queue deleted the tuple.
  */
-void
-Dbtup::execACCKEYREF(Signal* signal)
-{
+void Dbtup::execACCKEYREF(Signal *signal) {
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
-  scan.m_bits &= ~ ScanOp::SCAN_LOCK_WAIT;
+  scan.m_bits &= ~ScanOp::SCAN_LOCK_WAIT;
   if (scan.m_state != ScanOp::Aborting) {
     jam();
     // release the operation
-    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+    AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
@@ -846,28 +819,24 @@ Dbtup::execACCKEYREF(Signal* signal)
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     scan.m_accLockOp = RNIL;
     // scan position should already have been moved (assert only)
-    if (scan.m_state == ScanOp::Blocked)
-    {
+    if (scan.m_state == ScanOp::Blocked) {
       jam();
-      //ndbassert(false);
-      if (scan.m_bits & ScanOp::SCAN_NR)
-      {
-	jam();
+      // ndbassert(false);
+      if (scan.m_bits & ScanOp::SCAN_NR) {
+        jam();
         /**
          * The tuple was locked and the transaction aborted. We need
          * to re-read the tuple again to ensure that we don't miss
          * out on deleting rows in the starting node that no longer
          * exists in the live node.
          */
-	scan.m_state = ScanOp::Next;
-	scan.m_scanPos.m_get = ScanPos::Get_tuple;
-	DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked, refetch"));
-      }
-      else
-      {
-	jam();
-	scan.m_state = ScanOp::Next;
-	DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked"));
+        scan.m_state = ScanOp::Next;
+        scan.m_scanPos.m_get = ScanPos::Get_tuple;
+        DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked, refetch"));
+      } else {
+        jam();
+        scan.m_state = ScanOp::Next;
+        DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked"));
       }
     }
     // LQH has the ball
@@ -882,53 +851,44 @@ Dbtup::execACCKEYREF(Signal* signal)
  * Received when scan is closing.  This signal arrives after any
  * ACCKEYCONF or ACCKEYREF which may have been in job buffer.
  */
-void
-Dbtup::execACC_ABORTCONF(Signal* signal)
-{
+void Dbtup::execACC_ABORTCONF(Signal *signal) {
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   ndbrequire(scan.m_state == ScanOp::Aborting);
   c_lqh->setup_scan_pointers(scan.m_userPtr, __LINE__);
   // most likely we are still in lock wait
   if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
     jam();
-    scan.m_bits &= ~ ScanOp::SCAN_LOCK_WAIT;
+    scan.m_bits &= ~ScanOp::SCAN_LOCK_WAIT;
     scan.m_accLockOp = RNIL;
   }
   scanClose(signal, scanPtr);
   c_lqh->release_prim_frag_access();
 }
 
-void
-Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
-{
-  ScanOp& scan = *scanPtr.p;
-  ScanPos& pos = scan.m_scanPos;
-  Local_key& key = pos.m_key;
+void Dbtup::scanFirst(Signal *, ScanOpPtr scanPtr) {
+  ScanOp &scan = *scanPtr.p;
+  ScanPos &pos = scan.m_scanPos;
+  Local_key &key = pos.m_key;
   const Uint32 bits = scan.m_bits;
   // fragment
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
 
-  if (bits & ScanOp::SCAN_NR)
-  { 
-    if (scan.m_endPage == 0 && frag.m_max_page_cnt == 0)
-    {
+  if (bits & ScanOp::SCAN_NR) {
+    if (scan.m_endPage == 0 && frag.m_max_page_cnt == 0) {
       jam();
       scan.m_state = ScanOp::Last;
       return;
     }
-  }
-  else if (frag.noOfPages == 0)
-  {
+  } else if (frag.noOfPages == 0) {
     jam();
-    if (!(bits & ScanOp::SCAN_LCP))
-    {
+    if (!(bits & ScanOp::SCAN_LCP)) {
       jam();
       scan.m_state = ScanOp::Last;
       return;
@@ -940,11 +900,9 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
      */
   }
 
-  if (bits & ScanOp::SCAN_LCP)
-  {
+  if (bits & ScanOp::SCAN_LCP) {
     jam();
-    if (scan.m_endPage == 0)
-    {
+    if (scan.m_endPage == 0) {
       jam();
       /**
        * Partition was empty at start of LCP, no records to report.
@@ -955,32 +913,27 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
       scan.m_state = ScanOp::Last;
       return;
     }
-    c_backup->init_lcp_scan(scan.m_scanGCI,
-                            pos.m_lcp_scan_changed_rows_page);
+    c_backup->init_lcp_scan(scan.m_scanGCI, pos.m_lcp_scan_changed_rows_page);
     scan.m_last_seen = __LINE__;
   }
 
-  if (! (bits & ScanOp::SCAN_DD))
-  {
+  if (!(bits & ScanOp::SCAN_DD)) {
     key.m_file_no = ZNIL;
     key.m_page_no = 0;
     pos.m_get = ScanPos::Get_page_mm;
 
     // for MM scan real page id is cached for efficiency
     pos.m_realpid_mm = RNIL;
-  }
-  else
-  {
-    Disk_alloc_info& alloc = frag.m_disk_alloc_info;
+  } else {
+    Disk_alloc_info &alloc = frag.m_disk_alloc_info;
     // for now must check disk part explicitly
-    if (alloc.m_extent_list.isEmpty())
-    {
+    if (alloc.m_extent_list.isEmpty()) {
       jam();
       scan.m_state = ScanOp::Last;
       return;
     }
     pos.m_extent_info_ptr_i = alloc.m_extent_list.getFirst();
-    Extent_info* ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
+    Extent_info *ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
     key.m_file_no = ext->m_key.m_file_no;
     key.m_page_no = ext->m_first_page_no;
     pos.m_get = ScanPos::Get_page_dd;
@@ -1052,27 +1005,20 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
  * 4d) Same as 4c) except that last LCP state was A. In this we
  * record the page as a DELETE by PAGEID in the LCP.
  */
-Uint32
-Dbtup::prepare_lcp_scan_page(ScanOp& scan,
-                             Local_key& key,
-                             Uint32 *next_ptr,
-                             Uint32 *prev_ptr)
-{
-  ScanPos& pos = scan.m_scanPos;
+Uint32 Dbtup::prepare_lcp_scan_page(ScanOp &scan, Local_key &key,
+                                    Uint32 *next_ptr, Uint32 *prev_ptr) {
+  ScanPos &pos = scan.m_scanPos;
   bool lcp_page_already_scanned = get_lcp_scanned_bit(next_ptr);
-  if (lcp_page_already_scanned)
-  {
+  if (lcp_page_already_scanned) {
     jam();
     /* Coverage tested */
 #ifdef DEBUG_LCP_SCANNED_BIT
-    if (next_ptr)
-    {
-      g_eventLogger->info("(%u)tab(%u,%u).%u"
-                          " reset_lcp_scanned_bit(2)",
-                          instance(),
-                          m_curr_fragptr.p->fragTableId,
-                          m_curr_fragptr.p->fragmentId,
-                          key.m_page_no);
+    if (next_ptr) {
+      g_eventLogger->info(
+          "(%u)tab(%u,%u).%u"
+          " reset_lcp_scanned_bit(2)",
+          instance(), m_curr_fragptr.p->fragTableId,
+          m_curr_fragptr.p->fragmentId, key.m_page_no);
     }
 #endif
     reset_lcp_scanned_bit(next_ptr);
@@ -1084,42 +1030,34 @@ Dbtup::prepare_lcp_scan_page(ScanOp& scan,
      */
     pos.m_get = ScanPos::Get_next_page_mm;
     scan.m_last_seen = __LINE__;
-    return ZSCAN_FOUND_PAGE_END; // incr loop count
-  }
-  else if (unlikely(pos.m_realpid_mm == RNIL))
-  {
+    return ZSCAN_FOUND_PAGE_END;  // incr loop count
+  } else if (unlikely(pos.m_realpid_mm == RNIL)) {
     bool is_last_lcp_state_A = !get_last_lcp_state(prev_ptr);
     bool need_record_dropped_change =
-      pos.m_lcp_scan_changed_rows_page && is_last_lcp_state_A;
+        pos.m_lcp_scan_changed_rows_page && is_last_lcp_state_A;
     /**
      * Case 1) from above
      * If we come here without having LCP_SCANNED_BIT set then
      * we haven't released the page during LCP scan. Thus the
      * new last LCP state is D. Ensure that LAST_LCP_FREE_BIT
-    * is set to indicate that LCP state is D for this LCP.
+     * is set to indicate that LCP state is D for this LCP.
      */
-    DEB_LCP_DEL2(("(%u)tab(%u,%u) page(%u),"
-                  " is_last_lcp_state_A: %u, CHANGED: %u",
-                  instance(),
-                  m_curr_fragptr.p->fragTableId,
-                  m_curr_fragptr.p->fragmentId,
-                  key.m_page_no,
-                  is_last_lcp_state_A,
-                  pos.m_lcp_scan_changed_rows_page));
+    DEB_LCP_DEL2((
+        "(%u)tab(%u,%u) page(%u),"
+        " is_last_lcp_state_A: %u, CHANGED: %u",
+        instance(), m_curr_fragptr.p->fragTableId, m_curr_fragptr.p->fragmentId,
+        key.m_page_no, is_last_lcp_state_A, pos.m_lcp_scan_changed_rows_page));
 
     set_last_lcp_state(prev_ptr, true);
-    if (!need_record_dropped_change)
-    {
+    if (!need_record_dropped_change) {
       jam();
       /* Coverage tested */
       /* LCP case 1b) and 1c) above goes this way */
       scan.m_last_seen = __LINE__;
       pos.m_get = ScanPos::Get_next_page_mm;
       c_backup->skip_empty_page_lcp();
-      return ZSCAN_FOUND_PAGE_END; // incr loop count
-    }
-    else
-    {
+      return ZSCAN_FOUND_PAGE_END;  // incr loop count
+    } else {
       jam();
       /* Coverage tested */
       /* 1a) as described above */
@@ -1128,9 +1066,7 @@ Dbtup::prepare_lcp_scan_page(ScanOp& scan,
       c_backup->record_dropped_empty_page_lcp();
       return ZSCAN_FOUND_DROPPED_CHANGE_PAGE;
     }
-  }
-  else
-  {
+  } else {
     jam();
     /**
      * Case 4) above, we need to set the last LCP state flag
@@ -1143,12 +1079,8 @@ Dbtup::prepare_lcp_scan_page(ScanOp& scan,
   return ZSCAN_FOUND_TUPLE;
 }
 
-Uint32
-Dbtup::handle_lcp_skip_page(ScanOp& scan,
-                            Local_key key,
-                            Page* page)
-{
-  ScanPos& pos = scan.m_scanPos;
+Uint32 Dbtup::handle_lcp_skip_page(ScanOp &scan, Local_key key, Page *page) {
+  ScanPos &pos = scan.m_scanPos;
   /**
    * The page was allocated after the LCP started, so it can only
    * contain rows that was allocated after start of LCP and should
@@ -1158,20 +1090,15 @@ Dbtup::handle_lcp_skip_page(ScanOp& scan,
    * the last LCP* state to D.
    */
   DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u), change: %u, D: %u",
-                instance(),
-                m_curr_fragptr.p->fragTableId,
-                m_curr_fragptr.p->fragmentId,
-                key.m_page_no,
-                pos.m_lcp_scan_changed_rows_page,
-                pos.m_is_last_lcp_state_D));
+                instance(), m_curr_fragptr.p->fragTableId,
+                m_curr_fragptr.p->fragmentId, key.m_page_no,
+                pos.m_lcp_scan_changed_rows_page, pos.m_is_last_lcp_state_D));
 
   page->clear_page_to_skip_lcp();
-  set_last_lcp_state(m_curr_fragptr.p,
-                     key.m_page_no,
+  set_last_lcp_state(m_curr_fragptr.p, key.m_page_no,
                      true /* Set state to D */);
 
-  if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
-  {
+  if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D) {
     jam();
     /* Coverage tested */
     /**
@@ -1201,18 +1128,15 @@ Dbtup::handle_lcp_skip_page(ScanOp& scan,
   scan.m_last_seen = __LINE__;
   pos.m_get = ScanPos::Get_next_page_mm;
   c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
-  return ZSCAN_FOUND_PAGE_END; //incr loop count
+  return ZSCAN_FOUND_PAGE_END;  // incr loop count
 }
 
-Uint32
-Dbtup::handle_scan_change_page_rows(ScanOp& scan,
-                                    Fix_page *fix_page,
-                                    Tuple_header *tuple_header_ptr,
-                                    Uint32 & foundGCI,
-                                    Fragrecord *fragPtrP)
-{
-  ScanPos& pos = scan.m_scanPos;
-  Local_key& key = pos.m_key;
+Uint32 Dbtup::handle_scan_change_page_rows(ScanOp &scan, Fix_page *fix_page,
+                                           Tuple_header *tuple_header_ptr,
+                                           Uint32 &foundGCI,
+                                           Fragrecord *fragPtrP) {
+  ScanPos &pos = scan.m_scanPos;
+  Local_key &key = pos.m_key;
   /**
    * Coming here means that the following condition is true.
    * bits & ScanOp::SCAN_LCP && pos.m_lcp_changed_page
@@ -1241,10 +1165,8 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
    */
   Uint32 thbits = tuple_header_ptr->m_header_bits;
   if ((foundGCI = *tuple_header_ptr->get_mm_gci(m_curr_tabptr.p)) >
-       scan.m_scanGCI)
-  {
-    if (unlikely(thbits & Tuple_header::LCP_DELETE))
-    {
+      scan.m_scanGCI) {
+    if (unlikely(thbits & Tuple_header::LCP_DELETE)) {
       jam();
       /* Ensure that LCP_DELETE bit is clear before we move on */
       /* Coverage tested */
@@ -1255,32 +1177,24 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        * in the LDM threads.
        */
       acquire_frag_mutex(fragPtrP, key.m_page_no);
-      tuple_header_ptr->m_header_bits =
-        thbits & (~Tuple_header::LCP_DELETE);
-      updateChecksum(tuple_header_ptr,
-                     m_curr_tabptr.p,
-                     thbits,
+      tuple_header_ptr->m_header_bits = thbits & (~Tuple_header::LCP_DELETE);
+      updateChecksum(tuple_header_ptr, m_curr_tabptr.p, thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
       release_frag_mutex(fragPtrP, key.m_page_no);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
-      DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
-                   " row(%u,%u), header: %x",
-                   instance(),
-                   m_curr_fragptr.p->fragTableId,
-                   m_curr_fragptr.p->fragmentId,
-                   key.m_page_no,
-                   key.m_page_idx,
-                   thbits));
+      DEB_LCP_DEL((
+          "(%u)Reset LCP_DELETE on tab(%u,%u),"
+          " row(%u,%u), header: %x",
+          instance(), m_curr_fragptr.p->fragTableId,
+          m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx, thbits));
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
-    }
-    else if (! (thbits & Tuple_header::FREE ||
-                thbits & Tuple_header::DELETE_WAIT ||
-                thbits & Tuple_header::ALLOC))
-    {
+    } else if (!(thbits & Tuple_header::FREE ||
+                 thbits & Tuple_header::DELETE_WAIT ||
+                 thbits & Tuple_header::ALLOC)) {
       jam();
       /**
        * Tuple has changed since last LCP, we need to record
@@ -1290,10 +1204,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        */
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_TUPLE;
-    }
-    else if (scan.m_scanGCI > 0 &&
-             !(thbits & Tuple_header::LCP_SKIP))
-    {
+    } else if (scan.m_scanGCI > 0 && !(thbits & Tuple_header::LCP_SKIP)) {
       jam();
       /**
        * We have found a row which is free, we are however scanning
@@ -1310,45 +1221,31 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        */
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
-    }
-    else if (unlikely(thbits & Tuple_header::LCP_SKIP))
-    {
+    } else if (unlikely(thbits & Tuple_header::LCP_SKIP)) {
       /* Ensure that LCP_SKIP bit is clear before we move on */
       jam();
       /* Coverage tested */
       acquire_frag_mutex(fragPtrP, key.m_page_no);
-      tuple_header_ptr->m_header_bits =
-        thbits & (~Tuple_header::LCP_SKIP);
-      DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                    ", header: %x",
-                    instance(),
-                    m_curr_fragptr.p->fragTableId,
-                    m_curr_fragptr.p->fragmentId,
-                    key.m_page_no,
-                    key.m_page_idx,
-                    thbits));
-      updateChecksum(tuple_header_ptr,
-                     m_curr_tabptr.p,
-                     thbits,
+      tuple_header_ptr->m_header_bits = thbits & (~Tuple_header::LCP_SKIP);
+      DEB_LCP_SKIP((
+          "(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+          ", header: %x",
+          instance(), m_curr_fragptr.p->fragTableId,
+          m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx, thbits));
+      updateChecksum(tuple_header_ptr, m_curr_tabptr.p, thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
       release_frag_mutex(fragPtrP, key.m_page_no);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
-    }
-    else
-    {
+    } else {
       jamDebug();
-      DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
-                    " foundGCI: %u, scanGCI: %u, header: %x",
-                    instance(),
-                    m_curr_fragptr.p->fragTableId,
-                    m_curr_fragptr.p->fragmentId,
-                    key.m_page_no,
-                    key.m_page_idx,
-                    foundGCI,
-                    scan.m_scanGCI,
-                    thbits));
+      DEB_LCP_SKIP_EXTRA(
+          ("(%u)Skipped tab(%u,%u), row(%u,%u),"
+           " foundGCI: %u, scanGCI: %u, header: %x",
+           instance(), m_curr_fragptr.p->fragTableId,
+           m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx,
+           foundGCI, scan.m_scanGCI, thbits));
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       /* Coverage tested */
     }
@@ -1356,27 +1253,21 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
     scan.m_last_seen = __LINE__;
     /* Continue with next row */
     return ZSCAN_FOUND_NEXT_ROW;
-  }
-  else
-  {
+  } else {
     /**
      * When setting LCP_DELETE flag we must also have deleted the
      * row and set rowGCI > scanGCI. So can't be set if we arrive
      * here.
      */
-    if (unlikely(thbits & Tuple_header::LCP_DELETE))
-    {
-      g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u)"
-                          " LCP_DELETE set on rowid not yet used",
-                          instance(),
-                          m_curr_fragptr.p->fragTableId,
-                          m_curr_fragptr.p->fragmentId,
-                          key.m_page_no,
-                          key.m_page_idx);
+    if (unlikely(thbits & Tuple_header::LCP_DELETE)) {
+      g_eventLogger->info(
+          "(%u) tab(%u,%u) row(%u,%u)"
+          " LCP_DELETE set on rowid not yet used",
+          instance(), m_curr_fragptr.p->fragTableId,
+          m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx);
       ndbrequire(!(thbits & Tuple_header::LCP_DELETE));
     }
-    if (foundGCI == 0 && thbits & Tuple_header::LCP_SKIP)
-    {
+    if (foundGCI == 0 && thbits & Tuple_header::LCP_SKIP) {
       jam();
       /* Coverage tested */
       /**
@@ -1425,19 +1316,13 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        * LCP_SKIP bit set.
        */
       acquire_frag_mutex(fragPtrP, key.m_page_no);
-      tuple_header_ptr->m_header_bits =
-        thbits & (~Tuple_header::LCP_SKIP);
-      DEB_LCP_SKIP(("(%u) 4 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                    ", header: %x",
-                    instance(),
-                    m_curr_fragptr.p->fragTableId,
-                    m_curr_fragptr.p->fragmentId,
-                    key.m_page_no,
-                    key.m_page_idx,
-                    thbits));
-      updateChecksum(tuple_header_ptr,
-                     m_curr_tabptr.p,
-                     thbits,
+      tuple_header_ptr->m_header_bits = thbits & (~Tuple_header::LCP_SKIP);
+      DEB_LCP_SKIP((
+          "(%u) 4 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+          ", header: %x",
+          instance(), m_curr_fragptr.p->fragTableId,
+          m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx, thbits));
+      updateChecksum(tuple_header_ptr, m_curr_tabptr.p, thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
       release_frag_mutex(fragPtrP, key.m_page_no);
@@ -1445,29 +1330,21 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
       ndbrequire(c_lqh->is_full_local_lcp_running());
-    }
-    else if (foundGCI == 0 && scan.m_scanGCI > 0)
-    {
+    } else if (foundGCI == 0 && scan.m_scanGCI > 0) {
       /* Coverage tested */
       jam();
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
-    }
-    else
-    {
+    } else {
       jam();
       /* Coverage tested */
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
-      DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
-                    " foundGCI: %u, scanGCI: %u, header: %x",
-                    instance(),
-                    m_curr_fragptr.p->fragTableId,
-                    m_curr_fragptr.p->fragmentId,
-                    key.m_page_no,
-                    key.m_page_idx,
-                    foundGCI,
-                    scan.m_scanGCI,
-                    thbits));
+      DEB_LCP_SKIP_EXTRA(
+          ("(%u)Skipped tab(%u,%u), row(%u,%u),"
+           " foundGCI: %u, scanGCI: %u, header: %x",
+           instance(), m_curr_fragptr.p->fragTableId,
+           m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx,
+           foundGCI, scan.m_scanGCI, thbits));
     }
   }
   scan.m_last_seen = __LINE__;
@@ -1475,7 +1352,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
   /* Continue LCP scan, no need to handle this row in this LCP */
 }
 
- /**
+/**
  * LCP scanning of CHANGE ROW pages:
  * ---------------------------------
  * The below description is implemented by the setup_change_page_for_scan and
@@ -1568,21 +1445,16 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
  * even use a bit in the tuple header for it. But this method should be
  * good enough for now.
  */
-Uint32
-Dbtup::setup_change_page_for_scan(ScanOp& scan,
-                                  Fix_page *fix_page,
-                                  Local_key& key,
-                                  Uint32 size)
-{
-  ScanPos& pos = scan.m_scanPos;
+Uint32 Dbtup::setup_change_page_for_scan(ScanOp &scan, Fix_page *fix_page,
+                                         Local_key &key, Uint32 size) {
+  ScanPos &pos = scan.m_scanPos;
   /**
    * This is the first row of the page, we need to decide how
    * to scan this page or possibly even that we don't need to
    * scan it at all since no changes exist on the page. No need
    * to check this once we started scanning the page.
    */
-  if (!fix_page->get_any_changes())
-  {
+  if (!fix_page->get_any_changes()) {
     /**
      * We only check this condition for the first row in the page.
      * If we passed this point we will start clearing the bits on
@@ -1599,33 +1471,27 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
      */
 #ifdef VM_TRACE
     Uint32 debug_idx = key.m_page_idx;
-    do
-    {
-      Tuple_header* tuple_header_ptr;
-      tuple_header_ptr = (Tuple_header*)&fix_page->m_data[debug_idx];
+    do {
+      Tuple_header *tuple_header_ptr;
+      tuple_header_ptr = (Tuple_header *)&fix_page->m_data[debug_idx];
       Uint32 thbits = tuple_header_ptr->m_header_bits;
       if (thbits & Tuple_header::LCP_DELETE ||
-          thbits & Tuple_header::LCP_SKIP)
-      {
-        g_eventLogger->info("(%u)LCP_DELETE on page with no"
-                            " changes tab(%u,%u), page(%u,%u)"
-                            ", thbits: %x",
-                            instance(),
-                            m_curr_fragptr.p->fragTableId,
-                            m_curr_fragptr.p->fragmentId,
-                            key.m_page_no,
-                            key.m_page_idx,
-                            thbits);
+          thbits & Tuple_header::LCP_SKIP) {
+        g_eventLogger->info(
+            "(%u)LCP_DELETE on page with no"
+            " changes tab(%u,%u), page(%u,%u)"
+            ", thbits: %x",
+            instance(), m_curr_fragptr.p->fragTableId,
+            m_curr_fragptr.p->fragmentId, key.m_page_no, key.m_page_idx,
+            thbits);
         ndbrequire(!(thbits & Tuple_header::LCP_DELETE));
         ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       }
       debug_idx += size;
     } while ((debug_idx + size) <= Fix_page::DATA_WORDS);
 #endif
-    DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) filtered out",
-                    instance(),
-                    m_curr_fragptr.p->fragTableId,
-                    m_curr_fragptr.p->fragmentId,
+    DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) filtered out", instance(),
+                    m_curr_fragptr.p->fragTableId, m_curr_fragptr.p->fragmentId,
                     fix_page->frag_page_id));
     scan.m_last_seen = __LINE__;
     pos.m_get = ScanPos::Get_next_page_mm;
@@ -1634,8 +1500,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
   }
   Uint32 num_changes = fix_page->get_num_changes();
   num_changes = 16;
-  if (num_changes <= 15)
-  {
+  if (num_changes <= 15) {
     jam();
     /**
      * We will check every individual small area and also
@@ -1680,9 +1545,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     pos.m_next_large_area_check_idx = 0;
     ndbrequire(!fix_page->get_and_clear_change_while_lcp_scan());
     fix_page->set_page_being_lcp_scanned();
-  }
-  else
-  {
+  } else {
     jam();
     /**
      * There are more than 15 parts that have changed.
@@ -1713,41 +1576,32 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
   return ZSCAN_FOUND_TUPLE;
 }
 
-Uint32
-Dbtup::move_to_next_change_page_row(ScanOp & scan,
-                                    Fix_page *fix_page,
-                                    Tuple_header **tuple_header_ptr,
-                                    Uint32 & loop_count,
-                                    Uint32 size)
-{
-  ScanPos& pos = scan.m_scanPos;
-  Local_key& key = pos.m_key;
+Uint32 Dbtup::move_to_next_change_page_row(ScanOp &scan, Fix_page *fix_page,
+                                           Tuple_header **tuple_header_ptr,
+                                           Uint32 &loop_count, Uint32 size) {
+  ScanPos &pos = scan.m_scanPos;
+  Local_key &key = pos.m_key;
   jam();
   ndbrequire(pos.m_next_large_area_check_idx != RNIL &&
              pos.m_next_small_area_check_idx != RNIL);
-  do
-  {
+  do {
     loop_count++;
-    if (pos.m_next_large_area_check_idx == key.m_page_idx)
-    {
+    if (pos.m_next_large_area_check_idx == key.m_page_idx) {
       jamDebug();
       jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_large_area_check_idx =
-        fix_page->get_next_large_idx(key.m_page_idx, size);
-      if (!fix_page->get_large_change_map(key.m_page_idx))
-      {
+          fix_page->get_next_large_idx(key.m_page_idx, size);
+      if (!fix_page->get_large_change_map(key.m_page_idx)) {
         jamDebug();
-        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) large area filtered"
-                        ", start_idx: %u",
-                        instance(),
-                        m_curr_fragptr.p->fragTableId,
-                        m_curr_fragptr.p->fragmentId,
-                        fix_page->frag_page_id,
-                        key.m_page_idx));
+        DEB_LCP_FILTER(
+            ("(%u) tab(%u,%u) page(%u) large area filtered"
+             ", start_idx: %u",
+             instance(), m_curr_fragptr.p->fragTableId,
+             m_curr_fragptr.p->fragmentId, fix_page->frag_page_id,
+             key.m_page_idx));
 
         if (unlikely((pos.m_next_large_area_check_idx + size) >
-                      Fix_page::DATA_WORDS))
-        {
+                     Fix_page::DATA_WORDS)) {
           jamDebug();
           return ZSCAN_FOUND_PAGE_END;
         }
@@ -1765,25 +1619,21 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
         continue;
       }
     }
-    if (pos.m_next_small_area_check_idx == key.m_page_idx)
-    {
+    if (pos.m_next_small_area_check_idx == key.m_page_idx) {
       jamDebug();
       jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_small_area_check_idx =
-        fix_page->get_next_small_idx(key.m_page_idx, size);
-      if (!fix_page->get_and_clear_change_maps(key.m_page_idx))
-      {
+          fix_page->get_next_small_idx(key.m_page_idx, size);
+      if (!fix_page->get_and_clear_change_maps(key.m_page_idx)) {
         jamDebug();
-        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) small area filtered"
-                        ", start_idx: %u",
-                        instance(),
-                        m_curr_fragptr.p->fragTableId,
-                        m_curr_fragptr.p->fragmentId,
-                        fix_page->frag_page_id,
-                        key.m_page_idx));
+        DEB_LCP_FILTER(
+            ("(%u) tab(%u,%u) page(%u) small area filtered"
+             ", start_idx: %u",
+             instance(), m_curr_fragptr.p->fragTableId,
+             m_curr_fragptr.p->fragmentId, fix_page->frag_page_id,
+             key.m_page_idx));
         if (unlikely((pos.m_next_small_area_check_idx + size) >
-                      Fix_page::DATA_WORDS))
-        {
+                     Fix_page::DATA_WORDS)) {
           jamDebug();
           ndbassert(fix_page->verify_change_maps(jamBuffer()));
           return ZSCAN_FOUND_PAGE_END;
@@ -1801,7 +1651,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
     }
     break;
   } while (1);
-  (*tuple_header_ptr) = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
+  (*tuple_header_ptr) = (Tuple_header *)&fix_page->m_data[key.m_page_idx];
   jamDebug();
   jamLineDebug(Uint16(key.m_page_idx));
   ndbassert(fix_page->verify_change_maps(jamBuffer()));
@@ -1844,27 +1694,25 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
  *    bit set and reset it to ensure that we record it in the next LCP.
  */
 
-bool
-Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
-{
-  ScanOp& scan = *scanPtr.p;
-  ScanPos& pos = scan.m_scanPos;
-  Local_key& key = pos.m_key;
+bool Dbtup::scanNext(Signal *signal, ScanOpPtr scanPtr) {
+  ScanOp &scan = *scanPtr.p;
+  ScanPos &pos = scan.m_scanPos;
+  Local_key &key = pos.m_key;
   const Uint32 bits = scan.m_bits;
   // table
   TablerecPtr tablePtr;
   tablePtr.i = scan.m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  Tablerec& table = *tablePtr.p;
+  Tablerec &table = *tablePtr.p;
   m_curr_tabptr = tablePtr;
   // fragment
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
   m_curr_fragptr = fragPtr;
   // tuple found
-  Tuple_header* tuple_header_ptr = 0;
+  Tuple_header *tuple_header_ptr = 0;
   Uint32 thbits = 0;
   Uint32 loop_count = 0;
   Uint32 foundGCI;
@@ -1872,12 +1720,12 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   const bool mm_index = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
 
-  const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
-    table.m_offsets[mm_index].m_fix_header_size : 1;
+  const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0)
+                          ? table.m_offsets[mm_index].m_fix_header_size
+                          : 1;
   const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
-  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
-  {
+  if (lcp && !fragPtr.p->m_lcp_keep_list_head.isNull()) {
     jam();
     /**
      * Handle lcp keep list here too, due to scanCont
@@ -1889,981 +1737,833 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
     return false;
   }
 
-  switch(pos.m_get){
-  case ScanPos::Get_next_tuple:
-    jam();
-    key.m_page_idx += size;
-    pos.m_get = ScanPos::Get_page;
-    pos.m_realpid_mm = RNIL;
-    break;
-  case ScanPos::Get_tuple:
-    jam();
-    /**
-     * We need to refetch page after timeslice
-     */
-    pos.m_get = ScanPos::Get_page;
-    pos.m_realpid_mm = RNIL;
-    break;
-  default:
-    break;
+  switch (pos.m_get) {
+    case ScanPos::Get_next_tuple:
+      jam();
+      key.m_page_idx += size;
+      pos.m_get = ScanPos::Get_page;
+      pos.m_realpid_mm = RNIL;
+      break;
+    case ScanPos::Get_tuple:
+      jam();
+      /**
+       * We need to refetch page after timeslice
+       */
+      pos.m_get = ScanPos::Get_page;
+      pos.m_realpid_mm = RNIL;
+      break;
+    default:
+      break;
   }
-  
+
   while (true) {
     switch (pos.m_get) {
-    case ScanPos::Get_next_page:
-      // move to next page
-      jam();
-      {
-        if (! (bits & ScanOp::SCAN_DD))
-          pos.m_get = ScanPos::Get_next_page_mm;
-        else
-          pos.m_get = ScanPos::Get_next_page_dd;
-      }
-      continue;
-    case ScanPos::Get_page:
-      // get real page
-      jam();
-      {
-        if (! (bits & ScanOp::SCAN_DD))
-          pos.m_get = ScanPos::Get_page_mm;
-        else
-          pos.m_get = ScanPos::Get_page_dd;
-      }
-      continue;
-    case ScanPos::Get_next_page_mm:
-      // move to next logical TUP page
-      jam();
-      {
-        /**
-         * Code for future activation, see  below for more details.
-         * bool break_flag;
-         * break_flag = false;
-         */
-        key.m_page_no++;
-        if (likely(bits & ScanOp::SCAN_LCP))
+      case ScanPos::Get_next_page:
+        // move to next page
+        jam();
         {
-          jam();
-          /* Coverage tested path */
-          /**
-           * We could be scanning for a long time and only finding LCP_SKIP
-           * records, we need to keep the LCP watchdog aware that we are
-           * progressing, so we report each change to a new page by reporting
-           * the id of the next page to scan.
-           */
-          c_backup->update_lcp_pages_scanned(signal,
-                      c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
-                      key.m_page_no,
-                      scan.m_scanGCI,
-                      pos.m_lcp_scan_changed_rows_page);
-          scan.m_last_seen = __LINE__;
-        }
-        if (unlikely(key.m_page_no >= frag.m_max_page_cnt))
-        {
-          if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
-          {
-            if (key.m_page_no < scan.m_endPage)
-            {
-              jam();
-              DEB_NR_SCAN(("scanning page %u", key.m_page_no));
-              goto cont;
-            }
-            jam();
-            // no more pages, scan ends
-            pos.m_get = ScanPos::Get_undef;
-            scan.m_state = ScanOp::Last;
-            return true;
-          }
-          else if (bits & ScanOp::SCAN_LCP &&
-                   key.m_page_no < scan.m_endPage)
-          {
-            /**
-             * We come here with ScanOp::SCAN_LCP set AND
-             * frag.m_max_page_cnt < scan.m_endPage. In this case
-             * it is still ok to finish the LCP scan. The missing
-             * pages are handled when they are dropped, so before
-             * we drop a page we record all entries that needs
-             * recording for the LCP. These have been sent to the
-             * LCP keep list. Since when we come here the LCP keep
-             * list is empty we are done with the scan.
-             *
-             * We will however continue the scan for LCP scans. The
-             * reason is that we might have set the LCP_SCANNED_BIT
-             * on pages already dropped. So we need to continue scanning
-             * to ensure that all the lcp scanned bits are reset.
-             *
-             * For the moment this code is unreachable since m_max_page_cnt
-             * cannot decrease. Thus m_max_page_cnt cannot be smaller
-             * than scan.m_endPage since scan.m_endPage is initialised to
-             * m_max_page_cnt at start of scan.
-             *
-             * This is currently not implemented. So we
-             * will make this code path using an ndbrequire instead.
-             * 
-             * We keep the code as comments to be activated when we implement
-             * the possibility to release pages in the directory.
-             */
-            ndbabort();
-            /* We will not scan this page, so reset flag immediately */
-            // reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
-            // scan.m_last_seen = __LINE__;
-            // break_flag = true;
-          }
+          if (!(bits & ScanOp::SCAN_DD))
+            pos.m_get = ScanPos::Get_next_page_mm;
           else
-          {
+            pos.m_get = ScanPos::Get_next_page_dd;
+        }
+        continue;
+      case ScanPos::Get_page:
+        // get real page
+        jam();
+        {
+          if (!(bits & ScanOp::SCAN_DD))
+            pos.m_get = ScanPos::Get_page_mm;
+          else
+            pos.m_get = ScanPos::Get_page_dd;
+        }
+        continue;
+      case ScanPos::Get_next_page_mm:
+        // move to next logical TUP page
+        jam();
+        {
+          /**
+           * Code for future activation, see  below for more details.
+           * bool break_flag;
+           * break_flag = false;
+           */
+          key.m_page_no++;
+          if (likely(bits & ScanOp::SCAN_LCP)) {
+            jam();
+            /* Coverage tested path */
+            /**
+             * We could be scanning for a long time and only finding LCP_SKIP
+             * records, we need to keep the LCP watchdog aware that we are
+             * progressing, so we report each change to a new page by reporting
+             * the id of the next page to scan.
+             */
+            c_backup->update_lcp_pages_scanned(
+                signal, c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
+                key.m_page_no, scan.m_scanGCI,
+                pos.m_lcp_scan_changed_rows_page);
+            scan.m_last_seen = __LINE__;
+          }
+          if (unlikely(key.m_page_no >= frag.m_max_page_cnt)) {
+            if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL)) {
+              if (key.m_page_no < scan.m_endPage) {
+                jam();
+                DEB_NR_SCAN(("scanning page %u", key.m_page_no));
+                goto cont;
+              }
+              jam();
+              // no more pages, scan ends
+              pos.m_get = ScanPos::Get_undef;
+              scan.m_state = ScanOp::Last;
+              return true;
+            } else if (bits & ScanOp::SCAN_LCP &&
+                       key.m_page_no < scan.m_endPage) {
+              /**
+               * We come here with ScanOp::SCAN_LCP set AND
+               * frag.m_max_page_cnt < scan.m_endPage. In this case
+               * it is still ok to finish the LCP scan. The missing
+               * pages are handled when they are dropped, so before
+               * we drop a page we record all entries that needs
+               * recording for the LCP. These have been sent to the
+               * LCP keep list. Since when we come here the LCP keep
+               * list is empty we are done with the scan.
+               *
+               * We will however continue the scan for LCP scans. The
+               * reason is that we might have set the LCP_SCANNED_BIT
+               * on pages already dropped. So we need to continue scanning
+               * to ensure that all the lcp scanned bits are reset.
+               *
+               * For the moment this code is unreachable since m_max_page_cnt
+               * cannot decrease. Thus m_max_page_cnt cannot be smaller
+               * than scan.m_endPage since scan.m_endPage is initialised to
+               * m_max_page_cnt at start of scan.
+               *
+               * This is currently not implemented. So we
+               * will make this code path using an ndbrequire instead.
+               *
+               * We keep the code as comments to be activated when we implement
+               * the possibility to release pages in the directory.
+               */
+              ndbabort();
+              /* We will not scan this page, so reset flag immediately */
+              // reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
+              // scan.m_last_seen = __LINE__;
+              // break_flag = true;
+            } else {
+              // no more pages, scan ends
+              pos.m_get = ScanPos::Get_undef;
+              scan.m_last_seen = __LINE__;
+              scan.m_state = ScanOp::Last;
+              return true;
+            }
+          }
+          if (unlikely((bits & ScanOp::SCAN_LCP) &&
+                       (key.m_page_no >= scan.m_endPage))) {
+            jam();
+            /**
+             * We have arrived at a page number that didn't exist at start of
+             * LCP, we can quit the LCP scan since we cannot find any more
+             * pages that are containing rows to be saved in LCP.
+             */
             // no more pages, scan ends
             pos.m_get = ScanPos::Get_undef;
             scan.m_last_seen = __LINE__;
             scan.m_state = ScanOp::Last;
             return true;
           }
-        }
-        if (unlikely((bits & ScanOp::SCAN_LCP) &&
-                     (key.m_page_no >= scan.m_endPage)))
-        {
-          jam();
           /**
-           * We have arrived at a page number that didn't exist at start of
-           * LCP, we can quit the LCP scan since we cannot find any more
-           * pages that are containing rows to be saved in LCP.
+           * Activate this code if we implement support for decreasing
+           * frag.m_max_page_cnt
+           *
+           * if (break_flag)
+           * {
+           * jam();
+           * pos.m_get = ScanPos::Get_next_page_mm;
+           * scan.m_last_seen = __LINE__;
+           * break; // incr loop count
+           * }
            */
-          // no more pages, scan ends
-          pos.m_get = ScanPos::Get_undef;
-          scan.m_last_seen = __LINE__;
-          scan.m_state = ScanOp::Last;
-          return true;
+        cont:
+          key.m_page_idx = first;
+          pos.m_get = ScanPos::Get_page_mm;
+          // clear cached value
+          pos.m_realpid_mm = RNIL;
         }
-        /**
-         * Activate this code if we implement support for decreasing
-         * frag.m_max_page_cnt
-         *
-         * if (break_flag)
-         * {
-         * jam();
-         * pos.m_get = ScanPos::Get_next_page_mm;
-         * scan.m_last_seen = __LINE__;
-         * break; // incr loop count
-         * }
-         */
-    cont:
-        key.m_page_idx = first;
-        pos.m_get = ScanPos::Get_page_mm;
-        // clear cached value
-        pos.m_realpid_mm = RNIL;
-      }
-      [[fallthrough]];
-    case ScanPos::Get_page_mm:
-      // get TUP real page
-      {
-        PagePtr pagePtr;
-        loop_count+= 4;
-        if (pos.m_realpid_mm == RNIL)
+        [[fallthrough]];
+      case ScanPos::Get_page_mm:
+        // get TUP real page
         {
-          Uint32 *next_ptr, *prev_ptr;
-          if (bits & ScanOp::SCAN_LCP)
-          {
-            jam();
-            pos.m_realpid_mm = getRealpidScan(fragPtr.p,
-                                              key.m_page_no,
-                                              &next_ptr,
-                                              &prev_ptr);
-            Uint32 ret_val = prepare_lcp_scan_page(scan,
-                                                   key,
-                                                   next_ptr,
-                                                   prev_ptr);
-            if (ret_val == ZSCAN_FOUND_PAGE_END)
-              break;
-            else if (ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE)
-             goto record_dropped_change_page;
-            /* else continue */
-          }
-          else if (bits & ScanOp::SCAN_NR)
-          {
-            pos.m_realpid_mm = getRealpidScan(fragPtr.p,
-                                              key.m_page_no,
-                                              &next_ptr,
-                                              &prev_ptr);
-            if (unlikely(pos.m_realpid_mm == RNIL))
-            {
+          PagePtr pagePtr;
+          loop_count += 4;
+          if (pos.m_realpid_mm == RNIL) {
+            Uint32 *next_ptr, *prev_ptr;
+            if (bits & ScanOp::SCAN_LCP) {
               jam();
-              pagePtr.p = nullptr;
-              goto nopage;
-            }
-          }
-          else
-          {
-            /**
-             * Ensure that we access the page map with protection from
-             * the query thread, no need for this protection from LDM
-             * thread.
-             */
-            acquire_frag_page_map_mutex_read(fragPtr.p);
-            pos.m_realpid_mm = getRealpidCheck(fragPtr.p,
-                                               key.m_page_no);
-            release_frag_page_map_mutex_read(fragPtr.p);
-            if (unlikely(pos.m_realpid_mm == RNIL))
-            {
-              jam();
-              pos.m_get = ScanPos::Get_next_page_mm;
-              break; // incr loop count
-            }
-            jam();
-          }
-        }
-        else
-        {
-          jam();
-        }
-        ndbrequire(c_page_pool.getPtr(pagePtr, pos.m_realpid_mm));
-        /**
-         * We are in the process of performing a Full table scan, this can be
-         * either due to a user requesting a full table scan, it can also be
-         * as part of Node Recovery where we are assisting the starting node
-         * to be synchronized (SCAN_NR set) and it is also used for LCP scans
-         * (SCAN_LCP set).
-         * 
-         * We know that we will touch all cache lines where there is a tuple
-         * header and all scans using main memory pages are done on the fixed
-         * pages. To speed up scan processing we will prefetch such that we
-         * always are a few tuples ahead. We scan ahead 4 tuples here and then
-         * we scan yet one more ahead at each new tuple we get to. We only need
-         * initialise by scanning 3 rows ahead since we will immediately fetch
-         * the fourth one before looking at the first row.
-         *
-         * PREFETCH_SCAN_TUPLE:
-         */
-        if (likely((key.m_page_idx + (size * 3)) <= Fix_page::DATA_WORDS))
-        {
-          struct Tup_fixsize_page *page_ptr =
-            (struct Tup_fixsize_page*)pagePtr.p;
-          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx,
-                                              size));
-          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + size,
-                                              size));
-          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 2),
-                                              size));
-        }
-        if (bits & ScanOp::SCAN_LCP)
-        {
-          if (pagePtr.p->is_page_to_skip_lcp())
-          {
-            Uint32 ret_val = handle_lcp_skip_page(scan,
-                                                  key,
-                                                  pagePtr.p);
-            if (ret_val == ZSCAN_FOUND_PAGE_END)
-            {
-              jamDebug();
-              break;
-            }
-            else
-            {
-              jamDebug();
-              ndbrequire(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
-              goto record_dropped_change_page;
-            }
-          }
-          else if (pos.m_lcp_scan_changed_rows_page)
-          {
-            /* CHANGE page is accessed */
-            if (key.m_page_idx == 0)
-            {
-              jamDebug();
-              /* First access of a CHANGE page */
-              Uint32 ret_val = setup_change_page_for_scan(scan,
-                                                          (Fix_page*)pagePtr.p,
-                                                          key,
-                                                          size);
+              pos.m_realpid_mm = getRealpidScan(fragPtr.p, key.m_page_no,
+                                                &next_ptr, &prev_ptr);
+              Uint32 ret_val =
+                  prepare_lcp_scan_page(scan, key, next_ptr, prev_ptr);
               if (ret_val == ZSCAN_FOUND_PAGE_END)
-              {
+                break;
+              else if (ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE)
+                goto record_dropped_change_page;
+              /* else continue */
+            } else if (bits & ScanOp::SCAN_NR) {
+              pos.m_realpid_mm = getRealpidScan(fragPtr.p, key.m_page_no,
+                                                &next_ptr, &prev_ptr);
+              if (unlikely(pos.m_realpid_mm == RNIL)) {
+                jam();
+                pagePtr.p = nullptr;
+                goto nopage;
+              }
+            } else {
+              /**
+               * Ensure that we access the page map with protection from
+               * the query thread, no need for this protection from LDM
+               * thread.
+               */
+              acquire_frag_page_map_mutex_read(fragPtr.p);
+              pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
+              release_frag_page_map_mutex_read(fragPtr.p);
+              if (unlikely(pos.m_realpid_mm == RNIL)) {
+                jam();
+                pos.m_get = ScanPos::Get_next_page_mm;
+                break;  // incr loop count
+              }
+              jam();
+            }
+          } else {
+            jam();
+          }
+          ndbrequire(c_page_pool.getPtr(pagePtr, pos.m_realpid_mm));
+          /**
+           * We are in the process of performing a Full table scan, this can be
+           * either due to a user requesting a full table scan, it can also be
+           * as part of Node Recovery where we are assisting the starting node
+           * to be synchronized (SCAN_NR set) and it is also used for LCP scans
+           * (SCAN_LCP set).
+           *
+           * We know that we will touch all cache lines where there is a tuple
+           * header and all scans using main memory pages are done on the fixed
+           * pages. To speed up scan processing we will prefetch such that we
+           * always are a few tuples ahead. We scan ahead 4 tuples here and then
+           * we scan yet one more ahead at each new tuple we get to. We only
+           * need initialise by scanning 3 rows ahead since we will immediately
+           * fetch the fourth one before looking at the first row.
+           *
+           * PREFETCH_SCAN_TUPLE:
+           */
+          if (likely((key.m_page_idx + (size * 3)) <= Fix_page::DATA_WORDS)) {
+            struct Tup_fixsize_page *page_ptr =
+                (struct Tup_fixsize_page *)pagePtr.p;
+            NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx, size));
+            NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + size, size));
+            NDB_PREFETCH_READ(
+                page_ptr->get_ptr(key.m_page_idx + (size * 2), size));
+          }
+          if (bits & ScanOp::SCAN_LCP) {
+            if (pagePtr.p->is_page_to_skip_lcp()) {
+              Uint32 ret_val = handle_lcp_skip_page(scan, key, pagePtr.p);
+              if (ret_val == ZSCAN_FOUND_PAGE_END) {
                 jamDebug();
-                /* No changes found on page level bitmaps */
+                break;
+              } else {
+                jamDebug();
+                ndbrequire(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
+                goto record_dropped_change_page;
+              }
+            } else if (pos.m_lcp_scan_changed_rows_page) {
+              /* CHANGE page is accessed */
+              if (key.m_page_idx == 0) {
+                jamDebug();
+                /* First access of a CHANGE page */
+                Uint32 ret_val = setup_change_page_for_scan(
+                    scan, (Fix_page *)pagePtr.p, key, size);
+                if (ret_val == ZSCAN_FOUND_PAGE_END) {
+                  jamDebug();
+                  /* No changes found on page level bitmaps */
+                  break;
+                } else {
+                  ndbrequire(ret_val == ZSCAN_FOUND_TUPLE);
+                }
+              }
+            } else {
+              /* LCP ALL page is accessed */
+              jamDebug();
+              /**
+               * Make sure those values have defined values if we were to enter
+               * the wrong path for some reason. These values will lead to a
+               * crash if we try to run the CHANGE page code for an ALL page.
+               */
+              pos.m_all_rows = false;
+              pos.m_next_small_area_check_idx = RNIL;
+              pos.m_next_large_area_check_idx = RNIL;
+            }
+          }
+          /* LCP normal case 4a) above goes here */
+
+        nopage:
+          pos.m_page = pagePtr.p;
+          pos.m_get = ScanPos::Get_tuple;
+        }
+        continue;
+      case ScanPos::Get_next_page_dd:
+        // move to next disk page
+        jam();
+        {
+          Disk_alloc_info &alloc = frag.m_disk_alloc_info;
+          Local_fragment_extent_list list(c_extent_pool, alloc.m_extent_list);
+          Ptr<Extent_info> ext_ptr;
+          ndbrequire(c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i));
+          Extent_info *ext = ext_ptr.p;
+          key.m_page_no++;
+          if (key.m_page_no >= ext->m_first_page_no + alloc.m_extent_size) {
+            // no more pages in this extent
+            jam();
+            if (!list.next(ext_ptr)) {
+              // no more extents, scan ends
+              jam();
+              pos.m_get = ScanPos::Get_undef;
+              scan.m_state = ScanOp::Last;
+              return true;
+            } else {
+              // move to next extent
+              jam();
+              pos.m_extent_info_ptr_i = ext_ptr.i;
+              ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
+              key.m_file_no = ext->m_key.m_file_no;
+              key.m_page_no = ext->m_first_page_no;
+            }
+          }
+          key.m_page_idx = first;
+          pos.m_get = ScanPos::Get_page_dd;
+          /*
+            read ahead for scan in disk order
+            do read ahead every 8:th page
+          */
+          if ((bits & ScanOp::SCAN_DD) &&
+              (((key.m_page_no - ext->m_first_page_no) & 7) == 0)) {
+            jam();
+            // initialize PGMAN request
+            Page_cache_client::Request preq;
+            preq.m_page = pos.m_key;
+            preq.m_callback = TheNULLCallback;
+
+            // set maximum read ahead
+            Uint32 read_ahead = m_max_page_read_ahead;
+
+            while (true) {
+              // prepare page read ahead in current extent
+              Uint32 page_no = preq.m_page.m_page_no;
+              Uint32 page_no_limit = page_no + read_ahead;
+              Uint32 limit = ext->m_first_page_no + alloc.m_extent_size;
+              if (page_no_limit > limit) {
+                jam();
+                // read ahead crosses extent, set limit for this extent
+                read_ahead = page_no_limit - limit;
+                page_no_limit = limit;
+                // and make sure we only read one extra extent next time around
+                if (read_ahead > alloc.m_extent_size)
+                  read_ahead = alloc.m_extent_size;
+              } else {
+                jam();
+                read_ahead = 0;  // no more to read ahead after this
+              }
+              // do read ahead pages for this extent
+              while (page_no < page_no_limit) {
+                // page request to PGMAN
+                jam();
+                preq.m_page.m_page_no = page_no;
+                preq.m_table_id = frag.fragTableId;
+                preq.m_fragment_id = frag.fragmentId;
+                int flags = Page_cache_client::DISK_SCAN;
+                // ignore result
+                Page_cache_client pgman(this, c_pgman);
+                pgman.get_page(signal, preq, flags);
+                jamEntry();
+                page_no++;
+              }
+              if (!read_ahead || !list.next(ext_ptr)) {
+                // no more extents after this or read ahead done
+                jam();
                 break;
               }
-              else
-              {
-                ndbrequire(ret_val == ZSCAN_FOUND_TUPLE);
-              }
+              // move to next extent and initialize PGMAN request accordingly
+              Extent_info *ext = c_extent_pool.getPtr(ext_ptr.i);
+              preq.m_page.m_file_no = ext->m_key.m_file_no;
+              preq.m_page.m_page_no = ext->m_first_page_no;
+            }
+          }  // if ScanOp::SCAN_DD read ahead
+        }
+        [[fallthrough]];
+      case ScanPos::Get_page_dd:
+        // get global page in PGMAN cache
+        jam();
+        {
+          // check if page is un-allocated or empty
+          if (likely(!(bits & ScanOp::SCAN_NR))) {
+            D("Tablespace_client - scanNext");
+            Tablespace_client tsman(
+                signal, this, c_tsman, frag.fragTableId, frag.fragmentId,
+                c_lqh->getCreateSchemaVersion(frag.fragTableId),
+                frag.m_tablespace_id);
+            unsigned uncommitted, committed;
+            uncommitted = committed = ~(unsigned)0;
+            int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
+            ndbrequire(ret == 0);
+            if (committed == 0 && uncommitted == 0) {
+              // skip empty page
+              jam();
+              pos.m_get = ScanPos::Get_next_page_dd;
+              break;  // incr loop count
             }
           }
-          else
-          {
-            /* LCP ALL page is accessed */
-            jamDebug();
-            /**
-             * Make sure those values have defined values if we were to enter
-             * the wrong path for some reason. These values will lead to a
-             * crash if we try to run the CHANGE page code for an ALL page.
-             */
-            pos.m_all_rows = false;
-            pos.m_next_small_area_check_idx = RNIL;
-            pos.m_next_large_area_check_idx = RNIL;
-          }
-        }
-        /* LCP normal case 4a) above goes here */
-
-    nopage:
-        pos.m_page = pagePtr.p;
-        pos.m_get = ScanPos::Get_tuple;
-      }
-      continue;
-    case ScanPos::Get_next_page_dd:
-      // move to next disk page
-      jam();
-      {
-        Disk_alloc_info& alloc = frag.m_disk_alloc_info;
-        Local_fragment_extent_list list(c_extent_pool, alloc.m_extent_list);
-        Ptr<Extent_info> ext_ptr;
-        ndbrequire(c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i));
-        Extent_info* ext = ext_ptr.p;
-        key.m_page_no++;
-        if (key.m_page_no >= ext->m_first_page_no + alloc.m_extent_size) {
-          // no more pages in this extent
-          jam();
-          if (! list.next(ext_ptr)) {
-            // no more extents, scan ends
-            jam();
-            pos.m_get = ScanPos::Get_undef;
-            scan.m_state = ScanOp::Last;
-            return true;
-          } else {
-            // move to next extent
-            jam();
-            pos.m_extent_info_ptr_i = ext_ptr.i;
-            ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
-            key.m_file_no = ext->m_key.m_file_no;
-            key.m_page_no = ext->m_first_page_no;
-          }
-        }
-        key.m_page_idx = first;
-        pos.m_get = ScanPos::Get_page_dd;
-        /*
-          read ahead for scan in disk order
-          do read ahead every 8:th page
-        */
-        if ((bits & ScanOp::SCAN_DD) &&
-            (((key.m_page_no - ext->m_first_page_no) & 7) == 0))
-        {
-          jam();
-          // initialize PGMAN request
+          // page request to PGMAN
           Page_cache_client::Request preq;
           preq.m_page = pos.m_key;
-          preq.m_callback = TheNULLCallback;
-
-          // set maximum read ahead
-          Uint32 read_ahead = m_max_page_read_ahead;
-
-          while (true)
-          {
-            // prepare page read ahead in current extent
-            Uint32 page_no = preq.m_page.m_page_no;
-            Uint32 page_no_limit = page_no + read_ahead;
-            Uint32 limit = ext->m_first_page_no + alloc.m_extent_size;
-            if (page_no_limit > limit)
-            {
-              jam();
-              // read ahead crosses extent, set limit for this extent
-              read_ahead = page_no_limit - limit;
-              page_no_limit = limit;
-              // and make sure we only read one extra extent next time around
-              if (read_ahead > alloc.m_extent_size)
-                read_ahead = alloc.m_extent_size;
-            }
-            else
-            {
-              jam();
-              read_ahead = 0; // no more to read ahead after this
-            }
-            // do read ahead pages for this extent
-            while (page_no < page_no_limit)
-            {
-              // page request to PGMAN
-              jam();
-              preq.m_page.m_page_no = page_no;
-              preq.m_table_id = frag.fragTableId;
-              preq.m_fragment_id = frag.fragmentId;
-              int flags = Page_cache_client::DISK_SCAN;
-              // ignore result
-              Page_cache_client pgman(this, c_pgman);
-              pgman.get_page(signal, preq, flags);
-              jamEntry();
-              page_no++;
-            }
-            if (!read_ahead || !list.next(ext_ptr))
-            {
-              // no more extents after this or read ahead done
-              jam();
-              break;
-            }
-            // move to next extent and initialize PGMAN request accordingly
-            Extent_info* ext = c_extent_pool.getPtr(ext_ptr.i);
-            preq.m_page.m_file_no = ext->m_key.m_file_no;
-            preq.m_page.m_page_no = ext->m_first_page_no;
-          }
-        } // if ScanOp::SCAN_DD read ahead
-      }
-      [[fallthrough]];
-    case ScanPos::Get_page_dd:
-      // get global page in PGMAN cache
-      jam();
-      {
-        // check if page is un-allocated or empty
-	if (likely(! (bits & ScanOp::SCAN_NR)))
-	{
-          D("Tablespace_client - scanNext");
-	  Tablespace_client tsman(signal, this, c_tsman,
-                         frag.fragTableId, 
-                         frag.fragmentId,
-                         c_lqh->getCreateSchemaVersion(frag.fragTableId),
-                         frag.m_tablespace_id);
-	  unsigned uncommitted, committed;
-	  uncommitted = committed = ~(unsigned)0;
-	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
-	  ndbrequire(ret == 0);
-	  if (committed == 0 && uncommitted == 0) {
-	    // skip empty page
-	    jam();
-	    pos.m_get = ScanPos::Get_next_page_dd;
-	    break; // incr loop count
-	  }
-	}
-        // page request to PGMAN
-        Page_cache_client::Request preq;
-        preq.m_page = pos.m_key;
-        preq.m_table_id = frag.fragTableId;
-        preq.m_fragment_id = frag.fragmentId;
-        preq.m_callback.m_callbackData = scanPtr.i;
-        preq.m_callback.m_callbackFunction =
-          safe_cast(&Dbtup::disk_page_tup_scan_callback);
-        int flags = Page_cache_client::DISK_SCAN;
-        Page_cache_client pgman(this, c_pgman);
-        Ptr<GlobalPage> pagePtr;
-        int res = pgman.get_page(signal, preq, flags);
-        pagePtr = pgman.m_ptr;
-        jamEntry();
-        if (res == 0) {
-          jam();
-          // request queued
-          pos.m_get = ScanPos::Get_tuple;
-          return false;
-        }
-        else if (res < 0)
-        {
-          jam();
-          if (res == -1)
-          {
+          preq.m_table_id = frag.fragTableId;
+          preq.m_fragment_id = frag.fragmentId;
+          preq.m_callback.m_callbackData = scanPtr.i;
+          preq.m_callback.m_callbackFunction =
+              safe_cast(&Dbtup::disk_page_tup_scan_callback);
+          int flags = Page_cache_client::DISK_SCAN;
+          Page_cache_client pgman(this, c_pgman);
+          Ptr<GlobalPage> pagePtr;
+          int res = pgman.get_page(signal, preq, flags);
+          pagePtr = pgman.m_ptr;
+          jamEntry();
+          if (res == 0) {
             jam();
-            m_scan_error_code = Uint32(~0);
-          }
-          else
-          {
+            // request queued
+            pos.m_get = ScanPos::Get_tuple;
+            return false;
+          } else if (res < 0) {
             jam();
-            res = -res;
-            m_scan_error_code = res;
+            if (res == -1) {
+              jam();
+              m_scan_error_code = Uint32(~0);
+            } else {
+              jam();
+              res = -res;
+              m_scan_error_code = res;
+            }
+            /* Flag to reply code that we have an error */
+            scan.m_state = ScanOp::Invalid;
+            return true;
           }
-          /* Flag to reply code that we have an error */
-          scan.m_state = ScanOp::Invalid;
-          return true;
+          ndbrequire(res > 0);
+          pos.m_page = (Page *)pagePtr.p;
         }
-        ndbrequire(res > 0);
-        pos.m_page = (Page*)pagePtr.p;
-      }
-      pos.m_get = ScanPos::Get_tuple;
-      continue;
-      // get tuple
-      // move to next tuple
-    case ScanPos::Get_next_tuple:
-      // move to next fixed size tuple
-      jam();
-      {
-        key.m_page_idx += size;
         pos.m_get = ScanPos::Get_tuple;
-      }
-      [[fallthrough]];
-    case ScanPos::Get_tuple:
-      // get fixed size tuple
-      jam();
-      if ((bits & ScanOp::SCAN_VS) == 0)
-      {
-        Fix_page* page = (Fix_page*)pos.m_page;
-        if (key.m_page_idx + size <= Fix_page::DATA_WORDS) 
-	{
-	  pos.m_get = ScanPos::Get_next_tuple;
-	  if (unlikely((bits & ScanOp::SCAN_NR) &&
-              pos.m_realpid_mm == RNIL))
-          {
-            /**
-             * pos.m_page isn't initialized this path, so handle early
-             * We're doing a node restart and we are scanning beyond our
-             * existing rowid's since starting node had those rowid's
-             * defined.
-             */
-            jam();
-            foundGCI = 0;
-            goto found_deleted_rowid;
-          }
-#ifdef VM_TRACE
-          if (! (bits & ScanOp::SCAN_DD))
-          {
-            acquire_frag_page_map_mutex_read(fragPtr.p);
-            Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
-            release_frag_page_map_mutex_read(fragPtr.p);
-            ndbrequire(pos.m_realpid_mm == realpid);
-          }
-#endif
-          tuple_header_ptr = (Tuple_header*)&page->m_data[key.m_page_idx];
-
-          if ((key.m_page_idx + (size * 4)) <= Fix_page::DATA_WORDS)
-          {
-            /**
-             * Continue staying ahead of scan on this page by prefetching
-             * a row 4 tuples ahead of this tuple, prefetched the first 3
-             * at PREFETCH_SCAN_TUPLE.
-             */
-            struct Tup_fixsize_page *page_ptr =
-              (struct Tup_fixsize_page*)page;
-            NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 3),
-                                                size));
-          }
-	  if (likely((! ((bits & ScanOp::SCAN_NR) ||
-                         (bits & ScanOp::SCAN_LCP))) ||
-                     ((bits & ScanOp::SCAN_LCP) &&
-                      !pos.m_lcp_scan_changed_rows_page)))
-          {
-            jam();
-            /**
-             * We come here for normal full table scans and also for LCP
-             * scans where we scan ALL ROWS pages.
-             *
-             * We simply check if the row is free, if it isn't then we will
-             * handle it. For LCP scans we will also check at found_tuple that
-             * the LCP_SKIP bit isn't set. If it is then the rowid was empty
-             * at start of LCP. If the rowid is free AND we are scanning an
-             * ALL ROWS page then the LCP_SKIP cannot be set, this is set only
-             * for CHANGED ROWS pages when deleting tuples.
-             *
-             * Free rowid's might have existed at start of LCP. This was
-             * handled by using the LCP keep list when tuple was deleted.
-             * So when we come here we don't have to worry about LCP scanning
-             * those rows.
-             *
-             * LCP_DELETE flag can never be set on ALL ROWS pages.
-             *
-             * The state Tuple_header::ALLOC means that the row is being
-             * inserted, it thus have no current committed state and is
-             * thus here equivalent to the FREE state for LCP scans.
-             *
-             * We need to acquire the TUP fragment mutex before reading the
-             * tuple header bits. The reason for this is to ensure that
-             * we don't interact with INSERT operations that will
-             * manipulate the header bits during allocation of a new row.
-             *
-             * If someone is inserting a row in this very position we will
-             * hold the mutex and thus acquiring the mutex here for query
-             * threads ensure that they don't read a row in the middle of
-             * its insertion process.
-             */
-            acquire_frag_mutex_read(fragPtr.p, key.m_page_no);
-            thbits = tuple_header_ptr->m_header_bits;
-            release_frag_mutex_read(fragPtr.p, key.m_page_no);
-            if ((bits & ScanOp::SCAN_LCP) &&
-                (thbits & Tuple_header::LCP_DELETE))
-            {
-              g_eventLogger->info("(%u)LCP_DELETE on tab(%u,%u), row(%u,%u)"
-                                  " ALL ROWS page, header: %x",
-                                  instance(),
-                                  fragPtr.p->fragTableId,
-                                  fragPtr.p->fragmentId,
-                                  key.m_page_no,
-                                  key.m_page_idx,
-                                  thbits);
-              ndbabort();
-            }
-	    if (! ((thbits & Tuple_header::FREE ||
-                    thbits & Tuple_header::DELETE_WAIT) ||
-                   ((bits & ScanOp::SCAN_LCP) &&
-                    (thbits & Tuple_header::ALLOC))))
-	    {
-              jam();
-              scan.m_last_seen = __LINE__;
-              goto found_tuple;
-	    }
-            /**
-             * Ensure that LCP_SKIP bit is clear before we move on
-             * It could be set if the row was inserted after LCP
-             * start and then followed by a delete of the row before
-             * we arrive here.
-             */
-            if ((bits & ScanOp::SCAN_LCP) &&
-                (thbits & Tuple_header::LCP_SKIP))
-            {
-              jam();
-              acquire_frag_mutex(fragPtr.p, key.m_page_no);
-              tuple_header_ptr->m_header_bits =
-                thbits & (~Tuple_header::LCP_SKIP);
-              DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                            ", header: %x"
-                            ", new header: %x"
-                            ", tuple_header_ptr: %p",
-                            instance(),
-                            fragPtr.p->fragTableId,
-                            fragPtr.p->fragmentId,
-                            key.m_page_no,
-                            key.m_page_idx,
-                            thbits,
-                            tuple_header_ptr->m_header_bits,
-                            tuple_header_ptr));
-              updateChecksum(tuple_header_ptr,
-                             tablePtr.p,
-                             thbits,
-                             tuple_header_ptr->m_header_bits);
-              release_frag_mutex(fragPtr.p, key.m_page_no);
-            }
-            scan.m_last_seen = __LINE__;
-	  }
-	  else if (bits & ScanOp::SCAN_NR)
-	  {
-            thbits = tuple_header_ptr->m_header_bits;
-	    if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
-                 scan.m_scanGCI ||
-                foundGCI == 0)
-	    {
+        continue;
+        // get tuple
+        // move to next tuple
+      case ScanPos::Get_next_tuple:
+        // move to next fixed size tuple
+        jam();
+        {
+          key.m_page_idx += size;
+          pos.m_get = ScanPos::Get_tuple;
+        }
+        [[fallthrough]];
+      case ScanPos::Get_tuple:
+        // get fixed size tuple
+        jam();
+        if ((bits & ScanOp::SCAN_VS) == 0) {
+          Fix_page *page = (Fix_page *)pos.m_page;
+          if (key.m_page_idx + size <= Fix_page::DATA_WORDS) {
+            pos.m_get = ScanPos::Get_next_tuple;
+            if (unlikely((bits & ScanOp::SCAN_NR) &&
+                         pos.m_realpid_mm == RNIL)) {
               /**
-               * foundGCI == 0 means that the row is initialised but has not
-               * yet been committed as part of insert transaction. All other
-               * rows have the GCI entry set to last GCI it was changed, this
-               * is true for even deleted rows as long as the page is still
-               * maintained by the fragment.
-               *
-               * When foundGCI == 0 there are two cases.
-               * The first case is that thbits == Fix_page::FREE_RECORD.
-               * In this case the tuple doesn't exist and should be
-               * deleted if existing in the starting node.
-               * As part of Fix_page::FREE_RECORD the Tuple_header::FREE
-               * bit is set. So this is handled below.
-               * The second case is that thbits == Tuple_header::ALLOC.
-               * In this case the tuple is currently being inserted, but the
-               * transaction isn't yet committed. In this case we will follow
-               * the found_tuple path. This means that we will attempt to
-               * lock the tuple, this will be unsuccessful since the row
-               * is currently being inserted and is locked for write.
-               * When the commit happens the row lock is released and the
-               * copy scan will continue on this row. It will send an INSERT
-               * to the starting node. Most likely the INSERT transaction
-               * was started after the copy scan started, in this case the
-               * INSERT will simply be converted to an UPDATE by the starting
-               * node. If the insert was started before the new replica of
-               * the fragment was included, the INSERT will be performed.
-               * This is the reason why we have to go the extra mile here to
-               * ensure that we don't lose records that are being inserted as
-               * part of long transactions.
-               *
-               * The final problem is when the INSERT is aborted. In this case
-               * we return from the lock row in execACCKEYREF. Since the row
-               * is now in the Tuple_header::FREE state we must re-read the
-               * row again. This is handled by changing the pos.m_get state
-               * to Get_tuple instead of Get_next_tuple.
+               * pos.m_page isn't initialized this path, so handle early
+               * We're doing a node restart and we are scanning beyond our
+               * existing rowid's since starting node had those rowid's
+               * defined.
                */
-              if (! (thbits & Tuple_header::FREE ||
-                     thbits & Tuple_header::DELETE_WAIT))
-	      {
-		jam();
-		goto found_tuple;
-	      }
-	      else
-	      {
-		goto found_deleted_rowid;
-	      }
-	    }
-	    else if ((thbits & Fix_page::FREE_RECORD) != Fix_page::FREE_RECORD && 
-		      tuple_header_ptr->m_operation_ptr_i != RNIL)
-	    {
-	      jam();
-	      goto found_tuple; // Locked tuple...
-	      // skip free tuple
-	    }
-            DEB_NR_SCAN_EXTRA(("(%u)NR_SCAN_SKIP:tab(%u,%u) row(%u,%u),"
-                               " recGCI: %u, scanGCI: %u, header: %x",
-                               instance(),
-                               fragPtr.p->fragTableId,
-                               fragPtr.p->fragmentId,
-                               key.m_page_no,
-                               key.m_page_idx,
-                               foundGCI,
-                               scan.m_scanGCI,
-                               thbits));
-	  }
-          else
-          {
-            ndbrequire(c_backup->is_partial_lcp_enabled());
-            ndbrequire((bits & ScanOp::SCAN_LCP) &&
-                       pos.m_lcp_scan_changed_rows_page);
-            Uint32 ret_val;
-            if (!pos.m_all_rows)
-            {
-              ret_val = move_to_next_change_page_row(scan,
-                                                     page,
-                                                     &tuple_header_ptr,
-                                                     loop_count,
-                                                     size);
-              if (ret_val == ZSCAN_FOUND_PAGE_END)
-              {
-                /**
-                 * We have finished scanning a CHANGE PAGE row where we
-                 * checked even the parts of a page. In this case we
-                 * perform very detailed analysis that we clear all bits
-                 * while scanning. To handle this we will set a special
-                 * bit if anyone updates any row in the page while
-                 * we are scanning in this mode. This ensures that the
-                 * flag bits are in read-only mode and only updated by
-                 * LCP scanning. We don't track which part of page is
-                 * updated in this case, so if any updates have been
-                 * performed on page in this state, all bits on page
-                 * are set to ensure that we will scan the entire page
-                 * in the next LCP scan.
-                 */
-                ndbassert(!page->get_any_changes());
-                page->clear_page_being_lcp_scanned();
-                if (page->get_and_clear_change_while_lcp_scan())
-                {
-                  jamDebug();
-                  page->set_all_change_map();
-                }
-                /**
-                 * We've finished scanning a page that was using filtering using
-                 * the bitmaps on the page. We are ready to set the last LCP
-                 * state to A.
-                 */
-                /* Coverage tested */
-                set_last_lcp_state(fragPtr.p,
-                                   key.m_page_no,
-                                   false /* Set state to A */);
-                scan.m_last_seen = __LINE__;
-                pos.m_get = ScanPos::Get_next_page;
-                break;
-              }
+              jam();
+              foundGCI = 0;
+              goto found_deleted_rowid;
             }
-            ret_val = handle_scan_change_page_rows(scan,
-                                                   page,
-                                                   tuple_header_ptr,
-                                                   foundGCI,
-                                                   fragPtr.p);
-            if (likely(ret_val == ZSCAN_FOUND_TUPLE))
-            {
+#ifdef VM_TRACE
+            if (!(bits & ScanOp::SCAN_DD)) {
+              acquire_frag_page_map_mutex_read(fragPtr.p);
+              Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
+              release_frag_page_map_mutex_read(fragPtr.p);
+              ndbrequire(pos.m_realpid_mm == realpid);
+            }
+#endif
+            tuple_header_ptr = (Tuple_header *)&page->m_data[key.m_page_idx];
+
+            if ((key.m_page_idx + (size * 4)) <= Fix_page::DATA_WORDS) {
+              /**
+               * Continue staying ahead of scan on this page by prefetching
+               * a row 4 tuples ahead of this tuple, prefetched the first 3
+               * at PREFETCH_SCAN_TUPLE.
+               */
+              struct Tup_fixsize_page *page_ptr =
+                  (struct Tup_fixsize_page *)page;
+              NDB_PREFETCH_READ(
+                  page_ptr->get_ptr(key.m_page_idx + (size * 3), size));
+            }
+            if (likely((!((bits & ScanOp::SCAN_NR) ||
+                          (bits & ScanOp::SCAN_LCP))) ||
+                       ((bits & ScanOp::SCAN_LCP) &&
+                        !pos.m_lcp_scan_changed_rows_page))) {
+              jam();
+              /**
+               * We come here for normal full table scans and also for LCP
+               * scans where we scan ALL ROWS pages.
+               *
+               * We simply check if the row is free, if it isn't then we will
+               * handle it. For LCP scans we will also check at found_tuple that
+               * the LCP_SKIP bit isn't set. If it is then the rowid was empty
+               * at start of LCP. If the rowid is free AND we are scanning an
+               * ALL ROWS page then the LCP_SKIP cannot be set, this is set only
+               * for CHANGED ROWS pages when deleting tuples.
+               *
+               * Free rowid's might have existed at start of LCP. This was
+               * handled by using the LCP keep list when tuple was deleted.
+               * So when we come here we don't have to worry about LCP scanning
+               * those rows.
+               *
+               * LCP_DELETE flag can never be set on ALL ROWS pages.
+               *
+               * The state Tuple_header::ALLOC means that the row is being
+               * inserted, it thus have no current committed state and is
+               * thus here equivalent to the FREE state for LCP scans.
+               *
+               * We need to acquire the TUP fragment mutex before reading the
+               * tuple header bits. The reason for this is to ensure that
+               * we don't interact with INSERT operations that will
+               * manipulate the header bits during allocation of a new row.
+               *
+               * If someone is inserting a row in this very position we will
+               * hold the mutex and thus acquiring the mutex here for query
+               * threads ensure that they don't read a row in the middle of
+               * its insertion process.
+               */
+              acquire_frag_mutex_read(fragPtr.p, key.m_page_no);
+              thbits = tuple_header_ptr->m_header_bits;
+              release_frag_mutex_read(fragPtr.p, key.m_page_no);
+              if ((bits & ScanOp::SCAN_LCP) &&
+                  (thbits & Tuple_header::LCP_DELETE)) {
+                g_eventLogger->info(
+                    "(%u)LCP_DELETE on tab(%u,%u), row(%u,%u)"
+                    " ALL ROWS page, header: %x",
+                    instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+                    key.m_page_no, key.m_page_idx, thbits);
+                ndbabort();
+              }
+              if (!((thbits & Tuple_header::FREE ||
+                     thbits & Tuple_header::DELETE_WAIT) ||
+                    ((bits & ScanOp::SCAN_LCP) &&
+                     (thbits & Tuple_header::ALLOC)))) {
+                jam();
+                scan.m_last_seen = __LINE__;
+                goto found_tuple;
+              }
+              /**
+               * Ensure that LCP_SKIP bit is clear before we move on
+               * It could be set if the row was inserted after LCP
+               * start and then followed by a delete of the row before
+               * we arrive here.
+               */
+              if ((bits & ScanOp::SCAN_LCP) &&
+                  (thbits & Tuple_header::LCP_SKIP)) {
+                jam();
+                acquire_frag_mutex(fragPtr.p, key.m_page_no);
+                tuple_header_ptr->m_header_bits =
+                    thbits & (~Tuple_header::LCP_SKIP);
+                DEB_LCP_SKIP(
+                    ("(%u)Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+                     ", header: %x"
+                     ", new header: %x"
+                     ", tuple_header_ptr: %p",
+                     instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+                     key.m_page_no, key.m_page_idx, thbits,
+                     tuple_header_ptr->m_header_bits, tuple_header_ptr));
+                updateChecksum(tuple_header_ptr, tablePtr.p, thbits,
+                               tuple_header_ptr->m_header_bits);
+                release_frag_mutex(fragPtr.p, key.m_page_no);
+              }
+              scan.m_last_seen = __LINE__;
+            } else if (bits & ScanOp::SCAN_NR) {
+              thbits = tuple_header_ptr->m_header_bits;
+              if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
+                      scan.m_scanGCI ||
+                  foundGCI == 0) {
+                /**
+                 * foundGCI == 0 means that the row is initialised but has not
+                 * yet been committed as part of insert transaction. All other
+                 * rows have the GCI entry set to last GCI it was changed, this
+                 * is true for even deleted rows as long as the page is still
+                 * maintained by the fragment.
+                 *
+                 * When foundGCI == 0 there are two cases.
+                 * The first case is that thbits == Fix_page::FREE_RECORD.
+                 * In this case the tuple doesn't exist and should be
+                 * deleted if existing in the starting node.
+                 * As part of Fix_page::FREE_RECORD the Tuple_header::FREE
+                 * bit is set. So this is handled below.
+                 * The second case is that thbits == Tuple_header::ALLOC.
+                 * In this case the tuple is currently being inserted, but the
+                 * transaction isn't yet committed. In this case we will follow
+                 * the found_tuple path. This means that we will attempt to
+                 * lock the tuple, this will be unsuccessful since the row
+                 * is currently being inserted and is locked for write.
+                 * When the commit happens the row lock is released and the
+                 * copy scan will continue on this row. It will send an INSERT
+                 * to the starting node. Most likely the INSERT transaction
+                 * was started after the copy scan started, in this case the
+                 * INSERT will simply be converted to an UPDATE by the starting
+                 * node. If the insert was started before the new replica of
+                 * the fragment was included, the INSERT will be performed.
+                 * This is the reason why we have to go the extra mile here to
+                 * ensure that we don't lose records that are being inserted as
+                 * part of long transactions.
+                 *
+                 * The final problem is when the INSERT is aborted. In this case
+                 * we return from the lock row in execACCKEYREF. Since the row
+                 * is now in the Tuple_header::FREE state we must re-read the
+                 * row again. This is handled by changing the pos.m_get state
+                 * to Get_tuple instead of Get_next_tuple.
+                 */
+                if (!(thbits & Tuple_header::FREE ||
+                      thbits & Tuple_header::DELETE_WAIT)) {
+                  jam();
+                  goto found_tuple;
+                } else {
+                  goto found_deleted_rowid;
+                }
+              } else if ((thbits & Fix_page::FREE_RECORD) !=
+                             Fix_page::FREE_RECORD &&
+                         tuple_header_ptr->m_operation_ptr_i != RNIL) {
+                jam();
+                goto found_tuple;  // Locked tuple...
+                // skip free tuple
+              }
+              DEB_NR_SCAN_EXTRA(
+                  ("(%u)NR_SCAN_SKIP:tab(%u,%u) row(%u,%u),"
+                   " recGCI: %u, scanGCI: %u, header: %x",
+                   instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+                   key.m_page_no, key.m_page_idx, foundGCI, scan.m_scanGCI,
+                   thbits));
+            } else {
+              ndbrequire(c_backup->is_partial_lcp_enabled());
+              ndbrequire((bits & ScanOp::SCAN_LCP) &&
+                         pos.m_lcp_scan_changed_rows_page);
+              Uint32 ret_val;
+              if (!pos.m_all_rows) {
+                ret_val = move_to_next_change_page_row(
+                    scan, page, &tuple_header_ptr, loop_count, size);
+                if (ret_val == ZSCAN_FOUND_PAGE_END) {
+                  /**
+                   * We have finished scanning a CHANGE PAGE row where we
+                   * checked even the parts of a page. In this case we
+                   * perform very detailed analysis that we clear all bits
+                   * while scanning. To handle this we will set a special
+                   * bit if anyone updates any row in the page while
+                   * we are scanning in this mode. This ensures that the
+                   * flag bits are in read-only mode and only updated by
+                   * LCP scanning. We don't track which part of page is
+                   * updated in this case, so if any updates have been
+                   * performed on page in this state, all bits on page
+                   * are set to ensure that we will scan the entire page
+                   * in the next LCP scan.
+                   */
+                  ndbassert(!page->get_any_changes());
+                  page->clear_page_being_lcp_scanned();
+                  if (page->get_and_clear_change_while_lcp_scan()) {
+                    jamDebug();
+                    page->set_all_change_map();
+                  }
+                  /**
+                   * We've finished scanning a page that was using filtering
+                   * using the bitmaps on the page. We are ready to set the last
+                   * LCP state to A.
+                   */
+                  /* Coverage tested */
+                  set_last_lcp_state(fragPtr.p, key.m_page_no,
+                                     false /* Set state to A */);
+                  scan.m_last_seen = __LINE__;
+                  pos.m_get = ScanPos::Get_next_page;
+                  break;
+                }
+              }
+              ret_val = handle_scan_change_page_rows(
+                  scan, page, tuple_header_ptr, foundGCI, fragPtr.p);
+              if (likely(ret_val == ZSCAN_FOUND_TUPLE)) {
+                thbits = tuple_header_ptr->m_header_bits;
+                goto found_tuple;
+              } else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)
+                goto found_deleted_rowid;
+              ndbrequire(ret_val == ZSCAN_FOUND_NEXT_ROW);
+            }
+          } else {
+            jam();
+            /**
+             * We've finished scanning a page, for LCPs we are ready to
+             * set the last LCP state to A.
+             */
+            if (bits & ScanOp::SCAN_LCP) {
+              jam();
+              /* Coverage tested */
+              set_last_lcp_state(fragPtr.p, key.m_page_no,
+                                 false /* Set state to A */);
+              if (!pos.m_all_rows) {
+                ndbassert(page->verify_change_maps(jamBuffer()));
+              }
+              scan.m_last_seen = __LINE__;
+            }
+            // no more tuples on this page
+            pos.m_get = ScanPos::Get_next_page;
+          }
+        } else {
+          jam();
+          Var_page *page = (Var_page *)pos.m_page;
+          if (key.m_page_idx < page->high_index) {
+            jam();
+            pos.m_get = ScanPos::Get_next_tuple;
+            if (!page->is_free(key.m_page_idx)) {
+              tuple_header_ptr = (Tuple_header *)page->get_ptr(key.m_page_idx);
               thbits = tuple_header_ptr->m_header_bits;
               goto found_tuple;
             }
-            else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)
-              goto found_deleted_rowid;
-            ndbrequire(ret_val == ZSCAN_FOUND_NEXT_ROW);
+          } else {
+            jam();
+            // no more tuples on this page
+            pos.m_get = ScanPos::Get_next_page;
+            break;
           }
         }
-        else
+        break;  // incr loop count
+      found_tuple:
+        // found possible tuple to return
+        jam();
         {
-          jam();
-          /**
-           * We've finished scanning a page, for LCPs we are ready to
-           * set the last LCP state to A.
-           */
-          if (bits & ScanOp::SCAN_LCP)
-          {
-            jam();
-            /* Coverage tested */
-            set_last_lcp_state(fragPtr.p,
-                               key.m_page_no,
-                               false /* Set state to A */);
-            if (!pos.m_all_rows)
-            {
-              ndbassert(page->verify_change_maps(jamBuffer()));
+          // caller has already set pos.m_get to next tuple
+          if (likely(!(bits & ScanOp::SCAN_LCP &&
+                       thbits & Tuple_header::LCP_SKIP))) {
+            Local_key &key_mm = pos.m_key_mm;
+            if (likely(!(bits & ScanOp::SCAN_DD))) {
+              key_mm = pos.m_key;
+              // real page id is already set
+              if (bits & ScanOp::SCAN_LCP) {
+                c_backup->update_pause_lcp_counter(loop_count);
+              }
+            } else {
+              /**
+               * Disk data rows are only accessed in LDM thread.
+               * Thus no need to acquire mutex for access here.
+               */
+              ndbrequire(!m_is_in_query_thread);
+              tuple_header_ptr->get_base_record_ref(key_mm);
+              // recompute for each disk tuple
+              pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
             }
+            // TUPKEYREQ handles savepoint stuff
+            scan.m_state = ScanOp::Current;
+            return true;
+          } else {
+            jam();
+            /* Clear LCP_SKIP bit so that it will not show up in next LCP */
+            /**
+             * We need to use a mutex since otherwise readers could calculate
+             * the wrong checksum.
+             */
+            acquire_frag_mutex(fragPtr.p, key.m_page_no);
+            tuple_header_ptr->m_header_bits =
+                thbits & ~(Uint32)Tuple_header::LCP_SKIP;
+
+            DEB_LCP_SKIP(
+                ("(%u) 3 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+                 ", header: %x",
+                 instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+                 key.m_page_no, key.m_page_idx, thbits));
+
+            updateChecksum(tuple_header_ptr, tablePtr.p, thbits,
+                           tuple_header_ptr->m_header_bits);
+            release_frag_mutex(fragPtr.p, key.m_page_no);
             scan.m_last_seen = __LINE__;
           }
-          // no more tuples on this page
-          pos.m_get = ScanPos::Get_next_page;
         }
+        break;
+
+      record_dropped_change_page : {
+        ndbrequire(c_backup->is_partial_lcp_enabled());
+        c_backup->update_pause_lcp_counter(loop_count);
+        record_delete_by_pageid(signal, frag.fragTableId, frag.fragmentId, scan,
+                                key.m_page_no, size, true);
+        return false;
       }
-      else
-      {
-        jam();
-        Var_page * page = (Var_page*)pos.m_page;
-        if (key.m_page_idx < page->high_index)
-        {
-          jam();
-          pos.m_get = ScanPos::Get_next_tuple;
-          if (!page->is_free(key.m_page_idx))
-          {
-            tuple_header_ptr = (Tuple_header*)page->get_ptr(key.m_page_idx);
-            thbits = tuple_header_ptr->m_header_bits;
-            goto found_tuple;
-          }
-        }
-        else
-        {
-          jam();
-          // no more tuples on this page
-          pos.m_get = ScanPos::Get_next_page;
-          break;
-        }
-      }
-      break; // incr loop count
-  found_tuple:
-      // found possible tuple to return
-      jam();
-      {
-        // caller has already set pos.m_get to next tuple
-        if (likely(! (bits & ScanOp::SCAN_LCP &&
-                      thbits & Tuple_header::LCP_SKIP)))
-        {
-          Local_key& key_mm = pos.m_key_mm;
-          if (likely(! (bits & ScanOp::SCAN_DD)))
-          {
+
+      found_deleted_rowid:
+
+        ndbrequire((bits & ScanOp::SCAN_NR) || (bits & ScanOp::SCAN_LCP));
+        if (!(bits & ScanOp::SCAN_LCP && pos.m_is_last_lcp_state_D)) {
+          ndbrequire(bits & ScanOp::SCAN_NR ||
+                     pos.m_lcp_scan_changed_rows_page);
+
+          Local_key &key_mm = pos.m_key_mm;
+          if (!(bits & ScanOp::SCAN_DD)) {
+            jam();
             key_mm = pos.m_key;
+            // caller has already set pos.m_get to next tuple
             // real page id is already set
-            if (bits & ScanOp::SCAN_LCP)
-            {
-              c_backup->update_pause_lcp_counter(loop_count);
-            }
-          }
-          else
-          {
+          } else {
+            jam();
             /**
-             * Disk data rows are only accessed in LDM thread.
-             * Thus no need to acquire mutex for access here.
+             * Currently dead code since NR scans never use Disk data scans.
              */
-            ndbrequire(!m_is_in_query_thread);
+            ndbrequire(bits & ScanOp::SCAN_NR);
             tuple_header_ptr->get_base_record_ref(key_mm);
             // recompute for each disk tuple
             pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
-          }
-          // TUPKEYREQ handles savepoint stuff
-          scan.m_state = ScanOp::Current;
-          return true;
-        }
-        else
-        {
-          jam();
-          /* Clear LCP_SKIP bit so that it will not show up in next LCP */
-          /**
-           * We need to use a mutex since otherwise readers could calculate
-           * the wrong checksum.
-           */
-          acquire_frag_mutex(fragPtr.p, key.m_page_no);
-          tuple_header_ptr->m_header_bits =
-            thbits & ~(Uint32)Tuple_header::LCP_SKIP;
 
-          DEB_LCP_SKIP(("(%u) 3 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                        ", header: %x",
-                        instance(),
-                        fragPtr.p->fragTableId,
-                        fragPtr.p->fragmentId,
-                        key.m_page_no,
-                        key.m_page_idx,
-                        thbits));
-
-          updateChecksum(tuple_header_ptr,
-                         tablePtr.p,
-                         thbits,
-                         tuple_header_ptr->m_header_bits);
-          release_frag_mutex(fragPtr.p, key.m_page_no);
-          scan.m_last_seen = __LINE__;
-        }
-      }
-      break;
-
-  record_dropped_change_page:
-      {
-        ndbrequire(c_backup->is_partial_lcp_enabled());
-        c_backup->update_pause_lcp_counter(loop_count);
-        record_delete_by_pageid(signal,
-                                frag.fragTableId,
-                                frag.fragmentId,
-                                scan,
-                                key.m_page_no,
-                                size,
-                                true);
-        return false;
-      }
-
-  found_deleted_rowid:
-
-      ndbrequire((bits & ScanOp::SCAN_NR) ||
-                 (bits & ScanOp::SCAN_LCP));
-      if (!(bits & ScanOp::SCAN_LCP && pos.m_is_last_lcp_state_D))
-      {
-        ndbrequire(bits & ScanOp::SCAN_NR ||
-                  pos.m_lcp_scan_changed_rows_page);
-
-        Local_key& key_mm = pos.m_key_mm;
-        if (! (bits & ScanOp::SCAN_DD))
-        {
-          jam();
-          key_mm = pos.m_key;
-          // caller has already set pos.m_get to next tuple
-          // real page id is already set
-        }
-        else
-        {
-          jam();
-          /**
-           * Currently dead code since NR scans never use Disk data scans.
-           */
-          ndbrequire(bits & ScanOp::SCAN_NR);
-          tuple_header_ptr->get_base_record_ref(key_mm);
-          // recompute for each disk tuple
-          pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
-  
-          Fix_page *mmpage = (Fix_page*)c_page_pool.getPtr(pos.m_realpid_mm);
-          tuple_header_ptr =
-            (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
-          if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
-               scan.m_scanGCI ||
-              foundGCI == 0)
-          {
-            thbits = tuple_header_ptr->m_header_bits;
-            if (! (thbits & Tuple_header::FREE ||
-                   thbits & Tuple_header::DELETE_WAIT))
-            {
+            Fix_page *mmpage = (Fix_page *)c_page_pool.getPtr(pos.m_realpid_mm);
+            tuple_header_ptr =
+                (Tuple_header *)(mmpage->m_data + key_mm.m_page_idx);
+            if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
+                    scan.m_scanGCI ||
+                foundGCI == 0) {
+              thbits = tuple_header_ptr->m_header_bits;
+              if (!(thbits & Tuple_header::FREE ||
+                    thbits & Tuple_header::DELETE_WAIT)) {
+                jam();
+                break;
+              }
               jam();
-              break;
             }
-            jam();
           }
+          /**
+           * This code handles Node recovery, the row might still exist at the
+           * starting node although it no longer exists at this live node. We
+           * send a DELETE by ROWID to the starting node.
+           *
+           * This code is also used by LCPs to record deleted row ids.
+           */
+          c_backup->update_pause_lcp_counter(loop_count);
+          record_delete_by_rowid(signal, frag.fragTableId, frag.fragmentId,
+                                 scan, pos.m_key_mm, foundGCI, true);
+          // TUPKEYREQ handles savepoint stuff
+          return false;
         }
-        /**
-         * This code handles Node recovery, the row might still exist at the
-         * starting node although it no longer exists at this live node. We
-         * send a DELETE by ROWID to the starting node.
-         *
-         * This code is also used by LCPs to record deleted row ids.
-         */
-        c_backup->update_pause_lcp_counter(loop_count);
-        record_delete_by_rowid(signal,
-                               frag.fragTableId,
-                               frag.fragmentId,
-                               scan,
-                               pos.m_key_mm,
-                               foundGCI,
-                               true);
-        // TUPKEYREQ handles savepoint stuff
-        return false;
-      }
-      scan.m_last_seen = __LINE__;
-      break; // incr loop count
-    default:
-      ndbabort();
+        scan.m_last_seen = __LINE__;
+        break;  // incr loop count
+      default:
+        ndbabort();
     }
-    loop_count+= 4;
-    if (loop_count >= 512)
-    {
+    loop_count += 4;
+    if (loop_count >= 512) {
       jam();
-      if (bits & ScanOp::SCAN_LCP)
-      {
+      if (bits & ScanOp::SCAN_LCP) {
         jam();
         c_backup->update_pause_lcp_counter(loop_count);
-        if (!c_backup->check_pause_lcp())
-        {
+        if (!c_backup->check_pause_lcp()) {
           loop_count = 0;
           continue;
         }
-        c_backup->pausing_lcp(5,loop_count);
+        c_backup->pausing_lcp(5, loop_count);
       }
       break;
     }
@@ -2873,13 +2573,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_last_seen = __LINE__;
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
-  if (!c_lqh->rt_break_is_scan_prioritised(scan.m_userPtr))
-  {
+  if (!c_lqh->rt_break_is_scan_prioritised(scan.m_userPtr)) {
     jam();
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  }
-  else
-  {
+  } else {
     /**
      * Sending with bounded delay means that we allow all signals in job buffer
      * to be executed until the maximum is arrived at which is currently 100.
@@ -2888,62 +2585,43 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
      * than 100 signals.
      */
     jam();
-//#ifdef VM_TRACE
+    //#ifdef VM_TRACE
     c_debug_count++;
-    if (c_debug_count % 10000 == 0)
-    {
+    if (c_debug_count % 10000 == 0) {
       DEB_LCP_DELAY(("(%u)TupScan delayed 10000 times", instance()));
     }
-//#endif
+    //#endif
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, BOUNDED_DELAY, 2);
   }
   return false;
 }
 
-void
-Dbtup::record_delete_by_rowid(Signal *signal,
-                              Uint32 tableId,
-                              Uint32 fragmentId,
-                              ScanOp &scan,
-                              Local_key &key,
-                              Uint32 foundGCI,
-                              bool set_scan_state)
-{
+void Dbtup::record_delete_by_rowid(Signal *signal, Uint32 tableId,
+                                   Uint32 fragmentId, ScanOp &scan,
+                                   Local_key &key, Uint32 foundGCI,
+                                   bool set_scan_state) {
   const Uint32 bits = scan.m_bits;
-  DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), row(%u,%u)",
-                     instance(),
-                     tableId,
-                     fragmentId,
-                     key.m_page_no,
-                     key.m_page_idx));
-  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), row(%u,%u)", instance(),
+                     tableId, fragmentId, key.m_page_no, key.m_page_idx));
+  NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
   conf->accOperationPtr = (bits & ScanOp::SCAN_LCP) ? Uint32(-1) : RNIL;
   conf->fragId = fragmentId;
   conf->localKey[0] = key.m_page_no;
   conf->localKey[1] = key.m_page_idx;
   conf->gci = foundGCI;
-  if (set_scan_state)
-    scan.m_state = ScanOp::Next;
+  if (set_scan_state) scan.m_state = ScanOp::Next;
   signal->setLength(NextScanConf::SignalLengthNoKeyInfo);
   c_lqh->exec_next_scan_conf(signal);
   return;
 }
 
-void
-Dbtup::record_delete_by_pageid(Signal *signal,
-                               Uint32 tableId,
-                               Uint32 fragmentId,
-                               ScanOp &scan,
-                               Uint32 page_no,
-                               Uint32 record_size,
-                               bool set_scan_state)
-{
-  DEB_LCP_DEL_EXTRA(("(%u)Delete by pageid tab(%u,%u), page(%u)",
-                     instance(),
-                     tableId,
-                     fragmentId,
-                     page_no));
+void Dbtup::record_delete_by_pageid(Signal *signal, Uint32 tableId,
+                                    Uint32 fragmentId, ScanOp &scan,
+                                    Uint32 page_no, Uint32 record_size,
+                                    bool set_scan_state) {
+  DEB_LCP_DEL_EXTRA(("(%u)Delete by pageid tab(%u,%u), page(%u)", instance(),
+                     tableId, fragmentId, page_no));
   jam();
   /**
    * Set page_idx to flag to LQH that it is a
@@ -2952,15 +2630,14 @@ Dbtup::record_delete_by_pageid(Signal *signal,
    */
   Uint32 page_idx = ZNIL;
 
-  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
   conf->accOperationPtr = Uint32(-1);
   conf->fragId = fragmentId;
   conf->localKey[0] = page_no;
   conf->localKey[1] = page_idx;
   conf->gci = record_size; /* Used to transport record size */
-  if (set_scan_state)
-    scan.m_state = ScanOp::Next;
+  if (set_scan_state) scan.m_state = ScanOp::Next;
   signal->setLength(NextScanConf::SignalLengthNoKeyInfo);
   c_lqh->exec_next_scan_conf(signal);
 }
@@ -3001,29 +2678,24 @@ Dbtup::record_delete_by_pageid(Signal *signal,
  * LCP keep list ensures that those rows were checkpointed before being
  * deleted.
  */
-void
-Dbtup::handle_lcp_keep(Signal* signal,
-                       FragrecordPtr fragPtr,
-                       ScanOp* scanPtrP)
-{
+void Dbtup::handle_lcp_keep(Signal *signal, FragrecordPtr fragPtr,
+                            ScanOp *scanPtrP) {
   TablerecPtr tablePtr;
   tablePtr.i = scanPtrP->m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
   ndbrequire(!fragPtr.p->m_lcp_keep_list_head.isNull());
   Local_key tmp = fragPtr.p->m_lcp_keep_list_head;
-  Uint32 * copytuple = get_copy_tuple_raw(&tmp);
-  if (copytuple[0] == FREE_PAGE_RNIL)
-  {
+  Uint32 *copytuple = get_copy_tuple_raw(&tmp);
+  if (copytuple[0] == FREE_PAGE_RNIL) {
     jam();
     ndbrequire(c_backup->is_partial_lcp_enabled());
     /* Handle DELETE by ROWID or DELETE by PAGEID */
     Uint32 num_entries = copytuple[4];
     Uint32 page_id = copytuple[5];
-    Uint16 *page_index_array = (Uint16*)&copytuple[6];
+    Uint16 *page_index_array = (Uint16 *)&copytuple[6];
     c_backup->change_current_page_temp(page_id);
-    if (page_index_array[0] == ZNIL)
-    {
+    if (page_index_array[0] == ZNIL) {
       jam();
       /* DELETE by PAGEID */
       const Uint32 size = tablePtr.p->m_offsets[MM].m_fix_header_size;
@@ -3032,23 +2704,15 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_idx = ZNIL;
       ndbrequire(num_entries == 1);
       DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u): Handle LCP keep DELETE by PAGEID",
-                    instance(),
-                    fragPtr.p->fragTableId,
-                    fragPtr.p->fragmentId,
+                    instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
                     page_id));
       remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
       c_backup->lcp_keep_delete_by_page_id();
-      record_delete_by_pageid(signal,
-                              fragPtr.p->fragTableId,
-                              fragPtr.p->fragmentId,
-                              *scanPtrP,
-                              page_id,
-                              size,
+      record_delete_by_pageid(signal, fragPtr.p->fragTableId,
+                              fragPtr.p->fragmentId, *scanPtrP, page_id, size,
                               false);
       c_undo_buffer.free_copy_tuple(&tmp);
-    }
-    else
-    {
+    } else {
       jam();
       /* DELETE by ROWID */
       Local_key key;
@@ -3059,34 +2723,23 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_idx = page_index_array[num_entries];
       copytuple[4] = num_entries;
       c_backup->lcp_keep_delete_row();
-      DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): "
-                    "Handle LCP keep DELETE by ROWID",
-                    instance(),
-                    fragPtr.p->fragTableId,
-                    fragPtr.p->fragmentId,
-                    key.m_page_no,
-                    key.m_page_idx));
-      if (num_entries == 0)
-      {
+      DEB_LCP_KEEP(
+          ("(%u)tab(%u,%u) page(%u,%u): "
+           "Handle LCP keep DELETE by ROWID",
+           instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+           key.m_page_no, key.m_page_idx));
+      if (num_entries == 0) {
         jam();
         remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
       }
-      record_delete_by_rowid(signal,
-                             fragPtr.p->fragTableId,
-                             fragPtr.p->fragmentId,
-                             *scanPtrP,
-                             key,
-                             0,
-                             false);
-      if (num_entries == 0)
-      {
+      record_delete_by_rowid(signal, fragPtr.p->fragTableId,
+                             fragPtr.p->fragmentId, *scanPtrP, key, 0, false);
+      if (num_entries == 0) {
         jam();
         c_undo_buffer.free_copy_tuple(&tmp);
       }
     }
-  }
-  else
-  {
+  } else {
     jam();
     /**
      * tmp points to copy tuple. We need real page id to change to correct
@@ -3096,19 +2749,15 @@ Dbtup::handle_lcp_keep(Signal* signal,
     c_backup->change_current_page_temp(copytuple[0]);
     c_backup->lcp_keep_row();
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
-    DEB_LCP_KEEP(("(%u)tab(%u,%u) row(%u,%u) page(%u,%u): Handle LCP keep"
-                  " insert entry",
-                  instance(),
-                  fragPtr.p->fragTableId,
-                  fragPtr.p->fragmentId,
-                  copytuple[0],
-                  copytuple[1],
-                  tmp.m_page_no,
-                  tmp.m_page_idx));
+    DEB_LCP_KEEP(
+        ("(%u)tab(%u,%u) row(%u,%u) page(%u,%u): Handle LCP keep"
+         " insert entry",
+         instance(), fragPtr.p->fragTableId, fragPtr.p->fragmentId,
+         copytuple[0], copytuple[1], tmp.m_page_no, tmp.m_page_idx));
     Local_key save = tmp;
     setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
     prepare_scanTUPKEYREQ(tmp.m_page_no, tmp.m_page_idx);
-    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
     conf->scanPtr = scanPtrP->m_userPtr;
     conf->accOperationPtr = (Uint32)-1;
     conf->fragId = fragPtr.p->fragmentId;
@@ -3121,38 +2770,25 @@ Dbtup::handle_lcp_keep(Signal* signal,
   }
 }
 
-void
-Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
-                                     Uint32 *copytuple,
-                                     Local_key tmp)
-{
-  memcpy(&fragPtrP->m_lcp_keep_list_head,
-         copytuple+2,
-         sizeof(Local_key));
+void Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
+                                          Uint32 *copytuple, Local_key tmp) {
+  memcpy(&fragPtrP->m_lcp_keep_list_head, copytuple + 2, sizeof(Local_key));
 
-  if (fragPtrP->m_lcp_keep_list_head.isNull())
-  {
+  if (fragPtrP->m_lcp_keep_list_head.isNull()) {
     jam();
-    DEB_LCP_KEEP(("(%u) tab(%u,%u) tmp(%u,%u) keep_list(%u,%u):"
-                  " LCP keep list empty again",
-                  instance(),
-                  fragPtrP->fragTableId,
-                  fragPtrP->fragmentId,
-                  tmp.m_page_no,
-                  tmp.m_page_idx,
-                  fragPtrP->m_lcp_keep_list_tail.m_page_no,
-                  fragPtrP->m_lcp_keep_list_tail.m_page_idx));
+    DEB_LCP_KEEP(
+        ("(%u) tab(%u,%u) tmp(%u,%u) keep_list(%u,%u):"
+         " LCP keep list empty again",
+         instance(), fragPtrP->fragTableId, fragPtrP->fragmentId, tmp.m_page_no,
+         tmp.m_page_idx, fragPtrP->m_lcp_keep_list_tail.m_page_no,
+         fragPtrP->m_lcp_keep_list_tail.m_page_idx));
     ndbrequire(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
     ndbrequire(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
     fragPtrP->m_lcp_keep_list_tail.setNull();
-  }
-  else
-  {
+  } else {
     jam();
     DEB_LCP_KEEP(("(%u)tab(%u,%u) move LCP keep head(%u,%u),tail(%u,%u)",
-                  instance(),
-                  fragPtrP->fragTableId,
-                  fragPtrP->fragmentId,
+                  instance(), fragPtrP->fragTableId, fragPtrP->fragmentId,
                   fragPtrP->m_lcp_keep_list_head.m_page_no,
                   fragPtrP->m_lcp_keep_list_head.m_page_idx,
                   fragPtrP->m_lcp_keep_list_tail.m_page_no,
@@ -3160,12 +2796,9 @@ Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
   }
 }
 
-void
-Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
-                                   Uint32 logicalPageId,
-                                   PagePtr pagePtr,
-                                   bool delete_by_pageid)
-{
+void Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
+                                        Uint32 logicalPageId, PagePtr pagePtr,
+                                        bool delete_by_pageid) {
   /**
    * We are performing an LCP scan currently. This page is part of the
    * CHANGED ROWS pages. This means that we need to record all rows
@@ -3212,30 +2845,25 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   Uint32 scanGCI = scanPtr.p->m_scanGCI;
   Uint32 idx = 0; /* First record index */
   Uint32 size = tablePtr.p->m_offsets[MM].m_fix_header_size; /* Row size */
-  Fix_page *page = (Fix_page*)pagePtr.p;
+  Fix_page *page = (Fix_page *)pagePtr.p;
   Uint32 found_idx_count = 0;
   ndbrequire(size >= 4);
   Uint16 found_idx[2048]; /* Fixed size header never smaller than 16 bytes */
-  DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) handle_lcp_drop_page,"
-               " delete_by_page: %u",
-               instance(),
-               fragPtrP->fragTableId,
-               fragPtrP->fragmentId,
-               logicalPageId,
-               delete_by_pageid));
-  if (!delete_by_pageid)
-  {
+  DEB_LCP_REL(
+      ("(%u)tab(%u,%u)page(%u) handle_lcp_drop_page,"
+       " delete_by_page: %u",
+       instance(), fragPtrP->fragTableId, fragPtrP->fragmentId, logicalPageId,
+       delete_by_pageid));
+  if (!delete_by_pageid) {
     jam();
     Local_key key;
     /* Coverage tested */
     key.m_page_no = logicalPageId;
-    while ((idx + size) <= Fix_page::DATA_WORDS)
-    {
-      Tuple_header *th = (Tuple_header*)&page->m_data[idx];
+    while ((idx + size) <= Fix_page::DATA_WORDS) {
+      Tuple_header *th = (Tuple_header *)&page->m_data[idx];
       Uint32 thbits = th->m_header_bits;
       Uint32 rowGCI = *th->get_mm_gci(tablePtr.p);
-      bool lcp_skip_not_set =
-        (thbits & Tuple_header::LCP_SKIP) ? false : true;
+      bool lcp_skip_not_set = (thbits & Tuple_header::LCP_SKIP) ? false : true;
       ndbrequire(thbits & Tuple_header::FREE);
       ndbrequire(!(thbits & Tuple_header::LCP_DELETE) || lcp_skip_not_set);
       /**
@@ -3245,57 +2873,37 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
        * here for DELETE by ROWID.
        */
       key.m_page_idx = idx;
-      bool is_in_remaining_lcp_set =
-        is_rowid_in_remaining_lcp_set(pagePtr.p,
-                                      fragPtrP,
-                                      key,
-                                      *scanPtr.p,
-                                      0);
-      if ((rowGCI > scanGCI || rowGCI == 0) &&
-          lcp_skip_not_set &&
-          is_in_remaining_lcp_set)
-      {
+      bool is_in_remaining_lcp_set = is_rowid_in_remaining_lcp_set(
+          pagePtr.p, fragPtrP, key, *scanPtr.p, 0);
+      if ((rowGCI > scanGCI || rowGCI == 0) && lcp_skip_not_set &&
+          is_in_remaining_lcp_set) {
         /* Coverage tested */
         jam();
         jamLine((Uint16)idx);
         found_idx[found_idx_count] = idx;
         found_idx_count++;
         DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) Keep_list DELETE_BY_ROWID",
-                     instance(),
-                     fragPtrP->fragTableId,
-                     fragPtrP->fragmentId,
-                     logicalPageId,
-                     idx));
-      }
-      else
-      {
+                     instance(), fragPtrP->fragTableId, fragPtrP->fragmentId,
+                     logicalPageId, idx));
+      } else {
         /* Coverage tested */
-        DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped "
-                     "lcp_skip_not_set: %u, rowGCI: %u"
-                     " scanGCI: %u, in LCP set: %u",
-                     instance(),
-                     fragPtrP->fragTableId,
-                     fragPtrP->fragmentId,
-                     logicalPageId,
-                     idx,
-                     lcp_skip_not_set,
-                     rowGCI,
-                     scanGCI,
-                     is_in_remaining_lcp_set));
+        DEB_LCP_REL(
+            ("(%u)tab(%u,%u)page(%u,%u) skipped "
+             "lcp_skip_not_set: %u, rowGCI: %u"
+             " scanGCI: %u, in LCP set: %u",
+             instance(), fragPtrP->fragTableId, fragPtrP->fragmentId,
+             logicalPageId, idx, lcp_skip_not_set, rowGCI, scanGCI,
+             is_in_remaining_lcp_set));
       }
       idx += size;
     }
-  }
-  else
-  {
+  } else {
     jam();
-    //ndbassert(false); //COVERAGE TEST
+    // ndbassert(false); //COVERAGE TEST
     found_idx_count = 1;
     found_idx[0] = ZNIL; /* Indicates DELETE by PAGEID */
     DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) Keep_list DELETE_BY_PAGEID",
-                 instance(),
-                 fragPtrP->fragTableId,
-                 fragPtrP->fragmentId,
+                 instance(), fragPtrP->fragTableId, fragPtrP->fragmentId,
                  logicalPageId));
   }
   Local_key location;
@@ -3307,27 +2915,23 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
    * 3) Page Id (1 word)
    * 4) Array of Page indexes (1/2 word per entry)
    */
-  if (found_idx_count == 0)
-  {
+  if (found_idx_count == 0) {
     /* Nothing to store, all rows were already handled. */
     jam();
     returnCommonArea(pagePtr.i, 1);
     return;
   }
   Uint32 words = 6 + ((found_idx_count + 1) / 2);
-  if (likely(c_undo_buffer.alloc_copy_tuple(&location, words) != nullptr))
-  {
+  if (likely(c_undo_buffer.alloc_copy_tuple(&location, words) != nullptr)) {
     jam();
     returnCommonArea(pagePtr.i, 1);
-  }
-  else
-  {
+  } else {
     jam();
     ndbrequire(returnCommonArea_for_reuse(pagePtr.i, 1));
     ndbrequire(c_undo_buffer.reuse_page_for_copy_tuple(pagePtr.i));
     ndbrequire(c_undo_buffer.alloc_copy_tuple(&location, words) != nullptr);
   }
-  Uint32 * copytuple = get_copy_tuple_raw(&location);
+  Uint32 *copytuple = get_copy_tuple_raw(&location);
   Local_key flag_key;
   flag_key.m_page_no = FREE_PAGE_RNIL;
   flag_key.m_page_idx = 0;
@@ -3336,62 +2940,46 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   copytuple[4] = found_idx_count;
   copytuple[5] = logicalPageId;
   memcpy(&copytuple[6], &found_idx[0], 2 * found_idx_count);
-  insert_lcp_keep_list(fragPtrP,
-                       location,
-                       copytuple,
-                       &flag_key);
+  insert_lcp_keep_list(fragPtrP, location, copytuple, &flag_key);
 }
 
-void
-Dbtup::insert_lcp_keep_list(Fragrecord *fragPtrP,
-                            Local_key location,
-                            Uint32 *copytuple,
-                            const Local_key *rowid)
-{
+void Dbtup::insert_lcp_keep_list(Fragrecord *fragPtrP, Local_key location,
+                                 Uint32 *copytuple, const Local_key *rowid) {
   /**
    * Store original row-id in copytuple[0,1]
    * Store next-ptr in copytuple[2,3] (set to RNIL/RNIL)
    */
   assert(sizeof(Local_key) == 8);
-  memcpy(copytuple+0, rowid, sizeof(Local_key));
+  memcpy(copytuple + 0, rowid, sizeof(Local_key));
   Local_key nil;
   nil.setNull();
-  memcpy(copytuple+2, &nil, sizeof(Local_key));
-  DEB_LCP_KEEP(("(%u)tab(%u,%u) Insert LCP keep for row(%u,%u)"
-                " from location page(%u,%u)",
-                instance(),
-                fragPtrP->fragTableId,
-                fragPtrP->fragmentId,
-                rowid->m_page_no,
-                rowid->m_page_idx,
-                location.m_page_no,
-                location.m_page_idx));
+  memcpy(copytuple + 2, &nil, sizeof(Local_key));
+  DEB_LCP_KEEP((
+      "(%u)tab(%u,%u) Insert LCP keep for row(%u,%u)"
+      " from location page(%u,%u)",
+      instance(), fragPtrP->fragTableId, fragPtrP->fragmentId, rowid->m_page_no,
+      rowid->m_page_idx, location.m_page_no, location.m_page_idx));
 
   /**
    * Link in the copy tuple into the LCP keep list.
    */
-  if (fragPtrP->m_lcp_keep_list_tail.isNull())
-  {
+  if (fragPtrP->m_lcp_keep_list_tail.isNull()) {
     jam();
     fragPtrP->m_lcp_keep_list_head = location;
-  }
-  else
-  {
+  } else {
     jam();
     Uint32 *tail = get_copy_tuple_raw(&fragPtrP->m_lcp_keep_list_tail);
     Local_key nextptr;
-    memcpy(&nextptr, tail+2, sizeof(Local_key));
+    memcpy(&nextptr, tail + 2, sizeof(Local_key));
     ndbrequire(nextptr.isNull());
-    memcpy(tail+2, &location, sizeof(Local_key));
+    memcpy(tail + 2, &location, sizeof(Local_key));
   }
   fragPtrP->m_lcp_keep_list_tail = location;
 }
 
-void
-Dbtup::scanCont(Signal* signal, ScanOpPtr scanPtr)
-{
+void Dbtup::scanCont(Signal *signal, ScanOpPtr scanPtr) {
   bool immediate = scanNext(signal, scanPtr);
-  if (! immediate) {
+  if (!immediate) {
     jam();
     // time-slicing again
     return;
@@ -3399,19 +2987,18 @@ Dbtup::scanCont(Signal* signal, ScanOpPtr scanPtr)
   scanReply(signal, scanPtr);
 }
 
-void
-Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_i)
-{
+void Dbtup::disk_page_tup_scan_callback(Signal *signal, Uint32 scanPtrI,
+                                        Uint32 page_i) {
   ScanOpPtr scanPtr;
   scanPtr.i = scanPtrI;
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-  ScanOp& scan = *scanPtr.p;
+  ScanOp &scan = *scanPtr.p;
   c_lqh->setup_scan_pointers(scan.m_userPtr, __LINE__);
-  ScanPos& pos = scan.m_scanPos;
+  ScanPos &pos = scan.m_scanPos;
   // get cache page
   Ptr<GlobalPage> gptr;
   ndbrequire(m_global_page_pool.getPtr(gptr, page_i));
-  pos.m_page = (Page*)gptr.p;
+  pos.m_page = (Page *)gptr.p;
   // continue
   ndbrequire((scan.m_bits & ScanOp::SCAN_LOCK) == 0);
   /**
@@ -3423,11 +3010,10 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
   c_lqh->release_prim_frag_access();
 }
 
-void
-Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
-{
-  ScanOp& scan = *scanPtr.p;
-  ndbrequire(! (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) && scan.m_accLockOp == RNIL);
+void Dbtup::scanClose(Signal *signal, ScanOpPtr scanPtr) {
+  ScanOp &scan = *scanPtr.p;
+  ndbrequire(!(scan.m_bits & ScanOp::SCAN_LOCK_WAIT) &&
+             scan.m_accLockOp == RNIL);
   {
     /**
      * unlock all not unlocked by LQH
@@ -3437,11 +3023,10 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
      */
     Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
     ScanLockPtr lockPtr;
-    while (list.first(lockPtr))
-    {
+    while (list.first(lockPtr)) {
       jam();
       ndbassert(!m_is_query_block);
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+      AccLockReq *const lockReq = (AccLockReq *)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = lockPtr.p->m_accLockOp;
@@ -3452,11 +3037,10 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
       release_scan_lock(lockPtr);
     }
   }
-  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
-                      c_scanLockPool);
+  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX, c_scanLockPool);
   // send conf
   scan.m_last_seen = __LINE__;
-  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  NextScanConf *const conf = (NextScanConf *)signal->getDataPtrSend();
   conf->scanPtr = scanPtr.p->m_userPtr;
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
@@ -3466,14 +3050,10 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
   return;
 }
 
-void Dbtup::release_scan_lock(ScanLockPtr releasePtr)
-{
-  if (likely(releasePtr.i != c_copy_frag_scan_lock))
-  {
+void Dbtup::release_scan_lock(ScanLockPtr releasePtr) {
+  if (likely(releasePtr.i != c_copy_frag_scan_lock)) {
     c_scanLockPool.release(releasePtr);
-  }
-  else
-  {
+  } else {
     jam();
     releasePtr.p->m_accLockOp = RNIL;
     releasePtr.p->prevList = RNIL;
@@ -3481,24 +3061,19 @@ void Dbtup::release_scan_lock(ScanLockPtr releasePtr)
   }
 }
 
-void Dbtup::release_c_free_scan_lock()
-{
-  if (c_freeScanLock != RNIL)
-  {
+void Dbtup::release_c_free_scan_lock() {
+  if (c_freeScanLock != RNIL) {
     ScanLockPtr releasePtr;
     ndbassert(!m_is_query_block);
     releasePtr.i = c_freeScanLock;
     ndbrequire(c_scanLockPool.getValidPtr(releasePtr));
     release_scan_lock(releasePtr);
     c_freeScanLock = RNIL;
-    checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
-                        c_scanLockPool);
+    checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX, c_scanLockPool);
   }
 }
 
-void
-Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
-{
+void Dbtup::addAccLockOp(ScanOp &scan, Uint32 accLockOp) {
   Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
 #ifdef VM_TRACE
@@ -3515,9 +3090,7 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
   list.addLast(lockPtr);
 }
 
-void
-Dbtup::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
-{
+void Dbtup::removeAccLockOp(ScanOp &scan, Uint32 accLockOp) {
   Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
   list.first(lockPtr);
@@ -3531,13 +3104,10 @@ Dbtup::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
   ndbrequire(lockPtr.i != RNIL);
   list.remove(lockPtr);
   release_scan_lock(lockPtr);
-  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
-                      c_scanLockPool);
+  checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX, c_scanLockPool);
 }
 
-void
-Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId)
-{
+void Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId) {
   jamEntry();
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
@@ -3547,7 +3117,7 @@ Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId)
   fragPtr.i = RNIL;
   getFragmentrec(fragPtr, fragId, tablePtr.p);
   ndbrequire(fragPtr.i != RNIL);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
 
   ndbrequire(frag.m_lcp_scan_op != RNIL && c_lcp_scan_op != RNIL);
   ScanOpPtr scanPtr;
@@ -3560,30 +3130,23 @@ Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId)
   scanPtr.p->m_tableId = RNIL;
 }
 
-void
-Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
-{
+void Dbtup::releaseScanOp(ScanOpPtr &scanPtr) {
   FragrecordPtr fragPtr;
   fragPtr.i = scanPtr.p->m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
-  if (scanPtr.p->m_bits & ScanOp::SCAN_LCP)
-  {
+  if (scanPtr.p->m_bits & ScanOp::SCAN_LCP) {
     jam();
     /**
      * Ignore, handled in release_lcp_scan, an LCP scan
      * can happen in several scans, one per LCP file.
      */
-  }
-  else if ((scanPtr.p->m_bits & ScanOp::SCAN_COPY_FRAG) != 0)
-  {
+  } else if ((scanPtr.p->m_bits & ScanOp::SCAN_COPY_FRAG) != 0) {
     jam();
     ndbrequire(c_copy_frag_scan_op == scanPtr.i);
     scanPtr.p->m_state = ScanOp::First;
     scanPtr.p->m_bits = 0;
-  }
-  else
-  {
+  } else {
     jam();
     c_scanOpPool.release(scanPtr);
     checkPoolShrinkNeed(DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX,
@@ -3591,11 +3154,8 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
   }
 }
 
-void
-Dbtup::start_lcp_scan(Uint32 tableId,
-                      Uint32 fragId,
-                      Uint32 & max_page_cnt)
-{
+void Dbtup::start_lcp_scan(Uint32 tableId, Uint32 fragId,
+                           Uint32 &max_page_cnt) {
   jamEntry();
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
@@ -3605,8 +3165,8 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   fragPtr.i = RNIL;
   getFragmentrec(fragPtr, fragId, tablePtr.p);
   ndbrequire(fragPtr.i != RNIL);
-  Fragrecord& frag = *fragPtr.p;
-  
+  Fragrecord &frag = *fragPtr.p;
+
   ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
   frag.m_lcp_scan_op = c_lcp_scan_op;
   ScanOpPtr scanPtr;
@@ -3625,13 +3185,10 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   ndbrequire(frag.m_lcp_keep_list_tail.isNull());
 }
 
-void
-Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
-{
+void Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId) {
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
-  if (tableId > cnoOfTablerec)
-  {
+  if (tableId > cnoOfTablerec) {
     jam();
     return;
   }
@@ -3641,38 +3198,31 @@ Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
   fragPtr.i = RNIL;
   getFragmentrec(fragPtr, fragId, tablePtr.p);
   ndbrequire(fragPtr.i != RNIL);
-  Fragrecord& frag = *fragPtr.p;
+  Fragrecord &frag = *fragPtr.p;
 
-  if (c_lcp_scan_op == RNIL)
-  {
+  if (c_lcp_scan_op == RNIL) {
     jam();
-    g_eventLogger->info("No LCP scan ongoing in TUP tab(%u,%u)",
-                        tableId, fragId);
+    g_eventLogger->info("No LCP scan ongoing in TUP tab(%u,%u)", tableId,
+                        fragId);
     ndbabort();
-  }
-  else if (frag.m_lcp_scan_op == RNIL)
-  {
+  } else if (frag.m_lcp_scan_op == RNIL) {
     jam();
-    DEB_LCP(("LCP scan stopped, signal to stop watchdog still in flight tab(%u,%u)",
-             tableId, fragId));
-  }
-  else if (frag.m_lcp_scan_op != c_lcp_scan_op)
-  {
+    DEB_LCP(
+        ("LCP scan stopped, signal to stop watchdog still in flight tab(%u,%u)",
+         tableId, fragId));
+  } else if (frag.m_lcp_scan_op != c_lcp_scan_op) {
     jam();
     g_eventLogger->info("Corrupt internal, LCP scan not on correct tab(%u,%u)",
                         tableId, fragId);
     ndbabort();
-  }
-  else
-  {
+  } else {
     jam();
     ScanOpPtr scanPtr;
     scanPtr.i = frag.m_lcp_scan_op;
     ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-    g_eventLogger->info("LCP Frag watchdog: tab(%u,%u), state: %u,"
-                        " last seen line %u",
-                        tableId, fragId,
-                        scanPtr.p->m_state,
-                        scanPtr.p->m_last_seen);
+    g_eventLogger->info(
+        "LCP Frag watchdog: tab(%u,%u), state: %u,"
+        " last seen line %u",
+        tableId, fragId, scanPtr.p->m_state, scanPtr.p->m_last_seen);
   }
 }

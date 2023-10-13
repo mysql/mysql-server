@@ -27,14 +27,11 @@
 
 #define JAM_FILE_ID 305
 
-
-class TransporterReceiveHandleKernel
-  : public TransporterReceiveHandle
-{
-public:
+class TransporterReceiveHandleKernel : public TransporterReceiveHandle {
+ public:
 #ifdef NDBD_MULTITHREADED
-  TransporterReceiveHandleKernel(Uint32 thr_no, Uint32 recv_thr_no) :
-    m_thr_no(thr_no), m_receiver_thread_idx(recv_thr_no) {}
+  TransporterReceiveHandleKernel(Uint32 thr_no, Uint32 recv_thr_no)
+      : m_thr_no(thr_no), m_receiver_thread_idx(recv_thr_no) {}
 
   /**
    * m_thr_no == index in m_thr_data[]
@@ -54,15 +51,10 @@ public:
 #endif
   void *m_trpman;
 
-  void assign_trpman(void *trpman)
-  {
-    m_trpman = trpman;
-  }
+  void assign_trpman(void *trpman) { m_trpman = trpman; }
   /* TransporterCallback interface. */
-  bool deliver_signal(SignalHeader * const header,
-                      Uint8 prio,
-                      TransporterError &error_code,
-                      Uint32 * const signalData,
+  bool deliver_signal(SignalHeader *const header, Uint8 prio,
+                      TransporterError &error_code, Uint32 *const signalData,
                       LinearSectionPtr ptr[3]) override;
   void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
   void reportConnect(NodeId nodeId) override;
@@ -71,9 +63,8 @@ public:
                    const char *info = 0) override;
   void transporter_recv_from(NodeId node) override;
   int checkJobBuffer() override;
-  ~TransporterReceiveHandleKernel() override { }
+  ~TransporterReceiveHandleKernel() override {}
 };
-
 
 #undef JAM_FILE_ID
 

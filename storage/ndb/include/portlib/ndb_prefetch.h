@@ -25,21 +25,16 @@
 #ifndef NDB_PREFETCH_H
 #define NDB_PREFETCH_H
 
-static inline
-void NDB_PREFETCH_READ(void* addr [[maybe_unused]])
-{
+static inline void NDB_PREFETCH_READ(void *addr [[maybe_unused]]) {
 #if defined(__GNUC__)
   __builtin_prefetch(addr, 0, 3);
 #endif
 }
 
-static inline
-void NDB_PREFETCH_WRITE(void* addr [[maybe_unused]])
-{
+static inline void NDB_PREFETCH_WRITE(void *addr [[maybe_unused]]) {
 #if defined(__GNUC__)
   __builtin_prefetch(addr, 1, 3);
 #endif
 }
 
 #endif
-

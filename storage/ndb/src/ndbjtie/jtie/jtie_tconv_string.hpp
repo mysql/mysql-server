@@ -44,28 +44,28 @@
 //     for pass-by-reference semantics, a ByteBuffer mapping is the only way.
 // - For 'char *' mappings:
 //   - only result and no parameter mappings are supported for Java Strings,
-//     since a) Strings are immutable and b) no implicit conversions from 
+//     since a) Strings are immutable and b) no implicit conversions from
 //     'const char*' to 'char *' should be allowed through Java;
-//   - there's no point in offering a 'Java StringBuilder' mapping, for it's 
+//   - there's no point in offering a 'Java StringBuilder' mapping, for it's
 //     complex to implement and as inefficient as when done from Java.
 
 // aliases for: <char>_<[const]pointer[const]>_<encoding>_<String>
-typedef ttrait< jstring, char * > ttrait_char_p_jutf8null;
-typedef ttrait< jstring, char * const > ttrait_char_pc_jutf8null;
-typedef ttrait< jstring, char const * > ttrait_char_cp_jutf8null;
-typedef ttrait< jstring, char const * const > ttrait_char_cpc_jutf8null;
+typedef ttrait<jstring, char *> ttrait_char_p_jutf8null;
+typedef ttrait<jstring, char *const> ttrait_char_pc_jutf8null;
+typedef ttrait<jstring, char const *> ttrait_char_cp_jutf8null;
+typedef ttrait<jstring, char const *const> ttrait_char_cpc_jutf8null;
 
 // ---------------------------------------------------------------------------
 // Java String[] <-> const char * * type conversions
 // ---------------------------------------------------------------------------
 
-#if 0 // XXX implement and test mapping String[] <-> char * *
+#if 0   // XXX implement and test mapping String[] <-> char * *
 // XXX aliases for: <const-char>_<[const-]pointer>_<[const-]pointer>_<String[]>
 typedef ttrait< jobjectArray, const char * * > ttrait_utf8cstring_a;
 typedef ttrait< jobjectArray, const char * const * > ttrait_utf8cstring_ca;
 typedef ttrait< jobjectArray, const char * const * const > ttrait_utf8cstring_cac;
-#endif // XXX implement and test mapping String[] <-> char * *
+#endif  // XXX implement and test mapping String[] <-> char * *
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_string_hpp
+#endif  // jtie_tconv_string_hpp

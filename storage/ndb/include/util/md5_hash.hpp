@@ -34,27 +34,17 @@
  * were zero-padded to the upper word aligned length.
  * Note that there is no alignment requirement on the keybuf itself.
  */
-void md5_hash(Uint32 result[4],
-              const char* keybuf,
-              Uint32 no_of_bytes);
-
+void md5_hash(Uint32 result[4], const char *keybuf, Uint32 no_of_bytes);
 
 // Convenient variants as keys are often stored in an Uint32 array
-inline
-void md5_hash(Uint32 result[4],
-              const Uint32* keybuf,
-              Uint32 no_of_words)
-{
-  md5_hash(result, reinterpret_cast<const char*>(keybuf), no_of_words*4);
+inline void md5_hash(Uint32 result[4], const Uint32 *keybuf,
+                     Uint32 no_of_words) {
+  md5_hash(result, reinterpret_cast<const char *>(keybuf), no_of_words * 4);
 }
 
-inline
-Uint32
-md5_hash(const Uint32* keybuf,
-         Uint32 no_of_words)
-{
+inline Uint32 md5_hash(const Uint32 *keybuf, Uint32 no_of_words) {
   Uint32 result[4];
-  md5_hash(result, reinterpret_cast<const char*>(keybuf), no_of_words*4);
+  md5_hash(result, reinterpret_cast<const char *>(keybuf), no_of_words * 4);
   return result[0];
 }
 

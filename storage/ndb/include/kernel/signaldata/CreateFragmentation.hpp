@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 80
 
-
 class CreateFragmentationReq {
   /**
    * Sender(s)
@@ -40,18 +39,20 @@ class CreateFragmentationReq {
    * Receiver(s)
    */
   friend class Dbdih;
-  
-  friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
-					    const Uint32 *, Uint32, Uint16);
-public:
+
+  friend bool printCREATE_FRAGMENTATION_REQ(FILE *, const Uint32 *, Uint32,
+                                            Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 8;
-  
+
   enum RequestInfo {
     RI_CREATE_FRAGMENTATION = 0x0,
     RI_ADD_FRAGMENTS = 0x1,
     RI_GET_FRAGMENTATION = 0x2
   };
-private:
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 requestInfo;
@@ -75,20 +76,21 @@ class CreateFragmentationRef {
    * Receiver(s)
    */
   friend class Dbdict;
-  
-  friend bool printCREATE_FRAGMENTATION_REF(FILE *, 
-					    const Uint32 *, Uint32, Uint16);
-public:
+
+  friend bool printCREATE_FRAGMENTATION_REF(FILE *, const Uint32 *, Uint32,
+                                            Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 3;
- 
+
   enum ErrorCode {
-    OK = 0
-    ,InvalidNodeGroup = 771
-    ,InvalidFragmentationType = 772
-    ,InvalidPrimaryTable = 749
+    OK = 0,
+    InvalidNodeGroup = 771,
+    InvalidFragmentationType = 772,
+    InvalidPrimaryTable = 749
   };
- 
-private:
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 errorCode;
@@ -106,14 +108,15 @@ class CreateFragmentationConf {
    * Receiver(s)
    */
   friend class Dbdict;
-  
-  friend bool printCREATE_FRAGMENTATION_CONF(FILE *, 
-					     const Uint32 *, Uint32, Uint16);
-public:
+
+  friend bool printCREATE_FRAGMENTATION_CONF(FILE *, const Uint32 *, Uint32,
+                                             Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 4;
-  SECTION( FRAGMENTS = 0 );
-  
-private:
+  SECTION(FRAGMENTS = 0);
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 noOfReplicas;

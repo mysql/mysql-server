@@ -39,79 +39,59 @@ static_assert(ndb_socket_t{}.s == INVALID_SOCKET);
 
 /* Functions for creating and initializing ndb_socket_t */
 
-static inline
-void ndb_socket_init_from_native(ndb_socket_t & ndb_sock, socket_t s)
-{
+static inline void ndb_socket_init_from_native(ndb_socket_t &ndb_sock,
+                                               socket_t s) {
   ndb_sock.s = s;
 }
 
-static inline
-ndb_socket_t ndb_socket_create_from_native(socket_t native_socket)
-{
+static inline ndb_socket_t ndb_socket_create_from_native(
+    socket_t native_socket) {
   ndb_socket_t s;
   ndb_socket_init_from_native(s, native_socket);
   return s;
 }
 
-static inline
-ndb_socket_t ndb_socket_create(int af)
-{
+static inline ndb_socket_t ndb_socket_create(int af) {
   return ndb_socket_t{socket(af, SOCK_STREAM, IPPROTO_TCP)};
 }
 
-static inline socket_t
-ndb_socket_get_native(ndb_socket_t s)
-{
-  return s.s;
+static inline socket_t ndb_socket_get_native(ndb_socket_t s) { return s.s; }
+
+static inline void ndb_socket_initialize(ndb_socket_t *s) {
+  s->s = INVALID_SOCKET;
 }
 
-static inline
-void ndb_socket_initialize(ndb_socket_t *s)
-{
-  s->s= INVALID_SOCKET;
+static inline void ndb_socket_invalidate(ndb_socket_t *s) {
+  s->s = INVALID_SOCKET;
 }
 
-static inline
-void ndb_socket_invalidate(ndb_socket_t *s)
-{
-  s->s= INVALID_SOCKET;
-}
-
-static inline
-int ndb_socket_valid(ndb_socket_t s)
-{
+static inline int ndb_socket_valid(ndb_socket_t s) {
   return (s.s != INVALID_SOCKET);
 }
 
 // Returns 0 on success, -1 on error
-static inline
-int ndb_getsockopt(ndb_socket_t s, int level, int optname, int *optval)
-{
+static inline int ndb_getsockopt(ndb_socket_t s, int level, int optname,
+                                 int *optval) {
   socklen_t optlen = sizeof(int);
-  int r = getsockopt(s.s, level, optname, (char*)optval, &optlen);
+  int r = getsockopt(s.s, level, optname, (char *)optval, &optlen);
   return r ? -1 : 0;
 }
 
 // Returns 0 on success, -1 on error
-static inline
-int ndb_setsockopt(ndb_socket_t s, int level, int optname, const int *optval)
-{
-  int r = setsockopt(s.s, level, optname, (const char*)optval, sizeof(int));
+static inline int ndb_setsockopt(ndb_socket_t s, int level, int optname,
+                                 const int *optval) {
+  int r = setsockopt(s.s, level, optname, (const char *)optval, sizeof(int));
   return r ? -1 : 0;
 }
 
 // Returns 0 on success, -1 on error
-static inline
-int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
-{
+static inline int ndb_socket_reuseaddr(ndb_socket_t s, int enable) {
   const int on = enable;
   return ndb_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on);
 }
 
 // Returns 0 on success, -1 on error
-static inline
-int ndb_socket_dual_stack(ndb_socket_t s, int enable)
-{
+static inline int ndb_socket_dual_stack(ndb_socket_t s, int enable) {
   int on = !enable;
   return ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on);
 }
@@ -119,9 +99,7 @@ int ndb_socket_dual_stack(ndb_socket_t s, int enable)
 /* Returns 0 on success, -1 on error
    Use ndb_socket_errno() to retrieve error
 */
-static inline
-int ndb_bind(ndb_socket_t s, const ndb_sockaddr *addr)
-{
+static inline int ndb_bind(ndb_socket_t s, const ndb_sockaddr *addr) {
   int r = bind(s.s, addr->get_sockaddr(), addr->get_sockaddr_len());
   return r ? -1 : 0;
 }
@@ -129,9 +107,7 @@ int ndb_bind(ndb_socket_t s, const ndb_sockaddr *addr)
 /* Returns 0 on success, -1 on error
    Use ndb_socket_errno() to retrieve error
 */
-static inline
-int ndb_listen(ndb_socket_t s, int backlog)
-{
+static inline int ndb_listen(ndb_socket_t s, int backlog) {
   int r = listen(s.s, backlog);
   return r ? -1 : 0;
 }
@@ -139,14 +115,11 @@ int ndb_listen(ndb_socket_t s, int backlog)
 /* Returns 0 on success.
    Use ndb_socket_errno() to retrieve error
 */
-static inline
-ndb_socket_t ndb_accept(ndb_socket_t s, ndb_sockaddr *addr)
-{
+static inline ndb_socket_t ndb_accept(ndb_socket_t s, ndb_sockaddr *addr) {
   ndb_sockaddr::storage_type sa;
   socklen_t salen = sizeof(sa);
   socket_t sock = accept(s.s, &sa.common, &salen);
-  if (sock != INVALID_SOCKET && addr != nullptr)
-  {
+  if (sock != INVALID_SOCKET && addr != nullptr) {
     *addr = ndb_sockaddr(&sa.common, salen);
   }
   return ndb_socket_create_from_native(sock);
@@ -155,65 +128,51 @@ ndb_socket_t ndb_accept(ndb_socket_t s, ndb_sockaddr *addr)
 /* Returns 0 on success.
    Use ndb_socket_errno() to retrieve error
 */
-static inline
-int ndb_connect(ndb_socket_t s, const ndb_sockaddr *addr)
-{
+static inline int ndb_connect(ndb_socket_t s, const ndb_sockaddr *addr) {
   return connect(s.s, addr->get_sockaddr(), addr->get_sockaddr_len());
 }
 
 // Returns 0 on success, 1 on error
-static inline
-int ndb_getpeername(ndb_socket_t s, ndb_sockaddr *addr)
-{
+static inline int ndb_getpeername(ndb_socket_t s, ndb_sockaddr *addr) {
   ndb_sockaddr::storage_type sa;
   socklen_t salen = sizeof(sa);
-  if (getpeername(s.s, &sa.common, &salen) == -1)
-    return 1;
+  if (getpeername(s.s, &sa.common, &salen) == -1) return 1;
   *addr = ndb_sockaddr(&sa.common, salen);
   return 0;
 }
 
 // Returns 0 on success, 1 on error
-static inline
-int ndb_getsockname(ndb_socket_t s, ndb_sockaddr *addr)
-{
+static inline int ndb_getsockname(ndb_socket_t s, ndb_sockaddr *addr) {
   ndb_sockaddr::storage_type sa;
   socklen_t salen = sizeof(sa);
-  if (getsockname(s.s, &sa.common, &salen) == -1)
-    return 1;
+  if (getsockname(s.s, &sa.common, &salen) == -1) return 1;
   *addr = ndb_sockaddr(&sa.common, salen);
   return 0;
 }
 
 // Returns 0 on success or ndb_socket_errno() on failure
-static inline
-int ndb_socket_connect_address(ndb_socket_t s, ndb_sockaddr *a)
-{
-  if(ndb_getpeername(s, a) == -1) return ndb_socket_errno();
+static inline int ndb_socket_connect_address(ndb_socket_t s, ndb_sockaddr *a) {
+  if (ndb_getpeername(s, a) == -1) return ndb_socket_errno();
 
   return 0;
 }
 
 // Returns 0 on success, 1 on error
-static inline
-int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
-{
+static inline int ndb_socket_get_port(ndb_socket_t s, unsigned short *port) {
   ndb_sockaddr servaddr;
-  if(ndb_getsockname(s, &servaddr) < 0) return 1;
+  if (ndb_getsockname(s, &servaddr) < 0) return 1;
 
-  *port= servaddr.get_port();
+  *port = servaddr.get_port();
   return 0;
 }
 
-static inline
-void ndb_socket_close_with_reset(ndb_socket_t & sock, bool with_reset = false)
-{
-  if (with_reset)
-  {
+static inline void ndb_socket_close_with_reset(ndb_socket_t &sock,
+                                               bool with_reset = false) {
+  if (with_reset) {
     // Force hard reset of the socket by turning on linger with timeout 0
     struct linger hard_reset = {1, 0};
-    setsockopt(sock.s, SOL_SOCKET, SO_LINGER,
-               (char*)&hard_reset, sizeof(hard_reset));
+    setsockopt(sock.s, SOL_SOCKET, SO_LINGER, (char *)&hard_reset,
+               sizeof(hard_reset));
   }
 
   ndb_socket_close(sock);

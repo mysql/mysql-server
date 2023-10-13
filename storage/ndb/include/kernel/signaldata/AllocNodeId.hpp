@@ -25,17 +25,16 @@
 #ifndef ALLOC_NODE_ID_HPP
 #define ALLOC_NODE_ID_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 26
-
 
 /**
  * Request to allocate node id
  */
 class AllocNodeIdReq {
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
   static constexpr Uint32 SignalLengthQMGR = 7;
 
@@ -50,7 +49,7 @@ public:
 };
 
 class AllocNodeIdConf {
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
@@ -61,15 +60,15 @@ public:
 };
 
 class AllocNodeIdRef {
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
 
   enum ErrorCodes {
     NoError = 0,
     Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy  = 701,
-    NotMaster  = 702,
+    Busy = 701,
+    NotMaster = 702,
     NodeReserved = 1701,
     NodeConnected = 1702,
     NodeFailureHandlingNotCompleted = 1703,
@@ -84,9 +83,8 @@ public:
   Uint32 masterRef;
 };
 
-class AllocNodeIdRep
-{
-private:
+class AllocNodeIdRep {
+ private:
   friend class Dbdih;
   friend class Qmgr;
   static constexpr Uint32 SignalLength = 1;

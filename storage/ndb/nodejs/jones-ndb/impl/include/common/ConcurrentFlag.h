@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -26,18 +26,18 @@
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define CONCURRENTFLAG_USE_GCC_ATOMICS
-#else 
+#else
 #define CONCURRENTFLAG_USE_LIBUV
-#endif 
- 
+#endif
 
 class ConcurrentFlag {
-public:
+ public:
   ConcurrentFlag();
   bool test();
   void set();
   void clear();
-private:
+
+ private:
 #ifdef CONCURRENTFLAG_USE_GCC_ATOMICS
   int flag;
 #else
@@ -48,50 +48,39 @@ private:
 
 #ifdef CONCURRENTFLAG_USE_GCC_ATOMICS
 
-inline ConcurrentFlag::ConcurrentFlag() {
-  __sync_fetch_and_and(&flag, 0);
-}
+inline ConcurrentFlag::ConcurrentFlag() { __sync_fetch_and_and(&flag, 0); }
 
-inline bool ConcurrentFlag::test() {
-  return __sync_fetch_and_and(&flag, 0);
-}
+inline bool ConcurrentFlag::test() { return __sync_fetch_and_and(&flag, 0); }
 
-inline void ConcurrentFlag::set() {
-  __sync_fetch_and_or(&flag, 1);
-}
+inline void ConcurrentFlag::set() { __sync_fetch_and_or(&flag, 1); }
 
-inline void ConcurrentFlag::clear() {
-  __sync_fetch_and_and(&flag, 0);
-}
+inline void ConcurrentFlag::clear() { __sync_fetch_and_and(&flag, 0); }
 
-#else 
+#else
 
 inline ConcurrentFlag::ConcurrentFlag() {
   flag = 0;
-  uv_rwlock_init(& lock);
+  uv_rwlock_init(&lock);
 }
 
-inline bool ConcurrentFlag::test() { 
+inline bool ConcurrentFlag::test() {
   bool val;
-  uv_rwlock_rdlock(& lock);
+  uv_rwlock_rdlock(&lock);
   val = flag;
-  uv_rwlock_rdunlock(& lock);
+  uv_rwlock_rdunlock(&lock);
   return val;
 }
 
 inline void ConcurrentFlag::set() {
-  uv_rwlock_wrlock(& lock);
+  uv_rwlock_wrlock(&lock);
   flag = true;
-  uv_rwlock_wrunlock(& lock);
+  uv_rwlock_wrunlock(&lock);
 }
 
 inline void ConcurrentFlag::clear() {
-  uv_rwlock_wrlock(& lock);
+  uv_rwlock_wrlock(&lock);
   flag = false;
-  uv_rwlock_wrunlock(& lock);
+  uv_rwlock_wrunlock(&lock);
 }
 
 #endif
-
-
-

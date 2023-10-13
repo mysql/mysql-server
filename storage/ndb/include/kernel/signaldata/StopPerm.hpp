@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 144
 
-
 /**
  * This signal is sent by ndbcntr to local DIH
  *
@@ -39,57 +38,54 @@
  * @see StartPermReq
  */
 class StopPermReq {
-  
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Sender
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-public:
-  
+
+ public:
   Uint32 senderRef;
   Uint32 senderData;
 };
 
 class StopPermConf {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 1;
-  
-private:
+
+ private:
   Uint32 senderData;
 };
 
 class StopPermRef {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   enum ErrorCode {
@@ -98,12 +94,11 @@ public:
     NodeShutdownInProgress = 2,
     NF_CausedAbortOfStopProcedure = 3
   };
-  
-private:
+
+ private:
   Uint32 errorCode;
   Uint32 senderData;
 };
-
 
 #undef JAM_FILE_ID
 

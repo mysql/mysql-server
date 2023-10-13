@@ -22,40 +22,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
 
-#include "SHM_Transporter.hpp"
-#include "TransporterInternalDefinitions.hpp"
-#include <TransporterCallback.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
+#include <TransporterCallback.hpp>
+#include "SHM_Transporter.hpp"
+#include "TransporterInternalDefinitions.hpp"
 
 #include <windows.h>
 
-
-void SHM_Transporter::make_error_info(char info[], int sz)
-{
-  snprintf(info,sz,"Shm key=%d sz=%d",
-	   shmKey, shmSize);
+void SHM_Transporter::make_error_info(char info[], int sz) {
+  snprintf(info, sz, "Shm key=%d sz=%d", shmKey, shmSize);
 }
 
-bool
-SHM_Transporter::connectServer(Uint32 timeOutMillis)
-{
-  if (!_shmSegCreated)
-  {
+bool SHM_Transporter::connectServer(Uint32 timeOutMillis) {
+  if (!_shmSegCreated) {
     char szName[32];
     sprintf(szName, "ndb%lu", shmKey);
-    hFileMapping = CreateFileMapping(INVALID_HANDLE_VALUE, 
-				     0, 
-				     PAGE_READWRITE, 
-				     0, 
-				     shmSize, 
-				     szName);
+    hFileMapping = CreateFileMapping(INVALID_HANDLE_VALUE, 0, PAGE_READWRITE, 0,
+                                     shmSize, szName);
 
-    if(!hFileMapping)
-    {
+    if (!hFileMapping) {
       reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_CREATE_SEGMENT);
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
@@ -63,141 +51,114 @@ SHM_Transporter::connectServer(Uint32 timeOutMillis)
     _shmSegCreated = true;
   }
 
-  if (!_attached)
-  {
-    shmBuf = (char*)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if (shmBuf == 0)
-    {
+  if (!_attached) {
+    shmBuf = (char *)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (shmBuf == 0) {
       reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
     }
-    volatile Uint32 * sharedCountAttached = 
-      (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
+    volatile Uint32 *sharedCountAttached =
+        (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
     ++*sharedCountAttached;
     _attached = true;
   }
 
-  volatile Uint32 * sharedCountAttached = 
-    (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
+  volatile Uint32 *sharedCountAttached =
+      (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
 
-  if (*sharedCountAttached == 2 && !setupBuffersDone)
-  {
+  if (*sharedCountAttached == 2 && !setupBuffersDone) {
     setupBuffers();
-    setupBuffersDone=true;
+    setupBuffersDone = true;
   }
-  if (*sharedCountAttached > 2)
-  {
-    reportThreadError(remoteNodeId, TE_SHM_DISCONNECT); 
+  if (*sharedCountAttached > 2) {
+    reportThreadError(remoteNodeId, TE_SHM_DISCONNECT);
     return false;
   }
-  
-  if (setupBuffersDone)
-  {
+
+  if (setupBuffersDone) {
     NdbSleep_MilliSleep(timeOutMillis);
-    if (*serverStatusFlag==1 && *clientStatusFlag==1)
-      return true;
+    if (*serverStatusFlag == 1 && *clientStatusFlag == 1) return true;
   }
 
   NdbSleep_MilliSleep(timeOutMillis);
   return false;
 }
 
-bool
-SHM_Transporter::connectClient(Uint32 timeOutMillis)
-{
-  if (!_shmSegCreated)
-  {
+bool SHM_Transporter::connectClient(Uint32 timeOutMillis) {
+  if (!_shmSegCreated) {
     char szName[32];
     sprintf(szName, "ndb%lu", shmKey);
     hFileMapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, szName);
 
-    if(!hFileMapping)
-    {
+    if (!hFileMapping) {
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
     }
     _shmSegCreated = true;
   }
 
-  if (!_attached)
-  {
-    shmBuf = (char*)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if (shmBuf == 0)
-    {
+  if (!_attached) {
+    shmBuf = (char *)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (shmBuf == 0) {
       reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
     }
-    volatile Uint32 * sharedCountAttached = 
-      (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
+    volatile Uint32 *sharedCountAttached =
+        (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
     ++*sharedCountAttached;
     _attached = true;
   }
-  
-  volatile Uint32 * sharedCountAttached = 
-    (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
 
-  if (*sharedCountAttached == 2 && !setupBuffersDone)
-  {
+  volatile Uint32 *sharedCountAttached =
+      (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
+
+  if (*sharedCountAttached == 2 && !setupBuffersDone) {
     setupBuffers();
-    setupBuffersDone=true;
+    setupBuffersDone = true;
   }
 
-  if (setupBuffersDone)
-  {
-    if (*serverStatusFlag==1 && *clientStatusFlag==1)
-      return true;
+  if (setupBuffersDone) {
+    if (*serverStatusFlag == 1 && *clientStatusFlag == 1) return true;
   }
   NdbSleep_MilliSleep(timeOutMillis);
   return false;
 }
 
-void SHM_Transpporter::ndb_shm_destroy()
-{
-}
+void SHM_Transpporter::ndb_shm_destroy() {}
 
-bool
-SHM_Transporter::checkConnected()
-{
-  volatile Uint32 * sharedCountAttached = 
-    (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
-  if (*sharedCountAttached != 2)
-  {
+bool SHM_Transporter::checkConnected() {
+  volatile Uint32 *sharedCountAttached =
+      (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
+  if (*sharedCountAttached != 2) {
     report_error(TE_SHM_DISCONNECT);
     return false;
   }
   return true;
 }
 
-void
-SHM_Transporter::releaseAfterDisconnect()
-{
+void SHM_Transporter::releaseAfterDisconnect() {
   Transporter::releaseAfterDisconnect();
   setupBuffersUndone();
 
-  if (_attached)
-  {
-    volatile Uint32 * sharedCountAttached = 
-      (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
-    
+  if (_attached) {
+    volatile Uint32 *sharedCountAttached =
+        (volatile Uint32 *)(shmBuf + 6 * sizeof(Uint32 *));
+
     --*sharedCountAttached;
 
-    if (!UnmapViewOfFile(shmBuf))
-    {
+    if (!UnmapViewOfFile(shmBuf)) {
       report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
-    
+
     _attached = false;
-    if(!isServer && _shmSegCreated)
-      _shmSegCreated = false;
+    if (!isServer && _shmSegCreated) _shmSegCreated = false;
   }
-  
-  if (_shmSegCreated)
-  {
-    if (!CloseHandle(hFileMapping))
-    {
+
+  if (_shmSegCreated) {
+    if (!CloseHandle(hFileMapping)) {
       report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }

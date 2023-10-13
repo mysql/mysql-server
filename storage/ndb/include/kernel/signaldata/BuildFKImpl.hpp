@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef BUILD_FK_IMPL_HPP
 #define BUILD_FK_IMPL_HPP
 
@@ -30,9 +29,7 @@
 
 #define JAM_FILE_ID 207
 
-
-struct BuildFKImplReq
-{
+struct BuildFKImplReq {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -41,17 +38,17 @@ struct BuildFKImplReq
   /**
    * For printing
    */
-  friend bool printBUILD_FK_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_IMPL_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 8;
   static constexpr Uint32 PARENT_COLUMNS_SEC = 0;
   static constexpr Uint32 CHILD_COLUMNS_SEC = 1;
 
   enum {
-    RT_PARSE    = 0x1,
-    RT_PREPARE  = 0x2,
-    RT_ABORT    = 0x3,
-    RT_COMMIT   = 0x4,
+    RT_PARSE = 0x1,
+    RT_PREPARE = 0x2,
+    RT_ABORT = 0x3,
+    RT_COMMIT = 0x4,
     RT_COMPLETE = 0x5
   };
 
@@ -61,12 +58,11 @@ struct BuildFKImplReq
   Uint32 requestType;
   Uint32 fkId;
   Uint32 fkVersion;
-  Uint32 parentTableId; // could be unique index...
+  Uint32 parentTableId;  // could be unique index...
   Uint32 childTableId;
 };
 
-struct BuildFKImplRef
-{
+struct BuildFKImplRef {
   /**
    * Sender(s)
    */
@@ -75,21 +71,18 @@ struct BuildFKImplRef
   /**
    * For printing
    */
-  friend bool printBUILD_FK_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_IMPL_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 3;
 
-  enum ErrorCode {
-    NoError = 0
-  };
+  enum ErrorCode { NoError = 0 };
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
 };
 
-struct BuildFKImplConf
-{
+struct BuildFKImplConf {
   /**
    * Sender(s)
    */
@@ -98,14 +91,13 @@ struct BuildFKImplConf
   /**
    * For printing
    */
-  friend bool printBUILD_FK_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_IMPL_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 senderRef;
 };
-
 
 #undef JAM_FILE_ID
 

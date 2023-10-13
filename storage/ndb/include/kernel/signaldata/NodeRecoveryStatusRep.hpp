@@ -30,46 +30,40 @@
 /**
  * Request to allocate node id
  */
-class InclNodeHBProtocolRep
-{
-public:
+class InclNodeHBProtocolRep {
+ public:
   static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
 
-class NdbcntrStartWaitRep
-{
-public:
+class NdbcntrStartWaitRep {
+ public:
   static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
 
-class NdbcntrStartedRep
-{
-public:
+class NdbcntrStartedRep {
+ public:
   static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
 
-class SumaHandoverCompleteRep
-{
-public:
+class SumaHandoverCompleteRep {
+ public:
   static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
 
-class LocalRecoveryCompleteRep
-{
-public:
+class LocalRecoveryCompleteRep {
+ public:
   static constexpr Uint32 SignalLengthLocal = 4;
   static constexpr Uint32 SignalLengthMaster = 2;
 
-  enum PhaseIds
-  {
+  enum PhaseIds {
     RESTORE_FRAG_COMPLETED = 0,
     UNDO_DD_COMPLETED = 1,
     EXECUTE_REDO_LOG_COMPLETED = 2,

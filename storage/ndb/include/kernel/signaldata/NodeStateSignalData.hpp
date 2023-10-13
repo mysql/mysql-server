@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 165
 
-
 /**
  * NodeStateRep
  *
@@ -41,7 +40,7 @@ class NodeStateRep {
    */
   friend class Ndbcntr;
   friend class Cmvmi;
-  
+
   /**
    * Reciver
    */
@@ -50,10 +49,10 @@ class NodeStateRep {
   friend class Dbacc;
   friend class Dbtup;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = NodeState::DataLength;
-private:
-  
+
+ private:
   NodeStatePOD nodeState;
 };
 
@@ -67,16 +66,16 @@ class ChangeNodeStateReq {
    * Sender(s)
    */
   friend class Ndbcntr;
-  
+
   /**
    * Reciver
    */
   friend class SimulatedBlock;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2 + NodeState::DataLength;
-public:
-  
+
+ public:
   Uint32 senderRef;
   Uint32 senderData;
   NodeState nodeState;
@@ -92,21 +91,19 @@ class ChangeNodeStateConf {
    * Sender(s)
    */
   friend class SimulatedBlock;
-  
+
   /**
    * Reciver
    */
   friend class NdbCntr;
   friend class LocalProxy;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 1;
-private:
-  
+
+ private:
   Uint32 senderData;
 };
-
-
 
 #undef JAM_FILE_ID
 

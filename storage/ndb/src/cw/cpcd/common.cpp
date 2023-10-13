@@ -24,60 +24,57 @@
 
 #include <ndb_global.h>
 
-#include "common.hpp"
 #include <logger/Logger.hpp>
+#include "common.hpp"
 
 #ifndef _WIN32
 #include <pwd.h>
 #endif
 
-#include <Properties.hpp>
 #include <BaseString.hpp>
+#include <Properties.hpp>
 
 int debug = 0;
 
 Logger logger;
 
 #ifndef _WIN32
-int
-runas(const char * user){
-  if(user == 0 || strlen(user) == 0){
+int runas(const char *user) {
+  if (user == 0 || strlen(user) == 0) {
     return 0;
   }
-  struct passwd * pw = getpwnam(user);
-  if(pw == 0){
+  struct passwd *pw = getpwnam(user);
+  if (pw == 0) {
     logger.error("Can't find user to %s", user);
     return -1;
   }
   uid_t uid = pw->pw_uid;
   gid_t gid = pw->pw_gid;
   int res = setgid(gid);
-  if(res != 0){
+  if (res != 0) {
     logger.error("Can't change group to %s(%d)", user, gid);
     return res;
   }
 
   res = setuid(uid);
-  if(res != 0){
+  if (res != 0) {
     logger.error("Can't change user to %s(%d)", user, uid);
   }
   return res;
 }
 #endif
 
-int
-insert(const char * pair, Properties & p){
+int insert(const char *pair, Properties &p) {
   BaseString tmp(pair);
-  
+
   tmp.trim(" \t\n\r");
 
   Vector<BaseString> split;
   tmp.split(split, ":=", 2);
 
-  if(split.size() != 2)
-    return -1;
+  if (split.size() != 2) return -1;
 
-  p.put(split[0].trim().c_str(), split[1].trim().c_str()); 
+  p.put(split[0].trim().c_str(), split[1].trim().c_str());
 
   return 0;
 }

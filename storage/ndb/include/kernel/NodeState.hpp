@@ -30,15 +30,13 @@
 
 #define JAM_FILE_ID 1
 
-
-struct NodeStatePOD
-{
+struct NodeStatePOD {
   enum StartLevel {
     /**
-     * SL_NOTHING 
+     * SL_NOTHING
      *   Nothing is started
      */
-    SL_NOTHING    = 0,
+    SL_NOTHING = 0,
 
     /**
      * SL_CMVMI
@@ -47,7 +45,7 @@ struct NodeStatePOD
      *   Qmgr knows nothing...
      */
     SL_CMVMI = 1,
-    
+
     /**
      * SL_STARTING
      *   All blocks are starting
@@ -55,7 +53,7 @@ struct NodeStatePOD
      *   During this phase is <b>startPhase</b> valid
      */
     SL_STARTING = 2,
-    
+
     /**
      * The database is started open for connections
      */
@@ -71,16 +69,13 @@ struct NodeStatePOD
      *   New TcSeize(s) are refused (TcSeizeRef)
      */
     SL_STOPPING_1 = 5,
-    
+
     /**
      * SL_STOPPING_2 - Close TC
      *   New transactions(TC) are refused
      */
     SL_STOPPING_2 = 6,
 
-
-
-    
     /**
      * SL_STOPPING_3 - Wait for reads in LQH
      *   No transactions are running in TC
@@ -89,7 +84,7 @@ struct NodeStatePOD
      *   NS: No node is allow to start
      */
     SL_STOPPING_3 = 7,
-    
+
     /**
      * SL_STOPPING_4 - Close LQH
      *   Node is out of DIGETNODES
@@ -108,55 +103,54 @@ struct NodeStatePOD
     ST_SYSTEM_RESTART_NOT_RESTORABLE = 4,
     ST_ILLEGAL_TYPE = 5
   };
-  
+
   /**
    * Length in 32-bit words
    */
   static_assert(NodeBitmask::Size == 8);
   static constexpr Uint32 DataLength = 8 + NodeBitmask::Size;
-  
+
   /**
    * Constructor(s)
    */
   void init();
- 
+
   /**
    * Current start level
    */
   Uint32 startLevel;
 
   /**
-   * Node group 
+   * Node group
    */
   Uint32 nodeGroup;  // valid when startLevel == SL_STARTING
 
   /**
    * Dynamic id
-   */ 
+   */
   union {
-    Uint32 dynamicId;    // valid when startLevel == SL_STARTING to API
-    Uint32 masterNodeId; // When from cntr
+    Uint32 dynamicId;     // valid when startLevel == SL_STARTING to API
+    Uint32 masterNodeId;  // When from cntr
   };
-    
+
   /**
-   * 
+   *
    */
   union {
     // Keep size compatible with GSN_API_REGCONF signal (ApiRegConf)
-    struct
-    {
+    struct {
       Uint32 unused[3];
     } compat;
     struct {
-      Uint32 startPhase;     // valid when startLevel == SL_STARTING
-      Uint32 restartType;    // valid when startLevel == SL_STARTING
+      Uint32 startPhase;   // valid when startLevel == SL_STARTING
+      Uint32 restartType;  // valid when startLevel == SL_STARTING
     } starting;
     struct {
-      Uint32 systemShutdown; // valid when startLevel == SL_STOPPING_{X}
+      Uint32 systemShutdown;  // valid when startLevel == SL_STOPPING_{X}
     } stopping;
   };
   Uint32 singleUserMode;
-  Uint32 singleUserApi;          //the single user node
+  Uint32 singleUserApi;  // the single user node
 
   BitmaskPOD<NodeBitmask::Size> m_connected_nodes;
 
@@ -164,7 +158,6 @@ struct NodeStatePOD
   void setNodeGroup(Uint32 group);
   void setSingleUser(Uint32 s);
   void setSingleUserApi(Uint32 n);
-  
 
   /**
    * Is a node restart in progress (ordinary or initial)
@@ -194,27 +187,21 @@ struct NodeStatePOD
   Uint32 getSingleUserApi() const;
 };
 
-class NodeState : public NodeStatePOD
-{
-public:
+class NodeState : public NodeStatePOD {
+ public:
   NodeState();
   NodeState(StartLevel);
   NodeState(StartLevel, bool systemShutdown);
   NodeState(StartLevel, Uint32 startPhase, StartType);
 
-  NodeState& operator=(const NodeStatePOD&);
+  NodeState &operator=(const NodeStatePOD &);
 };
 
 static_assert(sizeof(NodeState) == NodeState::DataLength * 4);
 
-inline
-NodeState::NodeState(){
-  init();
-}
+inline NodeState::NodeState() { init(); }
 
-inline
-void
-NodeStatePOD::init(){
+inline void NodeStatePOD::init() {
   startLevel = SL_CMVMI;
   nodeGroup = 0xFFFFFFFF;
   dynamicId = 0xFFFFFFFF;
@@ -226,16 +213,14 @@ NodeStatePOD::init(){
   m_connected_nodes.clear();
 }
 
-inline NodeState::NodeState(StartLevel sl)
-{
+inline NodeState::NodeState(StartLevel sl) {
   assert(sl == SL_NOTHING || sl == SL_CMVMI || sl == SL_STARTED ||
          sl == SL_SINGLEUSER);
   init();
   startLevel = sl;
 }
 
-inline
-NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
+inline NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart) {
   // starting member only valid for SL_STARTING
   assert(sl == SL_STARTING);
   init();
@@ -244,8 +229,7 @@ NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
   starting.restartType = typeOfStart;
 }
 
-inline
-NodeState::NodeState(StartLevel sl, bool sys){
+inline NodeState::NodeState(StartLevel sl, bool sys) {
   // stopping member only valid for SL_STOPPING_X
   assert(sl == SL_STOPPING_1 || sl == SL_STOPPING_2 || sl == SL_STOPPING_3 ||
          sl == SL_STOPPING_4);
@@ -254,116 +238,91 @@ NodeState::NodeState(StartLevel sl, bool sys){
   stopping.systemShutdown = sys;
 }
 
-inline
-void NodeStatePOD::setDynamicId(Uint32 dynamic){
-  dynamicId = dynamic;
-}
-  
-inline
-void NodeStatePOD::setNodeGroup(Uint32 group){
-  nodeGroup = group;
+inline void NodeStatePOD::setDynamicId(Uint32 dynamic) { dynamicId = dynamic; }
+
+inline void NodeStatePOD::setNodeGroup(Uint32 group) { nodeGroup = group; }
+
+inline void NodeStatePOD::setSingleUser(Uint32 s) { singleUserMode = s; }
+
+inline void NodeStatePOD::setSingleUserApi(Uint32 n) { singleUserApi = n; }
+inline bool NodeStatePOD::getNodeRestartInProgress() const {
+  return startLevel == SL_STARTING &&
+         (starting.restartType == ST_NODE_RESTART ||
+          starting.restartType == ST_INITIAL_NODE_RESTART);
 }
 
-inline 
-void NodeStatePOD::setSingleUser(Uint32 s) {
-  singleUserMode = s;
-}
+inline bool NodeStatePOD::getSingleUserMode() const { return singleUserMode; }
 
-inline 
-void NodeStatePOD::setSingleUserApi(Uint32 n) {
-  singleUserApi = n;
-}
-inline 
-bool NodeStatePOD::getNodeRestartInProgress() const {
-  return startLevel == SL_STARTING && 
-    (starting.restartType == ST_NODE_RESTART || 
-     starting.restartType == ST_INITIAL_NODE_RESTART);
-}
+inline Uint32 NodeStatePOD::getSingleUserApi() const { return singleUserApi; }
 
-inline 
-bool NodeStatePOD::getSingleUserMode() const {
-  return singleUserMode;
-}
-
-inline 
-Uint32 NodeStatePOD::getSingleUserApi() const {
-  return singleUserApi;
-}
-
-inline 
-bool NodeStatePOD::getSystemRestartInProgress() const {
+inline bool NodeStatePOD::getSystemRestartInProgress() const {
   return startLevel == SL_STARTING && starting.restartType == ST_SYSTEM_RESTART;
 }
 
-inline
-NdbOut &
-operator<<(NdbOut& ndbout, const NodeStatePOD & state){
+inline NdbOut &operator<<(NdbOut &ndbout, const NodeStatePOD &state) {
   ndbout << "[NodeState: startLevel: ";
-  switch(state.startLevel){
-  case NodeState::SL_NOTHING:
-    ndbout << "<NOTHING> ]";
-    break;
-  case NodeState::SL_CMVMI:
-    ndbout << "<CMVMI> ]";
-    break;
-  case NodeState::SL_STARTING:
-    ndbout << "<STARTING type: ";
-    switch(state.starting.restartType){
-    case NodeState::ST_INITIAL_START:
-      ndbout << " INITIAL START";
+  switch (state.startLevel) {
+    case NodeState::SL_NOTHING:
+      ndbout << "<NOTHING> ]";
       break;
-    case NodeState::ST_SYSTEM_RESTART:
-      ndbout << " SYSTEM RESTART ";
+    case NodeState::SL_CMVMI:
+      ndbout << "<CMVMI> ]";
       break;
-    case NodeState::ST_NODE_RESTART:
-      ndbout << " NODE RESTART ";
+    case NodeState::SL_STARTING:
+      ndbout << "<STARTING type: ";
+      switch (state.starting.restartType) {
+        case NodeState::ST_INITIAL_START:
+          ndbout << " INITIAL START";
+          break;
+        case NodeState::ST_SYSTEM_RESTART:
+          ndbout << " SYSTEM RESTART ";
+          break;
+        case NodeState::ST_NODE_RESTART:
+          ndbout << " NODE RESTART ";
+          break;
+        case NodeState::ST_INITIAL_NODE_RESTART:
+          ndbout << " INITIAL NODE RESTART ";
+          break;
+        case NodeState::ST_ILLEGAL_TYPE:
+        default:
+          ndbout << " UNKNOWN " << state.starting.restartType;
+      }
+      ndbout << " phase: " << state.starting.startPhase << "> ]";
       break;
-    case NodeState::ST_INITIAL_NODE_RESTART:
-      ndbout << " INITIAL NODE RESTART ";
+    case NodeState::SL_STARTED:
+      ndbout << "<STARTED> ]";
       break;
-    case NodeState::ST_ILLEGAL_TYPE:
+    case NodeState::SL_STOPPING_1:
+      ndbout << "<STOPPING 1 sys: " << state.stopping.systemShutdown << "> ]";
+      break;
+    case NodeState::SL_STOPPING_2:
+      ndbout << "<STOPPING 2 sys: " << state.stopping.systemShutdown << "> ]";
+      break;
+    case NodeState::SL_STOPPING_3:
+      ndbout << "<STOPPING 3 sys: " << state.stopping.systemShutdown << "> ]";
+      break;
+    case NodeState::SL_STOPPING_4:
+      ndbout << "<STOPPING 4 sys: " << state.stopping.systemShutdown << "> ]";
+      break;
     default:
-      ndbout << " UNKNOWN " << state.starting.restartType;
-    }
-    ndbout << " phase: " << state.starting.startPhase << "> ]";
-    break;
-  case NodeState::SL_STARTED:
-    ndbout << "<STARTED> ]";
-    break;
-  case NodeState::SL_STOPPING_1:
-    ndbout << "<STOPPING 1 sys: " << state.stopping.systemShutdown << "> ]";
-    break;
-  case NodeState::SL_STOPPING_2:
-    ndbout << "<STOPPING 2 sys: " << state.stopping.systemShutdown << "> ]";
-    break;
-  case NodeState::SL_STOPPING_3:
-    ndbout << "<STOPPING 3 sys: " << state.stopping.systemShutdown << "> ]";
-    break;
-  case NodeState::SL_STOPPING_4: 
-    ndbout << "<STOPPING 4 sys: " << state.stopping.systemShutdown << "> ]";
-    break;
-  default:
-    ndbout << "<UNKNOWN " << state.startLevel << "> ]";
+      ndbout << "<UNKNOWN " << state.startLevel << "> ]";
   }
   return ndbout;
 }
 
-inline
-NodeState&
-NodeState::operator=(const NodeStatePOD& ns)
-{
+inline NodeState &NodeState::operator=(const NodeStatePOD &ns) {
   startLevel = ns.startLevel;
-  nodeGroup  = ns.nodeGroup;
-  dynamicId  = ns.dynamicId;
+  nodeGroup = ns.nodeGroup;
+  dynamicId = ns.dynamicId;
   // masterNodeId is union with dynamicId
   compat = ns.compat;
   // starting.startPhase is union with compat.unused[0]
   // starting.restartType is union with compat.unused[1]
   // stopping.systemShutdown is union with compat.unused[0]
   singleUserMode = ns.singleUserMode;
-  singleUserApi  = ns.singleUserApi;
+  singleUserApi = ns.singleUserApi;
   m_connected_nodes.assign(ns.m_connected_nodes);
-  return * this;
+  return *this;
 }
 
 #undef JAM_FILE_ID

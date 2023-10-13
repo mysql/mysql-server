@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 137
 
-
 /**
  * DumpStateOrd is sent by the mgmtsrvr to CMVMI.
  * CMVMI the redirect the signal to all blocks.
@@ -47,7 +46,7 @@ class DumpStateOrd {
    * Sender(s)
    */
   friend class MgmtSrvr;
-  
+
   /**
    * Reciver(s)
    */
@@ -61,12 +60,12 @@ class DumpStateOrd {
   friend class Dbdict;
   friend class Ndbfs;
 
-public:
+ public:
   enum DumpStateType {
     /* any dumps above this value should go to one block only */
     OneBlockOnly = 100000,
 
-    _BackupMin   = 100000,
+    _BackupMin = 100000,
     BackupStatus = 100000,
     BackupMinWriteSpeed32 = 100001,
     BackupMaxWriteSpeed32 = 100002,
@@ -75,13 +74,13 @@ public:
     BackupMaxWriteSpeed64 = 100005,
     BackupMaxWriteSpeedOtherNodeRestart64 = 100006,
     BackupEncryptionRequired = 100007,
-    _BackupMax   = 100999,
+    _BackupMax = 100999,
 
-    _TCMin       = 101000,
+    _TCMin = 101000,
     TCSetSchedNumLqhKeyReqCount = 101000,
     TCSetSchedNumScanFragReqCount = 101001,
     TCSetLoadRefreshCount = 101002,
-    _TCMax       = 101999,
+    _TCMax = 101999,
 
     _LQHMin = 102000,
     LQHLogFileInitStatus = 102000,
@@ -107,17 +106,17 @@ public:
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
     // 13 NDBCNTR_REF  Dump start phase information
-    CommitAckMarkersSize = 14, // TC+LQH Dump free size in commitAckMarkerP
-    CommitAckMarkersDump = 15, // TC+LQH Dump info in commitAckMarkerPool
-    DihDumpNodeRestartInfo = 16, // 16 DIH Dump node restart info
-    DihDumpNodeStatusInfo = 17,// 17 DIH Dump node status info
-    DihPrintFragmentation = 18,// 18 DIH Print fragmentation
-    DihPrintOneFragmentation = 19,// 18 DIH Print info about one fragmentation
+    CommitAckMarkersSize = 14,      // TC+LQH Dump free size in commitAckMarkerP
+    CommitAckMarkersDump = 15,      // TC+LQH Dump info in commitAckMarkerPool
+    DihDumpNodeRestartInfo = 16,    // 16 DIH Dump node restart info
+    DihDumpNodeStatusInfo = 17,     // 17 DIH Dump node status info
+    DihPrintFragmentation = 18,     // 18 DIH Print fragmentation
+    DihPrintOneFragmentation = 19,  // 18 DIH Print info about one fragmentation
     // 19 NDBFS Fipple with O_SYNC, O_CREATE etc.
     // 20-24 BACKUP
     NdbcntrTestStopOnError = 25,
     NdbcntrStopNodes = 70,
-    // 100-105 TUP and ACC  
+    // 100-105 TUP and ACC
     // 200-240 UTIL
     // 300-305 TRIX
     QmgrErr935 = 935,
@@ -168,7 +167,7 @@ public:
     AccDumpOneOpRecLocal = 2409,
     AccDumpOpPrecedingLocks = 2410,
 
-    DumpPageMemory = 1000, // Acc & TUP
+    DumpPageMemory = 1000,  // Acc & TUP
     DumpPageMemoryOnFail = 1001,
     TcDumpSetOfScanFragRec = 2500,
     TcDumpOneScanFragRec = 2501,
@@ -199,7 +198,7 @@ public:
                                       to be able to debug if events
                                       for some reason does not end up
                                       in clusterlog */
-    CmvmiTestLongSig = 2605,  /* Long signal testing trigger */
+    CmvmiTestLongSig = 2605,       /* Long signal testing trigger */
     DumpEventLog = 2606,
 
     CmvmiLongSignalMemorySnapshotStart = 2607,
@@ -210,8 +209,8 @@ public:
 
     CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
 
-    CmvmiSetWatchdogInterval = 2613,     /* Set or reset interval */
-    CmvmiSetErrorHandlingError = 2614,   /* Error insert for ErrorHandler */
+    CmvmiSetWatchdogInterval = 2613,   /* Set or reset interval */
+    CmvmiSetErrorHandlingError = 2614, /* Error insert for ErrorHandler */
 
     LCPContinue = 5900,
     // 7000 DIH
@@ -228,14 +227,14 @@ public:
     // 7010 DIH
     // 7011 DIH
     // 7012 DIH
-    DihDumpLCPState= 7013,
-    DihDumpLCPMasterTakeOver = 7014,    
+    DihDumpLCPState = 7013,
+    DihDumpLCPMasterTakeOver = 7014,
     // 7015 DIH
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
     // Check if blocks are done with handling the failure of another node.
-    DihTcSumaNodeFailCompleted = 7019, // DIH+TC+SUMA
+    DihTcSumaNodeFailCompleted = 7019,  // DIH+TC+SUMA
     // 7020
     // 7021
     // 7022
@@ -244,7 +243,7 @@ public:
       Checks whether add frag failure was cleaned up.
       Should NOT be used while commands involving addFragReq
       are being performed.
-      NB: This value is only intended for use in test cases. If used 
+      NB: This value is only intended for use in test cases. If used
       interactively, it is likely to crash the node. It should therefore
       *not* be described in end-user documentation.
     */
@@ -257,7 +256,7 @@ public:
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,
-    EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
+    EnableUndoDelayDataWrite = 7080,  // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
     DihSaveGcpCommitLag = 7100,
@@ -269,14 +268,14 @@ public:
     TuxMetaDataJunk = 12009,
     TuxSetTransientPoolMaxSize = 12010,
     TuxResetTransientPoolMaxSize = 12011,
-    
+
     DumpTsman = 9800,
- 
+
     DumpLgman = 10000,
     LgmanDumpUndoStateClusterLog = 10001,
     LgmanDumpUndoStateLocalLog = 10002,
     LgmanCheckCallbacksClear = 10003,
-    
+
     DumpPgman = 11000,
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,
@@ -288,19 +287,18 @@ public:
     DbinfoListColumns = 14002,
     DbinfoScanTable = 14003,
 
-    SchemaResourceSnapshot = 4000, // Save resource consumption
-    SchemaResourceCheckLeak = 4001, // check same as snapshot
+    SchemaResourceSnapshot = 4000,   // Save resource consumption
+    SchemaResourceCheckLeak = 4001,  // check same as snapshot
 
     TcResourceSnapshot = 2553,
     TcResourceCheckLeak = 2554,
 
     RestoreRates = 30000
   };
-public:
-  
-  Uint32 args[25];          // Generic argument
-};
 
+ public:
+  Uint32 args[25];  // Generic argument
+};
 
 #undef JAM_FILE_ID
 

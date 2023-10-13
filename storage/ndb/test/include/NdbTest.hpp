@@ -40,9 +40,8 @@
 #include "NDBT_ReturnCodes.h"
 
 #ifdef __cplusplus
-#include "NDBT_Table.hpp"
 #include "NDBT_Error.hpp"
+#include "NDBT_Table.hpp"
 #endif
-
 
 #endif

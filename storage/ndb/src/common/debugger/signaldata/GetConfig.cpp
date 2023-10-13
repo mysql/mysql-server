@@ -24,54 +24,38 @@
 
 #include <signaldata/GetConfig.hpp>
 
-bool printGET_CONFIG_REQ(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  if (len < GetConfigReq::SignalLength)
-  {
+bool printGET_CONFIG_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  if (len < GetConfigReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GetConfigReq* sig = (const GetConfigReq*)theData;
-  fprintf(output, " nodeId : %u senderRef : %x\n",
-          sig->nodeId,
-          sig->senderRef);
+  const GetConfigReq *sig = (const GetConfigReq *)theData;
+  fprintf(output, " nodeId : %u senderRef : %x\n", sig->nodeId, sig->senderRef);
   return true;
 }
 
-bool printGET_CONFIG_REF(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  if (len < GetConfigRef::SignalLength)
-  {
+bool printGET_CONFIG_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  if (len < GetConfigRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GetConfigRef* sig = (const GetConfigRef*)theData;
-  fprintf(output, " error : %u\n",
-          sig->error);
+  const GetConfigRef *sig = (const GetConfigRef *)theData;
+  fprintf(output, " error : %u\n", sig->error);
   return true;
 }
 
-bool printGET_CONFIG_CONF(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
-  if (len < GetConfigConf::SignalLength)
-  {
+bool printGET_CONFIG_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
+  if (len < GetConfigConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GetConfigConf* sig = (const GetConfigConf*)theData;
-  fprintf(output, " Config size : %u\n",
-          sig->configLength);
+  const GetConfigConf *sig = (const GetConfigConf *)theData;
+  fprintf(output, " Config size : %u\n", sig->configLength);
   return true;
 }

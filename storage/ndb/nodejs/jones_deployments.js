@@ -25,13 +25,13 @@
 var deployments = {};
 
 /* The test deployment is used in automated testing of the Jones projects
-*/
+ */
 deployments.test = function(properties) {
-  if(process.env["PORT_SQL1"]) {
+  if (process.env["PORT_SQL1"]) {
     properties.mysql_host = process.env["HOSTNAME"];
     properties.mysql_port = process.env["PORT_SQL1"];
     properties.ndb_connectstring =
-      process.env["HOSTNAME"] + ":" + process.env["PORT_MGMD"];
+        process.env["HOSTNAME"] + ":" + process.env["PORT_MGMD"];
   }
 };
 
@@ -58,12 +58,12 @@ deployments.production = function(properties) {
 };
 
 
-/* Another example of a deployment function; this one might define a 
+/* Another example of a deployment function; this one might define a
    connection to a read-only slave server.
 */
 deployments.prod_slave = function(properties) {
   deployments.production(properties);
-  properties.mysql_host = "ro.db.prod.mysite.com";   // read-only host
+  properties.mysql_host = "ro.db.prod.mysite.com";  // read-only host
 };
 
 module.exports = deployments;

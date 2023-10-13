@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 135
 
-
 struct DropFilegroupReq {
   /**
    * Sender(s) / Reciver(s)
@@ -41,11 +40,11 @@ struct DropFilegroupReq {
   /**
    * For printing
    */
-  friend bool printDROP_FILEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILEGROUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 7;
   static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_REQ;
-  
+
   union {
     Uint32 senderData;
     Uint32 clientData;
@@ -66,18 +65,18 @@ struct DropFilegroupRef {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printDROP_FILEGROUP_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILEGROUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 9;
   static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_REF;
 
@@ -90,12 +89,12 @@ struct DropFilegroupRef {
     InvalidSchemaObjectVersion = 774,
     SingleUser = 299
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 masterNodeId;
   Uint32 errorCode;
-  Uint32 errorLine; 
+  Uint32 errorLine;
   Uint32 errorKey;
   Uint32 errorNodeId;
   Uint32 transId;
@@ -106,18 +105,18 @@ struct DropFilegroupConf {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printDROP_FILEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILEGROUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 5;
   static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_CONF;
 
@@ -139,11 +138,11 @@ struct DropFileReq {
   /**
    * For printing
    */
-  friend bool printDROP_FILE_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 7;
   static constexpr Uint32 GSN = GSN_DROP_FILE_REQ;
-  
+
   union {
     Uint32 senderData;
     Uint32 clientData;
@@ -164,18 +163,18 @@ struct DropFileRef {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printDROP_FILE_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILE_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 9;
   static constexpr Uint32 GSN = GSN_DROP_FILE_REF;
 
@@ -193,7 +192,7 @@ struct DropFileRef {
   Uint32 senderRef;
   Uint32 masterNodeId;
   Uint32 errorCode;
-  Uint32 errorLine; 
+  Uint32 errorLine;
   Uint32 errorKey;
   Uint32 errorNodeId;
   Uint32 transId;
@@ -204,18 +203,18 @@ struct DropFileConf {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printDROP_FILE_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printDROP_FILE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 5;
   static constexpr Uint32 GSN = GSN_DROP_FILE_CONF;
 
@@ -225,7 +224,6 @@ struct DropFileConf {
   Uint32 fileVersion;
   Uint32 transId;
 };
-
 
 #undef JAM_FILE_ID
 

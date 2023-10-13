@@ -30,31 +30,30 @@
 using std::string;
 
 class Load {
-    Load(const Load&);
-    Load& operator=(const Load&);
+  Load(const Load &);
+  Load &operator=(const Load &);
 
-protected:
-    // short name of load
-    string name;
+ protected:
+  // short name of load
+  string name;
 
-public:
+ public:
+  // usage
+  Load(const string &name) : name(name) {}
+  virtual ~Load(){};
+  virtual string getName() { return name; }
 
-    // usage
-    Load(const string& name) : name(name) {}
-    virtual ~Load() {};
-    virtual string getName() { return name; }
+  // initializers/finalizers
+  virtual void init() = 0;
+  virtual void close() = 0;
 
-    // initializers/finalizers
-    virtual void init() = 0;
-    virtual void close() = 0;
+  // datastore operations
+  virtual void initConnection() = 0;
+  virtual void closeConnection() = 0;
+  virtual void clearData() = 0;
 
-    // datastore operations
-    virtual void initConnection() = 0;
-    virtual void closeConnection() = 0;
-    virtual void clearData() = 0;
-
-    // benchmark operations
-    virtual void runOperations(int nOps) = 0;
+  // benchmark operations
+  virtual void runOperations(int nOps) = 0;
 };
 
-#endif // Load_hpp
+#endif  // Load_hpp

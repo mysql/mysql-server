@@ -27,59 +27,51 @@
 
 #define JAM_FILE_ID 146
 
+enum ConfigParamId {
 
-  enum ConfigParamId {
+  Id,
+  ExecuteOnComputer,
+  MaxNoOfSavedMessages,
+  ShmKey,
 
-    Id,
-    ExecuteOnComputer,
-    MaxNoOfSavedMessages,
-    ShmKey,
-    
-    LockPagesInMainMemory,
-    TimeBetweenWatchDogCheck,
-    StopOnError,
-    
-    MaxNoOfConcurrentOperations,
-    MaxNoOfConcurrentTransactions,
-    MemorySpaceIndexes,
-    MemorySpaceTuples,
-    MemoryDiskPages,
-    NoOfFreeDiskClusters,
-    NoOfDiskClusters,
-    
-    TimeToWaitAlive,
-    HeartbeatIntervalDbDb,
-    HeartbeatIntervalDbApi,
-    ArbitTimeout,
-    
-    TimeBetweenLocalCheckpoints,
-    TimeBetweenGlobalCheckpoints,
-    NoOfFragmentLogFiles,
-    NoOfConcurrentCheckpointsDuringRestart,
-    TransactionDeadlockDetectionTimeout,
-    TransactionInactiveTime,
-    NoOfConcurrentProcessesHandleTakeover,
-    
-    NoOfConcurrentCheckpointsAfterRestart,
-    
-    NoOfDiskPagesToDiskDuringRestartTUP,
-    NoOfDiskPagesToDiskAfterRestartTUP,
-    NoOfDiskPagesToDiskDuringRestartACC,
-    NoOfDiskPagesToDiskAfterRestartACC,
-    
-    NoOfDiskClustersPerDiskFile,
-    NoOfDiskFiles,
+  LockPagesInMainMemory,
+  TimeBetweenWatchDogCheck,
+  StopOnError,
 
-    MaxNoOfSavedEvents
-  };
+  MaxNoOfConcurrentOperations,
+  MaxNoOfConcurrentTransactions,
+  MemorySpaceIndexes,
+  MemorySpaceTuples,
+  MemoryDiskPages,
+  NoOfFreeDiskClusters,
+  NoOfDiskClusters,
 
+  TimeToWaitAlive,
+  HeartbeatIntervalDbDb,
+  HeartbeatIntervalDbApi,
+  ArbitTimeout,
+
+  TimeBetweenLocalCheckpoints,
+  TimeBetweenGlobalCheckpoints,
+  NoOfFragmentLogFiles,
+  NoOfConcurrentCheckpointsDuringRestart,
+  TransactionDeadlockDetectionTimeout,
+  TransactionInactiveTime,
+  NoOfConcurrentProcessesHandleTakeover,
+
+  NoOfConcurrentCheckpointsAfterRestart,
+
+  NoOfDiskPagesToDiskDuringRestartTUP,
+  NoOfDiskPagesToDiskAfterRestartTUP,
+  NoOfDiskPagesToDiskDuringRestartACC,
+  NoOfDiskPagesToDiskAfterRestartACC,
+
+  NoOfDiskClustersPerDiskFile,
+  NoOfDiskFiles,
+
+  MaxNoOfSavedEvents
+};
 
 #undef JAM_FILE_ID
 
-#endif // ConfigParamId_H
-
-
-
-
-
-
+#endif  // ConfigParamId_H

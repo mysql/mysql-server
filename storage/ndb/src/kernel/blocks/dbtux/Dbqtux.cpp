@@ -29,17 +29,12 @@
 
 #define JAM_FILE_ID 530
 
-Dbqtux::Dbqtux(Block_context& ctx,
-               Uint32 instanceNumber):
-  Dbtux(ctx, instanceNumber, DBQTUX)
-{
-}
+Dbqtux::Dbqtux(Block_context &ctx, Uint32 instanceNumber)
+    : Dbtux(ctx, instanceNumber, DBQTUX) {}
 
-Uint64 Dbqtux::getTransactionMemoryNeed()
-{
+Uint64 Dbqtux::getTransactionMemoryNeed() {
   Uint32 query_instance_count =
-    globalData.ndbMtQueryThreads +
-    globalData.ndbMtRecoverThreads;
+      globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads;
   Uint64 scan_op_byte_count = 1;
   Uint32 tux_scan_recs = 1;
   Uint32 tux_scan_lock_recs = 1;
@@ -57,6 +52,4 @@ Uint64 Dbqtux::getTransactionMemoryNeed()
   return (scan_op_byte_count + scan_lock_byte_count + scan_bound_byte_count);
 }
 
-Dbqtux::~Dbqtux()
-{
-}
+Dbqtux::~Dbqtux() {}

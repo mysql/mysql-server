@@ -28,11 +28,8 @@ extern bool ga_dont_ignore_systab_0;
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern const char *tab_path;
 
-bool
-BackupPrinter::table(const TableS & tab)
-{
-  if (m_print || m_print_meta) 
-  {
+bool BackupPrinter::table(const TableS &tab) {
+  if (m_print || m_print_meta) {
     m_ndbout << tab;
     info.setLevel(254);
     info << "Successfully printed table: ", tab.m_dictTable->getName();
@@ -40,32 +37,24 @@ BackupPrinter::table(const TableS & tab)
   return true;
 }
 
-bool
-BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
-{
+bool BackupPrinter::tuple(const TupleS &tup, Uint32 fragId) {
   m_dataCount++;
-  if (m_print || m_print_data)
-  {
-    if (m_ndbout.m_out == info.m_out)
-    {
+  if (m_print || m_print_data) {
+    if (m_ndbout.m_out == info.m_out) {
       info.setLevel(254);
       info << tup.getTable()->getTableName() << "; ";
     }
-    const TableS * table = tup.getTable();
-    if ((!ga_dont_ignore_systab_0) &&  table->isSYSTAB_0())
-      return true;
-    m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;  
+    const TableS *table = tup.getTable();
+    if ((!ga_dont_ignore_systab_0) && table->isSYSTAB_0()) return true;
+    m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;
   }
   return true;
 }
 
-bool
-BackupPrinter::logEntry(const LogEntry & logE)
-{
+bool BackupPrinter::logEntry(const LogEntry &logE) {
   if (m_print || m_print_log)
     m_ndbout << logE << endl;
-  else if(m_print_sql_log)
-  {
+  else if (m_print_sql_log) {
     logE.printSqlLog();
     ndbout << endl;
   }
@@ -73,31 +62,23 @@ BackupPrinter::logEntry(const LogEntry & logE)
   return true;
 }
 
-void
-BackupPrinter::endOfLogEntrys()
-{
-  if (m_print || m_print_log || m_print_sql_log)
-  {
+void BackupPrinter::endOfLogEntrys() {
+  if (m_print || m_print_log || m_print_sql_log) {
     info.setLevel(254);
-    info << "Printed " << m_dataCount << " tuples and "
-         << m_logCount << " log entries" 
+    info << "Printed " << m_dataCount << " tuples and " << m_logCount
+         << " log entries"
          << " to stdout." << endl;
   }
 }
-bool
-BackupPrinter::update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
-{
-  if (m_print)
-  {
+bool BackupPrinter::update_apply_status(const RestoreMetaData &metaData,
+                                        bool snapshotstart) {
+  if (m_print) {
   }
   return true;
 }
 
-bool
-BackupPrinter::delete_epoch_tuple()
-{
-  if (m_print)
-  {
+bool BackupPrinter::delete_epoch_tuple() {
+  if (m_print) {
   }
   return true;
 }

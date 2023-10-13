@@ -29,20 +29,16 @@
 
 #define JAM_FILE_ID 493
 
-
 class CopyTabReq {
   friend class Dbdih;
-public:
+
+ public:
   static constexpr Uint32 SignalLengthExtra = 23;
   static constexpr Uint32 SignalLength = 21;
 
-  enum TabLcpStatus
-  {
-    LcpCompleted = 0,
-    LcpActive = 1
-  };
+  enum TabLcpStatus { LcpCompleted = 0, LcpActive = 1 };
 
-private:
+ private:
   Uint32 senderRef;
   Uint32 reqinfo;
   Uint32 tableId;
@@ -55,10 +51,11 @@ private:
 
 class CopyTabConf {
   friend class Dbdih;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-private:
+ private:
   Uint32 nodeId;
   Uint32 tableId;
 };

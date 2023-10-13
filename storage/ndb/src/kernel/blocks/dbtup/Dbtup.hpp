@@ -25,66 +25,70 @@
 #ifndef DBTUP_H
 #define DBTUP_H
 
-#include "util/require.h"
-#include <cstring>
-#include <pc.hpp>
-#include <SimulatedBlock.hpp>
 #include <ndb_limits.h>
+#include <portlib/ndb_prefetch.h>
 #include <trigger_definitions.h>
+#include <AttributeDescriptor.hpp>
 #include <AttributeHeader.hpp>
 #include <Bitmask.hpp>
-#include <signaldata/TupKey.hpp>
+#include <DynArr256.hpp>
+#include <EventLogger.hpp>
+#include <SimulatedBlock.hpp>
+#include <cstring>
+#include <pc.hpp>
+#include <signaldata/AlterTab.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/CreateTrig.hpp>
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
-#include <signaldata/BuildIndxImpl.hpp>
-#include <signaldata/AlterTab.hpp>
 #include <signaldata/TupCommit.hpp>
-#include <AttributeDescriptor.hpp>
-#include "AttributeOffset.hpp"
-#include "Undo_buffer.hpp"
-#include "my_config.h"
-#include "tuppage.hpp"
-#include <DynArr256.hpp>
+#include <signaldata/TupKey.hpp>
+#include "../backup/BackupFormat.hpp"
 #include "../dbacc/Dbacc.hpp"
 #include "../pgman.hpp"
 #include "../tsman.hpp"
-#include <EventLogger.hpp>
-#include "../backup/BackupFormat.hpp"
-#include <portlib/ndb_prefetch.h>
-#include "util/ndb_math.h"
+#include "AttributeOffset.hpp"
 #include "TransientPool.hpp"
 #include "TransientSlotPool.hpp"
+#include "Undo_buffer.hpp"
+#include "my_config.h"
+#include "tuppage.hpp"
+#include "util/ndb_math.h"
+#include "util/require.h"
 
 #define JAM_FILE_ID 414
 
 typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
 
 #ifdef VM_TRACE
-inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
-  static int i=0; static char buf[5][200];
-  bm.getText(buf[i%5]); return buf[i++%5]; }
-inline const char* dbgmask(const Uint32 bm[2]) {
-  static int i=0; static char buf[5][200];
-  sprintf(buf[i%5],"%08x%08x",bm[1],bm[0]); return buf[i++%5]; }
+inline const char *dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS> &bm) {
+  static int i = 0;
+  static char buf[5][200];
+  bm.getText(buf[i % 5]);
+  return buf[i++ % 5];
+}
+inline const char *dbgmask(const Uint32 bm[2]) {
+  static int i = 0;
+  static char buf[5][200];
+  sprintf(buf[i % 5], "%08x%08x", bm[1], bm[0]);
+  return buf[i++ % 5];
+}
 #endif
 
-#define ZWORDS_ON_PAGE 8192          /* NUMBER OF WORDS ON A PAGE.      */
+#define ZWORDS_ON_PAGE 8192 /* NUMBER OF WORDS ON A PAGE.      */
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
 #define ZTUP_VERSION_BITS 15
 #define ZTUP_VERSION_MASK ((1 << ZTUP_VERSION_BITS) - 1)
 #define MAX_FREE_LIST 5
 
-inline Uint32* ALIGN_WORD(void * ptr)
-{
-  return (Uint32*)(((UintPtr(ptr) + 3) >> 2) << 2);
+inline Uint32 *ALIGN_WORD(void *ptr) {
+  return (Uint32 *)(((UintPtr(ptr) + 3) >> 2) << 2);
 }
 
-inline const Uint32* ALIGN_WORD(const void* ptr)
-{
-  return (Uint32*)(((UintPtr(ptr) + 3) >> 2) << 2);
+inline const Uint32 *ALIGN_WORD(const void *ptr) {
+  return (Uint32 *)(((UintPtr(ptr) + 3) >> 2) << 2);
 }
 
 #ifdef DBTUP_C
@@ -96,12 +100,12 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 /* ---------------------------------------------------------------- */
 /*       S I Z E              O F               R E C O R D S       */
 /* ---------------------------------------------------------------- */
-#define ZNO_OF_CONCURRENT_OPEN_OP 40        /* NUMBER OF CONCURRENT OPENS      */
-#define ZNO_OF_CONCURRENT_WRITE_OP 80       /* NUMBER OF CONCURRENT DISK WRITES*/
-#define ZNO_OF_FRAGOPREC 20                 /* NUMBER OF CONCURRENT ADD FRAG.  */
-#define TOT_PAGE_RECORD_SPACE 262144        /* SIZE OF PAGE RECORD FILE.       */
-#define ZNO_OF_PAGE TOT_PAGE_RECORD_SPACE/ZWORDS_ON_PAGE   
-#define ZNO_OF_PAGE_RANGE_REC 128           /* SIZE OF PAGE RANGE FILE         */
+#define ZNO_OF_CONCURRENT_OPEN_OP 40  /* NUMBER OF CONCURRENT OPENS      */
+#define ZNO_OF_CONCURRENT_WRITE_OP 80 /* NUMBER OF CONCURRENT DISK WRITES*/
+#define ZNO_OF_FRAGOPREC 20           /* NUMBER OF CONCURRENT ADD FRAG.  */
+#define TOT_PAGE_RECORD_SPACE 262144  /* SIZE OF PAGE RECORD FILE.       */
+#define ZNO_OF_PAGE TOT_PAGE_RECORD_SPACE / ZWORDS_ON_PAGE
+#define ZNO_OF_PAGE_RANGE_REC 128 /* SIZE OF PAGE RANGE FILE         */
 // Trigger constants
 #define ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE 16
 
@@ -119,34 +123,34 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 /* ---------------------------------------------------------------- */
 /* THE MINIMUM SIZE OF AN 'EMPTY' TUPLE HEADER IN R-WORDS           */
 /* ---------------------------------------------------------------- */
-          /* THE TUPLE HEADER FIELD 'SIZE OF NULL ATTR. FIELD' SPECIFYES    */
-          /* THE SIZE OF THE TUPLE HEADER FIELD 'NULL ATTR. FIELD'.         */
-          /* THE TUPLE HEADER FIELD 'TYPE' SPECIFYES THE TYPE OF THE TUPLE  */
-          /* HEADER.                                                        */
-                               /* TUPLE ATTRIBUTE INDEX CLUSTERS, ATTRIBUTE */
-                               /* CLUSTERS AND A DYNAMIC ATTRIBUTE HEADER.  */
-                               /* IT MAY ALSO CONTAIN SHORT ATTRIBUTES AND  */
-                               /* POINTERS TO LONG ATTRIBUTE HEADERS.       */
-                               /* TUPLE ATTRIBUTE INDEX CLUSTERS, ATTRIBUTE */
-                               /* CLUSTERS AND A DYNAMIC ATTRIBUTE HEADER.  */
+/* THE TUPLE HEADER FIELD 'SIZE OF NULL ATTR. FIELD' SPECIFYES    */
+/* THE SIZE OF THE TUPLE HEADER FIELD 'NULL ATTR. FIELD'.         */
+/* THE TUPLE HEADER FIELD 'TYPE' SPECIFYES THE TYPE OF THE TUPLE  */
+/* HEADER.                                                        */
+/* TUPLE ATTRIBUTE INDEX CLUSTERS, ATTRIBUTE */
+/* CLUSTERS AND A DYNAMIC ATTRIBUTE HEADER.  */
+/* IT MAY ALSO CONTAIN SHORT ATTRIBUTES AND  */
+/* POINTERS TO LONG ATTRIBUTE HEADERS.       */
+/* TUPLE ATTRIBUTE INDEX CLUSTERS, ATTRIBUTE */
+/* CLUSTERS AND A DYNAMIC ATTRIBUTE HEADER.  */
 
-          /* DATA STRUCTURE TYPES */
-          /* WHEN ATTRIBUTE INFO IS SENT WITH A ATTRINFO-SIGNAL THE         */
-          /* VARIABLE TYPE IS SPECIFIED. THIS MUST BE DONE TO BE ABLE TO    */
-          /* NOW HOW MUCH DATA OF A ATTRIBUTE TO READ FROM ATTRINFO.        */
+/* DATA STRUCTURE TYPES */
+/* WHEN ATTRIBUTE INFO IS SENT WITH A ATTRINFO-SIGNAL THE         */
+/* VARIABLE TYPE IS SPECIFIED. THIS MUST BE DONE TO BE ABLE TO    */
+/* NOW HOW MUCH DATA OF A ATTRIBUTE TO READ FROM ATTRINFO.        */
 
-          /* WHEN A REQUEST CAN NOT BE EXECUTED BECAUSE OF A ERROR THE      */
-          /* ERROR MUST BE IDENTIFYED BY MEANS OF A ERROR CODE AND SENT TO  */
-          /* THE REQUESTER.                                                 */
-#define ZGET_OPREC_ERROR 804            // TUP_SEIZEREF
+/* WHEN A REQUEST CAN NOT BE EXECUTED BECAUSE OF A ERROR THE      */
+/* ERROR MUST BE IDENTIFYED BY MEANS OF A ERROR CODE AND SENT TO  */
+/* THE REQUESTER.                                                 */
+#define ZGET_OPREC_ERROR 804  // TUP_SEIZEREF
 
-#define ZEXIST_FRAG_ERROR 816           // Add fragment
-#define ZFULL_FRAGRECORD_ERROR 817      // Add fragment
-#define ZNO_FREE_PAGE_RANGE_ERROR 818   // Add fragment
-#define ZNOFREE_FRAGOP_ERROR 830        // Add fragment
-#define ZTOO_LARGE_TUPLE_ERROR 851      // Add fragment
-#define ZNO_FREE_TAB_ENTRY_ERROR 852    // Add fragment
-#define ZNO_PAGES_ALLOCATED_ERROR 881   // Add fragment
+#define ZEXIST_FRAG_ERROR 816          // Add fragment
+#define ZFULL_FRAGRECORD_ERROR 817     // Add fragment
+#define ZNO_FREE_PAGE_RANGE_ERROR 818  // Add fragment
+#define ZNOFREE_FRAGOP_ERROR 830       // Add fragment
+#define ZTOO_LARGE_TUPLE_ERROR 851     // Add fragment
+#define ZNO_FREE_TAB_ENTRY_ERROR 852   // Add fragment
+#define ZNO_PAGES_ALLOCATED_ERROR 881  // Add fragment
 
 #define ZGET_REALPID_ERROR 809
 #define ZNOT_IMPLEMENTED_ERROR 812
@@ -195,38 +199,38 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 
 #define ZTOO_MANY_BITS_ERROR 791
 
-          /* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
+/* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
 
-#define ZTH_MM_FREE 3                     /* PAGE STATE, TUPLE HEADER PAGE WITH FREE AREA      */
-#define ZTH_MM_FULL 4                     /* PAGE STATE, TUPLE HEADER PAGE WHICH IS FULL       */
+#define ZTH_MM_FREE 3 /* PAGE STATE, TUPLE HEADER PAGE WITH FREE AREA      */
+#define ZTH_MM_FULL 4 /* PAGE STATE, TUPLE HEADER PAGE WHICH IS FULL       */
 
-#define ZTD_HEADER 0                      /* HEADER POSITION                   */
-#define ZTD_DATASIZE 1                    /* SIZE OF THE DATA IN THIS CHUNK    */
-#define ZTD_SIZE 2                        /* TOTAL SIZE OF TABLE DESCRIPTOR    */
+#define ZTD_HEADER 0   /* HEADER POSITION                   */
+#define ZTD_DATASIZE 1 /* SIZE OF THE DATA IN THIS CHUNK    */
+#define ZTD_SIZE 2     /* TOTAL SIZE OF TABLE DESCRIPTOR    */
 
-          /* TRAILER POSITIONS FROM END OF TABLE DESCRIPTOR RECORD               */
-#define ZTD_TR_SIZE 1                     /* SIZE DESCRIPTOR POS FROM END+1    */
+/* TRAILER POSITIONS FROM END OF TABLE DESCRIPTOR RECORD               */
+#define ZTD_TR_SIZE 1 /* SIZE DESCRIPTOR POS FROM END+1    */
 #define ZTD_TR_TYPE 2
-#define ZTD_TRAILER_SIZE 2                /* TOTAL SIZE OF TABLE TRAILER       */
-#define ZAD_SIZE 2                        /* TOTAL SIZE OF ATTR DESCRIPTOR     */
-#define ZAD_LOG_SIZE 1                    /* TWO LOG OF TOTAL SIZE OF ATTR DESCRIPTOR     */
+#define ZTD_TRAILER_SIZE 2 /* TOTAL SIZE OF TABLE TRAILER       */
+#define ZAD_SIZE 2         /* TOTAL SIZE OF ATTR DESCRIPTOR     */
+#define ZAD_LOG_SIZE 1     /* TWO LOG OF TOTAL SIZE OF ATTR DESCRIPTOR     */
 
-          /* CONSTANTS USED TO HANDLE TABLE DESCRIPTOR AS A FREELIST             */
-#define ZTD_FL_HEADER 0                   /* HEADER POSITION                   */
-#define ZTD_FL_SIZE 1                     /* TOTAL SIZE OF THIS FREELIST ENTRY */
-#define ZTD_FL_PREV 2                     /* PREVIOUS RECORD IN FREELIST       */
-#define ZTD_FL_NEXT 3                     /* NEXT RECORD IN FREELIST           */
-#define ZTD_FREE_SIZE 16                  /* SIZE NEEDED TO HOLD ONE FL ENTRY  */
+/* CONSTANTS USED TO HANDLE TABLE DESCRIPTOR AS A FREELIST             */
+#define ZTD_FL_HEADER 0  /* HEADER POSITION                   */
+#define ZTD_FL_SIZE 1    /* TOTAL SIZE OF THIS FREELIST ENTRY */
+#define ZTD_FL_PREV 2    /* PREVIOUS RECORD IN FREELIST       */
+#define ZTD_FL_NEXT 3    /* NEXT RECORD IN FREELIST           */
+#define ZTD_FREE_SIZE 16 /* SIZE NEEDED TO HOLD ONE FL ENTRY  */
 
-          /* CONSTANTS USED IN LSB OF TABLE DESCRIPTOR HEADER DESCRIBING USAGE   */
-#define ZTD_TYPE_FREE 0                   /* RECORD LINKED INTO FREELIST       */
-#define ZTD_TYPE_NORMAL 1                 /* RECORD USED AS TABLE DESCRIPTOR   */
-          /* ATTRIBUTE OPERATION CONSTANTS */
+/* CONSTANTS USED IN LSB OF TABLE DESCRIPTOR HEADER DESCRIBING USAGE   */
+#define ZTD_TYPE_FREE 0   /* RECORD LINKED INTO FREELIST       */
+#define ZTD_TYPE_NORMAL 1 /* RECORD USED AS TABLE DESCRIPTOR   */
+                          /* ATTRIBUTE OPERATION CONSTANTS */
 #define ZLEAF 1
 #define ZNON_LEAF 2
 
-          /* RETURN POINTS. */
-          /* RESTART PHASES */
+/* RETURN POINTS. */
+/* RESTART PHASES */
 #define ZSTARTPHASE1 1
 #define ZSTARTPHASE2 2
 #define ZSTARTPHASE3 3
@@ -259,29 +263,26 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZSTORED_PROCEDURE_FREE 0xffff
 #define ZMIN_PAGE_LIMIT_TUP_COMMITREQ 2
 
-#define ZSKIP_TUX_TRIGGERS 0x1 // flag for TUP_ABORTREQ
-#define ZABORT_DEALLOC     0x2 // flag for TUP_ABORTREQ
+#define ZSKIP_TUX_TRIGGERS 0x1  // flag for TUP_ABORTREQ
+#define ZABORT_DEALLOC 0x2      // flag for TUP_ABORTREQ
 
 #endif
 
 class Dbtux;
 
-class Dbtup: public SimulatedBlock {
-friend class DbtupProxy;
-friend class Suma;
-public:
-struct KeyReqStruct;
-friend struct KeyReqStruct; // CC
-typedef bool (* ReadFunction)(Uint8*,
-                              KeyReqStruct*,
-                              AttributeHeader*,
-                              Uint64);
-typedef bool (* UpdateFunction)(Uint32*,
-                                KeyReqStruct*,
-                                Uint64);
+class Dbtup : public SimulatedBlock {
+  friend class DbtupProxy;
+  friend class Suma;
+
+ public:
+  struct KeyReqStruct;
+  friend struct KeyReqStruct;  // CC
+  typedef bool (*ReadFunction)(Uint8 *, KeyReqStruct *, AttributeHeader *,
+                               Uint64);
+  typedef bool (*UpdateFunction)(Uint32 *, KeyReqStruct *, Uint64);
   void prepare_scan_ctx(Uint32 scanPtrI) override;
-private:
-  
+
+ private:
   typedef Tup_fixsize_page Fix_page;
   typedef Tup_varsize_page Var_page;
 
@@ -290,7 +291,8 @@ private:
   Uint32 m_lqh_block;
   Uint32 m_tux_block;
   Uint32 m_backup_block;
-public:
+
+ public:
   bool m_is_query_block;
   bool m_is_in_query_thread;
   /**
@@ -302,11 +304,11 @@ public:
 
   class Dblqh *c_lqh;
   class Backup *c_backup;
-  Tsman* c_tsman;
-  Lgman* c_lgman;
-  Pgman* c_pgman;
-  Dbacc* c_acc;
-  Dbtux* c_tux;
+  Tsman *c_tsman;
+  Lgman *c_lgman;
+  Pgman *c_pgman;
+  Dbacc *c_acc;
+  Dbtux *c_tux;
 
   enum CallbackIndex {
     // lgman
@@ -319,60 +321,59 @@ public:
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
 
-enum TransState {
-  TRANS_IDLE = 0,
-  TRANS_STARTED = 1,
-  TRANS_NOT_USED_STATE = 2, // No longer used.
-  TRANS_ERROR_WAIT_STORED_PROCREQ = 3,
-  TRANS_ERROR_WAIT_TUPKEYREQ = 4,
-  TRANS_TOO_MUCH_AI = 5,
-  TRANS_DISCONNECTED = 6
-};
-
-enum TupleState {
-  TUPLE_PREPARED = 1,
-  TUPLE_ALREADY_ABORTED = 2,
-  TUPLE_TO_BE_COMMITTED = 3
-};
-  
-enum State {
-  NOT_INITIALIZED = 0,
-  IDLE = 17,
-  ACTIVE = 18,
-  SYSTEM_RESTART = 19,
-  DEFINED = 34,
-  NOT_DEFINED = 37,
-  NORMAL_PAGE = 40,
-  DEFINING = 65,
-  DROPPING = 68
-};
-
-
-struct Fragoperrec {
-  Uint64 minRows;
-  Uint64 maxRows;
-  Uint32 nextFragoprec;
-  Uint32 lqhPtrFrag;
-  Uint32 fragidFrag;
-  Uint32 tableidFrag;
-  Uint32 fragPointer;
-  Uint32 attributeCount;
-  Uint32 charsetIndex;
-  Uint32 m_null_bits[2];
-  Uint32 m_extra_row_gci_bits;
-  Uint32 m_extra_row_author_bits;
-  union {
-    BlockReference lqhBlockrefFrag;
-    Uint32 m_senderRef;
+  enum TransState {
+    TRANS_IDLE = 0,
+    TRANS_STARTED = 1,
+    TRANS_NOT_USED_STATE = 2,  // No longer used.
+    TRANS_ERROR_WAIT_STORED_PROCREQ = 3,
+    TRANS_ERROR_WAIT_TUPKEYREQ = 4,
+    TRANS_TOO_MUCH_AI = 5,
+    TRANS_DISCONNECTED = 6
   };
-  Uint32 m_senderData;
-  Uint32 m_restoredLcpId;
-  Uint32 m_restoredLocalLcpId;
-  Uint32 m_maxGciCompleted;
-  bool inUse;
-  bool definingFragment;
-};
-typedef Ptr<Fragoperrec> FragoperrecPtr;
+
+  enum TupleState {
+    TUPLE_PREPARED = 1,
+    TUPLE_ALREADY_ABORTED = 2,
+    TUPLE_TO_BE_COMMITTED = 3
+  };
+
+  enum State {
+    NOT_INITIALIZED = 0,
+    IDLE = 17,
+    ACTIVE = 18,
+    SYSTEM_RESTART = 19,
+    DEFINED = 34,
+    NOT_DEFINED = 37,
+    NORMAL_PAGE = 40,
+    DEFINING = 65,
+    DROPPING = 68
+  };
+
+  struct Fragoperrec {
+    Uint64 minRows;
+    Uint64 maxRows;
+    Uint32 nextFragoprec;
+    Uint32 lqhPtrFrag;
+    Uint32 fragidFrag;
+    Uint32 tableidFrag;
+    Uint32 fragPointer;
+    Uint32 attributeCount;
+    Uint32 charsetIndex;
+    Uint32 m_null_bits[2];
+    Uint32 m_extra_row_gci_bits;
+    Uint32 m_extra_row_author_bits;
+    union {
+      BlockReference lqhBlockrefFrag;
+      Uint32 m_senderRef;
+    };
+    Uint32 m_senderData;
+    Uint32 m_restoredLcpId;
+    Uint32 m_restoredLocalLcpId;
+    Uint32 m_maxGciCompleted;
+    bool inUse;
+    bool definingFragment;
+  };
+  typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
@@ -413,11 +414,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       Get_next_tuple,
       Get_tuple
     };
-    Get m_get;                  // entry point in scanNext
-    Local_key m_key;            // scan position pointer MM or DD
-    Page* m_page;               // scanned MM or DD (cache) page
-    Local_key m_key_mm;         // MM local key returned
-    Uint32 m_realpid_mm;        // MM real page id
+    Get m_get;            // entry point in scanNext
+    Local_key m_key;      // scan position pointer MM or DD
+    Page *m_page;         // scanned MM or DD (cache) page
+    Local_key m_key_mm;   // MM local key returned
+    Uint32 m_realpid_mm;  // MM real page id
     Uint32 m_extent_info_ptr_i;
     Uint32 m_next_small_area_check_idx;
     Uint32 m_next_large_area_check_idx;
@@ -438,14 +439,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     static constexpr Uint32 TYPE_ID = RT_DBTUP_SCAN_LOCK;
     Uint32 m_magic;
 
-    ScanLock() :
-      m_magic(Magic::make(TYPE_ID))
-    {
-    }
+    ScanLock() : m_magic(Magic::make(TYPE_ID)) {}
 
-    ~ScanLock()
-    {
-    }
+    ~ScanLock() {}
 
     Uint32 m_accLockOp;
     union {
@@ -473,51 +469,50 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   struct ScanOp {
     static constexpr Uint32 TYPE_ID = RT_DBTUP_SCAN_OPERATION;
     Uint32 m_magic;
-    ScanOp() :
-      m_magic(Magic::make(TYPE_ID)),
-      m_state(Undef),
-      m_bits(0),
-      m_last_seen(0),
-      m_userPtr(RNIL),
-      m_userRef(RNIL),
-      m_tableId(RNIL),
-      m_fragId(~(Uint32)0),
-      m_fragPtrI(RNIL),
-      m_transId1(0),
-      m_transId2(0),
-      m_savePointId(0),
-      m_accLockOp(RNIL)
-    {}
+    ScanOp()
+        : m_magic(Magic::make(TYPE_ID)),
+          m_state(Undef),
+          m_bits(0),
+          m_last_seen(0),
+          m_userPtr(RNIL),
+          m_userRef(RNIL),
+          m_tableId(RNIL),
+          m_fragId(~(Uint32)0),
+          m_fragPtrI(RNIL),
+          m_transId1(0),
+          m_transId2(0),
+          m_savePointId(0),
+          m_accLockOp(RNIL) {}
 
     enum State {
       Undef = 0,
-      First = 1,                // before first entry
-      Current = 2,              // at current before locking
-      Blocked = 3,              // at current waiting for ACC lock
-      Locked = 4,               // at current and locked or no lock needed
-      Next = 5,                 // looking for next entry
-      Last = 6,                 // after last entry
-      Aborting = 7,             // lock wait at scan close
-      Invalid = 9               // cannot return REF to LQH currently
+      First = 1,     // before first entry
+      Current = 2,   // at current before locking
+      Blocked = 3,   // at current waiting for ACC lock
+      Locked = 4,    // at current and locked or no lock needed
+      Next = 5,      // looking for next entry
+      Last = 6,      // after last entry
+      Aborting = 7,  // lock wait at scan close
+      Invalid = 9    // cannot return REF to LQH currently
     };
     Uint16 m_state;
 
     enum Bits {
-      SCAN_DD        = 0x01,        // scan disk pages
-      SCAN_VS        = 0x02,        // page format is var size
-      SCAN_LCP       = 0x04,        // LCP mem page scan
-      SCAN_LOCK_SH   = 0x10,        // lock mode shared
-      SCAN_LOCK_EX   = 0x20,        // lock mode exclusive
-      SCAN_LOCK_WAIT = 0x40,        // lock wait
+      SCAN_DD = 0x01,         // scan disk pages
+      SCAN_VS = 0x02,         // page format is var size
+      SCAN_LCP = 0x04,        // LCP mem page scan
+      SCAN_LOCK_SH = 0x10,    // lock mode shared
+      SCAN_LOCK_EX = 0x20,    // lock mode exclusive
+      SCAN_LOCK_WAIT = 0x40,  // lock wait
       // any lock mode
-      SCAN_LOCK      = SCAN_LOCK_SH | SCAN_LOCK_EX,
-      SCAN_NR        = 0x80,       // Node recovery scan
-      SCAN_COPY_FRAG = 0x100       // Copy fragment scan
+      SCAN_LOCK = SCAN_LOCK_SH | SCAN_LOCK_EX,
+      SCAN_NR = 0x80,         // Node recovery scan
+      SCAN_COPY_FRAG = 0x100  // Copy fragment scan
     };
     Uint16 m_bits;
     Uint16 m_last_seen;
-    
-    Uint32 m_userPtr;           // scanptr.i in LQH
+
+    Uint32 m_userPtr;  // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
     Uint32 m_fragId;
@@ -537,8 +532,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     ScanLock_fifo::Head m_accLockOps;
 
     union {
-    Uint32 nextPool;
-    Uint32 nextList;
+      Uint32 nextPool;
+      Uint32 nextList;
     };
     Uint32 prevList;
   };
@@ -549,72 +544,60 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   typedef LocalDLList<ScanOp_pool> Local_ScanOp_list;
   ScanOp_pool c_scanOpPool;
 
-  void scanReply(Signal*, ScanOpPtr scanPtr);
-  void scanFirst(Signal*, ScanOpPtr scanPtr);
-  bool scanNext(Signal*, ScanOpPtr scanPtr);
-  void scanCont(Signal*, ScanOpPtr scanPtr);
-  void disk_page_tup_scan_callback(Signal*, Uint32 scanPtrI, Uint32 page_i);
-  void scanClose(Signal*, ScanOpPtr scanPtr);
-  void addAccLockOp(ScanOp& scan, Uint32 accLockOp);
-  void removeAccLockOp(ScanOp& scan, Uint32 accLockOp);
-  void releaseScanOp(ScanOpPtr& scanPtr);
+  void scanReply(Signal *, ScanOpPtr scanPtr);
+  void scanFirst(Signal *, ScanOpPtr scanPtr);
+  bool scanNext(Signal *, ScanOpPtr scanPtr);
+  void scanCont(Signal *, ScanOpPtr scanPtr);
+  void disk_page_tup_scan_callback(Signal *, Uint32 scanPtrI, Uint32 page_i);
+  void scanClose(Signal *, ScanOpPtr scanPtr);
+  void addAccLockOp(ScanOp &scan, Uint32 accLockOp);
+  void removeAccLockOp(ScanOp &scan, Uint32 accLockOp);
+  void releaseScanOp(ScanOpPtr &scanPtr);
 
   struct Tuple_header;
   struct Fragrecord;
 
-  Uint32 prepare_lcp_scan_page(ScanOp& scan,
-                               Local_key& key,
-                               Uint32 *next_ptr,
+  Uint32 prepare_lcp_scan_page(ScanOp &scan, Local_key &key, Uint32 *next_ptr,
                                Uint32 *prev_ptr);
-  Uint32 handle_lcp_skip_page(ScanOp& scan,
-                              Local_key key,
-                              Page *page);
-  Uint32 handle_scan_change_page_rows(ScanOp& scan,
-                                      Fix_page *fix_page,
-                                      Tuple_header* tuple_header_ptr,
-                                      Uint32 & foundGCI,
-                                      Fragrecord *fragPtrP);
-  Uint32 setup_change_page_for_scan(ScanOp& scan,
-                                    Fix_page *fix_page,
-                                    Local_key& key,
-                                    Uint32 size);
-  Uint32 move_to_next_change_page_row(ScanOp & scan,
-                                      Fix_page *fix_page,
+  Uint32 handle_lcp_skip_page(ScanOp &scan, Local_key key, Page *page);
+  Uint32 handle_scan_change_page_rows(ScanOp &scan, Fix_page *fix_page,
+                                      Tuple_header *tuple_header_ptr,
+                                      Uint32 &foundGCI, Fragrecord *fragPtrP);
+  Uint32 setup_change_page_for_scan(ScanOp &scan, Fix_page *fix_page,
+                                    Local_key &key, Uint32 size);
+  Uint32 move_to_next_change_page_row(ScanOp &scan, Fix_page *fix_page,
                                       Tuple_header **tuple_header_ptr,
-                                      Uint32 & loop_count,
-                                      Uint32 size);
+                                      Uint32 &loop_count, Uint32 size);
 
   // for md5 of key (could maybe reuse existing temp buffer)
-  Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
+  Uint64 c_dataBuffer[ZWORDS_ON_PAGE / 2 + 1];
 
   // Crash the node when a tuple got corrupted
   bool c_crashOnCorruptedTuple;
 
-  struct Page_request 
-  {
+  struct Page_request {
     Page_request() {}
     Local_key m_key;
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
-    Uint16 m_original_estimated_free_space; // in bytes/records
-    Uint16 m_list_index;                  // in Disk_alloc_info.m_page_requests
-    Uint16 m_ref_count;                   // Waiters for page
+    Uint16 m_original_estimated_free_space;  // in bytes/records
+    Uint16 m_list_index;  // in Disk_alloc_info.m_page_requests
+    Uint16 m_ref_count;   // Waiters for page
     Uint16 m_uncommitted_used_space;
     Uint32 nextList;
     Uint32 prevList;
     Uint32 m_magic;
-  }; // 32 bytes
-  
-  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
+  };  // 32 bytes
+
+  typedef RecordPool<WOPool<Page_request>> Page_request_pool;
   typedef DLFifoList<Page_request_pool> Page_request_list;
   typedef LocalDLFifoList<Page_request_pool> Local_page_request_list;
 
-  static constexpr Uint32 EXTENT_SEARCH_MATRIX_COLS = 4; // Guarantee size
-  static constexpr Uint32 EXTENT_SEARCH_MATRIX_ROWS = 5; // Total size
+  static constexpr Uint32 EXTENT_SEARCH_MATRIX_COLS = 4;  // Guarantee size
+  static constexpr Uint32 EXTENT_SEARCH_MATRIX_ROWS = 5;  // Total size
   static constexpr Uint32 EXTENT_SEARCH_MATRIX_SIZE = 20;
-  
-  struct Extent_info
-  {
+
+  struct Extent_info {
     Uint32 m_magic;
     Uint32 m_first_page_no;
     Uint32 m_empty_page_no;
@@ -635,26 +618,24 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     }
 
     Extent_info() {}
-    bool equal(const Extent_info & rec) const {
+    bool equal(const Extent_info &rec) const {
       return m_key.m_file_no == rec.m_key.m_file_no &&
-	m_key.m_page_idx == rec.m_key.m_page_idx;
+             m_key.m_page_idx == rec.m_key.m_page_idx;
     }
-  }; // 40 bytes
+  };  // 40 bytes
 
-  typedef RecordPool<RWPool<Extent_info> > Extent_info_pool;
+  typedef RecordPool<RWPool<Extent_info>> Extent_info_pool;
   typedef DLList<Extent_info_pool> Extent_info_list;
   typedef LocalDLList<Extent_info_pool> Local_extent_info_list;
   typedef DLHashTable<Extent_info_pool> Extent_info_hash;
   typedef SLList<Extent_info_pool, IA_Fragment> Fragment_extent_list;
   typedef LocalSLList<Extent_info_pool, IA_Fragment> Local_fragment_extent_list;
   struct Tablerec;
-  struct Disk_alloc_info 
-  {
+  struct Disk_alloc_info {
     Disk_alloc_info() {}
-    Disk_alloc_info(const Tablerec* tabPtrP, 
-		    Uint32 extent_size_in_pages);
+    Disk_alloc_info(const Tablerec *tabPtrP, Uint32 extent_size_in_pages);
     Uint32 m_extent_size;
-    
+
     /**
      * Disk allocation
      *
@@ -669,12 +650,13 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      *    while still accommodating current request
      *    (20 free lists for different requests)
      */
-    
+
     /**
      * Free list of pages in different size
      *   that are dirty
      */
-    Page_list::Head m_dirty_pages[EXTENT_SEARCH_MATRIX_COLS];   // In real page id's
+    Page_list::Head
+        m_dirty_pages[EXTENT_SEARCH_MATRIX_COLS];  // In real page id's
 
     /**
      * Requests (for update) that have sufficient space left after request
@@ -688,9 +670,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * Current extent
      */
     Uint32 m_curr_extent_info_ptr_i;
-    
+
     /**
-     * 
+     *
      */
     static constexpr Uint32 SZ = EXTENT_SEARCH_MATRIX_SIZE;
     Extent_info_list::Head m_free_extents[SZ];
@@ -698,7 +680,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 m_page_free_bits_map[EXTENT_SEARCH_MATRIX_COLS];
 
     Uint32 find_extent(Uint32 sz) const;
-    Uint32 calc_extent_pos(const Extent_info*) const;
+    Uint32 calc_extent_pos(const Extent_info *) const;
 
     /**
      * Compute minimum free space on page given bits
@@ -706,21 +688,20 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 calc_page_free_space(Uint32 bits) const {
       return m_page_free_bits_map[bits];
     }
-  
+
     /**
      * Compute page free bits, given free space
      */
     Uint32 calc_page_free_bits(Uint32 free) const {
-      for(Uint32 i = 0; i<EXTENT_SEARCH_MATRIX_COLS-1; i++)
-	if(free >= m_page_free_bits_map[i])
-	  return i;
+      for (Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS - 1; i++)
+        if (free >= m_page_free_bits_map[i]) return i;
       return EXTENT_SEARCH_MATRIX_COLS - 1;
     }
 
     Fragment_extent_list::Head m_extent_list;
   };
-  
-  void dump_disk_alloc(Disk_alloc_info&);
+
+  void dump_disk_alloc(Disk_alloc_info &);
   void printPtr(EventLogger *logger, int idx, const Ptr<Dbtup::Page> &ptr);
   void printPtr(EventLogger *logger, int idx,
                 const Ptr<Dbtup::Page_request> &ptr);
@@ -735,351 +716,318 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   static constexpr Uint32 MAX_PAGES_IN_DYN_ARRAY = (RNIL & PAGE_BIT_MASK);
 
 #define NUM_TUP_FRAGMENT_MUTEXES 4
-struct Fragrecord {
-  NdbMutex tup_frag_mutex[NUM_TUP_FRAGMENT_MUTEXES];
-  NdbMutex tup_frag_page_map_mutex;
-  // Number of allocated pages for fixed-sized data.
-  Uint32 noOfPages;
-  // Number of allocated pages for var-sized data.
-  Uint32 noOfVarPages;
-  // No of allocated but unused words for var-sized fields.
-  Uint64 m_varWordsFree;
-
-  /**
-   * m_max_page_cnt contains the next page number to use when allocating
-   * a new page and all pages with lower page numbers are filled with
-   * rows. At fragment creation it is 0 since no pages are yet allocated.
-   * With 1 page allocated it is set to 1. The actual max page number with
-   * 1 page is however 0 since we start with page numbers from 0.
-   */
-  Uint32 m_max_page_cnt;
-  Uint32 m_free_page_id_list;
-  DynArr256::Head m_page_map;
-  Page_fifo::Head thFreeFirst;   // pages with at least 1 free record
-
-  Uint32 m_lcp_scan_op;
-  Local_key m_lcp_keep_list_head;
-  Local_key m_lcp_keep_list_tail;
-
-  enum FragState
-  { FS_FREE
-    ,FS_ONLINE           // Ordinary fragment
-    ,FS_REORG_NEW        // A new (not yet "online" fragment)
-    ,FS_REORG_COMMIT     // An ordinary fragment which has been split
-    ,FS_REORG_COMMIT_NEW // An new fragment which is online
-    ,FS_REORG_COMPLETE     // An ordinary fragment which has been split
-    ,FS_REORG_COMPLETE_NEW // An new fragment which is online
-  } fragStatus;
-  Uint32 fragTableId;
-  Uint32 fragmentId;
-  Uint32 partitionId;
-  Uint32 nextfreefrag;
-  // +1 is as "full" pages are stored last
-  Page_list::Head free_var_page_array[MAX_FREE_LIST+1];
-  
-  enum
-  {
-    UC_LCP = 1,
-    UC_CREATE = 2,
-    UC_SET_LCP = 3,
-    UC_NO_LCP = 4,
-    UC_DROP = 5
-  };
-  /* Calculated average row size of the rows in the fragment */
-  Uint32 m_average_row_size;
-  Uint32 m_restore_lcp_id;
-  Uint32 m_restore_local_lcp_id;
-  Uint32 m_undo_complete;
-  Uint32 m_tablespace_id;
-  Uint32 m_logfile_group_id;
-  Disk_alloc_info m_disk_alloc_info;
-  // GCI at time of start LCP (used to deduce if one should count row changes)
-  Uint32 m_lcp_start_gci;
-  // Number of changed rows since last LCP (approximative)
-  Uint64 m_lcp_changed_rows;
-  // Number of fixed-seize tuple parts (which equals the tuple count).
-  Uint64 m_fixedElemCount;
-  Uint64 m_row_count;
-  Uint64 m_prev_row_count;
-  Uint64 m_committed_changes;
-  /**
-    Number of variable-size tuple parts, i.e. the number of tuples that has
-    one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
-    of a blob is stored like that, the rest in a blob table.)
-  */
-  Uint64 m_varElemCount;
-
-  // Consistency check.
-  bool verifyVarSpace() const
-  {
-    if ((m_varWordsFree < Uint64(1)<<60) && //Underflow.
-        m_varWordsFree * sizeof(Uint32) <=
-        Uint64(noOfVarPages) * File_formats::NDB_PAGE_SIZE)
-    {
-      return true;
-    }
-    else
-    {
-      g_eventLogger->info("TUP : T%uF%u verifyVarSpace fails : "
-                          "m_varWordsFree : %llu "
-                          "noOfVarPages : %u",
-                          fragTableId,
-                          fragmentId,
-                          m_varWordsFree,
-                          noOfVarPages);
-      return false;
-    }
-  }
-
-};
-typedef Ptr<Fragrecord> FragrecordPtr;
-
-  void acquire_frag_page_map_mutex(Fragrecord *fragPtrP)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      ndbrequire(!m_is_in_query_thread);
-      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void release_frag_page_map_mutex(Fragrecord *fragPtrP)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void acquire_frag_page_map_mutex_read()
-  {
-    acquire_frag_page_map_mutex_read(prepare_fragptr.p);
-  }
-  void release_frag_page_map_mutex_read()
-  {
-    release_frag_page_map_mutex_read(prepare_fragptr.p);
-  }
-  void acquire_frag_page_map_mutex_read(Fragrecord *fragPtrP)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void release_frag_page_map_mutex_read(Fragrecord *fragPtrP)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void acquire_frag_mutex(Fragrecord *fragPtrP,
-                          Uint32 logicalPageId)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      ndbrequire(!m_is_in_query_thread);
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void release_frag_mutex(Fragrecord *fragPtrP,
-                          Uint32 logicalPageId)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void acquire_frag_mutex_read(Fragrecord *fragPtrP,
-                               Uint32 logicalPageId)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void release_frag_mutex_read(Fragrecord *fragPtrP,
-                               Uint32 logicalPageId)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-
-struct Operationrec {
-  static constexpr Uint32 TYPE_ID = RT_DBTUP_OPERATION;
-  Uint32 m_magic;
-
-  Operationrec() :
-    m_magic(Magic::make(TYPE_ID)),
-    prevActiveOp(RNIL),
-    nextActiveOp(RNIL),
-    fragPageId(RNIL),
-    m_commit_state(CommitNotStarted),
-    m_any_value(0),
-    op_type(ZREAD),
-    trans_state(Uint32(TRANS_DISCONNECTED))
-  {
-    op_struct.bit_field.in_active_list = false;
-    op_struct.bit_field.tupVersion = ZNIL;
-    op_struct.bit_field.delete_insert_flag = false;
-  }
-
-  ~Operationrec()
-  {
-  }
-
-  enum CommitState
-  {
-    CommitNotStarted = 0,
-    CommitStartedNotReceived = 1,
-    CommitStartedReceived = 2,
-    CommitPerformedNotReceived = 3,
-    CommitPerformedReceived = 4,
-    CommitDoneReceived = 5,
-    CommitDoneNotReceived = 6
-  };
-  /*
-   * Doubly linked list with anchor on tuple.
-   * This is to handle multiple updates on the same tuple
-   * by the same transaction.
-   */
-  Uint32 prevActiveOp;
-  Uint32 nextActiveOp;
-
-  Uint32 fragPageId;
-
-  CommitState m_commit_state;
-
-  bool is_first_operation() const { return prevActiveOp == RNIL;}
-  bool is_last_operation() const { return nextActiveOp == RNIL;}
-
-  Uint32 m_undo_buffer_space; // In words
-
-  Uint32 m_any_value;
-  Uint32 nextPool;
-  
-  /*
-   * From fragment i-value we can find fragment and table record
-   */
-  Uint32 fragmentPtr;
-
-  /*
-   * We need references to both the original tuple and the copy tuple.
-   * We keep the page's real i-value and its index and from there we
-   * can find out about the fragment page id and the page offset.
-   */
-  Local_key m_tuple_location;
-  Local_key m_copy_tuple_location;
-
-  /*
-   * We keep the record linked to the operation record in LQH.
-   * This is needed due to writing of REDO log must be performed
-   * in correct order, which is the same order as the writes
-   * occurred. LQH can receive the records in different order.
-   */
-  Uint32 userpointer;
-
-  /*
-   * When responding to queries in the same transaction they will see
-   * a result from the save point id the query was started. Again
-   * functionality for multi-updates of the same record in one
-   * transaction.
-   */
-  union {
-    Uint32 savepointId;
-    Uint32 m_commit_disk_callback_page;
-  };
-
-  Uint32 op_type;
-  Uint32 trans_state;
-  Uint32 tuple_state;
-
-  /*
-   * State variables on connection.
-   * State variable on tuple after multi-updates
-   * Is operation undo logged or not
-   * Is operation in fragment list
-   * Is operation in multi-update list
-   * Operation type (READ, UPDATE, etc)
-   * Is record primary replica
-   * Is delete or insert performed
-   */
-  struct OpBitFields {
-  /*
-   * TUX needs to know the tuple version of the tuple since it
-   * keeps an entry for both the committed and all versions in
-   * a transaction currently. So each update will create a new
-   * version even if in the same transaction.
-   */
-    unsigned int tupVersion : 16;
-
-    unsigned int m_reorg : 2;
-    unsigned int in_active_list : 1;
-    unsigned int delete_insert_flag : 1;
-    unsigned int m_disk_preallocated : 1;
-    unsigned int m_load_diskpage_on_commit : 1;
-    unsigned int m_wait_log_buffer : 1;
-    unsigned int m_gci_written : 1;
+  struct Fragrecord {
+    NdbMutex tup_frag_mutex[NUM_TUP_FRAGMENT_MUTEXES];
+    NdbMutex tup_frag_page_map_mutex;
+    // Number of allocated pages for fixed-sized data.
+    Uint32 noOfPages;
+    // Number of allocated pages for var-sized data.
+    Uint32 noOfVarPages;
+    // No of allocated but unused words for var-sized fields.
+    Uint64 m_varWordsFree;
 
     /**
-     * @see TupKeyReq
-     *
-     * 0 = non-primary replica, fire detached triggers
-     * 1 = primary replica, fire immediate and detached triggers
-     * 2 = no fire triggers
-     *     e.g If the op has no logical effect, it should not be
-     *         sent as an event. Example op is OPTIMIZE table,
-     *         which uses ZUPDATE to move varpart values physically.
+     * m_max_page_cnt contains the next page number to use when allocating
+     * a new page and all pages with lower page numbers are filled with
+     * rows. At fragment creation it is 0 since no pages are yet allocated.
+     * With 1 page allocated it is set to 1. The actual max page number with
+     * 1 page is however 0 since we start with page numbers from 0.
      */
-    unsigned int m_triggers : 2;
+    Uint32 m_max_page_cnt;
+    Uint32 m_free_page_id_list;
+    DynArr256::Head m_page_map;
+    Page_fifo::Head thFreeFirst;  // pages with at least 1 free record
+
+    Uint32 m_lcp_scan_op;
+    Local_key m_lcp_keep_list_head;
+    Local_key m_lcp_keep_list_tail;
+
+    enum FragState {
+      FS_FREE,
+      FS_ONLINE  // Ordinary fragment
+      ,
+      FS_REORG_NEW  // A new (not yet "online" fragment)
+      ,
+      FS_REORG_COMMIT  // An ordinary fragment which has been split
+      ,
+      FS_REORG_COMMIT_NEW  // An new fragment which is online
+      ,
+      FS_REORG_COMPLETE  // An ordinary fragment which has been split
+      ,
+      FS_REORG_COMPLETE_NEW  // An new fragment which is online
+    } fragStatus;
+    Uint32 fragTableId;
+    Uint32 fragmentId;
+    Uint32 partitionId;
+    Uint32 nextfreefrag;
+    // +1 is as "full" pages are stored last
+    Page_list::Head free_var_page_array[MAX_FREE_LIST + 1];
+
+    enum {
+      UC_LCP = 1,
+      UC_CREATE = 2,
+      UC_SET_LCP = 3,
+      UC_NO_LCP = 4,
+      UC_DROP = 5
+    };
+    /* Calculated average row size of the rows in the fragment */
+    Uint32 m_average_row_size;
+    Uint32 m_restore_lcp_id;
+    Uint32 m_restore_local_lcp_id;
+    Uint32 m_undo_complete;
+    Uint32 m_tablespace_id;
+    Uint32 m_logfile_group_id;
+    Disk_alloc_info m_disk_alloc_info;
+    // GCI at time of start LCP (used to deduce if one should count row changes)
+    Uint32 m_lcp_start_gci;
+    // Number of changed rows since last LCP (approximative)
+    Uint64 m_lcp_changed_rows;
+    // Number of fixed-seize tuple parts (which equals the tuple count).
+    Uint64 m_fixedElemCount;
+    Uint64 m_row_count;
+    Uint64 m_prev_row_count;
+    Uint64 m_committed_changes;
+    /**
+      Number of variable-size tuple parts, i.e. the number of tuples that has
+      one or more non-NULL varchar/varbinary or blob fields. (The first few
+      bytes of a blob is stored like that, the rest in a blob table.)
+    */
+    Uint64 m_varElemCount;
+
+    // Consistency check.
+    bool verifyVarSpace() const {
+      if ((m_varWordsFree < Uint64(1) << 60) &&  // Underflow.
+          m_varWordsFree * sizeof(Uint32) <=
+              Uint64(noOfVarPages) * File_formats::NDB_PAGE_SIZE) {
+        return true;
+      } else {
+        g_eventLogger->info(
+            "TUP : T%uF%u verifyVarSpace fails : "
+            "m_varWordsFree : %llu "
+            "noOfVarPages : %u",
+            fragTableId, fragmentId, m_varWordsFree, noOfVarPages);
+        return false;
+      }
+    }
+  };
+  typedef Ptr<Fragrecord> FragrecordPtr;
+
+  void acquire_frag_page_map_mutex(Fragrecord *fragPtrP) {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0)) {
+      ndbrequire(!m_is_in_query_thread);
+      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
+    }
+  }
+  void release_frag_page_map_mutex(Fragrecord *fragPtrP) {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0)) {
+      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
+    }
+  }
+  void acquire_frag_page_map_mutex_read() {
+    acquire_frag_page_map_mutex_read(prepare_fragptr.p);
+  }
+  void release_frag_page_map_mutex_read() {
+    release_frag_page_map_mutex_read(prepare_fragptr.p);
+  }
+  void acquire_frag_page_map_mutex_read(Fragrecord *fragPtrP) {
+    if (unlikely(m_is_in_query_thread)) {
+      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
+    }
+  }
+  void release_frag_page_map_mutex_read(Fragrecord *fragPtrP) {
+    if (unlikely(m_is_in_query_thread)) {
+      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
+    }
+  }
+  void acquire_frag_mutex(Fragrecord *fragPtrP, Uint32 logicalPageId) {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0)) {
+      ndbrequire(!m_is_in_query_thread);
+      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
+    }
+  }
+  void release_frag_mutex(Fragrecord *fragPtrP, Uint32 logicalPageId) {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0)) {
+      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
+    }
+  }
+  void acquire_frag_mutex_read(Fragrecord *fragPtrP, Uint32 logicalPageId) {
+    if (unlikely(m_is_in_query_thread)) {
+      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
+    }
+  }
+  void release_frag_mutex_read(Fragrecord *fragPtrP, Uint32 logicalPageId) {
+    if (unlikely(m_is_in_query_thread)) {
+      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
+    }
+  }
+
+  struct Operationrec {
+    static constexpr Uint32 TYPE_ID = RT_DBTUP_OPERATION;
+    Uint32 m_magic;
+
+    Operationrec()
+        : m_magic(Magic::make(TYPE_ID)),
+          prevActiveOp(RNIL),
+          nextActiveOp(RNIL),
+          fragPageId(RNIL),
+          m_commit_state(CommitNotStarted),
+          m_any_value(0),
+          op_type(ZREAD),
+          trans_state(Uint32(TRANS_DISCONNECTED)) {
+      op_struct.bit_field.in_active_list = false;
+      op_struct.bit_field.tupVersion = ZNIL;
+      op_struct.bit_field.delete_insert_flag = false;
+    }
+
+    ~Operationrec() {}
+
+    enum CommitState {
+      CommitNotStarted = 0,
+      CommitStartedNotReceived = 1,
+      CommitStartedReceived = 2,
+      CommitPerformedNotReceived = 3,
+      CommitPerformedReceived = 4,
+      CommitDoneReceived = 5,
+      CommitDoneNotReceived = 6
+    };
+    /*
+     * Doubly linked list with anchor on tuple.
+     * This is to handle multiple updates on the same tuple
+     * by the same transaction.
+     */
+    Uint32 prevActiveOp;
+    Uint32 nextActiveOp;
+
+    Uint32 fragPageId;
+
+    CommitState m_commit_state;
+
+    bool is_first_operation() const { return prevActiveOp == RNIL; }
+    bool is_last_operation() const { return nextActiveOp == RNIL; }
+
+    Uint32 m_undo_buffer_space;  // In words
+
+    Uint32 m_any_value;
+    Uint32 nextPool;
 
     /*
-     * The TupKeyReq requested the after<Op>Triggers to be deferred.
-     * Thus, the *constraints* defined in this trigger list should be
-     * deferred until FIRE_TRIG_REQ arrives.
-     * Note that this does not affect the triggers *declared* as deferred
-     * ('no action') which are managed in the deferred<Op>Triggers and
-     * always deferred until commit time (FIRE_TRIG_REQ)
+     * From fragment i-value we can find fragment and table record
      */
-    unsigned int m_deferred_constraints : 1;
+    Uint32 fragmentPtr;
 
-    /* No foreign keys should be checked for this operation.
-     * No fk triggers will be fired.  
+    /*
+     * We need references to both the original tuple and the copy tuple.
+     * We keep the page's real i-value and its index and from there we
+     * can find out about the fragment page id and the page offset.
      */
-    unsigned int m_disable_fk_checks : 1;
-    unsigned int m_tuple_existed_at_start : 1;
-  };
+    Local_key m_tuple_location;
+    Local_key m_copy_tuple_location;
 
-  union OpStruct {
-    OpBitFields bit_field;
-    Uint32 op_bit_fields;
-  };
-  OpStruct op_struct;
+    /*
+     * We keep the record linked to the operation record in LQH.
+     * This is needed due to writing of REDO log must be performed
+     * in correct order, which is the same order as the writes
+     * occurred. LQH can receive the records in different order.
+     */
+    Uint32 userpointer;
 
-  /*
-   * When refreshing a row, there are four scenarios
-   * The actual scenario is encoded in the 'copy tuple location'
-   * to enable special handling at commit time
-   */
-  enum RefreshScenario
-  {
-    RF_SINGLE_NOT_EXIST = 1,    /* Refresh op first in trans, no row */
-    RF_SINGLE_EXIST     = 2,    /* Refresh op first in trans, row exists */
-    RF_MULTI_NOT_EXIST  = 3,    /* Refresh op !first in trans, row deleted */
-    RF_MULTI_EXIST      = 4     /* Refresh op !first in trans, row exists */
+    /*
+     * When responding to queries in the same transaction they will see
+     * a result from the save point id the query was started. Again
+     * functionality for multi-updates of the same record in one
+     * transaction.
+     */
+    union {
+      Uint32 savepointId;
+      Uint32 m_commit_disk_callback_page;
+    };
+
+    Uint32 op_type;
+    Uint32 trans_state;
+    Uint32 tuple_state;
+
+    /*
+     * State variables on connection.
+     * State variable on tuple after multi-updates
+     * Is operation undo logged or not
+     * Is operation in fragment list
+     * Is operation in multi-update list
+     * Operation type (READ, UPDATE, etc)
+     * Is record primary replica
+     * Is delete or insert performed
+     */
+    struct OpBitFields {
+      /*
+       * TUX needs to know the tuple version of the tuple since it
+       * keeps an entry for both the committed and all versions in
+       * a transaction currently. So each update will create a new
+       * version even if in the same transaction.
+       */
+      unsigned int tupVersion : 16;
+
+      unsigned int m_reorg : 2;
+      unsigned int in_active_list : 1;
+      unsigned int delete_insert_flag : 1;
+      unsigned int m_disk_preallocated : 1;
+      unsigned int m_load_diskpage_on_commit : 1;
+      unsigned int m_wait_log_buffer : 1;
+      unsigned int m_gci_written : 1;
+
+      /**
+       * @see TupKeyReq
+       *
+       * 0 = non-primary replica, fire detached triggers
+       * 1 = primary replica, fire immediate and detached triggers
+       * 2 = no fire triggers
+       *     e.g If the op has no logical effect, it should not be
+       *         sent as an event. Example op is OPTIMIZE table,
+       *         which uses ZUPDATE to move varpart values physically.
+       */
+      unsigned int m_triggers : 2;
+
+      /*
+       * The TupKeyReq requested the after<Op>Triggers to be deferred.
+       * Thus, the *constraints* defined in this trigger list should be
+       * deferred until FIRE_TRIG_REQ arrives.
+       * Note that this does not affect the triggers *declared* as deferred
+       * ('no action') which are managed in the deferred<Op>Triggers and
+       * always deferred until commit time (FIRE_TRIG_REQ)
+       */
+      unsigned int m_deferred_constraints : 1;
+
+      /* No foreign keys should be checked for this operation.
+       * No fk triggers will be fired.
+       */
+      unsigned int m_disable_fk_checks : 1;
+      unsigned int m_tuple_existed_at_start : 1;
+    };
+
+    union OpStruct {
+      OpBitFields bit_field;
+      Uint32 op_bit_fields;
+    };
+    OpStruct op_struct;
+
+    /*
+     * When refreshing a row, there are four scenarios
+     * The actual scenario is encoded in the 'copy tuple location'
+     * to enable special handling at commit time
+     */
+    enum RefreshScenario {
+      RF_SINGLE_NOT_EXIST = 1, /* Refresh op first in trans, no row */
+      RF_SINGLE_EXIST = 2,     /* Refresh op first in trans, row exists */
+      RF_MULTI_NOT_EXIST = 3,  /* Refresh op !first in trans, row deleted */
+      RF_MULTI_EXIST = 4       /* Refresh op !first in trans, row exists */
+    };
   };
-};
 
   Uint32 m_base_header_bits;
 
-  Uint32 get_operation_type(Operationrec *opPtrP)
-  {
-    return opPtrP->op_type;
-  }
+  Uint32 get_operation_type(Operationrec *opPtrP) { return opPtrP->op_type; }
   static constexpr Uint32 DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
   typedef Ptr<Operationrec> OperationrecPtr;
   typedef TransientPool<Operationrec> Operationrec_pool;
@@ -1093,91 +1041,93 @@ struct Operationrec {
   /* WHEN A TRIGGER IS ACTIVATED AND RELEASED */
   /* WHEN THE TRIGGER IS DEACTIVATED.         */
   /* **************************************** */
-struct TupTriggerData {
-  TupTriggerData() {}
-  
-  /**
-   * Trigger id, used by DICT/TRIX to identify the trigger
-   *
-   * trigger Ids are unique per block for SUBSCRIPTION triggers.
-   * This is so that BACKUP can use TUP triggers directly and delete them
-   * properly.
-   */
-  Uint32 triggerId;
+  struct TupTriggerData {
+    TupTriggerData() {}
 
-  /**
-   * In 6.3 there is one trigger per operation
-   */
-  Uint32 oldTriggerIds[3]; // INS/UPD/DEL
+    /**
+     * Trigger id, used by DICT/TRIX to identify the trigger
+     *
+     * trigger Ids are unique per block for SUBSCRIPTION triggers.
+     * This is so that BACKUP can use TUP triggers directly and delete them
+     * properly.
+     */
+    Uint32 triggerId;
 
-  /**
-   * Index id is needed for ordered index.
-   */
-  Uint32 indexId;
+    /**
+     * In 6.3 there is one trigger per operation
+     */
+    Uint32 oldTriggerIds[3];  // INS/UPD/DEL
 
-  /**
-   * Trigger type etc, defines what the trigger is used for
-   */
-  TriggerType::Value triggerType;
-  TriggerActionTime::Value triggerActionTime;
-  TriggerEvent::Value triggerEvent;
-  /**
-   * Receiver block reference
-   */
-  Uint32 m_receiverRef;
-  
-  /**
-   * Monitor all replicas, i.e. trigger will fire on all nodes where tuples
-   * are stored
-   */
-  bool monitorReplicas;
+    /**
+     * Index id is needed for ordered index.
+     */
+    Uint32 indexId;
 
-  /**
-   * Monitor all attributes, the trigger monitors all changes to attributes 
-   * in the table
-   */
-  bool monitorAllAttributes;
+    /**
+     * Trigger type etc, defines what the trigger is used for
+     */
+    TriggerType::Value triggerType;
+    TriggerActionTime::Value triggerActionTime;
+    TriggerEvent::Value triggerEvent;
+    /**
+     * Receiver block reference
+     */
+    Uint32 m_receiverRef;
 
-  /**
-   * Send only changed attributes at trigger firing time.
-   */
-  bool sendOnlyChangedAttributes;
+    /**
+     * Monitor all replicas, i.e. trigger will fire on all nodes where tuples
+     * are stored
+     */
+    bool monitorReplicas;
 
-  /**
-   * Send also before values at trigger firing time.
-   */
-  bool sendBeforeValues;
+    /**
+     * Monitor all attributes, the trigger monitors all changes to attributes
+     * in the table
+     */
+    bool monitorAllAttributes;
 
-  /**
-   * Attribute mask, defines what attributes are to be monitored
-   * Can be seen as a compact representation of SQL column name list
-   */
-  AttributeMask attributeMask;
-  
-  /**
-   * Next ptr (used in pool/list)
-   */
-  union {
-    Uint32 nextPool;
-    Uint32 nextList;
+    /**
+     * Send only changed attributes at trigger firing time.
+     */
+    bool sendOnlyChangedAttributes;
+
+    /**
+     * Send also before values at trigger firing time.
+     */
+    bool sendBeforeValues;
+
+    /**
+     * Attribute mask, defines what attributes are to be monitored
+     * Can be seen as a compact representation of SQL column name list
+     */
+    AttributeMask attributeMask;
+
+    /**
+     * Next ptr (used in pool/list)
+     */
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+
+    /**
+     * Prev pointer (used in list)
+     */
+    Uint32 prevList;
+
+    inline void print(NdbOut &s) const {
+      s << "[TriggerData = " << triggerId << "]";
+    }
   };
-  
+
+  typedef Ptr<TupTriggerData> TriggerPtr;
+  typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
+  typedef DLFifoList<TupTriggerData_pool> TupTriggerData_list;
+
   /**
-   * Prev pointer (used in list)
+   * Pool of trigger data record
    */
-  Uint32 prevList;
-
-  inline void print(NdbOut & s) const { s << "[TriggerData = " << triggerId << "]"; }
-};
-
-typedef Ptr<TupTriggerData> TriggerPtr;
-typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
-typedef DLFifoList<TupTriggerData_pool> TupTriggerData_list;
-
-/**
- * Pool of trigger data record
- */
-TupTriggerData_pool c_triggerPool;
+  TupTriggerData_pool c_triggerPool;
 
   /* ************ TABLE RECORD ************ */
   /* THIS RECORD FORMS A LIST OF TABLE      */
@@ -1195,22 +1145,21 @@ TupTriggerData_pool c_triggerPool;
      2 for dynamic main memory and dynamic disk data.
   */
   static constexpr Uint32 NO_DYNAMICS = 2;
-  
+
   struct Tablerec {
-    Tablerec(TupTriggerData_pool & triggerPool) :
-      afterInsertTriggers(triggerPool),
-      afterDeleteTriggers(triggerPool),
-      afterUpdateTriggers(triggerPool),
-      subscriptionInsertTriggers(triggerPool),
-      subscriptionDeleteTriggers(triggerPool),
-      subscriptionUpdateTriggers(triggerPool),
-      constraintUpdateTriggers(triggerPool),
-      deferredInsertTriggers(triggerPool),
-      deferredUpdateTriggers(triggerPool),
-      deferredDeleteTriggers(triggerPool),
-      tuxCustomTriggers(triggerPool)
-  {}
-    
+    Tablerec(TupTriggerData_pool &triggerPool)
+        : afterInsertTriggers(triggerPool),
+          afterDeleteTriggers(triggerPool),
+          afterUpdateTriggers(triggerPool),
+          subscriptionInsertTriggers(triggerPool),
+          subscriptionDeleteTriggers(triggerPool),
+          subscriptionUpdateTriggers(triggerPool),
+          constraintUpdateTriggers(triggerPool),
+          deferredInsertTriggers(triggerPool),
+          deferredUpdateTriggers(triggerPool),
+          deferredDeleteTriggers(triggerPool),
+          tuxCustomTriggers(triggerPool) {}
+
     AttributeMask notNullAttributeMask;
     AttributeMask blobAttributeMask;
     /*
@@ -1219,7 +1168,7 @@ TupTriggerData_pool c_triggerPool;
     */
     AttributeMask allPkAttributeMask;
     AttributeMask nonCharPkAttributeMask;
-    
+
     /*
       Extra table descriptor for dynamic attributes, or RNIL if none.
       The size of this depends on actual column definitions, so it is allocated
@@ -1229,18 +1178,18 @@ TupTriggerData_pool c_triggerPool;
     Uint32 dynTabDescriptor[2];
 
     /* Mask of variable-sized dynamic attributes. */
-    Uint32* dynVarSizeMask[2];
+    Uint32 *dynVarSizeMask[2];
     /*
       Mask of fixed-sized dynamic attributes. There is one bit set for each
       32-bit word occupied by fixed-size attributes, so fixed-size dynamic
       attributes >32bit have multiple bits here.
     */
-    Uint32* dynFixSizeMask[2];
+    Uint32 *dynFixSizeMask[2];
 
-    ReadFunction* readFunctionArray;
-    UpdateFunction* updateFunctionArray;
-    const CHARSET_INFO** charsetArray;
-    
+    ReadFunction *readFunctionArray;
+    UpdateFunction *updateFunctionArray;
+    const CHARSET_INFO **charsetArray;
+
     Uint32 readKeyArray;
     /*
       Offset into Dbtup::tableDescriptor of the start of the descriptor
@@ -1263,23 +1212,22 @@ TupTriggerData_pool c_triggerPool;
       fixed-size attribute is at index <num fixed> + <num varsize> + 1.
     */
     Uint32 m_real_order_descriptor;
-    
-    enum Bits
-    {
-      TR_Checksum = 0x1, // Need to be 1
-      TR_RowGCI   = 0x2,
+
+    enum Bits {
+      TR_Checksum = 0x1,  // Need to be 1
+      TR_RowGCI = 0x2,
       TR_ForceVarPart = 0x4,
-      TR_DiskPart  = 0x8,
+      TR_DiskPart = 0x8,
       TR_ExtraRowGCIBits = 0x10,
       TR_ExtraRowAuthorBits = 0x20
     };
     Uint16 m_bits;
-    Uint16 total_rec_size; // Max total size for entire tuple in words
-    
+    Uint16 total_rec_size;  // Max total size for entire tuple in words
+
     /**
      * Aggregates
      */
-    Uint16 m_no_of_extra_columns; // "Hidden" columns
+    Uint16 m_no_of_extra_columns;  // "Hidden" columns
     Uint16 m_dyn_null_bits[2];
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
@@ -1287,72 +1235,68 @@ TupTriggerData_pool c_triggerPool;
     Uint16 m_no_of_disk_attributes;
     Uint16 m_no_of_attributes;
 
-    bool need_expand() const { 
+    bool need_expand() const {
       return m_no_of_attributes > m_attributes[MM].m_no_of_fixsize;
     }
 
-    bool need_expand(bool disk) const { 
+    bool need_expand(bool disk) const {
       return m_attributes[MM].m_no_of_varsize > 0 ||
-        m_attributes[MM].m_no_of_dynamic > 0 ||
-	(disk && m_no_of_disk_attributes > 0);
-    }
-    
-    bool need_shrink() const {
-      return 
-	m_attributes[MM].m_no_of_varsize > 0 ||
-        m_attributes[MM].m_no_of_dynamic > 0 ||
-	m_attributes[DD].m_no_of_varsize > 0;
-    }
-    
-    bool need_shrink(bool disk) const {
-      return 
-	m_attributes[MM].m_no_of_varsize > 0 ||
-	m_attributes[MM].m_no_of_dynamic > 0 ||
-        (disk && m_attributes[DD].m_no_of_varsize > 0);
+             m_attributes[MM].m_no_of_dynamic > 0 ||
+             (disk && m_no_of_disk_attributes > 0);
     }
 
-    template <Uint32 bit> Uint32 getExtraAttrId() const {
-      if (bit == TR_ExtraRowGCIBits)
-        return 0;
+    bool need_shrink() const {
+      return m_attributes[MM].m_no_of_varsize > 0 ||
+             m_attributes[MM].m_no_of_dynamic > 0 ||
+             m_attributes[DD].m_no_of_varsize > 0;
+    }
+
+    bool need_shrink(bool disk) const {
+      return m_attributes[MM].m_no_of_varsize > 0 ||
+             m_attributes[MM].m_no_of_dynamic > 0 ||
+             (disk && m_attributes[DD].m_no_of_varsize > 0);
+    }
+
+    template <Uint32 bit>
+    Uint32 getExtraAttrId() const {
+      if (bit == TR_ExtraRowGCIBits) return 0;
       Uint32 no = 0;
-      if (m_bits & TR_ExtraRowGCIBits)
-        no++;
+      if (m_bits & TR_ExtraRowGCIBits) no++;
       assert(bit == TR_ExtraRowAuthorBits);
-      //if (bit == TR_ExtraRowAuthorBits)
+      // if (bit == TR_ExtraRowAuthorBits)
       return no;
     }
 
     Uint32 get_checksum_length() const {
-      if (m_bits & TR_Checksum)
-        return 1;
+      if (m_bits & TR_Checksum) return 1;
       return 0;
     }
 
     struct {
       Uint16 m_no_of_fixsize;
       Uint16 m_no_of_varsize;
-      Uint16 m_no_of_dynamic;                   // Total no. of dynamic attrs
-      Uint16 m_no_of_dyn_fix;                   // No. of fixsize dynamic
-      Uint16 m_no_of_dyn_var;                   // No. of varsize dynamic
+      Uint16 m_no_of_dynamic;  // Total no. of dynamic attrs
+      Uint16 m_no_of_dyn_fix;  // No. of fixsize dynamic
+      Uint16 m_no_of_dyn_var;  // No. of varsize dynamic
       /*
         Note that due to bit types, we may have
             m_no_of_dynamic > m_no_of_dyn_fix + m_no_of_dyn_var
       */
     } m_attributes[2];
-    
+
     /**
      * Descriptors for MM and DD part
      */
     struct Tuple_offsets {
       Uint8 m_null_words;
       Uint8 m_null_offset;
-      Uint16 m_disk_ref_offset; // In words relative m_data
-      Uint16 m_fix_header_size; // For fix size tuples= total rec size(part)
-      Uint16 m_max_var_offset;  // In bytes relative m_var_data.m_data_ptr
-      Uint16 m_max_dyn_offset;  // In bytes relative m_var_data.m_dyn_data_ptr
-      Uint16 m_dyn_null_words;  // 32-bit words in dynattr bitmap
+      Uint16 m_disk_ref_offset;  // In words relative m_data
+      Uint16 m_fix_header_size;  // For fix size tuples= total rec size(part)
+      Uint16 m_max_var_offset;   // In bytes relative m_var_data.m_data_ptr
+      Uint16 m_max_dyn_offset;   // In bytes relative m_var_data.m_dyn_data_ptr
+      Uint16 m_dyn_null_words;   // 32-bit words in dynattr bitmap
     } m_offsets[2];
-    
+
     Uint32 get_check_offset(Uint32 mm) const {
       return m_offsets[mm].m_fix_header_size;
     }
@@ -1371,7 +1315,7 @@ TupTriggerData_pool c_triggerPool;
 
     // List of ordered indexes
     TupTriggerData_list tuxCustomTriggers;
-    
+
     Uint32 fragid[MAX_FRAG_PER_LQH];
     Uint32 fragrec[MAX_FRAG_PER_LQH];
 
@@ -1391,7 +1335,7 @@ TupTriggerData_pool c_triggerPool;
       struct {
         Uint32 m_fragOpPtrI;
         Uint32 defValSectionI;
-        Local_key defValLocation; 
+        Local_key defValLocation;
       } m_createTable;
       struct {
         Uint32 m_gci_hi;
@@ -1401,76 +1345,67 @@ TupTriggerData_pool c_triggerPool;
     State tableStatus;
     Local_key m_default_value_location;
   };
-  Uint32
-    m_read_ctl_file_data[BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
+  Uint32 m_read_ctl_file_data[BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
   /*
     It is more space efficient to store dynamic fixed-size attributes
     of more than about 16 words as variable-sized internally.
    */
   static constexpr Uint32 InternalMaxDynFix = 16;
 
-  struct Disk_undo 
-  {
-    enum 
-    {
-      UNDO_ALLOC = File_formats::Undofile::UNDO_TUP_ALLOC
-      ,UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE
-      ,UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE
-      ,UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP
-      ,UNDO_UPDATE_PART = File_formats::Undofile::UNDO_TUP_UPDATE_PART
-      ,UNDO_FIRST_UPDATE_PART =
-        File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART
-      ,UNDO_FREE_PART = File_formats::Undofile::UNDO_TUP_FREE_PART
+  struct Disk_undo {
+    enum {
+      UNDO_ALLOC = File_formats::Undofile::UNDO_TUP_ALLOC,
+      UNDO_UPDATE = File_formats::Undofile::UNDO_TUP_UPDATE,
+      UNDO_FREE = File_formats::Undofile::UNDO_TUP_FREE,
+      UNDO_DROP = File_formats::Undofile::UNDO_TUP_DROP,
+      UNDO_UPDATE_PART = File_formats::Undofile::UNDO_TUP_UPDATE_PART,
+      UNDO_FIRST_UPDATE_PART =
+          File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART,
+      UNDO_FREE_PART = File_formats::Undofile::UNDO_TUP_FREE_PART
     };
-    
-    struct Alloc 
-    {
-      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+
+    struct Alloc {
+      Uint32 m_file_no_page_idx;  // 16 bit file_no, 16 bit page_idx
       Uint32 m_page_no;
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
-    
-    struct Update
-    {
-      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+
+    struct Update {
+      Uint32 m_file_no_page_idx;  // 16 bit file_no, 16 bit page_idx
       Uint32 m_page_no;
       Uint32 m_gci;
       Uint32 m_data[1];
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
-    
-    struct UpdatePart
-    {
-      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+
+    struct UpdatePart {
+      Uint32 m_file_no_page_idx;  // 16 bit file_no, 16 bit page_idx
       Uint32 m_page_no;
       Uint32 m_gci;
       Uint32 m_offset;
       Uint32 m_data[1];
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
 
-    struct Free
-    {
-      Uint32 m_file_no_page_idx; // 16 bit file_no, 16 bit page_idx
+    struct Free {
+      Uint32 m_file_no_page_idx;  // 16 bit file_no, 16 bit page_idx
       Uint32 m_page_no;
       Uint32 m_gci;
       Uint32 m_data[1];
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
 
-    struct Create
-    {
+    struct Create {
       Uint32 m_table;
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
 
-    struct Drop
-    {
+    struct Drop {
       Uint32 m_table;
-      Uint32 m_type_length; // 16 bit type, 16 bit length
+      Uint32 m_type_length;  // 16 bit type, 16 bit length
     };
   };
-  
+
   Extent_info_pool c_extent_pool;
   Extent_info_hash c_extent_hash;
   Page_request_pool c_page_request_pool;
@@ -1481,17 +1416,12 @@ TupTriggerData_pool c_triggerPool;
     static constexpr Uint32 TYPE_ID = RT_DBTUP_STORED_PROCEDURE;
     Uint32 m_magic;
 
-    storedProc() :
-      m_magic(Magic::make(TYPE_ID))
-    {
-    }
+    storedProc() : m_magic(Magic::make(TYPE_ID)) {}
 
-    ~storedProc()
-    {
-    }
+    ~storedProc() {}
 
     Uint32 storedProcIVal;
-    Uint32 storedParamNo; // Current attrInfo param being used
+    Uint32 storedParamNo;  // Current attrInfo param being used
     Uint32 nextPool;
     Uint16 storedCode;
   };
@@ -1504,113 +1434,128 @@ TupTriggerData_pool c_triggerPool;
   Uint32 c_storedProcCountNonAPI;
   void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
 
-/* **************************** TABLE_DESCRIPTOR RECORD ******************************** */
-/* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS STORED AS A */
-/* CONTIGUOUS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS ADDED A CHUNK IS ALLOCATED IN  */
-/* THIS RECORD. WHEN ATTRIBUTES ARE ADDED TO THE TABLE, A NEW CHUNK OF PROPER SIZE IS    */
-/* ALLOCATED AND ALL DATA IS COPIED TO THIS NEW CHUNK AND THEN THE OLD CHUNK IS PUT IN   */
-/* THE FREE LIST. EACH TABLE IS DESCRIBED BY A NUMBER OF TABLE DESCRIPTIVE ATTRIBUTES    */
-/* AND A NUMBER OF ATTRIBUTE DESCRIPTORS AS SHOWN IN FIGURE BELOW                        */
-/*                                                                                       */
-/* WHEN ALLOCATING A TABLE DESCRIPTOR THE SIZE IS ALWAYS A MULTIPLE OF 16 WORDS.         */
-/*                                                                                       */
-/*               ----------------------------------------------                          */
-/*               |    TRAILER USED FOR ALLOC/DEALLOC          |                          */
-/*               ----------------------------------------------                          */
-/*               |    TABLE DESCRIPTIVE ATTRIBUTES            |                          */
-/*               ----------------------------------------------                          */
-/*               |    ATTRIBUTE DESCRIPTION 1                 |                          */
-/*               ----------------------------------------------                          */
-/*               |    ATTRIBUTE DESCRIPTION 2                 |                          */
-/*               ----------------------------------------------                          */
-/*               |                                            |                          */
-/*               |                                            |                          */
-/*               |                                            |                          */
-/*               ----------------------------------------------                          */
-/*               |    ATTRIBUTE DESCRIPTION N                 |                          */
-/*               ----------------------------------------------                          */
-/*                                                                                       */
-/* THE TABLE DESCRIPTIVE ATTRIBUTES CONTAINS THE FOLLOWING ATTRIBUTES:                   */
-/*                                                                                       */
-/*               ----------------------------------------------                          */
-/*               |    HEADER (TYPE OF INFO)                   |                          */
-/*               ----------------------------------------------                          */
-/*               |    SIZE OF WHOLE CHUNK (INCL. TRAILER)     |                          */
-/*               ----------------------------------------------                          */
-/*               |    TABLE IDENTITY                          |                          */
-/*               ----------------------------------------------                          */
-/*               |    FRAGMENT IDENTITY                       |                          */
-/*               ----------------------------------------------                          */
-/*               |    NUMBER OF ATTRIBUTES                    |                          */
-/*               ----------------------------------------------                          */
-/*               |    SIZE OF FIXED ATTRIBUTES                |                          */
-/*               ----------------------------------------------                          */
-/*               |    NUMBER OF NULL FIELDS                   |                          */
-/*               ----------------------------------------------                          */
-/*               |    NOT USED                                |                          */
-/*               ----------------------------------------------                          */
-/*                                                                                       */
-/* THESE ATTRIBUTES ARE ALL ONE R-VARIABLE IN THE RECORD.                                */
-/* NORMALLY ONLY ONE TABLE DESCRIPTOR IS USED. DURING SCHEMA CHANGES THERE COULD         */
-/* HOWEVER EXIST MORE THAN ONE TABLE DESCRIPTION SINCE THE SCHEMA CHANGE OF VARIOUS      */
-/* FRAGMENTS ARE NOT SYNCHRONISED. THIS MEANS THAT ALTHOUGH THE SCHEMA HAS CHANGED       */
-/* IN ALL FRAGMENTS, BUT THE FRAGMENTS HAVE NOT REMOVED THE ATTRIBUTES IN THE SAME       */
-/* TIME-FRAME. THEREBY SOME ATTRIBUTE INFORMATION MIGHT DIFFER BETWEEN FRAGMENTS.        */
-/* EXAMPLES OF ATTRIBUTES THAT MIGHT DIFFER ARE SIZE OF FIXED ATTRIBUTES, NUMBER OF      */
-/* ATTRIBUTES, FIELD START WORD, START BIT.                                              */
-/*                                                                                       */
-/* AN ATTRIBUTE DESCRIPTION CONTAINS THE FOLLOWING ATTRIBUTES:                           */
-/*                                                                                       */
-/*               ----------------------------------------------                          */
-/*               |    Field Type, 4 bits (LSB Bits)           |                          */
-/*               ----------------------------------------------                          */
-/*               |    Attribute Size, 4 bits                  |                          */
-/*               ----------------------------------------------                          */
-/*               |    NULL indicator 1 bit                    |                          */
-/*               ----------------------------------------------                          */
-/*               |    Indicator if TUP stores attr. 1 bit     |                          */
-/*               ----------------------------------------------                          */
-/*               |    Not used 6 bits                         |                          */
-/*               ----------------------------------------------                          */
-/*               |    No. of elements in fixed array 16 bits  |                          */
-/*               ----------------------------------------------                          */
-/*               ----------------------------------------------                          */
-/*               |    Field Start Word, 21 bits (LSB Bits)    |                          */
-/*               ----------------------------------------------                          */
-/*               |    NULL Bit, 11 bits                       |                          */
-/*               ----------------------------------------------                          */
-/*                                                                                       */
-/* THE ATTRIBUTE SIZE CAN BE 1,2,4,8,16,32,64 AND 128 BITS.                              */
-/*                                                                                       */
-/* THE UNUSED PARTS OF THE RECORDS ARE PUT IN A LINKED LIST OF FREE PARTS. EACH OF       */
-/* THOSE FREE PARTS HAVE THREE RECORDS ASSIGNED AS SHOWN IN THIS STRUCTURE               */
-/* ALL FREE PARTS ARE SET INTO A CHUNK LIST WHERE EACH CHUNK IS AT LEAST 16 WORDS        */
-/*                                                                                       */
-/*               ----------------------------------------------                          */
-/*               |    HEADER = RNIL                           |                          */
-/*               ----------------------------------------------                          */
-/*               |    SIZE OF FREE AREA                       |                          */
-/*               ----------------------------------------------                          */
-/*               |    POINTER TO PREVIOUS FREE AREA           |                          */
-/*               ----------------------------------------------                          */
-/*               |    POINTER TO NEXT FREE AREA               |                          */
-/*               ----------------------------------------------                          */
-/*                                                                                       */
-/* IF THE POINTER TO THE NEXT AREA IS RNIL THEN THIS IS THE LAST FREE AREA.              */
-/*                                                                                       */
-/*****************************************************************************************/
-struct TableDescriptor {
-  Uint32 tabDescr;
-};
-typedef Ptr<TableDescriptor> TableDescriptorPtr;
+  /* **************************** TABLE_DESCRIPTOR RECORD
+   * ******************************** */
+  /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS
+   * STORED AS A */
+  /* CONTIGUOUS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS ADDED A CHUNK IS
+   * ALLOCATED IN  */
+  /* THIS RECORD. WHEN ATTRIBUTES ARE ADDED TO THE TABLE, A NEW CHUNK OF PROPER
+   * SIZE IS    */
+  /* ALLOCATED AND ALL DATA IS COPIED TO THIS NEW CHUNK AND THEN THE OLD CHUNK
+   * IS PUT IN   */
+  /* THE FREE LIST. EACH TABLE IS DESCRIBED BY A NUMBER OF TABLE DESCRIPTIVE
+   * ATTRIBUTES    */
+  /* AND A NUMBER OF ATTRIBUTE DESCRIPTORS AS SHOWN IN FIGURE BELOW */
+  /*                                                                                       */
+  /* WHEN ALLOCATING A TABLE DESCRIPTOR THE SIZE IS ALWAYS A MULTIPLE OF 16
+   * WORDS.         */
+  /*                                                                                       */
+  /*               ---------------------------------------------- */
+  /*               |    TRAILER USED FOR ALLOC/DEALLOC          | */
+  /*               ---------------------------------------------- */
+  /*               |    TABLE DESCRIPTIVE ATTRIBUTES            | */
+  /*               ---------------------------------------------- */
+  /*               |    ATTRIBUTE DESCRIPTION 1                 | */
+  /*               ---------------------------------------------- */
+  /*               |    ATTRIBUTE DESCRIPTION 2                 | */
+  /*               ---------------------------------------------- */
+  /*               |                                            | */
+  /*               |                                            | */
+  /*               |                                            | */
+  /*               ---------------------------------------------- */
+  /*               |    ATTRIBUTE DESCRIPTION N                 | */
+  /*               ---------------------------------------------- */
+  /*                                                                                       */
+  /* THE TABLE DESCRIPTIVE ATTRIBUTES CONTAINS THE FOLLOWING ATTRIBUTES: */
+  /*                                                                                       */
+  /*               ---------------------------------------------- */
+  /*               |    HEADER (TYPE OF INFO)                   | */
+  /*               ---------------------------------------------- */
+  /*               |    SIZE OF WHOLE CHUNK (INCL. TRAILER)     | */
+  /*               ---------------------------------------------- */
+  /*               |    TABLE IDENTITY                          | */
+  /*               ---------------------------------------------- */
+  /*               |    FRAGMENT IDENTITY                       | */
+  /*               ---------------------------------------------- */
+  /*               |    NUMBER OF ATTRIBUTES                    | */
+  /*               ---------------------------------------------- */
+  /*               |    SIZE OF FIXED ATTRIBUTES                | */
+  /*               ---------------------------------------------- */
+  /*               |    NUMBER OF NULL FIELDS                   | */
+  /*               ---------------------------------------------- */
+  /*               |    NOT USED                                | */
+  /*               ---------------------------------------------- */
+  /*                                                                                       */
+  /* THESE ATTRIBUTES ARE ALL ONE R-VARIABLE IN THE RECORD. */
+  /* NORMALLY ONLY ONE TABLE DESCRIPTOR IS USED. DURING SCHEMA CHANGES THERE
+   * COULD         */
+  /* HOWEVER EXIST MORE THAN ONE TABLE DESCRIPTION SINCE THE SCHEMA CHANGE OF
+   * VARIOUS      */
+  /* FRAGMENTS ARE NOT SYNCHRONISED. THIS MEANS THAT ALTHOUGH THE SCHEMA HAS
+   * CHANGED       */
+  /* IN ALL FRAGMENTS, BUT THE FRAGMENTS HAVE NOT REMOVED THE ATTRIBUTES IN THE
+   * SAME       */
+  /* TIME-FRAME. THEREBY SOME ATTRIBUTE INFORMATION MIGHT DIFFER BETWEEN
+   * FRAGMENTS.        */
+  /* EXAMPLES OF ATTRIBUTES THAT MIGHT DIFFER ARE SIZE OF FIXED ATTRIBUTES,
+   * NUMBER OF      */
+  /* ATTRIBUTES, FIELD START WORD, START BIT. */
+  /*                                                                                       */
+  /* AN ATTRIBUTE DESCRIPTION CONTAINS THE FOLLOWING ATTRIBUTES: */
+  /*                                                                                       */
+  /*               ---------------------------------------------- */
+  /*               |    Field Type, 4 bits (LSB Bits)           | */
+  /*               ---------------------------------------------- */
+  /*               |    Attribute Size, 4 bits                  | */
+  /*               ---------------------------------------------- */
+  /*               |    NULL indicator 1 bit                    | */
+  /*               ---------------------------------------------- */
+  /*               |    Indicator if TUP stores attr. 1 bit     | */
+  /*               ---------------------------------------------- */
+  /*               |    Not used 6 bits                         | */
+  /*               ---------------------------------------------- */
+  /*               |    No. of elements in fixed array 16 bits  | */
+  /*               ---------------------------------------------- */
+  /*               ---------------------------------------------- */
+  /*               |    Field Start Word, 21 bits (LSB Bits)    | */
+  /*               ---------------------------------------------- */
+  /*               |    NULL Bit, 11 bits                       | */
+  /*               ---------------------------------------------- */
+  /*                                                                                       */
+  /* THE ATTRIBUTE SIZE CAN BE 1,2,4,8,16,32,64 AND 128 BITS. */
+  /*                                                                                       */
+  /* THE UNUSED PARTS OF THE RECORDS ARE PUT IN A LINKED LIST OF FREE PARTS.
+   * EACH OF       */
+  /* THOSE FREE PARTS HAVE THREE RECORDS ASSIGNED AS SHOWN IN THIS STRUCTURE */
+  /* ALL FREE PARTS ARE SET INTO A CHUNK LIST WHERE EACH CHUNK IS AT LEAST 16
+   * WORDS        */
+  /*                                                                                       */
+  /*               ---------------------------------------------- */
+  /*               |    HEADER = RNIL                           | */
+  /*               ---------------------------------------------- */
+  /*               |    SIZE OF FREE AREA                       | */
+  /*               ---------------------------------------------- */
+  /*               |    POINTER TO PREVIOUS FREE AREA           | */
+  /*               ---------------------------------------------- */
+  /*               |    POINTER TO NEXT FREE AREA               | */
+  /*               ---------------------------------------------- */
+  /*                                                                                       */
+  /* IF THE POINTER TO THE NEXT AREA IS RNIL THEN THIS IS THE LAST FREE AREA. */
+  /*                                                                                       */
+  /*****************************************************************************************/
+  struct TableDescriptor {
+    Uint32 tabDescr;
+  };
+  typedef Ptr<TableDescriptor> TableDescriptorPtr;
 
-struct HostBuffer {
-  bool  inPackedList;
-  Uint32 packetLenTA;
-  Uint32 noOfPacketsTA;
-  Uint32 packetBufferTA[30];
-};
-typedef Ptr<HostBuffer> HostBufferPtr;
+  struct HostBuffer {
+    bool inPackedList;
+    Uint32 packetLenTA;
+    Uint32 noOfPacketsTA;
+    Uint32 packetBufferTA[30];
+  };
+  typedef Ptr<HostBuffer> HostBufferPtr;
 
   /*
    * Build index operation record.
@@ -1619,13 +1564,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     BuildIndexRec() {}
 
     BuildIndxImplReq m_request;
-    Uint8  m_build_vs;          // varsize pages
-    Uint32 m_indexId;           // the index
-    Uint32 m_fragNo;            // fragment number under Tablerec
-    Uint32 m_pageId;            // logical fragment page id
-    Uint32 m_tupleNo;           // tuple number on page
-    Uint32 m_buildRef;          // Where to send tuples
-    Uint32 m_outstanding;       // If mt-build...
+    Uint8 m_build_vs;      // varsize pages
+    Uint32 m_indexId;      // the index
+    Uint32 m_fragNo;       // fragment number under Tablerec
+    Uint32 m_pageId;       // logical fragment page id
+    Uint32 m_tupleNo;      // tuple number on page
+    Uint32 m_buildRef;     // Where to send tuples
+    Uint32 m_outstanding;  // If mt-build...
     BuildIndxImplRef::ErrorCode m_errorCode;
     union {
       Uint32 nextPool;
@@ -1640,49 +1585,47 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   BuildIndexRec_list c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
 
-  int mt_scan_init(Uint32 tableId, Uint32 fragId, Local_key * pos, Uint32 * fragPtrI);
-  int mt_scan_next(Uint32 tableId, Uint32 fragPtrI, Local_key* pos, bool moveNext);
+  int mt_scan_init(Uint32 tableId, Uint32 fragId, Local_key *pos,
+                   Uint32 *fragPtrI);
+  int mt_scan_next(Uint32 tableId, Uint32 fragPtrI, Local_key *pos,
+                   bool moveNext);
 
   /**
    * Reference to variable part when a tuple is chained
    */
-  struct Var_part_ref 
-  {
+  struct Var_part_ref {
     Uint32 m_page_no;
     Uint32 m_page_idx;
     static constexpr Uint32 SZ32 = 2;
 
-    void copyout(Local_key* dst) const {
+    void copyout(Local_key *dst) const {
       dst->m_page_no = m_page_no;
       dst->m_page_idx = m_page_idx;
     }
 
-    void assign(const Local_key* src) {
+    void assign(const Local_key *src) {
       m_page_no = src->m_page_no;
       m_page_idx = src->m_page_idx;
     }
   };
-  
-  struct Disk_part_ref
-  {
+
+  struct Disk_part_ref {
     static constexpr Uint32 SZ32 = 2;
   };
 
-  struct Tuple_header
-  {
+  struct Tuple_header {
     union {
       /**
        * List of prepared operations for this tuple.
        * Points to most recent/last operation, ie. to walk the list must follow
        * regOperPtr->prevActiveOp links.
        */
-      Uint32 m_operation_ptr_i;  // OperationPtrI
+      Uint32 m_operation_ptr_i;      // OperationPtrI
       Uint32 m_base_record_page_no;  // For disk tuple, ref to MM tuple
       Uint32 m_first_words[1];
     };
-    union
-    {
-      Uint32 m_header_bits;      // Header word
+    union {
+      Uint32 m_header_bits;           // Header word
       Uint32 m_base_record_page_idx;  // For disk tuple, ref to MM tuple
     };
     union {
@@ -1692,7 +1635,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     };
 
     static constexpr Uint32 HeaderSize = 2;
-    
+
     /*
      Header bits.
 
@@ -1714,84 +1657,85 @@ typedef Ptr<HostBuffer> HostBufferPtr;
      proper state of the row. (Related Bug #27584165)
     */
     static constexpr Uint32 TUP_VERSION_MASK = 0xFFFF;
-    static constexpr Uint32 COPY_TUPLE = 0x00010000; // Is this a copy tuple
-    static constexpr Uint32 DISK_PART = 0x00020000; // Is there a disk part
-    static constexpr Uint32 DISK_ALLOC = 0x00040000; // Is disk part allocated
-    static constexpr Uint32 DISK_INLINE = 0x00080000; // Is disk inline
-    static constexpr Uint32 ALLOC = 0x00100000; // Is record allocated now
-    static constexpr Uint32 NOT_USED_BIT = 0x00200000; //
-    static constexpr Uint32 MM_GROWN = 0x00400000; // Has MM part grown
-    static constexpr Uint32 FREE = 0x00800000; // Is free
-    static constexpr Uint32 LCP_SKIP = 0x01000000; // Should not be returned in LCP
-    static constexpr Uint32 VAR_PART = 0x04000000; // Is there a varpart
-    static constexpr Uint32 REORG_MOVE = 0x08000000; // Tuple will be moved in reorg
-    static constexpr Uint32 LCP_DELETE = 0x10000000; // Tuple deleted at LCP start
-    static constexpr Uint32 DELETE_WAIT = 0x20000000; // Waiting for delete tuple page
+    static constexpr Uint32 COPY_TUPLE = 0x00010000;   // Is this a copy tuple
+    static constexpr Uint32 DISK_PART = 0x00020000;    // Is there a disk part
+    static constexpr Uint32 DISK_ALLOC = 0x00040000;   // Is disk part allocated
+    static constexpr Uint32 DISK_INLINE = 0x00080000;  // Is disk inline
+    static constexpr Uint32 ALLOC = 0x00100000;  // Is record allocated now
+    static constexpr Uint32 NOT_USED_BIT = 0x00200000;  //
+    static constexpr Uint32 MM_GROWN = 0x00400000;      // Has MM part grown
+    static constexpr Uint32 FREE = 0x00800000;          // Is free
+    static constexpr Uint32 LCP_SKIP =
+        0x01000000;  // Should not be returned in LCP
+    static constexpr Uint32 VAR_PART = 0x04000000;  // Is there a varpart
+    static constexpr Uint32 REORG_MOVE =
+        0x08000000;  // Tuple will be moved in reorg
+    static constexpr Uint32 LCP_DELETE =
+        0x10000000;  // Tuple deleted at LCP start
+    static constexpr Uint32 DELETE_WAIT =
+        0x20000000;  // Waiting for delete tuple page
 
     Tuple_header() {}
-    Uint32 get_tuple_version() const { 
+    Uint32 get_tuple_version() const {
       return m_header_bits & TUP_VERSION_MASK;
     }
-    void set_tuple_version(Uint32 version) { 
-      m_header_bits= 
-	(m_header_bits & ~(Uint32)TUP_VERSION_MASK) | 
-	(version & TUP_VERSION_MASK);
+    void set_tuple_version(Uint32 version) {
+      m_header_bits = (m_header_bits & ~(Uint32)TUP_VERSION_MASK) |
+                      (version & TUP_VERSION_MASK);
     }
-    void get_base_record_ref(Local_key& key)
-    {
+    void get_base_record_ref(Local_key &key) {
       require(m_base_record_page_idx <= MAX_TUPLES_PER_PAGE);
       key.m_page_no = m_base_record_page_no;
       key.m_page_idx = m_base_record_page_idx;
     }
-    void set_base_record_ref(Local_key key)
-    {
+    void set_base_record_ref(Local_key key) {
       m_base_record_page_no = key.m_page_no;
       m_base_record_page_idx = key.m_page_idx;
     }
-    Uint32* get_null_bits(const Tablerec* tabPtrP) {
-      return m_null_bits+tabPtrP->m_offsets[MM].m_null_offset;
+    Uint32 *get_null_bits(const Tablerec *tabPtrP) {
+      return m_null_bits + tabPtrP->m_offsets[MM].m_null_offset;
     }
 
-    Uint32* get_null_bits(const Tablerec* tabPtrP, Uint32 mm) {
-      return m_null_bits+tabPtrP->m_offsets[mm].m_null_offset;
-    }
-    
-    Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) {
-      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
+    Uint32 *get_null_bits(const Tablerec *tabPtrP, Uint32 mm) {
+      return m_null_bits + tabPtrP->m_offsets[mm].m_null_offset;
     }
 
-    const Var_part_ref* get_var_part_ref_ptr(const Tablerec* tabPtrP) const {
-      return (Var_part_ref*)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
+    Var_part_ref *get_var_part_ref_ptr(const Tablerec *tabPtrP) {
+      return (Var_part_ref *)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
-    
-    Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) {
-      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
-        Tuple_header::HeaderSize;
+
+    const Var_part_ref *get_var_part_ref_ptr(const Tablerec *tabPtrP) const {
+      return (Var_part_ref *)(get_disk_ref_ptr(tabPtrP) + Disk_part_ref::SZ32);
     }
-    
-    const Uint32* get_end_of_fix_part_ptr(const Tablerec* tabPtrP) const {
-      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size - 
-        Tuple_header::HeaderSize;
+
+    Uint32 *get_end_of_fix_part_ptr(const Tablerec *tabPtrP) {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size -
+             Tuple_header::HeaderSize;
     }
-    
-    Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) {
+
+    const Uint32 *get_end_of_fix_part_ptr(const Tablerec *tabPtrP) const {
+      return m_data + tabPtrP->m_offsets[MM].m_fix_header_size -
+             Tuple_header::HeaderSize;
+    }
+
+    Uint32 *get_disk_ref_ptr(const Tablerec *tabPtrP) {
       return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
-    const Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) const {
+    const Uint32 *get_disk_ref_ptr(const Tablerec *tabPtrP) const {
       return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
-    static Uint32 get_mm_gci_pos(const Tablerec* tabPtrP) {
+    static Uint32 get_mm_gci_pos(const Tablerec *tabPtrP) {
       return Tuple_header::HeaderSize + tabPtrP->get_checksum_length();
     }
 
-    Uint32 *get_mm_gci(const Tablerec* tabPtrP){
+    Uint32 *get_mm_gci(const Tablerec *tabPtrP) {
       /* Mandatory position even if TR_RowGCI isn't set (happens in restore */
       return m_data + tabPtrP->get_checksum_length();
     }
 
-    Uint32 *get_dd_gci(const Tablerec* tabPtrP, Uint32 mm){
+    Uint32 *get_dd_gci(const Tablerec *tabPtrP, Uint32 mm) {
       assert(tabPtrP->m_bits & Tablerec::TR_RowGCI);
       return m_data;
     }
@@ -1800,305 +1744,276 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   /**
    * Format of varpart after insert/update
    */
-  struct Varpart_copy
-  {
+  struct Varpart_copy {
     Uint32 m_len;
-    Uint32 m_data[1]; // Only used for easy offset handling
+    Uint32 m_data[1];  // Only used for easy offset handling
 
     static constexpr Uint32 SZ32 = 1;
   };
 
   static constexpr Uint32 MAX_EXPANDED_TUPLE_SIZE_IN_WORDS =
-    Tuple_header::HeaderSize +
+      Tuple_header::HeaderSize +
 
-    /* Fixpart without null bits (see below) */
-    1 /* checksum */ +
-    1 /* GCI */ +
-    Var_part_ref::SZ32 +
-    Disk_part_ref::SZ32 +
+      /* Fixpart without null bits (see below) */
+      1 /* checksum */ + 1 /* GCI */ + Var_part_ref::SZ32 +
+      Disk_part_ref::SZ32 +
 
-    /* Varpart without dynamic column bits (see below) */
-    1 /* Length word, only in expanded tuple */ +
-    ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE + 1 /* dynamic part */, 2) +
-    1 /* Dynamic bit length (8bit) plus padding */ +
+      /* Varpart without dynamic column bits (see below) */
+      1 /* Length word, only in expanded tuple */ +
+      ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE + 1 /* dynamic part */, 2) +
+      1 /* Dynamic bit length (8bit) plus padding */ +
 
-    /* Diskpart */
-    0 +
+      /* Diskpart */
+      0 +
 
-    /* Null bits and dynamic columns bits.  Dynamic columns do not have null
-       bits so total number of bits will not be more than
-       MAX_ATTRIBUTES_IN_TABLE.  But since bits are split on two parts an
-       extra word for padding may be needed.
-     */
-    ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE, 32) + 1 +
+      /* Null bits and dynamic columns bits.  Dynamic columns do not have null
+         bits so total number of bits will not be more than
+         MAX_ATTRIBUTES_IN_TABLE.  But since bits are split on two parts an
+         extra word for padding may be needed.
+       */
+      ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE, 32) + 1 +
 
-    /* Tuple data for all parts */
-    MAX_TUPLE_SIZE_IN_WORDS;
+      /* Tuple data for all parts */
+      MAX_TUPLE_SIZE_IN_WORDS;
 
-  enum When
-  {
+  enum When {
     KRS_PREPARE = 0,
     KRS_COMMIT = 1,
     KRS_PRE_COMMIT_BASE = 2,
     KRS_UK_PRE_COMMIT0 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_0,
     KRS_UK_PRE_COMMIT1 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_1,
-    KRS_FK_PRE_COMMIT  = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::FK_PASS_0
+    KRS_FK_PRE_COMMIT = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::FK_PASS_0
   };
 
-struct KeyReqStruct {
-
-  KeyReqStruct(EmulatedJamBuffer * _jamBuffer, When when) :
-    changeMask()
-  {
+  struct KeyReqStruct {
+    KeyReqStruct(EmulatedJamBuffer *_jamBuffer, When when) : changeMask() {
 #if defined VM_TRACE || defined ERROR_INSERT
-    std::memset(this, 0xf3, sizeof(* this));
+      std::memset(this, 0xf3, sizeof(*this));
 #endif
-    jamBuffer = _jamBuffer;
-    m_when = when;
-    m_deferred_constraints = true;
-    m_disable_fk_checks = false;
-    m_tuple_ptr = NULL;
-  }
+      jamBuffer = _jamBuffer;
+      m_when = when;
+      m_deferred_constraints = true;
+      m_disable_fk_checks = false;
+      m_tuple_ptr = NULL;
+    }
 
-  KeyReqStruct(EmulatedJamBuffer * _jamBuffer) :
-    changeMask(false)
-  {
+    KeyReqStruct(EmulatedJamBuffer *_jamBuffer) : changeMask(false) {
 #if defined VM_TRACE || defined ERROR_INSERT
-    std::memset(this, 0xf3, sizeof(* this));
+      std::memset(this, 0xf3, sizeof(*this));
 #endif
-    jamBuffer = _jamBuffer;
-    m_when = KRS_PREPARE;
-    m_deferred_constraints = true;
-    m_disable_fk_checks = false;
-  }
+      jamBuffer = _jamBuffer;
+      m_when = KRS_PREPARE;
+      m_deferred_constraints = true;
+      m_disable_fk_checks = false;
+    }
 
-  KeyReqStruct(Dbtup* tup) :
-    changeMask(false)
-  {
+    KeyReqStruct(Dbtup *tup) : changeMask(false) {
 #if defined VM_TRACE || defined ERROR_INSERT
-    std::memset(this, 0xf3, sizeof(* this));
+      std::memset(this, 0xf3, sizeof(*this));
 #endif
-    jamBuffer = tup->jamBuffer();
-    m_when = KRS_PREPARE;
-    m_deferred_constraints = true;
-    m_disable_fk_checks = false;
-  }
+      jamBuffer = tup->jamBuffer();
+      m_when = KRS_PREPARE;
+      m_deferred_constraints = true;
+      m_disable_fk_checks = false;
+    }
 
-  KeyReqStruct(Dbtup* tup, When when) :
-    changeMask()
-  {
+    KeyReqStruct(Dbtup *tup, When when) : changeMask() {
 #if defined VM_TRACE || defined ERROR_INSERT
-    std::memset(this, 0xf3, sizeof(* this));
+      std::memset(this, 0xf3, sizeof(*this));
 #endif
-    jamBuffer = tup->jamBuffer();
-    m_when = when;
-    m_deferred_constraints = true;
-    m_disable_fk_checks = false;
-    m_tuple_ptr = NULL;
-  }
-  
-/**
- * These variables are used as temporary storage during execution of the
- * TUPKEYREQ signal.
- *
- * The first set of variables defines a number of variables needed for
- * the fix part of the tuple.
- *
- * The second part defines a number of commonly used meta data variables.
- *
- * The third part is variables needed only for updates and inserts.
- *
- * The fourth set of variables defines a set of variables needed for the
- * variable part.
- *
- * The fifth part is a long array of real lengths which is is put last
- * for cache memory reasons. This is part of the variable part and
- * contains the real allocated lengths whereas the tuple contains
- * the length of attribute stored.
- */
+      jamBuffer = tup->jamBuffer();
+      m_when = when;
+      m_deferred_constraints = true;
+      m_disable_fk_checks = false;
+      m_tuple_ptr = NULL;
+    }
 
-  Tablerec* tablePtrP;
-  Fragrecord* fragPtrP;
-  Operationrec * operPtrP;
-  EmulatedJamBuffer * jamBuffer;
-  Tuple_header *m_tuple_ptr;
+    /**
+     * These variables are used as temporary storage during execution of the
+     * TUPKEYREQ signal.
+     *
+     * The first set of variables defines a number of variables needed for
+     * the fix part of the tuple.
+     *
+     * The second part defines a number of commonly used meta data variables.
+     *
+     * The third part is variables needed only for updates and inserts.
+     *
+     * The fourth set of variables defines a set of variables needed for the
+     * variable part.
+     *
+     * The fifth part is a long array of real lengths which is is put last
+     * for cache memory reasons. This is part of the variable part and
+     * contains the real allocated lengths whereas the tuple contains
+     * the length of attribute stored.
+     */
 
-  /**
-   * Variables often used in read of columns
-   */
-  TableDescriptor *attr_descr;
-  Uint32 check_offset[2];
-  Uint32          max_read;
-  Uint32          out_buf_index;
+    Tablerec *tablePtrP;
+    Fragrecord *fragPtrP;
+    Operationrec *operPtrP;
+    EmulatedJamBuffer *jamBuffer;
+    Tuple_header *m_tuple_ptr;
 
-  Uint32          out_buf_bits;
-  Uint32          in_buf_index;
+    /**
+     * Variables often used in read of columns
+     */
+    TableDescriptor *attr_descr;
+    Uint32 check_offset[2];
+    Uint32 max_read;
+    Uint32 out_buf_index;
 
+    Uint32 out_buf_bits;
+    Uint32 in_buf_index;
 
-  union {
-    Uint32 in_buf_len;
-    Uint32 m_lcp_varpart_len;
+    union {
+      Uint32 in_buf_len;
+      Uint32 m_lcp_varpart_len;
+    };
+    Uint32 errorCode;  // Used in DbtupRoutines read/update functions
+    bool xfrm_flag;
+
+    /* Flag: is tuple in expanded or in shrunken/stored format? */
+    bool is_expanded;
+    bool m_is_lcp;
+    enum When m_when;
+
+    Tuple_header *m_disk_ptr;
+    PagePtr m_page_ptr;
+    PagePtr m_varpart_page_ptr;  // could be same as m_page_ptr_p
+    PagePtr m_disk_page_ptr;     //
+    Local_key m_row_id;
+    Uint32 optimize_options;
+
+    bool dirty_op;
+    bool interpreted_exec;
+    bool last_row;
+    bool m_use_rowid;
+    bool m_nr_copy_or_redo;
+    Uint8 m_reorg;
+    Uint8 m_prio_a_flag;
+    bool m_deferred_constraints;
+    bool m_disable_fk_checks;
+
+    Signal *signal;
+    Uint32 num_fired_triggers;
+    Uint32 no_exec_instructions;
+    Uint32 frag_page_id;
+    Uint32 hash_value;
+    Uint32 gci_hi;
+    Uint32 gci_lo;
+    Uint32 log_size;
+    Uint32 read_length;
+    Uint32 attrinfo_len;
+    Uint32 tc_operation_ptr;
+    Uint32 trans_id1;
+    Uint32 trans_id2;
+    Uint32 TC_index;
+    // next 2 apply only to attrids >= 64 (zero otherwise)
+    BlockReference TC_ref;
+    BlockReference rec_blockref;
+
+    struct Var_data {
+      /*
+        These are the pointers and offsets to the variable-sized part of the row
+        (static part, alwways stored even if NULL). They are used both for
+        expanded and shrunken form, with different values to allow using the
+        same read/update code for both forms.
+      */
+      char *m_data_ptr;
+      Uint16 *m_offset_array_ptr;
+      Uint16 m_var_len_offset;
+      Uint16 m_max_var_offset;
+      Uint16 m_max_dyn_offset;
+
+      /* These are the pointers and offsets to the dynamic part of the row. */
+
+      /* Pointer to the start of the bitmap for the dynamic part of the row. */
+      char *m_dyn_data_ptr;
+      /* Number of 32-bit words in dynamic part (stored/shrunken format). */
+      Uint32 m_dyn_part_len;
+      /*
+        Pointer to array with one element for each dynamic attribute (both
+        variable and fixed size). Each value is the offset from the end of the
+        bitmap to the start of the data for that attribute.
+      */
+      Uint16 *m_dyn_offset_arr_ptr;
+      /*
+        Offset from m_dyn_offset_array_ptr of array with one element for each
+        dynamic attribute. Each value is the offset to the end of data for that
+        attribute, so the difference to m_dyn_offset_array_ptr elements provides
+        the data lengths.
+      */
+      Uint16 m_dyn_len_offset;
+    } m_var_data[2];
+
+    /*
+     * A bitmap where a set bit means that the operation has
+     * supplied a value for this column
+     */
+    AttributeMask changeMask;
+    Uint16 var_pos_array[2 * MAX_ATTRIBUTES_IN_TABLE + 1];
+    OperationrecPtr prevOpPtr;
   };
-  Uint32 errorCode; // Used in DbtupRoutines read/update functions
-  bool   xfrm_flag;
-
-  /* Flag: is tuple in expanded or in shrunken/stored format? */
-  bool is_expanded;
-  bool m_is_lcp;
-  enum When m_when;
-
-  Tuple_header *m_disk_ptr;
-  PagePtr m_page_ptr;
-  PagePtr m_varpart_page_ptr;    // could be same as m_page_ptr_p
-  PagePtr m_disk_page_ptr;       //
-  Local_key m_row_id;
-  Uint32 optimize_options;
-  
-  bool            dirty_op;
-  bool            interpreted_exec;
-  bool            last_row;
-  bool            m_use_rowid;
-  bool            m_nr_copy_or_redo;
-  Uint8           m_reorg;
-  Uint8           m_prio_a_flag;
-  bool            m_deferred_constraints;
-  bool            m_disable_fk_checks;
-
-  Signal*         signal;
-  Uint32 num_fired_triggers;
-  Uint32 no_exec_instructions;
-  Uint32 frag_page_id;
-  Uint32 hash_value;
-  Uint32 gci_hi;
-  Uint32 gci_lo;
-  Uint32 log_size;
-  Uint32 read_length;
-  Uint32 attrinfo_len;
-  Uint32 tc_operation_ptr;
-  Uint32 trans_id1;
-  Uint32 trans_id2;
-  Uint32 TC_index;
-  // next 2 apply only to attrids >= 64 (zero otherwise)
-  BlockReference TC_ref;
-  BlockReference rec_blockref;
-
-  struct Var_data {
-    /*
-      These are the pointers and offsets to the variable-sized part of the row
-      (static part, alwways stored even if NULL). They are used both for
-      expanded and shrunken form, with different values to allow using the
-      same read/update code for both forms.
-    */
-    char *m_data_ptr;
-    Uint16 *m_offset_array_ptr;
-    Uint16 m_var_len_offset;
-    Uint16 m_max_var_offset;
-    Uint16 m_max_dyn_offset;
-
-    /* These are the pointers and offsets to the dynamic part of the row. */
-
-    /* Pointer to the start of the bitmap for the dynamic part of the row. */
-    char *m_dyn_data_ptr;
-    /* Number of 32-bit words in dynamic part (stored/shrunken format). */
-    Uint32 m_dyn_part_len;
-    /*
-      Pointer to array with one element for each dynamic attribute (both
-      variable and fixed size). Each value is the offset from the end of the
-      bitmap to the start of the data for that attribute.
-    */
-    Uint16 *m_dyn_offset_arr_ptr;
-    /*
-      Offset from m_dyn_offset_array_ptr of array with one element for each
-      dynamic attribute. Each value is the offset to the end of data for that
-      attribute, so the difference to m_dyn_offset_array_ptr elements provides
-      the data lengths.
-    */
-    Uint16 m_dyn_len_offset;
-  } m_var_data[2];
-
-  /*
-   * A bitmap where a set bit means that the operation has
-   * supplied a value for this column
-   */
-  AttributeMask changeMask;
-  Uint16 var_pos_array[2*MAX_ATTRIBUTES_IN_TABLE + 1];
-  OperationrecPtr prevOpPtr;
-};
 
   friend struct Undo_buffer;
   Undo_buffer c_undo_buffer;
-  
-/*
- No longer used:
- Implemented by shift instructions in subroutines instead
- 
-struct TupHeadInfo {
-  struct BitPart {
-    unsigned int disk_indicator : 1;
-    unsigned int var_part_loc_ind : 1;
-    unsigned int initialised : 1;
-    unsigned int not_used_yet : 5;
-    unsigned int no_var_sized : 8;
-    unsigned int tuple_version : 16;
-  };
-  union {
-    Uint32 all;
-    BitPart bit_part;
-  };
-};
-*/
 
-  struct ChangeMask
-  {
+  /*
+   No longer used:
+   Implemented by shift instructions in subroutines instead
+
+  struct TupHeadInfo {
+    struct BitPart {
+      unsigned int disk_indicator : 1;
+      unsigned int var_part_loc_ind : 1;
+      unsigned int initialised : 1;
+      unsigned int not_used_yet : 5;
+      unsigned int no_var_sized : 8;
+      unsigned int tuple_version : 16;
+    };
+    union {
+      Uint32 all;
+      BitPart bit_part;
+    };
+  };
+  */
+
+  struct ChangeMask {
     Uint32 m_cols;
     Uint32 m_mask[1];
 
-    const Uint32 * end_of_mask() const { return end_of_mask(m_cols); }
-    const Uint32 * end_of_mask(Uint32 cols) const {
+    const Uint32 *end_of_mask() const { return end_of_mask(m_cols); }
+    const Uint32 *end_of_mask(Uint32 cols) const {
       return m_mask + ((cols + 31) >> 5);
     }
 
-    Uint32 * end_of_mask() { return end_of_mask(m_cols); }
-    Uint32 * end_of_mask(Uint32 cols) {
-      return m_mask + ((cols + 31) >> 5);
-    }
+    Uint32 *end_of_mask() { return end_of_mask(m_cols); }
+    Uint32 *end_of_mask(Uint32 cols) { return m_mask + ((cols + 31) >> 5); }
   };
 
-// updateAttributes module
-  Uint32          terrorCode;
+  // updateAttributes module
+  Uint32 terrorCode;
 
-public:
-  Dbtup(Block_context&,
-        Uint32 instanceNumber = 0,
-        Uint32 blockNo = DBTUP);
+ public:
+  Dbtup(Block_context &, Uint32 instanceNumber = 0, Uint32 blockNo = DBTUP);
   ~Dbtup() override;
 
   /*
    * TUX uses logical tuple address when talking to ACC and LQH.
    */
   void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset,
-                     Uint32& lkey1, Uint32& lkey2);
+                     Uint32 &lkey1, Uint32 &lkey2);
 
   /*
    * TUX index in TUP has single Uint32 array attribute which stores an
    * index node.  TUX reads and writes the node directly via pointer.
    */
-  int tuxAllocNode(EmulatedJamBuffer*,
-                   Uint32* fragPtrP,
-                   Uint32* tablePtrP,
-                   Uint32& pageId,
-                   Uint32& pageOffset,
-                   Uint32*& node);
-  void tuxFreeNode(Uint32* fragPtrP,
-                   Uint32* tablePtrP,
-                   Uint32 pageId,
-                   Uint32 pageOffset,
-                   Uint32* node);
-  void tuxGetNode(Uint32 attrDataOffset,
-                  Uint32 tuxFixHeaderSize,
-                  Uint32 pageId,
-                  Uint32 pageOffset,
-                  Uint32*& node);
+  int tuxAllocNode(EmulatedJamBuffer *, Uint32 *fragPtrP, Uint32 *tablePtrP,
+                   Uint32 &pageId, Uint32 &pageOffset, Uint32 *&node);
+  void tuxFreeNode(Uint32 *fragPtrP, Uint32 *tablePtrP, Uint32 pageId,
+                   Uint32 pageOffset, Uint32 *node);
+  void tuxGetNode(Uint32 attrDataOffset, Uint32 tuxFixHeaderSize, Uint32 pageId,
+                  Uint32 pageOffset, Uint32 *&node);
 
   /*
    * TUX reads primary table attributes for index keys.  Tuple is
@@ -2108,125 +2023,85 @@ public:
    * After wl4163, xfrm is not set.
    * Returns number of words or negative (-terrorCode) on error.
    */
-  int tuxReadAttrs(EmulatedJamBuffer*,
-                   Uint32 fragPtrI,
-                   Uint32 pageId,
-                   Uint32 pageOffset,
-                   Uint32 tupVersion,
-                   const Uint32* attrIds,
-                   Uint32 numAttrs,
-                   Uint32* dataOut);
-  int tuxReadAttrsOpt(EmulatedJamBuffer*,
-                      Uint32* fragPtrP,
-                      Uint32* tablePtrP,
-                      Uint32 pageId,
-                      Uint32 pageOffset,
-                      Uint32 tupVersion,
-                      const Uint32* attrIds,
-                      Uint32 numAttrs,
-                      Uint32* dataOut);
-  int tuxReadAttrsCurr(EmulatedJamBuffer*,
-                       const Uint32* attrIds,
-                       Uint32 numAttrs,
-                       Uint32* dataOut,
-                       Uint32 tupVersion);
-  int tuxReadAttrsCommon(KeyReqStruct &req_struct,
-                         const Uint32* attrIds,
-                         Uint32 numAttrs,
-                         Uint32* dataOut,
-                         Uint32 tupVersion);
+  int tuxReadAttrs(EmulatedJamBuffer *, Uint32 fragPtrI, Uint32 pageId,
+                   Uint32 pageOffset, Uint32 tupVersion, const Uint32 *attrIds,
+                   Uint32 numAttrs, Uint32 *dataOut);
+  int tuxReadAttrsOpt(EmulatedJamBuffer *, Uint32 *fragPtrP, Uint32 *tablePtrP,
+                      Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion,
+                      const Uint32 *attrIds, Uint32 numAttrs, Uint32 *dataOut);
+  int tuxReadAttrsCurr(EmulatedJamBuffer *, const Uint32 *attrIds,
+                       Uint32 numAttrs, Uint32 *dataOut, Uint32 tupVersion);
+  int tuxReadAttrsCommon(KeyReqStruct &req_struct, const Uint32 *attrIds,
+                         Uint32 numAttrs, Uint32 *dataOut, Uint32 tupVersion);
 
   /*
    * TUX reads primary key without headers into an array of words. Used
    * for md5 summing and when returning keyinfo. Returns number of
    * words or negative (-terrorCode) on error.
    */
-  int tuxReadPk(Uint32* fragPtrP,
-                Uint32* tablePtrP,
-                Uint32 pageId,
-                Uint32 pageOffset,
-                Uint32* dataOut,
-                bool xfrmFlag);
+  int tuxReadPk(Uint32 *fragPtrP, Uint32 *tablePtrP, Uint32 pageId,
+                Uint32 pageOffset, Uint32 *dataOut, bool xfrmFlag);
 
   /*
    * ACC reads primary key without headers into an array of words.  At
    * this point in ACC deconstruction, ACC still uses logical references
    * to fragment and tuple.
    */
-  int accReadPk(Uint32 fragPageId,
-                Uint32 pageIndex,
-                Uint32* dataOut,
+  int accReadPk(Uint32 fragPageId, Uint32 pageIndex, Uint32 *dataOut,
                 bool xfrmFlag);
 
-  inline Uint32 get_tuple_operation_ptr_i()
-  {
-    Tuple_header *tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
+  inline Uint32 get_tuple_operation_ptr_i() {
+    Tuple_header *tuple_ptr = (Tuple_header *)prepare_tuple_ptr;
     return tuple_ptr->m_operation_ptr_i;
   }
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 opPtrI,
-                  Uint32 tupVersion,
-                  Uint32 transId1,
-                  Uint32 transId2,
-                  bool dirty,
-                  Uint32 savepointId);
+  bool tuxQueryTh(Uint32 opPtrI, Uint32 tupVersion, Uint32 transId1,
+                  Uint32 transId2, bool dirty, Uint32 savepointId);
 
-  int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI,
-		    Uint32 lkey1, Uint32 lkey2, Uint32 flags);
+  int load_diskpage(Signal *, Uint32 opRec, Uint32 fragPtrI, Uint32 lkey1,
+                    Uint32 lkey2, Uint32 flags);
 
-  int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI,
-			 Uint32 lkey1, Uint32 lkey2,
-                         Uint32 tux_flags, Uint32 disk_flag);
+  int load_diskpage_scan(Signal *, Uint32 opRec, Uint32 fragPtrI, Uint32 lkey1,
+                         Uint32 lkey2, Uint32 tux_flags, Uint32 disk_flag);
 
   void start_restore_table(Uint32 tableId);
   void complete_restore_table(Uint32 tableId);
-  void complete_restore_fragment(Signal*,
-                                 Uint32 ref,
-                                 Uint32 data,
+  void complete_restore_fragment(Signal *, Uint32 ref, Uint32 data,
                                  Uint32 restoredLcpId,
                                  Uint32 restoredLocalLcpId,
-                                 Uint32 maxGciCompleted,
-                                 Uint32 maxGciWritten,
-                                 Uint32 tableId,
-                                 Uint32 fragmentId);
+                                 Uint32 maxGciCompleted, Uint32 maxGciWritten,
+                                 Uint32 tableId, Uint32 fragmentId);
   Uint32 get_max_lcp_record_size(Uint32 tableId);
-  
-  int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
-  int nr_update_gci(Uint32 fragPtr,
-                    const Local_key*,
-                    Uint32 gci,
+
+  int nr_read_pk(Uint32 fragPtr, const Local_key *, Uint32 *dataOut,
+                 bool &copy);
+  int nr_update_gci(Uint32 fragPtr, const Local_key *, Uint32 gci,
                     bool tuple_exists);
-  int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
+  int nr_delete(Signal *, Uint32, Uint32 fragPtr, const Local_key *,
+                Uint32 gci);
 
-  void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
-  void nr_delete_log_buffer_callback(Signal*, Uint32 op, Uint32 page);
+  void nr_delete_page_callback(Signal *, Uint32 op, Uint32 page);
+  void nr_delete_log_buffer_callback(Signal *, Uint32 op, Uint32 page);
 
-  bool get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage);
+  bool get_frag_info(Uint32 tableId, Uint32 fragId, Uint32 *maxPage);
 
-  void execSTORED_PROCREQ(Signal* signal);
+  void execSTORED_PROCREQ(Signal *signal);
 
-  void start_lcp_scan(Uint32 tableId,
-                      Uint32 fragmentId,
-                      Uint32 & max_page_cnt);
+  void start_lcp_scan(Uint32 tableId, Uint32 fragmentId, Uint32 &max_page_cnt);
   void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
   Uint64 get_restore_row_count(Uint32 tableId, Uint32 fragmentId);
   void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
-  void get_lcp_frag_stats(Uint32 fragPtrI,
-                          Uint32 startGci,
-                          Uint32 & maxPageCount,
-                          Uint64 & row_count,
-                          Uint64 & prev_row_count,
-                          Uint64 & row_change_count,
-                          Uint64 & memory_used_in_bytes,
-                          bool reset_flag);
+  void get_lcp_frag_stats(Uint32 fragPtrI, Uint32 startGci,
+                          Uint32 &maxPageCount, Uint64 &row_count,
+                          Uint64 &prev_row_count, Uint64 &row_change_count,
+                          Uint64 &memory_used_in_bytes, bool reset_flag);
 
   // Statistics about fragment memory usage.
-  struct FragStats
-  {
+  struct FragStats {
     Uint64 committedRowCount;
     Uint64 committedChanges;
     // Size of fixed-size part of record.
@@ -2239,8 +2114,8 @@ public:
     Uint64 fixedMemoryAllocPages;
     // Number of pages allocated for storing var-size parts.
     Uint64 varMemoryAllocPages;
-    /** 
-      Number of bytes for storing var-size parts that are allocated but not yet 
+    /**
+      Number of bytes for storing var-size parts that are allocated but not yet
       used.
     */
     Uint64 varMemoryFreeBytes;
@@ -2251,78 +2126,79 @@ public:
       least one non-null var-size field (varchar/varbinary/blob).
      */
     Uint64 varElemCount;
-    // Size of the page map (DynArr256) that maps from logical to physical pages.
+    // Size of the page map (DynArr256) that maps from logical to physical
+    // pages.
     Uint64 logToPhysMapAllocBytes;
   };
 
   const FragStats get_frag_stats(Uint32 fragId) const;
 
-private:
+ private:
   BLOCK_DEFINES(Dbtup);
 
-public:
-  void execTUP_ABORTREQ(Signal* signal);
-  void execTUP_WRITELOG_REQ(Signal* signal);
-  void execTUP_DEALLOCREQ(Signal* signal);
-  void do_tup_abortreq(Signal*, Uint32 flags);
-private:
+ public:
+  void execTUP_ABORTREQ(Signal *signal);
+  void execTUP_WRITELOG_REQ(Signal *signal);
+  void execTUP_DEALLOCREQ(Signal *signal);
+  void do_tup_abortreq(Signal *, Uint32 flags);
+
+ private:
   // Transit signals
-  void execDEBUG_SIG(Signal* signal);
-  void execCONTINUEB(Signal* signal);
+  void execDEBUG_SIG(Signal *signal);
+  void execCONTINUEB(Signal *signal);
 
   // Received signals
-  void execDUMP_STATE_ORD(Signal* signal);
-  void execSEND_PACKED(Signal* signal);
-  void execSTTOR(Signal* signal);
-  void execTUP_LCPREQ(Signal* signal);
-  void execEND_LCPREQ(Signal* signal);
-  void execSTART_RECREQ(Signal* signal);
-  void execMEMCHECKREQ(Signal* signal);
-  void execTUPSEIZEREQ(Signal* signal);
+  void execDUMP_STATE_ORD(Signal *signal);
+  void execSEND_PACKED(Signal *signal);
+  void execSTTOR(Signal *signal);
+  void execTUP_LCPREQ(Signal *signal);
+  void execEND_LCPREQ(Signal *signal);
+  void execSTART_RECREQ(Signal *signal);
+  void execMEMCHECKREQ(Signal *signal);
+  void execTUPSEIZEREQ(Signal *signal);
 
-  void execCREATE_TAB_REQ(Signal*);
-  void execTUP_ADD_ATTRREQ(Signal* signal);
-  void execTUPFRAGREQ(Signal* signal);
-  void execTUP_COMMITREQ(Signal* signal);
-  void execNDB_STTOR(Signal* signal);
-  void execREAD_CONFIG_REQ(Signal* signal);
-  void execDROP_TAB_REQ(Signal* signal);
-  void execALTER_TAB_REQ(Signal* signal);
-  void execNODE_FAILREP(Signal* signal);
+  void execCREATE_TAB_REQ(Signal *);
+  void execTUP_ADD_ATTRREQ(Signal *signal);
+  void execTUPFRAGREQ(Signal *signal);
+  void execTUP_COMMITREQ(Signal *signal);
+  void execNDB_STTOR(Signal *signal);
+  void execREAD_CONFIG_REQ(Signal *signal);
+  void execDROP_TAB_REQ(Signal *signal);
+  void execALTER_TAB_REQ(Signal *signal);
+  void execNODE_FAILREP(Signal *signal);
 
-  void execDROP_FRAG_REQ(Signal*);
+  void execDROP_FRAG_REQ(Signal *);
 
   // Ordered index related
-  void execBUILD_INDX_IMPL_REQ(Signal* signal);
-  void execBUILD_INDX_IMPL_REF(Signal* signal);
-  void execBUILD_INDX_IMPL_CONF(Signal* signal);
-  void buildIndex(Signal* signal, Uint32 buildPtrI);
-  void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
-  void buildIndexOffline(Signal* signal, Uint32 buildPtrI);
-  void buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI);
-  void execALTER_TAB_CONF(Signal*);
+  void execBUILD_INDX_IMPL_REQ(Signal *signal);
+  void execBUILD_INDX_IMPL_REF(Signal *signal);
+  void execBUILD_INDX_IMPL_CONF(Signal *signal);
+  void buildIndex(Signal *signal, Uint32 buildPtrI);
+  void buildIndexReply(Signal *signal, const BuildIndexRec *buildRec);
+  void buildIndexOffline(Signal *signal, Uint32 buildPtrI);
+  void buildIndexOffline_table_readonly(Signal *signal, Uint32 buildPtrI);
+  void execALTER_TAB_CONF(Signal *);
 
   // Tup scan
-  void execACC_SCANREQ(Signal* signal);
-  void execNEXT_SCANREQ(Signal* signal);
-  void execACC_CHECK_SCAN(Signal* signal);
-  void execACCKEYCONF(Signal* signal);
-  void execACCKEYREF(Signal* signal);
-  void execACC_ABORTCONF(Signal* signal);
-
+  void execACC_SCANREQ(Signal *signal);
+  void execNEXT_SCANREQ(Signal *signal);
+  void execACC_CHECK_SCAN(Signal *signal);
+  void execACCKEYCONF(Signal *signal);
+  void execACCKEYREF(Signal *signal);
+  void execACC_ABORTCONF(Signal *signal);
 
   // Drop table
-  void execFSREMOVEREF(Signal*);
-  void execFSREMOVECONF(Signal*);
-  void execFSOPENREF(Signal*);
-  void execFSOPENCONF(Signal*);
-  void execFSREADREF(Signal*);
-  void execFSREADCONF(Signal*);
-  void execFSCLOSEREF(Signal*);
-  void execFSCLOSECONF(Signal*);
+  void execFSREMOVEREF(Signal *);
+  void execFSREMOVECONF(Signal *);
+  void execFSOPENREF(Signal *);
+  void execFSOPENCONF(Signal *);
+  void execFSREADREF(Signal *);
+  void execFSREADCONF(Signal *);
+  void execFSCLOSEREF(Signal *);
+  void execFSCLOSECONF(Signal *);
 
-  void execDBINFO_SCANREQ(Signal*);
-  void execSUB_GCP_COMPLETE_REP(Signal*);
+  void execDBINFO_SCANREQ(Signal *);
+  void execSUB_GCP_COMPLETE_REP(Signal *);
 
 #ifdef ERROR_INSERT
   /* Functions to find bugs in TUP commit code */
@@ -2332,799 +2208,672 @@ private:
    */
   Uint32 m_delayed_commit;
   Uint32 m_continue_report_commit_counter;
-  bool check_delayed_commit(Signal*,
-                            TupCommitReq*,
-                            Uint32);
+  bool check_delayed_commit(Signal *, TupCommitReq *, Uint32);
 #endif
   void set_commit_started(Uint32 leaderOperPtrI);
-  void set_commit_performed(OperationrecPtr firstOperPtr,
-                            Fragrecord *fragPtrP);
-  void continue_report_commit_performed(Signal*, Uint32 firstOperPtrI);
-  void send_continue_report_commit_performed(Signal*, Uint32 nextOp);
-  void report_commit_performed(Signal*,
-                               OperationrecPtr &firstOperPtr,
-                               Uint32 max_commits,
-                               Fragrecord *fragPtrP);
+  void set_commit_performed(OperationrecPtr firstOperPtr, Fragrecord *fragPtrP);
+  void continue_report_commit_performed(Signal *, Uint32 firstOperPtrI);
+  void send_continue_report_commit_performed(Signal *, Uint32 nextOp);
+  void report_commit_performed(Signal *, OperationrecPtr &firstOperPtr,
+                               Uint32 max_commits, Fragrecord *fragPtrP);
 
-public:
+ public:
 #define ZTUP_COMMITTED 0
 #define ZTUP_NOT_COMMITTED 1
 #define ZTUP_WAIT_COMMIT 2
   Uint32 exec_prepare_tup_commit(Uint32 regOperPtrI);
 
   Uint32 exec_tup_commit(Signal *signal);
-private:
 
+ private:
 #define ZDISK_PAGE_READY_FOR_COMMIT 0
 #define ZDISK_PAGE_NOT_READY_FOR_COMMIT 1
   Uint32 prepare_disk_page_for_commit(Signal *signal,
                                       OperationrecPtr regOperPtr,
                                       Tuple_header *tuple_ptr,
-                                      Ptr<GlobalPage> & diskPagePtr);
+                                      Ptr<GlobalPage> &diskPagePtr);
 
-  void execute_real_commit(Signal *signal,
-                           KeyReqStruct &req_struct,
-                           PagePtr tupPagePtr,
-                           Ptr<GlobalPage> diskPagePtr);
+  void execute_real_commit(Signal *signal, KeyReqStruct &req_struct,
+                           PagePtr tupPagePtr, Ptr<GlobalPage> diskPagePtr);
 
   void get_execute_commit_operation(OperationrecPtr &executeOperPtr);
 
   void finalize_commit(Operationrec *regOperPtrP, Fragrecord *fragPtrP);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-// Methods to handle execution of TUPKEYREQ + ATTRINFO.
-//
-// Module Execution Manager
-//
-// The TUPKEYREQ signal is central to this block. This signal is used
-// by everybody that needs to read data residing in DBTUP. The data is
-// read using an interpreter approach.
-//
-// Operations only needing to read execute a simplified version of the
-// interpreter where the only instruction is read Attribute to send.
-// Operations only needing to update the record (insert or update)
-// execute a simplified version of the interpreter where the only
-// instruction is write Attribute.
-//
-// Currently TUPKEYREQ is used in the following situations.
-// 1) Normal transaction execution. Can be any of the types described
-//    below.
-// 2) Execution of fragment redo log during system restart.
-//    In this situation there will only be normal updates, inserts
-//    and deletes performed.
-// 3) A special type of normal transaction execution is to write the
-//    records arriving from the primary replica in the node restart
-//    processing. This will always be normal write operations which
-//    are translated to inserts or updates before arriving to TUP.
-// 4) Scan processing. The scan processing will use normal reads or
-//    interpreted reads in their execution. There will be one TUPKEYREQ
-//    signal for each record processed.
-// 5) Copy fragment processing. This is a special type of scan used in the
-//    primary replica at system restart. It reads the entire reads and
-//    converts those to writes to the starting node. In this special case
-//    LQH acts as an API node and receives also the ATTRINFO sent in the
-//    TRANSID_AI signals.
-//
-// Signal Diagram:
-//
-// In Signals:
-// -----------
-//
-// ---> TUPKEYREQ
-// A single TUPKEYREQ is received.  The TUPKEYREQ can contain an I-value
-// for a long section containing AttrInfo words.  Delete requests usually
-// contain no AttrInfo, and requests referencing a stored procedure (e.g.
-// scan originated requests) do not contain AttrInfo.
-// 
-// The total size of the ATTRINFO is not allowed to be more than 16384 words.
-// There is always one and only one TUPKEYREQ.
-//
-// Response Signals (successful case):
-//
-// Simple/Dirty Read Operation
-// ---------------------------
-//
-// <---- TRANSID_AI (to API)
-// ...
-// <---- TRANSID_AI (to API)
-// <---- READCONF   (to API)
-// <---- TUPKEYCONF (to LQH)
-// There is always exactly one READCONF25 sent last. The number of
-// TRANSID_AI is dependent on how much that was read. The maximum size
-// of the ATTRINFO sent back is 16384 words. The signals are sent
-// directly to the application with an address provided by the
-// TUPKEYREQ signal.
-// A positive response signal is also sent to LQH.
-//
-// Normal Read Operation
-// ---------------------
-//
-// <---- TRANSID_AI (to API)
-// ...
-// <---- TRANSID_AI (to API)
-// <---- TUPKEYCONF (to LQH)
-// The number of TRANSID_AI is dependent on how much that was read.
-// The maximum size of the ATTRINFO sent back is 16384 words. The
-// signals are sent directly to the application with an address
-// provided by the TUPKEYREQ signal.
-// A positive response signal is also sent to LQH.
-//
-// Normal update/insert/delete operation
-// -------------------------------------
-//
-// <---- TUPKEYCONF
-// After successful updating of the tuple LQH is informed of this.
-//
-// Delete with read
-// ----------------
-//
-// Will behave as a normal read although it also prepares the
-// deletion of the tuple.
-//
-// Interpreted Update
-// ------------------
-//
-// <---- TRANSID_AI (to API)
-// ...
-// <---- TRANSID_AI (to API)
-// <---- TUP_ATTRINFO (to LQH)
-// ...
-// <---- TUP_ATTRINFO (to LQH)
-// <---- TUPKEYCONF (to LQH)
-//
-// The interpreted Update contains five sections:
-// The first section performs read Attribute operations
-// that send results back to the API.
-//
-// The second section executes the interpreted program
-// where data from attributes can be updated and it
-// can also read attribute values into the registers.
-//
-// The third section performs unconditional updates of
-// attributes.
-//
-// The fourth section can read the attributes to be sent to the
-// API after updating the record.
-//
-// The fifth section contains subroutines used by the interpreter
-// in the second section.
-//
-// All types of interpreted programs contains the same five sections.
-// The only difference is that only interpreted updates can update
-// attributes. Interpreted inserts are not allowed.
-//
-// Interpreted Updates have to send back the information about the
-// attributes they have updated. This information will be shipped to
-// the log and also to any other replicas. Thus interpreted updates
-// are only performed in the primary replica. The fragment redo log
-// in LQH will contain information so that normal update/inserts/deletes
-// can be performed using TUPKEYREQ.
-//
-// Interpreted Read
-// ----------------
-//
-// From a signalling point of view the Interpreted Read behaves as
-// as a Normal Read. The interpreted Read is often used by Scan's.
-//
-// Interpreted Delete
-// ------------------
-//
-// <---- TUPKEYCONF
-// After successful preparation to delete the tuple LQH is informed
-// of this.
-//
-// Interpreted Delete with Read
-// ----------------------------
-//
-// From a signalling point of view an interpreted delete with read
-// behaves as a normal read.
-//
-// Continuation after successful case:
-//
-// After a read of any kind the operation record is ready to be used
-// again by a new operation.
-//
-// Any updates, inserts or deletes waits for either of two messages.
-// A commit specifying that the operation is to be performed for real
-// or an abort specifying that the operation is to be rolled back and
-// the record to be restored in its original format.
-// 
-// This is handled by the module Transaction Manager.
-//
-// Response Signals (unsuccessful case):
-//
-// <---- TUPKEYREF (to LQH)
-// A signal is sent back to LQH informing about the unsuccessful
-// operation. In this case TUP waits for an abort signal to arrive
-// before the operation record is ready for the next operation.
-// This is handled by the Transaction Manager.
-//------------------------------------------------------------------
-//------------------------------------------------------------------
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  // Methods to handle execution of TUPKEYREQ + ATTRINFO.
+  //
+  // Module Execution Manager
+  //
+  // The TUPKEYREQ signal is central to this block. This signal is used
+  // by everybody that needs to read data residing in DBTUP. The data is
+  // read using an interpreter approach.
+  //
+  // Operations only needing to read execute a simplified version of the
+  // interpreter where the only instruction is read Attribute to send.
+  // Operations only needing to update the record (insert or update)
+  // execute a simplified version of the interpreter where the only
+  // instruction is write Attribute.
+  //
+  // Currently TUPKEYREQ is used in the following situations.
+  // 1) Normal transaction execution. Can be any of the types described
+  //    below.
+  // 2) Execution of fragment redo log during system restart.
+  //    In this situation there will only be normal updates, inserts
+  //    and deletes performed.
+  // 3) A special type of normal transaction execution is to write the
+  //    records arriving from the primary replica in the node restart
+  //    processing. This will always be normal write operations which
+  //    are translated to inserts or updates before arriving to TUP.
+  // 4) Scan processing. The scan processing will use normal reads or
+  //    interpreted reads in their execution. There will be one TUPKEYREQ
+  //    signal for each record processed.
+  // 5) Copy fragment processing. This is a special type of scan used in the
+  //    primary replica at system restart. It reads the entire reads and
+  //    converts those to writes to the starting node. In this special case
+  //    LQH acts as an API node and receives also the ATTRINFO sent in the
+  //    TRANSID_AI signals.
+  //
+  // Signal Diagram:
+  //
+  // In Signals:
+  // -----------
+  //
+  // ---> TUPKEYREQ
+  // A single TUPKEYREQ is received.  The TUPKEYREQ can contain an I-value
+  // for a long section containing AttrInfo words.  Delete requests usually
+  // contain no AttrInfo, and requests referencing a stored procedure (e.g.
+  // scan originated requests) do not contain AttrInfo.
+  //
+  // The total size of the ATTRINFO is not allowed to be more than 16384 words.
+  // There is always one and only one TUPKEYREQ.
+  //
+  // Response Signals (successful case):
+  //
+  // Simple/Dirty Read Operation
+  // ---------------------------
+  //
+  // <---- TRANSID_AI (to API)
+  // ...
+  // <---- TRANSID_AI (to API)
+  // <---- READCONF   (to API)
+  // <---- TUPKEYCONF (to LQH)
+  // There is always exactly one READCONF25 sent last. The number of
+  // TRANSID_AI is dependent on how much that was read. The maximum size
+  // of the ATTRINFO sent back is 16384 words. The signals are sent
+  // directly to the application with an address provided by the
+  // TUPKEYREQ signal.
+  // A positive response signal is also sent to LQH.
+  //
+  // Normal Read Operation
+  // ---------------------
+  //
+  // <---- TRANSID_AI (to API)
+  // ...
+  // <---- TRANSID_AI (to API)
+  // <---- TUPKEYCONF (to LQH)
+  // The number of TRANSID_AI is dependent on how much that was read.
+  // The maximum size of the ATTRINFO sent back is 16384 words. The
+  // signals are sent directly to the application with an address
+  // provided by the TUPKEYREQ signal.
+  // A positive response signal is also sent to LQH.
+  //
+  // Normal update/insert/delete operation
+  // -------------------------------------
+  //
+  // <---- TUPKEYCONF
+  // After successful updating of the tuple LQH is informed of this.
+  //
+  // Delete with read
+  // ----------------
+  //
+  // Will behave as a normal read although it also prepares the
+  // deletion of the tuple.
+  //
+  // Interpreted Update
+  // ------------------
+  //
+  // <---- TRANSID_AI (to API)
+  // ...
+  // <---- TRANSID_AI (to API)
+  // <---- TUP_ATTRINFO (to LQH)
+  // ...
+  // <---- TUP_ATTRINFO (to LQH)
+  // <---- TUPKEYCONF (to LQH)
+  //
+  // The interpreted Update contains five sections:
+  // The first section performs read Attribute operations
+  // that send results back to the API.
+  //
+  // The second section executes the interpreted program
+  // where data from attributes can be updated and it
+  // can also read attribute values into the registers.
+  //
+  // The third section performs unconditional updates of
+  // attributes.
+  //
+  // The fourth section can read the attributes to be sent to the
+  // API after updating the record.
+  //
+  // The fifth section contains subroutines used by the interpreter
+  // in the second section.
+  //
+  // All types of interpreted programs contains the same five sections.
+  // The only difference is that only interpreted updates can update
+  // attributes. Interpreted inserts are not allowed.
+  //
+  // Interpreted Updates have to send back the information about the
+  // attributes they have updated. This information will be shipped to
+  // the log and also to any other replicas. Thus interpreted updates
+  // are only performed in the primary replica. The fragment redo log
+  // in LQH will contain information so that normal update/inserts/deletes
+  // can be performed using TUPKEYREQ.
+  //
+  // Interpreted Read
+  // ----------------
+  //
+  // From a signalling point of view the Interpreted Read behaves as
+  // as a Normal Read. The interpreted Read is often used by Scan's.
+  //
+  // Interpreted Delete
+  // ------------------
+  //
+  // <---- TUPKEYCONF
+  // After successful preparation to delete the tuple LQH is informed
+  // of this.
+  //
+  // Interpreted Delete with Read
+  // ----------------------------
+  //
+  // From a signalling point of view an interpreted delete with read
+  // behaves as a normal read.
+  //
+  // Continuation after successful case:
+  //
+  // After a read of any kind the operation record is ready to be used
+  // again by a new operation.
+  //
+  // Any updates, inserts or deletes waits for either of two messages.
+  // A commit specifying that the operation is to be performed for real
+  // or an abort specifying that the operation is to be rolled back and
+  // the record to be restored in its original format.
+  //
+  // This is handled by the module Transaction Manager.
+  //
+  // Response Signals (unsuccessful case):
+  //
+  // <---- TUPKEYREF (to LQH)
+  // A signal is sent back to LQH informing about the unsuccessful
+  // operation. In this case TUP waits for an abort signal to arrive
+  // before the operation record is ready for the next operation.
+  // This is handled by the Transaction Manager.
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
 
-// *****************************************************************
-// Signal Reception methods.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-public:
-  bool execTUPKEYREQ(Signal* signal,
-                     void *_lqhOpPtrP,
-                     void *_lqhScanPtrP);
+  // *****************************************************************
+  // Signal Reception methods.
+  // *****************************************************************
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+ public:
+  bool execTUPKEYREQ(Signal *signal, void *_lqhOpPtrP, void *_lqhScanPtrP);
   /**
    * Prepare for execTUPKEYREQ by prefetching row and preparing
    * some variables as part of row address calculation.
    */
-  void prepareTUPKEYREQ(Uint32 page_id,
-                        Uint32 page_idx,
-                        Uint32 frag_id);
+  void prepareTUPKEYREQ(Uint32 page_id, Uint32 page_idx, Uint32 frag_id);
   void prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
-  void prepare_op_pointer(Uint32 opPtrI,
-                          Dbtup::Operationrec *opPtrP);
+  void prepare_op_pointer(Uint32 opPtrI, Dbtup::Operationrec *opPtrP);
   void prepare_tab_pointers(Uint32 fragPtrI);
   void prepare_tab_pointers_acc(Uint32 table_id, Uint32 frag_id);
-  void get_all_tup_ptrs(Uint32 indexFragPtrI,
-                        Uint32 tableFragPtrI,
-                        Uint32** index_fragptr,
-                        Uint32** index_tabptr,
-                        Uint32** real_fragptr,
-                        Uint32** real_tabptr,
-                        Uint32& attrDataOffset,
-                        Uint32& tuxFixHeaderSize);
+  void get_all_tup_ptrs(Uint32 indexFragPtrI, Uint32 tableFragPtrI,
+                        Uint32 **index_fragptr, Uint32 **index_tabptr,
+                        Uint32 **real_fragptr, Uint32 **real_tabptr,
+                        Uint32 &attrDataOffset, Uint32 &tuxFixHeaderSize);
   Uint32 get_current_frag_page_id();
-private:
-  void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
-  void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
 
-private:
+ private:
+  void disk_page_load_callback(Signal *, Uint32 op, Uint32 page);
+  void disk_page_load_scan_callback(Signal *, Uint32 op, Uint32 page);
 
-// Trigger signals
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
+ private:
+  // Trigger signals
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void execCREATE_TRIG_IMPL_REQ(Signal *signal);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void execDROP_TRIG_IMPL_REQ(Signal* signal);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void execDROP_TRIG_IMPL_REQ(Signal *signal);
 
   /**
    * Deferred triggers execute when execFIRE_TRIG_REQ
    *   is called
    */
-  void execFIRE_TRIG_REQ(Signal* signal);
-  void sendFIRE_TRIG_ORD(Signal* signal);
-  void sendBatchedFIRE_TRIG_ORD(Signal* signal,
-                                Uint32 ref,
-                                Uint32 siglen,
-                                SectionHandle* handle);
-  void sendBatchedFIRE_TRIG_ORD(Signal* signal,
-                                Uint32 ref,
-                                Uint32 siglen,
-                                LinearSectionPtr ptr[],
-                                Uint32 nptr);
+  void execFIRE_TRIG_REQ(Signal *signal);
+  void sendFIRE_TRIG_ORD(Signal *signal);
+  void sendBatchedFIRE_TRIG_ORD(Signal *signal, Uint32 ref, Uint32 siglen,
+                                SectionHandle *handle);
+  void sendBatchedFIRE_TRIG_ORD(Signal *signal, Uint32 ref, Uint32 siglen,
+                                LinearSectionPtr ptr[], Uint32 nptr);
 
-// *****************************************************************
-// Setting up the environment for reads, inserts, updates and deletes.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int handleReadReq(Signal* signal,
-                    Operationrec* regOperPtr,
-                    Tablerec* regTabPtr,
-                    KeyReqStruct* req_struct);
+  // *****************************************************************
+  // Setting up the environment for reads, inserts, updates and deletes.
+  // *****************************************************************
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int handleReadReq(Signal *signal, Operationrec *regOperPtr,
+                    Tablerec *regTabPtr, KeyReqStruct *req_struct);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int handleUpdateReq(Signal* signal,
-                      Operationrec* regOperPtr,
-                      Fragrecord* regFragPtr,
-                      Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct,
-		      bool disk);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int handleUpdateReq(Signal *signal, Operationrec *regOperPtr,
+                      Fragrecord *regFragPtr, Tablerec *regTabPtr,
+                      KeyReqStruct *req_struct, bool disk);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int handleInsertReq(Signal* signal,
-                      Ptr<Operationrec> regOperPtr,
-                      Ptr<Fragrecord>,
-                      Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct,
-                      Local_key ** accminupdateptr,
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int handleInsertReq(Signal *signal, Ptr<Operationrec> regOperPtr,
+                      Ptr<Fragrecord>, Tablerec *regTabPtr,
+                      KeyReqStruct *req_struct, Local_key **accminupdateptr,
                       bool is_refresh);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int handleDeleteReq(Signal* signal,
-                      Operationrec* regOperPtr,
-                      Fragrecord* regFragPtr,
-                      Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct,
-		      bool disk);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int handleDeleteReq(Signal *signal, Operationrec *regOperPtr,
+                      Fragrecord *regFragPtr, Tablerec *regTabPtr,
+                      KeyReqStruct *req_struct, bool disk);
 
-  int handleRefreshReq(Signal* signal,
-                       Ptr<Operationrec>,
-                       Ptr<Fragrecord>,
-                       Tablerec*,
-                       KeyReqStruct*,
-                       bool disk);
+  int handleRefreshReq(Signal *signal, Ptr<Operationrec>, Ptr<Fragrecord>,
+                       Tablerec *, KeyReqStruct *, bool disk);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int  updateStartLab(Signal* signal,
-                      Operationrec* regOperPtr,
-                      Fragrecord* regFragPtr,
-                      Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int updateStartLab(Signal *signal, Operationrec *regOperPtr,
+                     Fragrecord *regFragPtr, Tablerec *regTabPtr,
+                     KeyReqStruct *req_struct);
 
-// *****************************************************************
-// Interpreter Handling methods.
-// *****************************************************************
+  // *****************************************************************
+  // Interpreter Handling methods.
+  // *****************************************************************
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int interpreterStartLab(Signal* signal,
-                          KeyReqStruct *req_struct);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int interpreterStartLab(Signal *signal, KeyReqStruct *req_struct);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
   Uint32 brancher(Uint32, Uint32);
-  int interpreterNextLab(Signal* signal,
-                         KeyReqStruct *req_struct,
-                         Uint32* logMemory,
-                         Uint32* mainProgram,
-                         Uint32 TmainProgLen,
-                         Uint32* subroutineProg,
-                         Uint32 TsubroutineLen,
-			 Uint32 * tmpArea,
-			 Uint32 tmpAreaSz);
+  int interpreterNextLab(Signal *signal, KeyReqStruct *req_struct,
+                         Uint32 *logMemory, Uint32 *mainProgram,
+                         Uint32 TmainProgLen, Uint32 *subroutineProg,
+                         Uint32 TsubroutineLen, Uint32 *tmpArea,
+                         Uint32 tmpAreaSz);
 
-  const Uint32 * lookupInterpreterParameter(Uint32 paramNo,
-                                            const Uint32 * subptr) const;
+  const Uint32 *lookupInterpreterParameter(Uint32 paramNo,
+                                           const Uint32 *subptr) const;
 
-// *****************************************************************
-// Signal Sending methods.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void sendReadAttrinfo(Signal* signal,
-                        KeyReqStruct *req_struct,
+  // *****************************************************************
+  // Signal Sending methods.
+  // *****************************************************************
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void sendReadAttrinfo(Signal *signal, KeyReqStruct *req_struct,
                         Uint32 TnoOfData);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int sendLogAttrinfo(Signal* signal,
-                      KeyReqStruct *req_struct,
-                      Uint32 TlogSize,
-                      Operationrec * regOperPtr);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int sendLogAttrinfo(Signal *signal, KeyReqStruct *req_struct, Uint32 TlogSize,
+                      Operationrec *regOperPtr);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void returnTUPKEYCONF(Signal* signal,
-                        KeyReqStruct *req_struct,
-                        Operationrec * regOperPtr,
-                        TransState trans_state);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void returnTUPKEYCONF(Signal *signal, KeyReqStruct *req_struct,
+                        Operationrec *regOperPtr, TransState trans_state);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-// *****************************************************************
-// The methods that perform the actual read and update of attributes
-// in the tuple.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int readAttributes(KeyReqStruct* req_struct,
-                     const Uint32*  inBuffer,
-                     Uint32   inBufLen,
-                     Uint32*  outBuffer,
-                     Uint32   TmaxRead);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  // *****************************************************************
+  // The methods that perform the actual read and update of attributes
+  // in the tuple.
+  // *****************************************************************
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int readAttributes(KeyReqStruct *req_struct, const Uint32 *inBuffer,
+                     Uint32 inBufLen, Uint32 *outBuffer, Uint32 TmaxRead);
 
   // Read only PK attributes, without AttributeHeader.
   // Optinally xfrm'ing the key in preparation for hash
-  int readKeyAttributes(KeyReqStruct* req_struct,
-                     const Uint32*  inBuffer,
-                     Uint32   inBufLen,
-                     Uint32*  outBuffer,
-                     Uint32   TmaxRead,
-                     bool     xfrmFlag);
+  int readKeyAttributes(KeyReqStruct *req_struct, const Uint32 *inBuffer,
+                        Uint32 inBufLen, Uint32 *outBuffer, Uint32 TmaxRead,
+                        bool xfrmFlag);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int updateAttributes(KeyReqStruct *req_struct,
-                       Uint32*     inBuffer,
-                       Uint32      inBufLen);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int updateAttributes(KeyReqStruct *req_struct, Uint32 *inBuffer,
+                       Uint32 inBufLen);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHOneWordNotNULL(Uint8* outBuffer,
-                                     KeyReqStruct *req_struct,
-                                     AttributeHeader* ahOut,
-                                     Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHOneWordNotNULL(Uint8 *outBuffer,
+                                            KeyReqStruct *req_struct,
+                                            AttributeHeader *ahOut,
+                                            Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateFixedSizeTHOneWordNotNULL(Uint32* inBuffer,
-                                       KeyReqStruct *req_struct,
-                                       Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateFixedSizeTHOneWordNotNULL(Uint32 *inBuffer,
+                                              KeyReqStruct *req_struct,
+                                              Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHTwoWordNotNULL(Uint8* outBuffer,
-                                     KeyReqStruct *req_struct,
-                                     AttributeHeader* ahOut,
-                                     Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHTwoWordNotNULL(Uint8 *outBuffer,
+                                            KeyReqStruct *req_struct,
+                                            AttributeHeader *ahOut,
+                                            Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateFixedSizeTHTwoWordNotNULL(Uint32* inBuffer,
-                                       KeyReqStruct *req_struct,
-                                       Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateFixedSizeTHTwoWordNotNULL(Uint32 *inBuffer,
+                                              KeyReqStruct *req_struct,
+                                              Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHManyWordNotNULL(Uint8* outBuffer,
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHManyWordNotNULL(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool fixsize_updater(Uint32 *inBuffer, KeyReqStruct *req_struct,
+                              Uint64 attrDes, Uint32 *dst_ptr,
+                              Uint32 updateOffset, Uint32 checkOffset);
+  static bool updateFixedSizeTHManyWordNotNULL(Uint32 *inBuffer,
+                                               KeyReqStruct *req_struct,
+                                               Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHOneWordNULLable(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateFixedSizeTHOneWordNULLable(Uint32 *inBuffer,
+                                               KeyReqStruct *req_struct,
+                                               Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHTwoWordNULLable(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateFixedSizeTHTwoWordNULLable(Uint32 *inBuffer,
+                                               KeyReqStruct *req_struct,
+                                               Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHManyWordNULLable(Uint8 *outBuffer,
+                                              KeyReqStruct *req_struct,
+                                              AttributeHeader *ahOut,
+                                              Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readFixedSizeTHZeroWordNULLable(Uint8 *outBuffer,
+                                              KeyReqStruct *req_struct,
+                                              AttributeHeader *ahOut,
+                                              Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateFixedSizeTHManyWordNULLable(Uint32 *inBuffer,
+                                                KeyReqStruct *req_struct,
+                                                Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool varsize_reader(Uint8 *out_buffer, KeyReqStruct *req_struct,
+                             AttributeHeader *ah_out, Uint64 attr_des,
+                             const void *src_ptr, Uint32 vsize_in_bytes);
+
+  static bool xfrm_reader(Uint8 *out_buffer, KeyReqStruct *req_struct,
+                          AttributeHeader *ah_out, Uint64 attr_des,
+                          const void *src_ptr, Uint32 srcBytes);
+
+  static bool bits_reader(Uint8 *out_buffer, KeyReqStruct *req_struct,
+                          AttributeHeader *ah_out, const Uint32 *bm_ptr,
+                          Uint32 bm_len, Uint32 bitPos, Uint32 bitCnt);
+
+  static bool varsize_updater(Uint32 *in_buffer, KeyReqStruct *req_struct,
+                              char *var_data_start, Uint32 var_attr_pos,
+                              Uint16 *len_offset_ptr, Uint32 check_offset,
+                              Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readVarSizeNotNULL(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                 AttributeHeader *ahOut, Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateVarSizeNotNULL(Uint32 *inBuffer, KeyReqStruct *req_struct,
+                                   Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readVarSizeNULLable(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                  AttributeHeader *ahOut, Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateVarSizeNULLable(Uint32 *inBuffer, KeyReqStruct *req_struct,
+                                    Uint64 attrDes);
+
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readDynFixedSizeNotNULL(Uint8 *outBuffer,
                                       KeyReqStruct *req_struct,
-                                      AttributeHeader* ahOut,
-                                      Uint64 attrDes);
+                                      AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynFixedSizeNULLable(Uint8 *outBuffer,
+                                       KeyReqStruct *req_struct,
+                                       AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynFixedSizeExpandedNotNULL(Uint8 *outBuffer,
+                                              KeyReqStruct *req_struct,
+                                              AttributeHeader *ahOut,
+                                              Uint64 attrDes);
+  static bool readDynFixedSizeShrunkenNotNULL(Uint8 *outBuffer,
+                                              KeyReqStruct *req_struct,
+                                              AttributeHeader *ahOut,
+                                              Uint64 attrDes);
+  static bool readDynFixedSizeExpandedNULLable(Uint8 *outBuffer,
+                                               KeyReqStruct *req_struct,
+                                               AttributeHeader *ahOut,
+                                               Uint64 attrDes);
+  static bool readDynFixedSizeShrunkenNULLable(Uint8 *outBuffer,
+                                               KeyReqStruct *req_struct,
+                                               AttributeHeader *ahOut,
+                                               Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool fixsize_updater(Uint32* inBuffer,
-                       KeyReqStruct *req_struct,
-                       Uint64 attrDes,
-                       Uint32 *dst_ptr,
-                       Uint32 updateOffset,
-                       Uint32 checkOffset);
-  static bool updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateDynFixedSizeNotNULL(Uint32 *inBuffer,
                                         KeyReqStruct *req_struct,
                                         Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHOneWordNULLable(Uint8* outBuffer,
-                                      KeyReqStruct *req_struct,
-                                      AttributeHeader* ahOut,
-                                      Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateFixedSizeTHOneWordNULLable(Uint32* inBuffer,
-                                        KeyReqStruct *req_struct,
-                                        Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHTwoWordNULLable(Uint8* outBuffer,
-                                      KeyReqStruct *req_struct,
-                                      AttributeHeader* ahOut,
-                                      Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateFixedSizeTHTwoWordNULLable(Uint32* inBuffer,
-                                        KeyReqStruct *req_struct,
-                                        Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHManyWordNULLable(Uint8* outBuffer,
-                                       KeyReqStruct *req_struct,
-                                       AttributeHeader* ahOut,
-                                       Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readFixedSizeTHZeroWordNULLable(Uint8* outBuffer,
-                                       KeyReqStruct *req_struct,
-                                       AttributeHeader* ahOut,
-                                       Uint64 attrDes);
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateFixedSizeTHManyWordNULLable(Uint32* inBuffer,
+  static bool updateDynFixedSizeNULLable(Uint32 *inBuffer,
                                          KeyReqStruct *req_struct,
                                          Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool varsize_reader(Uint8* out_buffer,
-                      KeyReqStruct *req_struct,
-                      AttributeHeader* ah_out,
-                      Uint64 attr_des,
-                      const void* src_ptr,
-                      Uint32 vsize_in_bytes);
-  
-  static bool xfrm_reader(Uint8* out_buffer,
-                   KeyReqStruct *req_struct,
-                   AttributeHeader* ah_out,
-                   Uint64 attr_des,
-                   const void* src_ptr,
-                   Uint32 srcBytes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readDynBigFixedSizeNotNULL(Uint8 *outBuffer,
+                                         KeyReqStruct *req_struct,
+                                         AttributeHeader *ahOut,
+                                         Uint64 attrDes);
+  static bool readDynBigFixedSizeNULLable(Uint8 *outBuffer,
+                                          KeyReqStruct *req_struct,
+                                          AttributeHeader *ahOut,
+                                          Uint64 attrDes);
+  static bool readDynBigFixedSizeExpandedNotNULL(Uint8 *outBuffer,
+                                                 KeyReqStruct *req_struct,
+                                                 AttributeHeader *ahOut,
+                                                 Uint64 attrDes);
+  static bool readDynBigFixedSizeShrunkenNotNULL(Uint8 *outBuffer,
+                                                 KeyReqStruct *req_struct,
+                                                 AttributeHeader *ahOut,
+                                                 Uint64 attrDes);
+  static bool readDynBigFixedSizeExpandedNULLable(Uint8 *outBuffer,
+                                                  KeyReqStruct *req_struct,
+                                                  AttributeHeader *ahOut,
+                                                  Uint64 attrDes);
+  static bool readDynBigFixedSizeShrunkenNULLable(Uint8 *outBuffer,
+                                                  KeyReqStruct *req_struct,
+                                                  AttributeHeader *ahOut,
+                                                  Uint64 attrDes);
 
-  static bool bits_reader(Uint8* out_buffer,
-                   KeyReqStruct *req_struct,
-                   AttributeHeader* ah_out,
-                   const Uint32* bm_ptr, Uint32 bm_len,
-                   Uint32 bitPos, Uint32 bitCnt);
-  
-  static bool varsize_updater(Uint32* in_buffer,
-                       KeyReqStruct *req_struct,
-                       char *var_data_start,
-                       Uint32 var_attr_pos,
-                       Uint16 *len_offset_ptr,
-                       Uint32 check_offset,
-                       Uint64 attrDes);
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readVarSizeNotNULL(Uint8* outBuffer,
-                          KeyReqStruct *req_struct,
-                          AttributeHeader* ahOut,
-                          Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateDynBigFixedSizeNotNULL(Uint32 *inBuffer,
+                                           KeyReqStruct *req_struct,
+                                           Uint64 attrDes);
+  static bool updateDynBigFixedSizeNULLable(Uint32 *inBuffer,
+                                            KeyReqStruct *req_struct,
+                                            Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateVarSizeNotNULL(Uint32* inBuffer,
-                            KeyReqStruct *req_struct,
-                            Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readDynBitsNotNULL(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                 AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynBitsNULLable(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                  AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynBitsExpandedNotNULL(Uint8 *outBuffer,
+                                         KeyReqStruct *req_struct,
+                                         AttributeHeader *ahOut,
+                                         Uint64 attrDes);
+  static bool readDynBitsShrunkenNotNULL(Uint8 *outBuffer,
+                                         KeyReqStruct *req_struct,
+                                         AttributeHeader *ahOut,
+                                         Uint64 attrDes);
+  static bool readDynBitsExpandedNULLable(Uint8 *outBuffer,
+                                          KeyReqStruct *req_struct,
+                                          AttributeHeader *ahOut,
+                                          Uint64 attrDes);
+  static bool readDynBitsShrunkenNULLable(Uint8 *outBuffer,
+                                          KeyReqStruct *req_struct,
+                                          AttributeHeader *ahOut,
+                                          Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readVarSizeNULLable(Uint8* outBuffer,
-                           KeyReqStruct *req_struct,
-                           AttributeHeader* ahOut,
-                           Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateVarSizeNULLable(Uint32* inBuffer,
-                             KeyReqStruct *req_struct,
-                             Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readDynFixedSizeNotNULL(Uint8* outBuffer,
-                               KeyReqStruct *req_struct,
-                               AttributeHeader* ahOut,
-                               Uint64 attrDes);
-  static bool readDynFixedSizeNULLable(Uint8* outBuffer,
-                                KeyReqStruct *req_struct,
-                                AttributeHeader* ahOut,
-                                Uint64 attrDes);
-  static bool readDynFixedSizeExpandedNotNULL(Uint8* outBuffer,
-                                       KeyReqStruct *req_struct,
-                                       AttributeHeader* ahOut,
-                                       Uint64 attrDes);
-  static bool readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
-                                       KeyReqStruct *req_struct,
-                                       AttributeHeader* ahOut,
-                                       Uint64 attrDes);
-  static bool readDynFixedSizeExpandedNULLable(Uint8* outBuffer,
-                                        KeyReqStruct *req_struct,
-                                        AttributeHeader* ahOut,
-                                        Uint64 attrDes);
-  static bool readDynFixedSizeShrunkenNULLable(Uint8* outBuffer,
-                                        KeyReqStruct *req_struct,
-                                        AttributeHeader* ahOut,
-                                        Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateDynFixedSizeNotNULL(Uint32* inBuffer,
-                                 KeyReqStruct *req_struct,
-                                 Uint64 attrDes);
-  static bool updateDynFixedSizeNULLable(Uint32* inBuffer,
-                                  KeyReqStruct *req_struct,
-                                  Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readDynBigFixedSizeNotNULL(Uint8* outBuffer,
-                                  KeyReqStruct *req_struct,
-                                  AttributeHeader* ahOut,
-                                  Uint64 attrDes);
-  static bool readDynBigFixedSizeNULLable(Uint8* outBuffer,
-                                   KeyReqStruct *req_struct,
-                                   AttributeHeader* ahOut,
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateDynBitsNotNULL(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                    Uint64 attrDes);
-  static bool readDynBigFixedSizeExpandedNotNULL(Uint8* outBuffer,
-                                          KeyReqStruct *req_struct,
-                                          AttributeHeader* ahOut,
-                                          Uint64 attrDes);
-  static bool readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
-                                          KeyReqStruct *req_struct,
-                                          AttributeHeader* ahOut,
-                                          Uint64 attrDes);
-  static bool readDynBigFixedSizeExpandedNULLable(Uint8* outBuffer,
-                                           KeyReqStruct *req_struct,
-                                           AttributeHeader* ahOut,
-                                           Uint64 attrDes);
-  static bool readDynBigFixedSizeShrunkenNULLable(Uint8* outBuffer,
-                                           KeyReqStruct *req_struct,
-                                           AttributeHeader* ahOut,
-                                           Uint64 attrDes);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateDynBigFixedSizeNotNULL(Uint32* inBuffer,
-                                    KeyReqStruct *req_struct,
+  static bool updateDynBitsNULLable(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                     Uint64 attrDes);
-  static bool updateDynBigFixedSizeNULLable(Uint32* inBuffer,
-                                     KeyReqStruct *req_struct,
-                                     Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readDynBitsNotNULL(Uint8* outBuffer,
-                          KeyReqStruct *req_struct,
-                          AttributeHeader* ahOut,
-                          Uint64 attrDes);
-  static bool readDynBitsNULLable(Uint8* outBuffer,
-                           KeyReqStruct *req_struct,
-                           AttributeHeader* ahOut,
-                           Uint64 attrDes);
-  static bool readDynBitsExpandedNotNULL(Uint8* outBuffer,
-                                  KeyReqStruct *req_struct,
-                                  AttributeHeader* ahOut,
-                                  Uint64 attrDes);
-  static bool readDynBitsShrunkenNotNULL(Uint8* outBuffer,
-                                  KeyReqStruct *req_struct,
-                                  AttributeHeader* ahOut,
-                                  Uint64 attrDes);
-  static bool readDynBitsExpandedNULLable(Uint8* outBuffer,
-                                   KeyReqStruct *req_struct,
-                                   AttributeHeader* ahOut,
-                                   Uint64 attrDes);
-  static bool readDynBitsShrunkenNULLable(Uint8* outBuffer,
-                                   KeyReqStruct *req_struct,
-                                   AttributeHeader* ahOut,
-                                   Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool readDynVarSizeNotNULL(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                    AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynVarSizeNULLable(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                                     AttributeHeader *ahOut, Uint64 attrDes);
+  static bool readDynVarSizeExpandedNotNULL(Uint8 *outBuffer,
+                                            KeyReqStruct *req_struct,
+                                            AttributeHeader *ahOut,
+                                            Uint64 attrDes);
+  static bool readDynVarSizeShrunkenNotNULL(Uint8 *outBuffer,
+                                            KeyReqStruct *req_struct,
+                                            AttributeHeader *ahOut,
+                                            Uint64 attrDes);
+  static bool readDynVarSizeExpandedNULLable(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
+  static bool readDynVarSizeShrunkenNULLable(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateDynBitsNotNULL(Uint32* inBuffer,
-                            KeyReqStruct *req_struct,
-                            Uint64 attrDes);
-  static bool updateDynBitsNULLable(Uint32* inBuffer,
-                             KeyReqStruct *req_struct,
-                             Uint64 attrDes);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  static bool updateDynVarSizeNotNULL(Uint32 *inBuffer,
+                                      KeyReqStruct *req_struct, Uint64 attrDes);
+  static bool updateDynVarSizeNULLable(Uint32 *inBuffer,
+                                       KeyReqStruct *req_struct,
+                                       Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool readDynVarSizeNotNULL(Uint8* outBuffer,
-                             KeyReqStruct *req_struct,
-                             AttributeHeader* ahOut,
-                             Uint64 attrDes);
-  static bool readDynVarSizeNULLable(Uint8* outBuffer,
-                              KeyReqStruct *req_struct,
-                              AttributeHeader* ahOut,
-                              Uint64 attrDes);
-  static bool readDynVarSizeExpandedNotNULL(Uint8* outBuffer,
-                                     KeyReqStruct *req_struct,
-                                     AttributeHeader* ahOut,
-                                     Uint64 attrDes);
-  static bool readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
-                                     KeyReqStruct *req_struct,
-                                     AttributeHeader* ahOut,
-                                     Uint64 attrDes);
-  static bool readDynVarSizeExpandedNULLable(Uint8* outBuffer,
-                                      KeyReqStruct *req_struct,
-                                      AttributeHeader* ahOut,
-                                      Uint64 attrDes);
-  static bool readDynVarSizeShrunkenNULLable(Uint8* outBuffer,
-                                      KeyReqStruct *req_struct,
-                                      AttributeHeader* ahOut,
-                                      Uint64 attrDes);
+  static bool readCharNotNULL(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                              AttributeHeader *ahOut, Uint64 attrDes);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  static bool updateDynVarSizeNotNULL(Uint32* inBuffer,
-                               KeyReqStruct *req_struct,
-                               Uint64 attrDes);
-  static bool updateDynVarSizeNULLable(Uint32* inBuffer,
-                                KeyReqStruct *req_struct,
-                                Uint64 attrDes);
+  static bool readCharNULLable(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                               AttributeHeader *ahOut, Uint64 attrDes);
 
-  static bool readCharNotNULL(Uint8* outBuffer,
-                       KeyReqStruct *req_struct,
-                       AttributeHeader* ahOut,
-                       Uint64 attrDes);
-
-  static bool readCharNULLable(Uint8* outBuffer,
-                        KeyReqStruct *req_struct,
-                        AttributeHeader* ahOut,
-                        Uint64 attrDes);
-
-  static bool readBitsNULLable(Uint8* outBuffer,
-                               KeyReqStruct *req_struct,
-                               AttributeHeader*,
-                               Uint64);
-  static bool updateBitsNULLable(Uint32* inBuffer,
-                                 KeyReqStruct *req_struct,
+  static bool readBitsNULLable(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                               AttributeHeader *, Uint64);
+  static bool updateBitsNULLable(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                  Uint64);
-  static bool readBitsNotNULL(Uint8* outBuffer,
-                              KeyReqStruct *req_struct,
-                              AttributeHeader*,
-                              Uint64);
-  static bool updateBitsNotNULL(Uint32* inBuffer,
-                                KeyReqStruct *req_struct,
+  static bool readBitsNotNULL(Uint8 *outBuffer, KeyReqStruct *req_struct,
+                              AttributeHeader *, Uint64);
+  static bool updateBitsNotNULL(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                 Uint64);
 
-  static bool updateFixedNULLable(Uint32* inBuffer,
-                                  KeyReqStruct *req_struct,
+  static bool updateFixedNULLable(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                   Uint64);
-  static bool updateFixedNotNull(Uint32* inBuffer,
-                                 KeyReqStruct *req_struct,
+  static bool updateFixedNotNull(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                  Uint64);
 
-  static bool updateVarNULLable(Uint32* inBuffer,
-                                KeyReqStruct *req_struct,
+  static bool updateVarNULLable(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                 Uint64);
-  static bool updateVarNotNull(Uint32* inBuffer,
-                               KeyReqStruct *req_struct,
+  static bool updateVarNotNull(Uint32 *inBuffer, KeyReqStruct *req_struct,
                                Uint64);
 
-  static bool readDiskFixedSizeNotNULL(Uint8* outBuffer,
-				KeyReqStruct *req_struct,
-				AttributeHeader* ahOut,
-				Uint64 attrDes);
-  
-  static bool readDiskFixedSizeNULLable(Uint8* outBuffer,
-				 KeyReqStruct *req_struct,
-				 AttributeHeader* ahOut,
-				 Uint64 attrDes);
+  static bool readDiskFixedSizeNotNULL(Uint8 *outBuffer,
+                                       KeyReqStruct *req_struct,
+                                       AttributeHeader *ahOut, Uint64 attrDes);
 
-  static bool readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
-				KeyReqStruct *req_struct,
-				AttributeHeader* ahOut,
-				Uint64 attrDes);
-  
-  static bool readDiskVarAsFixedSizeNULLable(Uint8* outBuffer,
-				      KeyReqStruct *req_struct,
-				      AttributeHeader* ahOut,
-				      Uint64 attrDes);
-  static bool readDiskVarSizeNULLable(Uint8*,
-                                      KeyReqStruct*,
-                                      AttributeHeader*,
-                                      Uint64);
-  static bool readDiskVarSizeNotNULL(Uint8*,
-                                     KeyReqStruct*,
-                                     AttributeHeader*,
+  static bool readDiskFixedSizeNULLable(Uint8 *outBuffer,
+                                        KeyReqStruct *req_struct,
+                                        AttributeHeader *ahOut, Uint64 attrDes);
+
+  static bool readDiskVarAsFixedSizeNotNULL(Uint8 *outBuffer,
+                                            KeyReqStruct *req_struct,
+                                            AttributeHeader *ahOut,
+                                            Uint64 attrDes);
+
+  static bool readDiskVarAsFixedSizeNULLable(Uint8 *outBuffer,
+                                             KeyReqStruct *req_struct,
+                                             AttributeHeader *ahOut,
+                                             Uint64 attrDes);
+  static bool readDiskVarSizeNULLable(Uint8 *, KeyReqStruct *,
+                                      AttributeHeader *, Uint64);
+  static bool readDiskVarSizeNotNULL(Uint8 *, KeyReqStruct *, AttributeHeader *,
                                      Uint64);
 
-  static bool updateDiskFixedSizeNULLable(Uint32*,
-                                          KeyReqStruct*,
-                                          Uint64);
-  static bool updateDiskFixedSizeNotNULL(Uint32*,
-                                         KeyReqStruct*,
-                                         Uint64);
+  static bool updateDiskFixedSizeNULLable(Uint32 *, KeyReqStruct *, Uint64);
+  static bool updateDiskFixedSizeNotNULL(Uint32 *, KeyReqStruct *, Uint64);
 
-  static bool updateDiskVarAsFixedSizeNULLable(Uint32*,
-                                               KeyReqStruct*,
+  static bool updateDiskVarAsFixedSizeNULLable(Uint32 *, KeyReqStruct *,
                                                Uint64);
-  static bool updateDiskVarAsFixedSizeNotNULL(Uint32*,
-                                              KeyReqStruct*,
-                                              Uint64);
+  static bool updateDiskVarAsFixedSizeNotNULL(Uint32 *, KeyReqStruct *, Uint64);
 
-  static bool updateDiskVarSizeNULLable(Uint32*,
-                                        KeyReqStruct *,
-                                        Uint64);
-  static bool updateDiskVarSizeNotNULL(Uint32*,
-                                       KeyReqStruct *,
-                                       Uint64);
-  
-  static bool readDiskBitsNULLable(Uint8*,
-                                   KeyReqStruct*,
-                                   AttributeHeader*,
+  static bool updateDiskVarSizeNULLable(Uint32 *, KeyReqStruct *, Uint64);
+  static bool updateDiskVarSizeNotNULL(Uint32 *, KeyReqStruct *, Uint64);
+
+  static bool readDiskBitsNULLable(Uint8 *, KeyReqStruct *, AttributeHeader *,
                                    Uint64);
-  static bool readDiskBitsNotNULL(Uint8*,
-                                  KeyReqStruct*,
-                                  AttributeHeader*,
+  static bool readDiskBitsNotNULL(Uint8 *, KeyReqStruct *, AttributeHeader *,
                                   Uint64);
-  static bool updateDiskBitsNULLable(Uint32*,
-                                     KeyReqStruct*,
-                                     Uint64);
-  static bool updateDiskBitsNotNULL(Uint32*,
-                                    KeyReqStruct*,
-                                    Uint64);
+  static bool updateDiskBitsNULLable(Uint32 *, KeyReqStruct *, Uint64);
+  static bool updateDiskBitsNotNULL(Uint32 *, KeyReqStruct *, Uint64);
 
   /* Alter table methods. */
   void handleAlterTablePrepare(Signal *, const AlterTabReq *, const Tablerec *);
@@ -3132,431 +2881,361 @@ private:
   void handleAlterTableComplete(Signal *, const AlterTabReq *, Tablerec *);
   void handleAlterTableAbort(Signal *, const AlterTabReq *, const Tablerec *);
   void sendAlterTabRef(Signal *signal, Uint32 errorCode);
-  void sendAlterTabConf(Signal *, Uint32 clientData=RNIL);
+  void sendAlterTabConf(Signal *, Uint32 clientData = RNIL);
 
-  void handleCharsetPos(Uint32 csNumber, const CHARSET_INFO ** charsetArray,
-                        Uint32 noOfCharsets,
-                        Uint32 & charsetIndex, Uint32 & attrDes2);
+  void handleCharsetPos(Uint32 csNumber, const CHARSET_INFO **charsetArray,
+                        Uint32 noOfCharsets, Uint32 &charsetIndex,
+                        Uint32 &attrDes2);
   Uint32 computeTableMetaData(TablerecPtr regTabPtr, Uint32 line);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
   static bool nullFlagCheck(KeyReqStruct *req_struct, Uint64 attrDes);
   static bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint64 attrDes);
-  int read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
-  Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
-  Uint32 update_packed(KeyReqStruct*, const Uint32* src);
+  int read_pseudo(const Uint32 *, Uint32, KeyReqStruct *, Uint32 *);
+  Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct *, Uint32 *);
+  Uint32 update_packed(KeyReqStruct *, const Uint32 *src);
 
-  Uint32 read_lcp(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
-  void update_lcp(KeyReqStruct *req_struct, const Uint32* src, Uint32 len);
+  Uint32 read_lcp(const Uint32 *, Uint32, KeyReqStruct *, Uint32 *);
+  void update_lcp(KeyReqStruct *req_struct, const Uint32 *src, Uint32 len);
 
-  void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
-			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
-public:
-  Uint32 copyAttrinfo(Uint32 storedProcId,
-                      bool interpretedFlag);
-  void copyAttrinfo(Uint32 expectedLen,
-                    Uint32 attrInfoIVal);
+  void flush_read_buffer(KeyReqStruct *, const Uint32 *outBuf, Uint32 resultRef,
+                         Uint32 resultData, Uint32 routeRef);
+
+ public:
+  Uint32 copyAttrinfo(Uint32 storedProcId, bool interpretedFlag);
+  void copyAttrinfo(Uint32 expectedLen, Uint32 attrInfoIVal);
 
   void nextAttrInfoParam(Uint32 storedProcId);
   /**
    * Used by Restore...
    */
-  Uint32 read_lcp_keys(Uint32, const Uint32 * src, Uint32 len, Uint32 *dst);
+  Uint32 read_lcp_keys(Uint32, const Uint32 *src, Uint32 len, Uint32 *dst);
   Uint32 get_pages_allocated() const;
-private:
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void setUpQueryRoutines(Tablerec* regTabPtr);
+ private:
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void setUpQueryRoutines(Tablerec *regTabPtr);
 
-// *****************************************************************
-// Service methods.
-// *****************************************************************
-  TransState get_trans_state(Operationrec * const);
-  void set_trans_state(Operationrec * const, TransState);
-  TupleState get_tuple_state(Operationrec * const);
-  void set_tuple_state(Operationrec * const, TupleState);
+  // *****************************************************************
+  // Service methods.
+  // *****************************************************************
+  TransState get_trans_state(Operationrec *const);
+  void set_trans_state(Operationrec *const, TransState);
+  TupleState get_tuple_state(Operationrec *const);
+  void set_tuple_state(Operationrec *const, TupleState);
   Uint32 get_fix_page_offset(Uint32 page_index, Uint32 tuple_size);
 
   Uint32 decr_tup_version(Uint32 tuple_version);
-  void update_change_mask_info(const Tablerec*, ChangeMask* dst, const Uint32*src);
-  void set_change_mask_info(const Tablerec*, ChangeMask* dst);
-  void clear_change_mask_info(const Tablerec*, ChangeMask* dst);
-  void copy_change_mask_info(const Tablerec*, ChangeMask* dst, const ChangeMask * src);
-  void set_commit_change_mask_info(const Tablerec*,
-                                   KeyReqStruct*,
-                                   const Operationrec*);
+  void update_change_mask_info(const Tablerec *, ChangeMask *dst,
+                               const Uint32 *src);
+  void set_change_mask_info(const Tablerec *, ChangeMask *dst);
+  void clear_change_mask_info(const Tablerec *, ChangeMask *dst);
+  void copy_change_mask_info(const Tablerec *, ChangeMask *dst,
+                             const ChangeMask *src);
+  void set_commit_change_mask_info(const Tablerec *, KeyReqStruct *,
+                                   const Operationrec *);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void initOpConnection(Operationrec* regOperPtr);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void initOpConnection(Operationrec *regOperPtr);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void initOperationrec(Signal* signal);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void initOperationrec(Signal *signal);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  bool prepareActiveOpList(OperationrecPtr, KeyReqStruct* req_struct);
-  void insertActiveOpList(OperationrecPtr,
-                          KeyReqStruct* req_struct,
-                          Tuple_header* tuple_header);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  bool prepareActiveOpList(OperationrecPtr, KeyReqStruct *req_struct);
+  void insertActiveOpList(OperationrecPtr, KeyReqStruct *req_struct,
+                          Tuple_header *tuple_header);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
 
-  int  store_default_record(const TablerecPtr& regTabPtr);
-  bool  receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr);
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, 
-                        const Uint32 *dataBuf,
-                        Uint32 lenOfData);
+  int store_default_record(const TablerecPtr &regTabPtr);
+  bool receive_defvalue(Signal *signal, const TablerecPtr &regTabPtr);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void bufferTRANSID_AI(Signal *signal, BlockReference aRef,
+                        const Uint32 *dataBuf, Uint32 lenOfData);
 
-  void sendAPI_TRANSID_AI(Signal* signal,
-                          BlockReference recBlockRef,
-                          const Uint32 *dataBuf,
-                          Uint32 lenOfData);
+  void sendAPI_TRANSID_AI(Signal *signal, BlockReference recBlockRef,
+                          const Uint32 *dataBuf, Uint32 lenOfData);
 
-//------------------------------------------------------------------
-// Trigger handling routines
-//------------------------------------------------------------------
-  TupTriggerData_list*
-  findTriggerList(Tablerec* table,
-                  TriggerType::Value ttype,
-                  TriggerActionTime::Value ttime,
-                  TriggerEvent::Value tevent);
+  //------------------------------------------------------------------
+  // Trigger handling routines
+  //------------------------------------------------------------------
+  TupTriggerData_list *findTriggerList(Tablerec *table,
+                                       TriggerType::Value ttype,
+                                       TriggerActionTime::Value ttime,
+                                       TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec*, const CreateTrigImplReq*, const AttributeMask&);
+  bool createTrigger(Tablerec *, const CreateTrigImplReq *,
+                     const AttributeMask &);
 
-  Uint32 dropTrigger(Tablerec* table,
-		     const DropTrigImplReq* req,
-		     BlockNumber sender);
+  Uint32 dropTrigger(Tablerec *table, const DropTrigImplReq *req,
+                     BlockNumber sender);
 
-  Uint32 getOldTriggerId(const TupTriggerData*, Uint32 op);
+  Uint32 getOldTriggerId(const TupTriggerData *, Uint32 op);
 
-  void
-  checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
-                                    Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr,
-                                    bool disk);
+  void checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
+                                         Operationrec *regOperPtr,
+                                         Tablerec *tablePtr, bool disk);
 
-  void
-  checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
-                                    Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr,
-                                    bool disk);
+  void checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
+                                         Operationrec *regOperPtr,
+                                         Tablerec *tablePtr, bool disk);
 
-  void
-  checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
-                                    Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr,
-                                    bool disk);
+  void checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
+                                         Operationrec *regOperPtr,
+                                         Tablerec *tablePtr, bool disk);
 
-  void checkDeferredTriggers(KeyReqStruct *req_struct,
-                             Operationrec* regOperPtr,
-                             Tablerec* regTablePtr,
-                             bool disk);
+  void checkDeferredTriggers(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                             Tablerec *regTablePtr, bool disk);
 
-  void checkDetachedTriggers(KeyReqStruct *req_struct,
-                             Operationrec* regOperPtr,
-                             Tablerec* regTablePtr,
-                             bool disk,
+  void checkDetachedTriggers(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                             Tablerec *regTablePtr, bool disk,
                              Uint32 diskPagePtrI);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
-                             TupTriggerData_list& triggerList,
-                             Operationrec* regOperPtr,
-                             bool disk);
+                             TupTriggerData_list &triggerList,
+                             Operationrec *regOperPtr, bool disk);
 
   void checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
-                                          TupTriggerData_list& triggerList,
-                                          Operationrec* const regOperPtr,
+                                          TupTriggerData_list &triggerList,
+                                          Operationrec *const regOperPtr,
                                           bool disk);
   void fireDeferredTriggers(KeyReqStruct *req_struct,
-                            TupTriggerData_list& triggerList,
-                            Operationrec* const regOperPtr,
-                            bool disk);
+                            TupTriggerData_list &triggerList,
+                            Operationrec *const regOperPtr, bool disk);
 
   void fireDeferredConstraints(KeyReqStruct *req_struct,
-                               TupTriggerData_list& triggerList,
-                               Operationrec* const regOperPtr,
-                               bool disk);
+                               TupTriggerData_list &triggerList,
+                               Operationrec *const regOperPtr, bool disk);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
-                            TupTriggerData_list& triggerList,
-                            Operationrec* regOperPtr,
-                            bool disk,
+                            TupTriggerData_list &triggerList,
+                            Operationrec *regOperPtr, bool disk,
                             Uint32 diskPagePtrI);
 
-  void executeTrigger(KeyReqStruct *req_struct,
-                      TupTriggerData* trigPtr, 
-                      Operationrec* regOperPtr,
-                      bool disk);
+  void executeTrigger(KeyReqStruct *req_struct, TupTriggerData *trigPtr,
+                      Operationrec *regOperPtr, bool disk);
 
-  bool check_fire_trigger(const Fragrecord*,
-                          const TupTriggerData*,
-                          const KeyReqStruct*,
-                          const Operationrec*) const;
+  bool check_fire_trigger(const Fragrecord *, const TupTriggerData *,
+                          const KeyReqStruct *, const Operationrec *) const;
 
   bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
   bool check_fire_fully_replicated(const KeyReqStruct *,
                                    Fragrecord::FragState) const;
-  bool check_fire_suma(const KeyReqStruct *,
-                       const Operationrec*,
-                       const Fragrecord*) const;
+  bool check_fire_suma(const KeyReqStruct *, const Operationrec *,
+                       const Fragrecord *) const;
 
-  bool readTriggerInfo(TupTriggerData* trigPtr,
-                       Operationrec* regOperPtr,
-                       KeyReqStruct * req_struct,
-                       Fragrecord* regFragPtr,
-                       Uint32* keyBuffer,
-                       Uint32& noPrimKey,
-                       Uint32* afterBuffer,
-                       Uint32& noAfterWords,
-                       Uint32* beforeBuffer,
-                       Uint32& noBeforeWords,
-                       bool disk);
+  bool readTriggerInfo(TupTriggerData *trigPtr, Operationrec *regOperPtr,
+                       KeyReqStruct *req_struct, Fragrecord *regFragPtr,
+                       Uint32 *keyBuffer, Uint32 &noPrimKey,
+                       Uint32 *afterBuffer, Uint32 &noAfterWords,
+                       Uint32 *beforeBuffer, Uint32 &noBeforeWords, bool disk);
 
-  void sendTrigAttrInfo(Signal*        signal, 
-                        Uint32*        data, 
-                        Uint32         dataLen,
-                        bool           executeDirect,
-                        BlockReference receiverReference);
+  void sendTrigAttrInfo(Signal *signal, Uint32 *data, Uint32 dataLen,
+                        bool executeDirect, BlockReference receiverReference);
 
-  Uint32 setAttrIds(const AttributeMask& attributeMask,
-                    Uint32 noOfAttributes, 
-                    Uint32* inBuffer);
+  Uint32 setAttrIds(const AttributeMask &attributeMask, Uint32 noOfAttributes,
+                    Uint32 *inBuffer);
 
   // these set terrorCode and return non-zero on error
 
-  int executeTuxInsertTriggers(Signal* signal, 
-                               Operationrec* regOperPtr,
-                               Fragrecord* regFragPtr,
-                               Tablerec* regTabPtr);
+  int executeTuxInsertTriggers(Signal *signal, Operationrec *regOperPtr,
+                               Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
-  int executeTuxUpdateTriggers(Signal* signal, 
-                               Operationrec* regOperPtr,
-                               Fragrecord* regFragPtr,
-                               Tablerec* regTabPtr);
+  int executeTuxUpdateTriggers(Signal *signal, Operationrec *regOperPtr,
+                               Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
-  int executeTuxDeleteTriggers(Signal* signal, 
-                               Operationrec* regOperPtr,
-                               Fragrecord* regFragPtr,
-                               Tablerec* regTabPtr);
+  int executeTuxDeleteTriggers(Signal *signal, Operationrec *regOperPtr,
+                               Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
-  int addTuxEntries(Signal* signal,
-                    Operationrec* regOperPtr,
-                    Tablerec* regTabPtr);
+  int addTuxEntries(Signal *signal, Operationrec *regOperPtr,
+                    Tablerec *regTabPtr);
 
   // these crash the node on error
 
-  void executeTuxCommitTriggers(Signal* signal, 
-                                Operationrec* regOperPtr,
-                                Fragrecord* regFragPtr,
-                                Tablerec* regTabPtr);
+  void executeTuxCommitTriggers(Signal *signal, Operationrec *regOperPtr,
+                                Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
-  void executeTuxAbortTriggers(Signal* signal, 
-                               Operationrec* regOperPtr,
-                               Fragrecord* regFragPtr,
-                               Tablerec* regTabPtr);
+  void executeTuxAbortTriggers(Signal *signal, Operationrec *regOperPtr,
+                               Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
-  void removeTuxEntries(Signal* signal,
-                        Tablerec* regTabPtr);
+  void removeTuxEntries(Signal *signal, Tablerec *regTabPtr);
 
-  void ndbmtd_buffer_suma_trigger(Signal* signal, Uint32 len,
+  void ndbmtd_buffer_suma_trigger(Signal *signal, Uint32 len,
                                   LinearSectionPtr ptr[3]);
-  void flush_ndbmtd_suma_buffer(Signal*);
+  void flush_ndbmtd_suma_buffer(Signal *);
 
-  struct SumaTriggerBuffer
-  {
+  struct SumaTriggerBuffer {
     SumaTriggerBuffer()
-    : m_out_of_memory(0),
-      m_pageId(RNIL),
-      m_freeWords(0),
-      m_usedWords(0) {}
+        : m_out_of_memory(0), m_pageId(RNIL), m_freeWords(0), m_usedWords(0) {}
     Uint32 m_out_of_memory;
     Uint32 m_pageId;
     Uint32 m_freeWords;
     Uint32 m_usedWords;
   } m_suma_trigger_buffer;
 
-// *****************************************************************
-// Error Handling routines.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  int TUPKEY_abort(KeyReqStruct*, int error_type);
+  // *****************************************************************
+  // Error Handling routines.
+  // *****************************************************************
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  int TUPKEY_abort(KeyReqStruct *, int error_type);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void tupkeyErrorLab(KeyReqStruct*);
-  void do_tup_abort_operation(Signal*, Tuple_header *,
-                              Operationrec*,
-                              Fragrecord*,
-                              Tablerec*);
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  void tupkeyErrorLab(KeyReqStruct *);
+  void do_tup_abort_operation(Signal *, Tuple_header *, Operationrec *,
+                              Fragrecord *, Tablerec *);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-// Methods to handle execution of TUP_COMMITREQ + TUP_ABORTREQ.
-//
-// Module Transaction Manager
-//
-// The Transaction Manager module is responsible for the commit
-// and abort of operations started by the Execution Manager.
-//
-// Commit Operation:
-// ----------------
-//
-// Failures in commit processing is not allowed since that would
-// leave the database in an unreliable state. Thus the only way
-// to handle failures in commit processing is to crash the node.
-//
-// TUP_COMMITREQ can only be received in the wait state after a
-// successful TUPKEYREQ which was not a read operation.
-// 
-// Commit of Delete:
-// -----------------
-//
-// This will actually perform the deletion of the record unless
-// other operations also are connected to the record. In this case
-// we will set the delete state on the record that becomes the ownerd
-// of the record.
-//
-// Commit of Update:
-// ----------------
-//
-// We will release the copy record where the original record was kept.
-// Also here we will take special care if more operations are updating
-// the record simultaneously.
-//
-// Commit of Insert:
-// -----------------
-//
-// Will simply reset the state of the operation record.
-//
-// Signal Diagram:
-// --->  TUP_COMMITREQ (from LQH)
-// <---- TUP_COMMITCONF (to LQH)
-//
-//
-// Abort Operation:
-// ----------------
-//
-// Signal Diagram:
-// --->  TUP_ABORTREQ (from LQH)
-// <---- TUP_ABORTCONF (to LQH)
-//
-// Failures in abort processing is not allowed since that would
-// leave the database in an unreliable state. Thus the only way
-// to handle failures in abort processing is to crash the node.
-//
-// Abort messages can arrive at any time. It can arrive even before
-// anything at all have arrived of the operation. It can arrive after
-// receiving a number of ATTRINFO but before TUPKEYREQ has been received.
-// It must arrive after that we sent TUPKEYREF in response to TUPKEYREQ
-// and finally it can arrive after successfully performing the TUPKEYREQ
-// in all cases including the read case.
-//------------------------------------------------------------------
-//------------------------------------------------------------------
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  // Methods to handle execution of TUP_COMMITREQ + TUP_ABORTREQ.
+  //
+  // Module Transaction Manager
+  //
+  // The Transaction Manager module is responsible for the commit
+  // and abort of operations started by the Execution Manager.
+  //
+  // Commit Operation:
+  // ----------------
+  //
+  // Failures in commit processing is not allowed since that would
+  // leave the database in an unreliable state. Thus the only way
+  // to handle failures in commit processing is to crash the node.
+  //
+  // TUP_COMMITREQ can only be received in the wait state after a
+  // successful TUPKEYREQ which was not a read operation.
+  //
+  // Commit of Delete:
+  // -----------------
+  //
+  // This will actually perform the deletion of the record unless
+  // other operations also are connected to the record. In this case
+  // we will set the delete state on the record that becomes the ownerd
+  // of the record.
+  //
+  // Commit of Update:
+  // ----------------
+  //
+  // We will release the copy record where the original record was kept.
+  // Also here we will take special care if more operations are updating
+  // the record simultaneously.
+  //
+  // Commit of Insert:
+  // -----------------
+  //
+  // Will simply reset the state of the operation record.
+  //
+  // Signal Diagram:
+  // --->  TUP_COMMITREQ (from LQH)
+  // <---- TUP_COMMITCONF (to LQH)
+  //
+  //
+  // Abort Operation:
+  // ----------------
+  //
+  // Signal Diagram:
+  // --->  TUP_ABORTREQ (from LQH)
+  // <---- TUP_ABORTCONF (to LQH)
+  //
+  // Failures in abort processing is not allowed since that would
+  // leave the database in an unreliable state. Thus the only way
+  // to handle failures in abort processing is to crash the node.
+  //
+  // Abort messages can arrive at any time. It can arrive even before
+  // anything at all have arrived of the operation. It can arrive after
+  // receiving a number of ATTRINFO but before TUPKEYREQ has been received.
+  // It must arrive after that we sent TUPKEYREF in response to TUPKEYREQ
+  // and finally it can arrive after successfully performing the TUPKEYREQ
+  // in all cases including the read case.
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
 
 #if 0 
   void checkPages(Fragrecord* regFragPtr);
 #endif
-  Uint32 convert_byte_to_word_size(Uint32 byte_size)
-  {
+  Uint32 convert_byte_to_word_size(Uint32 byte_size) {
     return ((byte_size + 3) >> 2);
   }
-  Uint32 convert_bit_to_word_size(Uint32 bit_size)
-  {
+  Uint32 convert_bit_to_word_size(Uint32 bit_size) {
     return ((bit_size + 31) >> 5);
   }
 
-  void prepare_initial_insert(KeyReqStruct*, Operationrec*, Tablerec*, bool);
-  void fix_disk_insert_no_mem_insert(KeyReqStruct*, Operationrec*, Tablerec*);
-  void setup_fixed_tuple_ref_opt(KeyReqStruct* req_struct);
-  void setup_fixed_tuple_ref(KeyReqStruct* req_struct,
-			     Operationrec* regOperPtr,
-			     Tablerec* regTabPtr);
-  void setup_fixed_part(KeyReqStruct* req_struct,
-			Operationrec* regOperPtr,
-			Tablerec* regTabPtr);
-  
-  void send_TUPKEYREF(const KeyReqStruct* req_struct);
-  void early_tupkey_error(KeyReqStruct*);
+  void prepare_initial_insert(KeyReqStruct *, Operationrec *, Tablerec *, bool);
+  void fix_disk_insert_no_mem_insert(KeyReqStruct *, Operationrec *,
+                                     Tablerec *);
+  void setup_fixed_tuple_ref_opt(KeyReqStruct *req_struct);
+  void setup_fixed_tuple_ref(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                             Tablerec *regTabPtr);
+  void setup_fixed_part(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                        Tablerec *regTabPtr);
+
+  void send_TUPKEYREF(const KeyReqStruct *req_struct);
+  void early_tupkey_error(KeyReqStruct *);
 
   void printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit);
 
-  bool checkUpdateOfPrimaryKey(KeyReqStruct *req_struct,
-                               Uint32* updateBuffer,
-                               Tablerec* regTabPtr);
+  bool checkUpdateOfPrimaryKey(KeyReqStruct *req_struct, Uint32 *updateBuffer,
+                               Tablerec *regTabPtr);
 
-  void setNullBits(Uint32*, Tablerec* regTabPtr);
-  bool checkNullAttributes(KeyReqStruct * const,
-                           Tablerec* const,
+  void setNullBits(Uint32 *, Tablerec *regTabPtr);
+  bool checkNullAttributes(KeyReqStruct *const, Tablerec *const,
                            bool is_refresh);
-  bool find_savepoint(OperationrecPtr& loopOpPtr,
-                      Uint32 savepointId,
-                      EmulatedJamBuffer * jamBuffer);
-  bool setup_read(KeyReqStruct* req_struct,
-		  Operationrec* regOperPtr,
-		  Tablerec* regTabPtr,
-		  bool disk);
-  
-  Uint32 calculateChecksum(Tuple_header*, const Tablerec* regTabPtr);
-  void setChecksum(Tuple_header*, const Tablerec* regTabPtr);
-  void setInvalidChecksum(Tuple_header*, const Tablerec* regTabPtr);
-  void updateChecksum(Tuple_header *,
-                      const Tablerec *,
-                      Uint32 old_header,
+  bool find_savepoint(OperationrecPtr &loopOpPtr, Uint32 savepointId,
+                      EmulatedJamBuffer *jamBuffer);
+  bool setup_read(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                  Tablerec *regTabPtr, bool disk);
+
+  Uint32 calculateChecksum(Tuple_header *, const Tablerec *regTabPtr);
+  void setChecksum(Tuple_header *, const Tablerec *regTabPtr);
+  void setInvalidChecksum(Tuple_header *, const Tablerec *regTabPtr);
+  void updateChecksum(Tuple_header *, const Tablerec *, Uint32 old_header,
                       Uint32 new_header);
-  int corruptedTupleDetected(KeyReqStruct*, Tablerec*);
+  int corruptedTupleDetected(KeyReqStruct *, Tablerec *);
 
-  void complexTrigger(Signal* signal,
-                      KeyReqStruct *req_struct,
-                      Operationrec* regOperPtr,
-                      Fragrecord* regFragPtr,
-                      Tablerec* regTabPtr);
+  void complexTrigger(Signal *signal, KeyReqStruct *req_struct,
+                      Operationrec *regOperPtr, Fragrecord *regFragPtr,
+                      Tablerec *regTabPtr);
 
-  void setTupleStatesSetOpType(Operationrec* regOperPtr,
-                               KeyReqStruct *req_struct,
-                               Page* pagePtr,
-                               Uint32& opType,
-                               OperationrecPtr& firstOpPtr);
+  void setTupleStatesSetOpType(Operationrec *regOperPtr,
+                               KeyReqStruct *req_struct, Page *pagePtr,
+                               Uint32 &opType, OperationrecPtr &firstOpPtr);
 
-  void findBeforeValueOperation(OperationrecPtr& befOpPtr,
+  void findBeforeValueOperation(OperationrecPtr &befOpPtr,
                                 OperationrecPtr firstOpPtr);
 
-  void updateGcpId(KeyReqStruct *req_struct,
-                   Operationrec* regOperPtr,
-                   Fragrecord* regFragPtr,
-                   Tablerec* regTabPtr);
+  void updateGcpId(KeyReqStruct *req_struct, Operationrec *regOperPtr,
+                   Fragrecord *regFragPtr, Tablerec *regTabPtr);
 
   void setTupleStateOnPreviousOps(Uint32 prevOpIndex);
-  void copyMem(Signal* signal, Uint32 sourceIndex, Uint32 destIndex);
+  void copyMem(Signal *signal, Uint32 sourceIndex, Uint32 destIndex);
 
-  void removeActiveOpList(Operationrec*  const regOperPtr, Tuple_header*);
+  void removeActiveOpList(Operationrec *const regOperPtr, Tuple_header *);
 
   void updatePackedList(Uint16 ahostIndex);
 
   void setUpDescriptorReferences(Uint32 descriptorReference,
-                                 Tablerec* regTabPtr,
-                                 const Uint32* offset);
-  void setupDynDescriptorReferences(Uint32 dynDescr,
-                                    Tablerec* const regTabPtr,
-                                    const Uint32* offset,
-                                    Uint32 ind=0);
-  void setUpKeyArray(Tablerec* regTabPtr);
-  bool addfragtotab(Tablerec* regTabPtr, Uint32 fragId, Uint32 fragIndex);
+                                 Tablerec *regTabPtr, const Uint32 *offset);
+  void setupDynDescriptorReferences(Uint32 dynDescr, Tablerec *const regTabPtr,
+                                    const Uint32 *offset, Uint32 ind = 0);
+  void setUpKeyArray(Tablerec *regTabPtr);
+  bool addfragtotab(Tablerec *regTabPtr, Uint32 fragId, Uint32 fragIndex);
   Uint32 get_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId);
   void remove_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId);
-  void deleteFragTab(Tablerec* regTabPtr, Uint32 fragId);
-  void abortAddFragOp(Signal* signal);
-  void releaseTabDescr(Tablerec* regTabPtr);
-  void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* regTabPtr);
+  void deleteFragTab(Tablerec *regTabPtr, Uint32 fragId);
+  void abortAddFragOp(Signal *signal);
+  void releaseTabDescr(Tablerec *regTabPtr);
+  void getFragmentrec(FragrecordPtr &regFragPtr, Uint32 fragId,
+                      Tablerec *regTabPtr);
 
-  void initialiseRecordsLab(Signal* signal, Uint32 switchData, Uint32, Uint32);
+  void initialiseRecordsLab(Signal *signal, Uint32 switchData, Uint32, Uint32);
   void initializeCheckpointInfoRec();
   void initializeDiskBufferSegmentRecord();
   void initializeFragoperrec();
@@ -3571,42 +3250,37 @@ private:
   void initializeUndoPage();
   void initializeDefaultValuesFrag();
 
-  void initTab(Tablerec* regTabPtr);
+  void initTab(Tablerec *regTabPtr);
 
-  void fragrefuseLab(Signal* signal, FragoperrecPtr fragOperPtr);
-  void fragrefuse1Lab(Signal* signal, FragoperrecPtr fragOperPtr);
-  void fragrefuse2Lab(Signal* signal, FragoperrecPtr fragOperPtr, FragrecordPtr regFragPtr);
-  void fragrefuse3Lab(Signal* signal,
-                      FragoperrecPtr fragOperPtr,
-                      FragrecordPtr regFragPtr,
-                      Tablerec* regTabPtr,
+  void fragrefuseLab(Signal *signal, FragoperrecPtr fragOperPtr);
+  void fragrefuse1Lab(Signal *signal, FragoperrecPtr fragOperPtr);
+  void fragrefuse2Lab(Signal *signal, FragoperrecPtr fragOperPtr,
+                      FragrecordPtr regFragPtr);
+  void fragrefuse3Lab(Signal *signal, FragoperrecPtr fragOperPtr,
+                      FragrecordPtr regFragPtr, Tablerec *regTabPtr,
                       Uint32 fragId);
-  void fragrefuse4Lab(Signal* signal,
-                      FragoperrecPtr fragOperPtr,
-                      FragrecordPtr regFragPtr,
-                      Tablerec* regTabPtr,
+  void fragrefuse4Lab(Signal *signal, FragoperrecPtr fragOperPtr,
+                      FragrecordPtr regFragPtr, Tablerec *regTabPtr,
                       Uint32 fragId);
-  void addattrrefuseLab(Signal* signal,
-                        FragrecordPtr regFragPtr,
-                        FragoperrecPtr fragOperPtr,
-                        Tablerec* regTabPtr,
+  void addattrrefuseLab(Signal *signal, FragrecordPtr regFragPtr,
+                        FragoperrecPtr fragOperPtr, Tablerec *regTabPtr,
                         Uint32 fragId);
 
-  void releaseFragment(Signal*, Uint32, Uint32);
-  void drop_fragment_free_var_pages(Signal*);
-  void drop_fragment_free_pages(Signal*);
-  void drop_fragment_free_extent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
-  void drop_fragment_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
-  void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
-  void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);
-  void drop_fragment_fsremove_init(Signal*, TablerecPtr, FragrecordPtr);
-  void lcp_open_ctl_file(Signal*, Uint32, Uint32, Uint32, Uint32);
-  void lcp_read_ctl_file(Signal*, Uint32, Uint32, Uint32, Uint32, Uint32);
-  void lcp_close_ctl_file(Signal*, Uint32, Uint32);
+  void releaseFragment(Signal *, Uint32, Uint32);
+  void drop_fragment_free_var_pages(Signal *);
+  void drop_fragment_free_pages(Signal *);
+  void drop_fragment_free_extent(Signal *, TablerecPtr, FragrecordPtr, Uint32);
+  void drop_fragment_free_extent_log_buffer_callback(Signal *, Uint32, Uint32);
+  void drop_fragment_unmap_pages(Signal *, TablerecPtr, FragrecordPtr, Uint32);
+  void drop_fragment_unmap_page_callback(Signal *signal, Uint32, Uint32);
+  void drop_fragment_fsremove_init(Signal *, TablerecPtr, FragrecordPtr);
+  void lcp_open_ctl_file(Signal *, Uint32, Uint32, Uint32, Uint32);
+  void lcp_read_ctl_file(Signal *, Uint32, Uint32, Uint32, Uint32, Uint32);
+  void lcp_close_ctl_file(Signal *, Uint32, Uint32);
   bool handle_ctl_info(TablerecPtr, FragrecordPtr, Uint32);
-  void lcp_read_completed(Signal*, TablerecPtr, FragrecordPtr);
-  void drop_fragment_fsremove(Signal*, TablerecPtr, FragrecordPtr);
-  void drop_fragment_fsremove_done(Signal*, TablerecPtr, FragrecordPtr);
+  void lcp_read_completed(Signal *, TablerecPtr, FragrecordPtr);
+  void drop_fragment_fsremove(Signal *, TablerecPtr, FragrecordPtr);
+  void drop_fragment_fsremove_done(Signal *, TablerecPtr, FragrecordPtr);
 
   // Initialisation
   void initData();
@@ -3616,31 +3290,25 @@ private:
 #define EXTRA_COPY_PROC_WORDS 2
 #define MAX_COPY_PROC_LEN (MAX_ATTRIBUTES_IN_TABLE + EXTRA_COPY_PROC_WORDS)
 
-
-  void deleteScanProcedure(Signal* signal, Operationrec* regOperPtr);
+  void deleteScanProcedure(Signal *signal, Operationrec *regOperPtr);
   void allocCopyProcedure();
   void freeCopyProcedure();
   void prepareCopyProcedure(Uint32 numAttrs, Uint16 tableBits);
   void releaseCopyProcedure();
-  void copyProcedure(Signal* signal,
-                     TablerecPtr regTabPtr,
-                     Operationrec* regOperPtr);
-  void scanProcedure(Signal* signal,
-                     Operationrec* regOperPtr,
-                     SectionHandle* handle,
-                     bool isCopy);
-  void storedProcBufferSeizeErrorLab(Signal* signal,
-                                     Operationrec* regOperPtr,
-                                     Uint32 storedProcPtr,
-                                     Uint32 errorCode);
+  void copyProcedure(Signal *signal, TablerecPtr regTabPtr,
+                     Operationrec *regOperPtr);
+  void scanProcedure(Signal *signal, Operationrec *regOperPtr,
+                     SectionHandle *handle, bool isCopy);
+  void storedProcBufferSeizeErrorLab(Signal *signal, Operationrec *regOperPtr,
+                                     Uint32 storedProcPtr, Uint32 errorCode);
 
-//-----------------------------------------------------------------------------
-// Table Descriptor Memory Manager
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  // Table Descriptor Memory Manager
+  //-----------------------------------------------------------------------------
 
-// Public methods
-  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32, Uint32*);
-  Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset);
+  // Public methods
+  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32, Uint32 *);
+  Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32 *offset);
   Uint32 allocTabDescr(Uint32 allocSize);
   void releaseTabDescr(Uint32 desc);
 
@@ -3648,30 +3316,28 @@ private:
   Uint32 getTabDescrWord(Uint32 index);
   void setTabDescrWord(Uint32 index, Uint32 word);
 
-// Private methods
+  // Private methods
   Uint32 sizeOfReadFunction();
-  void   removeTdArea(Uint32 tabDesRef, Uint32 list);
-  void   insertTdArea(Uint32 tabDesRef, Uint32 list);
-  void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-  void   verifytabdes();
+  void removeTdArea(Uint32 tabDesRef, Uint32 list);
+  void insertTdArea(Uint32 tabDesRef, Uint32 list);
+  void itdaMergeTabDescr(Uint32 &retRef, Uint32 &retNo, bool normal);
+  void verifytabdes();
 
-  void seizeOpRec(OperationrecPtr& regOperPtr);
-  void seizeFragrecord(FragrecordPtr& regFragPtr);
-  void seizeFragoperrec(FragoperrecPtr& fragOperPtr);
-  void seizeAlterTabOperation(AlterTabOperationPtr& alterTabOpPtr);
+  void seizeOpRec(OperationrecPtr &regOperPtr);
+  void seizeFragrecord(FragrecordPtr &regFragPtr);
+  void seizeFragoperrec(FragoperrecPtr &fragOperPtr);
+  void seizeAlterTabOperation(AlterTabOperationPtr &alterTabOpPtr);
   void releaseFragoperrec(FragoperrecPtr fragOperPtr);
   void releaseFragrec(FragrecordPtr);
   void releaseAlterTabOpRec(AlterTabOperationPtr regAlterTabOpPtr);
 
-//----------------------------------------------------------------------------
-// Page Memory Manager
-//----------------------------------------------------------------------------
-  
-// Public methods
-  void allocConsPages(EmulatedJamBuffer* jamBuf,
-                      Uint32 noOfPagesToAllocate,
-                      Uint32& noOfPagesAllocated,
-                      Uint32& allocPageRef);
+  //----------------------------------------------------------------------------
+  // Page Memory Manager
+  //----------------------------------------------------------------------------
+
+  // Public methods
+  void allocConsPages(EmulatedJamBuffer *jamBuf, Uint32 noOfPagesToAllocate,
+                      Uint32 &noOfPagesAllocated, Uint32 &allocPageRef);
   void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
   bool returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo);
   void update_pages_allocated(int ret_num);
@@ -3682,92 +3348,69 @@ private:
   Uint32 m_pages_allocated;
   Uint32 m_pages_allocated_max;
 
-//------------------------------------------------------------------------------------------------------
-// Page Mapper, convert logical page id's to physical page id's
-// The page mapper also handles the pages allocated to the fragment.
-//------------------------------------------------------------------------------------------------------
-//
-// Public methods
-  Uint32 getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId);
-  Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
-  Uint32 getRealpidScan(Fragrecord* regFragPtr,
-                        Uint32 logicalPageId,
-                        Uint32 **next_ptr,
-                        Uint32 **prev_ptr);
-  void set_last_lcp_state(Fragrecord*, Uint32, bool);
-  void set_last_lcp_state(Uint32*, bool);
+  //------------------------------------------------------------------------------------------------------
+  // Page Mapper, convert logical page id's to physical page id's
+  // The page mapper also handles the pages allocated to the fragment.
+  //------------------------------------------------------------------------------------------------------
+  //
+  // Public methods
+  Uint32 getRealpid(Fragrecord *regFragPtr, Uint32 logicalPageId);
+  Uint32 getRealpidCheck(Fragrecord *regFragPtr, Uint32 logicalPageId);
+  Uint32 getRealpidScan(Fragrecord *regFragPtr, Uint32 logicalPageId,
+                        Uint32 **next_ptr, Uint32 **prev_ptr);
+  void set_last_lcp_state(Fragrecord *, Uint32, bool);
+  void set_last_lcp_state(Uint32 *, bool);
   bool get_last_lcp_state(Uint32 *prev_ptr);
-  bool get_lcp_scanned_bit(Fragrecord*, Uint32);
+  bool get_lcp_scanned_bit(Fragrecord *, Uint32);
   bool get_lcp_scanned_bit(Uint32 *next_ptr);
-  //void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  // void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   void reset_lcp_scanned_bit(Uint32 *next_ptr);
 
-  Uint32 getNoOfPages(Fragrecord* regFragPtr);
-  Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(EmulatedJamBuffer* jamBuf,
-                       Uint32 * err, 
-                       Fragrecord* regFragPtr,
-                       Tablerec *regTabPtr);
-  Uint32 allocFragPage(Uint32 * err, Tablerec*, Fragrecord*, Uint32 page_no);
-  void releaseFragPage(Fragrecord* regFragPtr,
-                       Uint32 logicalPageId,
-                       PagePtr);
-  void rebuild_page_free_list(Signal*);
-  Uint32 get_empty_var_page(Fragrecord* frag_ptr);
-  void init_page(Fragrecord*, PagePtr, Uint32 page_no);
-  
-// Private methods
+  Uint32 getNoOfPages(Fragrecord *regFragPtr);
+  Uint32 getEmptyPage(Fragrecord *regFragPtr);
+  Uint32 allocFragPage(EmulatedJamBuffer *jamBuf, Uint32 *err,
+                       Fragrecord *regFragPtr, Tablerec *regTabPtr);
+  Uint32 allocFragPage(Uint32 *err, Tablerec *, Fragrecord *, Uint32 page_no);
+  void releaseFragPage(Fragrecord *regFragPtr, Uint32 logicalPageId, PagePtr);
+  void rebuild_page_free_list(Signal *);
+  Uint32 get_empty_var_page(Fragrecord *frag_ptr);
+  void init_page(Fragrecord *, PagePtr, Uint32 page_no);
+
+  // Private methods
   void errorHandler(Uint32 errorCode);
   Uint32 insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
-                                       Fragrecord *fragPtrP,
-                                       PagePtr pagePtr,
+                                       Fragrecord *fragPtrP, PagePtr pagePtr,
                                        Uint32 noOfPagesAllocated);
   Uint32 remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
-                                         Fragrecord *fragPtrP,
-                                         PagePtr pagePtr);
-  void remove_page_id_from_dll(Fragrecord *fragPtrP,
-                               Uint32 page_no,
-                               Uint32 pagePtrI,
-                               Uint32 *ptr);
-  void handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
-                           Fragrecord *fragPtrP,
-                           PagePtr pagePtr,
-                           Uint32 page_no);
-  void handle_new_page(EmulatedJamBuffer *jamBuf,
-                       Fragrecord *fragPtrP,
-                       Tablerec *tabPtrP,
-                       PagePtr pagePtr,
-                       Uint32 page_no);
+                                         Fragrecord *fragPtrP, PagePtr pagePtr);
+  void remove_page_id_from_dll(Fragrecord *fragPtrP, Uint32 page_no,
+                               Uint32 pagePtrI, Uint32 *ptr);
+  void handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf, Fragrecord *fragPtrP,
+                           PagePtr pagePtr, Uint32 page_no);
+  void handle_new_page(EmulatedJamBuffer *jamBuf, Fragrecord *fragPtrP,
+                       Tablerec *tabPtrP, PagePtr pagePtr, Uint32 page_no);
 
-  void record_delete_by_pageid(Signal *signal,
-                               Uint32 tableId,
-                               Uint32 fragmentId,
-                               ScanOp &scan,
-                               Uint32 page_no,
-                               Uint32 record_size,
-                               bool set_scan_state);
+  void record_delete_by_pageid(Signal *signal, Uint32 tableId,
+                               Uint32 fragmentId, ScanOp &scan, Uint32 page_no,
+                               Uint32 record_size, bool set_scan_state);
 
-  void record_delete_by_rowid(Signal *signal,
-                              Uint32 tableId,
-                              Uint32 fragmentId,
-                              ScanOp &scan,
-                              Local_key &key,
-                              Uint32 foundGCI,
+  void record_delete_by_rowid(Signal *signal, Uint32 tableId, Uint32 fragmentId,
+                              ScanOp &scan, Local_key &key, Uint32 foundGCI,
                               bool set_scan_state);
 
-//---------------------------------------------------------------
-// Variable Allocator
-// Allocates and deallocates tuples of fixed size on a fragment.
-//---------------------------------------------------------------
-//
-// Public methods
+  //---------------------------------------------------------------
+  // Variable Allocator
+  // Allocates and deallocates tuples of fixed size on a fragment.
+  //---------------------------------------------------------------
+  //
+  // Public methods
 
   void init_list_sizes(void);
 
-// Private methods
+  // Private methods
 
-  Uint32 get_alloc_page(Fragrecord* const, Uint32);
-  void update_free_page_list(Fragrecord* const, Ptr<Page>);
+  Uint32 get_alloc_page(Fragrecord *const, Uint32);
+  void update_free_page_list(Fragrecord *const, Ptr<Page>);
 
 #if 0  
   Uint32 calc_free_list(const Tablerec* regTabPtr, Uint32 sz) const {
@@ -3777,71 +3420,69 @@ private:
 
   Uint32 calculate_free_list_impl(Uint32) const;
   Uint32 calculate_free_list_for_alloc(Uint32) const;
-  Uint64 calculate_used_var_words(Fragrecord* fragPtr);
-  void remove_free_page(Fragrecord*, Var_page*, Uint32);
-  void insert_free_page(Fragrecord*, Var_page*, Uint32);
+  Uint64 calculate_used_var_words(Fragrecord *fragPtr);
+  void remove_free_page(Fragrecord *, Var_page *, Uint32);
+  void insert_free_page(Fragrecord *, Var_page *, Uint32);
 
-//---------------------------------------------------------------
-// Fixed Allocator
-// Allocates and deallocates tuples of fixed size on a fragment.
-//---------------------------------------------------------------
-//
-// Public methods
-  Uint32* alloc_var_rec(Uint32 * err,
-                        Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
-  void free_var_rec(Fragrecord*, Tablerec*, Local_key*, Ptr<Page>);
-  void free_var_part(Fragrecord*, Tablerec*, Local_key*);
-  Uint32* alloc_var_part(Uint32*err,Fragrecord*, Tablerec*, Uint32, Local_key*);
-  Uint32 *realloc_var_part(Uint32 * err, Fragrecord*, Tablerec*,
-                           PagePtr, Var_part_ref*, Uint32, Uint32);
-  
-  void move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
-                     Var_part_ref* refptr, Uint32 size, Tuple_header *org);
- 
-  void free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx);
+  //---------------------------------------------------------------
+  // Fixed Allocator
+  // Allocates and deallocates tuples of fixed size on a fragment.
+  //---------------------------------------------------------------
+  //
+  // Public methods
+  Uint32 *alloc_var_rec(Uint32 *err, Fragrecord *, Tablerec *, Uint32,
+                        Local_key *, Uint32 *);
+  void free_var_rec(Fragrecord *, Tablerec *, Local_key *, Ptr<Page>);
+  void free_var_part(Fragrecord *, Tablerec *, Local_key *);
+  Uint32 *alloc_var_part(Uint32 *err, Fragrecord *, Tablerec *, Uint32,
+                         Local_key *);
+  Uint32 *realloc_var_part(Uint32 *err, Fragrecord *, Tablerec *, PagePtr,
+                           Var_part_ref *, Uint32, Uint32);
 
-  void validate_page(Tablerec*, Var_page* page);
-  
-  Uint32* alloc_fix_rec(EmulatedJamBuffer* jamBuf, Uint32* err,
-                        Fragrecord*const, Tablerec*const, Local_key*,
-                        Uint32*);
-  void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
-  
-  Uint32* alloc_fix_rowid(Uint32 * err,
-                          Fragrecord*, Tablerec*, Local_key*, Uint32 *);
-  Uint32* alloc_var_rowid(Uint32 * err,
-                          Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
-// Private methods
-  void convertThPage(Fix_page* regPagePtr,
-		     Tablerec*,
-		     Uint32 mm);
+  void move_var_part(Fragrecord *fragPtr, Tablerec *tabPtr, PagePtr pagePtr,
+                     Var_part_ref *refptr, Uint32 size, Tuple_header *org);
+
+  void free_var_part(Fragrecord *fragPtr, PagePtr pagePtr, Uint32 page_idx);
+
+  void validate_page(Tablerec *, Var_page *page);
+
+  Uint32 *alloc_fix_rec(EmulatedJamBuffer *jamBuf, Uint32 *err,
+                        Fragrecord *const, Tablerec *const, Local_key *,
+                        Uint32 *);
+  void free_fix_rec(Fragrecord *, Tablerec *, Local_key *, Fix_page *);
+
+  Uint32 *alloc_fix_rowid(Uint32 *err, Fragrecord *, Tablerec *, Local_key *,
+                          Uint32 *);
+  Uint32 *alloc_var_rowid(Uint32 *err, Fragrecord *, Tablerec *, Uint32,
+                          Local_key *, Uint32 *);
+  // Private methods
+  void convertThPage(Fix_page *regPagePtr, Tablerec *, Uint32 mm);
 
   /**
    * Return offset
    */
-  Uint32 alloc_tuple_from_page(Fragrecord* regFragPtr,
-			       Fix_page* regPagePtr);
-  
-//---------------------------------------------------------------
-// Temporary variables used for storing commonly used variables
-// in certain modules
-//---------------------------------------------------------------
+  Uint32 alloc_tuple_from_page(Fragrecord *regFragPtr, Fix_page *regPagePtr);
+
+  //---------------------------------------------------------------
+  // Temporary variables used for storing commonly used variables
+  // in certain modules
+  //---------------------------------------------------------------
 
   Uint32 c_lcp_scan_op;
   Uint32 c_copy_frag_scan_op;
 
-// readAttributes and updateAttributes module
-//------------------------------------------------------------------------------------------------------
-// Common stored variables. Variables that have a valid value always.
-//------------------------------------------------------------------------------------------------------
-  bool m_immediate_flag; // Temporary variable
+  // readAttributes and updateAttributes module
+  //------------------------------------------------------------------------------------------------------
+  // Common stored variables. Variables that have a valid value always.
+  //------------------------------------------------------------------------------------------------------
+  bool m_immediate_flag;  // Temporary variable
   Fragoperrec *fragoperrec;
   Uint32 cfirstfreeFragopr;
   Uint32 cnoOfFragoprec;
   RSS_OP_COUNTER(cnoOfFreeFragoprec);
   RSS_OP_SNAPSHOT(cnoOfFreeFragoprec);
 
-public:
+ public:
   Fragrecord *fragrecord;
   Uint32 cfirstfreefrag;
   Uint32 cnoOfFragrec;
@@ -3850,13 +3491,14 @@ public:
   FragrecordPtr prepare_fragptr;
 
   DynArr256Pool *c_page_map_pool_ptr;
-private:
+
+ private:
   /*
    * DefaultValuesFragment is a normal struct Fragrecord.
    * It is TUP block-variable.
    * There is only ONE DefaultValuesFragment shared
    * among all table fragments stored by this TUP block.
-  */
+   */
   FragrecordPtr DefaultValuesFragment;
   RSS_OP_SNAPSHOT(defaultValueWordsHi);
   RSS_OP_SNAPSHOT(defaultValueWordsLo);
@@ -3877,13 +3519,13 @@ private:
   /* read ahead in pages during disk order scan */
   Uint32 m_max_page_read_ahead;
 
-public:
+ public:
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;
   TableDescriptor *tableDescriptor;
   Uint32 cnoOfTabDescrRec;
 
-private:
+ private:
   RSS_OP_COUNTER(cnoOfFreeTabDescrRec);
   RSS_OP_SNAPSHOT(cnoOfFreeTabDescrRec);
   TablerecPtr prepare_tabptr;
@@ -3899,7 +3541,7 @@ private:
   Uint32 prepare_page_no;
   Uint32 prepare_page_idx;
   Uint64 c_debug_count;
-  
+
   Uint32 cdata[32];
   Uint32 cdataPages[16];
   Uint32 cpackedListIndex;
@@ -3922,7 +3564,8 @@ private:
   Uint32 cCopyOverwrite;
   Uint32 cCopyOverwriteLen;
 
- // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
+  // A little bit bigger to cover overwrites in copy algorithms (16384 real
+  // size).
 #define ZATTR_BUFFER_SIZE 16384
   Uint32 clogMemBuffer[ZATTR_BUFFER_SIZE + 16];
   Uint32 coutBuffer[ZATTR_BUFFER_SIZE + 16];
@@ -3935,11 +3578,14 @@ private:
    *   - clogMemBuffer also used for before values
    */
   static_assert(sizeof(clogMemBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
+                sizeof(Uint32) *
+                    (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(coutBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
+                sizeof(Uint32) *
+                    (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(cinBuffer) >=
-      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX));
+                sizeof(Uint32) *
+                    (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX));
 
   Uint32 ctemp_page[ZWORDS_ON_PAGE];
   Uint32 ctemp_var_record[ZWORDS_ON_PAGE];
@@ -3953,72 +3599,63 @@ private:
   Uint32 c_max_list_size[MAX_FREE_LIST + 1];
 
   void initGlobalTemporaryVars();
-  void reportMemoryUsage(Signal* signal, int incDec);
+  void reportMemoryUsage(Signal *signal, int incDec);
 
-  
 #ifdef VM_TRACE
   struct Th {
     Uint32 data[1];
   };
-  friend class NdbOut& operator<<(NdbOut&, const Operationrec&);
-  friend class NdbOut& operator<<(NdbOut&, const Th&);
+  friend class NdbOut &operator<<(NdbOut &, const Operationrec &);
+  friend class NdbOut &operator<<(NdbOut &, const Th &);
 #endif
 
-  void expand_tuple(KeyReqStruct*,
-                    Uint32 sizes[2],
-                    Tuple_header *org, 
-		    const Tablerec*,
-                    bool disk,
-                    bool from_lcp_keep = false);
-  void shrink_tuple(KeyReqStruct*,
-                    Uint32 sizes[2],
-                    const Tablerec*,
-		    bool disk);
-  
-  Uint32* get_ptr(Var_part_ref);
-  Uint32* get_ptr(PagePtr*, Var_part_ref);
-  Uint32* get_ptr(PagePtr*, const Local_key*, const Tablerec*);
-  Uint32* get_dd_ptr(PagePtr*, const Local_key*, const Tablerec*);
-  Uint32* get_default_ptr(const Tablerec*, Uint32&);
-  Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
+  void expand_tuple(KeyReqStruct *, Uint32 sizes[2], Tuple_header *org,
+                    const Tablerec *, bool disk, bool from_lcp_keep = false);
+  void shrink_tuple(KeyReqStruct *, Uint32 sizes[2], const Tablerec *,
+                    bool disk);
+
+  Uint32 *get_ptr(Var_part_ref);
+  Uint32 *get_ptr(PagePtr *, Var_part_ref);
+  Uint32 *get_ptr(PagePtr *, const Local_key *, const Tablerec *);
+  Uint32 *get_dd_ptr(PagePtr *, const Local_key *, const Tablerec *);
+  Uint32 *get_default_ptr(const Tablerec *, Uint32 &);
+  Uint32 get_len(Ptr<Page> *pagePtr, Var_part_ref ref);
 
   static constexpr Uint32 COPY_TUPLE_HEADER32 = 4;
 
-  Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
-    Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr,
-                                                  tabPtrP->total_rec_size);
-    if (unlikely(dst == 0))
-      return 0;
+  Tuple_header *alloc_copy_tuple(const Tablerec *tabPtrP, Local_key *ptr) {
+    Uint32 *dst = c_undo_buffer.alloc_copy_tuple(ptr, tabPtrP->total_rec_size);
+    if (unlikely(dst == 0)) return 0;
 #ifdef HAVE_VALGRIND
     std::memset(dst, 0, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
-    ChangeMask * mask = (ChangeMask*)(dst + COPY_TUPLE_HEADER32);
+    ChangeMask *mask = (ChangeMask *)(dst + COPY_TUPLE_HEADER32);
     mask->m_cols = count;
-    return (Tuple_header*)(mask->end_of_mask(count));
+    return (Tuple_header *)(mask->end_of_mask(count));
   }
 
-  Uint32 * get_copy_tuple_raw(const Local_key* ptr) {
+  Uint32 *get_copy_tuple_raw(const Local_key *ptr) {
     return c_undo_buffer.get_ptr(ptr);
   }
 
-  Tuple_header * get_copy_tuple(Uint32 * rawptr) {
-    return (Tuple_header*)
-      (get_change_mask_ptr(rawptr)->end_of_mask());
+  Tuple_header *get_copy_tuple(Uint32 *rawptr) {
+    return (Tuple_header *)(get_change_mask_ptr(rawptr)->end_of_mask());
   }
 
-  ChangeMask * get_change_mask_ptr(Uint32 * rawptr) {
-    return (ChangeMask*)(rawptr + COPY_TUPLE_HEADER32);
+  ChangeMask *get_change_mask_ptr(Uint32 *rawptr) {
+    return (ChangeMask *)(rawptr + COPY_TUPLE_HEADER32);
   }
 
-  Tuple_header* get_copy_tuple(const Local_key* ptr){
+  Tuple_header *get_copy_tuple(const Local_key *ptr) {
     return get_copy_tuple(get_copy_tuple_raw(ptr));
   }
 
-  ChangeMask* get_change_mask_ptr(const Tablerec* tabP,Tuple_header* copytuple){
-    Uint32 * raw = (Uint32*)copytuple;
-    Uint32 * tmp = raw - (1 + ((tabP->m_no_of_attributes + 31) >> 5));
-    ChangeMask* mask = (ChangeMask*)tmp;
+  ChangeMask *get_change_mask_ptr(const Tablerec *tabP,
+                                  Tuple_header *copytuple) {
+    Uint32 *raw = (Uint32 *)copytuple;
+    Uint32 *tmp = raw - (1 + ((tabP->m_no_of_attributes + 31) >> 5));
+    ChangeMask *mask = (ChangeMask *)tmp;
     assert(mask->end_of_mask() == raw);
     assert(get_copy_tuple(tmp - COPY_TUPLE_HEADER32) == copytuple);
     return mask;
@@ -4030,141 +3667,92 @@ private:
    *   key.m_page_no  contains disk page
    *   key.m_page_idx contains byte preallocated
    */
-  int disk_page_prealloc(Signal*, Ptr<Fragrecord>, Local_key*, Uint32);
-  void disk_page_prealloc_dirty_page(Disk_alloc_info&, 
-				     Ptr<Page>,
-                                     Uint32,
-                                     Uint32,
-                                     Fragrecord*);
-  void disk_page_prealloc_transit_page(Disk_alloc_info&,
-				       Ptr<Page_request>, Uint32, Uint32);
-  
-  void disk_page_abort_prealloc(Signal*, Fragrecord*,Local_key*, Uint32);
-  void disk_page_abort_prealloc_callback(Signal*, Uint32, Uint32);
-  void disk_page_abort_prealloc_callback_1(Signal*, Fragrecord*,
-					   PagePtr, Uint32);
-  
-  void disk_page_prealloc_callback(Signal*, Uint32, Uint32);
-  void disk_page_prealloc_initial_callback(Signal*, Uint32, Uint32);
-  void disk_page_prealloc_callback_common(Signal*, 
-					  Ptr<Page_request>, 
-					  Ptr<Fragrecord>,
-					  Ptr<Page>);
-  
-  void disk_page_alloc(Signal*,
-		       Tablerec*,
-                       Fragrecord*,
-                       Local_key*,
-                       PagePtr,
-                       Uint32,
-                       const Local_key*,
-                       Uint32 alloc_size);
-  void disk_page_free(Signal*,
-		      Tablerec*,
-                      Fragrecord*,
-                      Local_key*,
-                      PagePtr,
-                      Uint32,
-                      const Local_key*,
-                      Uint32 alloc_size);
-  
-  void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
-  
-  void disk_page_log_buffer_callback(Signal*, Uint32 opPtrI, Uint32); 
+  int disk_page_prealloc(Signal *, Ptr<Fragrecord>, Local_key *, Uint32);
+  void disk_page_prealloc_dirty_page(Disk_alloc_info &, Ptr<Page>, Uint32,
+                                     Uint32, Fragrecord *);
+  void disk_page_prealloc_transit_page(Disk_alloc_info &, Ptr<Page_request>,
+                                       Uint32, Uint32);
 
-  void disk_page_alloc_extent_log_buffer_callback(Signal*, Uint32, Uint32);
-  void disk_page_free_extent_log_buffer_callback(Signal*, Uint32, Uint32);
-  
-  Uint64 disk_page_undo_alloc(Signal *signal,
-                              Page*,
-                              const Local_key*,
-			      Uint32 sz,
-                              Uint32 gci,
-                              Uint32 logfile_group_id,
+  void disk_page_abort_prealloc(Signal *, Fragrecord *, Local_key *, Uint32);
+  void disk_page_abort_prealloc_callback(Signal *, Uint32, Uint32);
+  void disk_page_abort_prealloc_callback_1(Signal *, Fragrecord *, PagePtr,
+                                           Uint32);
+
+  void disk_page_prealloc_callback(Signal *, Uint32, Uint32);
+  void disk_page_prealloc_initial_callback(Signal *, Uint32, Uint32);
+  void disk_page_prealloc_callback_common(Signal *, Ptr<Page_request>,
+                                          Ptr<Fragrecord>, Ptr<Page>);
+
+  void disk_page_alloc(Signal *, Tablerec *, Fragrecord *, Local_key *, PagePtr,
+                       Uint32, const Local_key *, Uint32 alloc_size);
+  void disk_page_free(Signal *, Tablerec *, Fragrecord *, Local_key *, PagePtr,
+                      Uint32, const Local_key *, Uint32 alloc_size);
+
+  void disk_page_commit_callback(Signal *, Uint32 opPtrI, Uint32 page_id);
+
+  void disk_page_log_buffer_callback(Signal *, Uint32 opPtrI, Uint32);
+
+  void disk_page_alloc_extent_log_buffer_callback(Signal *, Uint32, Uint32);
+  void disk_page_free_extent_log_buffer_callback(Signal *, Uint32, Uint32);
+
+  Uint64 disk_page_undo_alloc(Signal *signal, Page *, const Local_key *,
+                              Uint32 sz, Uint32 gci, Uint32 logfile_group_id,
                               Uint32 alloc_size);
 
-  Uint64 disk_page_undo_update(Signal *signal,
-                               Page*,
-                               const Local_key*,
-			       const Uint32*,
-                               Uint32 sz,
-			       Uint32 gci,
-                               Uint32 logfile_group_id,
-                               Uint32 alloc_size);
-  
-  Uint64 disk_page_undo_free(Signal *signal,
-                             Page*,
-                             const Local_key*,
-			     const Uint32*,
-                             Uint32 sz,
-			     Uint32 gci,
-                             Uint32 logfile_group_id,
-                             Uint32 alloc_size);
+  Uint64 disk_page_undo_update(Signal *signal, Page *, const Local_key *,
+                               const Uint32 *, Uint32 sz, Uint32 gci,
+                               Uint32 logfile_group_id, Uint32 alloc_size);
 
-  void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
+  Uint64 disk_page_undo_free(Signal *signal, Page *, const Local_key *,
+                             const Uint32 *, Uint32 sz, Uint32 gci,
+                             Uint32 logfile_group_id, Uint32 alloc_size);
 
-  void drop_table_logsync_callback(Signal*, Uint32, Uint32);
-  void drop_table_log_buffer_callback(Signal*, Uint32, Uint32);
+  void undo_createtable_logsync_callback(Signal *signal, Uint32, Uint32);
+
+  void drop_table_logsync_callback(Signal *, Uint32, Uint32);
+  void drop_table_log_buffer_callback(Signal *, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
-  void restart_setup_page(Ptr<Fragrecord> fragPtr,
-                          Disk_alloc_info&,
-                          Ptr<Page>,
+  void restart_setup_page(Ptr<Fragrecord> fragPtr, Disk_alloc_info &, Ptr<Page>,
                           Int32 estimate);
-  void update_extent_pos(EmulatedJamBuffer* jamBuf, Disk_alloc_info&, 
+  void update_extent_pos(EmulatedJamBuffer *jamBuf, Disk_alloc_info &,
                          Ptr<Extent_info>, Int32 delta);
 
-  void disk_page_move_page_request(Disk_alloc_info& alloc,
-                                   Ptr<Extent_info>,
-                                   Ptr<Page_request> req,
-                                   Uint32 old_idx, Uint32 new_idx);
+  void disk_page_move_page_request(Disk_alloc_info &alloc, Ptr<Extent_info>,
+                                   Ptr<Page_request> req, Uint32 old_idx,
+                                   Uint32 new_idx);
 
-  void disk_page_move_dirty_page(Disk_alloc_info& alloc,
-                                 Ptr<Extent_info> extentPtr,
-                                 Ptr<Page> pagePtr,
-                                 Uint32 old_idx,
-                                 Uint32 new_idx,
-                                 Fragrecord*);
+  void disk_page_move_dirty_page(Disk_alloc_info &alloc,
+                                 Ptr<Extent_info> extentPtr, Ptr<Page> pagePtr,
+                                 Uint32 old_idx, Uint32 new_idx, Fragrecord *);
 
-  void disk_page_get_allocated(const Tablerec*, const Fragrecord*,
+  void disk_page_get_allocated(const Tablerec *, const Fragrecord *,
                                Uint64 res[2]);
   /**
    * Disk restart code
    */
-public:
+ public:
   int disk_page_load_hook(Uint32 page_id);
-  
-  void disk_page_unmap_callback(Uint32 when,
-                                Uint32 page,
-                                Uint32 dirty_count,
+
+  void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count,
                                 Uint32 ptrI);
-  
-  int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
-                                Uint32 tableId,
-                                Uint32 fragId,
-                                Uint32 create_table_version,
-				const Local_key* key,
-                                Uint32 pages);
-  void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
-                              Uint32 tableId,
-                              Uint32 fragId,
-                              Uint32 create_table_version,
-			      const Local_key*,
-                              Uint32 bits);
-  void disk_restart_undo(Signal* signal,
-                         Uint64 lsn,
-			 Uint32 type,
-                         const Uint32 * ptr,
-                         Uint32 len);
+
+  int disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf, Uint32 tableId,
+                                Uint32 fragId, Uint32 create_table_version,
+                                const Local_key *key, Uint32 pages);
+  void disk_restart_page_bits(EmulatedJamBuffer *jamBuf, Uint32 tableId,
+                              Uint32 fragId, Uint32 create_table_version,
+                              const Local_key *, Uint32 bits);
+  void disk_restart_undo(Signal *signal, Uint64 lsn, Uint32 type,
+                         const Uint32 *ptr, Uint32 len);
 
   void verify_undo_log_execution();
-  struct Apply_undo 
-  {
+  struct Apply_undo {
     bool m_in_intermediate_log_record;
     Uint32 m_type;
     Uint32 m_len;
     Uint32 m_offset;
-    const Uint32* m_ptr;
+    const Uint32 *m_ptr;
     Uint32 m_data[MAX_UNDO_DATA];
     Uint64 m_lsn;
     Ptr<Tablerec> m_table_ptr;
@@ -4173,22 +3761,23 @@ public:
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
     Uint32 nextList;
-    union { Uint32 nextPool; Uint32 prevList; };
+    union {
+      Uint32 nextPool;
+      Uint32 prevList;
+    };
     Uint32 m_magic;
 
     Apply_undo();
   };
-  typedef RecordPool<RWPool<Apply_undo> > Apply_undo_pool;
+  typedef RecordPool<RWPool<Apply_undo>> Apply_undo_pool;
   typedef DLCFifoList<Apply_undo_pool> Apply_undo_list;
   typedef LocalDLCFifoList<Apply_undo_pool> LocalApply_undo_list;
 
   Apply_undo_pool c_apply_undo_pool;
 
-  struct Pending_undo_page
-  {
-    Pending_undo_page()  {}
-    Pending_undo_page(Uint32 file_no, Uint32 page_no)
-    {
+  struct Pending_undo_page {
+    Pending_undo_page() {}
+    Pending_undo_page(Uint32 file_no, Uint32 page_no) {
       m_file_no = file_no;
       m_page_no = page_no;
     }
@@ -4198,33 +3787,28 @@ public:
     Apply_undo_list::Head m_apply_undo_head;
 
     Uint32 nextHash;
-    union { Uint32 prevHash; Uint32 nextPool; };
+    union {
+      Uint32 prevHash;
+      Uint32 nextPool;
+    };
     Uint32 m_magic;
 
-    Uint32 hashValue() const
-    {
-      return m_file_no << 16 | m_page_no;
-    }
+    Uint32 hashValue() const { return m_file_no << 16 | m_page_no; }
 
-    bool equal(const Pending_undo_page& obj) const
-    {
+    bool equal(const Pending_undo_page &obj) const {
       return m_file_no == obj.m_file_no && m_page_no == obj.m_page_no;
     }
   };
 
-  typedef RecordPool<RWPool<Pending_undo_page> >
-    Pending_undo_page_pool;
-  typedef DLCHashTable<Pending_undo_page_pool>
-    Pending_undo_page_hash;
+  typedef RecordPool<RWPool<Pending_undo_page>> Pending_undo_page_pool;
+  typedef DLCHashTable<Pending_undo_page_pool> Pending_undo_page_hash;
 
-  void disk_restart_lcp_id(Uint32 table,
-                           Uint32 frag,
-                           Uint32 lcpId,
+  void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId,
                            Uint32 localLcpId);
-  
+
   bool is_disk_columns_in_table(Uint32 tableId);
 
-private:
+ private:
   bool c_started;
 
   Pending_undo_page_pool c_pending_undo_page_pool;
@@ -4236,212 +3820,148 @@ private:
 
   // Error code when bailing out of scan
   Uint32 m_scan_error_code;
-  void disk_restart_undo_next(Signal*,
-                              Uint32 applied = 0,
+  void disk_restart_undo_next(Signal *, Uint32 applied = 0,
                               Uint32 count_pending = 1);
-  void disk_restart_undo_lcp(Uint32,
-                             Uint32,
-                             Uint32 flag,
-                             Uint32 lcpId,
-                             Uint32 localLcpId,
-                             Uint32 lsn);
-  void release_undo_record(Ptr<Apply_undo>&, bool);
+  void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId,
+                             Uint32 localLcpId, Uint32 lsn);
+  void release_undo_record(Ptr<Apply_undo> &, bool);
 
-  void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
-  void disk_restart_undo_alloc(Apply_undo*);
-  void disk_restart_undo_update(Apply_undo*);
-  void disk_restart_undo_update_first_part(Apply_undo*);
-  void disk_restart_undo_update_part(Apply_undo*);
-  void disk_restart_undo_free(Apply_undo*, bool);
-  void disk_restart_undo_page_bits(Signal*, Apply_undo*);
+  void disk_restart_undo_callback(Signal *signal, Uint32, Uint32);
+  void disk_restart_undo_alloc(Apply_undo *);
+  void disk_restart_undo_update(Apply_undo *);
+  void disk_restart_undo_update_first_part(Apply_undo *);
+  void disk_restart_undo_update_part(Apply_undo *);
+  void disk_restart_undo_free(Apply_undo *, bool);
+  void disk_restart_undo_page_bits(Signal *, Apply_undo *);
 
 #ifdef VM_TRACE
-  void verify_page_lists(Disk_alloc_info&);
+  void verify_page_lists(Disk_alloc_info &);
 #else
-  void verify_page_lists(Disk_alloc_info&) {}
+  void verify_page_lists(Disk_alloc_info &) {}
 #endif
-  
-  void findFirstOp(OperationrecPtr&);
-  bool is_rowid_in_remaining_lcp_set(const Page* page,
-		                     Fragrecord* regFragPtr, 
-                                     const Local_key& key1,
-                                     const Dbtup::ScanOp& op,
-                           Uint32 check_lcp_scanned_state_reversed);
-  void update_gci(Fragrecord*, Tablerec*, Tuple_header*, Uint32);
-  void commit_operation(Signal*,
-                        Uint32,
-                        Uint32,
-                        Tuple_header*,
-                        PagePtr,
-			Operationrec*,
-                        Fragrecord*,
-                        Tablerec*,
+
+  void findFirstOp(OperationrecPtr &);
+  bool is_rowid_in_remaining_lcp_set(const Page *page, Fragrecord *regFragPtr,
+                                     const Local_key &key1,
+                                     const Dbtup::ScanOp &op,
+                                     Uint32 check_lcp_scanned_state_reversed);
+  void update_gci(Fragrecord *, Tablerec *, Tuple_header *, Uint32);
+  void commit_operation(Signal *, Uint32, Uint32, Tuple_header *, PagePtr,
+                        Operationrec *, Fragrecord *, Tablerec *,
                         Ptr<GlobalPage> diskPagePtr);
 
-  void commit_refresh(Signal*,
-                      Uint32,
-                      Uint32,
-                      Tuple_header*,
-                      PagePtr,
-                      KeyReqStruct*,
-                      Operationrec*,
-                      Fragrecord*,
-                      Tablerec*,
+  void commit_refresh(Signal *, Uint32, Uint32, Tuple_header *, PagePtr,
+                      KeyReqStruct *, Operationrec *, Fragrecord *, Tablerec *,
                       Ptr<GlobalPage> diskPagePtr);
 
-  int retrieve_data_page(Signal*,
-                         Page_cache_client::Request,
-                         OperationrecPtr,
-                         Ptr<GlobalPage> &diskPagePtr,
-                         Fragrecord *fragPtrP);
-  int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
+  int retrieve_data_page(Signal *, Page_cache_client::Request, OperationrecPtr,
+                         Ptr<GlobalPage> &diskPagePtr, Fragrecord *fragPtrP);
+  int retrieve_log_page(Signal *, FragrecordPtr, OperationrecPtr);
 
-  void dealloc_tuple(Signal* signal,
-                     Uint32,
-                     Uint32,
-                     Page*,
-                     Tuple_header*,
-                     KeyReqStruct*,
-                     Operationrec*,
-                     Fragrecord*,
-                     Tablerec*,
+  void dealloc_tuple(Signal *signal, Uint32, Uint32, Page *, Tuple_header *,
+                     KeyReqStruct *, Operationrec *, Fragrecord *, Tablerec *,
                      Ptr<GlobalPage> diskPagePtr);
 
-  bool store_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32,
+  bool store_extra_row_bits(Uint32, const Tablerec *, Tuple_header *, Uint32,
                             bool);
-  void read_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32 *,
+  void read_extra_row_bits(Uint32, const Tablerec *, Tuple_header *, Uint32 *,
                            bool);
 
-  int handle_size_change_after_update(KeyReqStruct* req_struct,
-				      Tuple_header* org,
-				      Operationrec*,
-				      Fragrecord* regFragPtr,
-				      Tablerec* regTabPtr,
-				      Uint32 sizes[4]);
-  int optimize_var_part(KeyReqStruct* req_struct,
-                        Tuple_header* org,
-                        Operationrec* regOperPtr,
-                        Fragrecord* regFragPtr,
-                        Tablerec* regTabPtr);
+  int handle_size_change_after_update(KeyReqStruct *req_struct,
+                                      Tuple_header *org, Operationrec *,
+                                      Fragrecord *regFragPtr,
+                                      Tablerec *regTabPtr, Uint32 sizes[4]);
+  int optimize_var_part(KeyReqStruct *req_struct, Tuple_header *org,
+                        Operationrec *regOperPtr, Fragrecord *regFragPtr,
+                        Tablerec *regTabPtr);
 
   /**
    * Setup all pointer on keyreqstruct to prepare for read
    *   req_struct->m_tuple_ptr is set to tuple to read
    */
-  void prepare_read(KeyReqStruct*, Tablerec* const, bool disk);
+  void prepare_read(KeyReqStruct *, Tablerec *const, bool disk);
 
   /* For debugging, dump the contents of a tuple. */
-  void dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP);
+  void dump_tuple(const KeyReqStruct *req_struct, const Tablerec *tabPtrP);
 
 #ifdef VM_TRACE
-  void check_page_map(Fragrecord*);
-  bool find_page_id_in_list(Fragrecord*, Uint32 pid);
+  void check_page_map(Fragrecord *);
+  bool find_page_id_in_list(Fragrecord *, Uint32 pid);
 #endif
-  Uint32* init_page_map_entry(Fragrecord*, Uint32);
-  const char* insert_free_page_id_list(Fragrecord* fragPtrP,
-                                       Uint32 logicalPageId,
-                                       Uint32 *next,
-                                       Uint32 *prev,
-                                       Uint32 lcp_scanned_bit,
+  Uint32 *init_page_map_entry(Fragrecord *, Uint32);
+  const char *insert_free_page_id_list(Fragrecord *fragPtrP,
+                                       Uint32 logicalPageId, Uint32 *next,
+                                       Uint32 *prev, Uint32 lcp_scanned_bit,
                                        Uint32 last_lcp_state);
-  void remove_top_from_lcp_keep_list(Fragrecord*, Uint32*, Local_key);
-  void insert_lcp_keep_list(Fragrecord*, Local_key, Uint32*, const Local_key*);
-  void handle_lcp_drop_change_page(Fragrecord*, Uint32, PagePtr, bool);
-  void handle_lcp_keep(Signal*, FragrecordPtr, ScanOp*);
-  void handle_lcp_keep_commit(const Local_key*,
-                              KeyReqStruct *,
-                              Operationrec*, Fragrecord*, Tablerec*);
+  void remove_top_from_lcp_keep_list(Fragrecord *, Uint32 *, Local_key);
+  void insert_lcp_keep_list(Fragrecord *, Local_key, Uint32 *,
+                            const Local_key *);
+  void handle_lcp_drop_change_page(Fragrecord *, Uint32, PagePtr, bool);
+  void handle_lcp_keep(Signal *, FragrecordPtr, ScanOp *);
+  void handle_lcp_keep_commit(const Local_key *, KeyReqStruct *, Operationrec *,
+                              Fragrecord *, Tablerec *);
 
-  void setup_lcp_read_copy_tuple( KeyReqStruct *,
-                                  Operationrec*,
-                                  Tablerec*);
+  void setup_lcp_read_copy_tuple(KeyReqStruct *, Operationrec *, Tablerec *);
 
   bool isCopyTuple(Uint32 pageid, Uint32 pageidx) const {
     return (pageidx & (Uint16(1) << 15)) != 0;
   }
 
-  void setCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+  void setCopyTuple(Uint32 &pageid, Uint16 &pageidx) const {
     assert(!isCopyTuple(pageid, pageidx));
     pageidx |= (Uint16(1) << 15);
     assert(isCopyTuple(pageid, pageidx));
   }
 
-  void clearCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+  void clearCopyTuple(Uint32 &pageid, Uint16 &pageidx) const {
     assert(isCopyTuple(pageid, pageidx));
     pageidx &= ~(Uint16(1) << 15);
     assert(!isCopyTuple(pageid, pageidx));
   }
 
-private:
+ private:
   void release_c_free_scan_lock();
-  bool getNextTcConRec(Uint32 &next,
-                       OperationrecPtr &opPtr,
-                       Uint32 max_loops);
+  bool getNextTcConRec(Uint32 &next, OperationrecPtr &opPtr, Uint32 max_loops);
 
   void checkPoolShrinkNeed(Uint32 pool_index,
-                           const TransientFastSlotPool& pool);
+                           const TransientFastSlotPool &pool);
   void sendPoolShrink(Uint32 pool_index);
   void shrinkTransientPools(Uint32 pool_index);
 
   static const Uint32 c_transient_pool_count = 4;
-  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  TransientFastSlotPool *c_transient_pools[c_transient_pool_count];
   Bitmask<1> c_transient_pools_shrinking;
 
   Uint32 c_copy_frag_scan_lock;
   void release_scan_lock(ScanLockPtr);
 
-public:
+ public:
   static Uint64 getTransactionMemoryNeed(
-    const Uint32 ldm_instance_count,
-    const ndb_mgm_configuration_iterator * mgm_cfg,
-    const bool use_reserved);
-  bool seize_op_rec(Uint32 userptr,
-                    BlockReference ref,
-                    Uint32 &i_val,
+      const Uint32 ldm_instance_count,
+      const ndb_mgm_configuration_iterator *mgm_cfg, const bool use_reserved);
+  bool seize_op_rec(Uint32 userptr, BlockReference ref, Uint32 &i_val,
                     Operationrec **opPtrP);
-  Operationrec* get_operation_ptr(Uint32 i);
-  void release_op_rec(Uint32 opPtrI,
-                      Operationrec *opPtrP);
-  Uint32 getDBACC()
-  {
-    return m_acc_block;
-  }
-  Uint32 getDBTUP()
-  {
-    return m_tup_block;
-  }
-  Uint32 getDBLQH()
-  {
-    return m_lqh_block;
-  }
-  Uint32 getDBTUX()
-  {
-    return m_tux_block;
-  }
-  Uint32 getBACKUP()
-  {
-    return m_backup_block;
-  }
-  Operationrec* getOperationPtrP(Uint32 opPtrI);
+  Operationrec *get_operation_ptr(Uint32 i);
+  void release_op_rec(Uint32 opPtrI, Operationrec *opPtrP);
+  Uint32 getDBACC() { return m_acc_block; }
+  Uint32 getDBTUP() { return m_tup_block; }
+  Uint32 getDBLQH() { return m_lqh_block; }
+  Uint32 getDBTUX() { return m_tux_block; }
+  Uint32 getBACKUP() { return m_backup_block; }
+  Operationrec *getOperationPtrP(Uint32 opPtrI);
 };
 
-inline void
-Dbtup::prepare_op_pointer(Uint32 opPtrI,
-                          Dbtup::Operationrec *opPtrP)
-{
+inline void Dbtup::prepare_op_pointer(Uint32 opPtrI,
+                                      Dbtup::Operationrec *opPtrP) {
   jamDebug();
-  Uint32 *op_ptr = (Uint32*)opPtrP;
+  Uint32 *op_ptr = (Uint32 *)opPtrP;
   NDB_PREFETCH_WRITE(op_ptr);
   NDB_PREFETCH_WRITE(op_ptr + 16);
   prepare_oper_ptr.i = opPtrI;
   prepare_oper_ptr.p = opPtrP;
 }
 
-
-inline void
-Dbtup::release_op_rec(Uint32 opPtrI,
-                      Dbtup::Operationrec *opPtrP)
-{
+inline void Dbtup::release_op_rec(Uint32 opPtrI, Dbtup::Operationrec *opPtrP) {
   OperationrecPtr opPtr;
   opPtr.i = opPtrI;
   opPtr.p = opPtrP;
@@ -4451,186 +3971,136 @@ Dbtup::release_op_rec(Uint32 opPtrI,
 }
 
 inline void Dbtup::checkPoolShrinkNeed(const Uint32 pool_index,
-                                       const TransientFastSlotPool& pool)
-{
+                                       const TransientFastSlotPool &pool) {
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   ndbrequire(pool_index < c_transient_pool_count);
   ndbrequire(c_transient_pools[pool_index] == &pool);
 #endif
-  if (pool.may_shrink())
-  {
+  if (pool.may_shrink()) {
     sendPoolShrink(pool_index);
   }
 }
 
-inline
-Uint32
-Dbtup::get_current_frag_page_id()
-{
+inline Uint32 Dbtup::get_current_frag_page_id() {
   return prepare_pageptr.p->frag_page_id;
 }
 
-inline
-void
-Dbtup::setup_fixed_tuple_ref_opt(KeyReqStruct* req_struct)
-{
+inline void Dbtup::setup_fixed_tuple_ref_opt(KeyReqStruct *req_struct) {
   req_struct->m_page_ptr = prepare_pageptr;
-  req_struct->m_tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
+  req_struct->m_tuple_ptr = (Tuple_header *)prepare_tuple_ptr;
 }
 
-inline
-void
-Dbtup::setup_fixed_tuple_ref(KeyReqStruct* req_struct,
-                             Operationrec* regOperPtr,
-                             Tablerec* regTabPtr)
-{
+inline void Dbtup::setup_fixed_tuple_ref(KeyReqStruct *req_struct,
+                                         Operationrec *regOperPtr,
+                                         Tablerec *regTabPtr) {
   PagePtr page_ptr;
-  Uint32* ptr= get_ptr(&page_ptr, &regOperPtr->m_tuple_location, regTabPtr);
+  Uint32 *ptr = get_ptr(&page_ptr, &regOperPtr->m_tuple_location, regTabPtr);
   req_struct->m_page_ptr = page_ptr;
-  req_struct->m_tuple_ptr = (Tuple_header*)ptr;
+  req_struct->m_tuple_ptr = (Tuple_header *)ptr;
 }
 
-inline
-Dbtup::TransState
-Dbtup::get_trans_state(Operationrec * regOperPtr)
-{
+inline Dbtup::TransState Dbtup::get_trans_state(Operationrec *regOperPtr) {
   return (Dbtup::TransState)regOperPtr->trans_state;
 }
 
-inline
-void
-Dbtup::set_trans_state(Operationrec* regOperPtr,
-                       Dbtup::TransState trans_state)
-{
-  regOperPtr->trans_state= (Uint32)trans_state;
+inline void Dbtup::set_trans_state(Operationrec *regOperPtr,
+                                   Dbtup::TransState trans_state) {
+  regOperPtr->trans_state = (Uint32)trans_state;
 }
 
-inline
-Dbtup::TupleState
-Dbtup::get_tuple_state(Operationrec * regOperPtr)
-{
+inline Dbtup::TupleState Dbtup::get_tuple_state(Operationrec *regOperPtr) {
   return (Dbtup::TupleState)regOperPtr->tuple_state;
 }
 
-inline
-void
-Dbtup::set_tuple_state(Operationrec* regOperPtr,
-                       Dbtup::TupleState tuple_state)
-{
-  regOperPtr->tuple_state= (Uint32)tuple_state;
+inline void Dbtup::set_tuple_state(Operationrec *regOperPtr,
+                                   Dbtup::TupleState tuple_state) {
+  regOperPtr->tuple_state = (Uint32)tuple_state;
 }
 
-
-inline
-Uint32
-Dbtup::decr_tup_version(Uint32 tup_version)
-{
+inline Uint32 Dbtup::decr_tup_version(Uint32 tup_version) {
   return (tup_version - 1) & ZTUP_VERSION_MASK;
 }
 
-inline
-Uint32*
-Dbtup::get_ptr(Var_part_ref ref)
-{
+inline Uint32 *Dbtup::get_ptr(Var_part_ref ref) {
   Ptr<Page> tmp;
   return get_ptr(&tmp, ref);
 }
 
-inline
-Uint32*
-Dbtup::get_ptr(Ptr<Page>* pagePtr, Var_part_ref ref)
-{
+inline Uint32 *Dbtup::get_ptr(Ptr<Page> *pagePtr, Var_part_ref ref) {
   PagePtr tmp;
   Local_key key;
   ref.copyout(&key);
   tmp.i = key.m_page_no;
-  
+
   c_page_pool.getPtr(tmp);
   memcpy(pagePtr, &tmp, sizeof(tmp));
-  return ((Var_page*)tmp.p)->get_ptr(key.m_page_idx);
+  return ((Var_page *)tmp.p)->get_ptr(key.m_page_idx);
 }
 
-inline
-Uint32*
-Dbtup::get_ptr(PagePtr* pagePtr, 
-	       const Local_key* key, const Tablerec* regTabPtr)
-{
+inline Uint32 *Dbtup::get_ptr(PagePtr *pagePtr, const Local_key *key,
+                              const Tablerec *regTabPtr) {
   PagePtr tmp;
-  tmp.i= key->m_page_no;
+  tmp.i = key->m_page_no;
   c_page_pool.getPtr(tmp);
   memcpy(pagePtr, &tmp, sizeof(tmp));
 
-  return ((Fix_page*)tmp.p)->
-    get_ptr(key->m_page_idx, regTabPtr->m_offsets[MM].m_fix_header_size);
+  return ((Fix_page *)tmp.p)
+      ->get_ptr(key->m_page_idx, regTabPtr->m_offsets[MM].m_fix_header_size);
 }
 
-inline
-Uint32*
-Dbtup::get_default_ptr(const Tablerec* regTabPtr, Uint32& default_len)
-{
+inline Uint32 *Dbtup::get_default_ptr(const Tablerec *regTabPtr,
+                                      Uint32 &default_len) {
   Var_part_ref ref;
   ref.assign(&regTabPtr->m_default_value_location);
   Ptr<Page> page;
 
-  Uint32* default_data = get_ptr(&page, ref);
+  Uint32 *default_data = get_ptr(&page, ref);
   default_len = get_len(&page, ref);
 
   return default_data;
 }
 
-inline
-Uint32*
-Dbtup::get_dd_ptr(PagePtr* pagePtr, 
-		  const Local_key* key, const Tablerec* regTabPtr)
-{
+inline Uint32 *Dbtup::get_dd_ptr(PagePtr *pagePtr, const Local_key *key,
+                                 const Tablerec *regTabPtr) {
   PagePtr tmp;
-  tmp.i= key->m_page_no;
-  tmp.p= (Page*)m_global_page_pool.getPtr(tmp.i);
+  tmp.i = key->m_page_no;
+  tmp.p = (Page *)m_global_page_pool.getPtr(tmp.i);
   memcpy(pagePtr, &tmp, sizeof(tmp));
-  
-  if(regTabPtr->m_attributes[DD].m_no_of_varsize ||
-     regTabPtr->m_attributes[DD].m_no_of_dynamic)
-    return ((Var_page*)tmp.p)->get_ptr(key->m_page_idx);
+
+  if (regTabPtr->m_attributes[DD].m_no_of_varsize ||
+      regTabPtr->m_attributes[DD].m_no_of_dynamic)
+    return ((Var_page *)tmp.p)->get_ptr(key->m_page_idx);
   else
-    return ((Fix_page*)tmp.p)->
-      get_ptr(key->m_page_idx, regTabPtr->m_offsets[DD].m_fix_header_size);
+    return ((Fix_page *)tmp.p)
+        ->get_ptr(key->m_page_idx, regTabPtr->m_offsets[DD].m_fix_header_size);
 }
 
 /*
   This function assumes that get_ptr() has been called first to
   initialise the pagePtr argument.
 */
-inline
-Uint32
-Dbtup::get_len(Ptr<Page>* pagePtr, Var_part_ref ref)
-{
-  Uint32 page_idx= ref.m_page_idx;
-  return ((Var_page*)pagePtr->p)->get_entry_len(page_idx);
+inline Uint32 Dbtup::get_len(Ptr<Page> *pagePtr, Var_part_ref ref) {
+  Uint32 page_idx = ref.m_page_idx;
+  return ((Var_page *)pagePtr->p)->get_entry_len(page_idx);
 }
 
-NdbOut&
-operator<<(NdbOut&, const Dbtup::Tablerec&);
+NdbOut &operator<<(NdbOut &, const Dbtup::Tablerec &);
 
 /**
  * This method can be called from other thread, so if jam is needed
  * it needs to carry along its own jam buffer.
  */
-inline
-bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr,
-                           Uint32 savepointId,
-                           EmulatedJamBuffer *jamBuf)
-{
-  while (true)
-  {
+inline bool Dbtup::find_savepoint(OperationrecPtr &loopOpPtr,
+                                  Uint32 savepointId,
+                                  EmulatedJamBuffer *jamBuf) {
+  while (true) {
     thrjamDebug(jamBuf);
-    if (savepointId > loopOpPtr.p->savepointId)
-    {
+    if (savepointId > loopOpPtr.p->savepointId) {
       thrjamDebug(jamBuf);
       return true;
     }
     loopOpPtr.i = loopOpPtr.p->prevActiveOp;
-    if (loopOpPtr.i == RNIL)
-    {
+    if (loopOpPtr.i == RNIL) {
       thrjamDebug(jamBuf);
       break;
     }
@@ -4639,163 +4109,128 @@ bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr,
   return false;
 }
 
-inline
-void
-Dbtup::update_change_mask_info(const Tablerec* tablePtrP,
-                               ChangeMask* dst,
-                               const Uint32 * src)
-{
+inline void Dbtup::update_change_mask_info(const Tablerec *tablePtrP,
+                                           ChangeMask *dst, const Uint32 *src) {
   assert(dst->m_cols == tablePtrP->m_no_of_attributes);
-  Uint32 * ptr = dst->m_mask;
+  Uint32 *ptr = dst->m_mask;
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  for (Uint32 i = 0; i<len; i++)
-  {
-    * ptr |= *src;
+  for (Uint32 i = 0; i < len; i++) {
+    *ptr |= *src;
     ptr++;
     src++;
   }
 }
 
-inline
-void
-Dbtup::set_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
-{
+inline void Dbtup::set_change_mask_info(const Tablerec *tablePtrP,
+                                        ChangeMask *dst) {
   assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   BitmaskImpl::set(len, dst->m_mask);
 }
 
-inline
-void
-Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
-{
+inline void Dbtup::clear_change_mask_info(const Tablerec *tablePtrP,
+                                          ChangeMask *dst) {
   assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   BitmaskImpl::clear(len, dst->m_mask);
 }
 
-inline
-void
-Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
-                             ChangeMask* dst, const ChangeMask* src)
-{
+inline void Dbtup::copy_change_mask_info(const Tablerec *tablePtrP,
+                                         ChangeMask *dst,
+                                         const ChangeMask *src) {
   Uint32 dst_cols = tablePtrP->m_no_of_attributes;
   assert(dst->m_cols == dst_cols);
   Uint32 src_cols = src->m_cols;
 
-  if (dst_cols == src_cols)
-  {
+  if (dst_cols == src_cols) {
     memcpy(dst->m_mask, src->m_mask, 4 * ((dst_cols + 31) >> 5));
-  }
-  else
-  {
-    ndbassert(dst_cols > src_cols); // drop column not supported
+  } else {
+    ndbassert(dst_cols > src_cols);  // drop column not supported
     memcpy(dst->m_mask, src->m_mask, 4 * ((src_cols + 31) >> 5));
-    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst->m_mask,
-                          src_cols,  (dst_cols - src_cols));
+    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst->m_mask, src_cols,
+                          (dst_cols - src_cols));
   }
 }
 
-inline
-void
-Dbtup::get_all_tup_ptrs(Uint32 indexFragPtrI,
-                        Uint32 tableFragPtrI,
-                        Uint32 **index_fragptr,
-                        Uint32 **index_tabptr,
-                        Uint32 **real_fragptr,
-                        Uint32 **real_tabptr,
-                        Uint32 &attrDataOffset,
-                        Uint32 &tuxFixHeaderSize)
-{
+inline void Dbtup::get_all_tup_ptrs(Uint32 indexFragPtrI, Uint32 tableFragPtrI,
+                                    Uint32 **index_fragptr,
+                                    Uint32 **index_tabptr,
+                                    Uint32 **real_fragptr, Uint32 **real_tabptr,
+                                    Uint32 &attrDataOffset,
+                                    Uint32 &tuxFixHeaderSize) {
   FragrecordPtr indexFragPtr;
-  indexFragPtr.i= indexFragPtrI;
+  indexFragPtr.i = indexFragPtrI;
   ptrCheckGuard(indexFragPtr, cnoOfFragrec, fragrecord);
   TablerecPtr indexTablePtr;
-  indexTablePtr.i= indexFragPtr.p->fragTableId;
+  indexTablePtr.i = indexFragPtr.p->fragTableId;
   ptrCheckGuard(indexTablePtr, cnoOfTablerec, tablerec);
-  *index_fragptr = (Uint32*)indexFragPtr.p;
-  *index_tabptr = (Uint32*)indexTablePtr.p;
+  *index_fragptr = (Uint32 *)indexFragPtr.p;
+  *index_tabptr = (Uint32 *)indexTablePtr.p;
 
-  Uint32 attrDescIndex= indexTablePtr.p->tabDescriptor;
-  attrDataOffset = AttributeOffset::getOffset(
-                            tableDescriptor[attrDescIndex + 1].tabDescr);
+  Uint32 attrDescIndex = indexTablePtr.p->tabDescriptor;
+  attrDataOffset =
+      AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
   tuxFixHeaderSize = indexTablePtr.p->m_offsets[MM].m_fix_header_size;
 
   FragrecordPtr realFragPtr;
   TablerecPtr realTablePtr;
   realFragPtr.i = tableFragPtrI;
   ptrCheckGuard(realFragPtr, cnoOfFragrec, fragrecord);
-  realTablePtr.i= realFragPtr.p->fragTableId;
+  realTablePtr.i = realFragPtr.p->fragTableId;
   ptrCheckGuard(realTablePtr, cnoOfTablerec, tablerec);
-  *real_fragptr = (Uint32*)realFragPtr.p;
-  *real_tabptr = (Uint32*)realTablePtr.p;
+  *real_fragptr = (Uint32 *)realFragPtr.p;
+  *real_tabptr = (Uint32 *)realTablePtr.p;
 }
 
 // Dbtup_client provides proxying similar to Page_cache_client
 
-class Dbtup_client
-{
+class Dbtup_client {
   friend class DbtupProxy;
   // jam buffer of caller block.
-  EmulatedJamBuffer* const m_jamBuf;
-  class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
-  Dbtup* m_dbtup;
+  EmulatedJamBuffer *const m_jamBuf;
+  class DbtupProxy *m_dbtup_proxy;  // set if we go via proxy
+  Dbtup *m_dbtup;
   DEBUG_OUT_DEFINES(DBTUP);
 
-public:
-  Dbtup_client(SimulatedBlock* block, SimulatedBlock* dbtup);
+ public:
+  Dbtup_client(SimulatedBlock *block, SimulatedBlock *dbtup);
 
   // LGMAN
 
-  void disk_restart_undo(Signal* signal, Uint64 lsn,
-                         Uint32 type, const Uint32 * ptr, Uint32 len);
+  void disk_restart_undo(Signal *signal, Uint64 lsn, Uint32 type,
+                         const Uint32 *ptr, Uint32 len);
 
   // TSMAN
 
-  int disk_restart_alloc_extent(Uint32 tableId,
-                                Uint32 fragId,
+  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
                                 Uint32 create_table_version,
-				const Local_key* key,
-                                Uint32 pages);
+                                const Local_key *key, Uint32 pages);
 
-  void disk_restart_page_bits(Uint32 tableId,
-                              Uint32 fragId,
-                              Uint32 create_table_version,
-			      const Local_key* key,
+  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+                              Uint32 create_table_version, const Local_key *key,
                               Uint32 bits);
 };
 
 /**
  * Can be called from MT-build of ordered indexes.
  */
-inline
-void
-Dbtup::tuxGetNode(Uint32 attrDataOffset,
-                  Uint32 tuxFixHeaderSize,
-                  Uint32 pageId,
-                  Uint32 pageOffset,
-                  Uint32*& node)
-{
+inline void Dbtup::tuxGetNode(Uint32 attrDataOffset, Uint32 tuxFixHeaderSize,
+                              Uint32 pageId, Uint32 pageOffset, Uint32 *&node) {
   PagePtr pagePtr;
   ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
-  node= ((Fix_page*)pagePtr.p)->
-    get_ptr(pageOffset, tuxFixHeaderSize) + attrDataOffset;
-  NDB_PREFETCH_READ((void*)node);
+  node = ((Fix_page *)pagePtr.p)->get_ptr(pageOffset, tuxFixHeaderSize) +
+         attrDataOffset;
+  NDB_PREFETCH_READ((void *)node);
 }
 
-inline
-Dbtup::Operationrec*
-Dbtup::getOperationPtrP(Uint32 opPtrI)
-{
+inline Dbtup::Operationrec *Dbtup::getOperationPtrP(Uint32 opPtrI) {
   OperationrecPtr opPtr;
   opPtr.i = opPtrI;
   ndbrequire(c_operation_pool.getValidPtr(opPtr));
-  return (Dbtup::Operationrec*)opPtr.p;
+  return (Dbtup::Operationrec *)opPtr.p;
 }
 
-inline void
-Dbtup::prepare_tab_pointers(Uint32 frag_id)
-{
+inline void Dbtup::prepare_tab_pointers(Uint32 frag_id) {
   /**
    * A real-time break occurred in scanning, we setup the
    * fragment and table pointers in preparation for calls to
@@ -4806,10 +4241,10 @@ Dbtup::prepare_tab_pointers(Uint32 frag_id)
   TablerecPtr tabptr;
 
   fragptr.i = frag_id;
-  const Uint32 RnoOfFragrec= cnoOfFragrec;
-  const Uint32 RnoOfTablerec= cnoOfTablerec;
-  Fragrecord * Rfragrecord = fragrecord;
-  Tablerec * Rtablerec = tablerec;
+  const Uint32 RnoOfFragrec = cnoOfFragrec;
+  const Uint32 RnoOfTablerec = cnoOfTablerec;
+  Fragrecord *Rfragrecord = fragrecord;
+  Tablerec *Rtablerec = tablerec;
   ndbrequire(fragptr.i < RnoOfFragrec);
   ptrAss(fragptr, Rfragrecord);
   tabptr.i = fragptr.p->fragTableId;

@@ -29,30 +29,28 @@
 
 #define JAM_FILE_ID 139
 
-
 class DictSchemaInfo {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdict;
-  
-public:
+
+ public:
   static constexpr Uint32 HeaderLength = 3;
   static constexpr Uint32 DataLength = 22;
-  
-private:  
+
+ private:
   Uint32 senderRef;
-  Uint32 offset; 
-  Uint32 totalLen; 
-  
+  Uint32 offset;
+  Uint32 totalLen;
+
   /**
    * Length in this = signal->length() - 3
    * Sender block ref = signal->senderBlockRef()
    */
-  
+
   Uint32 schemaInfoData[22];
 };
-
 
 #undef JAM_FILE_ID
 

@@ -23,28 +23,18 @@
 #ifndef ANGEL_HPP
 #define ANGEL_HPP
 
-#include "util/ndb_opts.h"
 #include <util/BaseString.hpp>
+#include "util/ndb_opts.h"
 
 #define JAM_FILE_ID 491
 
+void angel_run(const char *progname, const Vector<BaseString> &original_args,
+               const char *connect_str, int force_nodeid,
+               const char *bind_address, bool initial, bool no_start,
+               bool daemon, int connnect_retries, int connect_delay,
+               const char *tls_search_path, int mgm_tls_level);
 
-void
-angel_run(const char* progname,
-          const Vector<BaseString>& original_args,
-          const char* connect_str,
-          int force_nodeid,
-          const char* bind_address,
-          bool initial,
-          bool no_start,
-          bool daemon,
-          int connnect_retries,
-          int connect_delay,
-          const char * tls_search_path,
-          int mgm_tls_level);
-
-void
-angel_stop(void);
+void angel_stop(void);
 
 #undef JAM_FILE_ID
 

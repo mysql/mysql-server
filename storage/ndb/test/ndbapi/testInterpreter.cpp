@@ -22,49 +22,48 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
+#include <NdbTick.h>
+#include <random.h>
+#include <HugoTransactions.hpp>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <HugoTransactions.hpp>
-#include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
+#include <UtilTransactions.hpp>
 #include <Vector.hpp>
-#include <random.h>
-#include <NdbTick.h>
+#include <cstring>
 #include "util/require.h"
 
-#define CHK_RET_FAILED(x, y) if (!(x)) {           \
-    ndbout_c("Failed on line: %u.  Error %u %s.",  \
-             __LINE__,                             \
-             y->getNdbError().code,                \
-             y->getNdbError().message);            \
-    return NDBT_FAILED; }
+#define CHK_RET_FAILED(x, y)                                   \
+  if (!(x)) {                                                  \
+    ndbout_c("Failed on line: %u.  Error %u %s.", __LINE__,    \
+             y->getNdbError().code, y->getNdbError().message); \
+    return NDBT_FAILED;                                        \
+  }
 
-#define CHK2(x, y) if (x == -1) {                  \
-    ndbout_c("Failed on line: %u.  Error %u %s.",  \
-             __LINE__,                             \
-             y->getNdbError().code,                \
-             y->getNdbError().message);            \
-    pTrans->close();                               \
-    return NDBT_FAILED; }
+#define CHK2(x, y)                                             \
+  if (x == -1) {                                               \
+    ndbout_c("Failed on line: %u.  Error %u %s.", __LINE__,    \
+             y->getNdbError().code, y->getNdbError().message); \
+    pTrans->close();                                           \
+    return NDBT_FAILED;                                        \
+  }
 
-int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
+int runClearTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
-  
+
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.pkDelRecords(GETNDB(step),  records, batchSize) != 0){
+  if (hugoTrans.pkDelRecords(GETNDB(step), records, batchSize) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+int runLoadTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -73,7 +72,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 /**
  * Read the data back, HugoTransactions will check it for sanity
  */
-int runCheckData(NDBT_Context* ctx, NDBT_Step* step) {
+int runCheckData(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
 
@@ -95,8 +94,8 @@ int runCheckData(NDBT_Context* ctx, NDBT_Step* step) {
   return NDBT_OK;
 }
 
-int runCheckUpdatesValue(NDBT_Context* ctx, NDBT_Step* step) {
-  Ndb* pNdb = GETNDB(step);
+int runCheckUpdatesValue(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
   int records = ctx->getNumRecords();
   HugoOperations hugoOps(*ctx->getTab());
 
@@ -124,96 +123,91 @@ int runCheckUpdatesValue(NDBT_Context* ctx, NDBT_Step* step) {
   return result;
 }
 
-int runTestIncValue64(NDBT_Context* ctx, NDBT_Step* step){
+int runTestIncValue64(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   //  NDBT_Table* pTab = ctx->getTab();
-  //Ndb* pNdb = GETNDB(step);
+  // Ndb* pNdb = GETNDB(step);
 
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.pkInterpretedUpdateRecords(GETNDB(step), 
-					   records) != 0){
+  if (hugoTrans.pkInterpretedUpdateRecords(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
 
-  // Verify the update  
-  if (hugoTrans.pkReadRecords(GETNDB(step), 
-			      records) != 0){
+  // Verify the update
+  if (hugoTrans.pkReadRecords(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
-  
+
   return NDBT_OK;
-
 }
 
-int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table * pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int runTestIncValue32(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
   if (strcmp(pTab->getName(), "T1") != 0) {
     ndbout_c("runTestIncValue32: skip, table != T1");
     return NDBT_OK;
   }
 
-
-  NdbConnection* pTrans = pNdb->startTransaction();
-  if (pTrans == NULL){
+  NdbConnection *pTrans = pNdb->startTransaction();
+  if (pTrans == NULL) {
     NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
-  
-  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+
+  NdbOperation *pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   int check = pOp->interpretedUpdateTuple();
-  if( check == -1 ) {
+  if (check == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
-  
+
   // Primary keys
   Uint32 pkVal = 1;
-  check = pOp->equal("KOL1", pkVal );
-  if( check == -1 ) {
+  check = pOp->equal("KOL1", pkVal);
+  if (check == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   // Attributes
 
   // Perform initial read of column start value
-  NdbRecAttr* initialVal = pOp->getValue("KOL2");
-  if( initialVal == NULL ) {
+  NdbRecAttr *initialVal = pOp->getValue("KOL2");
+  if (initialVal == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   // Update the column
   Uint32 valToIncWith = 1;
   check = pOp->incValue("KOL2", valToIncWith);
-  if( check == -1 ) {
+  if (check == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   // Perform final read of column after value
-  NdbRecAttr* afterVal = pOp->getValue("KOL2");
-  if( afterVal == NULL ) {
+  NdbRecAttr *afterVal = pOp->getValue("KOL2");
+  if (afterVal == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   check = pTrans->execute(Commit);
-  if( check == -1 ) {
+  if (check == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -222,52 +216,47 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 oldValue = initialVal->u_32_value();
   Uint32 newValue = afterVal->u_32_value();
   Uint32 expectedValue = oldValue + valToIncWith;
-    
-  if (newValue != expectedValue)
-  {
-    g_err << "Failed : Expected " << oldValue << "+" <<
-      valToIncWith << "=" << expectedValue <<
-      " but received " << newValue << endl;
+
+  if (newValue != expectedValue) {
+    g_err << "Failed : Expected " << oldValue << "+" << valToIncWith << "="
+          << expectedValue << " but received " << newValue << endl;
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   pNdb->closeTransaction(pTrans);
 
-
   return NDBT_OK;
 }
 
-int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table * pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int runTestBug19537(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
   if (strcmp(pTab->getName(), "T1") != 0) {
     g_err << "runTestBug19537: skip, table != T1" << endl;
     return NDBT_OK;
   }
 
-
-  NdbConnection* pTrans = pNdb->startTransaction();
-  if (pTrans == NULL){
+  NdbConnection *pTrans = pNdb->startTransaction();
+  if (pTrans == NULL) {
     NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
-  
-  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+
+  NdbOperation *pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   if (pOp->interpretedUpdateTuple() == -1) {
     NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
-  
+
   // Primary keys
   const Uint32 pkVal = 1;
   if (pOp->equal("KOL1", pkVal) == -1) {
@@ -275,7 +264,7 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   // Load 64-bit constant into register 1 and
   // write from register 1 to 32-bit column KOL2
   const Uint64 reg_val = 0x0102030405060708ULL;
@@ -311,22 +300,21 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   // Read value via a new transaction
 
   pTrans = pNdb->startTransaction();
-  if (pTrans == NULL){
+  if (pTrans == NULL) {
     NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
-  
+
   pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-  
+
   Uint32 kol2 = 0x09090909;
-  if (pOp->readTuple() == -1 ||
-      pOp->equal("KOL1", pkVal) == -1 ||
-      pOp->getValue("KOL2", (char*)&kol2) == 0) {
+  if (pOp->readTuple() == -1 || pOp->equal("KOL1", pkVal) == -1 ||
+      pOp->getValue("KOL2", (char *)&kol2) == 0) {
     NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -356,12 +344,11 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-
-int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table * pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
-  const Uint32 okSize= 10000;
-  const Uint32 tooBig= 30000;
+int runTestBug34107(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  const Uint32 okSize = 10000;
+  const Uint32 tooBig = 30000;
 
   Uint32 codeBuff[tooBig];
 
@@ -369,19 +356,19 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
   for (i = 0; i <= 1; i++) {
     g_info << "bug34107:" << (i == 0 ? " small" : " too big") << endl;
 
-    NdbConnection* pTrans = pNdb->startTransaction();
-    if (pTrans == NULL){
+    NdbConnection *pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
       NDB_ERR(pNdb->getNdbError());
       return NDBT_FAILED;
     }
-    
-    NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+
+    NdbScanOperation *pOp = pTrans->getNdbScanOperation(pTab->getName());
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-    
+
     if (pOp->readTuples() == -1) {
       NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -390,19 +377,18 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
 
     /* Test kernel mechanism for dealing with too large program
      * We need to provide our own program buffer as default
-     * NdbInterpretedCode buffer will not grow larger than 
+     * NdbInterpretedCode buffer will not grow larger than
      * NDB_MAX_SCANFILTER_SIZE
      */
 
-    NdbInterpretedCode code(NULL, // Table is irrelevant
+    NdbInterpretedCode code(NULL,  // Table is irrelevant
                             codeBuff,
-                            tooBig); // Size of codeBuff
-    
+                            tooBig);  // Size of codeBuff
+
     int n = i == 0 ? okSize : tooBig;
     int k;
 
     for (k = 0; k < n; k++) {
-
       // inserts 1 word ATTRINFO
 
       if (code.interpret_exit_ok() == -1) {
@@ -412,20 +398,18 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
       }
     }
 
-    if (code.finalise() != 0)
-    {
+    if (code.finalise() != 0) {
       NDB_ERR(code.getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
 
-    if (pOp->setInterpretedCode(&code) != 0)
-    {
+    if (pOp->setInterpretedCode(&code) != 0) {
       NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-      
+
     if (pTrans->execute(NoCommit) == -1) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -463,23 +447,22 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
 
 static char pkIdxName[256];
 
-int
-createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int createPkIndex(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
   bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
   bool logged = ctx->getProperty("LoggedIndexes", (Uint32)0);
-  bool noddl= ctx->getProperty("NoDDL");
+  bool noddl = ctx->getProperty("NoDDL");
 
   // Create index
   BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
   if (orderedIndex)
-    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
-	   << pkIdxName << " (";
+    ndbout << "Creating " << ((logged) ? "logged " : "temporary ")
+           << "ordered index " << pkIdxName << " (";
   else
-    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "unique index "
-	   << pkIdxName << " (";
+    ndbout << "Creating " << ((logged) ? "logged " : "temporary ")
+           << "unique index " << pkIdxName << " (";
 
   NdbDictionary::Index pIdx(pkIdxName);
   pIdx.setTable(pTab->getName());
@@ -487,35 +470,29 @@ createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
     pIdx.setType(NdbDictionary::Index::OrderedIndex);
   else
     pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
-  for (int c = 0; c< pTab->getNoOfColumns(); c++){
-    const NdbDictionary::Column * col = pTab->getColumn(c);
-    if(col->getPrimaryKey()){
+  for (int c = 0; c < pTab->getNoOfColumns(); c++) {
+    const NdbDictionary::Column *col = pTab->getColumn(c);
+    if (col->getPrimaryKey()) {
       pIdx.addIndexColumn(col->getName());
-      ndbout << col->getName() <<" ";
+      ndbout << col->getName() << " ";
     }
   }
 
   pIdx.setStoredIndex(logged);
   ndbout << ") ";
-  if (noddl)
-  {
-    const NdbDictionary::Index* idx= pNdb->
-      getDictionary()->getIndex(pkIdxName, pTab->getName());
+  if (noddl) {
+    const NdbDictionary::Index *idx =
+        pNdb->getDictionary()->getIndex(pkIdxName, pTab->getName());
 
-    if (!idx)
-    {
+    if (!idx) {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
       NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
-    }
-    else
-    {
+    } else {
       // TODO : Check index definition is ok
     }
-  }
-  else
-  {
-    if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+  } else {
+    if (pNdb->getDictionary()->createIndex(pIdx) != 0) {
       ndbout << "FAILED!" << endl;
       const NdbError err = pNdb->getDictionary()->getNdbError();
       NDB_ERR(err);
@@ -527,20 +504,16 @@ createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step)
-{
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int createPkIndex_Drop(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
-  bool noddl= ctx->getProperty("NoDDL");
+  bool noddl = ctx->getProperty("NoDDL");
 
   // Drop index
-  if (!noddl)
-  {
+  if (!noddl) {
     ndbout << "Dropping index " << pkIdxName << " ";
-    if (pNdb->getDictionary()->dropIndex(pkIdxName,
-                                         pTab->getName()) != 0){
+    if (pNdb->getDictionary()->dropIndex(pkIdxName, pTab->getName()) != 0) {
       ndbout << "FAILED!" << endl;
       NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
@@ -552,29 +525,27 @@ createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
-{
-  const NdbDictionary::Table * pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+int runInterpretedUKLookup(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *dict = pNdb->getDictionary();
 
-  const NdbDictionary::Index* pIdx= dict->getIndex(pkIdxName, pTab->getName());
+  const NdbDictionary::Index *pIdx = dict->getIndex(pkIdxName, pTab->getName());
   CHK_RET_FAILED(pIdx != 0, dict);
 
-  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  const NdbRecord *pRowRecord = pTab->getDefaultRecord();
   CHK_RET_FAILED(pRowRecord != 0, dict);
-  const NdbRecord * pIdxRecord = pIdx->getDefaultRecord();
+  const NdbRecord *pIdxRecord = pIdx->getDefaultRecord();
   CHK_RET_FAILED(pIdxRecord != 0, dict);
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
-  Uint8 * pRow = new Uint8[len];
+  Uint8 *pRow = new Uint8[len];
   std::memset(pRow, 0, len);
 
-  HugoCalculator calc(* pTab);
+  HugoCalculator calc(*pTab);
   calc.equalForRow(pRow, pRowRecord, 0);
 
-  NdbTransaction* pTrans = pNdb->startTransaction();
+  NdbTransaction *pTrans = pNdb->startTransaction();
   CHK_RET_FAILED(pTrans != 0, pNdb);
 
   NdbInterpretedCode code;
@@ -586,35 +557,29 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
   opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
   opts.interpretedCode = &code;
 
-  const NdbOperation * pOp = pTrans->readTuple(pIdxRecord, (char*)pRow,
-                                               pRowRecord, (char*)pRow,
-                                               NdbOperation::LM_Read,
-                                               0,
-                                               &opts,
-                                               sizeof(opts));
+  const NdbOperation *pOp =
+      pTrans->readTuple(pIdxRecord, (char *)pRow, pRowRecord, (char *)pRow,
+                        NdbOperation::LM_Read, 0, &opts, sizeof(opts));
   CHK_RET_FAILED(pOp, pTrans);
   int res = pTrans->execute(Commit, AbortOnError);
 
   CHK_RET_FAILED(res == 0, pTrans);
 
-  delete [] pRow;
+  delete[] pRow;
 
   return NDBT_OK;
 }
 
-int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
-{
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int runTestBranchNonZeroLabel(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
   // Find first find Bit column
   bool found = false;
   int colId = 0;
-  while (colId < pTab->getNoOfColumns())
-  {
-    const NdbDictionary::Column* col = pTab->getColumn(colId);
-    if (col->getType() == NdbDictionary::Column::Bit)
-    {
+  while (colId < pTab->getNoOfColumns()) {
+    const NdbDictionary::Column *col = pTab->getColumn(colId);
+    if (col->getType() == NdbDictionary::Column::Bit) {
       ndbout << "Found first Bit column " << colId << " " << col->getName()
              << endl;
       found = true;
@@ -622,16 +587,14 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
     }
     colId++;
   }
-  if (!found)
-  {
+  if (!found) {
     ndbout << "Test skipped since no Bit column found in table "
            << pTab->getName() << endl;
     return NDBT_OK;
   }
 
-  NdbConnection* pTrans = pNdb->startTransaction();
-  if (pTrans == NULL)
-  {
+  NdbConnection *pTrans = pNdb->startTransaction();
+  if (pTrans == NULL) {
     NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
@@ -640,7 +603,7 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 space[numWords];
   NdbInterpretedCode stackCode(pTab, &space[0], numWords);
 
-  NdbInterpretedCode* code = &stackCode;
+  NdbInterpretedCode *code = &stackCode;
 
   constexpr int label_0 = 0;
   constexpr int label_1 = 1;
@@ -652,8 +615,7 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
    * This test only verifies that label argument to branch_col_and_mask_eq_mask
    * is looked at, if not an internal loop will result
    */
-  if (code->def_label(label_0) == -1)
-  {
+  if (code->def_label(label_0) == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -661,93 +623,82 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
 
   ndbout << "Operation " << op << " mask " << hex << mask << endl;
   int ret;
-  switch (op)
-  {
+  switch (op) {
     case 0:
-      ret = code->branch_col_and_mask_eq_mask(
-          &mask, sizeof(mask), colId, label_2);
+      ret = code->branch_col_and_mask_eq_mask(&mask, sizeof(mask), colId,
+                                              label_2);
       break;
     case 1:
-      ret = code->branch_col_and_mask_ne_mask(
-          &mask, sizeof(mask), colId, label_2);
+      ret = code->branch_col_and_mask_ne_mask(&mask, sizeof(mask), colId,
+                                              label_2);
       break;
     case 2:
-      ret = code->branch_col_and_mask_eq_zero(
-          &mask, sizeof(mask), colId, label_2);
+      ret = code->branch_col_and_mask_eq_zero(&mask, sizeof(mask), colId,
+                                              label_2);
       break;
     case 3:
-      ret = code->branch_col_and_mask_ne_zero(
-          &mask, sizeof(mask), colId, label_2);
+      ret = code->branch_col_and_mask_ne_zero(&mask, sizeof(mask), colId,
+                                              label_2);
       break;
     default:
       abort();
   }
-  if (ret == -1)
-  {
+  if (ret == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (code->def_label(label_1) == -1)
-  {
+  if (code->def_label(label_1) == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (code->interpret_exit_nok() == -1)
-  {
+  if (code->interpret_exit_nok() == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (code->def_label(label_2) == -1)
-  {
+  if (code->def_label(label_2) == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (code->interpret_exit_ok() == -1)
-  {
+  if (code->interpret_exit_ok() == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (code->finalise() == -1)
-  {
+  if (code->finalise() == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
-  if (pOp == NULL)
-  {
+  NdbScanOperation *pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (pOp->readTuples() == -1)
-  {
+  if (pOp->readTuples() == -1) {
     NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (pOp->setInterpretedCode(code) == -1)
-  {
+  if (pOp->setInterpretedCode(code) == -1) {
     NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
-  if (pTrans->execute(NoCommit) == -1)
-  {
+  if (pTrans->execute(NoCommit) == -1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -758,8 +709,7 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
   g_info << "rows=" << rows << " ret=" << ret
          << " err=" << pOp->getNdbError().code << endl;
 
-  if (ret != 1)
-  {
+  if (ret != 1) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -775,25 +725,25 @@ int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
  * optional extra getValues
  * Check returned data.
  */
-int runInterpretedUpdate(NDBT_Context* ctx, NDBT_Step* step) {
+int runInterpretedUpdate(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 records = (Uint32)ctx->getNumRecords();
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *dict = pNdb->getDictionary();
   HugoCalculator calc(*pTab);
 
-  const NdbRecord* pRowRecord = pTab->getDefaultRecord();
+  const NdbRecord *pRowRecord = pTab->getDefaultRecord();
   CHK_RET_FAILED(pRowRecord != 0, dict);
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
-  Uint8* pRow = new Uint8[len];
+  Uint8 *pRow = new Uint8[len];
   std::memset(pRow, 0, len);
 
   for (Uint32 r = 0; r < records; r++) {
     /* Modified updates value to 1 */
     calc.setValues(pRow, pRowRecord, r, 1);
 
-    NdbTransaction* pTrans = pNdb->startTransaction();
+    NdbTransaction *pTrans = pNdb->startTransaction();
     CHK_RET_FAILED(pTrans != 0, pNdb);
 
     NdbOperation::OperationOptions opts;
@@ -824,8 +774,8 @@ int runInterpretedUpdate(NDBT_Context* ctx, NDBT_Step* step) {
 
     ndbout_c("Executing interpreted update on row %u", r);
 
-    const NdbOperation* pOp =
-        pTrans->updateTuple(pRowRecord, (char*)pRow, pRowRecord, (char*)pRow,
+    const NdbOperation *pOp =
+        pTrans->updateTuple(pRowRecord, (char *)pRow, pRowRecord, (char *)pRow,
                             NULL, &opts, sizeof(opts));
     CHK_RET_FAILED(pOp, pTrans);
 
@@ -879,25 +829,25 @@ int runInterpretedUpdate(NDBT_Context* ctx, NDBT_Step* step) {
  * record..2*records - 1 will map to INSERT
  * Check returned data is correct, or undefined
  */
-int runInterpretedWrite(NDBT_Context* ctx, NDBT_Step* step) {
+int runInterpretedWrite(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 records = (Uint32)ctx->getNumRecords();
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *dict = pNdb->getDictionary();
   HugoCalculator calc(*pTab);
 
-  const NdbRecord* pRowRecord = pTab->getDefaultRecord();
+  const NdbRecord *pRowRecord = pTab->getDefaultRecord();
   CHK_RET_FAILED(pRowRecord != 0, dict);
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
-  Uint8* pRow = new Uint8[len];
+  Uint8 *pRow = new Uint8[len];
   std::memset(pRow, 0, len);
 
   for (Uint32 r = 0; r < records * 2; r++) {
     /* Modified updates value to 1 */
     calc.setValues(pRow, pRowRecord, r, 1);
 
-    NdbTransaction* pTrans = pNdb->startTransaction();
+    NdbTransaction *pTrans = pNdb->startTransaction();
     CHK_RET_FAILED(pTrans != 0, pNdb);
 
     NdbOperation::OperationOptions opts;
@@ -930,8 +880,8 @@ int runInterpretedWrite(NDBT_Context* ctx, NDBT_Step* step) {
     ndbout_c("Executing interpreted write on row %u %s", r,
              (expectUpdate ? "UPDATE" : "INSERT"));
 
-    const NdbOperation* pOp =
-        pTrans->writeTuple(pRowRecord, (char*)pRow, pRowRecord, (char*)pRow,
+    const NdbOperation *pOp =
+        pTrans->writeTuple(pRowRecord, (char *)pRow, pRowRecord, (char *)pRow,
                            NULL, &opts, sizeof(opts));
     CHK_RET_FAILED(pOp, pTrans);
 
@@ -1002,21 +952,21 @@ int runInterpretedWrite(NDBT_Context* ctx, NDBT_Step* step) {
  * record..2*records - 1 will map to INSERT
  * Check returned data is correct, or undefined
  */
-int runInterpretedWriteOldApi(NDBT_Context* ctx, NDBT_Step* step) {
+int runInterpretedWriteOldApi(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 records = (Uint32)ctx->getNumRecords();
-  const NdbDictionary::Table* pTab = ctx->getTab();
+  const NdbDictionary::Table *pTab = ctx->getTab();
   HugoCalculator calc(*pTab);
-  Ndb* pNdb = GETNDB(step);
+  Ndb *pNdb = GETNDB(step);
 
   HugoOperations hugoOps(*pTab);
 
   for (Uint32 r = 0; r < records * 2; r++) {
     /* Modified updates value to 1 */
 
-    NdbTransaction* pTrans = pNdb->startTransaction();
+    NdbTransaction *pTrans = pNdb->startTransaction();
     CHK_RET_FAILED(pTrans != 0, pNdb);
 
-    NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+    NdbOperation *pOp = pTrans->getNdbOperation(pTab->getName());
     CHK_RET_FAILED(pOp, pTrans);
 
     int check = pOp->interpretedWriteTuple();
@@ -1038,7 +988,7 @@ int runInterpretedWriteOldApi(NDBT_Context* ctx, NDBT_Step* step) {
     int skipInitialReadOption = ctx->getProperty("SkipInitialRead", Uint32(0));
     if (skipInitialReadOption == 0) {
       for (int k = 0; k < pTab->getNoOfColumns(); k++) {
-        NdbRecAttr* recAttr = pOp->getValue(k);
+        NdbRecAttr *recAttr = pOp->getValue(k);
         CHK_RET_FAILED(recAttr, pOp);
         // RecAttr must be undefined (isNULL() == -1)
         if (recAttr->isNULL() != -1) {
@@ -1068,7 +1018,7 @@ int runInterpretedWriteOldApi(NDBT_Context* ctx, NDBT_Step* step) {
     int skipFinalReadOption = ctx->getProperty("SkipFinalRead", Uint32(0));
     if (skipFinalReadOption == 0) {
       for (int k = 0; k < pTab->getNoOfColumns(); k++) {
-        NdbRecAttr* recAttr = pOp->getValue(k);
+        NdbRecAttr *recAttr = pOp->getValue(k);
         CHK_RET_FAILED(recAttr, pOp);
         // RecAttr must be undefined (isNULL() == -1)
         if (recAttr->isNULL() != -1) {
@@ -1159,15 +1109,15 @@ int runInterpretedWriteOldApi(NDBT_Context* ctx, NDBT_Step* step) {
  * To verify it, check the updatesValue of the record which remains
  * unchanged.
  */
-int runInterpretedWriteOldApiFail(NDBT_Context* ctx, NDBT_Step* step) {
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+int runInterpretedWriteOldApiFail(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
   HugoOperations hugoOps(*pTab);
 
-  NdbTransaction* pTrans = pNdb->startTransaction();
+  NdbTransaction *pTrans = pNdb->startTransaction();
   CHK_RET_FAILED(pTrans != 0, pNdb);
 
-  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+  NdbOperation *pOp = pTrans->getNdbOperation(pTab->getName());
   CHK_RET_FAILED(pOp, pTrans);
 
   int check = pOp->interpretedWriteTuple();
@@ -1208,25 +1158,25 @@ int runInterpretedWriteOldApiFail(NDBT_Context* ctx, NDBT_Step* step) {
   return NDBT_OK;
 }
 
-int runInterpretedWriteInsert(NDBT_Context* ctx, NDBT_Step* step) {
+int runInterpretedWriteInsert(NDBT_Context *ctx, NDBT_Step *step) {
   const int acceptError = ctx->getProperty("AcceptError");
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *dict = pNdb->getDictionary();
 
-  const NdbRecord* pRowRecord = pTab->getDefaultRecord();
+  const NdbRecord *pRowRecord = pTab->getDefaultRecord();
   CHK_RET_FAILED(pRowRecord != 0, dict);
 
   /* Initialise content for existing row 0 */
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
-  Uint8* pRow = new Uint8[len];
+  Uint8 *pRow = new Uint8[len];
   std::memset(pRow, 0, len);
 
   ndbout_c("Attempting to define interpreted insert");
   HugoCalculator calc(*pTab);
   calc.equalForRow(pRow, pRowRecord, 0);
 
-  NdbTransaction* pTrans = pNdb->startTransaction();
+  NdbTransaction *pTrans = pNdb->startTransaction();
   CHK_RET_FAILED(pTrans != 0, pNdb);
 
   NdbInterpretedCode code;
@@ -1238,8 +1188,8 @@ int runInterpretedWriteInsert(NDBT_Context* ctx, NDBT_Step* step) {
   opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
   opts.interpretedCode = &code;
 
-  const NdbOperation* pOp =
-      pTrans->insertTuple(pRowRecord, (char*)pRow, pRowRecord, (char*)pRow,
+  const NdbOperation *pOp =
+      pTrans->insertTuple(pRowRecord, (char *)pRow, pRowRecord, (char *)pRow,
                           NULL, &opts, sizeof(opts));
   if (!pOp) {
     if (pTrans->getNdbError().code != acceptError) {
@@ -1257,8 +1207,8 @@ int runInterpretedWriteInsert(NDBT_Context* ctx, NDBT_Step* step) {
   return NDBT_OK;
 }
 
-int runInterpretedWriteProgram(NDBT_Context* ctx, NDBT_Step* step) {
-  const NdbDictionary::Table* pTab = ctx->getTab();
+int runInterpretedWriteProgram(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
   if (strcmp(pTab->getName(), "T1") != 0) {
     ndbout_c("runInterpretedWriteProgram: skip, table != T1");
     return NDBT_OK;
@@ -1266,13 +1216,13 @@ int runInterpretedWriteProgram(NDBT_Context* ctx, NDBT_Step* step) {
 
   /* Register aliases */
   const Uint32 R1 = 1, R2 = 2;
-  const char* colname = "KOL4";
-  Ndb* pNdb = GETNDB(step);
+  const char *colname = "KOL4";
+  Ndb *pNdb = GETNDB(step);
 
-  NdbConnection* pTrans = pNdb->startTransaction();
+  NdbConnection *pTrans = pNdb->startTransaction();
   CHK_RET_FAILED(pTrans != 0, pNdb);
 
-  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+  NdbOperation *pOp = pTrans->getNdbOperation(pTab->getName());
   CHK_RET_FAILED(pOp, pTrans);
 
   int check = pOp->interpretedWriteTuple();
@@ -1284,7 +1234,7 @@ int runInterpretedWriteProgram(NDBT_Context* ctx, NDBT_Step* step) {
   CHK2(check, pTrans);
 
   // Perform initial read of column start value
-  NdbRecAttr* initialVal = pOp->getValue(colname);
+  NdbRecAttr *initialVal = pOp->getValue(colname);
   if (initialVal == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
@@ -1323,7 +1273,7 @@ int runInterpretedWriteProgram(NDBT_Context* ctx, NDBT_Step* step) {
   CHK2(check, pOp);
 
   // Perform final read of column after value
-  NdbRecAttr* afterVal = pOp->getValue(colname);
+  NdbRecAttr *afterVal = pOp->getValue(colname);
   if (afterVal == NULL) {
     NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
@@ -1346,32 +1296,27 @@ int runInterpretedWriteProgram(NDBT_Context* ctx, NDBT_Step* step) {
 }
 
 NDBT_TESTSUITE(testInterpreter);
-TESTCASE("IncValue32", 
-	 "Test incValue for 32 bit integer\n"){ 
+TESTCASE("IncValue32", "Test incValue for 32 bit integer\n") {
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestIncValue32);
   FINALIZER(runClearTable);
 }
-TESTCASE("IncValue64", 
-	 "Test incValue for 64 bit integer\n"){ 
+TESTCASE("IncValue64", "Test incValue for 64 bit integer\n") {
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestIncValue64);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug19537",
-         "Test big-endian write_attr of 32 bit integer\n"){
+TESTCASE("Bug19537", "Test big-endian write_attr of 32 bit integer\n") {
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestBug19537);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug34107",
-         "Test too big scan filter (error 874)\n"){
+TESTCASE("Bug34107", "Test too big scan filter (error 874)\n") {
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestBug34107);
   FINALIZER(runClearTable);
 }
-TESTCASE("BranchNonZeroLabel", "Test branch labels with and_mask op\n")
-{
+TESTCASE("BranchNonZeroLabel", "Test branch labels with and_mask op\n") {
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestBranchNonZeroLabel);
   FINALIZER(runClearTable);
@@ -1441,8 +1386,7 @@ TESTCASE("NdbErrorOperation",
   INITIALIZER(runCheckGetNdbErrorOperation);
 }
 #endif
-TESTCASE("InterpretedUKLookup", "")
-{
+TESTCASE("InterpretedUKLookup", "") {
   INITIALIZER(runLoadTable);
   INITIALIZER(createPkIndex);
   INITIALIZER(runInterpretedUKLookup);
@@ -1509,11 +1453,9 @@ TESTCASE("InterpretedWriteProgram",
 }
 NDBT_TESTSUITE_END(testInterpreter)
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
   //  TABLE("T1");
   NDBT_TESTSUITE_INSTANCE(testInterpreter);
   return testInterpreter.execute(argc, argv);
 }
-
-

@@ -22,13 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include "trp_node.hpp"
 #include <NdbOut.hpp>
+#include <cstring>
 
-NdbOut&
-operator<<(NdbOut& out, const trp_node& n)
-{
+NdbOut &operator<<(NdbOut &out, const trp_node &n) {
   out << "[ "
       << "defined: " << n.defined << ", compatible: " << n.compatible
       << ", connected: " << n.m_connected

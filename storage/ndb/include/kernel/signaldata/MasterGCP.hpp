@@ -29,21 +29,20 @@
 
 #define JAM_FILE_ID 17
 
-
 /**
- * 
+ *
  */
 class MasterGCPConf {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 10 + 2;
 
   enum State {
-    GCP_READY            = 0,
+    GCP_READY = 0,
     /**
      * GCP_PREPARE received (and replied)
      */
@@ -52,7 +51,7 @@ public:
     /**
      * GCP_COMMIT received (not replied)
      */
-    GCP_COMMIT_RECEIVED  = 2, // GCP_COMMIT received (and is running)
+    GCP_COMMIT_RECEIVED = 2,  // GCP_COMMIT received (and is running)
 
     /**
      * Replied GCP_NODEFINISH
@@ -62,16 +61,16 @@ public:
   };
 
   enum SaveState {
-    GCP_SAVE_IDLE     = 0,
+    GCP_SAVE_IDLE = 0,
     /**
      * GCP_SAVE_REQ received (running in LQH)
      */
-    GCP_SAVE_REQ      = 1,
+    GCP_SAVE_REQ = 1,
 
     /**
      * GCP_SAVE_CONF (or REF)
      */
-    GCP_SAVE_CONF     = 2,
+    GCP_SAVE_CONF = 2,
 
     /**
      * COPY_GCI_REQ (GCP) has been received and is running
@@ -84,14 +83,14 @@ public:
      * States uses before micro GCP
      */
     enum State {
-      GCP_READY            = 0,
+      GCP_READY = 0,
       GCP_PREPARE_RECEIVED = 1,
-      GCP_COMMIT_RECEIVED  = 2,
-      GCP_TC_FINISHED      = 3
+      GCP_COMMIT_RECEIVED = 2,
+      GCP_TC_FINISHED = 3
     };
   };
 
-private:  
+ private:
   /**
    * Data replied
    */
@@ -109,33 +108,35 @@ private:
 };
 
 /**
- * 
+ *
  */
 class MasterGCPReq {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:
+
+ private:
   Uint32 masterRef;
   Uint32 failedNodeId;
 };
 
 /**
- * 
+ *
  */
 class MasterGCPRef {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:
+
+ private:
   Uint32 senderNodeId;
   Uint32 failedNodeId;
 };

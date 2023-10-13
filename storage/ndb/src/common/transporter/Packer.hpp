@@ -30,30 +30,28 @@
 #include "my_config.h"
 
 #ifdef WORDS_BIGENDIAN
-  #define MY_OWN_BYTE_ORDER 1
+#define MY_OWN_BYTE_ORDER 1
 #else
-  #define MY_OWN_BYTE_ORDER 0
+#define MY_OWN_BYTE_ORDER 0
 #endif
 
 class Packer {
-private: 
+ private:
   Uint32 preComputedWord1;
-  const Uint32 checksumUsed;   // Checksum shall be included in the message
-  const Uint32 signalIdUsed;   // Senders signal id shall be included in the message
+  const Uint32 checksumUsed;  // Checksum shall be included in the message
+  const Uint32
+      signalIdUsed;  // Senders signal id shall be included in the message
 
-public:
+ public:
   Packer(bool signalId, bool checksum);
 
   template <typename AnySectionPtr>
-  Uint32 getMessageLength(const SignalHeader* header, 
-			  const AnySectionPtr ptr[3]) const;
+  Uint32 getMessageLength(const SignalHeader *header,
+                          const AnySectionPtr ptr[3]) const;
 
   template <typename AnySectionArg>
-  void pack(Uint32 * insertPtr, 
-	    Uint32 prio, 
-	    const SignalHeader* header, 
-	    const Uint32* data,
-	    AnySectionArg section) const;
+  void pack(Uint32 *insertPtr, Uint32 prio, const SignalHeader *header,
+            const Uint32 *data, AnySectionArg section) const;
 
   /**
    * Below we define the variants of 'AnySectionArg' which may
@@ -61,28 +59,26 @@ public:
    * SegmentedSection variant also need the extra 'Pool' parameter,
    * and the C++ 11 'variadic template' feature can't be used yet.
    */
-  class LinearSectionArg
-  {
-  public:
+  class LinearSectionArg {
+   public:
     friend class Packer;
     LinearSectionArg(const LinearSectionPtr ptr[3]) : m_ptr(ptr) {}
     const LinearSectionPtr *m_ptr;
   };
 
-  class GenericSectionArg
-  {
-  public:
+  class GenericSectionArg {
+   public:
     friend class Packer;
     GenericSectionArg(const GenericSectionPtr ptr[3]) : m_ptr(ptr) {}
     const GenericSectionPtr *m_ptr;
   };
 
-  class SegmentedSectionArg
-  {
-  public:
+  class SegmentedSectionArg {
+   public:
     friend class Packer;
     SegmentedSectionArg(class SectionSegmentPool &pool,
-                        const SegmentedSectionPtr ptr[3]) : m_pool(pool), m_ptr(ptr) {}
+                        const SegmentedSectionPtr ptr[3])
+        : m_pool(pool), m_ptr(ptr) {}
 
     class SectionSegmentPool &m_pool;
     const SegmentedSectionPtr *m_ptr;
@@ -90,23 +86,19 @@ public:
 };
 
 template <typename AnySectionPtr>
-inline
-Uint32
-Packer::getMessageLength(const SignalHeader* header,
-			 const AnySectionPtr ptr[3]) const
-{
+inline Uint32 Packer::getMessageLength(const SignalHeader *header,
+                                       const AnySectionPtr ptr[3]) const {
   Uint32 tLen32 = header->theLength;
-  const Uint32 no_seg = header->m_noOfSections; 
+  const Uint32 no_seg = header->m_noOfSections;
   tLen32 += checksumUsed;
   tLen32 += signalIdUsed;
   tLen32 += no_seg;
 
-  for(Uint32 i = 0; i<no_seg; i++){
+  for (Uint32 i = 0; i < no_seg; i++) {
     tLen32 += ptr[i].sz;
   }
-  
+
   return (tLen32 * 4) + sizeof(Protocol6);
 }
-
 
 #endif

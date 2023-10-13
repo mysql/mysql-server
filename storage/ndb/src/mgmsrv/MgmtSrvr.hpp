@@ -31,10 +31,10 @@
 #include "ConfigSubscriber.hpp"
 
 #include <mgmapi.h>
-#include <Vector.hpp>
-#include <NodeBitmask.hpp>
 #include <ndb_version.h>
 #include <EventLogger.hpp>
+#include <NodeBitmask.hpp>
+#include <Vector.hpp>
 #include "portlib/ndb_sockaddr.h"
 
 #include <SignalSender.hpp>
@@ -43,58 +43,51 @@
 
 class SetLogLevelOrd;
 
-class Ndb_mgmd_event_service : public EventLoggerBase 
-{
+class Ndb_mgmd_event_service : public EventLoggerBase {
   friend class MgmtSrvr;
-public:
+
+ public:
   struct Event_listener : public EventLoggerBase {
     Event_listener() {}
-    NdbSocket * m_socket_ptr {nullptr};
+    NdbSocket *m_socket_ptr{nullptr};
     Uint32 m_parsable;
   };
-  
-private:  
-  class MgmtSrvr * m_mgmsrv;
-  MutexVector<Event_listener> m_clients;
-public:
-  Ndb_mgmd_event_service(class MgmtSrvr * m) : m_clients(5) {
-    m_mgmsrv = m;
-  }
-  
-  ~Ndb_mgmd_event_service()
-  {
-    stop_sessions();
-  }
 
-  void add_listener(Event_listener&, NdbSocket&&);
+ private:
+  class MgmtSrvr *m_mgmsrv;
+  MutexVector<Event_listener> m_clients;
+
+ public:
+  Ndb_mgmd_event_service(class MgmtSrvr *m) : m_clients(5) { m_mgmsrv = m; }
+
+  ~Ndb_mgmd_event_service() { stop_sessions(); }
+
+  void add_listener(Event_listener &, NdbSocket &&);
   void check_listeners();
-  void update_max_log_level(const LogLevel&);
-  void update_log_level(const LogLevel&);
-  
-  void log(int eventType, const Uint32* theData, Uint32 len, NodeId nodeId);
-  
+  void update_max_log_level(const LogLevel &);
+  void update_log_level(const LogLevel &);
+
+  void log(int eventType, const Uint32 *theData, Uint32 len, NodeId nodeId);
+
   void stop_sessions();
 
-  Event_listener& operator[](unsigned i) { return m_clients[i]; }
-  const Event_listener& operator[](unsigned i) const { return m_clients[i]; }
+  Event_listener &operator[](unsigned i) { return m_clients[i]; }
+  const Event_listener &operator[](unsigned i) const { return m_clients[i]; }
   void lock() { m_clients.lock(); }
-  void unlock(){ m_clients.unlock(); }
+  void unlock() { m_clients.unlock(); }
 };
-
-
 
 /**
   @class MgmtSrvr
   @brief Main class for the management server.
  */
 class MgmtSrvr : private ConfigSubscriber, public trp_client {
-
-public:
+ public:
   /**
-   *   This enum specifies the different signal loggig modes possible to set 
+   *   This enum specifies the different signal loggig modes possible to set
    *   with the setSignalLoggingMode method.
    */
-  enum LogMode {In, Out, InOut, Off};
+  enum LogMode { In, Out, InOut, Off };
 
   enum TlsStats { accepted, upgraded, current, tls, authfail };
 
@@ -107,36 +100,36 @@ public:
     int daemon;
     int non_interactive;
     int interactive;
-    const char* config_filename;
+    const char *config_filename;
     int mycnf;
-    const char* cluster_config_suffix;
+    const char *cluster_config_suffix;
     int config_cache;
-    const char* bind_address;
+    const char *bind_address;
     int no_nodeid_checks;
     int print_full_config;
-    const char* configdir;
+    const char *configdir;
     int verbose;
     int reload;
     int initial;
     NodeBitmask nowait_nodes;
-    const char* tls_search_path;
+    const char *tls_search_path;
     int mgm_tls;
 
-    MgmtOpts() : configdir(MYSQLCLUSTERDIR),
-                 tls_search_path(NDB_TLS_SEARCH_PATH) {}
+    MgmtOpts()
+        : configdir(MYSQLCLUSTERDIR), tls_search_path(NDB_TLS_SEARCH_PATH) {}
   };
 
-  MgmtSrvr(); // Not implemented
-  MgmtSrvr(const MgmtSrvr&); // Not implemented
-  MgmtSrvr(const MgmtOpts&);
+  MgmtSrvr();                  // Not implemented
+  MgmtSrvr(const MgmtSrvr &);  // Not implemented
+  MgmtSrvr(const MgmtOpts &);
 
   ~MgmtSrvr() override;
 
-private:
+ private:
   /* Function used from 'init' */
-  const char* check_configdir() const;
+  const char *check_configdir() const;
 
-public:
+ public:
   /*
     To be called after constructor.
   */
@@ -147,16 +140,16 @@ public:
     this server will expose
    */
   bool start(void);
-private:
+
+ private:
   /* Functions used from 'start' */
-  bool start_transporter(const Config*);
-  bool get_connection_config(const Config*);
-  bool start_mgm_service(const Config*);
+  bool start_transporter(const Config *);
+  bool get_connection_config(const Config *);
+  bool start_mgm_service(const Config *);
   bool connect_to_self(void);
 
-public:
-
-  NodeId getOwnNodeId() const {return _ownNodeId;}
+ public:
+  NodeId getOwnNodeId() const { return _ownNodeId; }
 
   /**
    * Get status on a node.
@@ -164,19 +157,11 @@ public:
    * There is no guarantee that it is preserved across calls.
    * Copy the string if you are not going to use it immediately.
    */
-  int status(int nodeId,
-             ndb_mgm_node_status * status,
-             Uint32 * version,
-             Uint32 * mysql_version,
-             Uint32 * phase,
-             bool * systemShutdown,
-             Uint32 * dynamicId,
-             Uint32 * nodeGroup,
-             Uint32 * connectCount,
-             const char **address,
-             char *addr_buf,
-             size_t addr_buf_size,
-             bool* is_single_user);
+  int status(int nodeId, ndb_mgm_node_status *status, Uint32 *version,
+             Uint32 *mysql_version, Uint32 *phase, bool *systemShutdown,
+             Uint32 *dynamicId, Uint32 *nodeGroup, Uint32 *connectCount,
+             const char **address, char *addr_buf, size_t addr_buf_size,
+             bool *is_single_user);
 
   /**
    *   Stop a list of nodes
@@ -189,52 +174,48 @@ public:
   /**
    * shutdown the DB nodes
    */
-  int shutdownDB(int * cnt = 0, bool abort = false);
+  int shutdownDB(int *cnt = 0, bool abort = false);
 
   /**
    *   Maintenance on the system
    */
-  int enterSingleUser(int * cnt = 0, Uint32 singleuserNodeId = 0);
-
+  int enterSingleUser(int *cnt = 0, Uint32 singleuserNodeId = 0);
 
   /**
    *   Resume from maintenance on the system
    */
-  int exitSingleUser(int * cnt = 0, bool abort = false);
+  int exitSingleUser(int *cnt = 0, bool abort = false);
 
   /**
    *   Start DB process by sending START_ORD to it.
    *   @param   processId  Id of the DB process to start
    *   @return 0 if succeeded, otherwise: as stated above, plus:
    */
- int sendSTART_ORD(int processId);
+  int sendSTART_ORD(int processId);
 
   /**
    *   Restart a list of nodes
    */
-  int restartNodes(const Vector<NodeId> &node_ids,
-                   int *stopCount, bool nostart,
-                   bool initialStart, bool abort, bool force,
-                   int *stopSelf,
+  int restartNodes(const Vector<NodeId> &node_ids, int *stopCount, bool nostart,
+                   bool initialStart, bool abort, bool force, int *stopSelf,
                    unsigned int num_secs_to_wait_for_node = 120);
 
   /**
    *   Restart all DB nodes
    */
-  int restartDB(bool nostart, bool initialStart, 
-                bool abort = false,
-                int * stopCount = 0,
+  int restartDB(bool nostart, bool initialStart, bool abort = false,
+                int *stopCount = 0,
                 unsigned int num_secs_to_wait_for_node = 120);
-  
+
   /**
    * Backup functionality
    */
-  int startBackup(Uint32& backupId, int waitCompleted= 2,
-                  Uint32 input_backupId= 0, Uint32 backuppoint= 0,
-                  const char* encryption_password= nullptr,
-                  Uint32 password_length= 0);
+  int startBackup(Uint32 &backupId, int waitCompleted = 2,
+                  Uint32 input_backupId = 0, Uint32 backuppoint = 0,
+                  const char *encryption_password = nullptr,
+                  Uint32 password_length = 0);
   int abortBackup(Uint32 backupId);
-  int performBackup(Uint32* backupId);
+  int performBackup(Uint32 *backupId);
 
   //**************************************************************************
   // Description: Set event report level for a DB process
@@ -246,8 +227,8 @@ public:
   //  INVALID_LEVEL
   //**************************************************************************
 
-  int setEventReportingLevelImpl(int processId, const EventSubscribeReq& ll);
-  int setNodeLogLevelImpl(int processId, const SetLogLevelOrd & ll);
+  int setEventReportingLevelImpl(int processId, const EventSubscribeReq &ll);
+  int setNodeLogLevelImpl(int processId, const SetLogLevelOrd &ll);
 
   /**
    *   Insert an error in a DB process.
@@ -256,9 +237,7 @@ public:
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    *            INVALID_ERROR_NUMBER
    */
-  int insertError(int processId, int errorNo, Uint32 * extra = 0);
-
-
+  int insertError(int processId, int errorNo, Uint32 *extra = 0);
 
   int setTraceNo(int processId, int traceNo);
   //**************************************************************************
@@ -270,12 +249,10 @@ public:
   //  INVALID_TRACE_NUMBER
   //**************************************************************************
 
-
-  int setSignalLoggingMode(int processId, LogMode mode, 
-			   const Vector<BaseString> &blocks);
-
   int setSignalLoggingMode(int processId, LogMode mode,
-			   BaseString &block) {
+                           const Vector<BaseString> &blocks);
+
+  int setSignalLoggingMode(int processId, LogMode mode, BaseString &block) {
     Vector<BaseString> v;
     v.push_back(block);
     return setSignalLoggingMode(processId, mode, v);
@@ -290,7 +267,6 @@ public:
   //  INVALID_BLOCK_NAME
   //**************************************************************************
 
-
   int startSignalTracing(int processId);
   //**************************************************************************
   // Description: Start signal tracing for a DB process.
@@ -298,7 +274,6 @@ public:
   //  processId: Id of the DB process
   // Returns: 0 if succeeded, otherwise: as stated above.
   //**************************************************************************
-
 
   int stopSignalTracing(int processId);
   //**************************************************************************
@@ -309,11 +284,11 @@ public:
   //**************************************************************************
 
   /**
-   *   Dump State 
+   *   Dump State
    */
   int dumpStateSelf(const Uint32 args[], Uint32 no);
   int dumpState(int processId, const Uint32 args[], Uint32 argNo);
-  int dumpState(int processId, const char* args);
+  int dumpState(int processId, const char *args);
 
   /**
    * Get next node id (node id gt than _nodeId)
@@ -321,9 +296,9 @@ public:
    *
    *   @return false if none found
    */
-  bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
+  bool getNextNodeId(NodeId *_nodeId, enum ndb_mgm_node_type type) const;
 
-  bool change_config(Config& new_config, BaseString& msg);
+  bool change_config(Config &new_config, BaseString &msg);
 
   /**
    *   Get error text
@@ -331,15 +306,15 @@ public:
    *   @param   errorCode  Error code to get a match error text for.
    *   @return  The error text.
    */
-  const char* getErrorText(int errorCode, char *buf, int buf_sz);
+  const char *getErrorText(int errorCode, char *buf, int buf_sz);
 
   void tls_stat_increment(unsigned int idx);
   void tls_stat_decrement(unsigned int idx);
 
-private:
-  void config_changed(NodeId, const Config*) override;
-  void setClusterLog(const Config* conf);
-  void configure_eventlogger(const BaseString& logdestination) const;
+ private:
+  void config_changed(NodeId, const Config *) override;
+  void setClusterLog(const Config *conf);
+  void configure_eventlogger(const BaseString &logdestination) const;
   /**
    * Make cluster logging asynchronous/synchronous
    * when g_eventLogger is set up the next time.
@@ -347,89 +322,63 @@ private:
    * false for sync logging
    */
   void set_async_cluster_logging(bool async_cluster_logging);
-public:
 
+ public:
   /**
    * Returns the port number where MgmApiService is started
    * @return port number.
    */
   int getPort() const { return m_port; }
 
-  int setDbParameter(int node, int parameter, const char * value, BaseString&);
+  int setDbParameter(int node, int parameter, const char *value, BaseString &);
   int setConnectionDbParameter(int node1, int node2, int param, int value,
-			       BaseString& msg);
+                               BaseString &msg);
 
   struct DynPortSpec {
-   int node; /* The node which should use below port */
-   int port; /* The port to use */
+    int node; /* The node which should use below port */
+    int port; /* The port to use */
   };
-  bool setDynamicPorts(int node, DynPortSpec ports[],
-                       unsigned num_ports, BaseString &msg);
-  int getConnectionDbParameter(int node1, int node2, int param,
-			       int *value, BaseString& msg);
+  bool setDynamicPorts(int node, DynPortSpec ports[], unsigned num_ports,
+                       BaseString &msg);
+  int getConnectionDbParameter(int node1, int node2, int param, int *value,
+                               BaseString &msg);
 
-  bool transporter_connect(NdbSocket&& socket,
-                           BaseString& errormsg,
-                           bool& log_failure);
+  bool transporter_connect(NdbSocket &&socket, BaseString &errormsg,
+                           bool &log_failure);
 
   SocketServer *get_socket_server() { return &m_socket_server; }
 
   int createNodegroup(int *nodes, int count, int *ng);
   int dropNodegroup(unsigned ng);
 
-  int startSchemaTrans(SignalSender& ss, NodeId & out_nodeId,
-                       Uint32 transId, Uint32 & out_transKey);
-  int endSchemaTrans(SignalSender& ss, NodeId nodeId,
-                     Uint32 transId, Uint32 transKey, Uint32 flags);
+  int startSchemaTrans(SignalSender &ss, NodeId &out_nodeId, Uint32 transId,
+                       Uint32 &out_transKey);
+  int endSchemaTrans(SignalSender &ss, NodeId nodeId, Uint32 transId,
+                     Uint32 transKey, Uint32 flags);
 
-private:
-  int guess_master_node(SignalSender&);
+ private:
+  int guess_master_node(SignalSender &);
 
-  void status_api(int nodeId,
-                  ndb_mgm_node_status& node_status,
-                  Uint32& version, Uint32& mysql_version,
-                  const char **address,
-                  char *addr_buf,
-                  size_t addr_buf_size,
-                  bool& is_single_user);
-  void status_mgmd(NodeId node_id,
-                   ndb_mgm_node_status& node_status,
-                   Uint32& version, Uint32& mysql_version,
-                   const char **address,
-                   char *addr_buf,
-                   size_t addr_buf_size,
-                   bool& is_single_user);
+  void status_api(int nodeId, ndb_mgm_node_status &node_status, Uint32 &version,
+                  Uint32 &mysql_version, const char **address, char *addr_buf,
+                  size_t addr_buf_size, bool &is_single_user);
+  void status_mgmd(NodeId node_id, ndb_mgm_node_status &node_status,
+                   Uint32 &version, Uint32 &mysql_version, const char **address,
+                   char *addr_buf, size_t addr_buf_size, bool &is_single_user);
 
-  int sendVersionReq(int processId,
-                     Uint32 &version,
-                     Uint32& mysql_version,
-                     const char **address,
-                     char *addr_buf,
-                     size_t addr_buf_size,
-                     bool& is_single_user);
+  int sendVersionReq(int processId, Uint32 &version, Uint32 &mysql_version,
+                     const char **address, char *addr_buf, size_t addr_buf_size,
+                     bool &is_single_user);
 
-  int sendStopMgmd(NodeId nodeId,
-                   bool abort,
-                   bool stop,
-                   bool restart,
-                   bool nostart,
-                   bool initialStart);
+  int sendStopMgmd(NodeId nodeId, bool abort, bool stop, bool restart,
+                   bool nostart, bool initialStart);
 
-  int sendall_STOP_REQ(NodeBitmask &stoppedNodes,
-                       bool abort,
-                       bool stop,
-                       bool restart,
-                       bool nostart,
-                       bool initialStart);
+  int sendall_STOP_REQ(NodeBitmask &stoppedNodes, bool abort, bool stop,
+                       bool restart, bool nostart, bool initialStart);
 
-  int sendSTOP_REQ(const Vector<NodeId> &node_ids,
-		   NodeBitmask &stoppedNodes,
-		   bool abort,
-		   bool stop,
-		   bool restart,
-		   bool nostart,
-		   bool initialStart,
-                   int *stopSelf);
+  int sendSTOP_REQ(const Vector<NodeId> &node_ids, NodeBitmask &stoppedNodes,
+                   bool abort, bool stop, bool restart, bool nostart,
+                   bool initialStart, int *stopSelf);
 
   /**
    *   Check if it is possible to send a signal to a (DB) process
@@ -445,58 +394,55 @@ private:
   bool is_any_node_in_started_state(void);
   bool is_cluster_single_user(void);
   bool are_all_nodes_in_cmvmi_state(void);
-  bool isTimeUp(const NDB_TICKS startTime,
-                const Uint64 delay,
+  bool isTimeUp(const NDB_TICKS startTime, const Uint64 delay,
                 const Uint64 startInterval);
 
   //**************************************************************************
 
-  const MgmtOpts& m_opts;
+  const MgmtOpts &m_opts;
   BlockNumber _blockNumber;
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;
 
-  NdbMutex* m_local_config_mutex;
-  const Config* m_local_config;
+  NdbMutex *m_local_config_mutex;
+  const Config *m_local_config;
 
   BlockReference _ownReference;
 
-  class ConfigManager* m_config_manager;
+  class ConfigManager *m_config_manager;
 
-  const char * m_tls_search_path { nullptr };
+  const char *m_tls_search_path{nullptr};
 
-  int m_client_tls_req;         // TLS requirement level as MGM client ...
-  bool m_require_tls { false }; // ... and as MGM server.
-  bool m_require_cert { false };
+  int m_client_tls_req;       // TLS requirement level as MGM client ...
+  bool m_require_tls{false};  // ... and as MGM server.
+  bool m_require_cert{false};
 
-  struct ssl_ctx_st * ssl_ctx() {
+  struct ssl_ctx_st *ssl_ctx() {
     return theFacade->get_registry()->getTlsKeyManager()->ctx();
   }
 
   bool m_need_restart;
 
   ndb_sockaddr m_connect_address[MAX_NODES];
-  const char *get_connect_address(NodeId node_id,
-                                  char *addr_buf,
+  const char *get_connect_address(NodeId node_id, char *addr_buf,
                                   size_t addr_buf_size);
   void clear_connect_address_cache(NodeId nodeid);
 
   /**
    * trp_client interface
    */
-  void trp_deliver_signal(const NdbApiSignal* signal,
+  void trp_deliver_signal(const NdbApiSignal *signal,
                           const struct LinearSectionPtr ptr[3]) override;
   virtual void trp_node_status(Uint32 nodeId, Uint32 event);
-  
+
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(const Uint32 * theSignalData,
-                   Uint32 len,
-                   const Uint32 * theData);
- 
-  class TransporterFacade * theFacade;
+  void eventReport(const Uint32 *theSignalData, Uint32 len,
+                   const Uint32 *theData);
+
+  class TransporterFacade *theFacade;
 
   bool _isStopThread;
   int _logLevelThreadSleep;
@@ -507,7 +453,7 @@ private:
   friend class MgmApiSession;
   friend class Ndb_mgmd_event_service;
   Ndb_mgmd_event_service m_event_listner;
-  
+
   NodeId m_master_node;
 
   ndb_mgm_node_type getNodeType(NodeId) const;
@@ -516,47 +462,41 @@ private:
    * Handles the thread which upon a 'Node is started' event will
    * set the node's previous loglevel settings.
    */
-  struct NdbThread* _logLevelThread;
+  struct NdbThread *_logLevelThread;
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
   void report_unknown_signal(SimpleSignal *signal);
 
-  void make_sync_req(SignalSender& ss, Uint32 nodeId);
-public:
+  void make_sync_req(SignalSender &ss, Uint32 nodeId);
+
+ public:
   /* Get copy of configuration packed with base64 */
-  bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString& buf64,
-                         BaseString& error,
-                         bool v2,
-                         Uint32 node_id);
+  bool get_packed_config(ndb_mgm_node_type nodetype, BaseString &buf64,
+                         BaseString &error, bool v2, Uint32 node_id);
 
   /* Get copy of configuration packed with base64 from node nodeid */
-  bool get_packed_config_from_node(NodeId nodeid,
-                         BaseString& buf64,
-                         BaseString& error,
-                         bool v2);
+  bool get_packed_config_from_node(NodeId nodeid, BaseString &buf64,
+                                   BaseString &error, bool v2);
 
-  void print_config(const char* section_filter = NULL,
-                    NodeId nodeid_filter = 0,
-                    const char* param_filter = NULL,
-                    NdbOut& out = ndbout);
+  void print_config(const char *section_filter = NULL, NodeId nodeid_filter = 0,
+                    const char *param_filter = NULL, NdbOut &out = ndbout);
 
-  bool reload_config(const char* config_filename,
-                     bool mycnf, BaseString& msg);
+  bool reload_config(const char *config_filename, bool mycnf, BaseString &msg);
 
-  void show_variables(NdbOut& out = ndbout);
+  void show_variables(NdbOut &out = ndbout);
 
   bool require_tls() const { return m_require_tls; }
   bool require_cert() const { return m_require_tls || m_require_cert; }
 
-private:
+ private:
   class NodeIdReservations {
     struct Reservation {
       NDB_TICKS m_start;
-      unsigned m_timeout; // Milliseconds
+      unsigned m_timeout;  // Milliseconds
     };
     Reservation m_reservations[MAX_NODES];
-  public:
+
+   public:
     NodeIdReservations();
     void check_array(NodeId n) const;
     bool get(NodeId n) const;
@@ -565,54 +505,42 @@ private:
     BaseString pretty_str() const;
     bool has_timedout(NodeId n, NDB_TICKS now) const;
   } m_reserved_nodes;
-  NdbMutex* m_reserved_nodes_mutex;
+  NdbMutex *m_reserved_nodes_mutex;
 
   void release_local_nodeid_reservation(NodeId nodeid);
-  struct PossibleNode
-  {
+  struct PossibleNode {
     unsigned id;
     BaseString host;
     bool exact_match;
   };
-  int alloc_node_id_req(NodeId free_node_id,
-                        ndb_mgm_node_type type,
+  int alloc_node_id_req(NodeId free_node_id, ndb_mgm_node_type type,
                         Uint32 timeout_ms);
-  int try_alloc(NodeId id,
-                ndb_mgm_node_type type,
-                Uint32 timeout_ms,
-                int& error_code,
-                BaseString& error_string);
-  int try_alloc_from_list(NodeId& nodeid,
-                          ndb_mgm_node_type type,
+  int try_alloc(NodeId id, ndb_mgm_node_type type, Uint32 timeout_ms,
+                int &error_code, BaseString &error_string);
+  int try_alloc_from_list(NodeId &nodeid, ndb_mgm_node_type type,
                           Uint32 timeout_ms,
-                          const Vector<PossibleNode>& nodes_info,
-                          int& error_code,
-                          BaseString& error_string);
-  struct ConfigNode
-  {
+                          const Vector<PossibleNode> &nodes_info,
+                          int &error_code, BaseString &error_string);
+  struct ConfigNode {
     unsigned nodeid;
     BaseString hostname;
   };
-  bool build_node_list_from_config(NodeId node_id,
-                                   ndb_mgm_node_type type,
-                                   Vector<ConfigNode>& config_nodes,
-                                   int& error_code,
-                                   BaseString& error_string) const;
-  int find_node_type(NodeId nodeid,
-                     ndb_mgm_node_type type,
-                     const ndb_sockaddr* client_addr,
-                     const Vector<ConfigNode>& config_nodes,
-                     Vector<PossibleNode>& nodes,
-                     int& error_code, BaseString& error_string);
-  bool alloc_node_id_impl(NodeId& nodeid,
-                          ndb_mgm_node_type type,
-                          const ndb_sockaddr* client_addr,
-                          int& error_code, BaseString& error_string,
-                          Uint32 timeout_s = 20);
+  bool build_node_list_from_config(NodeId node_id, ndb_mgm_node_type type,
+                                   Vector<ConfigNode> &config_nodes,
+                                   int &error_code,
+                                   BaseString &error_string) const;
+  int find_node_type(NodeId nodeid, ndb_mgm_node_type type,
+                     const ndb_sockaddr *client_addr,
+                     const Vector<ConfigNode> &config_nodes,
+                     Vector<PossibleNode> &nodes, int &error_code,
+                     BaseString &error_string);
+  bool alloc_node_id_impl(NodeId &nodeid, ndb_mgm_node_type type,
+                          const ndb_sockaddr *client_addr, int &error_code,
+                          BaseString &error_string, Uint32 timeout_s = 20);
 
-  std::atomic<uint32_t> m_tls_stats[5] {0};
+  std::atomic<uint32_t> m_tls_stats[5]{0};
 
-public:
+ public:
   /*
     Nodeid allocation
     - MGM will never allocate a nodeid since either there is
@@ -630,24 +558,22 @@ public:
       only, such a reservations is cleared as soon as the
       data node has connected via transporter to the mgmtsrvr.
    */
-  bool alloc_node_id(NodeId& nodeid,
-                     ndb_mgm_node_type type,
-                     const ndb_sockaddr* client_addr,
-		     int& error_code, BaseString& error_string,
-                     bool log_event = true,
-		     Uint32 timeout_s = 20);
+  bool alloc_node_id(NodeId &nodeid, ndb_mgm_node_type type,
+                     const ndb_sockaddr *client_addr, int &error_code,
+                     BaseString &error_string, bool log_event = true,
+                     Uint32 timeout_s = 20);
 
-private:
+ private:
   BaseString m_version_string;
   bool m_async_cluster_logging;
-public:
-  const char* get_version_string(void) const {
+
+ public:
+  const char *get_version_string(void) const {
     return m_version_string.c_str();
   }
 
   bool request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
-                      Uint32 dump_type,
-                      Vector<SimpleSignal>& events);
+                      Uint32 dump_type, Vector<SimpleSignal> &events);
 };
 
-#endif // MgmtSrvr_H
+#endif  // MgmtSrvr_H

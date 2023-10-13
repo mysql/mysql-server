@@ -29,10 +29,9 @@
 
 #define JAM_FILE_ID 136
 
-
 /**
- * 
- * SENDER:  
+ *
+ * SENDER:
  * RECIVER: Ndbfs
  */
 class FsAppendReq {
@@ -48,23 +47,23 @@ class FsAppendReq {
   friend class Backup;
   friend class Ndbcntr;
 
-  friend bool printFSAPPENDREQ(FILE * output, const Uint32 * theData, 
-			       Uint32 len, Uint16 receiverBlockNo);
-public:
+  friend bool printFSAPPENDREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                               Uint16 receiverBlockNo);
+
+ public:
   static constexpr Uint32 SignalLength = 7;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
-  UintR filePointer;          // DATA 0
-  UintR userReference;        // DATA 1
-  UintR userPointer;          // DATA 2
-  UintR varIndex;             // DATA 3
-  UintR offset;               // DATA 4
-  UintR size;                 // DATA 5
-  UintR synch_flag;           // DATA 6
+  UintR filePointer;    // DATA 0
+  UintR userReference;  // DATA 1
+  UintR userPointer;    // DATA 2
+  UintR varIndex;       // DATA 3
+  UintR offset;         // DATA 4
+  UintR size;           // DATA 5
+  UintR synch_flag;     // DATA 6
 };
 
 DECLARE_SIGNAL_SCOPE(GSN_FSAPPENDREQ, Local);

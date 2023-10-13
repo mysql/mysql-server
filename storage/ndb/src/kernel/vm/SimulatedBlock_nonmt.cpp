@@ -25,4 +25,3 @@
 #include "SimulatedBlock.cpp"
 
 #define JAM_FILE_ID 285
-

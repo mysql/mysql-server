@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 161
 
-
 class PrepDropTabReq {
   /**
    * Sender(s)
@@ -47,14 +46,15 @@ class PrepDropTabReq {
   friend class DbgdmProxy;
 
   friend bool printPREP_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
 
-private:
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
-  Uint32 requestType; // @see DropTabReq::RequestType
+  Uint32 requestType;  // @see DropTabReq::RequestType
 };
 
 class PrepDropTabConf {
@@ -74,10 +74,11 @@ class PrepDropTabConf {
   friend class Dbdict;
 
   friend bool printPREP_DROP_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
 
-private:
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
@@ -100,7 +101,8 @@ class PrepDropTabRef {
   friend class Dbdict;
 
   friend bool printPREP_DROP_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
@@ -111,14 +113,13 @@ public:
     InvalidTableState = 4,
     NF_FakeErrorREF = 5
   };
-  
-private:
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
   Uint32 errorCode;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -22,39 +22,31 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <new>
+#include "util/require.h"
 
 #include <ndb_global.h>
 #include <AttributeHeader.hpp>
-#include <NdbSqlUtil.hpp>
 #include <NdbIndexStat.hpp>
-#include <NdbTransaction.hpp>
-#include "NdbDictionaryImpl.hpp"
 #include <NdbInterpretedCode.hpp>
 #include <NdbRecord.hpp>
+#include <NdbSqlUtil.hpp>
+#include <NdbTransaction.hpp>
+#include "NdbDictionaryImpl.hpp"
 #include "NdbIndexStatImpl.hpp"
 
-NdbIndexStat::NdbIndexStat() :
-  m_impl(*new NdbIndexStatImpl(*this))
-{
+NdbIndexStat::NdbIndexStat() : m_impl(*new NdbIndexStatImpl(*this)) {}
+
+NdbIndexStat::NdbIndexStat(NdbIndexStatImpl &impl) : m_impl(impl) {}
+
+NdbIndexStat::~NdbIndexStat() {
+  NdbIndexStatImpl *impl = &m_impl;
+  if (this != impl) delete impl;
 }
 
-NdbIndexStat::NdbIndexStat(NdbIndexStatImpl& impl) :
-  m_impl(impl)
-{
-}
-
-NdbIndexStat::~NdbIndexStat()
-{
-  NdbIndexStatImpl* impl = &m_impl;
-  if (this != impl)
-    delete impl;
-}
-
-/** 
+/**
  * addKeyPartInfo
- * This method is used to build a standard representation of a 
+ * This method is used to build a standard representation of a
  * lower or upper index bound in a buffer, which can then
  * be used to identify a range.
  * The buffer format is :
@@ -66,38 +58,28 @@ NdbIndexStat::~NdbIndexStat()
  * bytes for VAR* types)
  * For NULLs, length==0
  */
- 
-int
-NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
-                             const char* keyRecordData,
-                             Uint32 keyPartNum,
-                             const NdbIndexScanOperation::BoundType boundType,
-                             Uint32* keyStatData,
-                             Uint32& keyLength)
-{
+
+int NdbIndexStat::addKeyPartInfo(
+    const NdbRecord *record, const char *keyRecordData, Uint32 keyPartNum,
+    const NdbIndexScanOperation::BoundType boundType, Uint32 *keyStatData,
+    Uint32 &keyLength) {
   char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
 
-  Uint32 key_index= record->key_indexes[ keyPartNum ];
-  const NdbRecord::Attr *column= &record->columns[ key_index ];
-  
-  bool is_null= column->is_null(keyRecordData);
-  Uint32 len= 0;
-  const void *aValue= keyRecordData + column->offset;
+  Uint32 key_index = record->key_indexes[keyPartNum];
+  const NdbRecord::Attr *column = &record->columns[key_index];
 
-  if (!is_null)
-  {
+  bool is_null = column->is_null(keyRecordData);
+  Uint32 len = 0;
+  const void *aValue = keyRecordData + column->offset;
+
+  if (!is_null) {
     bool len_ok;
     /* Support for special mysqld varchar format in keys. */
-    if (column->flags & NdbRecord::IsMysqldShrinkVarchar)
-    {
-      len_ok= column->shrink_varchar(keyRecordData, 
-                                     len, 
-                                     buf);
-      aValue= buf;
-    }
-    else
-    {
-      len_ok= column->get_var_length(keyRecordData, len);
+    if (column->flags & NdbRecord::IsMysqldShrinkVarchar) {
+      len_ok = column->shrink_varchar(keyRecordData, len, buf);
+      aValue = buf;
+    } else {
+      len_ok = column->get_var_length(keyRecordData, len);
     }
     if (!len_ok) {
       m_impl.setError(4209, __LINE__);
@@ -106,13 +88,12 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   }
 
   /* Insert attribute header. */
-  Uint32 tIndexAttrId= column->index_attrId;
-  Uint32 sizeInWords= (len + 3) / 4;
+  Uint32 tIndexAttrId = column->index_attrId;
+  Uint32 sizeInWords = (len + 3) / 4;
   AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
-  const Uint32 ahValue= ah.m_value;
+  const Uint32 ahValue = ah.m_value;
 
-  if (keyLength + (2 + len) > NdbIndexStatImpl::BoundBufWords )
-  {
+  if (keyLength + (2 + len) > NdbIndexStatImpl::BoundBufWords) {
     /* Something wrong, key data would be too big */
     /* Key size is limited to 4092 bytes */
     m_impl.setError(4207, __LINE__);
@@ -120,160 +101,136 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   }
 
   /* Fill in key data */
-  keyStatData[ keyLength++ ]= boundType;
-  keyStatData[ keyLength++ ]= ahValue;
+  keyStatData[keyLength++] = boundType;
+  keyStatData[keyLength++] = ahValue;
   /* Zero last word prior to byte copy, in case we're not aligned */
-  keyStatData[ keyLength + sizeInWords - 1] = 0;
-  memcpy(&keyStatData[ keyLength ], aValue, len);
+  keyStatData[keyLength + sizeInWords - 1] = 0;
+  memcpy(&keyStatData[keyLength], aValue, len);
 
-  keyLength+= sizeInWords;
+  keyLength += sizeInWords;
 
   return 0;
 }
 
-int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
-                                   NdbTransaction* trans,
-                                   const NdbRecord* key_record,
-                                   const NdbRecord* result_record,
-                                   const NdbIndexScanOperation::IndexBound* ib,
-                                   Uint64 /*table_rows*/, Uint64* count,
-                                   int flags [[maybe_unused]])
-{
+int NdbIndexStat::records_in_range(const NdbDictionary::Index * /*index*/,
+                                   NdbTransaction *trans,
+                                   const NdbRecord *key_record,
+                                   const NdbRecord *result_record,
+                                   const NdbIndexScanOperation::IndexBound *ib,
+                                   Uint64 /*table_rows*/, Uint64 *count,
+                                   int flags [[maybe_unused]]) {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;
   Uint32 key1[NdbIndexStatImpl::BoundBufWords], keylen1;
   Uint32 key2[NdbIndexStatImpl::BoundBufWords], keylen2;
 
-  if (true)
-  {
-    // get start and end key from NdbIndexBound, using NdbRecord to 
+  if (true) {
+    // get start and end key from NdbIndexBound, using NdbRecord to
     // get values into a standard format.
-    Uint32 maxBoundParts= (ib->low_key_count > ib->high_key_count) ? 
-      ib->low_key_count : ib->high_key_count;
+    Uint32 maxBoundParts = (ib->low_key_count > ib->high_key_count)
+                               ? ib->low_key_count
+                               : ib->high_key_count;
 
-    keylen1= keylen2= 0;
+    keylen1 = keylen2 = 0;
 
     /* Fill in keyX buffers */
-    for (Uint32 keyPartNum=0; keyPartNum < maxBoundParts; keyPartNum++)
-    {
-      if (ib->low_key_count > keyPartNum)
-      {
+    for (Uint32 keyPartNum = 0; keyPartNum < maxBoundParts; keyPartNum++) {
+      if (ib->low_key_count > keyPartNum) {
         /* Set bound to LT only if it's not inclusive
          * and this is the last key
          */
-        NdbIndexScanOperation::BoundType boundType= 
-          NdbIndexScanOperation::BoundLE;
-        if ((! ib->low_inclusive) && 
-            (keyPartNum == (ib->low_key_count -1 )))
-          boundType= NdbIndexScanOperation::BoundLT;
+        NdbIndexScanOperation::BoundType boundType =
+            NdbIndexScanOperation::BoundLE;
+        if ((!ib->low_inclusive) && (keyPartNum == (ib->low_key_count - 1)))
+          boundType = NdbIndexScanOperation::BoundLT;
 
-        if (addKeyPartInfo(key_record,
-                           ib->low_key,
-                           keyPartNum,
-                           boundType,
-                           key1, 
+        if (addKeyPartInfo(key_record, ib->low_key, keyPartNum, boundType, key1,
                            keylen1) != 0)
           DBUG_RETURN(-1);
       }
-      if (ib->high_key_count > keyPartNum)
-      {
+      if (ib->high_key_count > keyPartNum) {
         /* Set bound to GT only if it's not inclusive
          * and this is the last key
          */
-        NdbIndexScanOperation::BoundType boundType= 
-          NdbIndexScanOperation::BoundGE;
-        if ((! ib->high_inclusive) && 
-            (keyPartNum == (ib->high_key_count -1)))
-          boundType= NdbIndexScanOperation::BoundGT;        
+        NdbIndexScanOperation::BoundType boundType =
+            NdbIndexScanOperation::BoundGE;
+        if ((!ib->high_inclusive) && (keyPartNum == (ib->high_key_count - 1)))
+          boundType = NdbIndexScanOperation::BoundGT;
 
-        if (addKeyPartInfo(key_record,
-                           ib->high_key,
-                           keyPartNum,
-                           boundType,
-                           key2,
-                           keylen2) != 0)
+        if (addKeyPartInfo(key_record, ib->high_key, keyPartNum, boundType,
+                           key2, keylen2) != 0)
           DBUG_RETURN(-1);
       }
     }
   }
 
-  if (true)
-  {
-    Uint32 out[4] = { 0, 0, 0, 0 };  // rows, in, before, after
-    float tot[4] = { 0, 0, 0, 0 };   // totals of above
+  if (true) {
+    Uint32 out[4] = {0, 0, 0, 0};  // rows, in, before, after
+    float tot[4] = {0, 0, 0, 0};   // totals of above
     int ret;
     bool forceSend = true;
-    const Uint32 codeWords= 1;
-    Uint32 codeSpace[ codeWords ];
-    NdbInterpretedCode code(nullptr, // No table
-                            &codeSpace[0],
-                            codeWords);
-    if ((code.interpret_exit_last_row() != 0) ||
-        (code.finalise() != 0))
-    {
+    const Uint32 codeWords = 1;
+    Uint32 codeSpace[codeWords];
+    NdbInterpretedCode code(nullptr,  // No table
+                            &codeSpace[0], codeWords);
+    if ((code.interpret_exit_last_row() != 0) || (code.finalise() != 0)) {
       m_impl.setError(code.getNdbError().code, __LINE__);
       DBUG_PRINT("error", ("code: %d", code.getNdbError().code));
       DBUG_RETURN(-1);
     }
 
-    NdbIndexScanOperation* op= nullptr;
+    NdbIndexScanOperation *op = nullptr;
     NdbScanOperation::ScanOptions options;
     NdbOperation::GetValueSpec extraGet;
 
-    options.optionsPresent= 
-      NdbScanOperation::ScanOptions::SO_GETVALUE | 
-      NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    options.optionsPresent = NdbScanOperation::ScanOptions::SO_GETVALUE |
+                             NdbScanOperation::ScanOptions::SO_INTERPRETED;
 
     /* Read RECORDS_IN_RANGE pseudo column */
-    extraGet.column= NdbDictionary::Column::RECORDS_IN_RANGE;
-    extraGet.appStorage= (void*) out;
-    extraGet.recAttr= nullptr;
+    extraGet.column = NdbDictionary::Column::RECORDS_IN_RANGE;
+    extraGet.appStorage = (void *)out;
+    extraGet.recAttr = nullptr;
 
-    options.extraGetValues= &extraGet;
-    options.numExtraGetValues= 1;
+    options.extraGetValues = &extraGet;
+    options.numExtraGetValues = 1;
 
     /* Add interpreted code to return on 1st row */
-    options.interpretedCode= &code;
+    options.interpretedCode = &code;
 
-    const Uint32 keyBitmaskWords= (NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 31) >> 5;
+    const Uint32 keyBitmaskWords = (NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 31) >> 5;
     Uint32 emptyMask[keyBitmaskWords];
     memset(&emptyMask[0], 0, keyBitmaskWords << 2);
 
-    if (nullptr == 
-        (op= trans->scanIndex(key_record,
-                              result_record,
-                              NdbOperation::LM_CommittedRead,
-                              (const unsigned char*) &emptyMask[0],
-                              ib,
-                              &options,
-                              sizeof(NdbScanOperation::ScanOptions))))
-    {
+    if (nullptr ==
+        (op = trans->scanIndex(
+             key_record, result_record, NdbOperation::LM_CommittedRead,
+             (const unsigned char *)&emptyMask[0], ib, &options,
+             sizeof(NdbScanOperation::ScanOptions)))) {
       m_impl.setError(trans->getNdbError().code, __LINE__);
       DBUG_PRINT("error", ("scanIndex : %d", trans->getNdbError().code));
       DBUG_RETURN(-1);
     }
 
-    if (trans->execute(NdbTransaction::NoCommit,
-                       NdbOperation::AbortOnError, forceSend) == -1) {
+    if (trans->execute(NdbTransaction::NoCommit, NdbOperation::AbortOnError,
+                       forceSend) == -1) {
       m_impl.setError(trans->getNdbError().code, __LINE__);
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }
-    const char* dummy_out_ptr= nullptr;
-    while ((ret = op->nextResult(&dummy_out_ptr,
-                                 true, forceSend)) == 0) {
+    const char *dummy_out_ptr = nullptr;
+    while ((ret = op->nextResult(&dummy_out_ptr, true, forceSend)) == 0) {
       DBUG_PRINT("info", ("frag rows=%u in=%u before=%u after=%u [error=%d]",
                           out[0], out[1], out[2], out[3],
                           (int)(out[1] + out[2] + out[3]) - (int)out[0]));
       unsigned i;
-      for (i = 0; i < 4; i++)
-        tot[i] += (float)out[i];
+      for (i = 0; i < 4; i++) tot[i] += (float)out[i];
     }
     if (ret == -1) {
       m_impl.setError(op->getNdbError().code, __LINE__);
-      DBUG_PRINT("error nextResult ", ("trans:%d op:%d", trans->getNdbError().code,
-                           op->getNdbError().code));
+      DBUG_PRINT("error nextResult ",
+                 ("trans:%d op:%d", trans->getNdbError().code,
+                  op->getNdbError().code));
       DBUG_RETURN(-1);
     }
     op->close(forceSend);
@@ -281,16 +238,14 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
   }
 
   *count = rows;
-  DBUG_PRINT("value", ("rows=%u/%u flags=%x",
-                       (unsigned)(rows>>32), (unsigned)(rows), flags));
+  DBUG_PRINT("value", ("rows=%u/%u flags=%x", (unsigned)(rows >> 32),
+                       (unsigned)(rows), flags));
   DBUG_RETURN(0);
 }
 
 // stored stats
 
-int
-NdbIndexStat::create_systables(Ndb* ndb)
-{
+int NdbIndexStat::create_systables(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::create_systables");
   if (m_impl.create_systables(ndb) == -1) {
     if (getNdbError().code == 721 || getNdbError().code == 4244) {
@@ -305,96 +260,73 @@ NdbIndexStat::create_systables(Ndb* ndb)
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::drop_systables(Ndb* ndb)
-{
+int NdbIndexStat::drop_systables(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::drop_systables");
-  if (m_impl.drop_systables(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.drop_systables(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::check_systables(Ndb* ndb)
-{
+int NdbIndexStat::check_systables(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::check_systables");
-  if (m_impl.check_systables(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.check_systables(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::set_index(const NdbDictionary::Index& index,
-                        const NdbDictionary::Table& table)
-{
+int NdbIndexStat::set_index(const NdbDictionary::Index &index,
+                            const NdbDictionary::Table &table) {
   DBUG_ENTER("NdbIndexStat::set_index");
-  if (m_impl.set_index(index, table) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.set_index(index, table) == -1) DBUG_RETURN(-1);
   m_impl.m_facadeHead.m_indexId = index.getObjectId();
   m_impl.m_facadeHead.m_indexVersion = index.getObjectVersion();
   m_impl.m_facadeHead.m_tableId = table.getObjectId();
   DBUG_RETURN(0);
 }
 
-void
-NdbIndexStat::reset_index()
-{
+void NdbIndexStat::reset_index() {
   DBUG_ENTER("NdbIndexStat::reset_index");
   m_impl.reset_index();
   DBUG_VOID_RETURN;
 }
 
-int
-NdbIndexStat::update_stat(Ndb* ndb)
-{
+int NdbIndexStat::update_stat(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::update_stat");
-  if (m_impl.update_stat(ndb, m_impl.m_facadeHead) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.update_stat(ndb, m_impl.m_facadeHead) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::delete_stat(Ndb* ndb)
-{
+int NdbIndexStat::delete_stat(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::delete_stat");
-  if (m_impl.delete_stat(ndb, m_impl.m_facadeHead) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.delete_stat(ndb, m_impl.m_facadeHead) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 // cache
 
-void
-NdbIndexStat::move_cache()
-{
+void NdbIndexStat::move_cache() {
   DBUG_ENTER("NdbIndexStat::move_cache");
   m_impl.move_cache();
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::clean_cache()
-{
+void NdbIndexStat::clean_cache() {
   DBUG_ENTER("NdbIndexStat::clean_cache");
   m_impl.clean_cache();
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
-{
+void NdbIndexStat::get_cache_info(CacheInfo &info, CacheType type) const {
   NdbMutex_Lock(m_impl.m_query_mutex);
-  const NdbIndexStatImpl::Cache* c = nullptr;
+  const NdbIndexStatImpl::Cache *c = nullptr;
   switch (type) {
-  case CacheBuild:
-    c = m_impl.m_cacheBuild;
-    break;
-  case CacheQuery:
-    c = m_impl.m_cacheQuery;
-    break;
-  case CacheClean:
-    c = m_impl.m_cacheClean;
-    break;
+    case CacheBuild:
+      c = m_impl.m_cacheBuild;
+      break;
+    case CacheQuery:
+      c = m_impl.m_cacheQuery;
+      break;
+    case CacheClean:
+      c = m_impl.m_cacheClean;
+      break;
   }
   info.m_count = 0;
   info.m_valid = 0;
@@ -403,8 +335,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
   info.m_save_time = 0;
   info.m_sort_time = 0;
   info.m_ref_count = 0;
-  while (c != nullptr)
-  {
+  while (c != nullptr) {
     info.m_count += 1;
     info.m_valid += c->m_valid;
     info.m_sampleCount += c->m_sampleCount;
@@ -421,105 +352,78 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
 
 // read
 
-void
-NdbIndexStat::get_head(Head& head) const
-{
-  head = m_impl.m_facadeHead;
-}
+void NdbIndexStat::get_head(Head &head) const { head = m_impl.m_facadeHead; }
 
-int
-NdbIndexStat::read_head(Ndb* ndb)
-{
+int NdbIndexStat::read_head(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::read_head");
-  if (m_impl.read_head(ndb, m_impl.m_facadeHead) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.read_head(ndb, m_impl.m_facadeHead) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::read_stat(Ndb* ndb)
-{
+int NdbIndexStat::read_stat(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::read_stat");
-  if (m_impl.read_stat(ndb, m_impl.m_facadeHead) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.read_stat(ndb, m_impl.m_facadeHead) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 // bound
 
-NdbIndexStat::Bound::Bound(const NdbIndexStat* is, void* buffer)
-{
+NdbIndexStat::Bound::Bound(const NdbIndexStat *is, void *buffer) {
   DBUG_ENTER("NdbIndexStat::Bound::Bound");
   require(is != nullptr && is->m_impl.m_indexSet);
   require(buffer != nullptr);
-  Uint8* buf = (Uint8*)buffer;
+  Uint8 *buf = (Uint8 *)buffer;
   // bound impl
-  Uint8* buf1 = buf;
+  Uint8 *buf1 = buf;
   UintPtr ubuf1 = (UintPtr)buf1;
-  if (ubuf1 % 8 != 0)
-    buf1 += (8 - ubuf1 % 8);
+  if (ubuf1 % 8 != 0) buf1 += (8 - ubuf1 % 8);
   new (buf1) NdbIndexStatImpl::Bound(is->m_impl.m_keySpec);
-  m_impl = (void*)buf1;
-  NdbIndexStatImpl::Bound& bound = *(NdbIndexStatImpl::Bound*)m_impl;
+  m_impl = (void *)buf1;
+  NdbIndexStatImpl::Bound &bound = *(NdbIndexStatImpl::Bound *)m_impl;
   // bound data
-  Uint8* buf2 = buf1 + sizeof(NdbIndexStatImpl::Bound);
+  Uint8 *buf2 = buf1 + sizeof(NdbIndexStatImpl::Bound);
   uint used = (uint)(buf2 - buf);
   uint bytes = BoundBufferBytes - used;
   bound.m_data.set_buf(buf2, bytes);
   DBUG_VOID_RETURN;
 }
 
-int
-NdbIndexStat::add_bound(Bound& bound_f, const void* value)
-{
+int NdbIndexStat::add_bound(Bound &bound_f, const void *value) {
   DBUG_ENTER("NdbIndexStat::add_bound");
-  NdbIndexStatImpl::Bound& bound =
-    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  NdbIndexStatImpl::Bound &bound = *(NdbIndexStatImpl::Bound *)bound_f.m_impl;
   Uint32 len_out;
-  if (value == nullptr)
-  {
+  if (value == nullptr) {
     m_impl.setError(UsageError, __LINE__);
     DBUG_RETURN(-1);
   }
-  if (bound.m_data.add(value, &len_out) == -1)
-  {
+  if (bound.m_data.add(value, &len_out) == -1) {
     m_impl.setError(UsageError, __LINE__);
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::add_bound_null(Bound& bound_f)
-{
+int NdbIndexStat::add_bound_null(Bound &bound_f) {
   DBUG_ENTER("NdbIndexStat::add_bound_null");
-  NdbIndexStatImpl::Bound& bound =
-    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  NdbIndexStatImpl::Bound &bound = *(NdbIndexStatImpl::Bound *)bound_f.m_impl;
   Uint32 len_out;
-  if (bound.m_data.add_null(&len_out) == -1)
-  {
+  if (bound.m_data.add_null(&len_out) == -1) {
     m_impl.setError(UsageError, __LINE__);
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
 }
 
-void
-NdbIndexStat::set_bound_strict(Bound& bound_f, int strict)
-{
+void NdbIndexStat::set_bound_strict(Bound &bound_f, int strict) {
   DBUG_ENTER("NdbIndexStat::set_bound_strict");
-  NdbIndexStatImpl::Bound& bound =
-    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  NdbIndexStatImpl::Bound &bound = *(NdbIndexStatImpl::Bound *)bound_f.m_impl;
   bound.m_strict = strict;
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::reset_bound(Bound& bound_f)
-{
+void NdbIndexStat::reset_bound(Bound &bound_f) {
   DBUG_ENTER("NdbIndexStat::reset_bound");
-  NdbIndexStatImpl::Bound& bound =
-    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  NdbIndexStatImpl::Bound &bound = *(NdbIndexStatImpl::Bound *)bound_f.m_impl;
   bound.m_bound.reset();
   bound.m_type = -1;
   bound.m_strict = -1;
@@ -528,84 +432,63 @@ NdbIndexStat::reset_bound(Bound& bound_f)
 
 // range
 
-NdbIndexStat::Range::Range(Bound& bound1, Bound& bound2) :
-  m_bound1(bound1),
-  m_bound2(bound2)
-{
+NdbIndexStat::Range::Range(Bound &bound1, Bound &bound2)
+    : m_bound1(bound1), m_bound2(bound2) {
   DBUG_ENTER("NdbIndexStat::Range::Range");
   DBUG_VOID_RETURN;
 }
 
-int
-NdbIndexStat::finalize_range(Range& range_f)
-{
+int NdbIndexStat::finalize_range(Range &range_f) {
   DBUG_ENTER("NdbIndexStat::finalize_range");
-  Bound& bound1_f = range_f.m_bound1;
-  Bound& bound2_f = range_f.m_bound2;
-  NdbIndexStatImpl::Bound& bound1 =
-    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
-  NdbIndexStatImpl::Bound& bound2 =
-    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  Bound &bound1_f = range_f.m_bound1;
+  Bound &bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound &bound1 = *(NdbIndexStatImpl::Bound *)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound &bound2 = *(NdbIndexStatImpl::Bound *)bound2_f.m_impl;
   NdbIndexStatImpl::Range range(bound1, bound2);
-  if (m_impl.finalize_range(range) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.finalize_range(range) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-void
-NdbIndexStat::reset_range(Range& range)
-{
+void NdbIndexStat::reset_range(Range &range) {
   DBUG_ENTER("NdbIndexStat::reset_range");
   reset_bound(range.m_bound1);
   reset_bound(range.m_bound2);
   DBUG_VOID_RETURN;
 }
 
-int
-NdbIndexStat::convert_range(Range& range_f,
-                            const NdbRecord* key_record,
-                            const NdbIndexScanOperation::IndexBound* ib)
-{
+int NdbIndexStat::convert_range(Range &range_f, const NdbRecord *key_record,
+                                const NdbIndexScanOperation::IndexBound *ib) {
   DBUG_ENTER("NdbIndexStat::convert_range");
-  Bound& bound1_f = range_f.m_bound1;
-  Bound& bound2_f = range_f.m_bound2;
-  NdbIndexStatImpl::Bound& bound1 =
-    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
-  NdbIndexStatImpl::Bound& bound2 =
-    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  Bound &bound1_f = range_f.m_bound1;
+  Bound &bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound &bound1 = *(NdbIndexStatImpl::Bound *)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound &bound2 = *(NdbIndexStatImpl::Bound *)bound2_f.m_impl;
   NdbIndexStatImpl::Range range(bound1, bound2);
-  if (m_impl.convert_range(range, key_record, ib) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.convert_range(range, key_record, ib) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 // stat
 
-NdbIndexStat::Stat::Stat(void* buffer)
-{
+NdbIndexStat::Stat::Stat(void *buffer) {
   DBUG_ENTER("NdbIndexStat::Stat::Stat");
   require(buffer != nullptr);
-  Uint8* buf = (Uint8*)buffer;
+  Uint8 *buf = (Uint8 *)buffer;
   // stat impl
-  Uint8* buf1 = buf;
+  Uint8 *buf1 = buf;
   UintPtr ubuf1 = (UintPtr)buf1;
-  if (ubuf1 % 8 != 0)
-    buf1 += (8 - ubuf1 % 8);
+  if (ubuf1 % 8 != 0) buf1 += (8 - ubuf1 % 8);
   new (buf1) NdbIndexStatImpl::Stat;
-  m_impl = (void*)buf1;
+  m_impl = (void *)buf1;
   DBUG_VOID_RETURN;
 }
 
-int
-NdbIndexStat::query_stat(const Range& range_f, Stat& stat_f)
-{
+int NdbIndexStat::query_stat(const Range &range_f, Stat &stat_f) {
   DBUG_ENTER("NdbIndexStat::query_stat");
-  Bound& bound1_f = range_f.m_bound1;
-  Bound& bound2_f = range_f.m_bound2;
-  NdbIndexStatImpl::Bound& bound1 =
-    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
-  NdbIndexStatImpl::Bound& bound2 =
-    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  Bound &bound1_f = range_f.m_bound1;
+  Bound &bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound &bound1 = *(NdbIndexStatImpl::Bound *)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound &bound2 = *(NdbIndexStatImpl::Bound *)bound2_f.m_impl;
   NdbIndexStatImpl::Range range(bound1, bound2);
 #ifndef NDEBUG
   const uint sz = 8000;
@@ -613,45 +496,36 @@ NdbIndexStat::query_stat(const Range& range_f, Stat& stat_f)
   DBUG_PRINT("index_stat", ("lo: %s", bound1.m_bound.print(buf, sz)));
   DBUG_PRINT("index_stat", ("hi: %s", bound2.m_bound.print(buf, sz)));
 #endif
-  NdbIndexStatImpl::Stat& stat =
-    *(NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (m_impl.query_stat(range, stat) == -1)
-    DBUG_RETURN(-1);
+  NdbIndexStatImpl::Stat &stat = *(NdbIndexStatImpl::Stat *)stat_f.m_impl;
+  if (m_impl.query_stat(range, stat) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-void
-NdbIndexStat::get_empty(const Stat& stat_f, bool* empty)
-{
+void NdbIndexStat::get_empty(const Stat &stat_f, bool *empty) {
   DBUG_ENTER("NdbIndexStat::get_empty");
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   require(empty != nullptr);
   *empty = stat.m_value.m_empty;
   DBUG_PRINT("index_stat", ("empty:%d", *empty));
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::get_numrows(const Stat& stat_f, Uint32* rows)
-{
+void NdbIndexStat::get_numrows(const Stat &stat_f, Uint32 *rows) {
   DBUG_TRACE;
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   require(rows != nullptr);
   *rows = stat.m_value.m_num_rows;
   DBUG_PRINT("index_stat", ("rows:%d", *rows));
 }
 
-void
-NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
-{
+void NdbIndexStat::get_rir(const Stat &stat_f, double *rir) {
   DBUG_ENTER("NdbIndexStat::get_rir");
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   double x = stat.m_value.m_rir;
-  if (x < 1.0)
-    x = 1.0;
+  if (x < 1.0) x = 1.0;
   require(rir != nullptr);
   *rir = x;
 #ifndef NDEBUG
@@ -662,48 +536,35 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
-                             Uint32 k,
-                             double* rpk)
-{
+void NdbIndexStat::get_rpk_pruned(const Stat &stat_f, Uint32 k, double *rpk) {
   DBUG_ENTER("NdbIndexStat::get_rpk_pruned");
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   double factor = stat.m_value.m_unq_factor[k];
   double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
   assert(stat.m_value.m_num_fragments > 0);
   double fragments = stat.m_value.m_num_fragments;
   x = factor * x / fragments;
-  if (x < 1.0)
-    x = 1.0;
+  if (x < 1.0) x = 1.0;
   *rpk = x;
 #ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
 #endif
   DBUG_PRINT("index_stat", ("rir: %.2f, m_unq: %.2f, k: %u, frags: %u,"
-             " rpk: %s",
-              stat.m_value.m_rir,
-              stat.m_value.m_unq[k],
-              k,
-              stat.m_value.m_num_fragments,
-              buf));
+                            " rpk: %s",
+                            stat.m_value.m_rir, stat.m_value.m_unq[k], k,
+                            stat.m_value.m_num_fragments, buf));
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::get_rpk(const Stat& stat_f,
-                      Uint32 k,
-                      double* rpk)
-{
+void NdbIndexStat::get_rpk(const Stat &stat_f, Uint32 k, double *rpk) {
   DBUG_ENTER("NdbIndexStat::get_rpk");
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   {
     double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (x < 1.0)
-      x = 1.0;
+    if (x < 1.0) x = 1.0;
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);
   }
@@ -712,104 +573,73 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
   sprintf(buf, "%.2f", *rpk);
 #endif
   DBUG_PRINT("index_stat", ("rir: %.2f, m_unq: %.2f, rpk[%u]: %s",
-              stat.m_value.m_rir,
-              stat.m_value.m_unq[k],
-              k,
-              buf));
+                            stat.m_value.m_rir, stat.m_value.m_unq[k], k, buf));
   DBUG_VOID_RETURN;
 }
 
-void
-NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
-{
+void NdbIndexStat::get_rule(const Stat &stat_f, char *buffer) {
   DBUG_ENTER("NdbIndexStat::get_rule");
-  const NdbIndexStatImpl::Stat& stat =
-    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  const NdbIndexStatImpl::Stat &stat =
+      *(const NdbIndexStatImpl::Stat *)stat_f.m_impl;
   require(buffer != nullptr);
-  BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s",
-                       stat.m_rule[0], stat.m_rule[1], stat.m_rule[2]);
+  BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s", stat.m_rule[0],
+                       stat.m_rule[1], stat.m_rule[2]);
   DBUG_VOID_RETURN;
 }
 
 // events and polling
 
-int
-NdbIndexStat::create_sysevents(Ndb* ndb)
-{
+int NdbIndexStat::create_sysevents(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::create_sysevents");
-  if (m_impl.create_sysevents(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.create_sysevents(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::drop_sysevents(Ndb* ndb)
-{
+int NdbIndexStat::drop_sysevents(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::drop_sysevents");
-  if (m_impl.drop_sysevents(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.drop_sysevents(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::check_sysevents(Ndb* ndb)
-{
+int NdbIndexStat::check_sysevents(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::check_sysevents");
-  if (m_impl.check_sysevents(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.check_sysevents(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::create_listener(Ndb* ndb)
-{
+int NdbIndexStat::create_listener(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::create_listener");
-  if (m_impl.create_listener(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.create_listener(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-bool
-NdbIndexStat::has_listener() const
-{
+bool NdbIndexStat::has_listener() const {
   DBUG_ENTER("NdbIndexStat::has_listener");
-  if (m_impl.m_eventOp != nullptr)
-    DBUG_RETURN(true);
+  if (m_impl.m_eventOp != nullptr) DBUG_RETURN(true);
   DBUG_RETURN(false);
 }
 
-int
-NdbIndexStat::execute_listener(Ndb* ndb)
-{
+int NdbIndexStat::execute_listener(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::execute_listener");
-  if (m_impl.execute_listener(ndb) == -1)
-    DBUG_RETURN(-1);
+  if (m_impl.execute_listener(ndb) == -1) DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
-int
-NdbIndexStat::poll_listener(Ndb* ndb, int max_wait_ms)
-{
+int NdbIndexStat::poll_listener(Ndb *ndb, int max_wait_ms) {
   DBUG_ENTER("NdbIndexStat::poll_listener");
   int ret = m_impl.poll_listener(ndb, max_wait_ms);
-  if (ret == -1)
-    DBUG_RETURN(-1);
+  if (ret == -1) DBUG_RETURN(-1);
   DBUG_RETURN(ret);
 }
 
-int
-NdbIndexStat::next_listener(Ndb* ndb)
-{
+int NdbIndexStat::next_listener(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::next_listener");
   int ret = m_impl.next_listener(ndb);
-  if (ret == -1)
-    DBUG_RETURN(-1);
+  if (ret == -1) DBUG_RETURN(-1);
   DBUG_RETURN(ret);
 }
 
-int
-NdbIndexStat::drop_listener(Ndb* ndb)
-{
+int NdbIndexStat::drop_listener(Ndb *ndb) {
   DBUG_ENTER("NdbIndexStat::drop_listener");
   (void)m_impl.drop_listener(ndb);
   DBUG_RETURN(0);
@@ -817,46 +647,29 @@ NdbIndexStat::drop_listener(Ndb* ndb)
 
 // mem
 
-NdbIndexStat::Mem::Mem()
-{
-}
+NdbIndexStat::Mem::Mem() {}
 
-NdbIndexStat::Mem::~Mem()
-{
-}
+NdbIndexStat::Mem::~Mem() {}
 
-void
-NdbIndexStat::set_mem_handler(Mem* mem)
-{
-  m_impl.m_mem_handler = mem;
-}
+void NdbIndexStat::set_mem_handler(Mem *mem) { m_impl.m_mem_handler = mem; }
 
 // get impl
 
-NdbIndexStatImpl&
-NdbIndexStat::getImpl()
-{
-  return m_impl;
-}
+NdbIndexStatImpl &NdbIndexStat::getImpl() { return m_impl; }
 
 // error
 
-NdbIndexStat::Error::Error()
-{
+NdbIndexStat::Error::Error() {
   line = 0;
   extra = 0;
 }
 
-const NdbIndexStat::Error&
-NdbIndexStat::getNdbError() const
-{
+const NdbIndexStat::Error &NdbIndexStat::getNdbError() const {
   return m_impl.getNdbError();
 }
 
-class NdbOut&
-operator<<(class NdbOut& out, const NdbIndexStat::Error& error)
-{
-  out << static_cast<const NdbError&>(error);
+class NdbOut &operator<<(class NdbOut &out, const NdbIndexStat::Error &error) {
+  out << static_cast<const NdbError &>(error);
   out << " (line " << error.line << ", extra " << error.extra << ")";
   return out;
 }

@@ -25,31 +25,27 @@
 
 #include <signaldata/DihSwitchReplicaReq.hpp>
 
-bool
-printDIH_SWITCH_REPLICA_REQ(FILE * output, 
-			    const Uint32 * theData, 
-			    Uint32 len, 
-			    Uint16 recBlockNo){
+bool printDIH_SWITCH_REPLICA_REQ(FILE *output, const Uint32 *theData,
+                                 Uint32 len, Uint16 recBlockNo) {
   const DihSwitchReplicaReq *req = (const DihSwitchReplicaReq *)&theData[0];
 
   const Uint32 requestInfo = req->requestInfo;
 
-  switch(DihSwitchReplicaReq::getRequestType(requestInfo)){
-  case DihSwitchReplicaReq::RemoveNodeAsPrimary:{
-    fprintf(output, " RemoveNodeAsPrimary: Node=%d", req->nodeId);
-    if(DihSwitchReplicaReq::getAllTables(requestInfo))
-      fprintf(output, " All Tables");
-    else
-      fprintf(output, " TableId=%d", req->tableId);
-    
-    if(DihSwitchReplicaReq::getDistribute(requestInfo))
-      fprintf(output, " Distribute");
-    fprintf(output, "\n");
-    return true;
-  }
-  break;
-  default:
-    fprintf(output, " Unknown request type:\n");
+  switch (DihSwitchReplicaReq::getRequestType(requestInfo)) {
+    case DihSwitchReplicaReq::RemoveNodeAsPrimary: {
+      fprintf(output, " RemoveNodeAsPrimary: Node=%d", req->nodeId);
+      if (DihSwitchReplicaReq::getAllTables(requestInfo))
+        fprintf(output, " All Tables");
+      else
+        fprintf(output, " TableId=%d", req->tableId);
+
+      if (DihSwitchReplicaReq::getDistribute(requestInfo))
+        fprintf(output, " Distribute");
+      fprintf(output, "\n");
+      return true;
+    } break;
+    default:
+      fprintf(output, " Unknown request type:\n");
   }
   return false;
 }

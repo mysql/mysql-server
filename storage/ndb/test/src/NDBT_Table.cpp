@@ -23,15 +23,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <NDBT.hpp>
 #include <NDBT_Table.hpp>
 #include <NdbTimer.hpp>
-#include <NDBT.hpp>
 
-class NdbOut&
-operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
-{
+class NdbOut &operator<<(class NdbOut &ndbout, const NDBT_Table &tab) {
   ndbout << "-- " << tab.getName() << " --" << endl;
   ndbout << NdbDictionary::Table(tab);
-  
+
   return ndbout;
 }

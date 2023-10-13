@@ -22,8 +22,7 @@
 
 /* This stub file defines the SimulatedBlock class for multithreaded NDBD. */
 #define NDBD_MULTITHREADED
-#include "mt.hpp"
 #include "SimulatedBlock.cpp"
+#include "mt.hpp"
 
 #define JAM_FILE_ID 331
-

@@ -24,38 +24,28 @@
 
 #include <signaldata/NodePing.hpp>
 
-bool printNODE_PING_REQ(FILE* output,
-                        const Uint32* theData,
-                        Uint32 len,
-                        Uint16 /*receiverBlockNo*/)
-{
-  if (len < NodePingReq::SignalLength)
-  {
+bool printNODE_PING_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16 /*receiverBlockNo*/) {
+  if (len < NodePingReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const NodePingReq * const sig = CAST_CONSTPTR(NodePingReq, theData);
-  fprintf(output, " senderRef : %x round : %u\n",
-          sig->senderRef,
+  const NodePingReq *const sig = CAST_CONSTPTR(NodePingReq, theData);
+  fprintf(output, " senderRef : %x round : %u\n", sig->senderRef,
           sig->senderData);
   return true;
 }
 
-bool printNODE_PING_CONF(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  if (len < NodePingConf::SignalLength)
-  {
+bool printNODE_PING_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  if (len < NodePingConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const NodePingConf * const sig = CAST_CONSTPTR(NodePingConf, theData);
-  fprintf(output, " senderRef : %x round : %u\n",
-          sig->senderRef,
+  const NodePingConf *const sig = CAST_CONSTPTR(NodePingConf, theData);
+  fprintf(output, " senderRef : %x round : %u\n", sig->senderRef,
           sig->senderData);
   return true;
 }

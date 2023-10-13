@@ -29,10 +29,9 @@
 
 #define JAM_FILE_ID 93
 
-
 /**
  * @class TcHbRep
- * @brief Order tc refresh(exetend) the timeout counters for this 
+ * @brief Order tc refresh(exetend) the timeout counters for this
  *        transaction
  *
  * - SENDER:    API
@@ -42,36 +41,33 @@ class TcHbRep {
   /**
    * Receiver(s)
    */
-  friend class Dbtc;         // Receiver
+  friend class Dbtc;  // Receiver
 
   /**
    * Sender(s)
    */
-  friend class NdbTransaction;      
+  friend class NdbTransaction;
 
   /**
    * For printing
    */
   friend bool printTC_HBREP(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
+ public:
   /**
    * Length of signal
    */
   static constexpr Uint32 SignalLength = 3;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
 
-  Uint32 apiConnectPtr;       // DATA 0
-  UintR transId1;             // DATA 1
-  UintR transId2;             // DATA 2
+  Uint32 apiConnectPtr;  // DATA 0
+  UintR transId1;        // DATA 1
+  UintR transId2;        // DATA 2
 };
-
-
 
 #undef JAM_FILE_ID
 

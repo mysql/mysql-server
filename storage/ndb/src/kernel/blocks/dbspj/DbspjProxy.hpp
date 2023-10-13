@@ -27,18 +27,15 @@
 
 #define JAM_FILE_ID 480
 
-
 class DbspjProxy : public DbgdmProxy {
-public:
-  DbspjProxy(Block_context& ctx);
+ public:
+  DbspjProxy(Block_context &ctx);
   ~DbspjProxy() override;
   BLOCK_DEFINES(DbspjProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
-
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
-
 
 #undef JAM_FILE_ID
 

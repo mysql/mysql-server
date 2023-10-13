@@ -25,7 +25,7 @@
 #ifndef ndb_numa_h
 #define ndb_numa_h
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -37,7 +37,7 @@ extern "C" {
  */
 int NdbNuma_setInterleaved();
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

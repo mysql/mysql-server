@@ -27,79 +27,64 @@
 #define NDB_ERROR_H
 
 #include <ndb_global.h>
+#include <NdbApi.hpp>
+#include <NdbError.hpp>
 #include <NdbOut.hpp>
 #include "userInterface.h"
-#include <NdbError.hpp>
-#include <NdbApi.hpp>
 
-#define error_handler(x,y, z) { \
-   ndbout << x << " " << y << endl; \
-   exit(-1); }
+#define error_handler(x, y, z)       \
+  {                                  \
+    ndbout << x << " " << y << endl; \
+    exit(-1);                        \
+  }
 
-#define CHECK_MINUS_ONE(x, y, z) if(x == -1) \
-   error_handler(y,(z->getNdbError()), 0)
-  
-inline
-void
-CHECK_ALLOWED_ERROR(const char * str, 
-		    const ThreadData * td, 
-		    const struct NdbError & error){
-  
+#define CHECK_MINUS_ONE(x, y, z) \
+  if (x == -1) error_handler(y, (z->getNdbError()), 0)
+
+inline void CHECK_ALLOWED_ERROR(const char *str, const ThreadData *td,
+                                const struct NdbError &error) {
   char buf[100];
   BaseString::snprintf(buf, sizeof(buf), "subscriber = %.*s ",
-	  SUBSCRIBER_NUMBER_LENGTH, 
-	  td->transactionData.number);
-  ndbout << str << " " << error << endl
-	 << buf;
+                       SUBSCRIBER_NUMBER_LENGTH, td->transactionData.number);
+  ndbout << str << " " << error << endl << buf;
   showTime();
 
-  if (td->robustMode)
-  {
+  if (td->robustMode) {
     if ((error.code == 626) || /* NoDataFound */
         (error.code == 630))   /* Tuple already existed */
     {
       /* Problem with a specific tuple, try a different one to
        * avoid getting stuck
        */
-      ThreadData* nctd = (ThreadData*) td;
+      ThreadData *nctd = (ThreadData *)td;
       getRandomSubscriberNumber(nctd->transactionData.number);
       ndbout << "Problem with subscriber, changing to "
-             << td->transactionData.number
-             << endl;
+             << td->transactionData.number << endl;
       return;
     }
   }
-  
-  switch(error.classification) { 
-  case NdbError::TimeoutExpired:  
-  case NdbError::OverloadError: 
-  case NdbError::TemporaryResourceError: 
-  case NdbError::NodeRecoveryError:
-    break;    
-  default:    
-    if(error.status != NdbError::TemporaryError)
-      exit(-1);
+
+  switch (error.classification) {
+    case NdbError::TimeoutExpired:
+    case NdbError::OverloadError:
+    case NdbError::TemporaryResourceError:
+    case NdbError::NodeRecoveryError:
+      break;
+    default:
+      if (error.status != NdbError::TemporaryError) exit(-1);
   }
 }
 
-inline
-void
-CHECK_NULL(void * null, 
-	   const char * str, 
-	   const ThreadData * td,
-	   const struct NdbError & err){
-  if(null == 0){
+inline void CHECK_NULL(void *null, const char *str, const ThreadData *td,
+                       const struct NdbError &err) {
+  if (null == 0) {
     CHECK_ALLOWED_ERROR(str, td, err);
     exit(-1);
   }
 }
 
-inline
-void
-CHECK_NULL(void * null, const char* msg, NdbConnection* obj)
-{
-  if(null == 0)
-  {
+inline void CHECK_NULL(void *null, const char *msg, NdbConnection *obj) {
+  if (null == 0) {
     error_handler(msg, obj->getNdbError(), 0);
   }
 }

@@ -33,9 +33,8 @@
  * Arguments should be positive integers.
  */
 
-template<typename Int>
-inline Int gcd(Int x, Int y)
-{
+template <typename Int>
+inline Int gcd(Int x, Int y) {
   do {
     Int t = y;
     y = x % y;
@@ -50,9 +49,8 @@ inline Int gcd(Int x, Int y)
  * Result may be overflowed.
  */
 
-template<typename Int>
-inline Int lcm(Int x, Int y)
-{
+template <typename Int>
+inline Int lcm(Int x, Int y) {
   return (x / gcd(x, y)) * y;
 }
 
@@ -60,20 +58,17 @@ inline Int lcm(Int x, Int y)
  * Integer division rounding up.
  */
 
-template<typename T>
-static constexpr inline T ndb_ceil_div(const T p, const T q)
-{
+template <typename T>
+static constexpr inline T ndb_ceil_div(const T p, const T q) {
   static_assert(std::is_integral_v<T>,
                 "Integral type required for ndb_ceil_div().");
-  if (p == 0)
-  {
+  if (p == 0) {
     return 0;
   }
 #if defined(__GNUC__) && (__GNUC__ <= 8)
   // Nothing, broken build: calling non-constexpr function require_failed().
 #else
-  if constexpr (std::is_signed_v<T>)
-  {
+  if constexpr (std::is_signed_v<T>) {
     // Negative values not supported
     require(p >= 0);
     require(q >= 0);

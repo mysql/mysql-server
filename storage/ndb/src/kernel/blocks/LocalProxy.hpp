@@ -23,23 +23,22 @@
 #ifndef NDB_LOCAL_PROXY_HPP
 #define NDB_LOCAL_PROXY_HPP
 
-#include <pc.hpp>
-#include <SimulatedBlock.hpp>
 #include <Bitmask.hpp>
 #include <IntrusiveList.hpp>
-#include <signaldata/ReadConfig.hpp>
+#include <SimulatedBlock.hpp>
+#include <pc.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/DropTrigImpl.hpp>
+#include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NdbSttor.hpp>
-#include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
-#include <signaldata/NFCompleteRep.hpp>
-#include <signaldata/CreateTrigImpl.hpp>
-#include <signaldata/DropTrigImpl.hpp>
-#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/ReadConfig.hpp>
+#include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/Sync.hpp>
 
 #define JAM_FILE_ID 438
-
 
 /*
  * Proxy blocks for MT LQH.
@@ -60,25 +59,25 @@
  */
 
 class LocalProxy : public SimulatedBlock {
-public:
-  LocalProxy(BlockNumber blockNumber, Block_context& ctx);
+ public:
+  LocalProxy(BlockNumber blockNumber, Block_context &ctx);
   ~LocalProxy() override;
   BLOCK_DEFINES(LocalProxy);
 
-protected:
+ protected:
   enum { MaxWorkers = SimulatedBlock::MaxInstances };
-  typedef Bitmask<(MaxWorkers+31)/32> WorkerMask;
+  typedef Bitmask<(MaxWorkers + 31) / 32> WorkerMask;
   Uint32 c_workers;
   // no gaps - extra worker has index c_lqhWorkers (not MaxLqhWorkers)
-  SimulatedBlock* c_worker[MaxWorkers];
+  SimulatedBlock *c_worker[MaxWorkers];
   Uint32 c_anyWorkerCounter;
 
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
+  virtual SimulatedBlock *newWorker(Uint32 instanceNo) = 0;
   void loadWorkers() override;
 
   // get worker block by index (not by instance)
 
-  SimulatedBlock* workerBlock(Uint32 i) {
+  SimulatedBlock *workerBlock(Uint32 i) {
     ndbrequire(i < c_workers);
     ndbrequire(c_worker[i] != 0);
     return c_worker[i];
@@ -104,34 +103,31 @@ protected:
 
   // Get a worker index - will balance round robin across
   // workers over time.
-  Uint32 getAnyWorkerIndex()
-  {
-    return (c_anyWorkerCounter++) % c_workers;
-  }
+  Uint32 getAnyWorkerIndex() { return (c_anyWorkerCounter++) % c_workers; }
 
-  // Statelessly forward a signal (including any sections) 
+  // Statelessly forward a signal (including any sections)
   // to the worker with the supplied index.
-  void forwardToWorkerIndex(Signal* signal, Uint32 index);
-  
+  void forwardToWorkerIndex(Signal *signal, Uint32 index);
+
   // Statelessly forward the signal (including any sections)
   // to one of the workers, load balancing.
   // Requires no arrival order constraints between signals.
-  void forwardToAnyWorker(Signal* signal);
+  void forwardToAnyWorker(Signal *signal);
 
   // support routines and classes ("Ss" = signal state)
 
-  typedef void (LocalProxy::*SsFUNCREQ)(Signal*, Uint32 ssId, SectionHandle*);
-  typedef void (LocalProxy::*SsFUNCREP)(Signal*, Uint32 ssId);
+  typedef void (LocalProxy::*SsFUNCREQ)(Signal *, Uint32 ssId, SectionHandle *);
+  typedef void (LocalProxy::*SsFUNCREP)(Signal *, Uint32 ssId);
 
   struct SsCommon {
-    Uint32 m_ssId;      // unique id in SsPool (below)
+    Uint32 m_ssId;         // unique id in SsPool (below)
     SsFUNCREQ m_sendREQ;   // from proxy to worker
     SsFUNCREP m_sendCONF;  // from proxy to caller
-    Uint32 m_worker;    // current worker
+    Uint32 m_worker;       // current worker
     Uint32 m_error;
     Uint32 m_sec_cnt;
     Uint32 m_sec_ptr[3];
-    static const char* name() { return "UNDEF"; }
+    static const char *name() { return "UNDEF"; }
     SsCommon() {
       m_ssId = 0;
       m_sendREQ = 0;
@@ -146,38 +142,37 @@ protected:
   struct SsSequential : SsCommon {
     SsSequential() {}
   };
-  void sendREQ(Signal*, SsSequential& ss);
-  void recvCONF(Signal*, SsSequential& ss);
-  void recvREF(Signal*, SsSequential& ss, Uint32 error);
+  void sendREQ(Signal *, SsSequential &ss);
+  void recvCONF(Signal *, SsSequential &ss);
+  void recvREF(Signal *, SsSequential &ss, Uint32 error);
   // for use in sendREQ
-  void skipReq(SsSequential& ss);
-  void skipConf(SsSequential& ss);
+  void skipReq(SsSequential &ss);
+  void skipConf(SsSequential &ss);
   // for use in sendCONF
-  bool firstReply(const SsSequential& ss);
-  bool lastReply(const SsSequential& ss);
+  bool firstReply(const SsSequential &ss);
+  bool lastReply(const SsSequential &ss);
 
-  void saveSections(SsCommon&ss, SectionHandle&);
-  void restoreHandle(SectionHandle&, SsCommon&);
+  void saveSections(SsCommon &ss, SectionHandle &);
+  void restoreHandle(SectionHandle &, SsCommon &);
 
   // run workers in parallel
   struct SsParallel : SsCommon {
     WorkerMask m_workerMask;
-    SsParallel() {
-    }
+    SsParallel() {}
   };
-  void sendREQ(Signal*, SsParallel& ss, bool skipLast = false);
-  void recvCONF(Signal*, SsParallel& ss);
-  void recvREF(Signal*, SsParallel& ss, Uint32 error);
+  void sendREQ(Signal *, SsParallel &ss, bool skipLast = false);
+  void recvCONF(Signal *, SsParallel &ss);
+  void recvREF(Signal *, SsParallel &ss, Uint32 error);
   // for use in sendREQ
-  void skipReq(SsParallel& ss);
-  void skipConf(SsParallel& ss);
+  void skipReq(SsParallel &ss);
+  void skipConf(SsParallel &ss);
   // for use in sendCONF
-  bool firstReply(const SsParallel& ss);
-  bool lastReply(const SsParallel& ss);
-  bool lastExtra(Signal* signal, SsParallel& ss);
+  bool firstReply(const SsParallel &ss);
+  bool lastReply(const SsParallel &ss);
+  bool lastExtra(Signal *signal, SsParallel &ss);
   // set all or given bits in worker mask
-  void setMask(SsParallel& ss);
-  void setMask(SsParallel& ss, const WorkerMask& mask);
+  void setMask(SsParallel &ss);
+  void setMask(SsParallel &ss, const WorkerMask &mask);
 
   /*
    * Ss instances are seized from a pool.  Each pool is simply an array
@@ -193,9 +188,7 @@ protected:
   struct SsPool {
     Ss m_pool[Ss::poolSize];
     Uint32 m_usage;
-    SsPool() {
-      m_usage = 0;
-    }
+    SsPool() { m_usage = 0; }
   };
 
   Uint32 c_ssIdSeq;
@@ -204,10 +197,9 @@ protected:
   enum { SsIdBase = (1u << 31) };
 
   template <class Ss>
-  Ss* ssSearch(Uint32 ssId)
-  {
-    SsPool<Ss>& sp = Ss::pool(this);
-    Ss* ssptr = 0;
+  Ss *ssSearch(Uint32 ssId) {
+    SsPool<Ss> &sp = Ss::pool(this);
+    Ss *ssptr = 0;
     for (Uint32 i = 0; i < Ss::poolSize; i++) {
       if (sp.m_pool[i].m_ssId == ssId) {
         ssptr = &sp.m_pool[i];
@@ -218,9 +210,9 @@ protected:
   }
 
   template <class Ss>
-  Ss& ssSeize() {
-    SsPool<Ss>& sp = Ss::pool(this);
-    Ss* ssptr = ssSearch<Ss>(0);
+  Ss &ssSeize() {
+    SsPool<Ss> &sp = Ss::pool(this);
+    Ss *ssptr = ssSearch<Ss>(0);
     ndbrequire(ssptr != 0);
     // Use position in array as ssId
     UintPtr pos = ssptr - sp.m_pool;
@@ -228,16 +220,16 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    //D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    // D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
   template <class Ss>
-  Ss& ssSeize(Uint32 ssId) {
-    SsPool<Ss>& sp = Ss::pool(this);
+  Ss &ssSeize(Uint32 ssId) {
+    SsPool<Ss> &sp = Ss::pool(this);
     ndbrequire(sp.m_usage < Ss::poolSize);
     ndbrequire(ssId != 0);
-    Ss* ssptr;
+    Ss *ssptr;
     // check for duplicate
     ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr == 0);
@@ -248,14 +240,14 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    //D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    // D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
   template <class Ss>
-  Ss& ssFind(Uint32 ssId) {
+  Ss &ssFind(Uint32 ssId) {
     ndbrequire(ssId != 0);
-    Ss* ssptr = ssSearch<Ss>(ssId);
+    Ss *ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
     return *ssptr;
   }
@@ -266,26 +258,24 @@ protected:
    * by keeping state in the proxy instance.
    */
   template <class Ss>
-  Ss& ssFindSeize(Uint32 ssId, bool* found) {
+  Ss &ssFindSeize(Uint32 ssId, bool *found) {
     ndbrequire(ssId != 0);
-    Ss* ssptr = ssSearch<Ss>(ssId);
+    Ss *ssptr = ssSearch<Ss>(ssId);
     if (ssptr != 0) {
-      if (found)
-        *found = true;
+      if (found) *found = true;
       return *ssptr;
     }
-    if (found)
-      *found = false;
+    if (found) *found = false;
     return ssSeize<Ss>(ssId);
   }
 
   template <class Ss>
   void ssRelease(Uint32 ssId) {
-    SsPool<Ss>& sp = Ss::pool(this);
+    SsPool<Ss> &sp = Ss::pool(this);
     ndbrequire(sp.m_usage != 0);
     ndbrequire(ssId != 0);
-    //D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
-    Ss* ssptr = ssSearch<Ss>(ssId);
+    // D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    Ss *ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
     ssptr->m_ssId = 0;
     ndbrequire(sp.m_usage > 0);
@@ -293,7 +283,7 @@ protected:
   }
 
   template <class Ss>
-  void ssRelease(Ss& ss) {
+  void ssRelease(Ss &ss) {
     ssRelease<Ss>(ss.m_ssId);
   }
 
@@ -302,15 +292,14 @@ protected:
    * wl4391_todo maybe use CONTINUEB and guard against infinite loop.
    */
   template <class Ss>
-  bool ssQueue(Signal* signal) {
-    SsPool<Ss>& sp = Ss::pool(this);
-    if (sp.m_usage < Ss::poolSize)
-      return false;
+  bool ssQueue(Signal *signal) {
+    SsPool<Ss> &sp = Ss::pool(this);
+    if (sp.m_usage < Ss::poolSize) return false;
 
     SectionHandle handle(this, signal);
     GlobalSignalNumber gsn = signal->header.theVerId_signalNumber & 0xFFFF;
-    sendSignalWithDelay(reference(), gsn,
-                        signal, 10, signal->length(), &handle);
+    sendSignalWithDelay(reference(), gsn, signal, 10, signal->length(),
+                        &handle);
     return true;
   }
 
@@ -327,17 +316,17 @@ protected:
       m_sendCONF = &LocalProxy::sendREAD_CONFIG_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_READ_CONFIG_REQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_READ_CONFIG_REQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_READ_CONFIG_REQ;
     }
   };
   SsPool<Ss_READ_CONFIG_REQ> c_ss_READ_CONFIG_REQ;
-  void execREAD_CONFIG_REQ(Signal*);
-  virtual void callREAD_CONFIG_REQ(Signal*);
-  void backREAD_CONFIG_REQ(Signal*);
-  void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execREAD_CONFIG_CONF(Signal*);
-  void sendREAD_CONFIG_CONF(Signal*, Uint32 ssId);
+  void execREAD_CONFIG_REQ(Signal *);
+  virtual void callREAD_CONFIG_REQ(Signal *);
+  void backREAD_CONFIG_REQ(Signal *);
+  void sendREAD_CONFIG_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execREAD_CONFIG_CONF(Signal *);
+  void sendREAD_CONFIG_CONF(Signal *, Uint32 ssId);
 
   // GSN_STTOR
   struct Ss_STTOR : SsParallel {
@@ -350,17 +339,17 @@ protected:
       m_sendCONF = &LocalProxy::sendSTTORRY;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_STTOR>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_STTOR> &pool(LocalProxy *proxy) {
       return proxy->c_ss_STTOR;
     }
   };
   SsPool<Ss_STTOR> c_ss_STTOR;
-  void execSTTOR(Signal*);
-  virtual void callSTTOR(Signal*);
-  void backSTTOR(Signal*);
-  void sendSTTOR(Signal*, Uint32 ssId, SectionHandle*);
-  void execSTTORRY(Signal*);
-  void sendSTTORRY(Signal*, Uint32 ssId);
+  void execSTTOR(Signal *);
+  virtual void callSTTOR(Signal *);
+  void backSTTOR(Signal *);
+  void sendSTTOR(Signal *, Uint32 ssId, SectionHandle *);
+  void execSTTORRY(Signal *);
+  void sendSTTORRY(Signal *, Uint32 ssId);
 
   // GSN_NDB_STTOR
   struct Ss_NDB_STTOR : SsParallel {
@@ -371,29 +360,27 @@ protected:
       m_sendCONF = &LocalProxy::sendNDB_STTORRY;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_NDB_STTOR>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_NDB_STTOR> &pool(LocalProxy *proxy) {
       return proxy->c_ss_NDB_STTOR;
     }
   };
   SsPool<Ss_NDB_STTOR> c_ss_NDB_STTOR;
-  void execNDB_STTOR(Signal*);
-  virtual void callNDB_STTOR(Signal*);
-  void backNDB_STTOR(Signal*);
-  void sendNDB_STTOR(Signal*, Uint32 ssId, SectionHandle*);
-  void execNDB_STTORRY(Signal*);
-  void sendNDB_STTORRY(Signal*, Uint32 ssId);
+  void execNDB_STTOR(Signal *);
+  virtual void callNDB_STTOR(Signal *);
+  void backNDB_STTOR(Signal *);
+  void sendNDB_STTOR(Signal *, Uint32 ssId, SectionHandle *);
+  void execNDB_STTORRY(Signal *);
+  void sendNDB_STTORRY(Signal *, Uint32 ssId);
 
   // GSN_READ_NODESREQ
   struct Ss_READ_NODES_REQ {
-    GlobalSignalNumber m_gsn; // STTOR or NDB_STTOR
-    Ss_READ_NODES_REQ() {
-      m_gsn = 0;
-    }
+    GlobalSignalNumber m_gsn;  // STTOR or NDB_STTOR
+    Ss_READ_NODES_REQ() { m_gsn = 0; }
   };
   Ss_READ_NODES_REQ c_ss_READ_NODESREQ;
-  void sendREAD_NODESREQ(Signal*);
-  void execREAD_NODESCONF(Signal*);
-  void execREAD_NODESREF(Signal*);
+  void sendREAD_NODESREQ(Signal *);
+  void execREAD_NODESCONF(Signal *);
+  void execREAD_NODESREF(Signal *);
 
   // GSN_NODE_FAILREP
   struct Ss_NODE_FAILREP : SsParallel {
@@ -405,20 +392,17 @@ protected:
       m_sendCONF = &LocalProxy::sendNF_COMPLETEREP;
     }
     // some blocks do not reply
-    static bool noReply(BlockNumber blockNo) {
-      return
-        blockNo == BACKUP;
-    }
+    static bool noReply(BlockNumber blockNo) { return blockNo == BACKUP; }
     enum { poolSize = 1 };
-    static SsPool<Ss_NODE_FAILREP>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_NODE_FAILREP> &pool(LocalProxy *proxy) {
       return proxy->c_ss_NODE_FAILREP;
     }
   };
   SsPool<Ss_NODE_FAILREP> c_ss_NODE_FAILREP;
-  void execNODE_FAILREP(Signal*);
-  void sendNODE_FAILREP(Signal*, Uint32 ssId, SectionHandle*);
-  void execNF_COMPLETEREP(Signal*);
-  void sendNF_COMPLETEREP(Signal*, Uint32 ssId);
+  void execNODE_FAILREP(Signal *);
+  void sendNODE_FAILREP(Signal *, Uint32 ssId, SectionHandle *);
+  void execNF_COMPLETEREP(Signal *);
+  void sendNF_COMPLETEREP(Signal *, Uint32 ssId);
 
   // GSN_INCL_NODEREQ
   struct Ss_INCL_NODEREQ : SsParallel {
@@ -439,15 +423,15 @@ protected:
       m_sendCONF = &LocalProxy::sendINCL_NODECONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_INCL_NODEREQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_INCL_NODEREQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_INCL_NODEREQ;
     }
   };
   SsPool<Ss_INCL_NODEREQ> c_ss_INCL_NODEREQ;
-  void execINCL_NODEREQ(Signal*);
-  void sendINCL_NODEREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execINCL_NODECONF(Signal*);
-  void sendINCL_NODECONF(Signal*, Uint32 ssId);
+  void execINCL_NODEREQ(Signal *);
+  void sendINCL_NODEREQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execINCL_NODECONF(Signal *);
+  void sendINCL_NODECONF(Signal *, Uint32 ssId);
 
   // GSN_NODE_STATE_REP
   struct Ss_NODE_STATE_REP : SsParallel {
@@ -456,13 +440,13 @@ protected:
       m_sendCONF = 0;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_NODE_STATE_REP>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_NODE_STATE_REP> &pool(LocalProxy *proxy) {
       return proxy->c_ss_NODE_STATE_REP;
     }
   };
   SsPool<Ss_NODE_STATE_REP> c_ss_NODE_STATE_REP;
-  void execNODE_STATE_REP(Signal*);
-  void sendNODE_STATE_REP(Signal*, Uint32 ssId, SectionHandle*);
+  void execNODE_STATE_REP(Signal *);
+  void sendNODE_STATE_REP(Signal *, Uint32 ssId, SectionHandle *);
 
   // GSN_CHANGE_NODE_STATE_REQ
   struct Ss_CHANGE_NODE_STATE_REQ : SsParallel {
@@ -472,15 +456,15 @@ protected:
       m_sendCONF = &LocalProxy::sendCHANGE_NODE_STATE_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_CHANGE_NODE_STATE_REQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_CHANGE_NODE_STATE_REQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_CHANGE_NODE_STATE_REQ;
     }
   };
   SsPool<Ss_CHANGE_NODE_STATE_REQ> c_ss_CHANGE_NODE_STATE_REQ;
-  void execCHANGE_NODE_STATE_REQ(Signal*);
-  void sendCHANGE_NODE_STATE_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execCHANGE_NODE_STATE_CONF(Signal*);
-  void sendCHANGE_NODE_STATE_CONF(Signal*, Uint32 ssId);
+  void execCHANGE_NODE_STATE_REQ(Signal *);
+  void sendCHANGE_NODE_STATE_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execCHANGE_NODE_STATE_CONF(Signal *);
+  void sendCHANGE_NODE_STATE_CONF(Signal *, Uint32 ssId);
 
   // GSN_DUMP_STATE_ORD
   struct Ss_DUMP_STATE_ORD : SsParallel {
@@ -491,33 +475,31 @@ protected:
       m_sendCONF = 0;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_DUMP_STATE_ORD>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_DUMP_STATE_ORD> &pool(LocalProxy *proxy) {
       return proxy->c_ss_DUMP_STATE_ORD;
     }
   };
   SsPool<Ss_DUMP_STATE_ORD> c_ss_DUMP_STATE_ORD;
-  void execDUMP_STATE_ORD(Signal*);
-  void sendDUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
+  void execDUMP_STATE_ORD(Signal *);
+  void sendDUMP_STATE_ORD(Signal *, Uint32 ssId, SectionHandle *);
 
   // GSN_NDB_TAMPER
-  struct Ss_NDB_TAMPER : SsParallel
-  {
+  struct Ss_NDB_TAMPER : SsParallel {
     Uint32 m_errorInsert;
     Uint32 m_errorInsertExtra;
     bool m_haveErrorInsertExtra;
-    Ss_NDB_TAMPER()
-    {
+    Ss_NDB_TAMPER() {
       m_sendREQ = &LocalProxy::sendNDB_TAMPER;
       m_sendCONF = 0;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_NDB_TAMPER>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_NDB_TAMPER> &pool(LocalProxy *proxy) {
       return proxy->c_ss_NDB_TAMPER;
     }
   };
   SsPool<Ss_NDB_TAMPER> c_ss_NDB_TAMPER;
-  void execNDB_TAMPER(Signal*);
-  void sendNDB_TAMPER(Signal*, Uint32 ssId, SectionHandle*);
+  void execNDB_TAMPER(Signal *);
+  void sendNDB_TAMPER(Signal *, Uint32 ssId, SectionHandle *);
 
   // GSN_TIME_SIGNAL
   struct Ss_TIME_SIGNAL : SsParallel {
@@ -526,13 +508,13 @@ protected:
       m_sendCONF = 0;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_TIME_SIGNAL>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_TIME_SIGNAL> &pool(LocalProxy *proxy) {
       return proxy->c_ss_TIME_SIGNAL;
     }
   };
   SsPool<Ss_TIME_SIGNAL> c_ss_TIME_SIGNAL;
-  void execTIME_SIGNAL(Signal*);
-  void sendTIME_SIGNAL(Signal*, Uint32 ssId, SectionHandle*);
+  void execTIME_SIGNAL(Signal *);
+  void sendTIME_SIGNAL(Signal *, Uint32 ssId, SectionHandle *);
 
   // GSN_CREATE_TRIG_IMPL_REQ
   struct Ss_CREATE_TRIG_IMPL_REQ : SsParallel {
@@ -542,16 +524,16 @@ protected:
       m_sendCONF = &LocalProxy::sendCREATE_TRIG_IMPL_CONF;
     }
     enum { poolSize = 3 };
-    static SsPool<Ss_CREATE_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_CREATE_TRIG_IMPL_REQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_CREATE_TRIG_IMPL_REQ;
     }
   };
   SsPool<Ss_CREATE_TRIG_IMPL_REQ> c_ss_CREATE_TRIG_IMPL_REQ;
-  void execCREATE_TRIG_IMPL_REQ(Signal*);
-  void sendCREATE_TRIG_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execCREATE_TRIG_IMPL_CONF(Signal*);
-  void execCREATE_TRIG_IMPL_REF(Signal*);
-  void sendCREATE_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
+  void execCREATE_TRIG_IMPL_REQ(Signal *);
+  void sendCREATE_TRIG_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execCREATE_TRIG_IMPL_CONF(Signal *);
+  void execCREATE_TRIG_IMPL_REF(Signal *);
+  void sendCREATE_TRIG_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_DROP_TRIG_IMPL_REQ
   struct Ss_DROP_TRIG_IMPL_REQ : SsParallel {
@@ -561,28 +543,28 @@ protected:
       m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
     }
     enum { poolSize = NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ };
-    static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_DROP_TRIG_IMPL_REQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_DROP_TRIG_IMPL_REQ;
     }
   };
   SsPool<Ss_DROP_TRIG_IMPL_REQ> c_ss_DROP_TRIG_IMPL_REQ;
-  void execDROP_TRIG_IMPL_REQ(Signal*);
-  void sendDROP_TRIG_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execDROP_TRIG_IMPL_CONF(Signal*);
-  void execDROP_TRIG_IMPL_REF(Signal*);
-  void sendDROP_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
+  void execDROP_TRIG_IMPL_REQ(Signal *);
+  void sendDROP_TRIG_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execDROP_TRIG_IMPL_CONF(Signal *);
+  void execDROP_TRIG_IMPL_REF(Signal *);
+  void sendDROP_TRIG_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_DBINFO_SCANREQ
-  bool find_next(Ndbinfo::ScanCursor* cursor) const;
-  void execDBINFO_SCANREQ(Signal*);
-  void execDBINFO_SCANCONF(Signal*);
+  bool find_next(Ndbinfo::ScanCursor *cursor) const;
+  void execDBINFO_SCANREQ(Signal *);
+  void execDBINFO_SCANCONF(Signal *);
 
   // GSN_SYNC_REQ
-  void execSYNC_REQ(Signal*);
-  void execSYNC_REF(Signal*);
-  void execSYNC_CONF(Signal*);
-  void sendSYNC_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void sendSYNC_CONF(Signal*, Uint32 ssId);
+  void execSYNC_REQ(Signal *);
+  void execSYNC_REF(Signal *);
+  void execSYNC_CONF(Signal *);
+  void sendSYNC_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void sendSYNC_CONF(Signal *, Uint32 ssId);
   struct Ss_SYNC_REQ : SsParallel {
     SyncReq m_req;
     Ss_SYNC_REQ() {
@@ -590,33 +572,32 @@ protected:
       m_sendCONF = &LocalProxy::sendSYNC_CONF;
     }
     enum { poolSize = 4 };
-    static SsPool<Ss_SYNC_REQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_SYNC_REQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_SYNC_REQ;
     }
   };
   SsPool<Ss_SYNC_REQ> c_ss_SYNC_REQ;
 
-  void execSYNC_PATH_REQ(Signal*);
+  void execSYNC_PATH_REQ(Signal *);
 
   // GSN_API_FAILREQ
   struct Ss_API_FAILREQ : SsParallel {
-    Uint32 m_ref; //
+    Uint32 m_ref;  //
     Ss_API_FAILREQ() {
       m_sendREQ = (SsFUNCREQ)&LocalProxy::sendAPI_FAILREQ;
       m_sendCONF = (SsFUNCREP)&LocalProxy::sendAPI_FAILCONF;
     }
     enum { poolSize = MAX_NODES };
-    static SsPool<Ss_API_FAILREQ>& pool(LocalProxy* proxy) {
+    static SsPool<Ss_API_FAILREQ> &pool(LocalProxy *proxy) {
       return proxy->c_ss_API_FAILREQ;
     }
   };
   SsPool<Ss_API_FAILREQ> c_ss_API_FAILREQ;
-  void execAPI_FAILREQ(Signal*);
-  void sendAPI_FAILREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execAPI_FAILCONF(Signal*);
-  void sendAPI_FAILCONF(Signal*, Uint32 ssId);
+  void execAPI_FAILREQ(Signal *);
+  void sendAPI_FAILREQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execAPI_FAILCONF(Signal *);
+  void sendAPI_FAILCONF(Signal *, Uint32 ssId);
 };
-
 
 #undef JAM_FILE_ID
 

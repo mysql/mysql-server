@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 89
 
-
 /**
  * These two signals are sent via EXECUTE_DIRECT
  *   to DBDIH from QMGR
@@ -41,16 +40,17 @@ class BlockCommitOrd {
    * Sender(s)
    */
   friend class Qmgr;
-  
+
   /**
    * Reciver(s)
    */
   friend class Dbdih;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 1;
-  
-private:
-  Uint32 failNo; // As used by Qmgr
+
+ private:
+  Uint32 failNo;  // As used by Qmgr
 };
 
 class UnblockCommitOrd {
@@ -58,18 +58,18 @@ class UnblockCommitOrd {
    * Sender(s)
    */
   friend class Qmgr;
-  
+
   /**
    * Reciver(s)
    */
   friend class Dbdih;
-public:
-  static constexpr Uint32 SignalLength = 1;
-  
-private:
-  Uint32 failNo; // As used by Qmgr  
-};
 
+ public:
+  static constexpr Uint32 SignalLength = 1;
+
+ private:
+  Uint32 failNo;  // As used by Qmgr
+};
 
 #undef JAM_FILE_ID
 

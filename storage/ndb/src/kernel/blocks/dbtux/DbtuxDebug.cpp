@@ -30,115 +30,103 @@
 
 #define JAM_FILE_ID 366
 
-
-
-void Dbtux::execDBINFO_SCANREQ(Signal *signal)
-{
-  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  const Ndbinfo::ScanCursor* cursor =
-    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+void Dbtux::execDBINFO_SCANREQ(Signal *signal) {
+  DbinfoScanReq req = *(DbinfoScanReq *)signal->theData;
+  const Ndbinfo::ScanCursor *cursor =
+      CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();
 
-  switch(req.tableId){
-  case Ndbinfo::POOLS_TABLEID:
-  {
-    Ndbinfo::pool_entry pools[] =
-    {
-      { "Index",
-        c_indexPool.getUsed(),
-        c_indexPool.getSize(),
-        c_indexPool.getEntrySize(),
-        c_indexPool.getUsedHi(),
-        { CFG_DB_NO_TABLES,
-          CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
-        0},
-      { "Fragment",
-        c_fragPool.getUsed(),
-        c_fragPool.getSize(),
-        c_fragPool.getEntrySize(),
-        c_fragPool.getUsedHi(),
-        { CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_REPLICAS,0,0 },
-        0},
-      { "Descriptor page",
-        c_descPagePool.getUsed(),
-        c_descPagePool.getSize(),
-        c_descPagePool.getEntrySize(),
-        c_descPagePool.getUsedHi(),
-        { CFG_DB_NO_TABLES,
-          CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
-        0},
-      { "Fragment Operation",
-        c_fragOpPool.getUsed(),
-        c_fragOpPool.getSize(),
-        c_fragOpPool.getEntrySize(),
-        c_fragOpPool.getUsedHi(),
-        { 0,0,0,0 },
-        0},
-      { "Scan Operation",
-        c_scanOpPool.getUsed(),
-        c_scanOpPool.getSize(),
-        c_scanOpPool.getEntrySize(),
-        c_scanOpPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
-        0},
-      { "Scan Bound",
-        c_scanBoundPool.getUsed(),
-        c_scanBoundPool.getSize(),
-        c_scanBoundPool.getEntrySize(),
-        c_scanBoundPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
-        0},
-      { "Scan Lock",
-        c_scanLockPool.getUsed(),
-        c_scanLockPool.getSize(),
-        c_scanLockPool.getEntrySize(),
-        c_scanLockPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,
-          CFG_DB_BATCH_SIZE,0,0 },
-        0},
-      { NULL, 0,0,0,0,{ 0,0,0,0 },0}
-    };
+  switch (req.tableId) {
+    case Ndbinfo::POOLS_TABLEID: {
+      Ndbinfo::pool_entry pools[] = {
+          {"Index",
+           c_indexPool.getUsed(),
+           c_indexPool.getSize(),
+           c_indexPool.getEntrySize(),
+           c_indexPool.getUsedHi(),
+           {CFG_DB_NO_TABLES, CFG_DB_NO_ORDERED_INDEXES,
+            CFG_DB_NO_UNIQUE_HASH_INDEXES, 0},
+           0},
+          {"Fragment",
+           c_fragPool.getUsed(),
+           c_fragPool.getSize(),
+           c_fragPool.getEntrySize(),
+           c_fragPool.getUsedHi(),
+           {CFG_DB_NO_ORDERED_INDEXES, CFG_DB_NO_REPLICAS, 0, 0},
+           0},
+          {"Descriptor page",
+           c_descPagePool.getUsed(),
+           c_descPagePool.getSize(),
+           c_descPagePool.getEntrySize(),
+           c_descPagePool.getUsedHi(),
+           {CFG_DB_NO_TABLES, CFG_DB_NO_ORDERED_INDEXES,
+            CFG_DB_NO_UNIQUE_HASH_INDEXES, 0},
+           0},
+          {"Fragment Operation",
+           c_fragOpPool.getUsed(),
+           c_fragOpPool.getSize(),
+           c_fragOpPool.getEntrySize(),
+           c_fragOpPool.getUsedHi(),
+           {0, 0, 0, 0},
+           0},
+          {"Scan Operation",
+           c_scanOpPool.getUsed(),
+           c_scanOpPool.getSize(),
+           c_scanOpPool.getEntrySize(),
+           c_scanOpPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, 0, 0, 0},
+           0},
+          {"Scan Bound",
+           c_scanBoundPool.getUsed(),
+           c_scanBoundPool.getSize(),
+           c_scanBoundPool.getEntrySize(),
+           c_scanBoundPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, 0, 0, 0},
+           0},
+          {"Scan Lock",
+           c_scanLockPool.getUsed(),
+           c_scanLockPool.getSize(),
+           c_scanLockPool.getEntrySize(),
+           c_scanLockPool.getUsedHi(),
+           {CFG_DB_NO_LOCAL_SCANS, CFG_DB_BATCH_SIZE, 0, 0},
+           0},
+          {NULL, 0, 0, 0, 0, {0, 0, 0, 0}, 0}};
 
-    const size_t num_config_params =
-      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
-    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
-    Uint32 pool = cursor->data[0];
-    ndbrequire(pool < numPools);
-    BlockNumber bn = blockToMain(number());
-    while(pools[pool].poolname)
-    {
-      jam();
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(getOwnNodeId());
-      row.write_uint32(bn);           // block number
-      row.write_uint32(instance());   // block instance
-      row.write_string(pools[pool].poolname);
-      row.write_uint64(pools[pool].used);
-      row.write_uint64(pools[pool].total);
-      row.write_uint64(pools[pool].used_hi);
-      row.write_uint64(pools[pool].entry_size);
-      for (size_t i = 0; i < num_config_params; i++)
-        row.write_uint32(pools[pool].config_params[i]);
-      row.write_uint32(GET_RG(pools[pool].record_type));
-      row.write_uint32(GET_TID(pools[pool].record_type));
-      ndbinfo_send_row(signal, req, row, rl);
-      pool++;
-      if (rl.need_break(req))
-      {
+      const size_t num_config_params =
+          sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+      const Uint32 numPools = NDB_ARRAY_SIZE(pools);
+      Uint32 pool = cursor->data[0];
+      ndbrequire(pool < numPools);
+      BlockNumber bn = blockToMain(number());
+      while (pools[pool].poolname) {
         jam();
-        ndbinfo_send_scan_break(signal, req, rl, pool);
-        return;
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(bn);          // block number
+        row.write_uint32(instance());  // block instance
+        row.write_string(pools[pool].poolname);
+        row.write_uint64(pools[pool].used);
+        row.write_uint64(pools[pool].total);
+        row.write_uint64(pools[pool].used_hi);
+        row.write_uint64(pools[pool].entry_size);
+        for (size_t i = 0; i < num_config_params; i++)
+          row.write_uint32(pools[pool].config_params[i]);
+        row.write_uint32(GET_RG(pools[pool].record_type));
+        row.write_uint32(GET_TID(pools[pool].record_type));
+        ndbinfo_send_row(signal, req, row, rl);
+        pool++;
+        if (rl.need_break(req)) {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, pool);
+          return;
+        }
       }
+      break;
     }
-    break;
-  }
-  default:
-    break;
+    default:
+      break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
@@ -148,28 +136,22 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
  * 12001 log file 0-close 1-open 2-append 3-append to signal log
  * 12002 log flags 1-meta 2-maint 4-tree 8-scan lock-16 stat-32
  */
-void
-Dbtux::execDUMP_STATE_ORD(Signal* signal)
-{
+void Dbtux::execDUMP_STATE_ORD(Signal *signal) {
   jamEntry();
 #ifdef VM_TRACE
   if (signal->theData[0] == DumpStateOrd::TuxLogToFile) {
     unsigned flag = signal->theData[1];
-    const char* const tuxlog = "tux.log";
-    FILE* slFile = globalSignalLoggers.getOutputStream();
+    const char *const tuxlog = "tux.log";
+    FILE *slFile = globalSignalLoggers.getOutputStream();
     if (flag <= 3) {
       if (debugFile != 0) {
-        if (debugFile != slFile)
-          fclose(debugFile);
+        if (debugFile != slFile) fclose(debugFile);
         debugFile = 0;
         tuxDebugOut = *new NdbOut(*new NullOutputStream());
       }
-      if (flag == 1)
-        debugFile = fopen(tuxlog, "w");
-      if (flag == 2)
-        debugFile = fopen(tuxlog, "a");
-      if (flag == 3)
-        debugFile = slFile;
+      if (flag == 1) debugFile = fopen(tuxlog, "w");
+      if (flag == 2) debugFile = fopen(tuxlog, "a");
+      if (flag == 3) debugFile = slFile;
       if (debugFile != 0)
         tuxDebugOut = *new NdbOut(*new FileOutputStream(debugFile));
     }
@@ -184,40 +166,32 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
-  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
-  {
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot) {
     RSS_AP_SNAPSHOT_SAVE(c_indexPool);
     RSS_AP_SNAPSHOT_SAVE(c_fragPool);
     RSS_AP_SNAPSHOT_SAVE(c_fragOpPool);
   }
 
-  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
-  {
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak) {
     RSS_AP_SNAPSHOT_CHECK(c_indexPool);
     RSS_AP_SNAPSHOT_CHECK(c_fragPool);
     RSS_AP_SNAPSHOT_CHECK(c_fragOpPool);
   }
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-  if (signal->theData[0] == DumpStateOrd::TuxSetTransientPoolMaxSize)
-  {
+  if (signal->theData[0] == DumpStateOrd::TuxSetTransientPoolMaxSize) {
     jam();
-    if (signal->getLength() < 3)
-      return;
+    if (signal->getLength() < 3) return;
     const Uint32 pool_index = signal->theData[1];
     const Uint32 new_size = signal->theData[2];
-    if (pool_index >= c_transient_pool_count)
-      return;
+    if (pool_index >= c_transient_pool_count) return;
     c_transient_pools[pool_index]->setMaxSize(new_size);
     return;
   }
-  if (signal->theData[0] == DumpStateOrd::TuxResetTransientPoolMaxSize)
-  {
+  if (signal->theData[0] == DumpStateOrd::TuxResetTransientPoolMaxSize) {
     jam();
-    if(signal->getLength() < 2)
-      return;
+    if (signal->getLength() < 2) return;
     const Uint32 pool_index = signal->theData[1];
-    if (pool_index >= c_transient_pool_count)
-      return;
+    if (pool_index >= c_transient_pool_count) return;
     c_transient_pools[pool_index]->resetMaxSize();
     return;
   }
@@ -226,17 +200,15 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
 
 #ifdef VM_TRACE
 
-void
-Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::printTree(Signal *signal, Frag &frag, NdbOut &out) {
+  TreeHead &tree = frag.m_tree;
   PrintPar par;
   strcpy(par.m_path, ".");
   par.m_side = 2;
   par.m_parent = NullTupLoc;
   printNode(c_ctx, frag, out, tree.m_root, par);
   out.m_out->flush();
-  if (! par.m_ok) {
+  if (!par.m_ok) {
     if (debugFile == 0) {
       signal->theData[0] = 12001;
       signal->theData[1] = 1;
@@ -249,16 +221,14 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   }
 }
 
-void
-Dbtux::printNode(TuxCtx & ctx,
-                 Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
-{
+void Dbtux::printNode(TuxCtx &ctx, Frag &frag, NdbOut &out, TupLoc loc,
+                      PrintPar &par) {
   if (loc == NullTupLoc) {
     par.m_depth = 0;
     return;
   }
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  TreeHead& tree = frag.m_tree;
+  const Index &index = *c_indexPool.getPtr(frag.m_indexId);
+  TreeHead &tree = frag.m_tree;
   NodeHandle node(frag);
   selectNode(ctx, node, loc);
   out << par.m_path << " " << node << endl;
@@ -271,11 +241,11 @@ Dbtux::printNode(TuxCtx & ctx,
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
     printNode(ctx, frag, out, node.getLink(i), cpar[i]);
-    if (! cpar[i].m_ok) {
+    if (!cpar[i].m_ok) {
       par.m_ok = false;
     }
   }
-  static const char* const sep = " *** ";
+  static const char *const sep = " *** ";
   // check child-parent links
   if (node.getLink(2) != par.m_parent) {
     par.m_ok = false;
@@ -319,8 +289,7 @@ Dbtux::printNode(TuxCtx & ctx,
 #ifdef dbtux_totally_groks_t_trees
   // check missed semi-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
-    if (node.getLink(i) != NullTupLoc &&
-        node.getLink(1 - i) == NullTupLoc &&
+    if (node.getLink(i) != NullTupLoc && node.getLink(1 - i) == NullTupLoc &&
         // our semi-leaf seems to satisfy interior minOccup condition
         node.getOccup() < tree.m_minOccup) {
       par.m_ok = false;
@@ -332,7 +301,7 @@ Dbtux::printNode(TuxCtx & ctx,
   // check inline prefix
   {
     KeyDataC keyData1(index.m_keySpec, false);
-    const Uint32* data1 = node.getPref();
+    const Uint32 *data1 = node.getPref();
     keyData1.set_buf(data1, index.m_prefBytes, index.m_prefAttrs);
     KeyData keyData2(index.m_keySpec, false, 0);
     Uint32 data2[MaxPrefSize];
@@ -355,9 +324,8 @@ Dbtux::printNode(TuxCtx & ctx,
     readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
     readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
     int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
-    if (ret == 0)
-      ret = ent1.cmp(ent2);
-    if (! (ret < 0)) {
+    if (ret == 0) ret = ent1.cmp(ent2);
+    if (!(ret < 0)) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << " disorder within node at pos " << j << endl;
@@ -365,8 +333,7 @@ Dbtux::printNode(TuxCtx & ctx,
   }
   // check ordering wrt subtrees
   for (unsigned i = 0; i <= 1; i++) {
-    if (node.getLink(i) == NullTupLoc)
-      continue;
+    if (node.getLink(i) == NullTupLoc) continue;
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
     const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
     const TreeEnt ent2 = node.getEnt(pos);
@@ -377,10 +344,8 @@ Dbtux::printNode(TuxCtx & ctx,
     readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
     readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
     int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
-    if (ret == 0)
-      ret = ent1.cmp(ent2);
-    if ((i == 0 && ! (ret < 0)) ||
-        (i == 1 && ! (ret > 0))) {
+    if (ret == 0) ret = ent1.cmp(ent2);
+    if ((i == 0 && !(ret < 0)) || (i == 1 && !(ret > 0))) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << " disorder wrt subtree " << i << endl;
@@ -398,9 +363,7 @@ Dbtux::printNode(TuxCtx & ctx,
   }
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::TupLoc &loc) {
   if (loc == Dbtux::NullTupLoc) {
     out << "null";
   } else {
@@ -410,17 +373,13 @@ operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::TreeEnt &ent) {
   out << ent.m_tupLoc;
   out << "-" << dec << ent.m_tupVersion;
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::TreeNode& node)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::TreeNode &node) {
   out << "[TreeNode " << hex << &node;
   out << " [left " << node.m_link[0] << "]";
   out << " [right " << node.m_link[1] << "]";
@@ -434,9 +393,7 @@ operator<<(NdbOut& out, const Dbtux::TreeNode& node)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::TreeHead& tree)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::TreeHead &tree) {
   out << "[TreeHead " << hex << &tree;
   out << " [nodeSize " << dec << tree.m_nodeSize << "]";
   out << " [prefSize " << dec << tree.m_prefSize << "]";
@@ -447,9 +404,7 @@ operator<<(NdbOut& out, const Dbtux::TreeHead& tree)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::TreePos& pos)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::TreePos &pos) {
   out << "[TreePos " << hex << &pos;
   out << " [loc " << pos.m_loc << "]";
   out << " [pos " << dec << pos.m_pos << "]";
@@ -458,24 +413,23 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
-{
-  Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
+NdbOut &operator<<(NdbOut &out, const Dbtux::ScanOp &scan) {
+  Dbtux *tux = (Dbtux *)globalData.getBlock(DBTUX);
   out << "[ScanOp " << hex << &scan;
   out << " [state " << dec << scan.m_state << "]";
   out << " [lockwait " << dec << scan.m_lockwait << "]";
   out << " [errorCode " << dec << scan.m_errorCode << "]";
   out << " [indexId " << dec << scan.m_indexId << "]";
   out << " [fragId " << dec << scan.m_fragId << "]";
-  out << " [transId " << hex << scan.m_transId1 << " " << scan.m_transId2 << "]";
+  out << " [transId " << hex << scan.m_transId1 << " " << scan.m_transId2
+      << "]";
   out << " [savePointId " << dec << scan.m_savePointId << "]";
   out << " [accLockOp " << hex << scan.m_accLockOp << "]";
   out << " [accLockOps";
-  if (globalData.isNdbMtLqh)//TODO
+  if (globalData.isNdbMtLqh)  // TODO
     return out;
   {
-    const Dbtux::ScanLock_fifo::Head& head = scan.m_accLockOps;
+    const Dbtux::ScanLock_fifo::Head &head = scan.m_accLockOps;
     Dbtux::ConstLocal_ScanLock_fifo list(tux->c_scanLockPool, head);
     Dbtux::ScanLockPtr lockPtr;
     list.first(lockPtr);
@@ -492,29 +446,28 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {
     const Dbtux::ScanBound scanBound = scan.m_scanBound[i];
-    const Dbtux::Index& index = *tux->c_indexPool.getPtr(scan.m_indexId);
+    const Dbtux::Index &index = *tux->c_indexPool.getPtr(scan.m_indexId);
     Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
     Dbtux::KeyBoundC keyBound(keyBoundData);
     tux->unpackBound(tux->c_ctx.c_searchKey, scanBound, keyBound);
     out << " [scanBound " << dec << i;
-    out << " " << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
+    out << " "
+        << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
     out << "]";
   }
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::Index& index)
-{
-  Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
+NdbOut &operator<<(NdbOut &out, const Dbtux::Index &index) {
+  Dbtux *tux = (Dbtux *)globalData.getBlock(DBTUX);
   out << "[Index " << hex << &index;
   out << " [tableId " << dec << index.m_tableId << "]";
   out << " [numFrags " << dec << index.m_numFrags << "]";
-  if (globalData.isNdbMtLqh)//TODO
+  if (globalData.isNdbMtLqh)  // TODO
     return out;
   for (unsigned i = 0; i < index.m_numFrags; i++) {
     out << " [frag " << dec << i << " ";
-    const Dbtux::Frag& frag = *tux->c_fragPool.getPtr(index.m_fragPtrI[i]);
+    const Dbtux::Frag &frag = *tux->c_fragPool.getPtr(index.m_fragPtrI[i]);
     out << frag;
     out << "]";
   }
@@ -529,9 +482,7 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::Frag& frag)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::Frag &frag) {
   out << "[Frag " << hex << &frag;
   out << " [tableId " << dec << frag.m_tableId << "]";
   out << " [indexId " << dec << frag.m_indexId << "]";
@@ -544,9 +495,7 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::FragOp& fragOp)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::FragOp &fragOp) {
   out << "[FragOp " << hex << &fragOp;
   out << " [userPtr " << dec << fragOp.m_userPtr << "]";
   out << " [indexId " << dec << fragOp.m_indexId << "]";
@@ -557,34 +506,28 @@ operator<<(NdbOut& out, const Dbtux::FragOp& fragOp)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
-{
-  const Dbtux::Frag& frag = node.m_frag;
-  const Dbtux::TreeHead& tree = frag.m_tree;
+NdbOut &operator<<(NdbOut &out, const Dbtux::NodeHandle &node) {
+  const Dbtux::Frag &frag = node.m_frag;
+  const Dbtux::TreeHead &tree = frag.m_tree;
   out << "[NodeHandle " << hex << &node;
   out << " [loc " << node.m_loc << "]";
   out << " [node " << *node.m_node << "]";
-  const Uint32* data;
+  const Uint32 *data;
   out << " [pref";
-  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
-  for (unsigned j = 0; j < tree.m_prefSize; j++)
-    out << " " << hex << data[j];
+  data = (const Uint32 *)node.m_node + Dbtux::NodeHeadSize;
+  for (unsigned j = 0; j < tree.m_prefSize; j++) out << " " << hex << data[j];
   out << "]";
   out << " [entList";
   unsigned numpos = node.m_node->m_occup;
-  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
-  const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
-  for (unsigned pos = 0; pos < numpos; pos++)
-    out << " " << entList[pos];
+  data = (const Uint32 *)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
+  const Dbtux::TreeEnt *entList = (const Dbtux::TreeEnt *)data;
+  for (unsigned pos = 0; pos < numpos; pos++) out << " " << entList[pos];
   out << "]";
   out << "]";
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::StatOp& stat)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::StatOp &stat) {
   out << "[StatOp " << hex << &stat;
   out << " [saveSize " << dec << stat.m_saveSize << "]";
   out << " [saveScale " << dec << stat.m_saveScale << "]";
@@ -593,9 +536,7 @@ operator<<(NdbOut& out, const Dbtux::StatOp& stat)
   return out;
 }
 
-NdbOut&
-operator<<(NdbOut& out, const Dbtux::StatMon& mon)
-{
+NdbOut &operator<<(NdbOut &out, const Dbtux::StatMon &mon) {
   out << "[StatMon";
   out << " [loopIndexId " << dec << mon.m_loopIndexId << "]";
   out << "]";

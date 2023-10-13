@@ -48,14 +48,14 @@
  * detectable to the compiler as purely type-changing copy operations.
  */
 struct _jtie_jint_Enum {
-    // the enum value (cannot be const to enable assignment)
-    jint value;
+  // the enum value (cannot be const to enable assignment)
+  jint value;
 
-    // conversion constructor
-    _jtie_jint_Enum(jint v) : value(v) {}
+  // conversion constructor
+  _jtie_jint_Enum(jint v) : value(v) {}
 
-    // conversion operator
-    operator jint() { return value; }
+  // conversion operator
+  operator jint() { return value; }
 };
 
 /**
@@ -68,14 +68,12 @@ struct _jtie_jint_Enum {
  *
  * Naming convention:
  *   type alias:                specifies a mapping:
- *   ttrait_<T>_i               jint <->       C 
+ *   ttrait_<T>_i               jint <->       C
  *   ttrait_<T>_c_iv            jint <-> const C
  */
-#define JTIE_DEFINE_JINT_ENUM_TYPE_MAPPING( C, T )              \
-    typedef ttrait< jint, C, _jtie_jint_Enum                    \
-                    > ttrait_##T##_iv;                          \
-    typedef ttrait< jint, C const, _jtie_jint_Enum              \
-                    > ttrait_##T##_c_iv;
+#define JTIE_DEFINE_JINT_ENUM_TYPE_MAPPING(C, T)            \
+  typedef ttrait<jint, C, _jtie_jint_Enum> ttrait_##T##_iv; \
+  typedef ttrait<jint, C const, _jtie_jint_Enum> ttrait_##T##_c_iv;
 
 /**
  * A helper class template that predicates the supported type conversions
@@ -87,9 +85,9 @@ struct is_valid_enum_type_mapping;
 */
 
 // XXX to document
-#define JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING( C )
+#define JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(C)
 //    template struct is_valid_enum_type_mapping< jint, C >;
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_enum_hpp
+#endif  // jtie_tconv_enum_hpp

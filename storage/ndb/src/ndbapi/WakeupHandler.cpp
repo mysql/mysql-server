@@ -22,11 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "WakeupHandler.hpp"
 #include "Ndb.hpp"
 #include "NdbImpl.hpp"
 #include "trp_client.hpp"
+#include "util/require.h"
 
 // ***** Multiwait handler ****
 
@@ -51,44 +51,37 @@
  * one thread.
  */
 
-MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb* _wakeNdb)
-  : wakeNdb(_wakeNdb)
-{
+MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb *_wakeNdb)
+    : wakeNdb(_wakeNdb) {
   localWakeupMutexPtr = NdbMutex_Create();
   assert(localWakeupMutexPtr);
   /* Register the waiter Ndb to receive wakeups for all Ndbs in the group */
-  PollGuard pg(* wakeNdb->theImpl);
+  PollGuard pg(*wakeNdb->theImpl);
   ignore_wakeups();
-  bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(wakeNdb->theImpl);
+  bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(
+      wakeNdb->theImpl);
   require(rc);
   wakeNdb->theImpl->wakeHandler = this;
 }
 
-
-MultiNdbWakeupHandler::~MultiNdbWakeupHandler()
-{
-  if (localWakeupMutexPtr)
-  {
+MultiNdbWakeupHandler::~MultiNdbWakeupHandler() {
+  if (localWakeupMutexPtr) {
     NdbMutex_Destroy(localWakeupMutexPtr);
     localWakeupMutexPtr = nullptr;
   }
-  PollGuard pg(* wakeNdb->theImpl);
-  bool rc = wakeNdb->theImpl->m_transporter_facade->
-    unregisterForWakeup(wakeNdb->theImpl);
+  PollGuard pg(*wakeNdb->theImpl);
+  bool rc = wakeNdb->theImpl->m_transporter_facade->unregisterForWakeup(
+      wakeNdb->theImpl);
   require(rc);
 }
 
-
-void MultiNdbWakeupHandler::finalize_wait(int *nready)
-{
+void MultiNdbWakeupHandler::finalize_wait(int *nready) {
   Uint32 num_completed_trans = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     Ndb *obj = objs[i];
 
     NdbMutex_Lock(obj->theImpl->m_mutex);
-    if (obj->theNoOfCompletedTransactions)
-    {
+    if (obj->theNoOfCompletedTransactions) {
       swapNdbsInArray(i, num_completed_trans);
       num_completed_trans++;
     }
@@ -98,13 +91,11 @@ void MultiNdbWakeupHandler::finalize_wait(int *nready)
   *nready = num_completed_trans;
 }
 
-void MultiNdbWakeupHandler::registerNdb(Ndb* obj)
-{
+void MultiNdbWakeupHandler::registerNdb(Ndb *obj) {
   NdbMutex_Lock(obj->theImpl->m_mutex);
   obj->theImpl->wakeHandler = this;
   /* It may already have some completed transactions */
-  if (obj->theNoOfCompletedTransactions)
-  {
+  if (obj->theNoOfCompletedTransactions) {
     NdbMutex_Lock(localWakeupMutexPtr);
     numNdbsWithCompletedTrans++;
     NdbMutex_Unlock(localWakeupMutexPtr);
@@ -112,23 +103,16 @@ void MultiNdbWakeupHandler::registerNdb(Ndb* obj)
   NdbMutex_Unlock(obj->theImpl->m_mutex);
 }
 
-
-void MultiNdbWakeupHandler::unregisterNdb(Ndb *obj)
-{
+void MultiNdbWakeupHandler::unregisterNdb(Ndb *obj) {
   obj->theImpl->wakeHandler = nullptr;
 }
 
-
-int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
-                                        int _cnt,
-                                        int min_req,
-                                        int timeout_millis,
-                                        int *nready)
-{
+int MultiNdbWakeupHandler::waitForInput(Ndb **_objs, int _cnt, int min_req,
+                                        int timeout_millis, int *nready) {
   /**
     Initialise object for waiting.
 
-    numNdbsWithCompletedTrans: 
+    numNdbsWithCompletedTrans:
     Keeps track of number of transactions completed and is protected by
     localWakeupMutexPtr-mutex. It can be set to 0 without mutex protection
     since the poll owner thread will not access it until we have registered
@@ -166,8 +150,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
     Before sleeping, we register each Ndb, and check whether it already
     has any completed transactions.
   */
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     /* Register the Ndb's */
     registerNdb(objs[i]);
   }
@@ -178,10 +161,8 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
   const int maxTime = timeout_millis;
   {
     PollGuard pg(*wakeNdb->theImpl);
-    do
-    {
-      if (first)
-      {
+    do {
+      if (first) {
         set_wakeup(min_req);
         if (isReadyToWake())  // already enough
         {
@@ -198,18 +179,16 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
       /* PollGuard will put us to sleep until something relevant happens */
       pg.wait_for_input(timeout_millis);
       wakeNdb->theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
- 
-      if (isReadyToWake())
-      {
+
+      if (isReadyToWake()) {
         woken = false;
         ignore_wakeups();
         ret = 0;
         break;
       }
       const NDB_TICKS now = NdbTick_getCurrentTicks();
-      timeout_millis = (maxTime - (int)NdbTick_Elapsed(start,now).milliSec());
-      if (timeout_millis <= 0)
-      {
+      timeout_millis = (maxTime - (int)NdbTick_Elapsed(start, now).milliSec());
+      if (timeout_millis <= 0) {
         ignore_wakeups();
         break;
       }
@@ -219,9 +198,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
   return ret;
 }
 
-
-void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB)
-{
+void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB) {
   /* Generally used to move an Ndb object down the list
    * (bubble sort), so that it is part of a contiguous
    * list of Ndbs with completed transactions to return
@@ -231,19 +208,17 @@ void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB)
   assert(indexA < cnt);
   assert(indexB < cnt);
 
-  Ndb* a = objs[indexA];
-  Ndb* b = objs[indexB];
+  Ndb *a = objs[indexA];
+  Ndb *b = objs[indexB];
 
   objs[indexA] = b;
   objs[indexB] = a;
 }
 
-void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from
-                                                       [[maybe_unused]])
-{
+void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb *from
+                                                       [[maybe_unused]]) {
   Uint32 num_completed_trans;
-  if (!wakeNdb->theImpl->is_locked_for_poll())
-  {
+  if (!wakeNdb->theImpl->is_locked_for_poll()) {
     wakeNdb->theImpl->lock_client();
   }
 
@@ -258,33 +233,26 @@ void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from
   num_completed_trans = numNdbsWithCompletedTrans;
   NdbMutex_Unlock(localWakeupMutexPtr);
 
-  if (!is_wakeups_ignored() && num_completed_trans >= minNdbsToWake)
-  {
-    wakeNdb->theImpl->theWaiter.signal(NO_WAIT);    // wakeup client thread
+  if (!is_wakeups_ignored() && num_completed_trans >= minNdbsToWake) {
+    wakeNdb->theImpl->theWaiter.signal(NO_WAIT);  // wakeup client thread
   }
   return;
 }
 
-
-void MultiNdbWakeupHandler::notifyWakeup()
-{
-  if (!wakeNdb->theImpl->is_locked_for_poll())
-  {
+void MultiNdbWakeupHandler::notifyWakeup() {
+  if (!wakeNdb->theImpl->is_locked_for_poll()) {
     wakeNdb->theImpl->lock_client();
   }
   assert(wakeNdb->theImpl->wakeHandler == this);
 
   woken = true;
   /* Wakeup client thread, using 'waiter' Ndb */
-  if (!is_wakeups_ignored())
-  {
+  if (!is_wakeups_ignored()) {
     wakeNdb->theImpl->theWaiter.signal(NO_WAIT);
   }
 }
 
-
-void MultiNdbWakeupHandler::ignore_wakeups()
-{
+void MultiNdbWakeupHandler::ignore_wakeups() {
   /**
     We set minNdbsToWake to MAX value to ensure there won't be any
     attempts to wake us up until we're ready to be woken.
@@ -292,21 +260,15 @@ void MultiNdbWakeupHandler::ignore_wakeups()
   minNdbsToWake = ~Uint32(0);
 }
 
-bool MultiNdbWakeupHandler::is_wakeups_ignored()
-{
+bool MultiNdbWakeupHandler::is_wakeups_ignored() {
   return (minNdbsToWake == (~Uint32(0)));
 }
 
-
-void MultiNdbWakeupHandler::set_wakeup(Uint32 wakeup_count)
-{
+void MultiNdbWakeupHandler::set_wakeup(Uint32 wakeup_count) {
   minNdbsToWake = wakeup_count;
 }
 
-
-
-bool MultiNdbWakeupHandler::isReadyToWake() const
-{
+bool MultiNdbWakeupHandler::isReadyToWake() const {
   NdbMutex_Lock(localWakeupMutexPtr);
   bool ret = ((numNdbsWithCompletedTrans >= minNdbsToWake) || woken);
   NdbMutex_Unlock(localWakeupMutexPtr);

@@ -20,15 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "DblqhCommon.hpp"
 #include <GlobalData.hpp>
 #include <SimulatedBlock.hpp>
-#include "DblqhCommon.hpp"
 
 #define JAM_FILE_ID 444
 
-
-NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo)
-{
+NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo) {
   LogParts = globalData.ndbLogParts;
   lqhWorkers = globalData.ndbMtLqhWorkers;
   partCount = 0;
@@ -38,30 +36,23 @@ NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo)
     if (instanceNo != 0) {
       Uint32 worker = instanceNo - 1;
       assert(worker < lqhWorkers);
-      if (worker != lpno % lqhWorkers)
-        continue;
+      if (worker != lpno % lqhWorkers) continue;
     }
     partNo[partCount++] = lpno;
     partMask.set(lpno);
   }
 }
 
-Uint32
-NdbLogPartInfo::partNoFromId(Uint32 lpid) const
-{
+Uint32 NdbLogPartInfo::partNoFromId(Uint32 lpid) const {
   return lpid % LogParts;
 }
 
-bool
-NdbLogPartInfo::partNoOwner(Uint32 lpno) const
-{
+bool NdbLogPartInfo::partNoOwner(Uint32 lpno) const {
   assert(lpno < LogParts);
   return partMask.get(lpno);
 }
 
-Uint32
-NdbLogPartInfo::partNoIndex(Uint32 lpno) const
-{
+Uint32 NdbLogPartInfo::partNoIndex(Uint32 lpno) const {
   assert(lpno < LogParts);
   assert(partMask.get(lpno));
   Uint32 i = 0;

@@ -24,21 +24,20 @@
 
 #include <stdlib.h>
 
-#include <mgmapi.h>
 #include <NdbSleep.h>
+#include <mgmapi.h>
 #include <ndb_opts.h>
 #include "util/TlsKeyManager.hpp"
 
-int main()
-{
-  NdbMgmHandle handle= ndb_mgm_create_handle();
+int main() {
+  NdbMgmHandle handle = ndb_mgm_create_handle();
   TlsKeyManager tlsKeyManager;
 
   tlsKeyManager.init_mgm_client(opt_tls_search_path);
   ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
 
-  while(1==1){
-    if (ndb_mgm_connect_tls(handle,0,0,0, opt_mgm_tls) == -1){
+  while (1 == 1) {
+    if (ndb_mgm_connect_tls(handle, 0, 0, 0, opt_mgm_tls) == -1) {
       printf("connect failed, error: '%d: %s'\n",
              ndb_mgm_get_latest_error(handle),
              ndb_mgm_get_latest_error_desc(handle));
@@ -46,10 +45,10 @@ int main()
       continue;
     }
 
-    while(ndb_mgm_is_connected(handle) != 0){
-      struct ndb_mgm_cluster_state *state= ndb_mgm_get_status(handle);
+    while (ndb_mgm_is_connected(handle) != 0) {
+      struct ndb_mgm_cluster_state *state = ndb_mgm_get_status(handle);
 
-      if(state==NULL){
+      if (state == NULL) {
         printf("ndb_mgm_get_status failed, error: '%d: %s', line: %d\n",
                ndb_mgm_get_latest_error(handle),
                ndb_mgm_get_latest_error_desc(handle),
@@ -57,18 +56,17 @@ int main()
         continue;
       }
 
-      int i= 0;
-      for(i=0; i < state->no_of_nodes; i++)
-      {
-        struct ndb_mgm_node_state *node_state= &state->node_states[i];
+      int i = 0;
+      for (i = 0; i < state->no_of_nodes; i++) {
+        struct ndb_mgm_node_state *node_state = &state->node_states[i];
         printf("node with ID=%d ", node_state->node_id);
 
-        if(node_state->version != 0)
+        if (node_state->version != 0)
           printf("connected\n");
         else
           printf("not connected\n");
       }
-      free((void*)state);
+      free((void *)state);
     }
   }
 

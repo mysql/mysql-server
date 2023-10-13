@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 204
 
-
 /**
  * This signal is sent by starting DIH to master DIH
  *
@@ -39,14 +38,14 @@ class StartPermReq {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
-  
+
+ private:
   Uint32 blockRef;
   Uint32 nodeId;
-  Uint32 startType;  
+  Uint32 startType;
 };
 
 class StartPermConf {
@@ -54,13 +53,13 @@ class StartPermConf {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
-  
+
+ private:
   Uint32 startingNodeId;
-  Uint32 systemFailureNo;  
+  Uint32 systemFailureNo;
   Uint32 microGCP;
 };
 
@@ -69,24 +68,22 @@ class StartPermRef {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
-public:
-  static constexpr Uint32 SignalLength = 2;
-private:
-  
-  Uint32 startingNodeId;
-  Uint32 errorCode;  
 
-  enum ErrorCode
-  {
+ public:
+  static constexpr Uint32 SignalLength = 2;
+
+ private:
+  Uint32 startingNodeId;
+  Uint32 errorCode;
+
+  enum ErrorCode {
     ZNODE_ALREADY_STARTING_ERROR = 305,
     ZNODE_START_DISALLOWED_ERROR = 309,
     InitialStartRequired = 320
   };
 };
 
-class StartPermRep
-{
+class StartPermRep {
   /**
    * Sender(s)
    */
@@ -96,15 +93,11 @@ class StartPermRep
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-  enum
-  {
-    PermissionToStart = 0,
-    CompletedStart = 1
-  };
+  enum { PermissionToStart = 0, CompletedStart = 1 };
 
-private:
+ private:
   Uint32 startNodeId;
   Uint32 reason;
 };

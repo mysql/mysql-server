@@ -27,14 +27,10 @@
 
 #define JAM_FILE_ID 200
 
-
-struct CreateHashMapImplReq
-{
-
+struct CreateHashMapImplReq {
   static constexpr Uint32 SignalLength = 7;
 
-  enum RequestType {
-  };
+  enum RequestType {};
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -44,12 +40,10 @@ struct CreateHashMapImplReq
   Uint32 buckets;
   Uint32 fragments;
 
-  SECTION( INFO = 0 );
+  SECTION(INFO = 0);
 };
 
-struct CreateHashMapImplConf
-{
-
+struct CreateHashMapImplConf {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
@@ -58,8 +52,7 @@ struct CreateHashMapImplConf
   Uint32 objectVersion;
 };
 
-struct CreateHashMapImplRef
-{
+struct CreateHashMapImplRef {
   static constexpr Uint32 SignalLength = 6;
 
   Uint32 senderRef;
@@ -69,7 +62,6 @@ struct CreateHashMapImplRef
   Uint32 errorKey;
   Uint32 errorStatus;
 };
-
 
 #undef JAM_FILE_ID
 

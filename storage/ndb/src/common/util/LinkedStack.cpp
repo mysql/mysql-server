@@ -24,106 +24,89 @@
 #include <LinkedStack.hpp>
 #include <NdbTap.hpp>
 
-struct TestHeapAllocator
-{
-  static const int DEBUG_ALLOC=0;
-  static void* alloc(void*, size_t bytes)
-  {
-    void* p = ::malloc(bytes);
-    if (DEBUG_ALLOC)
-    {
-      printf("--Allocating %u bytes at %p\n",
-             (Uint32) bytes, p);
+struct TestHeapAllocator {
+  static const int DEBUG_ALLOC = 0;
+  static void *alloc(void *, size_t bytes) {
+    void *p = ::malloc(bytes);
+    if (DEBUG_ALLOC) {
+      printf("--Allocating %u bytes at %p\n", (Uint32)bytes, p);
     }
     return p;
   }
 
-  static void* mem_calloc(void*, size_t nelem, size_t bytes)
-  {
-    void* p = ::calloc(nelem, bytes);
-    if (DEBUG_ALLOC)
-    {
+  static void *mem_calloc(void *, size_t nelem, size_t bytes) {
+    void *p = ::calloc(nelem, bytes);
+    if (DEBUG_ALLOC) {
       printf("--Allocating %u elements of %u bytes (%u bytes?) at %p\n",
-             (Uint32) nelem, (Uint32) bytes, (Uint32) (nelem * bytes), p);
+             (Uint32)nelem, (Uint32)bytes, (Uint32)(nelem * bytes), p);
     }
     return p;
   }
 
-  static void mem_free(void*, void* mem)
-  {
-    if (DEBUG_ALLOC)
-    {
-      printf("--Freeing bytes at %p\n",mem);
+  static void mem_free(void *, void *mem) {
+    if (DEBUG_ALLOC) {
+      printf("--Freeing bytes at %p\n", mem);
     }
     ::free(mem);
   }
 };
 
-TAPTEST(LinkedStack)
-{
+TAPTEST(LinkedStack) {
   Uint32 popped;
   Uint32 blockSize = 1;
 
-  for (Uint32 b=0; b < 10; b++)
-  {
+  for (Uint32 b = 0; b < 10; b++) {
     LinkedStack<Uint32, TestHeapAllocator> testStack(blockSize);
 
-    for (Uint32 p=0; p<4; p++)
-    {
+    for (Uint32 p = 0; p < 4; p++) {
       /* Pass 0 == alloc, Pass 1 == re-use, Pass 3 = Reset, Pass 4 = Release */
       printf("LinkedBlockStack size %u, pass %u\n", blockSize, p);
-      Uint32 stackSize = 2033 * (p+1);
+      Uint32 stackSize = 2033 * (p + 1);
 
       OK(testStack.size() == 0);
       printf("  Pushing %u elements\n", stackSize);
-      for (Uint32 i=0; i < stackSize; i++)
-      {
+      for (Uint32 i = 0; i < stackSize; i++) {
         /* Push items onto the stack */
         OK(testStack.push(i) == true);
-        OK(testStack.size() == i+1);
+        OK(testStack.size() == i + 1);
         OK(testStack.pop(popped) == true);
         OK(popped == i);
         OK(testStack.size() == i);
         OK(testStack.push(i) == true);
       };
 
-      switch(p)
-      {
-      case 0:
-      case 1:
-      {
-        printf("  Popping %u elements\n", stackSize);
-        for (Uint32 i=0; i < stackSize; i++)
-        {
-          /* Pop items off the stack */
-          OK(testStack.size() == stackSize - i);
-          OK(testStack.pop(popped) == true);
-          OK(popped == stackSize - (i+1));
+      switch (p) {
+        case 0:
+        case 1: {
+          printf("  Popping %u elements\n", stackSize);
+          for (Uint32 i = 0; i < stackSize; i++) {
+            /* Pop items off the stack */
+            OK(testStack.size() == stackSize - i);
+            OK(testStack.pop(popped) == true);
+            OK(popped == stackSize - (i + 1));
+          }
+          break;
         }
-        break;
-      }
-      case 2:
-      {
-        printf("  Releasing stack\n");
-        testStack.release();
-        break;
-      }
-      case 3:
-      {
-        printf("  Resetting stack\n");
-        testStack.reset();
-        break;
-      }
+        case 2: {
+          printf("  Releasing stack\n");
+          testStack.release();
+          break;
+        }
+        case 3: {
+          printf("  Resetting stack\n");
+          testStack.reset();
+          break;
+        }
       }
 
       OK(testStack.size() == 0);
       OK(testStack.pop(popped) == false);
     }
     printf("  Destructing stack\n");
-    blockSize = (blockSize * 2)+1;
+    blockSize = (blockSize * 2) + 1;
   }
 
-  return 1; // OK
+  return 1;  // OK
 }
 
 #endif

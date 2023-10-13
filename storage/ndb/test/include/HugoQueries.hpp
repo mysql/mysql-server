@@ -25,57 +25,46 @@
 #ifndef HUGO_QUERIES_HPP
 #define HUGO_QUERIES_HPP
 
-
-#include <NDBT.hpp>
 #include <HugoCalculator.hpp>
 #include <HugoOperations.hpp>
+#include <NDBT.hpp>
 #include "../../src/ndbapi/NdbQueryBuilder.hpp"
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 
-class HugoQueries
-{
-  struct Op
-  {
-    const NdbQueryOperationDef* m_query_op;
-    Vector<NDBT_ResultRow*> m_rows;
-    HugoCalculator * m_calc;
+class HugoQueries {
+  struct Op {
+    const NdbQueryOperationDef *m_query_op;
+    Vector<NDBT_ResultRow *> m_rows;
+    HugoCalculator *m_calc;
   };
 
-public:
-  HugoQueries(const NdbQueryDef & query, int retryMax= 100);
+ public:
+  HugoQueries(const NdbQueryDef &query, int retryMax = 100);
   virtual ~HugoQueries();
 
   // Rows for for each of the operations
   Vector<Uint32> m_rows_found;
 
-  int runLookupQuery(Ndb*,
-                     int queries = 100,
-                     int batchsize = 1);
-  int runScanQuery(Ndb*,
-                   int abort = 4,
-                   int parallelism = 0,
+  int runLookupQuery(Ndb *, int queries = 100, int batchsize = 1);
+  int runScanQuery(Ndb *, int abort = 4, int parallelism = 0,
                    int scan_flags = 0);
 
-  const NdbError& getNdbError() const;
+  const NdbError &getNdbError() const;
 
-protected:
-  static int equalForParameters(char * buf,
-                                Op&,
-                                NdbQueryParamValue params[],
+ protected:
+  static int equalForParameters(char *buf, Op &, NdbQueryParamValue params[],
                                 int rowNo);
-  static int getValueForQueryOp(NdbQueryOperation* pOp, NDBT_ResultRow* pRow);
-
+  static int getValueForQueryOp(NdbQueryOperation *pOp, NDBT_ResultRow *pRow);
 
   void allocRows(int batch);
 
   void clearNdbError();
-  void setNdbError(const NdbError& error);
+  void setNdbError(const NdbError &error);
 
-  const NdbQueryDef* m_query_def;
+  const NdbQueryDef *m_query_def;
   Vector<Op> m_ops;
   int m_retryMax;
   NdbError m_error;
 };
 
 #endif
-

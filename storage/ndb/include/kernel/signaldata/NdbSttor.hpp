@@ -29,13 +29,12 @@
 
 #define JAM_FILE_ID 142
 
-
 class NdbSttor {
   /**
    * Sender(s)
    */
   friend class NdbCntr;
-  
+
   /**
    * Reciver(s)
    */
@@ -51,11 +50,12 @@ class NdbSttor {
   friend class LocalProxy;
 
   friend bool printNDB_STTOR(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 5;
   static constexpr Uint32 DataLength = 16;
-private:
 
+ private:
   Uint32 senderRef;
   Uint32 nodeId;
   Uint32 internalStartPhase;
@@ -89,10 +89,11 @@ class NdbSttorry {
   friend class LocalProxy;
 
   friend bool printNDB_STTORRY(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  static constexpr Uint32 SignalLength = 1;
-private:
 
+ public:
+  static constexpr Uint32 SignalLength = 1;
+
+ private:
   Uint32 senderRef;
 };
 

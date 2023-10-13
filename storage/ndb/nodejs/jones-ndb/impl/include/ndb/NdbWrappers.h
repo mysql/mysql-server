@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,12 +22,12 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/***  This file includes public wrapper functions exported to C++ code 
+/***  This file includes public wrapper functions exported to C++ code
       Users of these wrappers must supply their HandleScopes
 ***/
 
-#include "Record.h"
 #include "JsWrapper.h"
+#include "Record.h"
 
 class BatchImpl;
 class QueryOperation;
@@ -41,7 +41,7 @@ Local<Value> QueryOperation_Wrapper(QueryOperation *);
 
 /* Not actual wrapper functions, but functions that provide an envelope */
 
-Envelope * getNdbInterpretedCodeEnvelope(void);
-Envelope * getConstNdbInterpretedCodeEnvelope(void);
-Envelope * getNdbDictTableEnvelope(void);
-Envelope * getNdbScanOperationEnvelope(void);
+Envelope *getNdbInterpretedCodeEnvelope(void);
+Envelope *getConstNdbInterpretedCodeEnvelope(void);
+Envelope *getNdbDictTableEnvelope(void);
+Envelope *getNdbScanOperationEnvelope(void);

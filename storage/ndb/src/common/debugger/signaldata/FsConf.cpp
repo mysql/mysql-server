@@ -23,22 +23,18 @@
 
 #include <signaldata/FsConf.hpp>
 
-bool printFSCONF(FILE *output,
-                 const Uint32 *theData,
-                 Uint32 len,
-                 Uint16 /*receiverBlockNo*/)
-{
+bool printFSCONF(FILE *output, const Uint32 *theData, Uint32 len,
+                 Uint16 /*receiverBlockNo*/) {
   const FsConf *const sig = (const FsConf *)theData;
 
   fprintf(output, " UserPointer: %d\n", sig->userPointer);
 
-  if (len > 1){
+  if (len > 1) {
     // Only valid if this is a FSOPENCONF
     fprintf(output, " FilePointer/Bytes_read: %d\n", sig->filePointer);
   }
 
-  if (len > 2)
-  {
+  if (len > 2) {
     fprintf(output, " FileInfo: %08x\n", sig->fileInfo);
   }
 

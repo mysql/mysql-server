@@ -28,15 +28,13 @@
 #include <string>
 
 /* Return a string containing 'n' copies of the string 's'. */
-static std::string operator * (unsigned n, const std::string& s)
-{
+static std::string operator*(unsigned n, const std::string &s) {
   std::string result;
   result.reserve(n * s.length());
-  for (unsigned i = 0; i < n; i++)
-  {
+  for (unsigned i = 0; i < n; i++) {
     result.append(s);
   }
   return result;
 }
 
-#endif // #ifndef UTIL_HPP
+#endif  // #ifndef UTIL_HPP

@@ -30,48 +30,47 @@
 #include "Driver.hpp"
 
 class TwsDriver : public Driver {
-protected:
+ protected:
+  // benchmark settings
+  enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
+  static const char *toStr(LockMode mode);
+  enum XMode { SINGLE, BULK, BATCH };
+  static const char *toStr(XMode mode);
+  bool renewConnection;
+  bool doInsert;
+  bool doLookup;
+  bool doUpdate;
+  bool doDelete;
+  bool doSingle;
+  bool doBulk;
+  bool doBatch;
+  bool doVerify;
+  LockMode lockMode;
+  int nRows;
+  int nRuns;
 
-    // benchmark settings
-    enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
-    static const char* toStr(LockMode mode);
-    enum XMode { SINGLE, BULK, BATCH };
-    static const char* toStr(XMode mode);
-    bool renewConnection;
-    bool doInsert;
-    bool doLookup;
-    bool doUpdate;
-    bool doDelete;
-    bool doSingle;
-    bool doBulk;
-    bool doBatch;
-    bool doVerify;
-    LockMode lockMode;
-    int nRows;
-    int nRuns;
+  // benchmark initializers/finalizers
+  virtual void init();
+  virtual void close();
+  virtual void initProperties();
+  virtual void printProperties();
 
-    // benchmark initializers/finalizers
-    virtual void init();
-    virtual void close();
-    virtual void initProperties();
-    virtual void printProperties();
+  // benchmark operations
+  virtual void runTests();
+  virtual void runLoads();
+  virtual void runSeries();
+  virtual void runOperations();
+  virtual void runLoadOperations() = 0;
+  void verify(int exp, int act);
+  void verify(long exp, long act);
+  void verify(long long exp, long long act);
+  void verify(const char *exp, const char *act);
 
-    // benchmark operations
-    virtual void runTests();
-    virtual void runLoads();
-    virtual void runSeries();
-    virtual void runOperations();
-    virtual void runLoadOperations() = 0;
-    void verify(int exp, int act);
-    void verify(long exp, long act);
-    void verify(long long exp, long long act);
-    void verify(const char* exp, const char* act);
-
-    // datastore operations
-    virtual void initConnection() = 0;
-    virtual void closeConnection() = 0;
-    //virtual void clearPersistenceContext() = 0; // not used
-    //virtual void clearData() = 0; // not used
+  // datastore operations
+  virtual void initConnection() = 0;
+  virtual void closeConnection() = 0;
+  // virtual void clearPersistenceContext() = 0; // not used
+  // virtual void clearData() = 0; // not used
 };
 
-#endif // TwsDriver_hpp
+#endif  // TwsDriver_hpp

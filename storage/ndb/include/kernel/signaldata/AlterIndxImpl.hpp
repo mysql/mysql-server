@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 209
 
-
 struct AlterIndxImplReq {
   enum RequestType {
     AlterIndexOnline = 1,
@@ -78,7 +77,6 @@ struct AlterIndxImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /* Enable NDB code to use OpenSSL 3 APIs unconditionally
    with any OpenSSL version starting from 1.0.2
 */
@@ -39,15 +38,15 @@
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
 
-EVP_PKEY * EVP_RSA_gen(unsigned int bits);
+EVP_PKEY *EVP_RSA_gen(unsigned int bits);
 int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
-EVP_PKEY * EVP_EC_generate(const char * curve);
+EVP_PKEY *EVP_EC_generate(const char *curve);
 
 #else
 
-#define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr,nullptr,"EC",curve)
+#define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", curve)
 
-#endif  /* OPENSSL_VERSION_NUMBER */
+#endif /* OPENSSL_VERSION_NUMBER */
 
 /* These stub functions allow NDB TLS code to compile with OpenSSL 1.0.x */
 #if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
@@ -72,13 +71,13 @@ EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *);
 inline void X509_get0_signature(const ASN1_BIT_STRING **, const X509_ALGOR **,
                                 const X509 *) {}
 int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *);
-X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *,
-                                    X509V3_CTX *, int, const char *);
+X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *, X509V3_CTX *, int,
+                                    const char *);
 int EVP_PKEY_up_ref(EVP_PKEY *);
 int X509_up_ref(X509 *);
 
-inline SSL_METHOD * TLS_method() { return nullptr; }
+inline SSL_METHOD *TLS_method() { return nullptr; }
 
 #endif
 
-#endif  /* NDB_PORTLIB_OPENSSL_COMPAT_H */
+#endif /* NDB_PORTLIB_OPENSSL_COMPAT_H */

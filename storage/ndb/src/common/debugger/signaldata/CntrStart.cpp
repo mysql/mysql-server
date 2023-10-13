@@ -24,15 +24,11 @@
 
 #include <signaldata/CntrStart.hpp>
 
-bool printCNTR_START_REQ(FILE *output,
-                         const Uint32 *theData,
-                         Uint32 len,
+bool printCNTR_START_REQ(FILE *output, const Uint32 *theData, Uint32 len,
                          Uint16 /*receiverBlockNo*/
-)
-{
+) {
   // Using old signal length, since lastLcpId is not written out
-  if (len < CntrStartReq::OldSignalLength)
-  {
+  if (len < CntrStartReq::OldSignalLength) {
     assert(false);
     return false;
   }
@@ -44,13 +40,9 @@ bool printCNTR_START_REQ(FILE *output,
   return true;
 }
 
-bool printCNTR_START_REF(FILE *output,
-                         const Uint32 *theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  if (len < CntrStartRef::SignalLength)
-  {
+bool printCNTR_START_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  if (len < CntrStartRef::SignalLength) {
     assert(false);
     return false;
   }
@@ -61,27 +53,23 @@ bool printCNTR_START_REF(FILE *output,
   return true;
 }
 
-bool printCNTR_START_CONF(FILE *output,
-                          const Uint32 *theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
+bool printCNTR_START_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
   const CntrStartConf *const sig = (const CntrStartConf *)theData;
   fprintf(output, " startType: %x\n", sig->startType);
   fprintf(output, " startGci: %x\n", sig->startGci);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
   fprintf(output, " noStartNodes: %x\n", sig->noStartNodes);
 
-  if (len == sig->SignalLength_v1)
-  {
+  if (len == sig->SignalLength_v1) {
     char buf[NdbNodeBitmask::TextLength + 1];
     fprintf(output, " startedNodes: %s\n",
-      BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startedNodes_v1, buf));
+            BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startedNodes_v1,
+                                 buf));
     fprintf(output, " startingNodes: %s\n",
-      BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startingNodes_v1, buf));
-  }
-  else
-  {
+            BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startingNodes_v1,
+                                 buf));
+  } else {
     fprintf(output, " startedNodes and startingNodes in signal section");
   }
   return true;

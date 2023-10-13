@@ -35,8 +35,7 @@
 
 // Slot must have standard layout
 
-class Slot
-{
+class Slot {
  public:
   static constexpr Uint32 TYPE_ID = RT_FREE;
   Slot();
@@ -46,33 +45,27 @@ class Slot
 };
 
 template <typename SlotPool>
-class LocalSlotPool
-{
+class LocalSlotPool {
  public:
   typedef Slot Type;
 
-  LocalSlotPool(SlotPool* pool, Uint32 slot_size);
-  void getPtr(Ptr<Slot>& ptr) const;
+  LocalSlotPool(SlotPool *pool, Uint32 slot_size);
+  void getPtr(Ptr<Slot> &ptr) const;
 
  private:
-  SlotPool* const m_pool;
+  SlotPool *const m_pool;
   const Uint32 m_slot_size;
 };
 
 inline Slot::Slot()
-    : m_magic(Magic::make(TYPE_ID)), nextList(RNIL), prevList(RNIL)
-{
-}
+    : m_magic(Magic::make(TYPE_ID)), nextList(RNIL), prevList(RNIL) {}
 
 template <typename P>
-inline LocalSlotPool<P>::LocalSlotPool(P* pool, Uint32 slot_size)
-    : m_pool(pool), m_slot_size(slot_size)
-{
-}
+inline LocalSlotPool<P>::LocalSlotPool(P *pool, Uint32 slot_size)
+    : m_pool(pool), m_slot_size(slot_size) {}
 
 template <typename P>
-inline void LocalSlotPool<P>::getPtr(Ptr<Slot>& ptr) const
-{
+inline void LocalSlotPool<P>::getPtr(Ptr<Slot> &ptr) const {
   m_pool->getPtr(ptr, m_slot_size);
 }
 

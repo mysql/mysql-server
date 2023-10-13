@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,21 +24,21 @@
 
 #include "AsyncNdbContext.h"
 
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
-#include "Record.h"
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
+#include "Record.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 V8WrapperFn createAsyncNdbContext;
 V8WrapperFn shutdown;
 V8WrapperFn destroy;
 
 /* Envelope
-*/
+ */
 
 class AsyncNdbContextEnvelopeClass : public Envelope {
-public:
+ public:
   AsyncNdbContextEnvelopeClass() : Envelope("AsyncNdbContext") {
     EscapableHandleScope scope(Isolate::GetCurrent());
     addMethod("AsyncNdbContext", createAsyncNdbContext);
@@ -49,8 +49,8 @@ public:
 
 AsyncNdbContextEnvelopeClass AsyncNdbContextEnvelope;
 
-/* Constructor 
-*/
+/* Constructor
+ */
 void createAsyncNdbContext(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
 
@@ -58,36 +58,34 @@ void createAsyncNdbContext(const Arguments &args) {
   REQUIRE_ARGS_LENGTH(1);
 
   JsValueConverter<Ndb_cluster_connection *> arg0(args[0]);
-  AsyncNdbContext * ctx = new AsyncNdbContext(arg0.toC());
+  AsyncNdbContext *ctx = new AsyncNdbContext(arg0.toC());
   Local<Value> wrapper = AsyncNdbContextEnvelope.wrap(ctx);
   args.GetReturnValue().Set(wrapper);
 }
 
-
-/* shutdown() 
+/* shutdown()
    IMMEDIATE
 */
 void shutdown(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);  
+  DEBUG_MARKER(UDEB_DEBUG);
   REQUIRE_ARGS_LENGTH(0);
-  
+
   typedef NativeVoidMethodCall_0_<AsyncNdbContext> NCALL;
-  NCALL ncall(& AsyncNdbContext::shutdown, args);
+  NCALL ncall(&AsyncNdbContext::shutdown, args);
   ncall.run();
   args.GetReturnValue().SetUndefined();
 }
 
-/* Call destructor 
-*/
+/* Call destructor
+ */
 void destroy(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);  
+  DEBUG_MARKER(UDEB_DEBUG);
   REQUIRE_ARGS_LENGTH(0);
 
   AsyncNdbContext *c = unwrapPointer<AsyncNdbContext *>(args.Holder());
   delete c;
   args.GetReturnValue().SetUndefined();
 }
-
 
 void AsyncNdbContext_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "AsyncNdbContext", createAsyncNdbContext);

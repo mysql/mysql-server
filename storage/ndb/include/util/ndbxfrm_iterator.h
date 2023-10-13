@@ -23,103 +23,122 @@
 #ifndef UTIL_NDBXFRM_ITERATOR
 #define UTIL_NDBXFRM_ITERATOR
 
+#include <assert.h>  // assert()
+#include <stdlib.h>  // abort()
+#include <string.h>  // memcpy()
 #include "util/require.h"
-#include <assert.h> // assert()
-#include <stdlib.h> // abort()
-#include <string.h> // memcpy()
 
-#include "ndb_global.h" // require()
+#include "ndb_global.h"  // require()
 
-enum ndbxfrm_progress : int
-{
-  need_more_input = 1,
-  have_more_output = 2
-};
+enum ndbxfrm_progress : int { need_more_input = 1, have_more_output = 2 };
 
-class ndbxfrm_input_iterator
-{
-public:
+class ndbxfrm_input_iterator {
+ public:
   using byte = unsigned char;
-  ndbxfrm_input_iterator(const byte* begin, const byte* end, bool last)
-    : m_begin{begin}, m_end{end}, m_last{last} {}
-  const byte* cbegin() const { return m_begin; }
-  const byte* cend() const { return m_end; }
+  ndbxfrm_input_iterator(const byte *begin, const byte *end, bool last)
+      : m_begin{begin}, m_end{end}, m_last{last} {}
+  const byte *cbegin() const { return m_begin; }
+  const byte *cend() const { return m_end; }
   size_t size() const { return m_end - m_begin; }
   bool empty() const { return (m_end == m_begin); }
   bool last() const { return m_last; }
   void set_last() { m_last = true; }
-  void advance(size_t n) { require(n <= size()); m_begin += n; }
-  void reduce(size_t n) { require(n <= size()); m_end -= n; }
-private:
-  const byte* m_begin;
-  const byte* m_end;
+  void advance(size_t n) {
+    require(n <= size());
+    m_begin += n;
+  }
+  void reduce(size_t n) {
+    require(n <= size());
+    m_end -= n;
+  }
+
+ private:
+  const byte *m_begin;
+  const byte *m_end;
   bool m_last;
 };
 
-class ndbxfrm_input_reverse_iterator
-{
-public:
+class ndbxfrm_input_reverse_iterator {
+ public:
   using byte = unsigned char;
-  ndbxfrm_input_reverse_iterator(const byte* begin, const byte* end, bool last)
-    : m_begin{begin}, m_end{end}, m_last{last} {}
-  const byte* cbegin() const { return m_begin; }
-  const byte* cend() const { return m_end; }
+  ndbxfrm_input_reverse_iterator(const byte *begin, const byte *end, bool last)
+      : m_begin{begin}, m_end{end}, m_last{last} {}
+  const byte *cbegin() const { return m_begin; }
+  const byte *cend() const { return m_end; }
   size_t size() const { return m_begin - m_end; }
   bool empty() const { return (m_end == m_begin); }
   bool last() const { return m_last; }
   void set_last() { m_last = true; }
-  void advance(size_t n) { require(n <= size()); m_begin -= n; }
-  void reduce(size_t n) { require(n <= size()); m_end += n; }
-private:
-  const byte* m_begin;
-  const byte* m_end;
+  void advance(size_t n) {
+    require(n <= size());
+    m_begin -= n;
+  }
+  void reduce(size_t n) {
+    require(n <= size());
+    m_end += n;
+  }
+
+ private:
+  const byte *m_begin;
+  const byte *m_end;
   bool m_last;
 };
 
-class ndbxfrm_output_iterator
-{
-public:
+class ndbxfrm_output_iterator {
+ public:
   using byte = unsigned char;
-  ndbxfrm_output_iterator(byte* begin, byte* end, bool last)
-    : m_begin{begin}, m_end{end}, m_last{last} {}
-  byte* begin() const { return m_begin; }
-  byte* end() const { return m_end; }
+  ndbxfrm_output_iterator(byte *begin, byte *end, bool last)
+      : m_begin{begin}, m_end{end}, m_last{last} {}
+  byte *begin() const { return m_begin; }
+  byte *end() const { return m_end; }
   size_t size() const { return m_end - m_begin; }
   bool empty() const { return (m_end == m_begin); }
   bool last() const { return m_last; }
   void set_last() { m_last = true; }
-  void advance(size_t n) { require(n <= size()); m_begin += n; }
-  void reduce(size_t n) { require(n <= size()); m_end -= n; }
-  int copy_from(ndbxfrm_input_iterator* in);
-private:
-  byte* m_begin;
-  byte* m_end;
+  void advance(size_t n) {
+    require(n <= size());
+    m_begin += n;
+  }
+  void reduce(size_t n) {
+    require(n <= size());
+    m_end -= n;
+  }
+  int copy_from(ndbxfrm_input_iterator *in);
+
+ private:
+  byte *m_begin;
+  byte *m_end;
   bool m_last;
 };
 
-class ndbxfrm_output_reverse_iterator
-{
-public:
+class ndbxfrm_output_reverse_iterator {
+ public:
   using byte = unsigned char;
-  ndbxfrm_output_reverse_iterator(byte* begin, byte* end, bool last)
-    : m_begin{begin}, m_end{end}, m_last{last} {}
-  byte* begin() const { return m_begin; }
-  byte* end() const { return m_end; }
+  ndbxfrm_output_reverse_iterator(byte *begin, byte *end, bool last)
+      : m_begin{begin}, m_end{end}, m_last{last} {}
+  byte *begin() const { return m_begin; }
+  byte *end() const { return m_end; }
   size_t size() const { return m_begin - m_end; }
   bool empty() const { return (m_end == m_begin); }
   bool last() const { return m_last; }
   void set_last() { m_last = true; }
-  void advance(size_t n) { require(n <= size()); m_begin -= n; }
-  void reduce(size_t n) { require(n <= size()); m_end += n; }
-  int copy_from(ndbxfrm_input_reverse_iterator* in);
-private:
-  byte* m_begin;
-  byte* m_end;
+  void advance(size_t n) {
+    require(n <= size());
+    m_begin -= n;
+  }
+  void reduce(size_t n) {
+    require(n <= size());
+    m_end += n;
+  }
+  int copy_from(ndbxfrm_input_reverse_iterator *in);
+
+ private:
+  byte *m_begin;
+  byte *m_end;
   bool m_last;
 };
 
-inline int ndbxfrm_output_iterator::copy_from(ndbxfrm_input_iterator* in)
-{
+inline int ndbxfrm_output_iterator::copy_from(ndbxfrm_input_iterator *in) {
   size_t copy_len = std::min(in->size(), size());
   memcpy(begin(), in->cbegin(), copy_len);
   advance(copy_len);
@@ -128,8 +147,8 @@ inline int ndbxfrm_output_iterator::copy_from(ndbxfrm_input_iterator* in)
   return have_more_output;
 }
 
-inline int ndbxfrm_output_reverse_iterator::copy_from(ndbxfrm_input_reverse_iterator* in)
-{
+inline int ndbxfrm_output_reverse_iterator::copy_from(
+    ndbxfrm_input_reverse_iterator *in) {
   size_t copy_len = std::min(in->size(), size());
   memcpy(begin() - copy_len, in->cbegin() - copy_len, copy_len);
   advance(copy_len);

@@ -28,39 +28,43 @@
 #include <array>
 
 #include "util/BaseString.hpp"
-#include "util/cstrbuf.h"
 #include "util/Vector.hpp"
+#include "util/cstrbuf.h"
 
 struct PkiFile {
   using FileName = cstrbuf<32>;
   using PathName = cstrbuf<PATH_MAX>;
 
-  enum class Type { PendingKey, ActiveKey, RetiredKey, CertReq,
-                    PendingCert, ActiveCert, RetiredCert };
+  enum class Type {
+    PendingKey,
+    ActiveKey,
+    RetiredKey,
+    CertReq,
+    PendingCert,
+    ActiveCert,
+    RetiredCert
+  };
 
   static bool remove(const PathName &);
-  static int assign(PathName & path, const char * dir, const char * file);
+  static int assign(PathName &path, const char *dir, const char *file);
 };
 
 namespace Node {
-  enum class Type {
-    MGMD = 0x01, DB = 0x02, Client = 0x04, ANY = 0x07
-  };
-  inline bool And(Type a, int b)  { return ((int) a) & b; }
-  inline bool And(Type a, Type b) { return ((int) a) & ((int) b); }
-  inline Type Mask(int f) { return static_cast<Type>(f & (int) Type::ANY); }
-}
+enum class Type { MGMD = 0x01, DB = 0x02, Client = 0x04, ANY = 0x07 };
+inline bool And(Type a, int b) { return ((int)a) & b; }
+inline bool And(Type a, Type b) { return ((int)a) & ((int)b); }
+inline Type Mask(int f) { return static_cast<Type>(f & (int)Type::ANY); }
+}  // namespace Node
 
 class TlsSearchPath {
-public:
-
+ public:
 #ifdef _WIN32
-  static constexpr const char * Separator = ";";
+  static constexpr const char *Separator = ";";
 #else
-  static constexpr const char * Separator = ":";
+  static constexpr const char *Separator = ":";
 #endif
 
-  TlsSearchPath(const char * path_string);
+  TlsSearchPath(const char *path_string);
   TlsSearchPath() = default;
   ~TlsSearchPath() = default;
 
@@ -68,57 +72,56 @@ public:
   unsigned int size() const { return m_path.size(); }
 
   /* Return a single directory */
-  const char * dir(unsigned int i) const;
+  const char *dir(unsigned int i) const;
 
   /* Push current working directory to search path if not already present */
   void push_cwd();
 
   /* Return the delimited search path including resolved environment variables.
      The caller should free() the returned string. */
-  char * expanded_path_string() const;
+  char *expanded_path_string() const;
 
   /* Return the first writable directory in the search path */
-  const char * first_writable() const;
+  const char *first_writable() const;
 
   /* Returns true if directory component i is writable */
   bool writable(unsigned int i) const;
 
   /* Find file name in search path and write whole path into buffer */
-  bool find(const char * name, PkiFile::PathName & buffer) const;
+  bool find(const char *name, PkiFile::PathName &buffer) const;
 
   /* Find file name in search path.
      Returns the index of the directory where file exists, or -1 if not found.
   */
-  int find(const char * name) const;
+  int find(const char *name) const;
 
-private:
+ private:
   Vector<BaseString> m_path;
 };
 
-
 class PrivateKey {
-public:
-  static struct evp_pkey_st * create(const char * curve);
-  static struct evp_pkey_st * open(const char * path, char * pass);
-  static struct evp_pkey_st * open(const PkiFile::PathName &p,
-                                   char * pass = nullptr) {
+ public:
+  static struct evp_pkey_st *create(const char *curve);
+  static struct evp_pkey_st *open(const char *path, char *pass);
+  static struct evp_pkey_st *open(const PkiFile::PathName &p,
+                                  char *pass = nullptr) {
     return open(p.c_str(), pass);
   }
-  static bool store(struct evp_pkey_st *, const PkiFile::PathName & path,
-                    char * pass, bool encrypted);
-  static bool store(struct evp_pkey_st *, const char * dir,
-                    const char * filename, char * pass);
-  static void free(struct evp_pkey_st * key);
+  static bool store(struct evp_pkey_st *, const PkiFile::PathName &path,
+                    char *pass, bool encrypted);
+  static bool store(struct evp_pkey_st *, const char *dir, const char *filename,
+                    char *pass);
+  static void free(struct evp_pkey_st *key);
 };
 
 class PendingPrivateKey {
-public:
+ public:
   // find() on Pending and Active object classes returns a small integer
   // preference score if found, or 0 if not found. Higher scores indicate
   // more specific file names.
   static short find(const TlsSearchPath *, int node_id, Node::Type,
-                    PkiFile::PathName & path_buffer);
-  static bool store(struct evp_pkey_st *, const char * dir,
+                    PkiFile::PathName &path_buffer);
+  static bool store(struct evp_pkey_st *, const char *dir,
                     const class CertSubject &);
   /* Retires active file; promotes pending file to active.
      Returns true on success. User should check errno on failure. */
@@ -126,32 +129,32 @@ public:
 };
 
 class ActivePrivateKey {
-public:
+ public:
   static short find(const TlsSearchPath *, int node_id, Node::Type,
-                    PkiFile::PathName & path_buffer);
+                    PkiFile::PathName &path_buffer);
 };
 
 class PendingCertificate {
-public:
+ public:
   static short find(const TlsSearchPath *, int node_id, Node::Type,
-                    PkiFile::PathName & path_buffer);
-  static bool store(const class NodeCertificate *, const char * dir);
-  static bool remove(const class NodeCertificate *, const char * dir);
+                    PkiFile::PathName &path_buffer);
+  static bool store(const class NodeCertificate *, const char *dir);
+  static bool remove(const class NodeCertificate *, const char *dir);
   /* Retires active file; promotes pending file to active.
      Returns true on success. User should check errno on failure. */
   static bool promote(const PkiFile::PathName &);
 };
 
 class ActiveCertificate {
-public:
+ public:
   static short find(const TlsSearchPath *, int node_id, Node::Type,
-                    PkiFile::PathName & path_buffer);
+                    PkiFile::PathName &path_buffer);
 };
 
 class Certificate {
-public:
+ public:
   /* Create an X509 certificate for a key */
-  static struct x509_st * create(struct evp_pkey_st * key);
+  static struct x509_st *create(struct evp_pkey_st *key);
 
   /* Set "not after" date to exp_days days from now */
   static void set_expire_time(struct x509_st *, int exp_days);
@@ -160,41 +163,40 @@ public:
   static int set_common_name(struct x509_st *, const char *);
 
   /* Get the CN from the X509 subject name */
-  static size_t get_common_name(struct x509_st *, char * buf, size_t len);
+  static size_t get_common_name(struct x509_st *, char *buf, size_t len);
 
   /* Returns the first three bytes of the signature, as for cluster ID */
   static int get_signature_prefix(struct x509_st *);
 
   /* Store in filesystem */
   static bool write(struct stack_st_X509 *, FILE *);
-  static bool store(struct stack_st_X509 *, const char * dir, const char * fil);
-  static bool store(struct stack_st_X509 *, const PkiFile::PathName & path);
-  static bool store(struct x509_st *, const char * dir, const char * file);
-  static bool remove(const char * dir, const char * file);
+  static bool store(struct stack_st_X509 *, const char *dir, const char *fil);
+  static bool store(struct stack_st_X509 *, const PkiFile::PathName &path);
+  static bool store(struct x509_st *, const char *dir, const char *file);
+  static bool remove(const char *dir, const char *file);
 
   /* Read from file */
   static bool read(struct stack_st_X509 *, FILE *);
-  static struct stack_st_X509 * open(const char * path);
-  static struct stack_st_X509 * open(const PkiFile::PathName &);
-  static struct x509_st * open_one(const char * path);  // first cert in file
-  static struct x509_st * open_one(const PkiFile::PathName &);
+  static struct stack_st_X509 *open(const char *path);
+  static struct stack_st_X509 *open(const PkiFile::PathName &);
+  static struct x509_st *open_one(const char *path);  // first cert in file
+  static struct x509_st *open_one(const PkiFile::PathName &);
 
   /* Free */
   static void free(struct x509_st *);
   static void free(struct stack_st_X509 *);
 };
 
-inline struct stack_st_X509 * Certificate::open(const PkiFile::PathName &p) {
+inline struct stack_st_X509 *Certificate::open(const PkiFile::PathName &p) {
   return Certificate::open(p.c_str());
 }
 
-inline struct x509_st * Certificate::open_one(const PkiFile::PathName &p) {
+inline struct x509_st *Certificate::open_one(const PkiFile::PathName &p) {
   return Certificate::open_one(p.c_str());
 }
 
-
 class CertSubject {
-public:
+ public:
   CertSubject(Node::Type, int node_id);
   CertSubject() = default;
   CertSubject(const CertSubject &);
@@ -205,20 +207,19 @@ public:
 
   /* Public Instance Methods */
   bool bind_hostname(const char *);
-  struct X509_extension_st * build_extension();
+  struct X509_extension_st *build_extension();
 
   /* Const Public Instance Methods */
-  Node::Type node_type() const               { return m_type; }
-  int filename(PkiFile::Type, PkiFile::FileName & buffer) const;
-  int pathname(PkiFile::Type, const char * dir,
-                PkiFile::PathName & buffer) const;
+  Node::Type node_type() const { return m_type; }
+  int filename(PkiFile::Type, PkiFile::FileName &buffer) const;
+  int pathname(PkiFile::Type, const char *dir, PkiFile::PathName &buffer) const;
 
   bool bound_localhost() const;  // True if the bound hostname is "localhost"
-  int bound_hostnames() const;           // Returns number of bound hostnames
-  BaseString bound_hostname(int n) const;       // Returns nth bound hostname
+  int bound_hostnames() const;   // Returns number of bound hostnames
+  BaseString bound_hostname(int n) const;  // Returns nth bound hostname
 
-protected:
-  int bound_hostname(int n, char *, int len) const; // Returns length written
+ protected:
+  int bound_hostname(int n, char *, int len) const;  // Returns length written
   size_t timestamp(time_t, char *m, size_t) const;
   size_t timestamp(char *, size_t) const;
   size_t print_name(char *, size_t) const;
@@ -227,12 +228,11 @@ protected:
 
   /* Member variables */
   /* The derived classes must initialize and free m_bound_hostnames */
-  struct stack_st_GENERAL_NAME * m_bound_hostnames {nullptr};
-  Node::Type m_type {Node::Type::ANY};
-  int m_cluster_id {0};
-  bool m_names_owner {true};
+  struct stack_st_GENERAL_NAME *m_bound_hostnames{nullptr};
+  Node::Type m_type{Node::Type::ANY};
+  int m_cluster_id{0};
+  bool m_names_owner{true};
 };
-
 
 /*  Manage a Certificate's or request's notValidBefore and notValidAfter times.
 
@@ -240,13 +240,13 @@ protected:
     lifetime so that the expiration dates of related certificates are staggered.
 */
 class CertLifetime {
-public:
+ public:
   static constexpr const int DefaultDays = 90;
   static constexpr long SecondsPerHour = 60 * 60;
   static constexpr long SecondsPerDay = 24 * SecondsPerHour;
 
-  CertLifetime()                             { set_lifetime(DefaultDays, 0); }
-  CertLifetime(struct x509_st * cert)                  { set_lifetime(cert); }
+  CertLifetime() { set_lifetime(DefaultDays, 0); }
+  CertLifetime(struct x509_st *cert) { set_lifetime(cert); }
   CertLifetime(const CertLifetime &) = default;
 
   /* set_lifetime()
@@ -266,7 +266,7 @@ public:
   void set_cert_lifetime(struct x509_st *) const;
 
   /* Returns the expiration time, and sets tp (if non-null) to point to it */
-  time_t expire_time(struct tm ** tp) const;
+  time_t expire_time(struct tm **tp) const;
 
   /* Returns total lifetime in seconds */
   time_t duration() const { return m_duration; }
@@ -280,96 +280,102 @@ public:
      pct represents a percentage of the certificate's total lifetime. */
   time_t replace_time(float pct) const;
 
-protected:
-  CertLifetime(int n) : m_duration(n)                                      { }
+ protected:
+  CertLifetime(int n) : m_duration(n) {}
 
   mutable struct tm m_notBefore;  // mutable because of timegm()
   mutable struct tm m_notAfter;
-  time_t m_duration {0};
+  time_t m_duration{0};
 };
 
-
 class SigningRequest : public CertSubject, public CertLifetime {
-public:
+ public:
   /* Named constructors */
-  static SigningRequest * create(struct evp_pkey_st *, Node::Type);
-  static SigningRequest * open(const char * full_path_name);
-  static SigningRequest * open(const PkiFile::PathName &);
-  static SigningRequest * read(FILE *);
+  static SigningRequest *create(struct evp_pkey_st *, Node::Type);
+  static SigningRequest *open(const char *full_path_name);
+  static SigningRequest *open(const PkiFile::PathName &);
+  static SigningRequest *read(FILE *);
 
   /* Destructor */
   ~SigningRequest();
 
   /* Class Methods */
   static bool find(const TlsSearchPath *, int node_id, Node::Type t,
-                   PkiFile::PathName & path_buffer);
+                   PkiFile::PathName &path_buffer);
 
   /* finalise(): Set all fields and sign the CSR. Returns 0 on success. */
   int finalise(struct evp_pkey_st *);
 
   /* Const Public Instance Methods */
-  struct x509_st * create_unsigned_certificate() const;
-  struct X509_req_st * req() const { return m_req; }
-  struct evp_pkey_st * key() const { return m_key; }
-  bool store(const char * dir) const;
+  struct x509_st *create_unsigned_certificate() const;
+  struct X509_req_st *req() const {
+    return m_req;
+  }
+  struct evp_pkey_st *key() const {
+    return m_key;
+  }
+  bool store(const char *dir) const;
   bool write(FILE *) const;
   bool verify() const;
 
-private:
+ private:
   SigningRequest(struct X509_req_st *);
   SigningRequest(struct X509_req_st *, Node::Type, int);
   bool parse_name();
 
   /* Member variables */
-  struct X509_req_st * m_req;
-  struct evp_pkey_st * m_key {nullptr};
+  struct X509_req_st *m_req;
+  struct evp_pkey_st *m_key{nullptr};
 };
 
-inline SigningRequest * SigningRequest::open(const PkiFile::PathName &p) {
+inline SigningRequest *SigningRequest::open(const PkiFile::PathName &p) {
   return open(p.c_str());
 }
 
-
 class SerialNumber {
-public:
+ public:
   static constexpr const size_t MaxLength = 20;
   // Create a random serial number; caller should free using ASN1_STRING_free()
-  static struct asn1_string_st * random(size_t length = 10);
-  static int print(char * buf, int len, const struct asn1_string_st *);
+  static struct asn1_string_st *random(size_t length = 10);
+  static int print(char *buf, int len, const struct asn1_string_st *);
   static void free(struct asn1_string_st *);
 };
 
-
 class ClusterCertAuthority {
-public:
-  static struct x509_st * create(struct evp_pkey_st * key,
-                                 const char * ordinal = "First",
-                                 bool self_sign = true);
-  static int sign(struct x509_st * ca, struct evp_pkey_st *, struct x509_st *);
-  static constexpr const char * Subject = "MySQL NDB Cluster %s Certificate";
-  static constexpr const char * CertFile = "NDB-Cluster-cert";
-  static constexpr const char * KeyFile  = "NDB-Cluster-private-key";
+ public:
+  static struct x509_st *create(struct evp_pkey_st *key,
+                                const char *ordinal = "First",
+                                bool self_sign = true);
+  static int sign(struct x509_st *ca, struct evp_pkey_st *, struct x509_st *);
+  static constexpr const char *Subject = "MySQL NDB Cluster %s Certificate";
+  static constexpr const char *CertFile = "NDB-Cluster-cert";
+  static constexpr const char *KeyFile = "NDB-Cluster-private-key";
 };
 
-
 class NodeCertificate : public CertSubject, public CertLifetime {
-public:
+ public:
   /* Public Constructors */
   NodeCertificate(Node::Type type, int node_id);
-  NodeCertificate(const SigningRequest &, struct evp_pkey_st * key);
+  NodeCertificate(const SigningRequest &, struct evp_pkey_st *key);
 
   /* Named constructors (const) */
-  static const NodeCertificate * from_credentials(struct stack_st_X509 *,
-                                                  struct evp_pkey_st *);
-  static const NodeCertificate * for_peer(struct x509_st *);
+  static const NodeCertificate *from_credentials(struct stack_st_X509 *,
+                                                 struct evp_pkey_st *);
+  static const NodeCertificate *for_peer(struct x509_st *);
 
   /* Destructor */
   ~NodeCertificate();
 
   /* Const Public Instance Methods */
-  struct evp_pkey_st * key() const { return m_key; }
-  struct x509_st * cert() const { return m_x509; }
-  struct stack_st_X509 * all_certs() const { return m_all_certs; }
+  struct evp_pkey_st *key() const {
+    return m_key;
+  }
+  struct x509_st *cert() const {
+    return m_x509;
+  }
+  struct stack_st_X509 *all_certs() const {
+    return m_all_certs;
+  }
 
   BaseString serial_number() const;
 
@@ -378,16 +384,16 @@ public:
   bool is_final() const { return m_final; }
 
   /* Public Instance Methods */
-  bool create_keys(const char * curve);
+  bool create_keys(const char *curve);
   // For set_own_keys(), NodeCertificate does not increment the reference count.
   // It becomes the owner of the pointers, and the caller must not free them.
   bool set_own_keys(struct evp_pkey_st *, struct x509_st *);
   // For set_key() and set_cert(), the NodeCertificate claims a reference,
   // so the caller should use Certificate::free() and PrivateKey::free() to
   // free the supplied pointers.
-  bool set_key(struct evp_pkey_st * key);
-  bool set_cert(struct x509_st * cert);
-  bool set_signed_cert(struct x509_st * cert); // Replace X509 with signed one
+  bool set_key(struct evp_pkey_st *key);
+  bool set_cert(struct x509_st *cert);
+  bool set_signed_cert(struct x509_st *cert);  // Replace X509 with signed one
   bool parse_name(const char *);
 
   /* push_extra_ca_cert()
@@ -398,7 +404,7 @@ public:
    *
    * Returns true on success.
    */
-  bool push_extra_ca_cert(struct x509_st * old_ca);
+  bool push_extra_ca_cert(struct x509_st *old_ca);
 
   /* finalise() sets the serial number, issuer name, lifetime, and extensions
      in the X.509 Node Certificate. If CA_key is non-null, it also signs the
@@ -408,19 +414,19 @@ public:
 
      Returns 0 on success.
   */
-  int finalise(struct x509_st * CA_cert, struct evp_pkey_st * CA_key);
+  int finalise(struct x509_st *CA_cert, struct evp_pkey_st *CA_key);
 
   /* Self-sign the node certificate
-  */
+   */
   int self_sign();
 
   /* Verify the signature; writes diagnostic output on stderr */
-  bool verify_signature(struct evp_pkey_st * CA_key) const;
+  bool verify_signature(struct evp_pkey_st *CA_key) const;
 
   /* Verify trust from CA to cert; writes diagnostic output on failure */
   bool verify_chain() const;
 
-protected:
+ protected:
   friend class TlsKeyManager;
   NodeCertificate() : CertSubject(), CertLifetime(0) {}
   void init_from_x509(struct x509_st *);
@@ -429,17 +435,16 @@ protected:
   void init_from_credentials(struct stack_st_X509 *, struct evp_pkey_st *,
                              bool up_ref_count = false);
 
-private:
-  struct evp_pkey_st * m_key {nullptr};
-  struct x509_st * m_x509 {nullptr};
-  struct stack_st_X509 * m_all_certs {nullptr};
+ private:
+  struct evp_pkey_st *m_key{nullptr};
+  struct x509_st *m_x509{nullptr};
+  struct stack_st_X509 *m_all_certs{nullptr};
 
-  bool m_x509_names_set {false};
-  bool m_name_conforming {false};
-  bool m_final {false};
-  bool m_signed {false};
-  bool m_self_signed {false};
+  bool m_x509_names_set{false};
+  bool m_name_conforming{false};
+  bool m_final{false};
+  bool m_signed{false};
+  bool m_self_signed{false};
 };
 
 #endif
-

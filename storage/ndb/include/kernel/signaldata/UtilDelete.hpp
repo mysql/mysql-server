@@ -25,11 +25,10 @@
 #ifndef UTIL_DELETE_HPP
 #define UTIL_DELETE_HPP
 
-#include "SignalData.hpp"
 #include <SimpleProperties.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 124
-
 
 /**
  * UTIL_DELETE_REQ, UTIL_DELETE_CONF, UTIL_DELETE_REF
@@ -48,13 +47,14 @@ class UtilDeleteReq {
   friend class DbUtil;
 
   /** For printing */
-  friend bool printUTIL_DELETE_REQ(FILE * output, const Uint32 * theData, 
-				   Uint32 len, Uint16 receiverBlockNo);
-public:
+  friend bool printUTIL_DELETE_REQ(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16 receiverBlockNo);
+
+ public:
   static constexpr Uint32 DataLength = 22;
   static constexpr Uint32 HeaderLength = 3;
 
-private:  
+ private:
   Uint32 senderData;
   Uint32 prepareId;     // Which prepared transaction to execute
   Uint32 totalDataLen;  // Total length of attrData (including AttributeHeaders
@@ -64,17 +64,15 @@ private:
    * Length in this = signal->length() - 3
    * Sender block ref = signal->senderBlockRef()
    */
-  
+
   Uint32 attrData[DataLength];
 };
-
-
 
 /**
  * @class UtilDeleteConf
  *
  * Data format:
- * - UTIL_PREPARE_CONF <UtilPrepareId> 
+ * - UTIL_PREPARE_CONF <UtilPrepareId>
  */
 
 class UtilDeleteConf {
@@ -86,24 +84,21 @@ class UtilDeleteConf {
   /**
    * For printing
    */
-  friend bool printUTIL_DELETE_CONF(FILE * output, 
-				     const Uint32 * theData, 
-				     Uint32 len, 
-				     Uint16 receiverBlockNo);
+  friend bool printUTIL_DELETE_CONF(FILE *output, const Uint32 *theData,
+                                    Uint32 len, Uint16 receiverBlockNo);
 
   static constexpr Uint32 SignalLength = 1;
 
-private:
-  Uint32 senderData;   ///< The client data provided by the client sending
-                       ///< UTIL_DELETE_REQ
+ private:
+  Uint32 senderData;  ///< The client data provided by the client sending
+                      ///< UTIL_DELETE_REQ
 };
-
 
 /**
  * @class UtilDeleteRef
  *
  * Data format:
- * - UTIL_PREPARE_REF 
+ * - UTIL_PREPARE_REF
  */
 
 class UtilDeleteRef {
@@ -115,20 +110,16 @@ class UtilDeleteRef {
   /**
    * For printing
    */
-  friend bool printUTIL_DELETE_REF(FILE * output, 
-				    const Uint32 * theData, 
-				    Uint32 len, 
-				    Uint16 receiverBlockNo);
+  friend bool printUTIL_DELETE_REF(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16 receiverBlockNo);
 
   static constexpr Uint32 SignalLength = 2;
 
-private:
+ private:
   Uint32 senderData;
-  Uint32 errorCode;   ///< See UtilExecuteRef::errorCode
+  Uint32 errorCode;  ///< See UtilExecuteRef::errorCode
   Uint32 TCErrorCode;
 };
-
-
 
 #undef JAM_FILE_ID
 

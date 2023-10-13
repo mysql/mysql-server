@@ -26,83 +26,81 @@
 #define NDB_UTIL_HPP
 
 #include <NdbApi.hpp>
-#include <string>
 #include <sstream>
+#include <string>
 
-static const std::string column_type_to_string(NdbDictionary::Column::Type type)
-{
-  switch (type)
-  {
-  case NdbDictionary::Column::Undefined:
-    return "Undefined";
-  case NdbDictionary::Column::Tinyint:
-    return "Tinyint";
-  case NdbDictionary::Column::Tinyunsigned:
-    return "Tinyunsigned";
-  case NdbDictionary::Column::Smallint:
-    return "Smallint";
-  case NdbDictionary::Column::Smallunsigned:
-    return "Smallunsigned";
-  case NdbDictionary::Column::Mediumint:
-    return "Mediumint";
-  case NdbDictionary::Column::Mediumunsigned:
-    return "Mediumunsigned";
-  case NdbDictionary::Column::Int:
-    return "Int";
-  case NdbDictionary::Column::Unsigned:
-    return "Unsigned";
-  case NdbDictionary::Column::Bigint:
-    return "Bigint";
-  case NdbDictionary::Column::Bigunsigned:
-    return "Bigunsigned";
-  case NdbDictionary::Column::Float:
-    return "Float";
-  case NdbDictionary::Column::Double:
-    return "Double";
-  case NdbDictionary::Column::Olddecimal:
-    return "Olddecimal";
-  case NdbDictionary::Column::Olddecimalunsigned:
-    return "Olddecimalunsigned";
-  case NdbDictionary::Column::Decimal:
-    return "Decimal";
-  case NdbDictionary::Column::Decimalunsigned:
-    return "Decimalunsigned";
-  case NdbDictionary::Column::Char:
-    return "Char";
-  case NdbDictionary::Column::Varchar:
-    return "Varchar";
-  case NdbDictionary::Column::Binary:
-    return "Binary";
-  case NdbDictionary::Column::Varbinary:
-    return "Varbinary";
-  case NdbDictionary::Column::Datetime:
-    return "Datetime";
-  case NdbDictionary::Column::Date:
-    return "Date";
-  case NdbDictionary::Column::Blob:
-    return "Blob";
-  case NdbDictionary::Column::Text:
-    return "Text";
-  case NdbDictionary::Column::Bit:
-    return "Bit";
-  case NdbDictionary::Column::Longvarchar:
-    return "Longvarchar";
-  case NdbDictionary::Column::Longvarbinary:
-    return "Longvarbinary";
-  case NdbDictionary::Column::Time:
-    return "Time";
-  case NdbDictionary::Column::Year:
-    return "Year";
-  case NdbDictionary::Column::Timestamp:
-    return "Timestamp";
-  case NdbDictionary::Column::Time2:
-    return "Time2";
-  case NdbDictionary::Column::Datetime2:
-    return "Datetime2";
-  case NdbDictionary::Column::Timestamp2:
-    return "Timestamp2";
-  default:
-    {
+static const std::string column_type_to_string(
+    NdbDictionary::Column::Type type) {
+  switch (type) {
+    case NdbDictionary::Column::Undefined:
+      return "Undefined";
+    case NdbDictionary::Column::Tinyint:
+      return "Tinyint";
+    case NdbDictionary::Column::Tinyunsigned:
+      return "Tinyunsigned";
+    case NdbDictionary::Column::Smallint:
+      return "Smallint";
+    case NdbDictionary::Column::Smallunsigned:
+      return "Smallunsigned";
+    case NdbDictionary::Column::Mediumint:
+      return "Mediumint";
+    case NdbDictionary::Column::Mediumunsigned:
+      return "Mediumunsigned";
+    case NdbDictionary::Column::Int:
+      return "Int";
+    case NdbDictionary::Column::Unsigned:
+      return "Unsigned";
+    case NdbDictionary::Column::Bigint:
+      return "Bigint";
+    case NdbDictionary::Column::Bigunsigned:
+      return "Bigunsigned";
+    case NdbDictionary::Column::Float:
+      return "Float";
+    case NdbDictionary::Column::Double:
+      return "Double";
+    case NdbDictionary::Column::Olddecimal:
+      return "Olddecimal";
+    case NdbDictionary::Column::Olddecimalunsigned:
+      return "Olddecimalunsigned";
+    case NdbDictionary::Column::Decimal:
+      return "Decimal";
+    case NdbDictionary::Column::Decimalunsigned:
+      return "Decimalunsigned";
+    case NdbDictionary::Column::Char:
+      return "Char";
+    case NdbDictionary::Column::Varchar:
+      return "Varchar";
+    case NdbDictionary::Column::Binary:
+      return "Binary";
+    case NdbDictionary::Column::Varbinary:
+      return "Varbinary";
+    case NdbDictionary::Column::Datetime:
+      return "Datetime";
+    case NdbDictionary::Column::Date:
+      return "Date";
+    case NdbDictionary::Column::Blob:
+      return "Blob";
+    case NdbDictionary::Column::Text:
+      return "Text";
+    case NdbDictionary::Column::Bit:
+      return "Bit";
+    case NdbDictionary::Column::Longvarchar:
+      return "Longvarchar";
+    case NdbDictionary::Column::Longvarbinary:
+      return "Longvarbinary";
+    case NdbDictionary::Column::Time:
+      return "Time";
+    case NdbDictionary::Column::Year:
+      return "Year";
+    case NdbDictionary::Column::Timestamp:
+      return "Timestamp";
+    case NdbDictionary::Column::Time2:
+      return "Time2";
+    case NdbDictionary::Column::Datetime2:
+      return "Datetime2";
+    case NdbDictionary::Column::Timestamp2:
+      return "Timestamp2";
+    default: {
       std::string str;
       std::stringstream s(str);
       s << "Unknown type: " << type;

@@ -153,8 +153,7 @@ class CPCD {
     /**
      * @brief Constructs and empty Process
      */
-    Process(const Properties &props, class CPCD *cpcd,
-            uintptr_t sessionid = 0);
+    Process(const Properties &props, class CPCD *cpcd, uintptr_t sessionid = 0);
     /**
      *  @brief Monitors the process
      *

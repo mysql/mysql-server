@@ -25,17 +25,15 @@
 #ifndef ROUTE_ORD_HPP
 #define ROUTE_ORD_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 60
-
 
 /**
  * Request to allocate node id
  */
-struct RouteOrd
-{
+struct RouteOrd {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 dstRef;
@@ -46,7 +44,6 @@ struct RouteOrd
     Uint32 from;
   };
 };
-
 
 #undef JAM_FILE_ID
 

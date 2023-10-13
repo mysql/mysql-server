@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef DROP_FK_HPP
 #define DROP_FK_HPP
 
@@ -30,9 +29,7 @@
 
 #define JAM_FILE_ID 110
 
-
-struct DropFKReq
-{
+struct DropFKReq {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -42,7 +39,7 @@ struct DropFKReq
   /**
    * For printing
    */
-  friend bool printDROP_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 10;
 
@@ -61,8 +58,7 @@ struct DropFKReq
   Uint32 fkVersion;
 };
 
-struct DropFKRef
-{
+struct DropFKRef {
   /**
    * Sender(s)
    */
@@ -76,7 +72,7 @@ struct DropFKRef
   /**
    * For printing
    */
-  friend bool printDROP_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
@@ -97,8 +93,7 @@ struct DropFKRef
   Uint32 transId;
 };
 
-struct DropFKConf
-{
+struct DropFKConf {
   /**
    * Sender(s)
    */
@@ -112,7 +107,7 @@ struct DropFKConf
   /**
    * For printing
    */
-  friend bool printDROP_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 5;
 
@@ -122,7 +117,6 @@ struct DropFKConf
   Uint32 fkVersion;
   Uint32 transId;
 };
-
 
 #undef JAM_FILE_ID
 

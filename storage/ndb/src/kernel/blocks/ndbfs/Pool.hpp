@@ -27,17 +27,15 @@
 
 #define JAM_FILE_ID 398
 
-
- 
 //===========================================================================
 //
 // .PUBLIC
 //
 //===========================================================================
- 
+
 ////////////////////////////////////////////////////////////////
 //
-// enum { defInitSize = 256, defIncSize  = 64 }; 
+// enum { defInitSize = 256, defIncSize  = 64 };
 // Description: type to store initial and incremental size in.
 //
 ////////////////////////////////////////////////////////////////
@@ -55,7 +53,7 @@
 //   defIncSize:  # of elements added to the pool when a request to an empty
 //    pool is made.
 // Return value:
-//      _ 
+//      _
 // Errors:
 //      -
 // Asserts:
@@ -98,7 +96,7 @@
 // Parameters:
 //   aT The element to put back in the pool
 // Return value:
-//   void 
+//   void
 // Errors:
 //      -
 // Asserts:
@@ -109,7 +107,7 @@
 // .PRIVATE
 //
 //===========================================================================
- 
+
 ////////////////////////////////////////////////////////////////
 //
 // void allocate(int aSize);
@@ -118,7 +116,7 @@
 // Parameters:
 //   aSize: # of elements to add to the pool
 // Return value:
-//   void 
+//   void
 // Errors:
 //      -
 // Asserts:
@@ -132,7 +130,7 @@
 // Parameters:
 //   _
 // Return value:
-//   void 
+//   void
 // Errors:
 //      -
 // Asserts:
@@ -143,7 +141,7 @@
 // .PRIVATE
 //
 //===========================================================================
- 
+
 ////////////////////////////////////////////////////////////////
 //
 // Pool<T>& operator=(const Pool<T>& cp);
@@ -152,7 +150,7 @@
 // Parameters:
 //   cp
 // Return value:
-//   Pool<T>& 
+//   Pool<T>&
 // Asserts:
 //   _
 //
@@ -193,132 +191,117 @@
 //-------------------------------------------------------------------------
 
 template <class T>
-class Pool
-{
-public:
-  enum { defInitSize = 256, defIncSize  = 64 }; 
-   
-  Pool(int anInitSize = defInitSize, int anIncSize = defIncSize) :
-    theIncSize(anIncSize),
-    theTop(0),
-    theCurrentSize(0),   
-    theList(0),
-    theInUseList(nullptr)
-  {
+class Pool {
+ public:
+  enum { defInitSize = 256, defIncSize = 64 };
+
+  Pool(int anInitSize = defInitSize, int anIncSize = defIncSize)
+      : theIncSize(anIncSize),
+        theTop(0),
+        theCurrentSize(0),
+        theList(0),
+        theInUseList(nullptr) {
     allocate(anInitSize);
   }
-  
-  virtual ~Pool(void)
-  {
-    for (int i=0; i <theTop ; ++i)
-      delete theList[i];
-    
-    delete []theList;
+
+  virtual ~Pool(void) {
+    for (int i = 0; i < theTop; ++i) delete theList[i];
+
+    delete[] theList;
   }
-  
-  T* get();
-  void put(T* aT);
+
+  T *get();
+  void put(T *aT);
 
   // size() : Return number free items in pool
-  unsigned size(){ return theTop; }
+  unsigned size() { return theTop; }
 
   // inuse() : Return number items taken from pool
   unsigned inuse() const { return theCurrentSize - theTop; }
 
-  const T* getNextInUseItem(const T*) const;
-  
-protected:
-  void allocate(int aSize)
-  {
-    T** tList = theList;
+  const T *getNextInUseItem(const T *) const;
+
+ protected:
+  void allocate(int aSize) {
+    T **tList = theList;
     int i;
-    theList = new T*[aSize+theCurrentSize];
+    theList = new T *[aSize + theCurrentSize];
     // allocate full list
     for (i = 0; i < theTop; i++) {
       theList[i] = tList[i];
     }
-    delete []tList;
-    for (; (theTop < aSize); theTop++){
-      theList[theTop] = (T*)new T;
+    delete[] tList;
+    for (; (theTop < aSize); theTop++) {
+      theList[theTop] = (T *)new T;
     }
     theCurrentSize += aSize;
   }
-  
-private:
-  Pool<T>& operator=(const Pool<T>& cp);
-  Pool(const Pool<T>& cp);
-  
+
+ private:
+  Pool<T> &operator=(const Pool<T> &cp);
+  Pool(const Pool<T> &cp);
+
   int theIncSize;
   int theTop;
   int theCurrentSize;
-  
-  T** theList;
-  T*  theInUseList;
+
+  T **theList;
+  T *theInUseList;
 };
 
 //******************************************************************************
-template <class T> inline T* Pool<T>::get()
-{
-   T* tmp;
-   if( theTop == 0 )
-   {
-      allocate(theIncSize);
-   }
-   --theTop;
-   tmp = theList[theTop];
+template <class T>
+inline T *Pool<T>::get() {
+  T *tmp;
+  if (theTop == 0) {
+    allocate(theIncSize);
+  }
+  --theTop;
+  tmp = theList[theTop];
 
-   /* Maintain inuse list */
-   /* Add to head */
-   if (theInUseList)
-   {
-     assert(theInUseList->listPrev == nullptr);
-     theInUseList->listPrev = tmp;
-   }
-   tmp->listNext = theInUseList;
-   tmp->listPrev = nullptr;
-   theInUseList = tmp;
+  /* Maintain inuse list */
+  /* Add to head */
+  if (theInUseList) {
+    assert(theInUseList->listPrev == nullptr);
+    theInUseList->listPrev = tmp;
+  }
+  tmp->listNext = theInUseList;
+  tmp->listPrev = nullptr;
+  theInUseList = tmp;
 
-   tmp->atGet();
-   return tmp;
+  tmp->atGet();
+  return tmp;
 }
 
 //
 //******************************************************************************
-template <class T> inline void Pool<T>::put(T* aT)
-{
-   theList[theTop]= aT;
-   ++theTop;
+template <class T>
+inline void Pool<T>::put(T *aT) {
+  theList[theTop] = aT;
+  ++theTop;
 
-   /* Remove item from InUse list */
-   T* next = aT->listNext;
-   T* prev = aT->listPrev;
+  /* Remove item from InUse list */
+  T *next = aT->listNext;
+  T *prev = aT->listPrev;
 
-   if (next)
-   {
-     next->listPrev = prev;
-   }
-   if (prev)
-   {
-     prev->listNext = next;
-   }
-   else
-   {
-     theInUseList = next;
-   }
-   aT->listNext = aT->listPrev = nullptr;
+  if (next) {
+    next->listPrev = prev;
+  }
+  if (prev) {
+    prev->listNext = next;
+  } else {
+    theInUseList = next;
+  }
+  aT->listNext = aT->listPrev = nullptr;
 }
 
-template <class T> const T* Pool<T>::getNextInUseItem(const T* item) const
-{
-  if (item)
-  {
+template <class T>
+const T *Pool<T>::getNextInUseItem(const T *item) const {
+  if (item) {
     return item->listNext;
   }
   return theInUseList;
 }
-
-
-
 
 #undef JAM_FILE_ID
 

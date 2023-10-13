@@ -28,16 +28,16 @@
 //===========================================================================
 //
 // .DESCRIPTION
-//      Takes a 128 bits value (done as a array of four longs) and 
+//      Takes a 128 bits value (done as a array of four longs) and
 //      makes a filename out of it according the following schema
-//      Bits 0-31 T 
+//      Bits 0-31 T
 //      Bits 32-63 F
 //      Bits 64-95 S
 //      Bits 96-103 P
 //      Bits 104-111 D
 //      Bits 112-119 File Type
 //      Bits 120-127 Version number of Filename
-//      
+//
 //      T, is used to find/create a directory. If T = 0xFFFF then the
 //      file is on top level. In that case the F is of no relevance.
 //      F, same as T.
@@ -60,51 +60,38 @@
 //
 //===========================================================================
 
-#include <ndb_global.h>
 #include <kernel_types.h>
+#include <ndb_global.h>
 #include <SimulatedBlock.hpp>
 
 #define JAM_FILE_ID 392
 
-
-class Filename
-{
-public:
-   // filenumber is 64 bits but is split in to 4 32bits words 
+class Filename {
+ public:
+  // filenumber is 64 bits but is split in to 4 32bits words
   Filename();
   ~Filename();
 
-  void set(class Ndbfs*, BlockReference, const Uint32 fileno[4], bool directory,
-           SegmentedSectionPtr ptr);
-  
-  const char* c_str() const;         // Complete name including dirname
-  const char* get_base_name() const; // Exclude fs (or backup) path
+  void set(class Ndbfs *, BlockReference, const Uint32 fileno[4],
+           bool directory, SegmentedSectionPtr ptr);
+
+  const char *c_str() const;          // Complete name including dirname
+  const char *get_base_name() const;  // Exclude fs (or backup) path
   Uint32 get_base_path_spec() const;
-private:
+
+ private:
   char theName[PATH_MAX];
-  char * m_base_name;
+  char *m_base_name;
   Uint32 m_base_path_spec;
 };
 
 // inline methods
-inline const char* Filename::c_str() const {
-  return theName;
-}
+inline const char *Filename::c_str() const { return theName; }
 
-inline const char* Filename::get_base_name() const {
-  return m_base_name;
-}
+inline const char *Filename::get_base_name() const { return m_base_name; }
 
-inline Uint32 Filename::get_base_path_spec() const
-{
-  return m_base_path_spec;
-}
-
+inline Uint32 Filename::get_base_path_spec() const { return m_base_path_spec; }
 
 #undef JAM_FILE_ID
 
 #endif
-
-
-
-

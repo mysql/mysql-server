@@ -1,5 +1,5 @@
-# ifndef TESTBLOCK_HPP
-# define TESTBLOCK_HPP
+#ifndef TESTBLOCK_HPP
+#define TESTBLOCK_HPP
 
 /*
    Copyright (c) 2011, 2023, Oracle and/or its affiliates.
@@ -29,10 +29,8 @@
 
 #define JAM_FILE_ID 295
 
-
 Pool_context test_context(Uint32 pages);
-
 
 #undef JAM_FILE_ID
 
-# endif
+#endif

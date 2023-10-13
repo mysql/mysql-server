@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 82
 
-
 /* This class is used for both REQ, CONF, and REF. */
 
 class BackupLockTab {
@@ -37,22 +36,15 @@ class BackupLockTab {
   /* Receiver(s). */
   friend class Dbdict;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 7;
 
-private:
+ private:
   /* Values for m_lock_unlock. */
-  enum {
-    UNLOCK_TABLE = 0,
-    LOCK_TABLE = 1
-  };
+  enum { UNLOCK_TABLE = 0, LOCK_TABLE = 1 };
 
   /* Values for m_backup_state. */
-  enum {
-    BACKUP_FRAGMENT_INFO = 0,
-    GET_TABINFO_CONF = 1,
-    CLEANUP = 2
-  };
+  enum { BACKUP_FRAGMENT_INFO = 0, GET_TABINFO_CONF = 1, CLEANUP = 2 };
 
   Uint32 m_senderRef;
   Uint32 m_tableId;
@@ -63,7 +55,6 @@ private:
   Uint32 m_backupRecordPtr_I;
   Uint32 m_tablePtr_I;
 };
-
 
 #undef JAM_FILE_ID
 

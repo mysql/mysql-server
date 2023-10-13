@@ -24,7 +24,6 @@
 
 #include "AsyncMethodCall.h"
 
-
 /* These classes build on the basic templates declared in AsyncMethodCall.h
  *
  * They wrap C++ Method calls
@@ -33,46 +32,39 @@
  * for non-const methods.
  */
 
-
-template <typename C> 
+template <typename C>
 class NativeDestructorCall : public NativeVoidMethodCall<C> {
-public:
+ public:
   /* Constructor */
-  NativeDestructorCall(const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 0)
-  { }
+  NativeDestructorCall(const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 0) {}
 
   /* Method */
   void run() override {
-    DEBUG_PRINT_DETAIL("NativeDestructorCall: Async destructor %p", NativeVoidMethodCall<C>::native_obj);
+    DEBUG_PRINT_DETAIL("NativeDestructorCall: Async destructor %p",
+                       NativeVoidMethodCall<C>::native_obj);
     delete NativeVoidMethodCall<C>::native_obj;
   }
 };
-
 
 /** Template class with:
  * wrapped class C
  * no arguments & void return
  */
-template <typename C> 
+template <typename C>
 class NativeVoidMethodCall_0_ : public NativeVoidMethodCall<C> {
-public:
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(void);
   Method_T method;
-  
-  /* Constructors */
-   NativeVoidMethodCall_0_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 0),
-    method(m)
-  {  } 
-  
-  /* Methods */
-  void run() override {
-    ((NativeVoidMethodCall<C>::native_obj)->*(method))();
-  }
-};
 
+  /* Constructors */
+  NativeVoidMethodCall_0_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 0), method(m) {}
+
+  /* Methods */
+  void run() override { ((NativeVoidMethodCall<C>::native_obj)->*(method))(); }
+};
 
 /** Template class with:
  * wrapped class C
@@ -80,25 +72,22 @@ public:
  * return value of type R
  */
 template <typename R, typename C>
-class NativeMethodCall_0_ : public NativeMethodCall<R,C> {
-public:
+class NativeMethodCall_0_ : public NativeMethodCall<R, C> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(void);
   Method_T method;
 
   /* Constructors */
-  NativeMethodCall_0_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 0),
-    method(m)
-  {  }
+  NativeMethodCall_0_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 0), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))();
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))();
   }
 };
-
 
 /** Template class with:
  * wrapped class C
@@ -106,28 +95,22 @@ public:
  * return value of type R
  */
 template <typename R, typename C, typename A0>
-class NativeMethodCall_1_ : public NativeMethodCall<R,C>,
-                            public Call_1_<A0>
-{
-public:
+class NativeMethodCall_1_ : public NativeMethodCall<R, C>, public Call_1_<A0> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(A0);
   Method_T method;
 
   /* Constructors */
-  NativeMethodCall_1_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 1),
-    Call_1_<A0>(args),
-    method(m)
-  {  }
+  NativeMethodCall_1_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 1), Call_1_<A0>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(Call_1_<A0>::arg0);
   }
 };
-
 
 /** Template class with:
  * wrapped class C
@@ -136,20 +119,16 @@ public:
  * The javascript return value is integer 0.
  */
 template <typename C, typename A0>
-class NativeVoidMethodCall_1_ : public NativeVoidMethodCall<C> ,
-                                public Call_1_<A0>
-{
-public:
+class NativeVoidMethodCall_1_ : public NativeVoidMethodCall<C>,
+                                public Call_1_<A0> {
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(A0);
   Method_T method;
 
   /* Constructor */
-  NativeVoidMethodCall_1_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 1),
-    Call_1_<A0>(args),
-    method(m)
-  {  }
+  NativeVoidMethodCall_1_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 1), Call_1_<A0>(args), method(m) {}
 
   /* Methods */
   void run() override {
@@ -157,64 +136,52 @@ public:
   }
 };
 
-
 /** Template class with:
  * wrapped class C
  * two arguments of type A0 and A1
  * return type R
  */
 template <typename R, typename C, typename A0, typename A1>
-class NativeMethodCall_2_ : public NativeMethodCall<R,C>,
-                            public Call_2_<A0, A1>
-{
-public:
+class NativeMethodCall_2_ : public NativeMethodCall<R, C>,
+                            public Call_2_<A0, A1> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(A0, A1);  // "method" is pointer to member function
   Method_T method;
 
   /* Constructor */
-  NativeMethodCall_2_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 2),
-    Call_2_<A0, A1>(args),
-    method(m)
-  {  }
+  NativeMethodCall_2_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 2), Call_2_<A0, A1>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))(
-        Call_2_<A0, A1>::arg0,
-        Call_2_<A0, A1>::arg1);
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_2_<A0, A1>::arg0, Call_2_<A0, A1>::arg1);
   }
 };
-
 
 /** Template class with
  *  Method returning void; 2 arguments
  */
 template <typename C, typename A0, typename A1>
-class NativeVoidMethodCall_2_ : public NativeVoidMethodCall<C> ,
-                                public Call_2_<A0, A1>
-{
-public:
+class NativeVoidMethodCall_2_ : public NativeVoidMethodCall<C>,
+                                public Call_2_<A0, A1> {
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(A0, A1);
   Method_T method;
 
   /* Constructor */
-  NativeVoidMethodCall_2_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 2),
-    Call_2_<A0, A1>(args),
-    method(m)
-  {  }
+  NativeVoidMethodCall_2_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 2), Call_2_<A0, A1>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    ((NativeVoidMethodCall<C>::native_obj)->*(method))
-      (Call_2_<A0,A1>::arg0, Call_2_<A0,A1>::arg1);
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))(Call_2_<A0, A1>::arg0,
+                                                       Call_2_<A0, A1>::arg1);
   }
 };
-
 
 /** Template class with:
  * wrapped class C
@@ -222,32 +189,25 @@ public:
  * return type R
  */
 template <typename R, typename C, typename A0, typename A1, typename A2>
-class NativeMethodCall_3_ : public NativeMethodCall <R,C>,
-                            public Call_3_<A0, A1, A2>
-{
-public:
+class NativeMethodCall_3_ : public NativeMethodCall<R, C>,
+                            public Call_3_<A0, A1, A2> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0, A1, A2); 
+  typedef R (C::*Method_T)(A0, A1, A2);
   Method_T method;
 
   /* Constructor */
-  NativeMethodCall_3_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 3),
-    Call_3_<A0, A1, A2>(args),
-    method(m)
-  {  }
+  NativeMethodCall_3_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 3), Call_3_<A0, A1, A2>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-    ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_3_<A0, A1, A2>::arg0,
-      Call_3_<A0, A1, A2>::arg1,
-      Call_3_<A0, A1, A2>::arg2
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_3_<A0, A1, A2>::arg0, Call_3_<A0, A1, A2>::arg1,
+            Call_3_<A0, A1, A2>::arg2);
   }
 };
-
 
 /** Template class with:
  * wrapped class C
@@ -256,64 +216,53 @@ public:
  */
 template <typename C, typename A0, typename A1, typename A2>
 class NativeVoidMethodCall_3_ : public NativeVoidMethodCall<C>,
-                                public Call_3_<A0, A1, A2>
-{
-public:
+                                public Call_3_<A0, A1, A2> {
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(A0, A1, A2);
   Method_T method;
-  
+
   /* Constructor */
-  NativeVoidMethodCall_3_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 3),
-    Call_3_<A0, A1, A2>(args),
-    method(m)
-  { }
-  
+  NativeVoidMethodCall_3_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 3),
+        Call_3_<A0, A1, A2>(args),
+        method(m) {}
+
   /* Methods */
   void run() override {
     ((NativeVoidMethodCall<C>::native_obj)->*(method))(
-      Call_3_<A0, A1, A2>::arg0,
-      Call_3_<A0, A1, A2>::arg1,
-      Call_3_<A0, A1, A2>::arg2
-    );
+        Call_3_<A0, A1, A2>::arg0, Call_3_<A0, A1, A2>::arg1,
+        Call_3_<A0, A1, A2>::arg2);
   }
 };
-
 
 /** Template class with:
  * 4 arguments
  * return value of type R
  */
-template <typename R, typename C,
-          typename A0, typename A1, typename A2, typename A3>
-class NativeMethodCall_4_ : public NativeMethodCall<R,C> ,
-                            public Call_4_<A0, A1, A2, A3>
-{
-public:
+template <typename R, typename C, typename A0, typename A1, typename A2,
+          typename A3>
+class NativeMethodCall_4_ : public NativeMethodCall<R, C>,
+                            public Call_4_<A0, A1, A2, A3> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0,A1,A2,A3);
+  typedef R (C::*Method_T)(A0, A1, A2, A3);
   Method_T method;
 
   /* Constructor */
-  NativeMethodCall_4_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 4),
-    Call_4_<A0, A1, A2, A3>(args),
-    method(m)
- {  }
+  NativeMethodCall_4_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 4),
+        Call_4_<A0, A1, A2, A3>(args),
+        method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_4_<A0, A1, A2, A3>::arg0,
-      Call_4_<A0, A1, A2, A3>::arg1,
-      Call_4_<A0, A1, A2, A3>::arg2,
-      Call_4_<A0, A1, A2, A3>::arg3
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_4_<A0, A1, A2, A3>::arg0, Call_4_<A0, A1, A2, A3>::arg1,
+            Call_4_<A0, A1, A2, A3>::arg2, Call_4_<A0, A1, A2, A3>::arg3);
   }
 };
-
 
 /** Template class with:
  * wrapped class C
@@ -322,180 +271,155 @@ public:
  */
 template <typename C, typename A0, typename A1, typename A2, typename A3>
 class NativeVoidMethodCall_4_ : public NativeVoidMethodCall<C>,
-public Call_4_<A0, A1, A2, A3>
-{
-public:
+                                public Call_4_<A0, A1, A2, A3> {
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(A0, A1, A2, A3);
   Method_T method;
-  
+
   /* Constructor */
-  NativeVoidMethodCall_4_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 4),
-    Call_4_<A0, A1, A2, A3>(args),
-    method(m)
-  { }
-  
+  NativeVoidMethodCall_4_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 4),
+        Call_4_<A0, A1, A2, A3>(args),
+        method(m) {}
+
   /* Methods */
   void run() override {
     ((NativeVoidMethodCall<C>::native_obj)->*(method))(
-      Call_4_<A0, A1, A2, A3>::arg0,
-      Call_4_<A0, A1, A2, A3>::arg1,
-      Call_4_<A0, A1, A2, A3>::arg2,
-      Call_4_<A0, A1, A2, A3>::arg3
-   );
+        Call_4_<A0, A1, A2, A3>::arg0, Call_4_<A0, A1, A2, A3>::arg1,
+        Call_4_<A0, A1, A2, A3>::arg2, Call_4_<A0, A1, A2, A3>::arg3);
   }
 };
-
 
 /** Template class with:
  * 5 arguments
  * return value of type R
  */
-template <typename R, typename C,
-          typename A0, typename A1, typename A2, typename A3, typename A4>
-class NativeMethodCall_5_ : public NativeMethodCall<R,C>,
-                            public Call_5_<A0, A1, A2, A3, A4>
-{
-public:
+template <typename R, typename C, typename A0, typename A1, typename A2,
+          typename A3, typename A4>
+class NativeMethodCall_5_ : public NativeMethodCall<R, C>,
+                            public Call_5_<A0, A1, A2, A3, A4> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0,A1,A2,A3,A4);
+  typedef R (C::*Method_T)(A0, A1, A2, A3, A4);
   Method_T method;
-  
+
   /* Constructor */
-  NativeMethodCall_5_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 5),
-    Call_5_<A0, A1, A2, A3, A4>(args),
-    method(m)
-  {  }
+  NativeMethodCall_5_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 5),
+        Call_5_<A0, A1, A2, A3, A4>(args),
+        method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_5_<A0, A1, A2, A3, A4>::arg0,
-      Call_5_<A0, A1, A2, A3, A4>::arg1,
-      Call_5_<A0, A1, A2, A3, A4>::arg2,
-      Call_5_<A0, A1, A2, A3, A4>::arg3,
-      Call_5_<A0, A1, A2, A3, A4>::arg4
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_5_<A0, A1, A2, A3, A4>::arg0,
+            Call_5_<A0, A1, A2, A3, A4>::arg1,
+            Call_5_<A0, A1, A2, A3, A4>::arg2,
+            Call_5_<A0, A1, A2, A3, A4>::arg3,
+            Call_5_<A0, A1, A2, A3, A4>::arg4);
   }
 };
-
 
 /** Template class with:
  * 6 arguments
  * return value of type R
  */
-template <typename R, typename C,
-          typename A0, typename A1, typename A2,
+template <typename R, typename C, typename A0, typename A1, typename A2,
           typename A3, typename A4, typename A5>
-class NativeMethodCall_6_ : public NativeMethodCall<R,C> ,
-                            public Call_6_<A0, A1, A2, A3, A4, A5>
-{
-public:
+class NativeMethodCall_6_ : public NativeMethodCall<R, C>,
+                            public Call_6_<A0, A1, A2, A3, A4, A5> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5);
+  typedef R (C::*Method_T)(A0, A1, A2, A3, A4, A5);
   Method_T method;
-  
+
   /* Constructor */
-  NativeMethodCall_6_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 6),
-    Call_6_<A0, A1, A2, A3, A4, A5>(args),
-    method(m)
-  {  }
+  NativeMethodCall_6_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 6),
+        Call_6_<A0, A1, A2, A3, A4, A5>(args),
+        method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg2,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg3,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg4,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg5
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg2,
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg3,
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg4,
+            Call_6_<A0, A1, A2, A3, A4, A5>::arg5);
   }
 };
-
 
 /** Template class with:
  * 7 arguments
  * return value of type R
  */
-template <typename R, typename C,
-          typename A0, typename A1, typename A2, typename A3,
-          typename A4, typename A5, typename A6>
-class NativeMethodCall_7_ : public NativeMethodCall<R,C>,
-                            public Call_7_<A0, A1, A2, A3, A4, A5, A6>
-{
-public:
+template <typename R, typename C, typename A0, typename A1, typename A2,
+          typename A3, typename A4, typename A5, typename A6>
+class NativeMethodCall_7_ : public NativeMethodCall<R, C>,
+                            public Call_7_<A0, A1, A2, A3, A4, A5, A6> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6);
+  typedef R (C::*Method_T)(A0, A1, A2, A3, A4, A5, A6);
   Method_T method;
-  
+
   /* Constructor */
-  NativeMethodCall_7_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 7),
-    Call_7_<A0, A1, A2, A3, A4, A5, A6>(args),
-    method(m)
-  {  }
+  NativeMethodCall_7_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 7),
+        Call_7_<A0, A1, A2, A3, A4, A5, A6>(args),
+        method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg0,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg1,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg2,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg3,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg4,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg5,
-      Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg6
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg0,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg1,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg2,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg3,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg4,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg5,
+            Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg6);
   }
 };
-
 
 /** Template class with:
  * 8 arguments
  * return value of type R
  */
-template <typename R, typename C,
-          typename A0, typename A1, typename A2, typename A3,
-          typename A4, typename A5, typename A6, typename A7>
-class NativeMethodCall_8_ : public NativeMethodCall<R,C>,
-                            public Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>
-{
-public:
+template <typename R, typename C, typename A0, typename A1, typename A2,
+          typename A3, typename A4, typename A5, typename A6, typename A7>
+class NativeMethodCall_8_ : public NativeMethodCall<R, C>,
+                            public Call_8_<A0, A1, A2, A3, A4, A5, A6, A7> {
+ public:
   /* Member variables */
-  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6,A7);
+  typedef R (C::*Method_T)(A0, A1, A2, A3, A4, A5, A6, A7);
   Method_T method;
 
   /* Constructor */
-  NativeMethodCall_8_(Method_T m, const Arguments &args) :
-    NativeMethodCall<C, R>(args, 8),
-    Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
-    method(m)
-  {  }
+  NativeMethodCall_8_(Method_T m, const Arguments &args)
+      : NativeMethodCall<C, R>(args, 8),
+        Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
+        method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg1,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg2,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg3,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg4,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg5,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7
-    );
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg1,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg2,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg3,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg4,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg5,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
+            Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7);
   }
 };
-
 
 /* Const versions */
 
@@ -503,104 +427,87 @@ public:
  *  Return type R; no arguments
  */
 template <typename R, typename C>
-class NativeConstMethodCall_0_ : public NativeMethodCall<R,C> {
-public:
+class NativeConstMethodCall_0_ : public NativeMethodCall<R, C> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(void) const;
   Method_T method;
-  
+
   /* Constructors */
-  NativeConstMethodCall_0_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 0),
-    method(m)
-  {  }
-  
+  NativeConstMethodCall_0_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 0), method(m) {}
+
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))();
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))();
   }
 };
-
 
 /** Template class with:
  * return value of type R
  * one argument of type A0
  */
 template <typename R, typename C, typename A0>
-class NativeConstMethodCall_1_ : public NativeMethodCall<R,C>,
-                                 public Call_1_<A0>
-{
-public:
+class NativeConstMethodCall_1_ : public NativeMethodCall<R, C>,
+                                 public Call_1_<A0> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(A0) const;
   Method_T method;
 
   /* Constructors */
-  NativeConstMethodCall_1_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 1),
-    Call_1_<A0>(args),
-    method(m)
-  {  }
+  NativeConstMethodCall_1_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 1), Call_1_<A0>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(Call_1_<A0>::arg0);
   }
 };
-
 
 /** Template class with
  *  Method returning void; 2 arguments
  */
 template <typename C, typename A0, typename A1>
-class NativeVoidConstMethodCall_2_ : public NativeVoidMethodCall<C> ,
-                                     public Call_2_<A0, A1>
-{
-public:
+class NativeVoidConstMethodCall_2_ : public NativeVoidMethodCall<C>,
+                                     public Call_2_<A0, A1> {
+ public:
   /* Member variables */
   typedef void (C::*Method_T)(A0, A1) const;
   Method_T method;
 
   /* Constructor */
-  NativeVoidConstMethodCall_2_(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 2),
-    Call_2_<A0, A1>(args),
-    method(m)
-  {  }
+  NativeVoidConstMethodCall_2_(Method_T m, const Arguments &args)
+      : NativeVoidMethodCall<C>(args, 2), Call_2_<A0, A1>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    ((NativeVoidMethodCall<C>::native_obj)->*(method))
-      (Call_2_<A0,A1>::arg0, Call_2_<A0,A1>::arg1);
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))(Call_2_<A0, A1>::arg0,
+                                                       Call_2_<A0, A1>::arg1);
   }
 };
 
 /** Template class with
- *  Method returning R; 2 arguments 
+ *  Method returning R; 2 arguments
  */
 template <typename R, typename C, typename A0, typename A1>
-class NativeConstMethodCall_2_ : public NativeMethodCall<R,C>,
-                                 public Call_2_<A0, A1>
-{
-public:
+class NativeConstMethodCall_2_ : public NativeMethodCall<R, C>,
+                                 public Call_2_<A0, A1> {
+ public:
   /* Member variables */
   typedef R (C::*Method_T)(A0, A1) const;
   Method_T method;
 
   /* Constructor */
-  NativeConstMethodCall_2_(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 2),
-    Call_2_<A0, A1>(args),
-    method(m)
-  {  }
+  NativeConstMethodCall_2_(Method_T m, const Arguments &args)
+      : NativeMethodCall<R, C>(args, 2), Call_2_<A0, A1>(args), method(m) {}
 
   /* Methods */
   void run() override {
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))(
-        Call_2_<A0, A1>::arg0,
-        Call_2_<A0, A1>::arg1);
+    NativeMethodCall<R, C>::return_val =
+        ((NativeMethodCall<R, C>::native_obj)->*(method))(
+            Call_2_<A0, A1>::arg0, Call_2_<A0, A1>::arg1);
   }
 };

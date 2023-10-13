@@ -59,113 +59,100 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-JNIEXPORT jboolean JNICALL
-Java_myjapi_MyJapiCtypes_f31(JNIEnv * env, jclass cls, jboolean p0)
-{
-    TRACE("jboolean Java_myjapi_MyJapiCtypes_f31(JNIEnv *, jclass, jboolean)");
-    return gcall_fr< ttrait_bool, ttrait_bool, f31 >(env, cls, p0);
+JNIEXPORT jboolean JNICALL Java_myjapi_MyJapiCtypes_f31(JNIEnv *env, jclass cls,
+                                                        jboolean p0) {
+  TRACE("jboolean Java_myjapi_MyJapiCtypes_f31(JNIEnv *, jclass, jboolean)");
+  return gcall_fr<ttrait_bool, ttrait_bool, f31>(env, cls, p0);
 }
 
-JNIEXPORT jbyte JNICALL
-Java_myjapi_MyJapiCtypes_f32(JNIEnv * env, jclass cls, jbyte p0)
-{
-    TRACE("jbyte Java_myjapi_MyJapiCtypes_f32(JNIEnv *, jclass, jbyte)");
-    return gcall_fr< ttrait_char, ttrait_char, f32 >(env, cls, p0);
+JNIEXPORT jbyte JNICALL Java_myjapi_MyJapiCtypes_f32(JNIEnv *env, jclass cls,
+                                                     jbyte p0) {
+  TRACE("jbyte Java_myjapi_MyJapiCtypes_f32(JNIEnv *, jclass, jbyte)");
+  return gcall_fr<ttrait_char, ttrait_char, f32>(env, cls, p0);
 }
 
-JNIEXPORT jbyte JNICALL
-Java_myjapi_MyJapiCtypes_f33(JNIEnv * env, jclass cls, jbyte p0)
-{
-    TRACE("jbyte Java_myjapi_MyJapiCtypes_f33(JNIEnv *, jclass, jbyte)");
-    return gcall_fr< ttrait_schar, ttrait_schar, f33 >(env, cls, p0);
+JNIEXPORT jbyte JNICALL Java_myjapi_MyJapiCtypes_f33(JNIEnv *env, jclass cls,
+                                                     jbyte p0) {
+  TRACE("jbyte Java_myjapi_MyJapiCtypes_f33(JNIEnv *, jclass, jbyte)");
+  return gcall_fr<ttrait_schar, ttrait_schar, f33>(env, cls, p0);
 }
 
-JNIEXPORT jbyte JNICALL
-Java_myjapi_MyJapiCtypes_f34(JNIEnv * env, jclass cls, jbyte p0)
-{
-    TRACE("jbyte Java_myjapi_MyJapiCtypes_f34(JNIEnv *, jclass, jbyte)");
-    return gcall_fr< ttrait_uchar, ttrait_uchar, f34 >(env, cls, p0);
+JNIEXPORT jbyte JNICALL Java_myjapi_MyJapiCtypes_f34(JNIEnv *env, jclass cls,
+                                                     jbyte p0) {
+  TRACE("jbyte Java_myjapi_MyJapiCtypes_f34(JNIEnv *, jclass, jbyte)");
+  return gcall_fr<ttrait_uchar, ttrait_uchar, f34>(env, cls, p0);
 }
 
-JNIEXPORT jshort JNICALL
-Java_myjapi_MyJapiCtypes_f35(JNIEnv * env, jclass cls, jshort p0)
-{
-    TRACE("jshort Java_myjapi_MyJapiCtypes_f35(JNIEnv *, jclass, jshort)");
-    return gcall_fr< ttrait_short, ttrait_short, f35 >(env, cls, p0);
+JNIEXPORT jshort JNICALL Java_myjapi_MyJapiCtypes_f35(JNIEnv *env, jclass cls,
+                                                      jshort p0) {
+  TRACE("jshort Java_myjapi_MyJapiCtypes_f35(JNIEnv *, jclass, jshort)");
+  return gcall_fr<ttrait_short, ttrait_short, f35>(env, cls, p0);
 }
 
-JNIEXPORT jshort JNICALL
-Java_myjapi_MyJapiCtypes_f36(JNIEnv * env, jclass cls, jshort p0)
-{
-    TRACE("jshort Java_myjapi_MyJapiCtypes_f36(JNIEnv *, jclass, jshort)");
-    return gcall_fr< ttrait_ushort, ttrait_ushort, f36 >(env, cls, p0);
+JNIEXPORT jshort JNICALL Java_myjapi_MyJapiCtypes_f36(JNIEnv *env, jclass cls,
+                                                      jshort p0) {
+  TRACE("jshort Java_myjapi_MyJapiCtypes_f36(JNIEnv *, jclass, jshort)");
+  return gcall_fr<ttrait_ushort, ttrait_ushort, f36>(env, cls, p0);
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_MyJapiCtypes_f37(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("jint Java_myjapi_MyJapiCtypes_f37(JNIEnv *, jclass, jint)");
-    return gcall_fr< ttrait_int, ttrait_int, f37 >(env, cls, p0);
+JNIEXPORT jint JNICALL Java_myjapi_MyJapiCtypes_f37(JNIEnv *env, jclass cls,
+                                                    jint p0) {
+  TRACE("jint Java_myjapi_MyJapiCtypes_f37(JNIEnv *, jclass, jint)");
+  return gcall_fr<ttrait_int, ttrait_int, f37>(env, cls, p0);
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_MyJapiCtypes_f38(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("jint Java_myjapi_MyJapiCtypes_f38(JNIEnv *, jclass, jint)");
-    return gcall_fr< ttrait_uint, ttrait_uint, f38 >(env, cls, p0);
+JNIEXPORT jint JNICALL Java_myjapi_MyJapiCtypes_f38(JNIEnv *env, jclass cls,
+                                                    jint p0) {
+  TRACE("jint Java_myjapi_MyJapiCtypes_f38(JNIEnv *, jclass, jint)");
+  return gcall_fr<ttrait_uint, ttrait_uint, f38>(env, cls, p0);
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_MyJapiCtypes_f39(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("jint Java_myjapi_MyJapiCtypes_f39(JNIEnv *, jclass, jint)");
-    return gcall_fr< ttrait_long, ttrait_long, f39 >(env, cls, p0);
+JNIEXPORT jint JNICALL Java_myjapi_MyJapiCtypes_f39(JNIEnv *env, jclass cls,
+                                                    jint p0) {
+  TRACE("jint Java_myjapi_MyJapiCtypes_f39(JNIEnv *, jclass, jint)");
+  return gcall_fr<ttrait_long, ttrait_long, f39>(env, cls, p0);
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_MyJapiCtypes_f40(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("jint Java_myjapi_MyJapiCtypes_f40(JNIEnv *, jclass, jint)");
-    return gcall_fr< ttrait_ulong, ttrait_ulong, f40 >(env, cls, p0);
+JNIEXPORT jint JNICALL Java_myjapi_MyJapiCtypes_f40(JNIEnv *env, jclass cls,
+                                                    jint p0) {
+  TRACE("jint Java_myjapi_MyJapiCtypes_f40(JNIEnv *, jclass, jint)");
+  return gcall_fr<ttrait_ulong, ttrait_ulong, f40>(env, cls, p0);
 }
 
-JNIEXPORT jlong JNICALL
-Java_myjapi_MyJapiCtypes_f41(JNIEnv * env, jclass cls, jlong p0)
-{
-    TRACE("jlong Java_myjapi_MyJapiCtypes_f41(JNIEnv *, jclass, jlong)");
-    return gcall_fr< ttrait_longlong, ttrait_longlong, f41 >(env, cls, p0);
+JNIEXPORT jlong JNICALL Java_myjapi_MyJapiCtypes_f41(JNIEnv *env, jclass cls,
+                                                     jlong p0) {
+  TRACE("jlong Java_myjapi_MyJapiCtypes_f41(JNIEnv *, jclass, jlong)");
+  return gcall_fr<ttrait_longlong, ttrait_longlong, f41>(env, cls, p0);
 }
 
-JNIEXPORT jlong JNICALL
-Java_myjapi_MyJapiCtypes_f42(JNIEnv * env, jclass cls, jlong p0)
-{
-    TRACE("jlong Java_myjapi_MyJapiCtypes_f42(JNIEnv *, jclass, jlong)");
-    return gcall_fr< ttrait_ulonglong, ttrait_ulonglong, f42 >(env, cls, p0);
+JNIEXPORT jlong JNICALL Java_myjapi_MyJapiCtypes_f42(JNIEnv *env, jclass cls,
+                                                     jlong p0) {
+  TRACE("jlong Java_myjapi_MyJapiCtypes_f42(JNIEnv *, jclass, jlong)");
+  return gcall_fr<ttrait_ulonglong, ttrait_ulonglong, f42>(env, cls, p0);
 }
 
-JNIEXPORT jfloat JNICALL
-Java_myjapi_MyJapiCtypes_f43(JNIEnv * env, jclass cls, jfloat p0)
-{
-    TRACE("jfloat Java_myjapi_MyJapiCtypes_f43(JNIEnv *, jclass, jfloat)");
-    return gcall_fr< ttrait_float, ttrait_float, f43 >(env, cls, p0);
+JNIEXPORT jfloat JNICALL Java_myjapi_MyJapiCtypes_f43(JNIEnv *env, jclass cls,
+                                                      jfloat p0) {
+  TRACE("jfloat Java_myjapi_MyJapiCtypes_f43(JNIEnv *, jclass, jfloat)");
+  return gcall_fr<ttrait_float, ttrait_float, f43>(env, cls, p0);
 }
 
-JNIEXPORT jdouble JNICALL
-Java_myjapi_MyJapiCtypes_f44(JNIEnv * env, jclass cls, jdouble p0)
-{
-    TRACE("jdouble Java_myjapi_MyJapiCtypes_f44(JNIEnv *, jclass, jdouble)");
-    return gcall_fr< ttrait_double, ttrait_double, f44 >(env, cls, p0);
+JNIEXPORT jdouble JNICALL Java_myjapi_MyJapiCtypes_f44(JNIEnv *env, jclass cls,
+                                                       jdouble p0) {
+  TRACE("jdouble Java_myjapi_MyJapiCtypes_f44(JNIEnv *, jclass, jdouble)");
+  return gcall_fr<ttrait_double, ttrait_double, f44>(env, cls, p0);
 }
 
-JNIEXPORT jdouble JNICALL
-Java_myjapi_MyJapiCtypes_f45(JNIEnv * env, jclass cls, jdouble p0)
-{
-    TRACE("jdouble Java_myjapi_MyJapiCtypes_f45(JNIEnv * env, jclass cls, jdouble)");
-    return gcall_fr< ttrait_longdouble, ttrait_longdouble, f45 >(env, cls, p0);
+JNIEXPORT jdouble JNICALL Java_myjapi_MyJapiCtypes_f45(JNIEnv *env, jclass cls,
+                                                       jdouble p0) {
+  TRACE(
+      "jdouble Java_myjapi_MyJapiCtypes_f45(JNIEnv * env, jclass cls, "
+      "jdouble)");
+  return gcall_fr<ttrait_longdouble, ttrait_longdouble, f45>(env, cls, p0);
 }
 
 // ---------------------------------------------------------------------------
 
-} // extern "C"
+}  // extern "C"
 
-#endif // myjapi_MyJapiCtypes_hpp
+#endif  // myjapi_MyJapiCtypes_hpp

@@ -24,16 +24,14 @@
 
 #include <signaldata/CreateFK.hpp>
 
-bool
-printCREATE_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateFKReq::SignalLength)
-  {
+bool printCREATE_FK_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < CreateFKReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateFKReq* sig = (const CreateFKReq*)theData;
+  const CreateFKReq *sig = (const CreateFKReq *)theData;
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " requestInfo: %x", sig->requestInfo);
@@ -44,16 +42,14 @@ printCREATE_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printCREATE_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateFKRef::SignalLength)
-  {
+bool printCREATE_FK_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < CreateFKRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateFKRef* sig = (const CreateFKRef*)theData;
+  const CreateFKRef *sig = (const CreateFKRef *)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -66,16 +62,14 @@ printCREATE_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printCREATE_FK_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateFKConf::SignalLength)
-  {
+bool printCREATE_FK_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < CreateFKConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateFKConf* sig = (const CreateFKConf*)theData;
+  const CreateFKConf *sig = (const CreateFKConf *)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transId: 0x%x", sig->transId);

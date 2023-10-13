@@ -48,4 +48,4 @@
  */
 #include "mystdint.h"
 
-#endif // jtie_stdint_h
+#endif  // jtie_stdint_h

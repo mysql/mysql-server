@@ -25,28 +25,27 @@
 #ifndef ConfigSection_H
 #define ConfigSection_H
 
-#include "ndb_types.h"
-#include "util/require.h"
 #include <bitset>
 #include <vector>
+#include "ndb_types.h"
+#include "util/require.h"
 
 #define CONFIG_V2_MAGIC 0x87654321
 
 class ConfigObject;
 
-class ConfigSection
-{
+class ConfigSection {
   /* Friends */
   friend class ConfigObject;
   friend class ConfigValues;
 
-public: /* Public data types */
+ public: /* Public data types */
   enum ValueType {
     InvalidTypeId = 0,
-    IntTypeId     = 1,
-    StringTypeId  = 2,
+    IntTypeId = 1,
+    StringTypeId = 2,
     SectionTypeId = 3,
-    Int64TypeId   = 4
+    Int64TypeId = 4
   };
 
   enum SectionType {
@@ -59,15 +58,14 @@ public: /* Public data types */
     SystemSectionId = 6
   };
 
-  class Entry
-  {
-  public:
+  class Entry {
+   public:
     Entry();
     Uint32 get_v1_length() const;
     Uint32 get_v2_length() const;
-    void create_v1_entry(Uint32**, Uint32) const;
-    void create_v2_entry(Uint32**) const;
-    bool equal(Entry*) const;
+    void create_v1_entry(Uint32 **, Uint32) const;
+    void create_v2_entry(Uint32 **) const;
+    bool equal(Entry *) const;
     Uint32 unpack_entry(const Uint32 **data);
     Uint32 m_key;
     ValueType m_type;
@@ -83,8 +81,7 @@ public: /* Public data types */
     Entry new_entry;
   };
 
-  enum ConfigSectionType
-  {
+  enum ConfigSectionType {
     InvalidConfigSection = 0,
     BaseSection = 1,
     NodePointerSection = 2,
@@ -98,30 +95,31 @@ public: /* Public data types */
   static constexpr Uint32 CONFIG_MAX_KEY_COUNT = 999;
   using Key_bitset = std::bitset<CONFIG_MAX_KEY_COUNT>;
 
-public: /* Public methods */
+ public: /* Public methods */
   ConfigSection();
-  ConfigSection(ConfigObject*);
+  ConfigSection(ConfigObject *);
   ~ConfigSection();
 
-  bool get(Uint32 key, Entry&);
+  bool get(Uint32 key, Entry &);
   bool set(Entry &entry, bool free_string);
-  
+
   Uint32 get_node_id();
   Uint32 get_first_node_id();
   Uint32 get_second_node_id();
 
   SectionType get_section_type();
 
-  void get_keys(Key_bitset& keys) const;
-private: /* Private methods */
+  void get_keys(Key_bitset &keys) const;
+
+ private: /* Private methods */
   void sort();
-  void set_node_ids(Entry*);
-  ConfigSection* get_default_section() const;
+  void set_node_ids(Entry *);
+  ConfigSection *get_default_section() const;
   Uint32 get_section_type_value();
   void check_magic() const;
-  Entry* find_key(Uint32 key) const;
+  Entry *find_key(Uint32 key) const;
   Uint32 find_index(Uint32 key);
-  bool set_section_type(Entry& entry);
+  bool set_section_type(Entry &entry);
   void set_section_type(SectionType section_type);
   void set_config_section_type(ConfigSectionType type);
   void set_config_section_type();
@@ -142,23 +140,21 @@ private: /* Private methods */
   bool set_system_section();
 
   ConfigSection *copy() const;
-  ConfigSection *copy_no_primary_keys(const Key_bitset& keys) const;
+  ConfigSection *copy_no_primary_keys(const Key_bitset &keys) const;
   void copy_default(ConfigSection *default_cs);
-  Entry* copy_entry(const Entry *copy_entry) const;
+  Entry *copy_entry(const Entry *copy_entry) const;
   void handle_default_section(ConfigSection *curr);
 
   Uint32 get_v1_length() const;
   Uint32 get_v2_length() const;
-  void create_v1_section(Uint32**, Uint32);
-  void create_v2_section(Uint32**) const;
-  void create_v2_entry(Uint32 **v1_ptr, Entry* entry) const;
+  void create_v1_section(Uint32 **, Uint32);
+  void create_v2_section(Uint32 **) const;
+  void create_v2_entry(Uint32 **v1_ptr, Entry *entry) const;
 
   bool unpack_entry(Entry *entry, const Uint32 **data);
-  void unpack_section_header(const Uint32 **data,
-                             Uint32 &header_len,
+  void unpack_section_header(const Uint32 **data, Uint32 &header_len,
                              Uint32 &num_entries);
-  bool unpack_section_entries(const Uint32 **data,
-                              Uint32 header_len,
+  bool unpack_section_entries(const Uint32 **data, Uint32 header_len,
                               Uint32 num_entries);
 
   bool unpack_system_section(const Uint32 **data);
@@ -171,29 +167,25 @@ private: /* Private methods */
   bool unpack_comm_section(const Uint32 **data);
   bool unpack_section(const Uint32 **data);
 
-  Entry* getEntry(Uint32 index) const;
+  Entry *getEntry(Uint32 index) const;
   Uint32 get_num_entries() const;
-  bool set_string(Entry *update_entry,
-                  Entry &input_entry,
-                  bool free_string);
+  bool set_string(Entry *update_entry, Entry &input_entry, bool free_string);
   void free_entry(Entry *entry);
   void verify_section();
   void set_node_id_from_keys();
   /* Static functions */
   static Uint32 read_v2_int_value(const Uint32 **src);
-  static void create_v2_entry_key(Uint32 **v2_ptr,
-                                  Uint32 type,
+  static void create_v2_entry_key(Uint32 **v2_ptr, Uint32 type,
                                   Uint32 section_id);
-  static void create_v1_entry_key(Uint32 **v1_ptr,
-                                  Uint32 type,
-                                  Uint32 key,
+  static void create_v1_entry_key(Uint32 **v1_ptr, Uint32 type, Uint32 key,
                                   Uint32 section_id);
   static void create_int_value(Uint32 **ptr, Uint32 val);
   static void set_checksum(Uint32 *packed_ptr, Uint32 len_words);
   static Uint32 loc_mod4_v1(Uint32);
   static Uint32 loc_mod4_v2(Uint32);
-private: /* Private data */
-  std::vector<Entry*> m_entry_array;
+
+ private: /* Private data */
+  std::vector<Entry *> m_entry_array;
   Uint32 m_magic;
   ConfigObject *m_cfg_object;
   Uint32 m_num_entries;
@@ -204,171 +196,116 @@ private: /* Private data */
   Uint32 m_node2;
 };
 
-inline ConfigSection::Entry*
-ConfigSection::getEntry(Uint32 index) const
-{
-  if (index >= m_num_entries)
-    return nullptr;
+inline ConfigSection::Entry *ConfigSection::getEntry(Uint32 index) const {
+  if (index >= m_num_entries) return nullptr;
   return m_entry_array[index];
 }
 
-inline Uint32
-ConfigSection::get_num_entries() const
-{
-  return m_num_entries;
-}
+inline Uint32 ConfigSection::get_num_entries() const { return m_num_entries; }
 
-inline ConfigSection::SectionType
-ConfigSection::get_section_type()
-{
+inline ConfigSection::SectionType ConfigSection::get_section_type() {
   return m_section_type;
 }
 
-inline void
-ConfigSection::check_magic() const
-{
+inline void ConfigSection::check_magic() const {
   require(m_magic == CONFIG_V2_MAGIC);
 }
 
-inline bool
-ConfigSection::set_base_section()
-{
+inline bool ConfigSection::set_base_section() {
   check_magic();
-  if (m_config_section_type == InvalidConfigSection)
-  {
+  if (m_config_section_type == InvalidConfigSection) {
     m_config_section_type = BaseSection;
     return true;
   }
-  if (m_config_section_type != BaseSection)
-  {
+  if (m_config_section_type != BaseSection) {
     return false;
   }
   return true;
 }
 
-inline bool
-ConfigSection::set_pointer_node_section()
-{
+inline bool ConfigSection::set_pointer_node_section() {
   check_magic();
-  if (m_config_section_type == InvalidConfigSection)
-  {
+  if (m_config_section_type == InvalidConfigSection) {
     m_config_section_type = NodePointerSection;
     return true;
   }
   return false;
 }
 
-inline bool
-ConfigSection::set_pointer_comm_section()
-{
+inline bool ConfigSection::set_pointer_comm_section() {
   check_magic();
-  if (m_config_section_type == InvalidConfigSection)
-  {
+  if (m_config_section_type == InvalidConfigSection) {
     m_config_section_type = CommPointerSection;
     return true;
   }
   return false;
 }
 
-inline bool
-ConfigSection::set_pointer_system_section()
-{
+inline bool ConfigSection::set_pointer_system_section() {
   check_magic();
-  if (m_config_section_type == InvalidConfigSection)
-  {
+  if (m_config_section_type == InvalidConfigSection) {
     m_config_section_type = SystemPointerSection;
     return true;
   }
   return false;
 }
 
-inline Uint32
-ConfigSection::get_node_id()
-{
-  return m_node;
-}
+inline Uint32 ConfigSection::get_node_id() { return m_node; }
 
-inline Uint32
-ConfigSection::get_first_node_id()
-{
-  return m_node1;
-}
+inline Uint32 ConfigSection::get_first_node_id() { return m_node1; }
 
-inline Uint32
-ConfigSection::get_second_node_id()
-{
-  return m_node2;
-}
+inline Uint32 ConfigSection::get_second_node_id() { return m_node2; }
 
-inline bool
-ConfigSection::is_real_section() const
-{
+inline bool ConfigSection::is_real_section() const {
   check_magic();
   return ((m_config_section_type == NodeSection) ||
           (m_config_section_type == CommSection) ||
           (m_config_section_type == SystemSection));
 }
 
-inline bool
-ConfigSection::is_pointer_section() const
-{
+inline bool ConfigSection::is_pointer_section() const {
   check_magic();
   return ((m_config_section_type == NodePointerSection) ||
           (m_config_section_type == CommPointerSection) ||
           (m_config_section_type == SystemPointerSection));
 }
 
-inline bool
-ConfigSection::is_pointer_node_section() const
-{
+inline bool ConfigSection::is_pointer_node_section() const {
   check_magic();
   return (m_config_section_type == NodePointerSection);
 }
 
-inline bool
-ConfigSection::is_pointer_comm_section() const
-{
+inline bool ConfigSection::is_pointer_comm_section() const {
   check_magic();
   return (m_config_section_type == CommPointerSection);
 }
 
-inline bool
-ConfigSection::is_pointer_system_section() const
-{
+inline bool ConfigSection::is_pointer_system_section() const {
   check_magic();
   return (m_config_section_type == SystemPointerSection);
 }
 
-inline bool
-ConfigSection::set_node_section()
-{
+inline bool ConfigSection::set_node_section() {
   check_magic();
-  if (unlikely(m_config_section_type != InvalidConfigSection))
-  {
+  if (unlikely(m_config_section_type != InvalidConfigSection)) {
     return false;
   }
   m_config_section_type = NodeSection;
   return true;
 }
 
-inline bool
-ConfigSection::set_comm_section()
-{
+inline bool ConfigSection::set_comm_section() {
   check_magic();
-  if (unlikely(m_config_section_type != InvalidConfigSection))
-  {
+  if (unlikely(m_config_section_type != InvalidConfigSection)) {
     return false;
   }
   m_config_section_type = CommSection;
   return true;
 }
 
-inline bool
-ConfigSection::set_system_section()
-{
+inline bool ConfigSection::set_system_section() {
   check_magic();
-  if (unlikely(m_config_section_type != InvalidConfigSection))
-  {
+  if (unlikely(m_config_section_type != InvalidConfigSection)) {
     return false;
   }
   m_config_section_type = SystemSection;
@@ -388,18 +325,18 @@ ConfigSection::set_system_section()
  * 01234567890123456789012345678901
  * kkkkkkkkkkkkkkssssssssssssssoooo
  */
-#define OLD_KP_TYPE_MASK     (15)
-#define OLD_KP_TYPE_SHIFT    (28)
-#define OLD_KP_SECTION_MASK  (0x3FFF)
+#define OLD_KP_TYPE_MASK (15)
+#define OLD_KP_TYPE_SHIFT (28)
+#define OLD_KP_SECTION_MASK (0x3FFF)
 #define OLD_KP_SECTION_SHIFT (14)
-#define OLD_KP_KEYVAL_MASK   (0x3FFF)
-#define OLD_KP_KEYVAL_SHIFT  (0)
-#define OLD_KP_MASK          (0x0FFFFFFF)
+#define OLD_KP_KEYVAL_MASK (0x3FFF)
+#define OLD_KP_KEYVAL_SHIFT (0)
+#define OLD_KP_MASK (0x0FFFFFFF)
 
 #define V2_TYPE_SHIFT (28)
-#define V2_TYPE_MASK  (15)
-#define V2_KEY_SHIFT  (0)
-#define V2_KEY_MASK   (0x0FFFFFFF)
+#define V2_TYPE_MASK (15)
+#define V2_KEY_SHIFT (0)
+#define V2_KEY_MASK (0x0FFFFFFF)
 
 static const Uint32 CONFIG_KEY_PARENT = (OLD_KP_KEYVAL_MASK - 1);
 

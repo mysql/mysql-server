@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 119
 
-
 /**
  * @class UtilReleaseReq
  * @brief Release Prepared transaction in Util block
@@ -40,20 +39,20 @@
 class UtilReleaseReq {
   friend class DbUtil;
   friend class Trix;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-private:  
-  Uint32 senderData; // MUST be no 1!
+ private:
+  Uint32 senderData;  // MUST be no 1!
   Uint32 prepareId;
 };
-
 
 /**
  * @class UtilReleaseConf
  *
  * Data format:
- * - UTIL_PREPARE_CONF <UtilPrepareId> 
+ * - UTIL_PREPARE_CONF <UtilPrepareId>
  */
 
 class UtilReleaseConf {
@@ -62,35 +61,30 @@ class UtilReleaseConf {
 
   static constexpr Uint32 SignalLength = 1;
 
-private:
+ private:
   Uint32 senderData;  // MUST be no 1!
 };
-
 
 /**
  * @class UtilReleaseRef
  *
  * Data format:
- * - UTIL_PREPARE_RELEASE_REF 
+ * - UTIL_PREPARE_RELEASE_REF
  */
 
 class UtilReleaseRef {
   friend class DbUtil;
   friend class Trix;
 
-  enum ErrorCode {
-    RELEASE_REF_NO_ERROR = 0,
-    NO_SUCH_PREPARE_SEIZED = 1
-  };
+  enum ErrorCode { RELEASE_REF_NO_ERROR = 0, NO_SUCH_PREPARE_SEIZED = 1 };
 
   static constexpr Uint32 SignalLength = 3;
 
-private:
-  Uint32 senderData; // MUST be no 1!
+ private:
+  Uint32 senderData;  // MUST be no 1!
   Uint32 prepareId;
   Uint32 errorCode;
 };
-
 
 #undef JAM_FILE_ID
 

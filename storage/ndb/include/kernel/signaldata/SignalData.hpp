@@ -25,61 +25,54 @@
 #ifndef SIGNAL_DATA_H
 #define SIGNAL_DATA_H
 
-#include <ndb_global.h>
-#include <kernel/ndb_limits.h>
-#include <kernel/kernel_types.h>
 #include <kernel/GlobalSignalNumbers.h>
+#include <kernel/kernel_types.h>
+#include <kernel/ndb_limits.h>
+#include <ndb_global.h>
 
 #define JAM_FILE_ID 61
 
-
-#define ASSERT_BOOL(flag, message) assert(flag<=1)
+#define ASSERT_BOOL(flag, message) assert(flag <= 1)
 #define ASSERT_RANGE(value, min, max, message) \
- assert((value) >= (min) && (value) <= (max))
+  assert((value) >= (min) && (value) <= (max))
 #define ASSERT_MAX(value, max, message) assert((value) <= (max))
 
 #define SECTION(x) static constexpr Uint32 x
 
 template <typename T>
-inline
-T*
-cast_ptr(Uint32 * ptr)
-{
+inline T *cast_ptr(Uint32 *ptr) {
   NDB_ASSERT_POD(T);
   return new (ptr) T;
 }
 
 template <typename T>
-inline
-const T*
-cast_constptr(const Uint32 * ptr)
-{
+inline const T *cast_constptr(const Uint32 *ptr) {
   NDB_ASSERT_POD(T);
-  return const_cast<const T*>(new (const_cast<Uint32*>(ptr)) T);
+  return const_cast<const T *>(new (const_cast<Uint32 *>(ptr)) T);
 }
 
-#define CAST_PTR(Y,X) cast_ptr<Y>(X)
-#define CAST_CONSTPTR(Y,X) cast_constptr<Y>(X)
+#define CAST_PTR(Y, X) cast_ptr<Y>(X)
+#define CAST_CONSTPTR(Y, X) cast_constptr<Y>(X)
 
 // defines for setter and getters on commonly used member data in signals
 
-#define GET_SET_SENDERDATA \
+#define GET_SET_SENDERDATA                      \
   Uint32 getSenderData() { return senderData; } \
   void setSenderData(Uint32 _s) { senderData = _s; }
 
-#define GET_SET_SENDERREF \
+#define GET_SET_SENDERREF                     \
   Uint32 getSenderRef() { return senderRef; } \
   void setSenderRef(Uint32 _s) { senderRef = _s; }
 
-#define GET_SET_PREPAREID \
+#define GET_SET_PREPAREID                     \
   Uint32 getPrepareId() { return prepareId; } \
   void setPrepareId(Uint32 _s) { prepareId = _s; }
 
-#define GET_SET_ERRORCODE \
+#define GET_SET_ERRORCODE                     \
   Uint32 getErrorCode() { return errorCode; } \
   void setErrorCode(Uint32 _s) { errorCode = _s; }
 
-#define GET_SET_TCERRORCODE \
+#define GET_SET_TCERRORCODE                       \
   Uint32 getTCErrorCode() { return TCErrorCode; } \
   void setTCErrorCode(Uint32 _s) { TCErrorCode = _s; }
 
@@ -181,7 +174,7 @@ GSN_PRINT_SIGNATURE(printUTIL_EXECUTE_CONF);
 GSN_PRINT_SIGNATURE(printSCANTABREQ);
 GSN_PRINT_SIGNATURE(printSCANTABCONF);
 GSN_PRINT_SIGNATURE(printSCANTABREF);
-GSN_PRINT_SIGNATURE(printSCANNEXTREQ); 
+GSN_PRINT_SIGNATURE(printSCANNEXTREQ);
 GSN_PRINT_SIGNATURE(printSCANFRAGNEXTREQ);
 GSN_PRINT_SIGNATURE(printLQH_FRAG_REQ);
 GSN_PRINT_SIGNATURE(printLQH_FRAG_REF);
@@ -369,62 +362,70 @@ GSN_PRINT_SIGNATURE(printCREATE_EVNT_CONF);
 GSN_PRINT_SIGNATURE(printCREATE_EVNT_REQ);
 GSN_PRINT_SIGNATURE(printCREATE_EVNT_REF);
 
-  /**
-     Signal scope monitoring
+/**
+   Signal scope monitoring
 
-     Any signal can be received via any connected transporter.
-     Signals are sent between all node types (API, MGMD, Data nodes).
-     By adding checks to the data nodes about where signals were received from,
-     we can improve the robustness and security of the system.
-     The main goal is to ensure that only allowed cluster nodes can send certain signals.
-     To achieve this we distinguish between remote and local signals and add checks when
-     particular signals are received.
+   Any signal can be received via any connected transporter.
+   Signals are sent between all node types (API, MGMD, Data nodes).
+   By adding checks to the data nodes about where signals were received from,
+   we can improve the robustness and security of the system.
+   The main goal is to ensure that only allowed cluster nodes can send certain
+   signals. To achieve this we distinguish between remote and local signals and
+   add checks when particular signals are received.
 
-     The signals can be defined with the following signal sending scopes:
+   The signals can be defined with the following signal sending scopes:
 
-     Local:
-     This signal should only be received from blocks on the same data node, this can be
-     effectively checked.
-     Any such signal received from another node will cause an error (normally controlled
-     restart of the receiving node).
+   Local:
+   This signal should only be received from blocks on the same data node, this
+   can be effectively checked. Any such signal received from another node will
+   cause an error (normally controlled restart of the receiving node).
 
-     Remote:
-     This specifies a signal can be received from any data node. Any such signal received
-     from an API/MGM node will cause an error (normally controlled restart of the receiving node).
+   Remote:
+   This specifies a signal can be received from any data node. Any such signal
+   received from an API/MGM node will cause an error (normally controlled
+   restart of the receiving node).
 
-     Management:
-     This specifies a signal can only be received from an MGM node or a data node, but not an
-     API node.
-     Any such signal sent from an API node will cause an error (normally controlled restart of
-     the receiving node).
+   Management:
+   This specifies a signal can only be received from an MGM node or a data node,
+   but not an API node. Any such signal sent from an API node will cause an
+   error (normally controlled restart of the receiving node).
 
-     External:
-     This specifies the signal can be received from any node. This has the same semantics as if
-     the signal has no scope defined. It is primarily for documenting the signal.
+   External:
+   This specifies the signal can be received from any node. This has the same
+   semantics as if the signal has no scope defined. It is primarily for
+   documenting the signal.
 
-     The signal scope is defined in conjunction with setting up signal handler functions
-     for a block during node startup. This is done by the addRecSignal calls.
+   The signal scope is defined in conjunction with setting up signal handler
+   functions for a block during node startup. This is done by the addRecSignal
+   calls.
 
-     The signal scope for individual signals are defined together with the signal classes.
-     Signals without specific classes have their signal scope defined below.
+   The signal scope for individual signals are defined together with the signal
+   classes. Signals without specific classes have their signal scope defined
+   below.
 
-     The format is as follows:
+   The format is as follows:
 
-     DECLARE_SIGNAL_SCOPE(GlobalSignalNumber, SignalScope)
+   DECLARE_SIGNAL_SCOPE(GlobalSignalNumber, SignalScope)
 
-     For example, after definition of class FailRep
+   For example, after definition of class FailRep
 
-     DECLARE_SIGNAL_SCOPE(GSN_FAIL_REP, Remote);
-  */
+   DECLARE_SIGNAL_SCOPE(GSN_FAIL_REP, Remote);
+*/
 enum SignalScope { Local, Remote, Management, External };
 
-template<GlobalSignalNumber GSN> struct signal_property
-{
-  static constexpr SignalScope scope = External; // Default value if there is no GSN-specific specialisation is External
+template <GlobalSignalNumber GSN>
+struct signal_property {
+  static constexpr SignalScope scope =
+      External;  // Default value if there is no GSN-specific specialisation is
+                 // External
 };
 
 // Macro to define a template specialisation for a specific GSN
-#define DECLARE_SIGNAL_SCOPE(gsn, theScope) template<> struct signal_property<gsn> { static constexpr SignalScope scope = theScope; }
+#define DECLARE_SIGNAL_SCOPE(gsn, theScope)        \
+  template <>                                      \
+  struct signal_property<gsn> {                    \
+    static constexpr SignalScope scope = theScope; \
+  }
 
 /*
  Define all generic signal scopes for signals with no

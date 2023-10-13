@@ -30,29 +30,26 @@
 
 #define JAM_FILE_ID 257
 
-
 // Adds "getCount" to DLHashTable
 template <class P, class U = typename P::Type>
 class DLCHashTable : public DLHashTable<P, U> {
   typedef typename P::Type T;
-public:
+
+ public:
   // Ctor
-  DLCHashTable(P & thePool) :
-    DLHashTable<P, U>(thePool),
-    m_count(0)
-  {}
-  
+  DLCHashTable(P &thePool) : DLHashTable<P, U>(thePool), m_count(0) {}
+
   // Get count
   Uint32 getCount() const { return m_count; }
 
   // Redefine methods which do add or remove
 
-  void add(Ptr<T>& ptr) {
+  void add(Ptr<T> &ptr) {
     DLHashTable<P, U>::add(ptr);
     m_count++;
   }
-  
-  void remove(Ptr<T>& ptr, const T & key) {
+
+  void remove(Ptr<T> &ptr, const T &key) {
     DLHashTable<P, U>::remove(ptr, key);
     m_count--;
   }
@@ -62,7 +59,7 @@ public:
     m_count--;
   }
 
-  void remove(Ptr<T>& ptr) {
+  void remove(Ptr<T> &ptr) {
     DLHashTable<P, U>::remove(ptr);
     m_count--;
   }
@@ -71,8 +68,8 @@ public:
     DLHashTable<P, U>::removeAll();
     m_count = 0;
   }
-  
-  void release(Ptr<T>& ptr, const T & key) {
+
+  void release(Ptr<T> &ptr, const T &key) {
     DLHashTable<P, U>::release(ptr, key);
     m_count--;
   }
@@ -82,15 +79,14 @@ public:
     m_count--;
   }
 
-  void release(Ptr<T>& ptr) {
+  void release(Ptr<T> &ptr) {
     DLHashTable<P, U>::release(ptr);
     m_count--;
   }
-  
-private:
+
+ private:
   Uint32 m_count;
 };
-
 
 #undef JAM_FILE_ID
 

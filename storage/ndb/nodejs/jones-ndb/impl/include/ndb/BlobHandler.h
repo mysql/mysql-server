@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -30,61 +30,50 @@
 class NdbBlob;
 class NdbOperation;
 
-class BlobHandler { 
-public:
+class BlobHandler {
+ public:
   BlobHandler(int columnId, int fieldNumber);
-  BlobHandler * getNext();
+  BlobHandler *getNext();
   void setNext(BlobHandler *);
   int getFieldNumber();
 
   virtual ~BlobHandler() {}
   virtual void prepare(const NdbOperation *) = 0;
-  
-protected:
-  NdbBlob * ndbBlob;
-  BlobHandler * next;
-  char * content;
+
+ protected:
+  NdbBlob *ndbBlob;
+  BlobHandler *next;
+  char *content;
   unsigned long long length;
   int columnId;
   int fieldNumber;
 };
 
-
 // BlobReadHandler
 class BlobReadHandler : public BlobHandler {
-public:
+ public:
   BlobReadHandler(int columnId, int fieldNumber);
   void prepare(const NdbOperation *) override;
   int runActiveHook(NdbBlob *);
   v8::Local<v8::Object> getResultBuffer(v8::Isolate *);
-};  
-
+};
 
 // BlobWriteHandler
 class BlobWriteHandler : public BlobHandler {
-public:
+ public:
   BlobWriteHandler(int colId, int fieldNo, v8::Local<v8::Object> jsBlob);
   void prepare(const NdbOperation *) override;
 };
 
-
 // BlobHandler inline methods
-inline void BlobHandler::setNext(BlobHandler *that) {
-  next = that;
-}
+inline void BlobHandler::setNext(BlobHandler *that) { next = that; }
 
-inline BlobHandler * BlobHandler::getNext() {
-  return next;
-}
+inline BlobHandler *BlobHandler::getNext() { return next; }
 
-inline int BlobHandler::getFieldNumber() {
-  return fieldNumber;
-}
-
+inline int BlobHandler::getFieldNumber() { return fieldNumber; }
 
 // BlobReadHandler inline methods
-inline BlobReadHandler::BlobReadHandler(int colId, int fieldNo) : 
-  BlobHandler(colId, fieldNo)
-{ }
+inline BlobReadHandler::BlobReadHandler(int colId, int fieldNo)
+    : BlobHandler(colId, fieldNo) {}
 
 #endif

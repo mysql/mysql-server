@@ -29,7 +29,7 @@ static void print_request_info(FILE *output,
                                CreateEvntReq::RequestType req_type,
                                Uint32 req_flags) {
   fprintf(output, " requestType: ");
-  switch(req_type) {
+  switch (req_type) {
     case CreateEvntReq::RT_UNDEFINED:
       fprintf(output, "'Undefined'");
       break;
@@ -54,23 +54,21 @@ static void print_request_info(FILE *output,
 
 bool printCREATE_EVNT_REQ(FILE *output, const Uint32 *theData, Uint32 len,
                           Uint16) {
-  if (len < CreateEvntReq::SignalLengthGet)
-  {
+  if (len < CreateEvntReq::SignalLengthGet) {
     assert(false);
     return false;
   }
 
-  const CreateEvntReq * const sig = (const CreateEvntReq *) theData;
+  const CreateEvntReq *const sig = (const CreateEvntReq *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   print_request_info(output, sig->getRequestType(), sig->getRequestFlag());
 
-  if (len <= CreateEvntReq::SignalLengthGet)
-    return true;
+  if (len <= CreateEvntReq::SignalLengthGet) return true;
 
-  fprintf(output, " tableId: %u tableVersion: %u\n",
-          sig->m_tableId, sig->m_tableVersion);
+  fprintf(output, " tableId: %u tableVersion: %u\n", sig->m_tableId,
+          sig->m_tableVersion);
   // attrListBitmask;
   fprintf(output, " m_eventType: 0x%08x [eventType: %u, reportFlags: 0x%08x]\n",
           sig->m_eventType, sig->getEventType(), sig->getReportFlags());
@@ -82,21 +80,23 @@ bool printCREATE_EVNT_REQ(FILE *output, const Uint32 *theData, Uint32 len,
 
 bool printCREATE_EVNT_CONF(FILE *output, const Uint32 *theData, Uint32 len,
                            Uint16) {
-  if (len < CreateEvntConf::SignalLength_v8_0_31)
-  {
+  if (len < CreateEvntConf::SignalLength_v8_0_31) {
     assert(false);
     return false;
   }
 
-  const CreateEvntConf * const sig = (const CreateEvntConf *) theData;
+  const CreateEvntConf *const sig = (const CreateEvntConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   print_request_info(output, sig->getRequestType(), 0);
-  fprintf(output, " tableId: %u tableVersion: %u\n", sig->m_tableId, sig->m_tableVersion);
+  fprintf(output, " tableId: %u tableVersion: %u\n", sig->m_tableId,
+          sig->m_tableVersion);
   // attrListBitmask;
-  fprintf(output, " m_eventType: 0x%08x [eventType: %u]\n", sig->m_eventType, sig->getEventType());
-  fprintf(output, " eventId: %u eventKey: %u\n", sig->m_eventId, sig->m_eventKey);
+  fprintf(output, " m_eventType: 0x%08x [eventType: %u]\n", sig->m_eventType,
+          sig->getEventType());
+  fprintf(output, " eventId: %u eventKey: %u\n", sig->m_eventId,
+          sig->m_eventKey);
   if (len > CreateEvntConf::SignalLength_v8_0_31) {
     fprintf(output, " reportFlags: 0x%08x\n", sig->m_reportFlags);
   }
@@ -106,13 +106,12 @@ bool printCREATE_EVNT_CONF(FILE *output, const Uint32 *theData, Uint32 len,
 
 bool printCREATE_EVNT_REF(FILE *output, const Uint32 *theData, Uint32 len,
                           Uint16) {
-  if (len < CreateEvntRef::SignalLength)
-  {
+  if (len < CreateEvntRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateEvntRef * const sig = (const CreateEvntRef *) theData;
+  const CreateEvntRef *const sig = (const CreateEvntRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");

@@ -26,32 +26,31 @@
 #ifndef NDBT_DATA_SET_HPP
 #define NDBT_DATA_SET_HPP
 
-#include "NDBT_Table.hpp"
 #include <NdbApi.hpp>
+#include "NDBT_Table.hpp"
 
 class NDBT_DataSet;
 
 class NDBT_DataSetFactory {
-public:
-  NDBT_DataSet * createEmpty(const NDBT_Table & table, 
-			     const char * columns[]);
-  
-  NDBT_DataSet * createRandom(const NDBT_DataSet & table, 
-			      const char * columns[],
-			      int rows);
-  
-  NDBT_DataSet * createXXX(int noOfDS, const NDBT_DataSet ** datasets);
+ public:
+  NDBT_DataSet *createEmpty(const NDBT_Table &table, const char *columns[]);
+
+  NDBT_DataSet *createRandom(const NDBT_DataSet &table, const char *columns[],
+                             int rows);
+
+  NDBT_DataSet *createXXX(int noOfDS, const NDBT_DataSet **datasets);
 };
 
 class NDBT_DataSet {
   friend class NDBT_DataSetFactory;
-public:
+
+ public:
   /**
    * Rows in the data set
    */
   void setRows(int rows);
   void addRows(int rows);
-  
+
   int getNoOfRows() const;
 
   /**
@@ -59,10 +58,10 @@ public:
    */
   int getNoOfColumns() const;
   int getNoOfPKs() const;
-  
-  const NDBT_Attribute * getColumn(int index);
-  const NDBT_Attribute * getColumn(const char * name);
-  
+
+  const NDBT_Attribute *getColumn(int index);
+  const NDBT_Attribute *getColumn(const char *name);
+
   /**
    * Data status in dataset
    */
@@ -73,38 +72,38 @@ public:
    * Do all rows in the dataset have a PK
    */
   bool hasPK();
-  
+
   /**
    * Do all rows in the dataset has data
    */
   bool hasData();
-  
+
   /**
    * Getters for data
    */
   Uint32 getUInt(int row, int index) const;
-  Uint32 getUInt(int row, const char * attribute) const;
-  
+  Uint32 getUInt(int row, const char *attribute) const;
+
   Int32 getInt(int row, int index) const;
-  Int32 getInt(int row, const char * attribute) const;
-  
-  const char * getString(int row, int index) const;
-  const char * getString(int row, const char * attribute) const;
+  Int32 getInt(int row, const char *attribute) const;
+
+  const char *getString(int row, int index) const;
+  const char *getString(int row, const char *attribute) const;
 
   bool getIsNull(int row, int index) const;
-  bool getIsNull(int row, const char * attribute) const;
-  
+  bool getIsNull(int row, const char *attribute) const;
+
   /**
    * Setters for data
    */
   void set(int row, int index, Int32 value);
-  void set(int row, const char * attr, Int32 value);
-  
+  void set(int row, const char *attr, Int32 value);
+
   void set(int row, int index, Uint32 value);
-  void set(int row, const char * attr, Uint32 value);
-  
-  void set(int row, int index, const char * value);
-  void set(int row, const char * attr, const char * value);
+  void set(int row, const char *attr, Uint32 value);
+
+  void set(int row, int index, const char *value);
+  void set(int row, const char *attr, const char *value);
 
   /**
    * Comparators
@@ -115,8 +114,8 @@ public:
    *
    * If either of the datasets have "undefined" rows the answer is false
    */
-  bool equal(const NDBT_DataSet & other) const;
-  
+  bool equal(const NDBT_DataSet &other) const;
+
   /**
    * Do these dataset have identical PK's
    *
@@ -125,25 +124,25 @@ public:
    * and for each row there is a corresponding row in the other ds
    *     with the same pk
    */
-  bool equalPK(const NDBT_DataSet & other) const;
+  bool equalPK(const NDBT_DataSet &other) const;
 
-private:
-  NDBT_Attribute * columns;
-  
+ private:
+  NDBT_Attribute *columns;
+
   Uint32 noOfRows;
   Uint32 noOfPKs;
-  
-  Uint32 * pks;
-  Uint32 * columnSizes;
-  
-  char * pkData;
-  char * data;
 
-  char * pk(int row, int pkIndex);
-  char * column(int row, int columnIndex);
+  Uint32 *pks;
+  Uint32 *columnSizes;
 
-  Uint32 * hasPK;
-  Uint32 * hasData;
+  char *pkData;
+  char *data;
+
+  char *pk(int row, int pkIndex);
+  char *column(int row, int columnIndex);
+
+  Uint32 *hasPK;
+  Uint32 *hasData;
 };
 
 #endif

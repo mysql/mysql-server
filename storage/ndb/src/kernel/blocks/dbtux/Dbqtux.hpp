@@ -31,17 +31,16 @@
 
 #define JAM_FILE_ID 529
 
-class Dbqtux : public Dbtux
-{
+class Dbqtux : public Dbtux {
   friend class DbqtuxProxy;
 
-public:
-  Dbqtux(Block_context& ctx,
-         Uint32 instanceNumber = 0);
+ public:
+  Dbqtux(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~Dbqtux();
 
   static Uint64 getTransactionMemoryNeed();
-private:
+
+ private:
   BLOCK_DEFINES(Dbqtux);
 };
 

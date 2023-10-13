@@ -26,34 +26,28 @@
 
 #define JAM_FILE_ID 373
 
-
-struct mt_BuildIndxCtx
-{
+struct mt_BuildIndxCtx {
   Uint32 indexId;
   Uint32 tableId;
   Uint32 fragId;
-  Dbtup* tup_ptr;
-  Dbtux::TuxCtx * tux_ctx_ptr;
-  NdbMutex * alloc_mutex_ptr;
+  Dbtup *tup_ptr;
+  Dbtux::TuxCtx *tux_ctx_ptr;
+  NdbMutex *alloc_mutex_ptr;
 };
 
-Uint32
-Dbtux_mt_buildIndexFragment_wrapper_C(void * obj)
-{
+Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void *obj) {
   return Dbtux::mt_buildIndexFragment_wrapper(obj);
 }
 
-Uint32
-Dbtux::mt_buildIndexFragment_wrapper(void * obj)
-{
-  mt_BuildIndxReq* req = reinterpret_cast<mt_BuildIndxReq*>(obj);
-  TuxCtx * tux_ctx = reinterpret_cast<TuxCtx*>(req->mem_buffer);
+Uint32 Dbtux::mt_buildIndexFragment_wrapper(void *obj) {
+  mt_BuildIndxReq *req = reinterpret_cast<mt_BuildIndxReq *>(obj);
+  TuxCtx *tux_ctx = reinterpret_cast<TuxCtx *>(req->mem_buffer);
   {
     /**
      * Setup ctx object...
      */
-    Uint32 * ptr = reinterpret_cast<Uint32*>(req->mem_buffer);
-    ptr += (sizeof(* tux_ctx) + 3) / 4;
+    Uint32 *ptr = reinterpret_cast<Uint32 *>(req->mem_buffer);
+    ptr += (sizeof(*tux_ctx) + 3) / 4;
 
     tux_ctx->jamBuffer = getThrJamBuf();
     tux_ctx->c_searchKey = ptr;
@@ -65,11 +59,10 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     tux_ctx->c_boundBuffer = ptr;
     ptr += MaxAttrDataSize;
 #ifdef VM_TRACE
-    tux_ctx->c_debugBuffer = (char*)ptr;
+    tux_ctx->c_debugBuffer = (char *)ptr;
     ptr += (DebugBufferBytes + 3) / 4;
 #endif
-    if (!(UintPtr(ptr) - UintPtr(req->mem_buffer) <= req->buffer_size))
-      abort();
+    if (!(UintPtr(ptr) - UintPtr(req->mem_buffer) <= req->buffer_size)) abort();
   }
 
   mt_BuildIndxCtx ctx;
@@ -77,15 +70,14 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
   ctx.tableId = req->tableId;
   ctx.fragId = req->fragId;
   ctx.tux_ctx_ptr = tux_ctx;
-  ctx.tup_ptr = reinterpret_cast<Dbtup*>(req->tup_ptr);
+  ctx.tup_ptr = reinterpret_cast<Dbtup *>(req->tup_ptr);
 
-  Dbtux* tux = reinterpret_cast<Dbtux*>(req->tux_ptr);
+  Dbtux *tux = reinterpret_cast<Dbtux *>(req->tux_ptr);
   return tux->mt_buildIndexFragment(&ctx);
 }
 
-Uint32 // error code
-Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
-{
+Uint32  // error code
+Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx *req) {
   IndexPtr indexPtr;
   ndbrequire(c_indexPool.getPtr(indexPtr, req->indexId));
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
@@ -93,69 +85,53 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  TuxCtx & ctx = * (TuxCtx*)req->tux_ctx_ptr;
+  TuxCtx &ctx = *(TuxCtx *)req->tux_ctx_ptr;
   findFrag(ctx.jamBuffer, *indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
-  Frag& frag = *fragPtr.p;
+  Frag &frag = *fragPtr.p;
   Local_key pos;
   Uint32 fragPtrI;
   prepare_build_ctx(ctx, fragPtr);
-  int err = req->tup_ptr->mt_scan_init(req->tableId, req->fragId,
-                                       &pos, &fragPtrI);
+  int err =
+      req->tup_ptr->mt_scan_init(req->tableId, req->fragId, &pos, &fragPtrI);
   bool moveNext = false;
-  while (globalData.theRestartFlag != perform_stop &&
-         err == 0 &&
-         (err = req->tup_ptr->mt_scan_next(req->tableId,
-                                           fragPtrI, &pos, moveNext)) == 0)
-  {
+  while (globalData.theRestartFlag != perform_stop && err == 0 &&
+         (err = req->tup_ptr->mt_scan_next(req->tableId, fragPtrI, &pos,
+                                           moveNext)) == 0) {
     moveNext = true;
 
     // set up search entry
     TreeEnt ent;
     ent.m_tupLoc = TupLoc(pos.m_page_no, pos.m_page_idx);
-    ent.m_tupVersion = pos.m_file_no; // used for version
+    ent.m_tupVersion = pos.m_file_no;  // used for version
 
     // set up and read search key
-    readKeyAttrs(ctx,
-                 frag,
-                 ent,
-                 indexPtr.p->m_numAttrs,
-                 ctx.c_boundBuffer);
-    KeyDataArray *key_data = new (&ctx.searchKeyDataArray)
-                             KeyDataArray();
+    readKeyAttrs(ctx, frag, ent, indexPtr.p->m_numAttrs, ctx.c_boundBuffer);
+    KeyDataArray *key_data = new (&ctx.searchKeyDataArray) KeyDataArray();
     key_data->init_poai(ctx.c_boundBuffer, indexPtr.p->m_numAttrs);
     KeyBoundArray *searchBound = new (&ctx.searchKeyBoundArray)
-                                 KeyBoundArray(&indexPtr.p->m_keySpec,
-                                               &ctx.searchKeyDataArray,
-                                               false);
+        KeyBoundArray(&indexPtr.p->m_keySpec, &ctx.searchKeyDataArray, false);
 
-    if (unlikely(! indexPtr.p->m_storeNullKey) &&
-        key_data->get_null_cnt() == indexPtr.p->m_numAttrs)
-    {
+    if (unlikely(!indexPtr.p->m_storeNullKey) &&
+        key_data->get_null_cnt() == indexPtr.p->m_numAttrs) {
       thrjam(ctx.jamBuffer);
       continue;
     }
 
     TreePos treePos;
-    bool ok = searchToAdd(ctx,
-                          frag,
-                          *searchBound,
-                          ent,
-                          treePos);
+    bool ok = searchToAdd(ctx, frag, *searchBound, ent, treePos);
     ndbrequire(ok);
 
     /*
      * At most one new node is inserted in the operation.  Pre-allocate
      * it so that the operation cannot fail.
      */
-    if (frag.m_freeLoc == NullTupLoc)
-    {
+    if (frag.m_freeLoc == NullTupLoc) {
       thrjam(ctx.jamBuffer);
       NodeHandle node(frag);
       err = -(int)allocNode(ctx, node);
 
-      if (err != 0)
-      {
+      if (err != 0) {
         break;
       }
       frag.m_freeLoc = node.m_loc;
@@ -167,8 +143,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
     frag.m_entryOps++;
   }
 
-  if (err < 0)
-  {
+  if (err < 0) {
     return -err;
   }
 

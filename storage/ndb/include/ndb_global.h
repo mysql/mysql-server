@@ -37,12 +37,12 @@
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
+#include <mysql/service_mysql_alloc.h>
 #include <stddef.h>
 #include <stdio.h>
 #include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -60,7 +60,7 @@
 */
 
 #define my_offsetof(TYPE, MEMBER) \
-        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+  ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char *)0x10))
 
 #ifdef HAVE_NDB_CONFIG_H
 #include "ndb_config.h"
@@ -85,19 +85,19 @@
 
 /* Disable a few compiler warnings on Windows */
 /* 4355: 'this': used in base member initializer list */
-#pragma warning(disable: 4355)
+#pragma warning(disable : 4355)
 
 #endif
 
-#if ! (NDB_SIZEOF_CHAR == SIZEOF_CHAR)
+#if !(NDB_SIZEOF_CHAR == SIZEOF_CHAR)
 #error "Invalid define for Uint8"
 #endif
 
-#if ! (NDB_SIZEOF_INT == SIZEOF_INT)
+#if !(NDB_SIZEOF_INT == SIZEOF_INT)
 #error "Invalid define for Uint32"
 #endif
 
-#if ! (NDB_SIZEOF_LONG_LONG == SIZEOF_LONG_LONG)
+#if !(NDB_SIZEOF_LONG_LONG == SIZEOF_LONG_LONG)
 #error "Invalid define for Uint64"
 #endif
 
@@ -134,19 +134,17 @@
 #include <sys/mman.h>
 #endif
 
-static const char table_name_separator =  '/';
+static const char table_name_separator = '/';
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
-	
 
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 #include <new>
 #endif
 
@@ -157,11 +155,11 @@ extern "C" {
 #endif
 
 #ifndef MIN
-#define MIN(x,y) (((x)<(y))?(x):(y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #endif
 
 #ifndef MAX
-#define MAX(x,y) (((x)>(y))?(x):(y))
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #endif
 
 /*
@@ -190,14 +188,14 @@ extern "C" {
 #endif
 
 /**
- * visual studio is stricter than gcc for __is_pod, settle for __has_trivial_constructor
- *  until we really really made all signal data classes POD
+ * visual studio is stricter than gcc for __is_pod, settle for
+ * __has_trivial_constructor until we really really made all signal data classes
+ * POD
  *
  * UPDATE: also gcc fails to compile our code with gcc4.4.3
  */
 #ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
-#define NDB_ASSERT_POD(x) \
-  static_assert(__has_trivial_constructor(x))
+#define NDB_ASSERT_POD(x) static_assert(__has_trivial_constructor(x))
 #else
 #define NDB_ASSERT_POD(x)
 #endif
@@ -214,51 +212,43 @@ extern "C" {
  */
 #define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
 
-struct LinearSectionPtr
-{
+struct LinearSectionPtr {
   Uint32 sz;
-  const Uint32* p;
+  const Uint32 *p;
 };
 
-struct SegmentedSectionPtrPOD
-{
+struct SegmentedSectionPtrPOD {
   Uint32 sz;
   Uint32 i;
-  struct SectionSegment * p;
+  struct SectionSegment *p;
 
 #ifdef __cplusplus
-  void setNull() { p = nullptr;}
-  bool isNull() const { return p == nullptr;}
-  inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
+  void setNull() { p = nullptr; }
+  bool isNull() const { return p == nullptr; }
+  inline SegmentedSectionPtrPOD &assign(struct SegmentedSectionPtr &);
 #endif
 };
 
-struct SegmentedSectionPtr
-{
+struct SegmentedSectionPtr {
   Uint32 sz;
   Uint32 i;
-  struct SectionSegment * p;
+  struct SectionSegment *p;
 
 #ifdef __cplusplus
   SegmentedSectionPtr() {}
-  SegmentedSectionPtr(Uint32 sz_arg, Uint32 i_arg,
-                      struct SectionSegment *p_arg)
-    :sz(sz_arg), i(i_arg), p(p_arg)
-  {}
-  SegmentedSectionPtr(const SegmentedSectionPtrPOD & src)
-    :sz(src.sz), i(src.i), p(src.p)
-  {}
+  SegmentedSectionPtr(Uint32 sz_arg, Uint32 i_arg, struct SectionSegment *p_arg)
+      : sz(sz_arg), i(i_arg), p(p_arg) {}
+  SegmentedSectionPtr(const SegmentedSectionPtrPOD &src)
+      : sz(src.sz), i(src.i), p(src.p) {}
 
-  void setNull() { p = nullptr;}
-  bool isNull() const { return p == nullptr;}
+  void setNull() { p = nullptr; }
+  bool isNull() const { return p == nullptr; }
 #endif
 };
 
 #ifdef __cplusplus
-inline
-SegmentedSectionPtrPOD&
-SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
-{
+inline SegmentedSectionPtrPOD &SegmentedSectionPtrPOD::assign(
+    struct SegmentedSectionPtr &src) {
   this->i = src.i;
   this->p = src.p;
   this->sz = src.sz;
@@ -270,20 +260,18 @@ SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
  * words in a section
  */
 #ifdef __cplusplus
-struct GenericSectionIterator
-{
+struct GenericSectionIterator {
   virtual ~GenericSectionIterator() {}
-  virtual void reset()=0;
-  virtual const Uint32* getNextWords(Uint32& sz)=0;
+  virtual void reset() = 0;
+  virtual const Uint32 *getNextWords(Uint32 &sz) = 0;
 };
 #else
 struct GenericSectionIterator;
 #endif
 
-struct GenericSectionPtr
-{
+struct GenericSectionPtr {
   Uint32 sz;
-  struct GenericSectionIterator* sectionIter;
+  struct GenericSectionIterator *sectionIter;
 };
 
 #endif

@@ -24,18 +24,14 @@
 
 #include <signaldata/DropFK.hpp>
 
-bool printDROP_FK_REQ(FILE* output,
-                      const Uint32* theData,
-                      Uint32 len,
-                      Uint16 /*rbn*/)
-{
-  if (len < DropFKReq::SignalLength)
-  {
+bool printDROP_FK_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*rbn*/) {
+  if (len < DropFKReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropFKReq* sig = (const DropFKReq*)theData;
+  const DropFKReq *sig = (const DropFKReq *)theData;
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
@@ -49,18 +45,14 @@ bool printDROP_FK_REQ(FILE* output,
   return true;
 }
 
-bool printDROP_FK_REF(FILE* output,
-                      const Uint32* theData,
-                      Uint32 len,
-                      Uint16 /*rbn*/)
-{
-  if (len < DropFKReq::SignalLength)
-  {
+bool printDROP_FK_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*rbn*/) {
+  if (len < DropFKReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropFKRef* sig = (const DropFKRef*)theData;
+  const DropFKRef *sig = (const DropFKRef *)theData;
   fprintf(output, " clientData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -73,18 +65,14 @@ bool printDROP_FK_REF(FILE* output,
   return true;
 }
 
-bool printDROP_FK_CONF(FILE* output,
-                       const Uint32* theData,
-                       Uint32 len,
-                       Uint16 /*rbn*/)
-{
-  if (len < DropFKConf::SignalLength)
-  {
+bool printDROP_FK_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                       Uint16 /*rbn*/) {
+  if (len < DropFKConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropFKConf* sig = (const DropFKConf*)theData;
+  const DropFKConf *sig = (const DropFKConf *)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0%x", sig->senderRef);
   fprintf(output, " transId: 0x%x", sig->transId);

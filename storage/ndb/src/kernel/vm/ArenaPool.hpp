@@ -23,18 +23,16 @@
 #ifndef ARENA_POOL_HPP
 #define ARENA_POOL_HPP
 
-#include "my_config.h"
-#include "util/require.h"
 #include <ndbd_exit_codes.h>
-#include <NdbOut.hpp> // For template ArenaPool former cpp-file
+#include <NdbOut.hpp>  // For template ArenaPool former cpp-file
 #include "Pool.hpp"
 #include "RWPool.hpp"
+#include "my_config.h"
+#include "util/require.h"
 
 #define JAM_FILE_ID 289
 
-
-struct ArenaBlock
-{
+struct ArenaBlock {
   Uint32 m_magic;
   union {
     Uint32 m_next_block;
@@ -50,8 +48,7 @@ struct ArenaBlock
   }
 };
 
-struct ArenaHead
-{
+struct ArenaHead {
   ArenaHead() {
     m_first_free = ~(Uint16)0;
     m_block_size = 0;
@@ -60,89 +57,85 @@ struct ArenaHead
     m_current_block_ptr = 0;
   }
 
-  ArenaBlock * m_current_block_ptr;
+  ArenaBlock *m_current_block_ptr;
   Uint32 m_first_block;
   Uint32 m_current_block;
   Uint16 m_first_free;
   Uint16 m_block_size;
 };
 
-template<typename T>
-class ArenaPool; // forward
+template <typename T>
+class ArenaPool;  // forward
 
-class ArenaAllocator
-{
+class ArenaAllocator {
   RWPool<void> m_pool;
   Uint32 m_block_size;
-  template<typename T> friend class ArenaPool;
-public:
-  ArenaAllocator() {}
-  void init(Uint32 blockSize, Uint32 type_id, const Pool_context& pc);
+  template <typename T>
+  friend class ArenaPool;
 
-  bool seize(ArenaHead&);
-  void release(ArenaHead&);
+ public:
+  ArenaAllocator() {}
+  void init(Uint32 blockSize, Uint32 type_id, const Pool_context &pc);
+
+  bool seize(ArenaHead &);
+  void release(ArenaHead &);
 };
 
-template<typename T>
-class ArenaPool
-{
-public:
+template <typename T>
+class ArenaPool {
+ public:
   typedef T Type;
 
   ArenaPool() {}
 
-  void init(ArenaAllocator*, const Record_info& ri, const Pool_context& pc);
+  void init(ArenaAllocator *, const Record_info &ri, const Pool_context &pc);
 
-  bool seize(Ptr<T>&) { assert(false); return false; } // Not implemented...
+  bool seize(Ptr<T> &) {
+    assert(false);
+    return false;
+  }  // Not implemented...
 
-  bool seize(ArenaHead&, Ptr<T>&);
+  bool seize(ArenaHead &, Ptr<T> &);
   void release(Ptr<T>);
-  T * getPtr(Uint32 i) const;
+  T *getPtr(Uint32 i) const;
 
-private:
+ private:
   [[noreturn]] void handle_invalid_release(Ptr<T>);
 
   Record_info m_record_info;
-  ArenaAllocator * m_allocator;
+  ArenaAllocator *m_allocator;
 };
 
-template<typename T>
-class LocalArenaPool
-{
-  ArenaHead & m_head;
-  ArenaPool<T> & m_pool;
-public:
-  LocalArenaPool(ArenaHead& head, ArenaPool<T> & pool)
-    : m_head(head), m_pool(pool) {}
+template <typename T>
+class LocalArenaPool {
+  ArenaHead &m_head;
+  ArenaPool<T> &m_pool;
 
-  bool seize(Ptr<T> & ptr) { return m_pool.seize(m_head, ptr); }
+ public:
+  LocalArenaPool(ArenaHead &head, ArenaPool<T> &pool)
+      : m_head(head), m_pool(pool) {}
+
+  bool seize(Ptr<T> &ptr) { return m_pool.seize(m_head, ptr); }
   void release(Ptr<T> ptr) { m_pool.release(ptr); }
-  T * getPtr(Uint32 i) const { return m_pool.getPtr(i); }
+  T *getPtr(Uint32 i) const { return m_pool.getPtr(i); }
 };
 
-template<typename T>
-inline
-T*
-ArenaPool<T>::getPtr(Uint32 i) const
-{
-  void* const p = m_allocator->m_pool.getPtr(m_record_info, i);
-  return static_cast<T*>(p);
+template <typename T>
+inline T *ArenaPool<T>::getPtr(Uint32 i) const {
+  void *const p = m_allocator->m_pool.getPtr(m_record_info, i);
+  return static_cast<T *>(p);
 }
 
-template<typename T>
-inline
-void
-ArenaPool<T>::release(Ptr<T> ptr)
-{
+template <typename T>
+inline void ArenaPool<T>::release(Ptr<T> ptr) {
   // TODO add trait extracting magic for type T
-  Uint32 * record_ptr = reinterpret_cast<Uint32*>(ptr.p);
+  Uint32 *record_ptr = reinterpret_cast<Uint32 *>(ptr.p);
   Uint32 off = m_record_info.m_offset_magic;
   Uint32 type_id = m_record_info.m_type_id;
-  Uint32 magic_val = * (record_ptr + off);
+  Uint32 magic_val = *(record_ptr + off);
 
-  if (likely(magic_val == ~type_id))
-  {
-    * (record_ptr + off) = 0;
+  if (likely(magic_val == ~type_id)) {
+    *(record_ptr + off) = 0;
     return;
   }
   handle_invalid_release(ptr);
@@ -150,74 +143,63 @@ ArenaPool<T>::release(Ptr<T> ptr)
 
 ////////////////////////////////
 
-template<typename T>
-void
-ArenaPool<T>::init(ArenaAllocator * alloc,
-                   const Record_info& ri, const Pool_context&)
-{
+template <typename T>
+void ArenaPool<T>::init(ArenaAllocator *alloc, const Record_info &ri,
+                        const Pool_context &) {
   m_record_info = ri;
-require(ri.m_size == sizeof(T));
+  require(ri.m_size == sizeof(T));
 #if SIZEOF_CHARP == 4
-  m_record_info.m_size = ((ri.m_size + 3) >> 2); // Align to word boundary
+  m_record_info.m_size = ((ri.m_size + 3) >> 2);  // Align to word boundary
 #else
-  m_record_info.m_size = ((ri.m_size + 7) >> 3) << 1; // align 8-byte
+  m_record_info.m_size = ((ri.m_size + 7) >> 3) << 1;  // align 8-byte
 #endif
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_record_info.m_offset_next_pool = ((ri.m_offset_next_pool + 3) >> 2);
   m_allocator = alloc;
 }
 
-template<typename T>
-bool
-ArenaPool<T>::seize(ArenaHead & ah, Ptr<T>& ptr)
-{
+template <typename T>
+bool ArenaPool<T>::seize(ArenaHead &ah, Ptr<T> &ptr) {
   Uint32 pos = ah.m_first_free;
   Uint32 bs = ah.m_block_size;
   Uint32 ptrI = ah.m_current_block;
-  ArenaBlock * block = ah.m_current_block_ptr;
+  ArenaBlock *block = ah.m_current_block_ptr;
 
   Uint32 sz = m_record_info.m_size;
-require(sizeof(T) <= sz*sizeof(Uint32));
+  require(sizeof(T) <= sz * sizeof(Uint32));
   Uint32 off = m_record_info.m_offset_magic;
 
   if (0)
     g_eventLogger->info("pos: %u sz: %u (sum: %u) bs: %u", pos, sz, (pos + sz),
                         bs);
 
-  if (pos + sz <= bs)
-  {
+  if (pos + sz <= bs) {
     /**
      * Alloc in this block
      */
-    ptr.i =
-      ((ptrI >> POOL_RECORD_BITS) << POOL_RECORD_BITS) +
-      (ptrI & POOL_RECORD_MASK) + pos + ArenaBlock::HeaderSize;
-    Uint32* const p = block->m_data + pos;
-    ptr.p = reinterpret_cast<T*>(p); // TODO dynamic_cast?
-    block->m_data[pos+off] = ~(Uint32)m_record_info.m_type_id;
+    ptr.i = ((ptrI >> POOL_RECORD_BITS) << POOL_RECORD_BITS) +
+            (ptrI & POOL_RECORD_MASK) + pos + ArenaBlock::HeaderSize;
+    Uint32 *const p = block->m_data + pos;
+    ptr.p = reinterpret_cast<T *>(p);  // TODO dynamic_cast?
+    block->m_data[pos + off] = ~(Uint32)m_record_info.m_type_id;
 
     ah.m_first_free = pos + sz;
     return true;
-  }
-  else
-  {
+  } else {
     Ptr<void> tmp;
-    if (ah.m_first_block == RNIL)
-    { // ArenaPool is empty, seize a new ArenaHead
-      if (!m_allocator->seize(ah))
-        return false;
+    if (ah.m_first_block ==
+        RNIL) {  // ArenaPool is empty, seize a new ArenaHead
+      if (!m_allocator->seize(ah)) return false;
     }
     // Extend pool with new block
-    else if (m_allocator->m_pool.seize(tmp))
-    {
+    else if (m_allocator->m_pool.seize(tmp)) {
       assert(ah.m_block_size == m_allocator->m_block_size);
       ah.m_first_free = 0;
       ah.m_current_block = tmp.i;
       ah.m_current_block_ptr->m_next_block = tmp.i;
-      ah.m_current_block_ptr = static_cast<ArenaBlock*>(tmp.p);
+      ah.m_current_block_ptr = static_cast<ArenaBlock *>(tmp.p);
       ah.m_current_block_ptr->m_next_block = RNIL;
-    }
-    else
+    } else
       return false;
 
     // Re-seize object from created / extended Pool
@@ -229,17 +211,15 @@ require(sizeof(T) <= sz*sizeof(Uint32));
   return false;
 }
 
-template<typename T>
-void
-ArenaPool<T>::handle_invalid_release(Ptr<T> ptr)
-{
+template <typename T>
+void ArenaPool<T>::handle_invalid_release(Ptr<T> ptr) {
   char buf[255];
 
-  //Uint32 pos = ptr.i & POOL_RECORD_MASK;
-  //Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
-  Uint32 * record_ptr_p = (Uint32*)ptr.p;
+  // Uint32 pos = ptr.i & POOL_RECORD_MASK;
+  // Uint32 pageI = ptr.i >> POOL_RECORD_BITS;
+  Uint32 *record_ptr_p = (Uint32 *)ptr.p;
 
-  Uint32 magic = * (record_ptr_p + m_record_info.m_offset_magic);
+  Uint32 magic = *(record_ptr_p + m_record_info.m_offset_magic);
   BaseString::snprintf(buf, sizeof(buf),
                        "Invalid memory release: ptr (%x %p) magic: (%.8x %.8x)",
                        ptr.i, ptr.p, magic, m_record_info.m_type_id);

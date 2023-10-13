@@ -45,13 +45,12 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
-
 /* NDB thread pointer. */
 struct NdbThread;
-extern thread_local NdbThread* NDB_THREAD_TLS_NDB_THREAD;
+extern thread_local NdbThread *NDB_THREAD_TLS_NDB_THREAD;
 
-extern "C" typedef void* (NDB_THREAD_FUNC)(void*);
-typedef void* NDB_THREAD_ARG;
+extern "C" typedef void *(NDB_THREAD_FUNC)(void *);
+typedef void *NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
 
 struct NdbThread;
@@ -60,29 +59,28 @@ struct NdbThread;
  * Create a thread
  *
  *  * p_thread_func: pointer of the function to run in the thread
- *  * p_thread_arg: pointer to argument to be passed to the thread 
+ *  * p_thread_arg: pointer to argument to be passed to the thread
  *  * thread_stack_size: stack size for this thread, 0 => default size
  *  * p_thread_name: pointer to name of this thread
  *  * returnvalue: pointer to the created thread
  */
-struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
+struct NdbThread *NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
                                    NDB_THREAD_ARG *p_thread_arg,
                                    const NDB_THREAD_STACKSIZE thread_stack_size,
-                                   const char* p_thread_name,
+                                   const char *p_thread_name,
                                    NDB_THREAD_PRIO thread_prio);
-
 
 /**
  * Create a thread-object for "main" that can be used with
  *   other NdbThread_*-functions
  */
-struct NdbThread* NdbThread_CreateObject(const char * name);
+struct NdbThread *NdbThread_CreateObject(const char *name);
 
 /**
  * Create a thread object handled by other portability system
  * where we want to use Ndb for CPU locking.
  */
-struct NdbThread* NdbThread_CreateLockObject(int tid);
+struct NdbThread *NdbThread_CreateLockObject(int tid);
 
 /**
  * Destroy a thread
@@ -90,8 +88,8 @@ struct NdbThread* NdbThread_CreateLockObject(int tid);
  *  And NULL the pointer
  *
  */
-void NdbThread_Destroy(struct NdbThread** p_thread);
- 
+void NdbThread_Destroy(struct NdbThread **p_thread);
+
 /**
  * Waitfor a thread, suspend the execution of the calling thread
  * until the wait_thread_id completes
@@ -100,11 +98,11 @@ void NdbThread_Destroy(struct NdbThread** p_thread);
  * * status: exit code from thread waited for
  * * returnvalue: true = succeeded, false = failed
  */
-int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status);      
+int NdbThread_WaitFor(struct NdbThread *p_wait_thread, void **status);
 
 /**
- * Exit thread, terminates the calling thread 
- *   
+ * Exit thread, terminates the calling thread
+ *
  * *  status: exit code
  */
 void NdbThread_Exit(void *status);
@@ -113,7 +111,7 @@ void NdbThread_Exit(void *status);
  * Set thread concurrency level
  * Deprecated function and no longer used other than in old
  * program parts.
- * *  
+ * *
  */
 int NdbThread_SetConcurrencyLevel(int level);
 
@@ -122,19 +120,19 @@ int NdbThread_SetConcurrencyLevel(int level);
  * This is used in many OS interfaces and also used for printing.
  *   return -1, if not supported on platform
  */
-int NdbThread_GetTid(struct NdbThread*);
+int NdbThread_GetTid(struct NdbThread *);
 
 /**
  * Yield to normal time-share prio and back to real-time prio for
  * real-time threads
  */
-int NdbThread_yield_rt(struct NdbThread*, bool high_prio);
+int NdbThread_yield_rt(struct NdbThread *, bool high_prio);
 
 /**
  * Set Scheduler for thread
  * This sets real-time priority of the thread.
  */
-int NdbThread_SetScheduler(struct NdbThread*, bool rt_prio, bool high_prio);
+int NdbThread_SetScheduler(struct NdbThread *, bool rt_prio, bool high_prio);
 
 /**
  * Set Thread priority for thread
@@ -143,12 +141,12 @@ int NdbThread_SetScheduler(struct NdbThread*, bool rt_prio, bool high_prio);
  *
  * Currently we support 11 levels from 0 to 10. 10 is a bit special level
  * on Solaris which indicates to Solaris that we want to own a CPU core.
- * On Windows, prio 10 indicates a special real-time priority. 
+ * On Windows, prio 10 indicates a special real-time priority.
  */
 #define NO_THREAD_PRIO_USED 11
 #define MAX_THREAD_PRIO_NUMBER 10
-int NdbThread_SetThreadPrio(struct NdbThread*, unsigned int prio);
-int NdbThread_SetThreadPrioNormal(struct NdbThread*);
+int NdbThread_SetThreadPrio(struct NdbThread *, unsigned int prio);
+int NdbThread_SetThreadPrioNormal(struct NdbThread *);
 
 /**
  * Lock/Unlock Thread to CPU
@@ -169,8 +167,7 @@ struct processor_set_handler;
  * Create a CPU set for later use in locking call.
  * The CPU set is a non-exclusive CPU set.
  */
-int NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
-                               Uint32 num_cpus,
+int NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids, Uint32 num_cpus,
                                struct NdbCpuSet **cpu_set);
 
 /**
@@ -179,8 +176,7 @@ int NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
  * no other threads can use this set of CPUs for any
  * activity. This is currently only supported on Solaris.
  */
-int NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
-                                        Uint32 num_cpus,
+int NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids, Uint32 num_cpus,
                                         struct NdbCpuSet **cpu_set);
 
 /**
@@ -199,42 +195,40 @@ void NdbThread_LockDestroyCPUSetExclusive(struct NdbCpuSet *cpu_set);
  * Make the locking call for this particular thread to a previously set
  * up CPU set which is non-exclusive.
  */
-int NdbThread_LockCPUSet(struct NdbThread*,
-                         struct NdbCpuSet *cpu_set,
+int NdbThread_LockCPUSet(struct NdbThread *, struct NdbCpuSet *cpu_set,
                          const struct processor_set_handler *cpu_set_key);
 
 /**
  * Make the locking call for this particular thread to a previously set
  * up CPU set which is exclusive.
  */
-int NdbThread_LockCPUSetExclusive(struct NdbThread*,
-                                  struct NdbCpuSet *cpu_set,
-                                  const struct processor_set_handler *cpu_set_key);
+int NdbThread_LockCPUSetExclusive(
+    struct NdbThread *, struct NdbCpuSet *cpu_set,
+    const struct processor_set_handler *cpu_set_key);
 
 /**
  * Lock a thread to a specific CPU in an non-exclusive manner.
  */
-int NdbThread_LockCPU(struct NdbThread*,
-                      Uint32 cpu,
+int NdbThread_LockCPU(struct NdbThread *, Uint32 cpu,
                       const struct processor_set_handler *cpu_set_key);
 
 /**
  * Restore the old locking (if any) that was in place before the first call
  * to lock to CPU sets.
  */
-int NdbThread_UnlockCPU(struct NdbThread*);
+int NdbThread_UnlockCPU(struct NdbThread *);
 
 /**
  * Unassign thread from CPU set (only needed on Windows)
  */
-void NdbThread_UnassignFromCPUSet(struct NdbThread*,
+void NdbThread_UnassignFromCPUSet(struct NdbThread *,
                                   struct NdbCpuSet *cpu_set);
 
 /**
  * Retrieve CPU set key from portability layer.
  */
-const struct processor_set_handler*
-  NdbThread_LockGetCPUSetKey(struct NdbThread*);
+const struct processor_set_handler *NdbThread_LockGetCPUSetKey(
+    struct NdbThread *);
 
 /* Get my own NdbThread pointer */
 struct NdbThread *NdbThread_GetNdbThread();
@@ -251,7 +245,7 @@ struct NdbThread *NdbThread_GetNdbThread();
  * @return 0  - parse ok
  *  return -1 - Invalid spec
  */
-int NdbThread_SetHighPrioProperties(const char * spec);
+int NdbThread_SetHighPrioProperties(const char *spec);
 
 /**
  * Clear Unix signal mask of thread
@@ -264,7 +258,6 @@ void NdbThread_ClearSigMask();
  * we use ThreadConfig then the user have decided to use those anyways,
  * so in that case we don't care.
  */
-bool
-NdbThread_IsCPUAvailable(Uint32 cpu_id);
+bool NdbThread_IsCPUAvailable(Uint32 cpu_id);
 
 #endif

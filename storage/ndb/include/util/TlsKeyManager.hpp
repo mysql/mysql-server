@@ -24,23 +24,23 @@
 #ifndef NDB_UTIL_TLS_KEY_MANAGER_H
 #define NDB_UTIL_TLS_KEY_MANAGER_H
 
-#include "ndb_limits.h"   // MAX_NODES
+#include "ndb_limits.h"  // MAX_NODES
 
 #include "portlib/NdbMutex.h"
-#include "util/NodeCertificate.hpp"
 #include "util/NdbSocket.h"
+#include "util/NodeCertificate.hpp"
 #include "util/TlsKeyErrors.h"
 
 struct cert_table_entry {
   time_t expires;
-  const char * name;
-  const char * serial;
+  const char *name;
+  const char *serial;
 };
 
 class ClientAuthorization;
 
 class TlsKeyManager {
-public:
+ public:
   struct cert_record {
     static constexpr size_t SN_buf_len = 65;
     static constexpr size_t CN_buf_len = 65;
@@ -48,8 +48,8 @@ public:
     char serial[SN_buf_len];
     char name[CN_buf_len];
     struct tm exp_tm;
-    time_t expires {0};
-    bool active {false};
+    time_t expires{0};
+    bool active{false};
   };
 
   TlsKeyManager();
@@ -59,10 +59,10 @@ public:
      All error and info messages are logged to g_EventLogger.
      You can test whether init() has succeeded by calling ctx().
   */
-  void init(const char * tls_search_path, int node_id, int node_type);
+  void init(const char *tls_search_path, int node_id, int node_type);
 
   /* init() for MGM Clients that will not have a node ID */
-  void init_mgm_client(const char * tls_search_path,
+  void init_mgm_client(const char *tls_search_path,
                        Node::Type type = Node::Type::Client);
 
   /* Alternate versions of init() used for authentication testing */
@@ -70,18 +70,20 @@ public:
   void init(int node_id, struct stack_st_X509 *, struct evp_pkey_st *);
 
   /* Returns the path name of the active TLS certificate file
-  */
-  const char * cert_path() const {
+   */
+  const char *cert_path() const {
     return m_ctx ? m_cert_file.c_str() : nullptr;
   }
 
   /* Get SSL_CTX */
-  struct ssl_ctx_st * ctx() const { return m_ctx; }
+  struct ssl_ctx_st *ctx() const {
+    return m_ctx;
+  }
 
   /* Certificate table routines */
   void cert_table_set(int node_id, struct x509_st *);
   void cert_table_clear(int node_id);
-  bool iterate_cert_table(int & node_id, cert_table_entry *);
+  bool iterate_cert_table(int &node_id, cert_table_entry *);
   static void describe_cert(cert_record &, struct x509_st *);
 
   /* Check replacement date of our own node certificate.
@@ -124,12 +126,12 @@ public:
      hostname authorization is required, and the user should call
      perform_client_host_auth(*pAuth).
   */
-  static int check_socket_for_auth(const NdbSocket & socket,
-                                   ClientAuthorization ** pAuth);
+  static int check_socket_for_auth(const NdbSocket &socket,
+                                   ClientAuthorization **pAuth);
 
   /* test harness */
-  static ClientAuthorization * test_client_auth(struct x509_st *,
-                                                const struct addrinfo *);
+  static ClientAuthorization *test_client_auth(struct x509_st *,
+                                               const struct addrinfo *);
 
   /* perform_client_host_auth() checks the socket peer against the certificate
      hostname, using DNS lookup. It will block, synchronously waiting for
@@ -138,8 +140,7 @@ public:
   */
   static int perform_client_host_auth(ClientAuthorization *);
 
-
-protected:
+ protected:
   void initialize_context();
 
   void log_error(TlsKeyError::code);
@@ -148,32 +149,29 @@ protected:
   bool open_active_cert();
 
   static constexpr Node::Type cert_type[3] = {
-    /* indexed to NODE_TYPE_DB, NODE_TYPE_API, NODE_TYPE_MGM */
-    Node::Type::DB, Node::Type::Client, Node::Type::MGMD
-  };
+      /* indexed to NODE_TYPE_DB, NODE_TYPE_API, NODE_TYPE_MGM */
+      Node::Type::DB, Node::Type::Client, Node::Type::MGMD};
 
-private:
+ private:
   PkiFile::PathName m_key_file, m_cert_file;
-  char * m_path_string {nullptr};
-  TlsSearchPath * m_search_path {nullptr};
+  char *m_path_string{nullptr};
+  TlsSearchPath *m_search_path{nullptr};
   cert_record m_cert_table[MAX_NODES];
   NodeCertificate m_node_cert;
   NdbMutex m_cert_table_mutex;
-  int m_error {0};
+  int m_error{0};
   int m_node_id;
   Node::Type m_type;
-  struct ssl_ctx_st * m_ctx {nullptr};
+  struct ssl_ctx_st *m_ctx{nullptr};
 
   void init(const char *, int, Node::Type);
 
-  bool cert_table_get(const cert_record &,
-                      cert_table_entry *) const;
+  bool cert_table_get(const cert_record &, cert_table_entry *) const;
   void free_path_strings();
 };
 
-inline void TlsKeyManager::init_mgm_client(const char * tls_search_path,
-                                           Node::Type type)
-{
+inline void TlsKeyManager::init_mgm_client(const char *tls_search_path,
+                                           Node::Type type) {
   init(tls_search_path, 0, type);
 }
 

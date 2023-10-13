@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 528
 
-DbqtupProxy::DbqtupProxy(Block_context& ctx) :
-  LocalProxy(DBQTUP, ctx)
-{
-}
+DbqtupProxy::DbqtupProxy(Block_context &ctx) : LocalProxy(DBQTUP, ctx) {}
 
-DbqtupProxy::~DbqtupProxy()
-{
-}
+DbqtupProxy::~DbqtupProxy() {}
 
-SimulatedBlock*
-DbqtupProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbqtupProxy::newWorker(Uint32 instanceNo) {
   return new Dbqtup(m_ctx, instanceNo);
 }

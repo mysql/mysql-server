@@ -21,19 +21,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <signaldata/CreateIndxImpl.hpp>
 #include <SignalLoggerManager.hpp>
+#include <signaldata/CreateIndxImpl.hpp>
 
-bool
-printCREATE_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateIndxImplReq::SignalLength)
-  {
+bool printCREATE_INDX_IMPL_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                               Uint16) {
+  if (len < CreateIndxImplReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxImplReq* sig = (const CreateIndxImplReq*)theData;
+  const CreateIndxImplReq *sig = (const CreateIndxImplReq *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " requestType: %u", sig->requestType);
@@ -48,32 +46,28 @@ printCREATE_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint1
   return true;
 }
 
-bool
-printCREATE_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateIndxImplConf::SignalLength)
-  {
+bool printCREATE_INDX_IMPL_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                                Uint16) {
+  if (len < CreateIndxImplConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxImplConf* sig = (const CreateIndxImplConf*)theData;
+  const CreateIndxImplConf *sig = (const CreateIndxImplConf *)theData;
   fprintf(output, " senderRef: %x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   return true;
 }
 
-bool
-printCREATE_INDX_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateIndxImplRef::SignalLength)
-  {
+bool printCREATE_INDX_IMPL_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                               Uint16) {
+  if (len < CreateIndxImplRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxImplRef* sig = (const CreateIndxImplRef*)theData;
+  const CreateIndxImplRef *sig = (const CreateIndxImplRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");

@@ -25,26 +25,25 @@
 #ifndef ConfigRetriever_H
 #define ConfigRetriever_H
 
-#include <ndb_types.h>
 #include <mgmapi.h>
+#include <ndb_types.h>
+#include <BaseString.hpp>
 #include "mgmcommon/NdbMgm.hpp"
 #include "util/TlsKeyManager.hpp"
-#include <BaseString.hpp>
 
 /**
  * @class ConfigRetriever
- * @brief Used by nodes (DB, MGM, API) to get their config from MGM server. 
+ * @brief Used by nodes (DB, MGM, API) to get their config from MGM server.
  */
 class ConfigRetriever {
-public:
-  ConfigRetriever(const char * _connect_string, int force_nodeid,
-                  Uint32 version, ndb_mgm_node_type nodeType,
-		  const char * _bind_address = nullptr,
-                  int timeout_ms = 30000);
+ public:
+  ConfigRetriever(const char *_connect_string, int force_nodeid, Uint32 version,
+                  ndb_mgm_node_type nodeType,
+                  const char *_bind_address = nullptr, int timeout_ms = 30000);
   ~ConfigRetriever();
 
   /* Initialize a built-in TlsKeyManager to use for MGM TLS. */
-  void init_mgm_tls(const char * tls_search_path, Node::Type, int req_level);
+  void init_mgm_tls(const char *tls_search_path, Node::Type, int req_level);
 
   int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);
   int disconnect();
@@ -52,28 +51,28 @@ public:
 
   /**
    * Get configuration for current node.
-   * 
-   * Configuration is fetched from one MGM server configured in local config 
+   *
+   * Configuration is fetched from one MGM server configured in local config
    * file.  The method loops over all the configured MGM servers and tries
-   * to establish a connection.  This is repeated until a connection is 
+   * to establish a connection.  This is repeated until a connection is
    * established, so the function hangs until a connection is established.
    *
    * @param nodeid   The nodeid of the node to fetch config for
-   * 
+   *
    * @return ndb_mgm_config_unique_ptr which may be empty on failure
    */
   ndb_mgm::config_ptr getConfig(Uint32 nodeid);
-  
+
   void resetError();
   int hasError();
-  const char * getErrorString();
+  const char *getErrorString();
 
   /**
    * @return Node id of this node (as stated in local config or connectString)
    */
   Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds);
-  Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds,
-                     int verbose, int& error);
+  Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds, int verbose,
+                     int &error);
 
   int setNodeId(Uint32 nodeid);
 
@@ -81,12 +80,12 @@ public:
    * Get config using socket
    */
   ndb_mgm::config_ptr getConfig(NdbMgmHandle handle);
-  
+
   /**
    * Get config from file
    */
-  static ndb_mgm::config_ptr getConfig(const char * file, BaseString& err);
-  ndb_mgm::config_ptr getConfig(const char * file);
+  static ndb_mgm::config_ptr getConfig(const char *file, BaseString &err);
+  ndb_mgm::config_ptr getConfig(const char *file);
 
   /**
    * Verify config
@@ -98,21 +97,19 @@ public:
   const char *get_mgmd_host() const;
   const char *get_connectstring(char *buf, int buf_sz) const;
   NdbMgmHandle get_mgmHandle() const { return m_handle; }
-  NdbMgmHandle* get_mgmHandlePtr() { return &m_handle; }
-  void end_session(bool end) { m_end_session= end; }
+  NdbMgmHandle *get_mgmHandlePtr() { return &m_handle; }
+  void end_session(bool end) { m_end_session = end; }
 
   Uint32 get_configuration_nodeid() const;
-  ssl_ctx_st * ssl_ctx() const { return m_tlsKeyManager.ctx(); }
-private:
+  ssl_ctx_st *ssl_ctx() const { return m_tlsKeyManager.ctx(); }
+
+ private:
   TlsKeyManager m_tlsKeyManager;
   BaseString errorString;
-  enum ErrorType {
-    CR_NO_ERROR = 0,
-    CR_ERROR = 1
-  };
+  enum ErrorType { CR_NO_ERROR = 0, CR_ERROR = 1 };
   ErrorType latestErrorType;
 
-  void setError(ErrorType, const char * errorMsg);
+  void setError(ErrorType, const char *errorMsg);
   void setError(ErrorType, BaseString err);
 
   bool m_end_session;
@@ -123,5 +120,3 @@ private:
 };
 
 #endif
-
-

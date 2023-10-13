@@ -21,6 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define NDB_REP_DB      "mysql"
+#define NDB_REP_DB "mysql"
 #define NDB_APPLY_TABLE "ndb_apply_status"
 #define NDB_SCHEMA_TABLE "ndb_schema"

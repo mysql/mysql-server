@@ -25,17 +25,14 @@
 #ifndef NDB_HOST_H
 #define NDB_HOST_H
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-  int NdbHost_GetProcessId();
+int NdbHost_GetProcessId();
 
-#ifdef	__cplusplus
-       }
+#ifdef __cplusplus
+}
 #endif
 
 #endif
-
-
-

@@ -40,12 +40,11 @@
  *
  * // To log a message(normally an error) before g_eventLogger has been created
  * EventLogHandler::printf(LL_ERROR, "MySQL Cluster Management Server",
- *                         "Failed to create shutdown event, error: %d", err); 
+ *                         "Failed to create shutdown event, error: %d", err);
  */
-class EventLogHandler : public LogHandler
-{
-public:
-  EventLogHandler(const char* source_name);
+class EventLogHandler : public LogHandler {
+ public:
+  EventLogHandler(const char *source_name);
   virtual ~EventLogHandler();
 
   virtual bool open();
@@ -55,19 +54,20 @@ public:
   virtual bool setParam(const BaseString &param, const BaseString &value);
 
   // Write message to event log without an open EventLogHandler
-  static int printf(Logger::LoggerLevel m_level, const char* source_name,
-                    const char* msg, ...) ATTRIBUTE_FORMAT(printf, 3, 4);
-private:
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+  static int printf(Logger::LoggerLevel m_level, const char *source_name,
+                    const char *msg, ...) ATTRIBUTE_FORMAT(printf, 3, 4);
+
+ private:
+  virtual void writeHeader(const char *pCategory, Logger::LoggerLevel level,
                            time_t now);
-  virtual void writeMessage(const char* pMsg);
+  virtual void writeMessage(const char *pMsg);
   virtual void writeFooter();
 
-  EventLogHandler(const EventLogHandler&); // Not impl.
-  EventLogHandler operator = (const EventLogHandler&); // Not impl.
-  bool operator == (const EventLogHandler&); // Not impl.
+  EventLogHandler(const EventLogHandler &);            // Not impl.
+  EventLogHandler operator=(const EventLogHandler &);  // Not impl.
+  bool operator==(const EventLogHandler &);            // Not impl.
 
-  const char* m_source_name;
+  const char *m_source_name;
   HANDLE m_event_source;
   Logger::LoggerLevel m_level;
 };

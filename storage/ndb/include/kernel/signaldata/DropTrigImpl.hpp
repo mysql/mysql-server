@@ -27,10 +27,9 @@
 
 #define JAM_FILE_ID 167
 
-
 struct DropTrigImplReq {
   static constexpr Uint32 SignalLength = 11;
-  SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
+  SECTION(TRIGGER_NAME_SECTION = 0);  // optional
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -75,7 +74,6 @@ struct DropTrigImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

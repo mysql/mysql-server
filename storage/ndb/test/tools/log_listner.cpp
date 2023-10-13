@@ -28,39 +28,32 @@
 #include <NDBT.hpp>
 #include "util/TlsKeyManager.hpp"
 
-static struct my_option my_long_options[] =
-{
-  NDB_STD_OPTS("eventlog"),
-  NdbStdOpt::tls_search_path,
-  NdbStdOpt::mgm_tls,
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
+static struct my_option my_long_options[] = {
+    NDB_STD_OPTS("eventlog"),
+    NdbStdOpt::tls_search_path,
+    NdbStdOpt::mgm_tls,
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
-		 15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
-		 15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
-		 15, NDB_MGM_EVENT_CATEGORY_STARTUP,
-		 15, NDB_MGM_EVENT_CATEGORY_SHUTDOWN,
-		 15, NDB_MGM_EVENT_CATEGORY_STATISTIC,
-		 15, NDB_MGM_EVENT_CATEGORY_ERROR,
-		 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT,
-		 15, NDB_MGM_EVENT_CATEGORY_CONGESTION,
-		 0 };
+int filter[] = {15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+                15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
+                15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
+                15, NDB_MGM_EVENT_CATEGORY_STARTUP,
+                15, NDB_MGM_EVENT_CATEGORY_SHUTDOWN,
+                15, NDB_MGM_EVENT_CATEGORY_STATISTIC,
+                15, NDB_MGM_EVENT_CATEGORY_ERROR,
+                15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT,
+                15, NDB_MGM_EVENT_CATEGORY_CONGESTION,
+                0};
 
-extern "C"
-void catch_signal(int signum)
-{
-}
+extern "C" void catch_signal(int signum) {}
 
-int
-main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
 
   int ho_error;
 #ifndef NDEBUG
-  opt_debug= "d:t:O,/tmp/eventlog.trace";
+  opt_debug = "d:t:O,/tmp/eventlog.trace";
 #endif
 
 #ifndef _WIN32
@@ -69,43 +62,37 @@ main(int argc, char** argv)
   signal(SIGUSR1, catch_signal);
 #endif
 
-  if ((ho_error=opts.handle_options()))
+  if ((ho_error = opts.handle_options()))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   TlsKeyManager tlsKeyManager;
   tlsKeyManager.init_mgm_client(opt_tls_search_path);
 
-  NdbMgmHandle handle= ndb_mgm_create_handle();
+  NdbMgmHandle handle = ndb_mgm_create_handle();
   ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
   ndb_mgm_set_connectstring(handle, opt_ndb_connectstring);
 
-  while (true)
-  {
-    if (ndb_mgm_connect_tls(handle,0,0,0,opt_mgm_tls) == -1)
-    {
+  while (true) {
+    if (ndb_mgm_connect_tls(handle, 0, 0, 0, opt_mgm_tls) == -1) {
       ndbout_c("Failed to connect");
       exit(0);
     }
 
     NdbLogEventHandle le = ndb_mgm_create_logevent_handle(handle, filter);
-    if (le == 0)
-    {
+    if (le == 0) {
       ndbout_c("Failed to create logevent handle");
       exit(0);
     }
 
     struct ndb_logevent event;
-    while (true)
-    {
-      int r= ndb_logevent_get_next(le, &event,5000);
-      if (r < 0)
-      {
-	ndbout_c("Error while getting next event");
-	break;
+    while (true) {
+      int r = ndb_logevent_get_next(le, &event, 5000);
+      if (r < 0) {
+        ndbout_c("Error while getting next event");
+        break;
       }
-      if (r == 0)
-      {
-	continue;
+      if (r == 0) {
+        continue;
       }
       ndbout_c("Got event: %d", event.type);
     }

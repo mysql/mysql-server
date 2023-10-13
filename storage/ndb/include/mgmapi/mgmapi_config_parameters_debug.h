@@ -28,6 +28,6 @@
 
 #include "mgmapi_config_parameters.h"
 
-#define CFG_DB_STOP_ON_ERROR_INSERT   1
+#define CFG_DB_STOP_ON_ERROR_INSERT 1
 
 #endif

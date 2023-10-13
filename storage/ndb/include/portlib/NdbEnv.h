@@ -26,18 +26,14 @@
 #ifndef NDB_ENV_H
 #define NDB_ENV_H
 
-
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-  const char* NdbEnv_GetEnv(const char* name, char * buf, int buflen);
+const char *NdbEnv_GetEnv(const char *name, char *buf, int buflen);
 
-#ifdef	__cplusplus
-       }
+#ifdef __cplusplus
+}
 #endif
 
 #endif
-
-
-

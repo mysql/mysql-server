@@ -36,38 +36,36 @@
   data nodes.
 */
 class NdbInfoScanNodes : public NdbInfoScanOperation {
-public:
+ public:
   int readTuples() override;
-  const class NdbInfoRecAttr* getValue(const char * anAttrName) override;
-  const class NdbInfoRecAttr* getValue(Uint32 anAttrId) override;
+  const class NdbInfoRecAttr *getValue(const char *anAttrName) override;
+  const class NdbInfoRecAttr *getValue(Uint32 anAttrId) override;
   int execute() override;
   int nextResult() override;
-  void initIndex(Uint32) override { }
+  void initIndex(Uint32) override {}
   bool seek(NdbInfoScanOperation::Seek, int) override;
 
-  NdbInfoScanNodes(class Ndb_cluster_connection*,
-                   const NdbInfo::Table*,
-                   Uint32 max_rows, Uint32 max_bytes,
-                   Uint32 max_nodes);
+  NdbInfoScanNodes(class Ndb_cluster_connection *, const NdbInfo::Table *,
+                   Uint32 max_rows, Uint32 max_bytes, Uint32 max_nodes);
   int init(Uint32 id);
 
   ~NdbInfoScanNodes() override;
-private:
-  bool execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
-  bool execDBINFO_SCANCONF(const struct SimpleSignal * signal);
-  bool execDBINFO_SCANREF(const struct SimpleSignal * signal, int& error_code);
+
+ private:
+  bool execDBINFO_TRANSID_AI(const struct SimpleSignal *signal);
+  bool execDBINFO_SCANCONF(const struct SimpleSignal *signal);
+  bool execDBINFO_SCANREF(const struct SimpleSignal *signal, int &error_code);
   int sendDBINFO_SCANREQ();
 
   int receive(void);
   bool find_next_node();
 
-  enum State { Undefined, Initial, Prepared,
-               MoreData, End, Error } m_state;
-  class Ndb_cluster_connection* m_connection;
-  class SignalSender*           m_signal_sender;
-  const NdbInfo::Table*     m_table;
+  enum State { Undefined, Initial, Prepared, MoreData, End, Error } m_state;
+  class Ndb_cluster_connection *m_connection;
+  class SignalSender *m_signal_sender;
+  const NdbInfo::Table *m_table;
   NdbInfoRecAttrCollection m_recAttrs;
-  Vector<Uint32>                m_cursor;
+  Vector<Uint32> m_cursor;
   Uint32 m_node_id;
   Uint32 m_transid0;
   Uint32 m_transid1;
@@ -77,10 +75,9 @@ private:
   Uint32 m_result_data;
   Uint32 m_rows_received;
   Uint32 m_rows_confirmed;
-  Uint32 m_nodes; // Number of nodes scanned
-  const Uint32 m_max_nodes; // Max number of nodes to scan
+  Uint32 m_nodes;            // Number of nodes scanned
+  const Uint32 m_max_nodes;  // Max number of nodes to scan
   NodeBitmask m_nodes_to_scan;
 };
-
 
 #endif

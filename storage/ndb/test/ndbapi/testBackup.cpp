@@ -22,58 +22,57 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <NdbSleep.h>
+#include <HugoTransactions.hpp>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <HugoTransactions.hpp>
-#include <UtilTransactions.hpp>
 #include <NdbBackup.hpp>
-#include <NdbMgmd.hpp>
-#include <signaldata/DumpStateOrd.hpp>
 #include <NdbHistory.hpp>
-#include <NdbSleep.h>
+#include <NdbMgmd.hpp>
+#include <UtilTransactions.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
-int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
+int runDropTable(NDBT_Context *ctx, NDBT_Step *step);
 
-#define CHECK(b) if (!(b)) { \
-  g_err << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
+#define CHECK(b)                                                          \
+  if (!(b)) {                                                             \
+    g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ \
+          << endl;                                                        \
+    result = NDBT_FAILED;                                                 \
+    continue;                                                             \
+  }
 
-#define CHECK2(b) if (!(b)) { \
-  g_err << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  return NDBT_FAILED; }
+#define CHECK2(b)                                                         \
+  if (!(b)) {                                                             \
+    g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ \
+          << endl;                                                        \
+    return NDBT_FAILED;                                                   \
+  }
 
 char tabname[1000];
 
-int
-clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
-{
+int clearOldBackups(NDBT_Context *ctx, NDBT_Step *step) {
   strcpy(tabname, ctx->getTab()->getName());
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   backup.clearOldBackups();
   return NDBT_OK;
 }
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+int runLoadTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runLoadTable10000(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runLoadTable10000(NDBT_Context *ctx, NDBT_Step *step) {
   int records = 10000;
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -82,33 +81,31 @@ int runLoadTable10000(NDBT_Context* ctx, NDBT_Step* step)
 bool testMaster = true;
 bool testSlave = false;
 
-int setMaster(NDBT_Context* ctx, NDBT_Step* step){
+int setMaster(NDBT_Context *ctx, NDBT_Step *step) {
   testMaster = true;
   testSlave = false;
   return NDBT_OK;
 }
-int setMasterAsSlave(NDBT_Context* ctx, NDBT_Step* step){
+int setMasterAsSlave(NDBT_Context *ctx, NDBT_Step *step) {
   testMaster = true;
   testSlave = true;
   return NDBT_OK;
 }
-int setSlave(NDBT_Context* ctx, NDBT_Step* step){
+int setSlave(NDBT_Context *ctx, NDBT_Step *step) {
   testMaster = false;
   testSlave = true;
   return NDBT_OK;
 }
 
-struct scan_holder_type
-{
+struct scan_holder_type {
   NdbScanOperation *pOp;
   NdbTransaction *pTrans;
 };
 
-int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step)
-{
+int createOrderedPkIndex(NDBT_Context *ctx, NDBT_Step *step) {
   char orderedPkIdxName[255];
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
 
   // Create index
   BaseString::snprintf(orderedPkIdxName, sizeof(orderedPkIdxName),
@@ -118,16 +115,13 @@ int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step)
   pIdx.setType(NdbDictionary::Index::OrderedIndex);
   pIdx.setLogging(false);
 
-  for (int c = 0; c< pTab->getNoOfColumns(); c++)
-  {
-    const NdbDictionary::Column * col = pTab->getColumn(c);
-    if (col->getPrimaryKey())
-    {
+  for (int c = 0; c < pTab->getNoOfColumns(); c++) {
+    const NdbDictionary::Column *col = pTab->getColumn(c);
+    if (col->getPrimaryKey()) {
       pIdx.addIndexColumn(col->getName());
     }
   }
-  if (pNdb->getDictionary()->createIndex(pIdx) != 0)
-  {
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0) {
     ndbout << "FAILED! to create index" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
     NDB_ERR(err);
@@ -136,115 +130,85 @@ int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int start_scan_no_close(NDBT_Context *ctx,
-                        Ndb *pNdb,
-                        scan_holder_type *scan_holder,
-                        int scan_flags,
-                        int i)
-{
+int start_scan_no_close(NDBT_Context *ctx, Ndb *pNdb,
+                        scan_holder_type *scan_holder, int scan_flags, int i) {
   const NdbDictionary::Table *tab = ctx->getTab();
   scan_holder->pTrans = pNdb->startTransaction();
-  if (scan_holder->pTrans == NULL)
-  {
-    g_err << "Failed to start transaction, line: "
-          << __LINE__ << " i = " << i << endl;
+  if (scan_holder->pTrans == NULL) {
+    g_err << "Failed to start transaction, line: " << __LINE__ << " i = " << i
+          << endl;
     return NDBT_FAILED;
   }
-  if (scan_flags != NdbScanOperation::SF_OrderBy)
-  {
-    scan_holder->pOp =
-      scan_holder->pTrans->getNdbScanOperation(tab->getName());
-  }
-  else
-  {
+  if (scan_flags != NdbScanOperation::SF_OrderBy) {
+    scan_holder->pOp = scan_holder->pTrans->getNdbScanOperation(tab->getName());
+  } else {
     char pkIdxName[255];
     BaseString::snprintf(pkIdxName, 255, "IDC_O_PK_%s", tab->getName());
-    scan_holder->pOp =
-      scan_holder->pTrans->getNdbIndexScanOperation(pkIdxName, tab->getName());
+    scan_holder->pOp = scan_holder->pTrans->getNdbIndexScanOperation(
+        pkIdxName, tab->getName());
   }
-  if (scan_holder->pOp == NULL)
-  {
-    g_err << "Failed to get scan op, line: "
-          << __LINE__ << " i = " << i << endl;
+  if (scan_holder->pOp == NULL) {
+    g_err << "Failed to get scan op, line: " << __LINE__ << " i = " << i
+          << endl;
     return NDBT_FAILED;
   }
-  if (scan_holder->pOp->readTuples(NdbOperation::LM_CommittedRead,
-                                   scan_flags,
-                                   240))
-  {
-    g_err << "Failed call to readTuples, line: "
-          << __LINE__ << " i = " << i << endl;
+  if (scan_holder->pOp->readTuples(NdbOperation::LM_CommittedRead, scan_flags,
+                                   240)) {
+    g_err << "Failed call to readTuples, line: " << __LINE__ << " i = " << i
+          << endl;
     return NDBT_FAILED;
   }
-  for (int j = 0; j < tab->getNoOfColumns(); j++)
-  {
-    if (scan_holder->pOp->getValue(tab->getColumn(j)->getName()) == 0)
-    {
-      g_err << "Failed to get value, line: "
-            << __LINE__ << " i = " << i << " j = " << j << endl;
+  for (int j = 0; j < tab->getNoOfColumns(); j++) {
+    if (scan_holder->pOp->getValue(tab->getColumn(j)->getName()) == 0) {
+      g_err << "Failed to get value, line: " << __LINE__ << " i = " << i
+            << " j = " << j << endl;
       return NDBT_FAILED;
     }
   }
-  if (scan_holder->pTrans->execute(NoCommit, AbortOnError) == -1)
-  {
-    g_err << "Failed to exec scan op, line: "
-          << __LINE__ << " i = " << i << endl;
+  if (scan_holder->pTrans->execute(NoCommit, AbortOnError) == -1) {
+    g_err << "Failed to exec scan op, line: " << __LINE__ << " i = " << i
+          << endl;
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
-{
+int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned backupId = 0;
   int i;
-  Ndb* pNdb;
+  Ndb *pNdb;
   scan_holder_type scan_holder_array[256];
   const static int NUM_ACC_SCANS = 12;
   const static int NUM_TUX_SCANS = 122;
   const static int NUM_TUP_SCANS = 119;
-  
+
   pNdb = GETNDB(step);
-  for (i = 0; i < NUM_ACC_SCANS; i++)
-  {
+  for (i = 0; i < NUM_ACC_SCANS; i++) {
     /**
      * We start 12 ACC scans, we can have at most 12 ACC scans, if more
      * are used we will queue up the scans. Here we use up all of them
      * but don't queue up any.
      */
-    if (start_scan_no_close(ctx,
-                            pNdb,
-                            &scan_holder_array[i],
-                            0,
-                            i)
-                            == NDBT_FAILED)
-    {
+    if (start_scan_no_close(ctx, pNdb, &scan_holder_array[i], 0, i) ==
+        NDBT_FAILED) {
       return NDBT_FAILED;
     }
   }
-  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS; i++)
-  {
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS; i++) {
     /**
      * In the default config which we assume in this test case, we can
      * start up 122 parallel range scans on a fragment. Here we use up
      * all of those slots, so no queueing will occur.
      */
-    if (start_scan_no_close(ctx,
-                            pNdb,
-                            &scan_holder_array[i],
-                            NdbScanOperation::SF_OrderBy,
-                            i)
-                            == NDBT_FAILED)
-    {
+    if (start_scan_no_close(ctx, pNdb, &scan_holder_array[i],
+                            NdbScanOperation::SF_OrderBy, i) == NDBT_FAILED) {
       return NDBT_FAILED;
     }
   }
-  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
-  {
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++) {
     /**
      * In the default config we can have up to 119 Tup scans without queueing.
      * Here we will attempt to start 120 Tup scans. The last one will be
@@ -252,13 +216,8 @@ int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
      * close scan which aborted. This found a bug which we ensure gets
      * retested by this overallocation.
      */
-    if (start_scan_no_close(ctx,
-                            pNdb,
-                            &scan_holder_array[i],
-                            NdbScanOperation::SF_TupScan,
-                            i)
-                            == NDBT_FAILED)
-    {
+    if (start_scan_no_close(ctx, pNdb, &scan_holder_array[i],
+                            NdbScanOperation::SF_TupScan, i) == NDBT_FAILED) {
       return NDBT_FAILED;
     }
   }
@@ -276,8 +235,7 @@ int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
    * numbers are available. Backup should still function since it uses
    * a reserved scan number, we verify this here.
    */
-  if (backup.start(backupId) == -1)
-  {
+  if (backup.start(backupId) == -1) {
     return NDBT_FAILED;
   }
   ndbout << "Started backup " << backupId << endl;
@@ -293,8 +251,7 @@ int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
   /**
    * Close down all connections.
    */
-  for (i = 0; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
-  {
+  for (i = 0; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++) {
     scan_holder_array[i].pTrans->execute(NdbTransaction::Rollback);
     pNdb->closeTransaction(scan_holder_array[i].pTrans);
     scan_holder_array[i].pTrans = NULL;
@@ -302,73 +259,35 @@ int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
   return NDBT_OK;
 }
 
-int runAbort(NDBT_Context* ctx, NDBT_Step* step){
+int runAbort(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
 
   NdbRestarter restarter;
 
-  if (restarter.getNumDbNodes() < 2){
+  if (restarter.getNumDbNodes() < 2) {
     ctx->stopTest();
     return NDBT_OK;
   }
 
-  if(restarter.waitClusterStarted(60) != 0){
+  if (restarter.waitClusterStarted(60) != 0) {
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
 
   if (testMaster) {
     if (testSlave) {
-      if (backup.NFMasterAsSlave(restarter) != NDBT_OK){
-	return NDBT_FAILED;
+      if (backup.NFMasterAsSlave(restarter) != NDBT_OK) {
+        return NDBT_FAILED;
       }
     } else {
-      if (backup.NFMaster(restarter) != NDBT_OK){
-	return NDBT_FAILED;
+      if (backup.NFMaster(restarter) != NDBT_OK) {
+        return NDBT_FAILED;
       }
     }
   } else {
-    if (backup.NFSlave(restarter) != NDBT_OK){
-      return NDBT_FAILED;
-    }
-  }
-  
-  return NDBT_OK;
-}
-
-int runFail(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
-
-  NdbRestarter restarter;
-
-  if (restarter.getNumDbNodes() < 2){
-    ctx->stopTest();
-    return NDBT_OK;
-  }
-
-  if(restarter.waitClusterStarted(60) != 0){
-    g_err << "Cluster failed to start" << endl;
-    return NDBT_FAILED;
-  }
-
-  if (testMaster) {
-    if (testSlave) {
-      if (backup.FailMasterAsSlave(restarter) != NDBT_OK){
-	return NDBT_FAILED;
-      }
-    } else {
-      if (backup.FailMaster(restarter) != NDBT_OK){
-	return NDBT_FAILED;
-      }
-    }
-  } else {
-    if (backup.FailSlave(restarter) != NDBT_OK){
+    if (backup.NFSlave(restarter) != NDBT_OK) {
       return NDBT_FAILED;
     }
   }
@@ -376,38 +295,66 @@ int runFail(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
-{
+int runFail(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbBackup backup;
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2) {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if (restarter.waitClusterStarted(60) != 0) {
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (testMaster) {
+    if (testSlave) {
+      if (backup.FailMasterAsSlave(restarter) != NDBT_OK) {
+        return NDBT_FAILED;
+      }
+    } else {
+      if (backup.FailMaster(restarter) != NDBT_OK) {
+        return NDBT_FAILED;
+      }
+    }
+  } else {
+    if (backup.FailSlave(restarter) != NDBT_OK) {
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step) {
   int res;
   int row = 0;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter restarter;
   unsigned backupId = 0;
   HugoOperations hugoOps(*ctx->getTab());
   Ndb *pNdb = GETNDB(step);
 
-  if (hugoOps.startTransaction(pNdb) != 0)
-  {
+  if (hugoOps.startTransaction(pNdb) != 0) {
     g_err << "Failed to start transaction, line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
-  while (true)
-  {
-    if (hugoOps.pkInsertRecord(pNdb, row) != 0)
-    {
+  while (true) {
+    if (hugoOps.pkInsertRecord(pNdb, row) != 0) {
       g_err << "Failed to define insert, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     res = hugoOps.execute_NoCommit(pNdb, AO_IgnoreError);
-    if (res == 0)
-    {
+    if (res == 0) {
       row++;
-    }
-    else
-    {
+    } else {
       break;
     }
   }
@@ -426,21 +373,17 @@ int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
    * the test only is only temporary testing. We ensure that an LCP is
    * ongoing while we're out of operation records.
    */
-  if (res == 1217)
-  {
+  if (res == 1217) {
     ndbout << "Out of LDM operation records as desired" << endl;
-  }
-  else
-  {
+  } else {
     ndbout << "Result code is " << res << endl;
     ndbout << "We will continue anyways although test isn't useful" << endl;
   }
   /* Ensure an LCP is executed in out of resource state. */
-  int dumpCode=7099;
+  int dumpCode = 7099;
   restarter.dumpStateAllNodes(&dumpCode, 1);
 
-  if (backup.start(backupId) == -1)
-  {
+  if (backup.start(backupId) == -1) {
     g_err << "Start backup failed: Line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
@@ -450,27 +393,20 @@ int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
   return NDBT_OK;
 }
 
-int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
+int runBackupOne(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned backupId = 0;
 
-  if (ctx->getProperty("SnapshotStart") == 0)
-  {
-    if (backup.start(backupId) == -1)
-    {
+  if (ctx->getProperty("SnapshotStart") == 0) {
+    if (backup.start(backupId) == -1) {
       return NDBT_FAILED;
     }
-  }
-  else
-  {
+  } else {
     if (backup.start(backupId,
                      2,  // Wait for backup completion
-                     0,
-                     1) == -1)
-    {
+                     0, 1) == -1) {
       return NDBT_FAILED;
     }
   }
@@ -481,14 +417,13 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
+int runBackupRandom(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned backupId = rand() % (MAX_BACKUPS);
 
-  if (backup.start(backupId) == -1){
+  if (backup.start(backupId) == -1) {
     return NDBT_FAILED;
   }
   ndbout << "Started backup " << backupId << endl;
@@ -497,23 +432,17 @@ int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
+int runBackupLoop(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
-  
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+
   int loops = ctx->getNumLoops();
-  while(!ctx->isTestStopped() && loops--)
-  {
-    if (backup.start() == -1)
-    {
+  while (!ctx->isTestStopped() && loops--) {
+    if (backup.start() == -1) {
       NdbSleep_SecSleep(1);
       loops++;
-    }
-    else
-    {
+    } else {
       NdbSleep_SecSleep(3);
     }
   }
@@ -522,72 +451,62 @@ runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runDDL(NDBT_Context* ctx, NDBT_Step* step){
-  Ndb* pNdb= GETNDB(step);
-  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
-  
+int runDDL(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
   const int tables = NDBT_Tables::getNumTables();
-  while(!ctx->isTestStopped())
-  {
+  while (!ctx->isTestStopped()) {
     const int tab_no = rand() % (tables);
     NdbDictionary::Table tab = *NDBT_Tables::getTable(tab_no);
-    BaseString name= tab.getName();
+    BaseString name = tab.getName();
     name.appfmt("-%d", step->getStepNo());
     tab.setName(name.c_str());
-    if(pDict->createTable(tab) == 0)
-    {
-      HugoTransactions hugoTrans(* pDict->getTable(name.c_str()));
-      if (hugoTrans.loadTable(pNdb, 10000) != 0){
-	return NDBT_FAILED;
+    if (pDict->createTable(tab) == 0) {
+      HugoTransactions hugoTrans(*pDict->getTable(name.c_str()));
+      if (hugoTrans.loadTable(pNdb, 10000) != 0) {
+        return NDBT_FAILED;
       }
-      
-      while(pDict->dropTable(tab.getName()) != 0 &&
-	    pDict->getNdbError().code != 4009)
-	g_err << pDict->getNdbError() << endl;
-      
-      NdbSleep_SecSleep(1);
 
+      while (pDict->dropTable(tab.getName()) != 0 &&
+             pDict->getNdbError().code != 4009)
+        g_err << pDict->getNdbError() << endl;
+
+      NdbSleep_SecSleep(1);
     }
   }
   return NDBT_OK;
 }
 
-
-int runDropTablesRestart(NDBT_Context* ctx, NDBT_Step* step){
+int runDropTablesRestart(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
 
-  if (runDropTable(ctx, step) != 0)
-    return NDBT_FAILED;
+  if (runDropTable(ctx, step) != 0) return NDBT_FAILED;
 
-  if (restarter.restartAll(false) != 0)
-    return NDBT_FAILED;
+  if (restarter.restartAll(false) != 0) return NDBT_FAILED;
 
-  if (restarter.waitClusterStarted() != 0)
-    return NDBT_FAILED;
-  
+  if (restarter.waitClusterStarted() != 0) return NDBT_FAILED;
+
   return NDBT_OK;
 }
 
-int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
+int runRestoreOne(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
-  unsigned backupId = ctx->getProperty("BackupId"); 
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+  unsigned backupId = ctx->getProperty("BackupId");
 
   ndbout << "Restoring backup " << backupId << endl;
 
-  if (backup.restore(backupId) == -1){
+  if (backup.restore(backupId) == -1) {
     return NDBT_FAILED;
   }
 
-  Ndb* pNdb = GETNDB(step);
+  Ndb *pNdb = GETNDB(step);
   pNdb->getDictionary()->invalidateTable(tabname);
-  const NdbDictionary::Table* tab = pNdb->getDictionary()->getTable(tabname);
-  
-  if (tab)
-  {
+  const NdbDictionary::Table *tab = pNdb->getDictionary()->getTable(tabname);
+
+  if (tab) {
     ctx->setTab(tab);
     return NDBT_OK;
   }
@@ -595,17 +514,15 @@ int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_FAILED;
 }
 
-int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb* pNdb = GETNDB(step);
-  const char* saveDb = pNdb->getDatabaseName();
+int createNdbApplyStatusIfMissing(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  const char *saveDb = pNdb->getDatabaseName();
   pNdb->setDatabaseName("mysql");
 
-  const NdbDictionary::Table* apply_status_table =
-    pNdb->getDictionary()->getTable("ndb_apply_status");
+  const NdbDictionary::Table *apply_status_table =
+      pNdb->getDictionary()->getTable("ndb_apply_status");
 
-  if (!apply_status_table)
-  {
+  if (!apply_status_table) {
     g_err << "ndb_apply_status table not found, creating it" << endl;
     NdbDictionary::Table tab;
     NdbDictionary::Index idx;
@@ -634,8 +551,7 @@ int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
     col5.setType(NdbDictionary::Column::Bigunsigned);
     tab.addColumn(col5);
 
-    if (pNdb->getDictionary()->createTable(tab) == -1)
-    {
+    if (pNdb->getDictionary()->createTable(tab) == -1) {
       g_err << "Failed to create table ndb_apply_status, error: "
             << pNdb->getDictionary()->getNdbError() << endl;
       return NDBT_FAILED;
@@ -645,17 +561,15 @@ int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int runRestoreEpoch(NDBT_Context* ctx, NDBT_Step* step){
+int runRestoreEpoch(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned backupId = ctx->getProperty("BackupId");
 
   ndbout << "Restoring epoch from backup " << backupId << endl;
 
-  if (backup.restore(backupId, false, false, 0, true) == -1)
-  {
+  if (backup.restore(backupId, false, false, 0, true) == -1) {
     ndbout << "Restoring epoch failed" << endl;
     return NDBT_FAILED;
   }
@@ -664,21 +578,19 @@ int runRestoreEpoch(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
+int runVerifyOne(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  Ndb *pNdb = GETNDB(step);
   int result = NDBT_OK;
   int count = 0;
 
-  const NdbDictionary::Table* tab = ctx->getTab();
-  if(tab == 0)
-    return NDBT_FAILED;
-  
-  UtilTransactions utilTrans(* tab);
-  HugoTransactions hugoTrans(* tab);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  if (tab == 0) return NDBT_FAILED;
 
-  do{
+  UtilTransactions utilTrans(*tab);
+  HugoTransactions hugoTrans(*tab);
 
+  do {
     // Check that there are as many records as we expected
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
 
@@ -690,45 +602,42 @@ int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
 
     // Read and verify every record
     CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
-    
+
   } while (false);
 
   return result;
 }
 
-int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
+int runClearTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
-  
+
   UtilTransactions utilTrans(*ctx->getTab());
-  if (utilTrans.clearTable2(GETNDB(step),  records) != 0){
+  if (utilTrans.clearTable2(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runDropTable(NDBT_Context* ctx, NDBT_Step* step)
-{
-  
+int runDropTable(NDBT_Context *ctx, NDBT_Step *step) {
   const NdbDictionary::Table *tab = ctx->getTab();
   GETNDB(step)->getDictionary()->dropTable(tab->getName());
-  
+
   return NDBT_OK;
 }
 
 #include "bank/Bank.hpp"
 
-int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
+int runCreateBank(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
   bool overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
-    return NDBT_FAILED;
+  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK) return NDBT_FAILED;
   return NDBT_OK;
 }
 
-int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
+int runBankTimer(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
-  int wait = 30; // Max seconds between each "day"
-  int yield = 1; // Loops before bank returns 
+  int wait = 30;  // Max seconds between each "day"
+  int yield = 1;  // Loops before bank returns
 
   while (ctx->isTestStopped() == false) {
     bank.performIncreaseTime(wait, yield);
@@ -736,10 +645,10 @@ int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
+int runBankTransactions(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
-  int wait = 10; // Max ms between each transaction
-  int yield = 100; // Loops before bank returns 
+  int wait = 10;    // Max ms between each transaction
+  int yield = 100;  // Loops before bank returns
 
   while (ctx->isTestStopped() == false) {
     bank.performTransactions(wait, yield);
@@ -747,13 +656,13 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
+int runBankGL(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
-  int yield = 20; // Loops before bank returns 
+  int yield = 20;  // Loops before bank returns
   int result = NDBT_OK;
 
   while (ctx->isTestStopped() == false) {
-    if (bank.performMakeGLs(yield) != NDBT_OK){
+    if (bank.performMakeGLs(yield) != NDBT_OK) {
       ndbout << "bank.performMakeGLs FAILED" << endl;
       result = NDBT_FAILED;
     }
@@ -761,54 +670,51 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
+int runBankSum(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
-  int wait = 2000; // Max ms between each sum of accounts
-  int yield = 1; // Loops before bank returns 
+  int wait = 2000;  // Max ms between each sum of accounts
+  int yield = 1;    // Loops before bank returns
   int result = NDBT_OK;
 
   while (ctx->isTestStopped() == false) {
-    if (bank.performSumAccounts(wait, yield) != NDBT_OK){
+    if (bank.performSumAccounts(wait, yield) != NDBT_OK) {
       ndbout << "bank.performSumAccounts FAILED" << endl;
       result = NDBT_FAILED;
     }
   }
-  return result ;
+  return result;
 }
 
-int runDropBank(NDBT_Context* ctx, NDBT_Step* step){
+int runDropBank(NDBT_Context *ctx, NDBT_Step *step) {
   Bank bank(ctx->m_cluster_connection);
-  if (bank.dropBank() != NDBT_OK)
-    return NDBT_FAILED;
+  if (bank.dropBank() != NDBT_OK) return NDBT_FAILED;
   return NDBT_OK;
 }
 
-int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
+int runBackupBank(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int l = 0;
-  int maxSleep = 30; // Max seconds between each backup
-  Ndb* pNdb = GETNDB(step);
+  int maxSleep = 30;  // Max seconds between each backup
+  Ndb *pNdb = GETNDB(step);
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned minBackupId = ~0;
   unsigned maxBackupId = 0;
   unsigned backupId = 0;
   int result = NDBT_OK;
 
-  while (l < loops && result != NDBT_FAILED){
-
-    if (pNdb->waitUntilReady() != 0){
+  while (l < loops && result != NDBT_FAILED) {
+    if (pNdb->waitUntilReady() != 0) {
       result = NDBT_FAILED;
       continue;
     }
 
     // Sleep for a while
     NdbSleep_SecSleep(maxSleep);
-    
+
     // Perform backup
-    if (backup.start(backupId) != 0){
+    if (backup.start(backupId) != 0) {
       ndbout << "backup.start failed" << endl;
       result = NDBT_FAILED;
       continue;
@@ -816,17 +722,15 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Started backup " << backupId << endl;
 
     // Remember min and max backupid
-    if (backupId < minBackupId)
-      minBackupId = backupId;
+    if (backupId < minBackupId) minBackupId = backupId;
 
-    if (backupId > maxBackupId)
-      maxBackupId = backupId;
-    
-    ndbout << " maxBackupId = " << maxBackupId 
-	   << ", minBackupId = " << minBackupId << endl;
-    ctx->setProperty("MinBackupId", minBackupId);    
-    ctx->setProperty("MaxBackupId", maxBackupId);    
-    
+    if (backupId > maxBackupId) maxBackupId = backupId;
+
+    ndbout << " maxBackupId = " << maxBackupId
+           << ", minBackupId = " << minBackupId << endl;
+    ctx->setProperty("MinBackupId", minBackupId);
+    ctx->setProperty("MaxBackupId", maxBackupId);
+
     l++;
   }
 
@@ -835,12 +739,11 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
+int runRestoreBankAndVerify(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned minBackupId = ctx->getProperty("MinBackupId");
   unsigned maxBackupId = ctx->getProperty("MaxBackupId");
   unsigned backupId = minBackupId;
@@ -850,36 +753,33 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
   ndbout << " maxBackupId = " << maxBackupId << endl;
   ndbout << " minBackupId = " << minBackupId << endl;
-  
-  while (backupId <= maxBackupId){
 
+  while (backupId <= maxBackupId) {
     // TEMPORARY FIX
     // To erase all tables from cache(s)
     // To be removed, maybe replaced by ndb.invalidate();
     {
       Bank bank(ctx->m_cluster_connection);
-      
-      if (bank.dropBank() != NDBT_OK){
-	result = NDBT_FAILED;
-	break;
+
+      if (bank.dropBank() != NDBT_OK) {
+        result = NDBT_FAILED;
+        break;
       }
     }
     // END TEMPORARY FIX
 
     ndbout << "Performing restart" << endl;
-    if (restarter.restartAll(false) != 0)
-      return NDBT_FAILED;
+    if (restarter.restartAll(false) != 0) return NDBT_FAILED;
 
-    if (restarter.waitClusterStarted() != 0)
-      return NDBT_FAILED;
+    if (restarter.waitClusterStarted() != 0) return NDBT_FAILED;
     CHK_NDB_READY(GETNDB(step));
 
     ndbout << "Dropping " << tabname << endl;
-    NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+    NdbDictionary::Dictionary *pDict = GETNDB(step)->getDictionary();
     pDict->dropTable(tabname);
 
     ndbout << "Restoring backup " << backupId << endl;
-    if (backup.restore(backupId) == -1){
+    if (backup.restore(backupId) == -1) {
       return NDBT_FAILED;
     }
     ndbout << "Backup " << backupId << " restored" << endl;
@@ -889,14 +789,14 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     int wait = 0;
     int yield = 1;
-    if (bank.performSumAccounts(wait, yield) != 0){
+    if (bank.performSumAccounts(wait, yield) != 0) {
       ndbout << "bank.performSumAccounts FAILED" << endl;
       ndbout << "  backupId = " << backupId << endl << endl;
       result = NDBT_FAILED;
       errSumAccounts++;
     }
 
-    if (bank.performValidateAllGLs() != 0){
+    if (bank.performValidateAllGLs() != 0) {
       ndbout << "bank.performValidateAllGLs FAILED" << endl;
       ndbout << "  backupId = " << backupId << endl << endl;
       result = NDBT_FAILED;
@@ -905,35 +805,35 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     backupId++;
   }
-  
-  if (result != NDBT_OK){
+
+  if (result != NDBT_OK) {
     ndbout << "Verification of backup failed" << endl
-	   << "  errValidateGL="<<errValidateGL<<endl
-	   << "  errSumAccounts="<<errSumAccounts<<endl << endl;
+           << "  errValidateGL=" << errValidateGL << endl
+           << "  errSumAccounts=" << errSumAccounts << endl
+           << endl;
   }
-  
+
   return result;
 }
-int runBackupUndoWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
+int runBackupUndoWaitStarted(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   unsigned backupId = 0;
   int undoError = 10041;
   NdbRestarter restarter;
 
-  if(restarter.waitClusterStarted(60)){
-    g_err << "waitClusterStarted failed"<< endl;
+  if (restarter.waitClusterStarted(60)) {
+    g_err << "waitClusterStarted failed" << endl;
     return NDBT_FAILED;
   }
 
   if (restarter.insertErrorInAllNodes(undoError) != 0) {
     g_err << "Error insert failed" << endl;
     return NDBT_FAILED;
-  } 
+  }
   // start backup wait started
-  if (backup.start(backupId, 1, 0, 1) == -1){
+  if (backup.start(backupId, 1, 0, 1) == -1) {
     return NDBT_FAILED;
   }
   ndbout << "Started backup " << backupId << endl;
@@ -941,45 +841,44 @@ int runBackupUndoWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   return NDBT_OK;
 }
-int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
-  Ndb* pNdb= GETNDB(step);
+int runChangeUndoDataDuringBackup(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
 
   int records = ctx->getNumRecords();
   int num = 5;
-  if (records - 5 < 0)
-    num = 1;
-  
+  if (records - 5 < 0) num = 1;
+
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  //update all rows
-  if(hugoTrans.pkUpdateRecords(pNdb, records) != 0) {
+  // update all rows
+  if (hugoTrans.pkUpdateRecords(pNdb, records) != 0) {
     g_err << "Can't update all the records" << endl;
     return NDBT_FAILED;
   }
 
-  //delete first 10 rows
-  if(hugoTrans.pkDelRecords(pNdb, num*2) != 0) {
+  // delete first 10 rows
+  if (hugoTrans.pkDelRecords(pNdb, num * 2) != 0) {
     g_err << "Can't delete first 5 rows" << endl;
     return NDBT_FAILED;
   }
 
-  //add 5 new rows at the first(0 ~ 4)
-  NdbTransaction *pTransaction= pNdb->startTransaction();
+  // add 5 new rows at the first(0 ~ 4)
+  NdbTransaction *pTransaction = pNdb->startTransaction();
   if (pTransaction == NULL) {
     g_err << "Can't get transaction pointer" << endl;
     return NDBT_FAILED;
   }
-  if(hugoTrans.setTransaction(pTransaction) != 0) {
+  if (hugoTrans.setTransaction(pTransaction) != 0) {
     g_err << "Set transaction error" << endl;
     pNdb->closeTransaction(pTransaction);
     return NDBT_FAILED;
   }
-  if(hugoTrans.pkInsertRecord(pNdb, 0, num, 2) != 0) {
+  if (hugoTrans.pkInsertRecord(pNdb, 0, num, 2) != 0) {
     g_err << "pkInsertRecord error" << endl;
     pNdb->closeTransaction(pTransaction);
     return NDBT_FAILED;
-  }   
-  if(pTransaction->execute(Commit ) != 0) {
+  }
+  if (pTransaction->execute(Commit) != 0) {
     g_err << "Can't commit transaction delete" << endl;
     return NDBT_FAILED;
   }
@@ -987,19 +886,18 @@ int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
 
   // make sure backup have finish
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
 
   // start log event
-  if(backup.startLogEvent() != 0) {
+  if (backup.startLogEvent() != 0) {
     g_err << "Can't create log event" << endl;
     return NDBT_FAILED;
   }
   NdbSleep_SecSleep(15);
   int i = 0;
   while (1) {
-    if (backup.checkBackupStatus() == 2) //complete
+    if (backup.checkBackupStatus() == 2)  // complete
       break;
     else if (i == 15) {
       g_err << "Backup timeout" << endl;
@@ -1012,27 +910,26 @@ int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
+int runVerifyUndoData(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  Ndb *pNdb = GETNDB(step);
   int count = 0;
   int num = 5;
-  if (records - 5 < 0)
-    num = 1;
+  if (records - 5 < 0) num = 1;
 
-  const NdbDictionary::Table* tab = 
-    GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());
+  const NdbDictionary::Table *tab =
+      GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());
 
-  if(tab == 0) {
+  if (tab == 0) {
     g_err << " Can't find table" << endl;
     return NDBT_FAILED;
   }
-  
-  UtilTransactions utilTrans(* tab);
-  HugoTransactions hugoTrans(* tab);
+
+  UtilTransactions utilTrans(*tab);
+  HugoTransactions hugoTrans(*tab);
 
   // Check that there are as many records as we expected
-  if(utilTrans.selectCount(pNdb, 64, &count) != 0) {
+  if (utilTrans.selectCount(pNdb, 64, &count) != 0) {
     g_err << "Can't get records count" << endl;
     return NDBT_FAILED;
   }
@@ -1047,21 +944,21 @@ int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   // make sure all the update data is there
-  NdbTransaction *pTransaction= pNdb->startTransaction();
+  NdbTransaction *pTransaction = pNdb->startTransaction();
   if (pTransaction == NULL) {
     g_err << "Can't get transaction pointer" << endl;
     return NDBT_FAILED;
   }
-  if(hugoTrans.setTransaction(pTransaction) != 0) {
+  if (hugoTrans.setTransaction(pTransaction) != 0) {
     g_err << "Set transaction error" << endl;
     pNdb->closeTransaction(pTransaction);
     return NDBT_FAILED;
   }
-   if(hugoTrans.pkReadRecord(pNdb, 0, records, NdbOperation::LM_Read) != 0) {
-      g_err << "Can't read record" << endl;
-      return NDBT_FAILED;
-    }
-  if(hugoTrans.verifyUpdatesValue(0, records) != 0) {
+  if (hugoTrans.pkReadRecord(pNdb, 0, records, NdbOperation::LM_Read) != 0) {
+    g_err << "Can't read record" << endl;
+    return NDBT_FAILED;
+  }
+  if (hugoTrans.verifyUpdatesValue(0, records) != 0) {
     g_err << "The records restored with undo log is not correct" << endl;
     return NDBT_FAILED;
   }
@@ -1070,24 +967,20 @@ int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runBug57650(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runBug57650(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter res;
 
   int node0 = res.getNode(NdbRestarter::NS_RANDOM);
   res.insertErrorInNode(node0, 5057);
 
   unsigned backupId = 0;
-  if (backup.start(backupId) == -1)
-    return NDBT_FAILED;
+  if (backup.start(backupId) == -1) return NDBT_FAILED;
 
   res.insertErrorInAllNodes(5057);
-  int val2[] = { 7099 }; // Force LCP
+  int val2[] = {7099};  // Force LCP
   res.dumpStateAllNodes(val2, 1);
 
   NdbSleep_SecSleep(5);
@@ -1098,17 +991,14 @@ runBug57650(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runBug14019036(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter res;
   NdbMgmd mgmd;
 
-  res.insertErrorInAllNodes(5073); // slow down backup
+  res.insertErrorInAllNodes(5073);  // slow down backup
 
   if (!mgmd.connect()) {
     g_err << "Cannot connect to mgmd server" << endl;
@@ -1119,10 +1009,9 @@ runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   Uint64 maxWaitSeconds = 10;
-  Uint64 endTime = NdbTick_CurrentMillisecond() +
-                   (maxWaitSeconds * 1000);
+  Uint64 endTime = NdbTick_CurrentMillisecond() + (maxWaitSeconds * 1000);
 
-  int val2[] = { 100000 }; // all dump 100000 
+  int val2[] = {100000};  // all dump 100000
   unsigned backupId = 0;
   if (backup.start(backupId, 1, 0, 1) == -1) {
     g_err << "Failed to start backup nowait" << endl;
@@ -1130,12 +1019,11 @@ runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
   }
   int records = 0, data = 0;
   int result = NDBT_OK;
-  while (NdbTick_CurrentMillisecond() < endTime)
-  {
+  while (NdbTick_CurrentMillisecond() < endTime) {
     char buff[512];
     char tmp[512];
 
-    // dump backup status in mgmd log 
+    // dump backup status in mgmd log
     res.dumpStateAllNodes(val2, 1);
 
     // read backup status logevent from mgmd
@@ -1143,35 +1031,31 @@ runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "Failed to read logevent from mgmd" << endl;
       return NDBT_FAILED;
     }
-    if(strstr(buff, "#Records")) 
-       sscanf(buff, "%s %d", tmp, &records);
-    if(strstr(buff, "Data")) {
+    if (strstr(buff, "#Records")) sscanf(buff, "%s %d", tmp, &records);
+    if (strstr(buff, "Data")) {
       sscanf(buff, "%s %d", tmp, &data);
-      if(records == 0 && data > 0) {
+      if (records == 0 && data > 0) {
         g_err << "Inconsistent backup status: ";
-        g_err << "Data written = " << data << " bytes, Record count = 0" << endl;
+        g_err << "Data written = " << data << " bytes, Record count = 0"
+              << endl;
         result = NDBT_FAILED;
         break;
-      }
-      else if(records > 0 && data > 0)
+      } else if (records > 0 && data > 0)
         break;
     }
-  }    
+  }
 
   res.insertErrorInAllNodes(0);
 
   return result;
 }
-int
-runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runBug16656639(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter res;
 
-  res.insertErrorInAllNodes(10032); 
+  res.insertErrorInAllNodes(10032);
 
   g_err << "Dumping schema state." << endl;
 
@@ -1190,32 +1074,31 @@ runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_SecSleep(1);
 
   g_err << "Aborting backup." << endl;
-  if(backup.abort(backupId) == -1) {
+  if (backup.abort(backupId) == -1) {
     g_err << "Failed to abort backup." << endl;
     return NDBT_FAILED;
   }
 
   g_err << "Checking backup status." << endl;
-  if(backup.startLogEvent() != 0) {
+  if (backup.startLogEvent() != 0) {
     g_err << "Can't create log event." << endl;
     return NDBT_FAILED;
   }
-  if(backup.checkBackupStatus() != 3) {
+  if (backup.checkBackupStatus() != 3) {
     g_err << "Backup not aborted." << endl;
     return NDBT_FAILED;
   }
 
   res.insertErrorInAllNodes(0);
-  if(res.dumpStateAllNodes(&dump2, 1) != 0) {
+  if (res.dumpStateAllNodes(&dump2, 1) != 0) {
     g_err << "Schema leak." << endl;
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-
-int makeTmpTable(NdbDictionary::Table& tab, NdbDictionary::Index &idx, const char *tableName, const char *columnName)
-{
+int makeTmpTable(NdbDictionary::Table &tab, NdbDictionary::Index &idx,
+                 const char *tableName, const char *columnName) {
   tab.setName(tableName);
   tab.setLogging(true);
   {
@@ -1234,26 +1117,23 @@ int makeTmpTable(NdbDictionary::Table& tab, NdbDictionary::Index &idx, const cha
   }
   NdbError error;
   return tab.validate(error);
-} 
+}
 
-int
-runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runBug17882305(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter res;
   NdbDictionary::Table tab;
   NdbDictionary::Index idx;
-  const char *tablename = "#sql-dummy"; 
-  const char *colname = "_id"; 
-  
-  Ndb* const ndb = GETNDB(step);
-  NdbDictionary::Dictionary* const dict = ndb->getDictionary();
+  const char *tablename = "#sql-dummy";
+  const char *colname = "_id";
+
+  Ndb *const ndb = GETNDB(step);
+  NdbDictionary::Dictionary *const dict = ndb->getDictionary();
 
   // create "#sql-dummy" table
-  if(makeTmpTable(tab, idx, tablename, colname) == -1) {
+  if (makeTmpTable(tab, idx, tablename, colname) == -1) {
     g_err << "Validation of #sql table failed" << endl;
     return NDBT_FAILED;
   }
@@ -1286,9 +1166,9 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   // restore from backup, data only.
-  // backup contains data for #sql-dummy, which should 
-  // cause an error as the table doesn't exist, but will 
-  // not cause an error as the default value for 
+  // backup contains data for #sql-dummy, which should
+  // cause an error as the table doesn't exist, but will
+  // not cause an error as the default value for
   // --exclude-intermediate-sql-tables is 1
   if (backup.restore(backupId, false) != 0) {
     g_err << "Failed to restore from backup." << endl;
@@ -1296,33 +1176,31 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   return NDBT_OK;
-}   
+}
 
-int
-runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runBug19202654(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
-  NdbDictionary::Dictionary* const dict = GETNDB(step)->getDictionary();
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+  NdbDictionary::Dictionary *const dict = GETNDB(step)->getDictionary();
 
   g_err << "Creating 35 ndb tables." << endl;
-  for(int i=0; i<35; i++)
-  {
+  for (int i = 0; i < 35; i++) {
     char tablename[10];
     sprintf(tablename, "t%d", i);
     const char *colname = "id";
     NdbDictionary::Table tab;
     NdbDictionary::Index idx;
 
-    if(makeTmpTable(tab, idx, tablename, colname) == -1) {
-      g_err << "Failed to validate table " << tablename << ", error: " << dict->getNdbError() << endl;
+    if (makeTmpTable(tab, idx, tablename, colname) == -1) {
+      g_err << "Failed to validate table " << tablename
+            << ", error: " << dict->getNdbError() << endl;
       return NDBT_FAILED;
     }
     // Create large number of dictionary objects
     if (dict->createTable(tab) == -1) {
-      g_err << "Failed to create table " << tablename << ", error: " << dict->getNdbError() << endl;
+      g_err << "Failed to create table " << tablename
+            << ", error: " << dict->getNdbError() << endl;
       return NDBT_FAILED;
     }
     // Create an index per table to double the number of dictionary objects
@@ -1331,7 +1209,7 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
-  
+
   g_err << "Starting backup." << endl;
   unsigned backupId = 0;
   if (backup.start(backupId) == -1) {
@@ -1340,17 +1218,19 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   g_err << "Dropping 35 ndb tables." << endl;
-  for(int i=0; i<35; i++)
-  {
+  for (int i = 0; i < 35; i++) {
     char tablename[10];
     sprintf(tablename, "t%d", i);
     if (dict->dropTable(tablename) == -1) {
-      g_err << "Failed to drop table " << tablename << ", error: " << dict->getNdbError() << endl;
+      g_err << "Failed to drop table " << tablename
+            << ", error: " << dict->getNdbError() << endl;
       return NDBT_FAILED;
     }
   }
 
-  g_err << "Restoring from backup with error insert and no metadata or data restore." << endl;
+  g_err << "Restoring from backup with error insert and no metadata or data "
+           "restore."
+        << endl;
   // just load metadata and exit
   if (backup.restore(backupId, false, false, 1) != 0) {
     g_err << "Failed to restore from backup." << endl;
@@ -1359,18 +1239,13 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-
-
-int
-runRestoreEpochRetry(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runRestoreEpochRetry(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   g_err << "Inserting error to cause temporary redo errors" << endl;
   restarter.insertErrorInAllNodes(5032);
 
   g_err << "Restoring from backup with epoch restore." << endl;
-  if (runRestoreEpoch(ctx, step) != NDBT_OK)
-  {
+  if (runRestoreEpoch(ctx, step) != NDBT_OK) {
     ndbout << "Restoring epoch failed" << endl;
     restarter.insertErrorInAllNodes(0);
     return NDBT_FAILED;
@@ -1379,16 +1254,13 @@ runRestoreEpochRetry(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-class DbVersion
-{
-public:
-  NdbHistory::Version* m_version;
-  
-  DbVersion(): m_version(NULL)
-  {}
+class DbVersion {
+ public:
+  NdbHistory::Version *m_version;
 
-  ~DbVersion()
-  {
+  DbVersion() : m_version(NULL) {}
+
+  ~DbVersion() {
     delete m_version;
     m_version = NULL;
   }
@@ -1396,7 +1268,7 @@ public:
 
 /**
  * readVersionForRange
- * 
+ *
  * Method will read version info for the given range
  * from the database
  * Each logical row in the range is read by PK, and
@@ -1405,70 +1277,54 @@ public:
  * The passed in Version object is modified to describe
  * the versions present
  */
-int readVersionForRange(Ndb* pNdb,
-                        const NdbDictionary::Table* table,
-                        const RecordRange range,
-                        DbVersion& dbVersion)
-{
+int readVersionForRange(Ndb *pNdb, const NdbDictionary::Table *table,
+                        const RecordRange range, DbVersion &dbVersion) {
   assert(range.m_len > 0);
-  
+
   /* Initialise Version */
   dbVersion.m_version = new NdbHistory::Version(range);
-  
+
   HugoCalculator hugoCalc(*table);
-  
-  for (Uint32 i=0; i < range.m_len; i++)
-  {
+
+  for (Uint32 i = 0; i < range.m_len; i++) {
     HugoOperations hugoOps(*table);
     const Uint32 r = range.m_start + i;
-    NdbHistory::RecordState* recordState = dbVersion.m_version->m_states + i;
-    
-    if (hugoOps.startTransaction(pNdb) != 0)
-    {
+    NdbHistory::RecordState *recordState = dbVersion.m_version->m_states + i;
+
+    if (hugoOps.startTransaction(pNdb) != 0) {
       g_err << "Failed to start transaction " << hugoOps.getNdbError() << endl;
       return NDBT_FAILED;
     }
-  
-    if (hugoOps.pkReadRecord(pNdb,
-                             r,
-                             1) != 0)
-    {
+
+    if (hugoOps.pkReadRecord(pNdb, r, 1) != 0) {
       g_err << "Failed to define read " << hugoOps.getNdbError() << endl;
     }
 
     bool exists = true;
-    
+
     int execError = hugoOps.execute_Commit(pNdb);
-    if (execError != 0)
-    {
-      if (execError == 626)
-      {
+    if (execError != 0) {
+      if (execError == 626) {
         /* Row does not exist */
         exists = false;
-      }
-      else
-      {
+      } else {
         g_err << "Failed to execute pk read" << hugoOps.getNdbError() << endl;
         return NDBT_FAILED;
       }
     }
 
-    if (exists)
-    {
-      NDBT_ResultRow& row = hugoOps.get_row(0);
-      
+    if (exists) {
+      NDBT_ResultRow &row = hugoOps.get_row(0);
+
       /* Check row itself */
-      if (hugoCalc.verifyRowValues(&row) != 0)
-      {
+      if (hugoCalc.verifyRowValues(&row) != 0) {
         g_err << "Row inconsistent at record " << r << endl;
         return NDBT_FAILED;
       }
-      
+
       recordState->m_state = NdbHistory::RecordState::RS_EXISTS;
       recordState->m_updatesValue = hugoCalc.getUpdatesValue(&row);
-    }
-    else
-    {
+    } else {
       recordState->m_state = NdbHistory::RecordState::RS_NOT_EXISTS;
       recordState->m_updatesValue = 0;
     }
@@ -1479,10 +1335,7 @@ int readVersionForRange(Ndb* pNdb,
   return NDBT_OK;
 }
 
-
-
-
-// TODO 
+// TODO
 //   Error insert for stalled GCI
 //     Improve from timing-based testing
 //
@@ -1491,107 +1344,87 @@ int readVersionForRange(Ndb* pNdb,
 //
 //   Make debug logging more configurable
 
-  
-/* Used to subdivide range amongst steps */  
-static WorkerIdentifier g_workers;  
+/* Used to subdivide range amongst steps */
+static WorkerIdentifier g_workers;
 
-int
-initWorkerIds(NDBT_Context* ctx, NDBT_Step* step)
-{
+int initWorkerIds(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 numWorkers = ctx->getProperty("NumWorkers");
   g_workers.init(numWorkers);
   return NDBT_OK;
 }
 
-
 /* Set of version histories recorded for later verification */
-static MutexVector<NdbHistory*>* g_rangeHistories = NULL;
+static MutexVector<NdbHistory *> *g_rangeHistories = NULL;
 
-int
-initHistoryList(NDBT_Context* ctx, NDBT_Step* step)
-{
+int initHistoryList(NDBT_Context *ctx, NDBT_Step *step) {
   assert(g_rangeHistories == NULL);
-  g_rangeHistories = new MutexVector<NdbHistory*>();
-  
+  g_rangeHistories = new MutexVector<NdbHistory *>();
+
   return NDBT_OK;
 }
 
-int
-clearHistoryList(NDBT_Context* ctx, NDBT_Step* step)
-{
-  if (g_rangeHistories != NULL)
-  {
+int clearHistoryList(NDBT_Context *ctx, NDBT_Step *step) {
+  if (g_rangeHistories != NULL) {
     delete g_rangeHistories;
     g_rangeHistories = NULL;
   }
 
   return NDBT_OK;
 }
-      
-int
-runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
-{
+
+int runUpdatesWithHistory(NDBT_Context *ctx, NDBT_Step *step) {
   /**
-   * Iterate over a range of records, applying updates 
+   * Iterate over a range of records, applying updates
    * + increasing the updates value, recording the changes
    * in a History until told to stop.
    */
-  Ndb* pNdb = GETNDB(step);
-  const Uint32 totalRecords = (Uint32) ctx->getNumRecords();
+  Ndb *pNdb = GETNDB(step);
+  const Uint32 totalRecords = (Uint32)ctx->getNumRecords();
   const Uint32 stepNo = step->getStepNo();
   const Uint32 workerId = g_workers.getNextWorkerId();
   Uint32 maxTransactionSize = ctx->getProperty("MaxTransactionSize");
   const bool AdjustRangeOverTime = ctx->getProperty("AdjustRangeOverTime");
   const Uint32 delayUpdates = ctx->getProperty("DelayUpdates");
 
-  if (totalRecords < g_workers.getTotalWorkers())
-  {
-    g_err << "Too few records " 
-          << totalRecords 
-          << " / " 
-          << g_workers.getTotalWorkers()
-          << endl;
+  if (totalRecords < g_workers.getTotalWorkers()) {
+    g_err << "Too few records " << totalRecords << " / "
+          << g_workers.getTotalWorkers() << endl;
     return NDBT_FAILED;
   }
-  if (maxTransactionSize == 0)
-  {
+  if (maxTransactionSize == 0) {
     maxTransactionSize = 1;
   }
-  
+
   /* Determine my subrange */
   const Uint32 numRecords = totalRecords / g_workers.getTotalWorkers();
   const Uint32 startRecord = workerId * numRecords;
   const Uint32 endRecord = startRecord + numRecords;
 
   const RecordRange range(startRecord, numRecords);
-  
+
   /**
    * Create a history and add it to the list for verification
    * I am interested in GCI boundary states for this
    * test, no need to record more than that unless debugging
    */
-  NdbHistory* history = 
-    new NdbHistory(NdbHistory::GR_LATEST_GCI, /* Record latest + Gcis */
-                   range);
+  NdbHistory *history =
+      new NdbHistory(NdbHistory::GR_LATEST_GCI, /* Record latest + Gcis */
+                     range);
   g_rangeHistories->push_back(history);
-  
+
   Uint32 recId = startRecord;
   Uint32 updatesVal = 1;
-  
-  g_err << stepNo << " : runUpdatesWithHistory AdjustRangeOverTime " 
+
+  g_err << stepNo << " : runUpdatesWithHistory AdjustRangeOverTime "
         << AdjustRangeOverTime << endl;
-  g_err << stepNo << " : running updates on range " 
-        << startRecord
-        << " -> "
-        << endRecord
-        << endl;
+  g_err << stepNo << " : running updates on range " << startRecord << " -> "
+        << endRecord << endl;
 
   Uint64 totalUpdates = 0;
   Uint64 lastCommitGci = 0;
   Uint32 recordLimit = endRecord;
 
-  if (AdjustRangeOverTime)
-  {
+  if (AdjustRangeOverTime) {
     /* Start small, build up range over time */
     recordLimit = startRecord + 1;
   }
@@ -1600,107 +1433,85 @@ runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
   NdbHistory::Version transaction(range);
 
   /* Initial version reflects the 'table load' step */
-  transaction.setRows(startRecord,
-                      0,
-                      numRecords);
-  history->commitVersion(&transaction,
-                         0); /* Dummy commit epoch */
+  transaction.setRows(startRecord, 0, numRecords);
+  history->commitVersion(&transaction, 0); /* Dummy commit epoch */
 
-  
-  while(ctx->isTestStopped() == false &&
-        ctx->getProperty("StopUpdates") == 0)
-  {
+  while (ctx->isTestStopped() == false &&
+         ctx->getProperty("StopUpdates") == 0) {
     HugoOperations hugoOps(*ctx->getTab());
-    if (hugoOps.startTransaction(pNdb) != 0)
-    {
+    if (hugoOps.startTransaction(pNdb) != 0) {
       g_err << "Failed to start transaction " << hugoOps.getNdbError() << endl;
       return NDBT_FAILED;
     }
-    
+
     /* Vary transaction size... */
     Uint32 recordsInTrans = 1;
-    if (maxTransactionSize > 1)
-    {
-      const Uint32 remain = (recordLimit - recId) -1;
-      if (remain)
-      {
+    if (maxTransactionSize > 1) {
+      const Uint32 remain = (recordLimit - recId) - 1;
+      if (remain) {
         recordsInTrans += (rand() % remain);
       }
     }
-    
-    if (hugoOps.pkUpdateRecord(pNdb,
-                               recId,
-                               recordsInTrans,
-                               updatesVal) != 0)
-    {
+
+    if (hugoOps.pkUpdateRecord(pNdb, recId, recordsInTrans, updatesVal) != 0) {
       g_err << "Failed to define PK updates " << hugoOps.getNdbError() << endl;
       return NDBT_FAILED;
     }
     transaction.setRows(recId, updatesVal, recordsInTrans);
 
-    recId+= recordsInTrans;
+    recId += recordsInTrans;
     totalUpdates += recordsInTrans;
 
-    if (hugoOps.execute_Commit(pNdb) != 0)
-    {
+    if (hugoOps.execute_Commit(pNdb) != 0) {
       g_err << "Failed to commit pk updates " << hugoOps.getNdbError() << endl;
       return NDBT_FAILED;
     }
 
     Uint64 commitGci;
     hugoOps.getTransaction()->getGCI(&commitGci);
-    if (commitGci == ~Uint64(0))
-    {
+    if (commitGci == ~Uint64(0)) {
       g_err << "Failed to get commit epoch " << endl;
       return NDBT_FAILED;
     }
 
     /* Update history with the committed version */
-    history->commitVersion(&transaction,
-                          commitGci);
+    history->commitVersion(&transaction, commitGci);
 
-    if (delayUpdates)
-    {
+    if (delayUpdates) {
       NdbSleep_MilliSleep(delayUpdates);
     }
 
-
-    if (AdjustRangeOverTime &&
-        commitGci != lastCommitGci)
-    {
+    if (AdjustRangeOverTime && commitGci != lastCommitGci) {
       /**
        * We use observed epoch increments to track
        * the passage of time, and increase the updatesValue
        * TODO : Use actual time to reduce confusion / coupling
        */
       recordLimit++;
-      if (recordLimit == endRecord)
-      {
+      if (recordLimit == endRecord) {
         recordLimit = startRecord + 1;
       }
-      if((recordLimit % 100) == 0)
-      {
-        g_err << stepNo << " : range upperbound moves to " << recordLimit << endl;
+      if ((recordLimit % 100) == 0) {
+        g_err << stepNo << " : range upperbound moves to " << recordLimit
+              << endl;
       }
     }
 
     lastCommitGci = commitGci;
-    
+
     hugoOps.closeTransaction(pNdb);
 
-    if (recId >= recordLimit)
-    {
+    if (recId >= recordLimit) {
       recId = startRecord;
       updatesVal++;
-      if ((updatesVal % 100) == 0)
-      {
+      if ((updatesVal % 100) == 0) {
         g_err << stepNo << " : updates value moves to " << updatesVal << endl;
       }
     }
   }
 
-  g_err << stepNo << " : finished after " << totalUpdates 
-        << " updates applied" << endl;
+  g_err << stepNo << " : finished after " << totalUpdates << " updates applied"
+        << endl;
 
   g_err << stepNo << " : history summary " << endl;
 
@@ -1709,13 +1520,11 @@ runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runDelayedBackup(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runDelayedBackup(NDBT_Context *ctx, NDBT_Step *step) {
   /**
    * Idea is to have a backup while other activity
    * is occurring in the cluster
-   * Plan : 
+   * Plan :
    *   Wait a while
    *   Run a backup
    *   Wait a while
@@ -1728,88 +1537,69 @@ runDelayedBackup(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_SecSleep(3);
 
   g_err << stepNo << " : starting a backup" << endl;
-  
-  if (runBackupOne(ctx, step) != NDBT_OK)
-  {
+
+  if (runBackupOne(ctx, step) != NDBT_OK) {
     return NDBT_FAILED;
   }
 
   g_err << stepNo << " : backup completed" << endl;
-  
+
   g_err << stepNo << " : sleeping a while" << endl;
-  
+
   NdbSleep_SecSleep(3);
 
   /* Stop updates now */
   g_err << stepNo << " : stopping updates" << endl;
-  
+
   ctx->setProperty("StopUpdates", 1);
-  
+
   g_err << stepNo << " : done" << endl;
 
   return NDBT_OK;
 }
 
-static Uint64 ndb_apply_status_epoch = 0; // 0 means unknown
+static Uint64 ndb_apply_status_epoch = 0;  // 0 means unknown
 
-int
-getApplyStatusEpoch(NDBT_Context* ctx, NDBT_Step* step)
-{
+int getApplyStatusEpoch(NDBT_Context *ctx, NDBT_Step *step) {
   ndb_apply_status_epoch = 0;
 
-  Ndb* pNdb = GETNDB(step);
-  const char* saveDb = pNdb->getDatabaseName();
+  Ndb *pNdb = GETNDB(step);
+  const char *saveDb = pNdb->getDatabaseName();
   pNdb->setDatabaseName("mysql");
-  const NdbDictionary::Table* apply_status_table =
-    pNdb->getDictionary()->getTable("ndb_apply_status");
+  const NdbDictionary::Table *apply_status_table =
+      pNdb->getDictionary()->getTable("ndb_apply_status");
   pNdb->setDatabaseName(saveDb);
 
-  if (!apply_status_table)
-  {
-    g_err << "No mysql.ndb_apply_status table on this system"
-          << endl;
+  if (!apply_status_table) {
+    g_err << "No mysql.ndb_apply_status table on this system" << endl;
     return NDBT_FAILED;
   }
 
-  NdbTransaction* pTrans = pNdb->startTransaction();
-  if (!pTrans)
-  {
-    g_err << "Failed to start transaction "
-          << pNdb->getNdbError()
-          << endl;
+  NdbTransaction *pTrans = pNdb->startTransaction();
+  if (!pTrans) {
+    g_err << "Failed to start transaction " << pNdb->getNdbError() << endl;
     return NDBT_FAILED;
   }
 
-  NdbOperation* readOp = pTrans->getNdbOperation(apply_status_table);
-  if (!readOp)
-  {
-    g_err << "Failed to get operation "
-          << pTrans->getNdbError()
-          << endl;
+  NdbOperation *readOp = pTrans->getNdbOperation(apply_status_table);
+  if (!readOp) {
+    g_err << "Failed to get operation " << pTrans->getNdbError() << endl;
     pTrans->close();
     return NDBT_FAILED;
   }
 
-  NdbRecAttr* epochRecAttr = NULL;
+  NdbRecAttr *epochRecAttr = NULL;
   if ((readOp->readTuple() != 0) ||
       (readOp->equal("server_id", Uint32(0)) != 0) ||
-      ((epochRecAttr = readOp->getValue("epoch")) == NULL))
-  {
-    g_err << "Failed to define operation "
-          << readOp->getNdbError()
-          << endl;
+      ((epochRecAttr = readOp->getValue("epoch")) == NULL)) {
+    g_err << "Failed to define operation " << readOp->getNdbError() << endl;
     pTrans->close();
     return NDBT_FAILED;
   }
 
-  if (pTrans->execute(NoCommit) != 0 ||
-      readOp->getNdbError().code != 0)
-  {
-    g_err << "Error executing operation "
-          << readOp->getNdbError()
-          << " "
-          << pTrans->getNdbError()
-          << endl;
+  if (pTrans->execute(NoCommit) != 0 || readOp->getNdbError().code != 0) {
+    g_err << "Error executing operation " << readOp->getNdbError() << " "
+          << pTrans->getNdbError() << endl;
     pTrans->close();
     return NDBT_FAILED;
   }
@@ -1817,26 +1607,22 @@ getApplyStatusEpoch(NDBT_Context* ctx, NDBT_Step* step)
   ndb_apply_status_epoch = epochRecAttr->u_64_value();
   pTrans->close();
 
-  g_err << "Restored epoch is " << ndb_apply_status_epoch
-        << " (" << (ndb_apply_status_epoch >> 32)
-        << "/" << (ndb_apply_status_epoch & 0xffffffff)
-        << ")" << endl;
+  g_err << "Restored epoch is " << ndb_apply_status_epoch << " ("
+        << (ndb_apply_status_epoch >> 32) << "/"
+        << (ndb_apply_status_epoch & 0xffffffff) << ")" << endl;
 
   return NDBT_OK;
 }
 
-int getApplyStatusEpochFailOk(NDBT_Context* ctx, NDBT_Step* step)
-{
-  getApplyStatusEpoch(ctx,step);
+int getApplyStatusEpochFailOk(NDBT_Context *ctx, NDBT_Step *step) {
+  getApplyStatusEpoch(ctx, step);
   return NDBT_OK;
 }
 
-int
-verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
-{
+int verifyDbVsHistories(NDBT_Context *ctx, NDBT_Step *step) {
   /**
    * This VERIFIER step takes a set of range-histories
-   * produced by earlier steps, and for each 
+   * produced by earlier steps, and for each
    * range-history:
    *  - Reads the current data for the range from the db.
    *  - Checks row-level self consistency using HugoCalc
@@ -1846,26 +1632,26 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
    *  - Maps the matching versions in the range-history
    *    to a set of matching commit epoch ranges
    *
-   * Then each range-history's matching epoch ranges 
+   * Then each range-history's matching epoch ranges
    * are compared to the other range-history's matching
    * epoch ranges to find a common set of epoch ranges
    * which are present in each range-history.
    *
-   * Finally, the common set of epoch ranges is checked 
-   * to ensure that is describes a consistent GCI 
+   * Finally, the common set of epoch ranges is checked
+   * to ensure that is describes a consistent GCI
    * boundary.
    *
    * More visually:
-   * 
+   *
    *      Range1           Range2       ...       RangeN
    *
    * (Earlier step)
-   *   
+   *
    *     Update DB        Update DB              Update DB
    *     and History      and History            and History
    *     /    \           /    \                 /    \
    *    DB   History     DB   History           DB   History
-   *     |     |          |     |                |     |            
+   *     |     |          |     |                |     |
    *     |     |          |     |                |     |
    *     *     .          *     .                *     .
    *     *     .          *     .                *     .
@@ -1893,36 +1679,29 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
    *  * Represents something interesting happening to the
    *    database which we want to verify the consistency of
    *
-   *    Separate ranges exist to simplify testing with 
+   *    Separate ranges exist to simplify testing with
    *    multithreaded/concurrent modifications
    */
   // TODO : Pull out some of the EpochRangeSet juggling into
   // reusable code, as it is reused
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* tab = pNdb->getDictionary()->getTable(tabname);
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = pNdb->getDictionary()->getTable(tabname);
   Vector<EpochRangeSet> matchingEpochRangeSets;
   bool verifyOk = true;
 
   g_err << "verifyDbVsHistories" << endl;
   g_err << " : History count " << g_rangeHistories->size() << endl;
-  
-  for (Uint32 h=0; h < g_rangeHistories->size(); h++)
-  {
+
+  for (Uint32 h = 0; h < g_rangeHistories->size(); h++) {
     g_err << " : History " << h << endl;
-    const NdbHistory& history = *(*g_rangeHistories)[h];
-    
+    const NdbHistory &history = *(*g_rangeHistories)[h];
+
     g_err << " : Reading version info from DB for range "
-          << history.m_range.m_start 
-          << "->"
-          << history.m_range.m_start + history.m_range.m_len
-          << endl;
+          << history.m_range.m_start << "->"
+          << history.m_range.m_start + history.m_range.m_len << endl;
 
     DbVersion dbVersion;
-    if (readVersionForRange(pNdb,
-                            tab,
-                            history.m_range,
-                            dbVersion) != NDBT_OK)
-    {
+    if (readVersionForRange(pNdb, tab, history.m_range, dbVersion) != NDBT_OK) {
       verifyOk = false;
       continue;
     }
@@ -1930,29 +1709,25 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
     g_err << " : searching for matching versions in history" << endl;
 
     EpochRangeSet epochRanges;
-    NdbHistory::MatchingEpochRangeIterator mri(history,
-                                               dbVersion.m_version);
+    NdbHistory::MatchingEpochRangeIterator mri(history, dbVersion.m_version);
     EpochRange er;
-    while (mri.next(er))
-    {
+    while (mri.next(er)) {
       epochRanges.addEpochRange(er);
     }
 
     const Uint32 rangeCount = epochRanges.m_ranges.size();
 
-    g_err << " : found " << rangeCount
-          << " matching version ranges." << endl;
+    g_err << " : found " << rangeCount << " matching version ranges." << endl;
     epochRanges.dump();
 
-    if (rangeCount == 0)
-    {
+    if (rangeCount == 0) {
       g_err << " : No match found - failed" << endl;
       verifyOk = false;
-      
+
       /* Debugging : Dump DB + History content for this range */
       g_err << " : DB VERSION : " << endl;
       dbVersion.m_version->dump(false, "    ");
-      
+
       g_err << " : HISTORY VERSIONS : " << endl;
       history.dump(true);
       history.dumpClosestMatch(dbVersion.m_version);
@@ -1962,8 +1737,7 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
     matchingEpochRangeSets.push_back(epochRanges);
   }
 
-  if (!verifyOk)
-  {
+  if (!verifyOk) {
     /* Bail out now */
     return NDBT_FAILED;
   }
@@ -1976,30 +1750,23 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
    * intersect on some common epoch range[s]
    */
   EpochRangeSet commonRanges(matchingEpochRangeSets[0]);
-  
-  for (Uint32 i=1; i < matchingEpochRangeSets.size(); i++)
-  {
-    commonRanges = 
-      EpochRangeSet::intersect(commonRanges,
-                               matchingEpochRangeSets[i]);
+
+  for (Uint32 i = 1; i < matchingEpochRangeSets.size(); i++) {
+    commonRanges =
+        EpochRangeSet::intersect(commonRanges, matchingEpochRangeSets[i]);
   }
 
-  if (commonRanges.isEmpty())
-  {
+  if (commonRanges.isEmpty()) {
     g_err << "ERROR : No common epoch range between histories" << endl;
     verifyOk = false;
-  }
-  else
-  {
-    g_err << " : found "
-          << commonRanges.m_ranges.size() 
+  } else {
+    g_err << " : found " << commonRanges.m_ranges.size()
           << " common epoch range[s] between histories" << endl;
-    
+
     commonRanges.dump();
 
     bool found_apply_status_match = false;
-    if (ndb_apply_status_epoch == 0)
-    {
+    if (ndb_apply_status_epoch == 0) {
       g_err << " : no ndb_apply_status table content to check, skipping"
             << endl;
       found_apply_status_match = true;
@@ -2010,21 +1777,17 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
     restorePoint.m_end = ndb_apply_status_epoch + 1;
 
     g_err << " : checking that common range[s] span a GCI boundary" << endl;
-    
+
     bool foundGciBoundary = false;
-    for (Uint32 i=0; i < commonRanges.m_ranges.size(); i++)
-    {
-      const EpochRange& er = commonRanges.m_ranges[i];
-      if (er.spansGciBoundary())
-      {
+    for (Uint32 i = 0; i < commonRanges.m_ranges.size(); i++) {
+      const EpochRange &er = commonRanges.m_ranges[i];
+      if (er.spansGciBoundary()) {
         ndbout_c("  OK - found range spanning GCI boundary");
         er.dump();
         foundGciBoundary = true;
-        if (ndb_apply_status_epoch != 0)
-        {
+        if (ndb_apply_status_epoch != 0) {
           /* Check this range against the apply status epoch */
-          if (!restorePoint.intersect(er).isEmpty())
-          {
+          if (!restorePoint.intersect(er).isEmpty()) {
             g_err << "  OK - apply status epoch contained in range" << endl;
             restorePoint.dump();
             found_apply_status_match = true;
@@ -2032,32 +1795,27 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
     }
-    
-    if (!foundGciBoundary)
-    {
+
+    if (!foundGciBoundary) {
       g_err << "ERROR : No common GCI boundary span found" << endl;
       verifyOk = false;
-    }
-    else if (!found_apply_status_match)
-    {
-      g_err << "ERROR : No ndb_apply_status match found with apply status epoch" << endl;
+    } else if (!found_apply_status_match) {
+      g_err << "ERROR : No ndb_apply_status match found with apply status epoch"
+            << endl;
       restorePoint.dump();
       verifyOk = false;
     }
   }
 
-  return (verifyOk? NDBT_OK : NDBT_FAILED);
+  return (verifyOk ? NDBT_OK : NDBT_FAILED);
 }
-  
-int
-runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
-{
+
+int runGCPStallDuringBackupStart(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 stepNo = step->getStepNo();
   NdbRestarter restarter;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
 
   g_err << stepNo << " : runGCPStallDuringBackupStart" << endl;
 
@@ -2076,7 +1834,7 @@ runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
   restarter.insertErrorInAllNodes(StallGCPSaveCode);
 
   g_err << stepNo << " : waiting a while" << endl;
-  
+
   const Uint32 delay2Secs = 2 * 3;
   NdbSleep_SecSleep(delay2Secs);
 
@@ -2086,14 +1844,12 @@ runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runGCPStallDuringBackup(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 stepNo = step->getStepNo();
   NdbRestarter restarter;
 
   g_err << stepNo << " : runGCPStallDuringBackup" << endl;
-  
+
   /**
    * Plan is to stall backup scan, so that some time can
    * pass during the backup
@@ -2107,29 +1863,29 @@ runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
   g_err << stepNo << " : stalling backup scan" << endl;
   const Uint32 StallBackupScanCode = 10039;  // BACKUP
   restarter.insertErrorInAllNodes(StallBackupScanCode);
-  
+
   g_err << stepNo << " : waiting a while" << endl;
 
-  /* TODO : Split backup into backup start + wait, and 
+  /* TODO : Split backup into backup start + wait, and
    * trigger this part on backup start
    */
   const Uint32 delay1Secs = 6 * 3;
   NdbSleep_SecSleep(delay1Secs);
-  
+
   g_err << stepNo << " : stalling GCP" << endl;
-  
+
   const Uint32 StallGCPSaveCode = 7237;  // DIH
   restarter.insertErrorInAllNodes(StallGCPSaveCode);
 
   g_err << stepNo << " : waiting a while" << endl;
-  
+
   const Uint32 delay2Secs = 2 * 3;
   NdbSleep_SecSleep(delay2Secs);
 
   g_err << stepNo << " : Clearing error inserts" << endl;
-  
+
   restarter.insertErrorInAllNodes(0);
-  
+
   return NDBT_OK;
 }
 
@@ -2142,13 +1898,10 @@ runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
  * doesn't show the inserted MAX_INT64 values for ndb versions
  * higher than 7.5.16, 7.6.12 or 8.0.17, the test will fail.
  */
-int
-runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runCheckPrintout(NDBT_Context *ctx, NDBT_Step *step) {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
   NdbRestarter res;
   NdbMgmd mgmd;
 
@@ -2158,101 +1911,92 @@ runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
   // Find out whether Backup-completed event contains 64-bit format
   int minNdbVer = 0;
   int maxNdbVer = 0;
-  CHECK2(res.getNodeTypeVersionRange(NDB_MGM_NODE_TYPE_NDB,
-                                     minNdbVer,
+  CHECK2(res.getNodeTypeVersionRange(NDB_MGM_NODE_TYPE_NDB, minNdbVer,
                                      maxNdbVer) == 0);
   uint major = ndbGetMajor(minNdbVer);
   uint minor = ndbGetMinor(minNdbVer);
   uint build = ndbGetBuild(minNdbVer);
 
-  g_err << "Ndb version : " << major << "." << minor
-        << "." << build << endl;
+  g_err << "Ndb version : " << major << "." << minor << "." << build << endl;
 
-  bool BU_stats_64bit =
-    ((major == 7 &&
-      ((minor == 5 && build > 16) ||
-       (minor == 6 && build > 12))) ||
-     (major == 8 && build > 17));
+  bool BU_stats_64bit = ((major == 7 && ((minor == 5 && build > 16) ||
+                                         (minor == 6 && build > 12))) ||
+                         (major == 8 && build > 17));
 
   // Find out whether api can read 64-bit format
   major = NDB_VERSION_MAJOR;
   minor = NDB_VERSION_MINOR;
-  build= NDB_VERSION_BUILD;
+  build = NDB_VERSION_BUILD;
 
-  g_err << "Ndb version : " << major << "." << minor
-        << "." << build << endl;
+  g_err << "Ndb version : " << major << "." << minor << "." << build << endl;
 
-  bool can_read_64bit =
-    ((major == 7 &&
-      ((minor == 5 && build > 16) ||
-       (minor == 6 && build > 12))) ||
-     (major == 8 && build > 17));
+  bool can_read_64bit = ((major == 7 && ((minor == 5 && build > 16) ||
+                                         (minor == 6 && build > 12))) ||
+                         (major == 8 && build > 17));
 
   // In order to test api client can read 64bit,
   // remove the comment from the following line
   // can_read_64bit = false;
 
-  res.insertErrorInAllNodes(5073); // slow down backup
+  res.insertErrorInAllNodes(5073);  // slow down backup
 
-  res.insertErrorInAllNodes(10042); // Set the backup statistics to MAX_INT64
+  res.insertErrorInAllNodes(10042);  // Set the backup statistics to MAX_INT64
 
   unsigned backup_id = 0;
   CHECK2(backup.start(backup_id, 1, 0, 1) == 0);
   g_info << "Backup id " << backup_id << endl;
 
   Uint64 maxWaitSeconds = 10;
-  Uint64 endTime = NdbTick_CurrentMillisecond() +
-    (maxWaitSeconds * 1000);
+  Uint64 endTime = NdbTick_CurrentMillisecond() + (maxWaitSeconds * 1000);
 
   char buff[512];
   int result = NDBT_FAILED;
-  while (NdbTick_CurrentMillisecond() < endTime)
-  {
-    CHECK2(!mgmd.get_next_event_line(buff,
-                                     sizeof(buff),
-                                     10 * 1000) == 0);
-    if (strstr(buff, "Backup") &&
-        strstr(buff, "completed"))
-    {
+  while (NdbTick_CurrentMillisecond() < endTime) {
+    CHECK2(!mgmd.get_next_event_line(buff, sizeof(buff), 10 * 1000) == 0);
+    if (strstr(buff, "Backup") && strstr(buff, "completed")) {
       g_err << "Line read from event stream : " << endl << buff << endl;
 
       int nd, bu, from, start, stop;
-      if (can_read_64bit)
-      {
+      if (can_read_64bit) {
         // New api client that can read 64bit values
         Uint64 records = 0;
         Uint64 log_records = 0;
         Uint64 data = 0;
         Uint64 log_bytes = 0;
-        sscanf(buff, "Node %d: Backup %d started from node %d completed. StartGCP: %u StopGCP: %u #Records: %llu #LogRecords: %llu Data: %llu bytes Log: %llu bytes", &nd, &bu, &from, &start, &stop, &records, &log_records, &data, & log_bytes);
-        g_err << "Read values : #Data records "  << records
-              << " #Log records "  << log_records
-              << " Data " << data << " bytes, Log " << log_bytes
-              << " bytes." << endl << endl;
+        sscanf(buff,
+               "Node %d: Backup %d started from node %d completed. StartGCP: "
+               "%u StopGCP: %u #Records: %llu #LogRecords: %llu Data: %llu "
+               "bytes Log: %llu bytes",
+               &nd, &bu, &from, &start, &stop, &records, &log_records, &data,
+               &log_bytes);
+        g_err << "Read values : #Data records " << records << " #Log records "
+              << log_records << " Data " << data << " bytes, Log " << log_bytes
+              << " bytes." << endl
+              << endl;
 
-        if (! BU_stats_64bit ||
-            (records == INT_MAX64 &&
-             log_records == INT_MAX64 &&
-             data == INT_MAX64 &&
-             log_bytes == INT_MAX64))
-        {
+        if (!BU_stats_64bit ||
+            (records == INT_MAX64 && log_records == INT_MAX64 &&
+             data == INT_MAX64 && log_bytes == INT_MAX64)) {
           result = NDBT_OK;
           break;
         }
-      }
-      else
-      {
+      } else {
         // Old api client that can read only 32 bit values
         Uint32 records = 0;
         Uint32 log_records = 0;
         Uint32 data = 0;
         Uint32 log_bytes = 0;
-        sscanf(buff, "Node %d: Backup %d started from node %d completed. StartGCP: %u StopGCP: %u #Records: %u #LogRecords: %u Data: %u bytes Log: %u bytes", &nd, &bu, &from, &start, &stop, &records, &log_records, &data, &log_bytes);
+        sscanf(buff,
+               "Node %d: Backup %d started from node %d completed. StartGCP: "
+               "%u StopGCP: %u #Records: %u #LogRecords: %u Data: %u bytes "
+               "Log: %u bytes",
+               &nd, &bu, &from, &start, &stop, &records, &log_records, &data,
+               &log_bytes);
 
-        g_err << "Read 32 bit values : #Data records "  << records
-              << " #Log records "  << log_records
-              << " Data " << data << " bytes, Log " << log_bytes
-              << " bytes." << endl << endl;
+        g_err << "Read 32 bit values : #Data records " << records
+              << " #Log records " << log_records << " Data " << data
+              << " bytes, Log " << log_bytes << " bytes." << endl
+              << endl;
 
         result = NDBT_OK;
         break;
@@ -2262,8 +2006,7 @@ runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
 
   res.insertErrorInAllNodes(0);
 
-  if (result != NDBT_OK)
-  {
+  if (result != NDBT_OK) {
     g_err << "ERROR: Could not read 'Backup complete' event from mgmd "
           << "within " << maxWaitSeconds << " seconds." << endl;
   }
@@ -2271,13 +2014,13 @@ runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 NDBT_TESTSUITE(testBackup);
-TESTCASE("BackupOne", 
-	 "Test that backup and restore works on one table \n"
-	 "1. Load table\n"
-	 "2. Backup\n"
-	 "3. Drop tables and restart \n"
-	 "4. Restore\n"
-	 "5. Verify count and content of table\n"){
+TESTCASE("BackupOne",
+         "Test that backup and restore works on one table \n"
+         "1. Load table\n"
+         "2. Backup\n"
+         "3. Drop tables and restart \n"
+         "4. Restore\n"
+         "5. Verify count and content of table\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupOne);
@@ -2286,19 +2029,19 @@ TESTCASE("BackupOne",
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
 }
-TESTCASE("BackupWhenOutOfLDMRecords",
-      "Test that backup works also when we have no LDM records available\n")
-{
+TESTCASE(
+    "BackupWhenOutOfLDMRecords",
+    "Test that backup works also when we have no LDM records available\n") {
   INITIALIZER(outOfLDMRecords);
   FINALIZER(runClearTable);
 }
-TESTCASE("BackupRandom", 
-	 "Test that backup n and restore works on one table \n"
-	 "1. Load table\n"
-	 "2. Backup\n"
-	 "3. Drop tables and restart \n"
-	 "4. Restore\n"
-	 "5. Verify count and content of table\n"){
+TESTCASE("BackupRandom",
+         "Test that backup n and restore works on one table \n"
+         "1. Load table\n"
+         "2. Backup\n"
+         "3. Drop tables and restart \n"
+         "4. Restore\n"
+         "5. Verify count and content of table\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupRandom);
@@ -2307,9 +2050,9 @@ TESTCASE("BackupRandom",
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
 }
-TESTCASE("BackupDDL", 
-	 "Test that backup and restore works on with DDL ongoing\n"
-	 "1. Backups and DDL (create,drop,table.index)"){
+TESTCASE("BackupDDL",
+         "Test that backup and restore works on with DDL ongoing\n"
+         "1. Backups and DDL (create,drop,table.index)") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   STEP(runBackupLoop);
@@ -2317,16 +2060,16 @@ TESTCASE("BackupDDL",
   STEP(runDDL);
   FINALIZER(runClearTable);
 }
-TESTCASE("BackupBank", 
-	 "Test that backup and restore works during transaction load\n"
-	 " by backing up the bank"
-	 "1.  Create bank\n"
-	 "2a. Start bank and let it run\n"
-	 "2b. Perform loop number of backups of the bank\n"
-	 "    when backups are finished tell bank to close\n"
-	 "3.  Restart ndb -i and reload each backup\n"
-	 "    let bank verify that the backup is consistent\n"
-	 "4.  Drop bank\n"){
+TESTCASE("BackupBank",
+         "Test that backup and restore works during transaction load\n"
+         " by backing up the bank"
+         "1.  Create bank\n"
+         "2a. Start bank and let it run\n"
+         "2b. Perform loop number of backups of the bank\n"
+         "    when backups are finished tell bank to close\n"
+         "3.  Restart ndb -i and reload each backup\n"
+         "    let bank verify that the backup is consistent\n"
+         "4.  Drop bank\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
@@ -2346,15 +2089,15 @@ TESTCASE("BackupBank",
   VERIFIER(runRestoreBankAndVerify);
   FINALIZER(runDropBank);
 }
-TESTCASE("BackupUndoLog", 
-	 "Test for backup happen at start time\n"
-	 "1. Load table\n"
-	 "2. Start backup with wait started\n"
-	 "3. Insert, delete, update data during backup\n"
-	 "4. Drop tables and restart \n"
-	 "5. Restore\n"
-	 "6. Verify records of table\n"
-	 "7. Clear tables\n"){
+TESTCASE("BackupUndoLog",
+         "Test for backup happen at start time\n"
+         "1. Load table\n"
+         "2. Start backup with wait started\n"
+         "3. Insert, delete, update data during backup\n"
+         "4. Drop tables and restart \n"
+         "5. Restore\n"
+         "6. Verify records of table\n"
+         "7. Clear tables\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupUndoWaitStarted);
@@ -2364,29 +2107,22 @@ TESTCASE("BackupUndoLog",
   VERIFIER(runVerifyUndoData);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFMaster", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("NFMaster", "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMaster);
   STEP(runAbort);
-
 }
-TESTCASE("NFMasterAsSlave", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("NFMasterAsSlave", "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMasterAsSlave);
   STEP(runAbort);
-
 }
-TESTCASE("NFSlave", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("NFSlave", "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setSlave);
   STEP(runAbort);
-
 }
-TESTCASE("FailMaster", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("FailMaster", "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMaster);
   /*
@@ -2395,61 +2131,49 @@ TESTCASE("FailMaster",
    */
   INITIALIZER(runLoadTable);
   STEP(runFail);
-
 }
-TESTCASE("FailMasterAsSlave", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("FailMasterAsSlave",
+         "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMasterAsSlave);
-  INITIALIZER(runLoadTable); // See comment above for "FailMaster"
+  INITIALIZER(runLoadTable);  // See comment above for "FailMaster"
   STEP(runFail);
-
 }
-TESTCASE("FailSlave", 
-	 "Test that backup behaves during node failiure\n"){
+TESTCASE("FailSlave", "Test that backup behaves during node failiure\n") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(setSlave);
-  INITIALIZER(runLoadTable); // See comment above for "FailMaster"
+  INITIALIZER(runLoadTable);  // See comment above for "FailMaster"
   STEP(runFail);
-
 }
-TESTCASE("Bug57650", "")
-{
+TESTCASE("Bug57650", "") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBug57650);
 }
-TESTCASE("Bug14019036", "")
-{
+TESTCASE("Bug14019036", "") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBug14019036);
 }
 TESTCASE("OutOfScanRecordsInLDM",
-         "Test that uses up all scan slots before starting backup")
-{
+         "Test that uses up all scan slots before starting backup") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(createOrderedPkIndex);
   INITIALIZER(runLoadTable10000);
   INITIALIZER(outOfScanRecordsInLDM);
 }
-TESTCASE("Bug16656639", "")
-{
+TESTCASE("Bug16656639", "") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBug16656639);
 }
-TESTCASE("Bug17882305", "")
-{
+TESTCASE("Bug17882305", "") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBug17882305);
 }
-TESTCASE("Bug19202654", 
-         "Test restore with a large number of tables")
-{
+TESTCASE("Bug19202654", "Test restore with a large number of tables") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBug19202654);
 }
 TESTCASE("RestoreEpochRetry",
-         "Test that epoch restore is retried on temporary error")
-{
+         "Test that epoch restore is retried on temporary error") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runBackupOne);
   INITIALIZER(createNdbApplyStatusIfMissing);
@@ -2459,9 +2183,9 @@ TESTCASE("RestoreEpochRetry",
 static const int NumUpdateThreads = 5;
 
 TESTCASE("ConsistencyUnderLoad",
-         "Test backup SNAPSHOTEND consistency under load")
-{
-  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+         "Test backup SNAPSHOTEND consistency under load") {
+  TC_PROPERTY("AdjustRangeOverTime",
+              Uint32(1));  // Written subparts of ranges change as updates run
   TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
   TC_PROPERTY("MaxTransactionSize", Uint32(100));
   INITIALIZER(clearOldBackups);
@@ -2473,23 +2197,24 @@ TESTCASE("ConsistencyUnderLoad",
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
 
-  VERIFIER(runDropTablesRestart);   // Drop tables
-  VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpoch);     // Restore epoch
-  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
-  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  VERIFIER(runDropTablesRestart);       // Drop tables
+  VERIFIER(runRestoreOne);              // Restore backup
+  VERIFIER(runRestoreEpoch);            // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk);  // Retrieve epoch restored to
+                                        // ndb_apply_status
+  VERIFIER(verifyDbVsHistories);        // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
 
-
 TESTCASE("ConsistencyUnderLoadStallGCP",
-         "Test backup consistency under load with GCP stall")
-{
-  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+         "Test backup consistency under load with GCP stall") {
+  TC_PROPERTY("AdjustRangeOverTime",
+              Uint32(1));  // Written subparts of ranges change as updates run
   TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
-  TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
-  TC_PROPERTY("DelayUpdates", Uint32(5)); // Millis to sleep between updates, reducing runtime
+  TC_PROPERTY("MaxTransactionSize", Uint32(2));  // Reduce test runtime
+  TC_PROPERTY("DelayUpdates",
+              Uint32(5));  // Millis to sleep between updates, reducing runtime
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
@@ -2500,20 +2225,21 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
   STEP(runDelayedBackup);
   STEP(runGCPStallDuringBackup);  // Backup adversary
 
-  VERIFIER(runDropTablesRestart);   // Drop tables
-  VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpoch);     // Restore epoch
-  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
-  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  VERIFIER(runDropTablesRestart);       // Drop tables
+  VERIFIER(runRestoreOne);              // Restore backup
+  VERIFIER(runRestoreEpoch);            // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk);  // Retrieve epoch restored to
+                                        // ndb_apply_status
+  VERIFIER(verifyDbVsHistories);        // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
 
 TESTCASE("ConsistencyUnderLoadSnapshotStart",
-         "Test backup SNAPSHOTSTART consistency under load")
-{
+         "Test backup SNAPSHOTSTART consistency under load") {
   TC_PROPERTY("SnapshotStart", Uint32(1));
-  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("AdjustRangeOverTime",
+              Uint32(1));  // Written subparts of ranges change as updates run
   TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
   TC_PROPERTY("MaxTransactionSize", Uint32(100));
   INITIALIZER(clearOldBackups);
@@ -2525,22 +2251,24 @@ TESTCASE("ConsistencyUnderLoadSnapshotStart",
   STEPS(runUpdatesWithHistory, NumUpdateThreads);
   STEP(runDelayedBackup);
 
-  VERIFIER(runDropTablesRestart);   // Drop tables
-  VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpoch);     // Restore epoch
-  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
-  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  VERIFIER(runDropTablesRestart);       // Drop tables
+  VERIFIER(runRestoreOne);              // Restore backup
+  VERIFIER(runRestoreEpoch);            // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk);  // Retrieve epoch restored to
+                                        // ndb_apply_status
+  VERIFIER(verifyDbVsHistories);        // Check restored data vs histories
   FINALIZER(clearHistoryList);
 }
 
 TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
-         "Test backup consistency under load with GCP stall")
-{
+         "Test backup consistency under load with GCP stall") {
   TC_PROPERTY("SnapshotStart", Uint32(1));
-  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("AdjustRangeOverTime",
+              Uint32(1));  // Written subparts of ranges change as updates run
   TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
-  TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
-  TC_PROPERTY("DelayUpdates", Uint32(5)); // Millis to sleep between updates, reducing runtime
+  TC_PROPERTY("MaxTransactionSize", Uint32(2));  // Reduce test runtime
+  TC_PROPERTY("DelayUpdates",
+              Uint32(5));  // Millis to sleep between updates, reducing runtime
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
@@ -2551,21 +2279,21 @@ TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
   STEP(runDelayedBackup);
   STEP(runGCPStallDuringBackupStart);  // Backup adversary
 
-  VERIFIER(runDropTablesRestart);   // Drop tables
-  VERIFIER(runRestoreOne);          // Restore backup
-  VERIFIER(runRestoreEpoch);     // Restore epoch
-  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
-  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  VERIFIER(runDropTablesRestart);       // Drop tables
+  VERIFIER(runRestoreOne);              // Restore backup
+  VERIFIER(runRestoreEpoch);            // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk);  // Retrieve epoch restored to
+                                        // ndb_apply_status
+  VERIFIER(verifyDbVsHistories);        // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
 
 TESTCASE("CheckBackupCompletedPrintout",
-	 "Test that backup completed printouts handle 64 bit data\n"
+         "Test that backup completed printouts handle 64 bit data\n"
          "1. Load table\n"
          "2. Backup\n"
-         "3. Print the backed up data and logs")
-{
+         "3. Print the backed up data and logs") {
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   STEP(runCheckPrintout);
@@ -2574,10 +2302,8 @@ TESTCASE("CheckBackupCompletedPrintout",
 
 NDBT_TESTSUITE_END(testBackup)
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testBackup);
   return testBackup.execute(argc, argv);
 }
-
-

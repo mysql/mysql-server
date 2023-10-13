@@ -22,80 +22,69 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include "SimulatedBlock.hpp"
 #include "SafeCounter.hpp"
 #include <signaldata/NodeFailRep.hpp>
+#include "SimulatedBlock.hpp"
 
 #define JAM_FILE_ID 266
 
-
-SafeCounterManager::SafeCounterManager(class SimulatedBlock & block)
-  : m_block(block),
-    m_activeCounters(m_counterPool)
+SafeCounterManager::SafeCounterManager(class SimulatedBlock &block)
+    : m_block(block),
+      m_activeCounters(m_counterPool)
 #ifdef ERROR_INSERT
-  ,m_fakeEmpty(false)
+      ,
+      m_fakeEmpty(false)
 #endif
-{}
-  
-bool
-SafeCounterManager::setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error) {
+{
+}
+
+bool SafeCounterManager::setSize(Uint32 maxNoOfActiveMutexes,
+                                 bool exit_on_error) {
   return m_counterPool.setSize(maxNoOfActiveMutexes, false, exit_on_error);
 }
 
-Uint32
-SafeCounterManager::getSize() const {
-  return m_counterPool.getSize();
-}
+Uint32 SafeCounterManager::getSize() const { return m_counterPool.getSize(); }
 
-Uint32
-SafeCounterManager::getNoOfFree() const {
+Uint32 SafeCounterManager::getNoOfFree() const {
   return m_counterPool.getNoOfFree();
 }
 
-bool
-SafeCounterManager::seize(ActiveCounterPtr& ptr){
+bool SafeCounterManager::seize(ActiveCounterPtr &ptr) {
 #ifdef ERROR_INSERT
-  if (unlikely(m_fakeEmpty))
-  {
+  if (unlikely(m_fakeEmpty)) {
     return false;
   }
 #endif
   return m_activeCounters.seizeFirst(ptr);
 }
 
-void
-SafeCounterManager::release(ActiveCounterPtr& ptr){
+void SafeCounterManager::release(ActiveCounterPtr &ptr) {
   m_activeCounters.release(ptr);
 }
 
-void
-SafeCounterManager::getPtr(ActiveCounterPtr& ptr, Uint32 ptrI) const
-{
+void SafeCounterManager::getPtr(ActiveCounterPtr &ptr, Uint32 ptrI) const {
   m_activeCounters.getPtr(ptr, ptrI);
 }
 
-
-void
-SafeCounterManager::printNODE_FAILREP(){
+void SafeCounterManager::printNODE_FAILREP() {
   ActiveCounterPtr ptr;
 
   NdbNodeBitmask nodes;
   nodes.clear();
   //  nodes.bitORC(nodes);
 
-  for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
+  for (m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)) {
     ActiveCounter::SignalDesc desc = ptr.p->m_signalDesc;
     g_eventLogger->info("theData[desc.m_senderDataOffset=%u] = %u",
                         desc.m_senderDataOffset, ptr.p->m_senderData);
     g_eventLogger->info("theData[desc.m_errorCodeOffset=%u] = %u",
                         desc.m_errorCodeOffset, desc.m_nodeFailErrorCode);
     Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
-		     desc.m_senderRefOffset);
-    
+                     desc.m_senderRefOffset);
+
     NdbNodeBitmask overlapping = ptr.p->m_nodes;
     Uint32 i = 0;
-    while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
+    while ((i = overlapping.find(i)) != NdbNodeBitmask::NotFound) {
       g_eventLogger->info("  theData[desc.m_senderRefOffset=%u] = %x",
                           desc.m_senderRefOffset, numberToRef(desc.m_block, i));
       g_eventLogger->info("  sendSignal(%x,%u,signal,%u,JBB",
@@ -105,64 +94,57 @@ SafeCounterManager::printNODE_FAILREP(){
   }
 }
 
-void
-SafeCounterManager::execNODE_FAILREP(Signal* signal,
-                                     const NdbNodeBitmask& nodes)
-{
-  Uint32 * theData = signal->getDataPtrSend();
+void SafeCounterManager::execNODE_FAILREP(Signal *signal,
+                                          const NdbNodeBitmask &nodes) {
+  Uint32 *theData = signal->getDataPtrSend();
   ActiveCounterPtr ptr;
 
-  for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
-    if(nodes.overlaps(ptr.p->m_nodes)){
+  for (m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)) {
+    if (nodes.overlaps(ptr.p->m_nodes)) {
       ActiveCounter::SignalDesc desc = ptr.p->m_signalDesc;
       theData[desc.m_senderDataOffset] = ptr.p->m_senderData;
       theData[desc.m_errorCodeOffset] = desc.m_nodeFailErrorCode;
       Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
-		       desc.m_senderRefOffset);
-      
+                       desc.m_senderRefOffset);
+
       NdbNodeBitmask overlapping = ptr.p->m_nodes;
       overlapping.bitAND(nodes);
       Uint32 i = 0;
-      while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
-	theData[desc.m_senderRefOffset] = numberToRef(desc.m_block, i);
-	m_block.sendSignal(m_block.reference(), desc.m_gsn, signal, len+1,JBB);
-	i++;
+      while ((i = overlapping.find(i)) != NdbNodeBitmask::NotFound) {
+        theData[desc.m_senderRefOffset] = numberToRef(desc.m_block, i);
+        m_block.sendSignal(m_block.reference(), desc.m_gsn, signal, len + 1,
+                           JBB);
+        i++;
       }
     }
   }
 }
 
-BlockReference
-SafeCounterManager::reference() const {
+BlockReference SafeCounterManager::reference() const {
   return m_block.reference();
 }
 
-void
-SafeCounterManager::progError(int line, int err_code, const char* extra, const char* check){
+void SafeCounterManager::progError(int line, int err_code, const char *extra,
+                                   const char *check) {
   m_block.progError(line, err_code, extra, check);
 }
 
 #ifdef ERROR_INSERT
-void
-SafeCounterManager::setFakeEmpty(bool val)
-{
-  m_fakeEmpty=val;
-}
+void SafeCounterManager::setFakeEmpty(bool val) { m_fakeEmpty = val; }
 #endif
 
-bool
-SafeCounterHandle::clearWaitingFor(SafeCounterManager& mgr, Uint32 nodeId)
-{
+bool SafeCounterHandle::clearWaitingFor(SafeCounterManager &mgr,
+                                        Uint32 nodeId) {
   SafeCounterManager::ActiveCounterPtr ptr;
-  if (nodeId > MAX_DATA_NODE_ID)
-  {
-    ErrorReporter::handleAssert("SafeCounterHandle::clearWaitingFor", __FILE__, __LINE__);
+  if (nodeId > MAX_DATA_NODE_ID) {
+    ErrorReporter::handleAssert("SafeCounterHandle::clearWaitingFor", __FILE__,
+                                __LINE__);
     return false;
   }
   mgr.getPtr(ptr, m_activeCounterPtrI);
   ptr.p->m_nodes.clear(nodeId);
-  
-  if (ptr.p->m_nodes.isclear()){
+
+  if (ptr.p->m_nodes.isclear()) {
     mgr.release(ptr);
     m_activeCounterPtrI = RNIL;
     return true;
@@ -170,16 +152,15 @@ SafeCounterHandle::clearWaitingFor(SafeCounterManager& mgr, Uint32 nodeId)
   return false;
 }
 
-SafeCounter::~SafeCounter(){
+SafeCounter::~SafeCounter() {
   bool clear = m_count == 0;
   bool isnull = m_ptr.i == RNIL;
 
   m_activeCounterPtrI = m_ptr.i;
 
-  if(clear && isnull)
-    return;
+  if (clear && isnull) return;
 
-  if(clear && !isnull){
+  if (clear && !isnull) {
     m_mgr.release(m_ptr);
     m_activeCounterPtrI = RNIL;
     return;
@@ -188,7 +169,7 @@ SafeCounter::~SafeCounter(){
   /**
    * !clear && !isnull
    */
-  if(!isnull){
+  if (!isnull) {
     m_ptr.p->m_nodes = m_nodes;
     return;
   }

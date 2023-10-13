@@ -25,21 +25,16 @@
 
 #include <signaldata/DisconnectRep.hpp>
 
-bool printDISCONNECT_REP(FILE *output,
-                         const Uint32 *theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  if (len < DisconnectRep::SignalLength)
-  {
+bool printDISCONNECT_REP(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  if (len < DisconnectRep::SignalLength) {
     assert(false);
     return false;
   }
 
   const DisconnectRep *const sig = (const DisconnectRep *)theData;
 
-  fprintf(output, " NodeId: %d, ErrorCode: %d\n", 
-	  sig->nodeId, sig->err);
-  
+  fprintf(output, " NodeId: %d, ErrorCode: %d\n", sig->nodeId, sig->err);
+
   return true;
 }

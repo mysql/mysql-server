@@ -25,19 +25,16 @@
 #ifndef ALTER_INDX_HPP
 #define ALTER_INDX_HPP
 
-#include "SignalData.hpp"
-#include <Bitmask.hpp>
 #include <trigger_definitions.h>
+#include <Bitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 81
-
 
 struct AlterIndxReq {
   static constexpr Uint32 SignalLength = 7;
 
-  enum RequestFlag {
-    RF_BUILD_OFFLINE = 1 << 8
-  };
+  enum RequestFlag { RF_BUILD_OFFLINE = 1 << 8 };
 
   Uint32 clientRef;
   Uint32 clientData;
@@ -52,7 +49,9 @@ struct AlterIndxConf {
   static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
+  union {
+    Uint32 clientData, senderData;
+  };
   Uint32 transId;
   Uint32 indexId;
   Uint32 indexVersion;
@@ -75,7 +74,9 @@ struct AlterIndxRef {
   static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
+  union {
+    Uint32 clientData, senderData;
+  };
   Uint32 transId;
   Uint32 indexId;
   Uint32 indexVersion;
@@ -84,7 +85,6 @@ struct AlterIndxRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

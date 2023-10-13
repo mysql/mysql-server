@@ -25,22 +25,17 @@
 
 #include <signaldata/FailRep.hpp>
 
-bool printFAIL_REP(FILE *output,
-                   const Uint32 *theData,
-                   Uint32 len,
-                   Uint16 /*receiverBlockNo*/)
-{
-  if (len < FailRep::OrigSignalLength)
-  {
+bool printFAIL_REP(FILE *output, const Uint32 *theData, Uint32 len,
+                   Uint16 /*receiverBlockNo*/) {
+  if (len < FailRep::OrigSignalLength) {
     assert(false);
     return false;
   }
 
   const FailRep *const sig = (const FailRep *)theData;
 
-  fprintf(output, " FailedNode: %d, FailCause: %d\n", 
-	  sig->failNodeId, sig->failCause);
+  fprintf(output, " FailedNode: %d, FailCause: %d\n", sig->failNodeId,
+          sig->failCause);
 
-  
   return true;
 }

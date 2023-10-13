@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 98
 
-
 struct CreateFilegroupReq {
   /**
    * Sender(s) / Reciver(s)
@@ -40,10 +39,10 @@ struct CreateFilegroupReq {
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILEGROUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 6;
-  
+
   union {
     Uint32 senderData;
     Uint32 clientData;
@@ -56,7 +55,7 @@ struct CreateFilegroupReq {
   Uint32 requestInfo;
   Uint32 transId;
   Uint32 transKey;
-  SECTION( FILEGROUP_INFO = 0 );
+  SECTION(FILEGROUP_INFO = 0);
 };
 
 struct CreateFilegroupRef {
@@ -64,17 +63,17 @@ struct CreateFilegroupRef {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILEGROUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 7;
 
   enum ErrorCode {
@@ -90,12 +89,12 @@ struct CreateFilegroupRef {
     InvalidFilegroupVersion = 768,
     SingleUser = 299
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 masterNodeId;
   Uint32 errorCode;
-  Uint32 errorLine; 
+  Uint32 errorLine;
   Uint32 errorNodeId;
   Uint32 transId;
 };
@@ -105,24 +104,22 @@ struct CreateFilegroupConf {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILEGROUP_CONF(FILE *, const Uint32 *, Uint32,
+                                         Uint16);
+
   static constexpr Uint32 SignalLength = 6;
 
   /* matches NdbDictionary.hpp */
-  enum {
-    WarnUndobufferRoundUp = 0x1,
-    WarnExtentRoundUp = 0x4
-  };
+  enum { WarnUndobufferRoundUp = 0x1, WarnExtentRoundUp = 0x4 };
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -143,10 +140,10 @@ struct CreateFileReq {
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 6;
-  
+
   union {
     Uint32 senderData;
     Uint32 clientData;
@@ -159,13 +156,10 @@ struct CreateFileReq {
   Uint32 requestInfo;
   Uint32 transId;
   Uint32 transKey;
-  
-  enum RequstInfo 
-  {
-    ForceCreateFile = 0x1
-  };
-  
-  SECTION( FILE_INFO = 0 );
+
+  enum RequstInfo { ForceCreateFile = 0x1 };
+
+  SECTION(FILE_INFO = 0);
 };
 
 struct CreateFileRef {
@@ -173,17 +167,17 @@ struct CreateFileRef {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILE_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 8;
 
   enum ErrorCode {
@@ -201,12 +195,12 @@ struct CreateFileRef {
     SingleUser = 299,
     FileSizeTooSmall = 1516
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 masterNodeId;
   Uint32 errorCode;
-  Uint32 errorLine; 
+  Uint32 errorLine;
   Uint32 errorKey;
   Uint32 status;
   Uint32 errorNodeId;
@@ -218,18 +212,18 @@ struct CreateFileConf {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
   friend class NdbDictInterface;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 6;
 
   /* matches NdbDictionary.hpp */
@@ -246,7 +240,6 @@ struct CreateFileConf {
   Uint32 transId;
   Uint32 warningFlags;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -51,12 +51,10 @@
  *   ttrait_<T>_r_bb            BB <->       C &
  *   ttrait_<T>_cr_bb           BB <-> const C &
  */
-#define JTIE_DEFINE_BYTEBUFFER_REF_TYPE_MAPPING( C, T )                 \
-    typedef ttrait< jobject, C &, jtie_j_n_ByteBuffer                   \
-                    > ttrait_##T##_r_bb;                                \
-    typedef ttrait< jobject, const C &, jtie_j_n_ByteBuffer             \
-                    > ttrait_##T##_cr_bb;
+#define JTIE_DEFINE_BYTEBUFFER_REF_TYPE_MAPPING(C, T)                  \
+  typedef ttrait<jobject, C &, jtie_j_n_ByteBuffer> ttrait_##T##_r_bb; \
+  typedef ttrait<jobject, const C &, jtie_j_n_ByteBuffer> ttrait_##T##_cr_bb;
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_refbybb_hpp
+#endif  // jtie_tconv_refbybb_hpp

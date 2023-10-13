@@ -25,34 +25,29 @@
 #ifndef NDBT_TABLE_HPP
 #define NDBT_TABLE_HPP
 
-#include "util/require.h"
 #include <ndb_global.h>
+#include "util/require.h"
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 
 class NDBT_Attribute : public NdbDictionary::Column {
-public:
-  NDBT_Attribute(const char* _name,
-		 NdbDictionary::Column::Type _type,
-		 int _length = 1,
-		 bool _pk = false, 
-		 bool _nullable = false,
-		 CHARSET_INFO *cs= 0,
-		 NdbDictionary::Column::StorageType storage = NdbDictionary::Column::StorageTypeMemory,
-                 bool dynamic = false,
-                 const void* defaultVal = NULL,
-                 Uint32 defaultValBytes = 0):
-    NdbDictionary::Column(_name)
-  {
+ public:
+  NDBT_Attribute(const char *_name, NdbDictionary::Column::Type _type,
+                 int _length = 1, bool _pk = false, bool _nullable = false,
+                 CHARSET_INFO *cs = 0,
+                 NdbDictionary::Column::StorageType storage =
+                     NdbDictionary::Column::StorageTypeMemory,
+                 bool dynamic = false, const void *defaultVal = NULL,
+                 Uint32 defaultValBytes = 0)
+      : NdbDictionary::Column(_name) {
     require(_name != 0);
-    
+
     setType(_type);
     setLength(_length);
     setNullable(_nullable);
     setPrimaryKey(_pk);
-    if (cs)
-    {
+    if (cs) {
       setCharset(cs);
     }
     setStorageType(storage);
@@ -63,21 +58,17 @@ public:
 
 class NDBT_Table : public NdbDictionary::Table {
   /**
-   * Print meta information about table 
+   * Print meta information about table
    * (information on how it is stored, what the attributes look like etc.)
    */
-public: 
-  
-  NDBT_Table(const char* name, 
-	     int noOfAttributes,
-	     const NdbDictionary::Column attributes[])
-    : NdbDictionary::Table(name)
-  {
+ public:
+  NDBT_Table(const char *name, int noOfAttributes,
+             const NdbDictionary::Column attributes[])
+      : NdbDictionary::Table(name) {
     require(name != 0);
-    
-    //setStoredTable(stored);
-    for(int i = 0; i<noOfAttributes; i++)
-      addColumn(attributes[i]);
+
+    // setStoredTable(stored);
+    for (int i = 0; i < noOfAttributes; i++) addColumn(attributes[i]);
 
     // validate() might cause initialization order problem with charset
     NdbError error;
@@ -86,31 +77,27 @@ public:
     require(ret == 0);
   }
 
-  NDBT_Table(const char* name, 
-	     int noOfAttributes,
-	     NdbDictionary::Column* attributePtrs[])
-    : NdbDictionary::Table(name)
-  {
+  NDBT_Table(const char *name, int noOfAttributes,
+             NdbDictionary::Column *attributePtrs[])
+      : NdbDictionary::Table(name) {
     require(name != 0);
-    
-    //setStoredTable(stored);
-    for(int i = 0; i<noOfAttributes; i++)
-      addColumn(*attributePtrs[i]);
-    
+
+    // setStoredTable(stored);
+    for (int i = 0; i < noOfAttributes; i++) addColumn(*attributePtrs[i]);
+
     // validate() might cause initialization order problem with charset
     NdbError error;
     int ret = aggregate(error);
     (void)ret;
     require(ret == 0);
   }
-  
-  static const NdbDictionary::Table * discoverTableFromDb(Ndb* ndb,
-							  const char * name);
+
+  static const NdbDictionary::Table *discoverTableFromDb(Ndb *ndb,
+                                                         const char *name);
 };
 
-inline
-const NdbDictionary::Table * 
-NDBT_Table::discoverTableFromDb(Ndb* ndb, const char * name){
+inline const NdbDictionary::Table *NDBT_Table::discoverTableFromDb(
+    Ndb *ndb, const char *name) {
   return ndb->getDictionary()->getTable(name);
 }
 

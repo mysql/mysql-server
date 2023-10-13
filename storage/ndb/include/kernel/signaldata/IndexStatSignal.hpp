@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 193
 
-
 struct IndexStatReq {
   enum RequestType {
     // update
@@ -71,7 +70,10 @@ struct IndexStatImplReq {
 struct IndexStatConf {
   static constexpr Uint32 SignalLength = 3;
   Uint32 senderRef;
-  union { Uint32 senderData; Uint32 clientData; };
+  union {
+    Uint32 senderData;
+    Uint32 clientData;
+  };
   Uint32 transId;
 };
 
@@ -95,7 +97,10 @@ struct IndexStatRef {
   };
   static constexpr Uint32 SignalLength = 7;
   Uint32 senderRef;
-  union { Uint32 senderData; Uint32 clientData; };
+  union {
+    Uint32 senderData;
+    Uint32 clientData;
+  };
   Uint32 transId;
   Uint32 errorCode;
   Uint32 errorLine;
@@ -127,7 +132,6 @@ struct IndexStatRep {
   Uint32 fragId;
   Uint32 loadTime;
 };
-
 
 #undef JAM_FILE_ID
 

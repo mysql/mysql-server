@@ -22,16 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include <ndb_global.h>
 #include "NdbHost.h"
+#include <ndb_global.h>
 
-int NdbHost_GetProcessId(void)
-{
+int NdbHost_GetProcessId(void) {
 #ifdef _WIN32
   return GetCurrentProcessId();
 #else
   return getpid();
 #endif
 }
-

@@ -23,16 +23,14 @@
 
 #include <signaldata/DropIndxImpl.hpp>
 
-bool
-printDROP_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxImplReq::SignalLength)
-  {
+bool printDROP_INDX_IMPL_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16) {
+  if (len < DropIndxImplReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxImplReq* sig = (const DropIndxImplReq*)theData;
+  const DropIndxImplReq *sig = (const DropIndxImplReq *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " requestType: %u", sig->requestType);
@@ -46,32 +44,28 @@ printDROP_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxImplConf::SignalLength)
-  {
+bool printDROP_INDX_IMPL_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                              Uint16) {
+  if (len < DropIndxImplConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxImplConf* sig = (const DropIndxImplConf*)theData;
+  const DropIndxImplConf *sig = (const DropIndxImplConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   return true;
 }
 
-bool
-printDROP_INDX_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxImplRef::SignalLength)
-  {
+bool printDROP_INDX_IMPL_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16) {
+  if (len < DropIndxImplRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxImplRef* sig = (const DropIndxImplRef*)theData;
+  const DropIndxImplRef *sig = (const DropIndxImplRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");

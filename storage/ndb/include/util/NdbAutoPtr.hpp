@@ -27,31 +27,49 @@
 
 #include <ndb_global.h>
 
-template<typename T>
+template <typename T>
 class NdbAutoPtr {
-  T * m_obj;
-public:
-  NdbAutoPtr(T * obj = 0){ m_obj = obj;}
-  void reset(T * obj = 0) { if (m_obj) free(m_obj); m_obj = obj; }
-  ~NdbAutoPtr() { if (m_obj) free(m_obj);}
+  T *m_obj;
+
+ public:
+  NdbAutoPtr(T *obj = 0) { m_obj = obj; }
+  void reset(T *obj = 0) {
+    if (m_obj) free(m_obj);
+    m_obj = obj;
+  }
+  ~NdbAutoPtr() {
+    if (m_obj) free(m_obj);
+  }
 };
 
-template<typename T>
+template <typename T>
 class NdbAutoObjPtr {
-  T * m_obj;
-public:
-  NdbAutoObjPtr(T * obj = 0){ m_obj = obj;}
-  void reset(T * obj = 0) { if (m_obj) delete m_obj; m_obj = obj; }
-  ~NdbAutoObjPtr() { if (m_obj) delete m_obj;}
+  T *m_obj;
+
+ public:
+  NdbAutoObjPtr(T *obj = 0) { m_obj = obj; }
+  void reset(T *obj = 0) {
+    if (m_obj) delete m_obj;
+    m_obj = obj;
+  }
+  ~NdbAutoObjPtr() {
+    if (m_obj) delete m_obj;
+  }
 };
 
-template<typename T>
+template <typename T>
 class NdbAutoObjArrayPtr {
-  T * m_obj;
-public:
-  NdbAutoObjArrayPtr(T * obj = 0){ m_obj = obj;}
-  void reset(T * obj = 0) { if (m_obj) delete[] m_obj; m_obj = obj; }
-  ~NdbAutoObjArrayPtr() { if (m_obj) delete[] m_obj;}
+  T *m_obj;
+
+ public:
+  NdbAutoObjArrayPtr(T *obj = 0) { m_obj = obj; }
+  void reset(T *obj = 0) {
+    if (m_obj) delete[] m_obj;
+    m_obj = obj;
+  }
+  ~NdbAutoObjArrayPtr() {
+    if (m_obj) delete[] m_obj;
+  }
 };
 
 #endif

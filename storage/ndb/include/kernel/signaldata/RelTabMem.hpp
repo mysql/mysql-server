@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 198
 
-
 class RelTabMemReq {
   /**
    * Sender(s) and Receiver(s)
@@ -44,10 +43,11 @@ class RelTabMemReq {
   friend class Dblqh;
   friend class Dbtc;
   friend class Dbtup;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
 
-private:
+ private:
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 primaryTableId;
@@ -68,15 +68,15 @@ class RelTabMemConf {
   friend class Dblqh;
   friend class Dbtc;
   friend class Dbtup;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-private:
+ private:
   Uint32 userPtr;
   Uint32 senderRef;
   Uint32 nodeId;
 };
-
 
 #undef JAM_FILE_ID
 

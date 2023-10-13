@@ -29,15 +29,12 @@
 
 #define JAM_FILE_ID 116
 
-
-struct AllocMemReq
-{
+struct AllocMemReq {
   static constexpr Uint32 SignalLength = 5;
 
-  enum RequestType
-  {
-    RT_MAP    = 0, // Map any unmapped chunk
-    RT_EXTEND = 1, // extend heap with bytes_hi/lo
+  enum RequestType {
+    RT_MAP = 0,     // Map any unmapped chunk
+    RT_EXTEND = 1,  // extend heap with bytes_hi/lo
 
     RT_MEMLOCK = 1 << 8
   };
@@ -51,8 +48,7 @@ struct AllocMemReq
 
 DECLARE_SIGNAL_SCOPE(GSN_ALLOC_MEM_REQ, Local);
 
-struct AllocMemRef
-{
+struct AllocMemRef {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
@@ -63,8 +59,7 @@ struct AllocMemRef
 
 DECLARE_SIGNAL_SCOPE(GSN_ALLOC_MEM_REF, Local);
 
-struct AllocMemConf
-{
+struct AllocMemConf {
   static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;

@@ -29,28 +29,21 @@
 
 #include <NdbOut.hpp>
 
-#include <NdbApi.hpp>
-#include <NDBT.hpp> 
 #include <NdbSleep.h>
+#include <NDBT.hpp>
+#include <NdbApi.hpp>
 
 #include "my_alloc.h"
 #include "portlib/ssl_applink.h"
- 
-int scanReadRecords(Ndb*, 
-		    const NdbDictionary::Table*, 
-		    const NdbDictionary::Index*,
-		    int parallel,
-		    int lockType,
-		    bool headers,
-		    bool useHexFormat,
-		    char delim,
-		    bool orderby,
+
+int scanReadRecords(Ndb *, const NdbDictionary::Table *,
+                    const NdbDictionary::Index *, int parallel, int lockType,
+                    bool headers, bool useHexFormat, char delim, bool orderby,
                     bool descending);
 
-static const char* _dbname = "TEST_DB";
-static const char* _delimiter = "\t";
-static int _header, _parallelism, _useHexFormat, _lock,
-  _order, _descending;
+static const char *_dbname = "TEST_DB";
+static const char *_delimiter = "\t";
+static int _header, _parallelism, _useHexFormat, _lock, _order, _descending;
 
 static int _tup = 0;
 static int _dumpDisk = 0;
@@ -60,93 +53,75 @@ static int use_gci = 0;
 static int use_gci64 = 0;
 static int use_author = 0;
 
-static struct my_option my_long_options[] =
-{
-  NdbStdOpt::usage,
-  NdbStdOpt::help,
-  NdbStdOpt::version,
-  NdbStdOpt::ndb_connectstring,
-  NdbStdOpt::mgmd_host,
-  NdbStdOpt::connectstring,
-  NdbStdOpt::ndb_nodeid,
-  NdbStdOpt::connect_retry_delay,
-  NdbStdOpt::connect_retries,
-  NdbStdOpt::tls_search_path,
-  NdbStdOpt::mgm_tls,
-  NDB_STD_OPT_DEBUG
-  { "database", 'd', "Name of database table is in",
-    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "parallelism", 'p', "parallelism",
-    &_parallelism,nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
-    &_lock, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "order", 'o', "Sort resultset according to index",
-    &_order, &_order, 0, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "descending", 'z', "Sort descending (requires order flag)",
-    &_descending, &_descending, 0, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "header", 'h', "Print header",
-    &_header, &_header, 0, GET_BOOL, NO_ARG,
-    1, 0, 0, nullptr, 0, nullptr },
-  { "useHexFormat", 'x', "Output numbers in hexadecimal format",
-    &_useHexFormat, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "delimiter", 'D', "Column delimiter",
-    &_delimiter, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "disk", NDB_OPT_NOSHORT, "Dump disk ref",
-    &_dumpDisk, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "rowid", NDB_OPT_NOSHORT, "Dump rowid",
-    &use_rowid, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "gci", NDB_OPT_NOSHORT, "Dump gci",
-    &use_gci, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "gci64", NDB_OPT_NOSHORT, "Dump ROW$GCI64",
-    &use_gci64, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "author", NDB_OPT_NOSHORT, "Dump ROW$AUTHOR",
-    &use_author, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "tupscan", 't', "Scan in tup order",
-    &_tup, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "nodata", NDB_OPT_NOSHORT, "Dont print data",
-    &nodata, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  NdbStdOpt::end_of_options
-};
+static struct my_option my_long_options[] = {
+    NdbStdOpt::usage,
+    NdbStdOpt::help,
+    NdbStdOpt::version,
+    NdbStdOpt::ndb_connectstring,
+    NdbStdOpt::mgmd_host,
+    NdbStdOpt::connectstring,
+    NdbStdOpt::ndb_nodeid,
+    NdbStdOpt::connect_retry_delay,
+    NdbStdOpt::connect_retries,
+    NdbStdOpt::tls_search_path,
+    NdbStdOpt::mgm_tls,
+    NDB_STD_OPT_DEBUG{"database", 'd', "Name of database table is in", &_dbname,
+                      nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+                      0, nullptr},
+    {"parallelism", 'p', "parallelism", &_parallelism, nullptr, nullptr,
+     GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"lock", 'l', "Read(0), Read-hold(1), Exclusive(2)", &_lock, nullptr,
+     nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"order", 'o', "Sort resultset according to index", &_order, &_order, 0,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"descending", 'z', "Sort descending (requires order flag)", &_descending,
+     &_descending, 0, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"header", 'h', "Print header", &_header, &_header, 0, GET_BOOL, NO_ARG, 1,
+     0, 0, nullptr, 0, nullptr},
+    {"useHexFormat", 'x', "Output numbers in hexadecimal format",
+     &_useHexFormat, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"delimiter", 'D', "Column delimiter", &_delimiter, nullptr, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"disk", NDB_OPT_NOSHORT, "Dump disk ref", &_dumpDisk, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"rowid", NDB_OPT_NOSHORT, "Dump rowid", &use_rowid, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"gci", NDB_OPT_NOSHORT, "Dump gci", &use_gci, nullptr, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"gci64", NDB_OPT_NOSHORT, "Dump ROW$GCI64", &use_gci64, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"author", NDB_OPT_NOSHORT, "Dump ROW$AUTHOR", &use_author, nullptr,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"tupscan", 't', "Scan in tup order", &_tup, nullptr, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"nodata", NDB_OPT_NOSHORT, "Dont print data", &nodata, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    NdbStdOpt::end_of_options};
 
-
-static void short_usage_sub(void)
-{
+static void short_usage_sub(void) {
   ndb_short_usage_sub("table [index]");
   printf("table : select all rows from this table\n");
   printf("index : order rows by given index, requires --order option\n");
 }
 
-int main(int argc, char** argv){
+int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub);
-  const char* _tabname;
+  const char *_tabname;
 #ifndef NDEBUG
-  opt_debug= "d:t:O,/tmp/ndb_select_all.trace";
+  opt_debug = "d:t:O,/tmp/ndb_select_all.trace";
 #endif
-  if (opts.handle_options())
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (opts.handle_options()) return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc == 0) {
-    ndbout << "Missing table name. Please see the below usage for correct command." << endl;
+    ndbout
+        << "Missing table name. Please see the below usage for correct command."
+        << endl;
     opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  if (argc > (!_order? 1 : 2))
-  {
+  if (argc > (!_order ? 1 : 2)) {
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
     opts.usage();
@@ -157,90 +132,75 @@ int main(int argc, char** argv){
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
-  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
-  {
+  if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0) {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  if (con.wait_until_ready(30,0) < 0)
-  {
+  if (con.wait_until_ready(30, 0) < 0) {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Ndb MyNdb(&con, _dbname );
-  if(MyNdb.init() != 0){
+  Ndb MyNdb(&con, _dbname);
+  if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   // Check if table exists in db
-  const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
-  const NdbDictionary::Index * pIdx = 0;
+  const NdbDictionary::Table *pTab =
+      NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
+  const NdbDictionary::Index *pIdx = 0;
 
-  if(pTab == NULL){
+  if (pTab == NULL) {
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  if(_order){
-    if (argc > 1){
+  if (_order) {
+    if (argc > 1) {
       pIdx = MyNdb.getDictionary()->getIndex(argv[1], _tabname);
-      if(pIdx == 0)
-      {
+      if (pIdx == 0) {
         ndbout << " Index " << argv[1] << " does not exists" << endl;
         return NDBT_ProgramExit(NDBT_WRONGARGS);
       }
-    }
-    else{
+    } else {
       ndbout << " Order flag given without an index" << endl;
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
   }
 
-  if (_descending && ! _order) {
+  if (_descending && !_order) {
     ndbout << " Descending flag given without order flag" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  if (scanReadRecords(&MyNdb, 
-		      pTab, 
-		      pIdx,
-		      _parallelism, 
-		      _lock,
-		      _header, 
-		      _useHexFormat, 
-		      (char)*_delimiter, _order, _descending) != 0){
+  if (scanReadRecords(&MyNdb, pTab, pIdx, _parallelism, _lock, _header,
+                      _useHexFormat, (char)*_delimiter, _order,
+                      _descending) != 0) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   return NDBT_ProgramExit(NDBT_OK);
-
 }
 
-int scanReadRecords(Ndb* pNdb, 
-		    const NdbDictionary::Table* pTab, 
-		    const NdbDictionary::Index* pIdx,
-		    int parallel,
-		    int _lock,
-		    bool headers,
-		    bool useHexFormat,
-		    char delimiter, bool order, bool descending){
-
-  int                  retryAttempt = 0;
-  const int            retryMax = 100;
-  int                  check;
-  NdbTransaction       *pTrans;
-  NdbScanOperation	       *pOp;
-  NdbIndexScanOperation * pIOp= 0;
+int scanReadRecords(Ndb *pNdb, const NdbDictionary::Table *pTab,
+                    const NdbDictionary::Index *pIdx, int parallel, int _lock,
+                    bool headers, bool useHexFormat, char delimiter, bool order,
+                    bool descending) {
+  int retryAttempt = 0;
+  const int retryMax = 100;
+  int check;
+  NdbTransaction *pTrans;
+  NdbScanOperation *pOp;
+  NdbIndexScanOperation *pIOp = 0;
 
   std::unique_ptr<NDBT_ResultRow> row(new NDBT_ResultRow(*pTab, delimiter));
 
-  while (true){
-
-    if (retryAttempt >= retryMax){
-      ndbout << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+  while (true) {
+    if (retryAttempt >= retryMax) {
+      ndbout << "ERROR: has retried this operation " << retryAttempt
+             << " times, failing!" << endl;
       return -1;
     }
 
@@ -248,19 +208,19 @@ int scanReadRecords(Ndb* pNdb,
     if (pTrans == NULL) {
       const NdbError err = pNdb->getNdbError();
 
-      if (err.status == NdbError::TemporaryError){
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+      if (err.status == NdbError::TemporaryError) {
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
       }
       NDB_ERR(err);
       return -1;
     }
 
-    
-    pOp = (!pIdx) ? pTrans->getNdbScanOperation(pTab->getName()) : 
-      pIOp=pTrans->getNdbIndexScanOperation(pIdx->getName(), pTab->getName());
-    
+    pOp = (!pIdx) ? pTrans->getNdbScanOperation(pTab->getName())
+                  : pIOp = pTrans->getNdbIndexScanOperation(pIdx->getName(),
+                                                            pTab->getName());
+
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -270,135 +230,130 @@ int scanReadRecords(Ndb* pNdb,
     int rs;
     unsigned scan_flags = 0;
     if (_tup) scan_flags |= NdbScanOperation::SF_TupScan;
-    switch(_lock + (3 * order)){
-    case 1:
-      rs = pOp->readTuples(NdbScanOperation::LM_Read, scan_flags, parallel);
-      break;
-    case 2:
-      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, scan_flags, parallel);
-      break;
-    case 3:
-      rs = pIOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel, 
-			    true, descending);
-      break;
-    case 4:
-      rs = pIOp->readTuples(NdbScanOperation::LM_Read, 0, parallel, true, descending);
-      break;
-    case 5:
-      rs = pIOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel, true, descending);
-      break;
-    case 0:
-    default:
-      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, scan_flags, parallel);
-      break;
+    switch (_lock + (3 * order)) {
+      case 1:
+        rs = pOp->readTuples(NdbScanOperation::LM_Read, scan_flags, parallel);
+        break;
+      case 2:
+        rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, scan_flags,
+                             parallel);
+        break;
+      case 3:
+        rs = pIOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel,
+                              true, descending);
+        break;
+      case 4:
+        rs = pIOp->readTuples(NdbScanOperation::LM_Read, 0, parallel, true,
+                              descending);
+        break;
+      case 5:
+        rs = pIOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel, true,
+                              descending);
+        break;
+      case 0:
+      default:
+        rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, scan_flags,
+                             parallel);
+        break;
     }
-    if( rs != 0 ){
+    if (rs != 0) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
     }
 
-    bool disk= false;
-    for(int a = 0; a<pTab->getNoOfColumns(); a++)
-    {
-      const NdbDictionary::Column* col = pTab->getColumn(a);
-      if(col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
-	disk= true;
+    bool disk = false;
+    for (int a = 0; a < pTab->getNoOfColumns(); a++) {
+      const NdbDictionary::Column *col = pTab->getColumn(a);
+      if (col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+        disk = true;
 
       if (!nodata)
-	if((row->attributeStore(a) = pOp->getValue(col)) == 0)
-	{
-	  NDB_ERR(pTrans->getNdbError());
-	  pNdb->closeTransaction(pTrans);
-	  return -1;
-	}
+        if ((row->attributeStore(a) = pOp->getValue(col)) == 0) {
+          NDB_ERR(pTrans->getNdbError());
+          pNdb->closeTransaction(pTrans);
+          return -1;
+        }
     }
-    
-    NdbRecAttr * disk_ref= 0;
-    if(_dumpDisk && disk)
+
+    NdbRecAttr *disk_ref = 0;
+    if (_dumpDisk && disk)
       disk_ref = pOp->getValue(NdbDictionary::Column::DISK_REF);
 
-    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0, *gci64 = 0, *author = 0;
-    if (use_rowid)
-    {
+    NdbRecAttr *rowid = 0, *frag = 0, *gci = 0, *gci64 = 0, *author = 0;
+    if (use_rowid) {
       frag = pOp->getValue(NdbDictionary::Column::FRAGMENT);
       rowid = pOp->getValue(NdbDictionary::Column::ROWID);
     }
 
-    if (use_gci)
-    {
+    if (use_gci) {
       gci = pOp->getValue(NdbDictionary::Column::ROW_GCI);
     }
 
-    if (use_gci64)
-    {
+    if (use_gci64) {
       gci64 = pOp->getValue(NdbDictionary::Column::ROW_GCI64);
     }
-    
-    if (use_author)
-    {
+
+    if (use_author) {
       author = pOp->getValue(NdbDictionary::Column::ROW_AUTHOR);
     }
 
-    check = pTrans->execute(NdbTransaction::NoCommit);   
-    if( check == -1 ) {
+    check = pTrans->execute(NdbTransaction::NoCommit);
+    if (check == -1) {
       const NdbError err = pTrans->getNdbError();
-      
-      if (err.status == NdbError::TemporaryError){
-	pNdb->closeTransaction(pTrans);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+
+      if (err.status == NdbError::TemporaryError) {
+        pNdb->closeTransaction(pTrans);
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return -1;
     }
 
-    bool do_delimiter= false;
+    bool do_delimiter = false;
     char delimiter_string[2];
-    delimiter_string[0]= delimiter;
-    delimiter_string[1]= '\0';
-#define DELIMITER if (do_delimiter) ndbout << delimiter_string; else do_delimiter= true
-    if (headers)
-    {
+    delimiter_string[0] = delimiter;
+    delimiter_string[1] = '\0';
+#define DELIMITER               \
+  if (do_delimiter)             \
+    ndbout << delimiter_string; \
+  else                          \
+    do_delimiter = true
+    if (headers) {
       /*
        * Print header only once.
        * If scan aborts header from initial Attempt will be used.
        */
       headers = false;
-      if (rowid)
-      {
+      if (rowid) {
         DELIMITER;
         ndbout << "ROWID";
       }
 
-      if (gci)
-      {
+      if (gci) {
         DELIMITER;
         ndbout << "GCI";
       }
 
-      if (!nodata)
-      {
+      if (!nodata) {
         DELIMITER;
         row->header(ndbout);
       }
 
-      if (disk_ref)
-      {
+      if (disk_ref) {
         DELIMITER;
         ndbout << "DISK_REF";
       }
 
-      if (gci64)
-      {
+      if (gci64) {
         DELIMITER;
         ndbout << "ROW$GCI64";
       }
 
-      if (author)
-      {
+      if (author) {
         DELIMITER;
         ndbout << "ROW$AUTHOR";
       }
@@ -410,88 +365,78 @@ int scanReadRecords(Ndb* pNdb,
     int eof;
     int rows = 0;
     eof = pOp->nextResult();
-    
-    while(eof == 0){
+
+    while (eof == 0) {
       rows++;
 
-      if (useHexFormat)
-	ndbout.setHexFormat(1);
+      if (useHexFormat) ndbout.setHexFormat(1);
 
-      if (rowid)
-      {
-	ndbout << "[ fragment: " << frag->u_32_value()
-	       << " m_page: " << rowid->u_32_value() 
-	       << " m_page_idx: " << *(Uint32*)(rowid->aRef() + 4) << " ]";
-	ndbout << "\t";
-      }
-      
-      if (gci)
-      {
-	if (gci->isNULL())
-	  ndbout << "NULL\t";
-	else
-	  ndbout << gci->u_64_value() << "\t";
+      if (rowid) {
+        ndbout << "[ fragment: " << frag->u_32_value()
+               << " m_page: " << rowid->u_32_value()
+               << " m_page_idx: " << *(Uint32 *)(rowid->aRef() + 4) << " ]";
+        ndbout << "\t";
       }
 
-      if (!nodata)
-	ndbout << (*row);
-      
-      if(disk_ref)
-      {
-	ndbout << "\t";
-	ndbout << "[ m_file_no: " << *(Uint16*)(disk_ref->aRef()+6)
-	       << " m_page: " << disk_ref->u_32_value() 
-	       << " m_page_idx: " << *(Uint16*)(disk_ref->aRef() + 4) << " ]";
-      }
-
-      if (gci64)
-      {
-	if (gci64->isNULL())
-	  ndbout << "\tNULL";
+      if (gci) {
+        if (gci->isNULL())
+          ndbout << "NULL\t";
         else
-        {
+          ndbout << gci->u_64_value() << "\t";
+      }
+
+      if (!nodata) ndbout << (*row);
+
+      if (disk_ref) {
+        ndbout << "\t";
+        ndbout << "[ m_file_no: " << *(Uint16 *)(disk_ref->aRef() + 6)
+               << " m_page: " << disk_ref->u_32_value()
+               << " m_page_idx: " << *(Uint16 *)(disk_ref->aRef() + 4) << " ]";
+      }
+
+      if (gci64) {
+        if (gci64->isNULL())
+          ndbout << "\tNULL";
+        else {
           Uint64 tmp = gci64->u_64_value();
           ndbout << "\t" << Uint32(tmp >> 32) << "/" << Uint32(tmp);
         }
       }
 
-      if (author)
-      {
-	if (author->isNULL())
-	  ndbout << "\tNULL";
-        else
-        {
+      if (author) {
+        if (author->isNULL())
+          ndbout << "\tNULL";
+        else {
           ndbout << "\t" << author->u_32_value();
         }
       }
 
-      
       if (rowid || disk_ref || gci || !nodata || gci64 || author)
-	ndbout << endl;
+        ndbout << endl;
       eof = pOp->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
-      
+
       /*
        * If scan fails and no rows read, keep retrying.
        * Otherwise abort.
        */
-      if (err.status == NdbError::TemporaryError && rows == 0){
-	pNdb->closeTransaction(pTrans);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+      if (err.status == NdbError::TemporaryError && rows == 0) {
+        pNdb->closeTransaction(pTrans);
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return -1;
     }
-    
+
     pNdb->closeTransaction(pTrans);
-    
+
     ndbout << rows << " rows returned" << endl;
-    
+
     return 0;
   }
   return -1;

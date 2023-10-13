@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 96
 
-
 class DihStartTabReq {
   /**
    * Sender(s)
@@ -40,15 +39,15 @@ class DihStartTabReq {
    * Receiver(s)
    */
   friend class Dbdih;
-public:
+
+ public:
   static constexpr Uint32 HeaderLength = 3;
-  
-private:
-  
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 noOfTables;
-  
+
   struct {
     Uint32 tableId;
     Uint32 schemaVersion;
@@ -60,19 +59,19 @@ class DihStartTabConf {
    * Sender(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Receiver(s)
    */
   friend class Dbdict;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
-private:
+
+ private:
   Uint32 senderRef;
   Uint32 senderData;
 };
-
 
 #undef JAM_FILE_ID
 

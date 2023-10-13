@@ -27,10 +27,9 @@
 
 #include <ndb_global.h>
 
-//Enable DEBUG_RSS to measure memory consumption in various parts
+// Enable DEBUG_RSS to measure memory consumption in various parts
 //#define DEBUG_RSS 1
-struct ndb_rusage
-{
+struct ndb_rusage {
   Uint64 ru_utime;
   Uint64 ru_stime;
   Uint64 ru_minflt;
@@ -42,16 +41,16 @@ struct ndb_rusage
 #endif
 };
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-  /**
-   * Get resource usage for calling thread
-   */
-  int Ndb_GetRUsage(ndb_rusage * dst, bool process);
+/**
+ * Get resource usage for calling thread
+ */
+int Ndb_GetRUsage(ndb_rusage *dst, bool process);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

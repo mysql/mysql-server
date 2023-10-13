@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 158
 
-
 struct DropNodegroupImplReq {
   /**
    * Sender(s) / Reciver(s)
@@ -39,15 +38,16 @@ struct DropNodegroupImplReq {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_IMPL_REQ(FILE *, const Uint32 *, Uint32,
+                                           Uint16);
 
   static constexpr Uint32 SignalLength = 6;
 
   enum {
-    RT_PARSE    = 0x1,
-    RT_PREPARE  = 0x2,
-    RT_ABORT    = 0x3,
-    RT_COMMIT   = 0x4,
+    RT_PARSE = 0x1,
+    RT_PREPARE = 0x2,
+    RT_ABORT = 0x3,
+    RT_COMMIT = 0x4,
     RT_COMPLETE = 0x5
   };
 
@@ -72,7 +72,8 @@ struct DropNodegroupImplRef {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_IMPL_REF(FILE *, const Uint32 *, Uint32,
+                                           Uint16);
 
   static constexpr Uint32 SignalLength = 3;
 
@@ -99,7 +100,8 @@ struct DropNodegroupImplConf {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_IMPL_CONF(FILE *, const Uint32 *, Uint32,
+                                            Uint16);
 
   static constexpr Uint32 SignalLength = 4;
 
@@ -108,7 +110,6 @@ struct DropNodegroupImplConf {
   Uint32 gci_hi;
   Uint32 gci_lo;
 };
-
 
 #undef JAM_FILE_ID
 

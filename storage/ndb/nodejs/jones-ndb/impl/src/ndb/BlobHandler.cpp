@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,62 +22,58 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <NdbApi.hpp>
 
+#include "BlobHandler.h"
+#include "JsValueAccess.h"
+#include "JsWrapper.h"
 #include "adapter_global.h"
 #include "unified_debug.h"
-#include "BlobHandler.h"
-#include "JsWrapper.h"
-#include "JsValueAccess.h"
 
 // BlobHandler constructor
-BlobHandler::BlobHandler(int colId, int fieldNo) :
-  ndbBlob(0),
-  next(0),
-  content(0),
-  length(0),
-  columnId(colId), 
-  fieldNumber(fieldNo)
-{ 
-}
-
+BlobHandler::BlobHandler(int colId, int fieldNo)
+    : ndbBlob(0),
+      next(0),
+      content(0),
+      length(0),
+      columnId(colId),
+      fieldNumber(fieldNo) {}
 
 // Helper functions for BlobReadHandler
-int blobHandlerActiveHook(NdbBlob * ndbBlob, void * handler) {
-  BlobReadHandler * blobHandler = static_cast<BlobReadHandler *>(handler);
+int blobHandlerActiveHook(NdbBlob *ndbBlob, void *handler) {
+  BlobReadHandler *blobHandler = static_cast<BlobReadHandler *>(handler);
   return blobHandler->runActiveHook(ndbBlob);
 }
 
 void freeBufferContentsFromJs(char *data, void *) {
   DEBUG_PRINT("Free %p", data);
-  free(data);                                                // here is free
+  free(data);  // here is free
 }
 
-
-// BlobReadHandler methods 
-void BlobReadHandler::prepare(const NdbOperation * ndbop) {
+// BlobReadHandler methods
+void BlobReadHandler::prepare(const NdbOperation *ndbop) {
   ndbBlob = ndbop->getBlobHandle(columnId);
   assert(ndbBlob);
   ndbBlob->setActiveHook(blobHandlerActiveHook, this);
 
-  if(next) next->prepare(ndbop);
+  if (next) next->prepare(ndbop);
 }
 
 int BlobReadHandler::runActiveHook(NdbBlob *b) {
   assert(b == ndbBlob);
   int isNull;
   ndbBlob->getNull(isNull);
-  if(! isNull) {
+  if (!isNull) {
     ndbBlob->getLength(length);
     uint32_t nBytes = static_cast<uint32_t>(length);
-    content = (char *) malloc(length);                        // here is malloc
-    if(content) {
+    content = (char *)malloc(length);  // here is malloc
+    if (content) {
       int rv = ndbBlob->readData(content, nBytes);
-      DEBUG_PRINT("BLOB read: column %d, length %llu, read %d/%d", 
-                  columnId, length, rv, nBytes);
+      DEBUG_PRINT("BLOB read: column %d, length %llu, read %d/%d", columnId,
+                  length, rv, nBytes);
     } else {
       return -1;
     }
@@ -85,9 +81,9 @@ int BlobReadHandler::runActiveHook(NdbBlob *b) {
   return 0;
 }
 
-Local<Object> BlobReadHandler::getResultBuffer(v8::Isolate * iso) {
+Local<Object> BlobReadHandler::getResultBuffer(v8::Isolate *iso) {
   Local<Object> buffer;
-  if(content) {
+  if (content) {
     buffer = NewJsBuffer(iso, content, length, freeBufferContentsFromJs);
     /* Content belongs to someone else now; clear it for the next user */
     content = 0;
@@ -96,27 +92,25 @@ Local<Object> BlobReadHandler::getResultBuffer(v8::Isolate * iso) {
   return buffer;
 }
 
-
 // BlobWriteHandler methods
 
 BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
-                                   Local<Object> blobValue) :
-  BlobHandler(colId, fieldNo)
-{
+                                   Local<Object> blobValue)
+    : BlobHandler(colId, fieldNo) {
   length = GetBufferLength(blobValue);
   content = GetBufferData(blobValue);
 }
 
-void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
+void BlobWriteHandler::prepare(const NdbOperation *ndbop) {
   ndbBlob = ndbop->getBlobHandle(columnId);
-  if(! ndbBlob) { 
-    DEBUG_PRINT("getBlobHandle %d: [%d] %s", columnId, 
+  if (!ndbBlob) {
+    DEBUG_PRINT("getBlobHandle %d: [%d] %s", columnId,
                 ndbop->getNdbError().code, ndbop->getNdbError().message);
     assert(false);
   }
 
-  DEBUG_PRINT("Prepare write for BLOB column %d, length %llu", columnId, length);
+  DEBUG_PRINT("Prepare write for BLOB column %d, length %llu", columnId,
+              length);
   ndbBlob->setValue(content, static_cast<uint32_t>(length));
-  if(next) next->prepare(ndbop);
+  if (next) next->prepare(ndbop);
 }
-

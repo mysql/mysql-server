@@ -26,8 +26,8 @@
 #define NDB_IMPORT_CSV_HPP
 
 #include <ndb_global.h>
-#include <stdint.h>
 #include <ndb_limits.h>
+#include <stdint.h>
 #include <NdbOut.hpp>
 #include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
@@ -46,7 +46,7 @@
  */
 
 class NdbImportCsv {
-public:
+ public:
   typedef NdbImport::Opt Opt;
   typedef NdbImport::OptCsv OptCsv;
   typedef NdbImportUtil::Name Name;
@@ -66,10 +66,10 @@ public:
   typedef NdbImportUtil::Buf Buf;
   typedef NdbImportUtil::Stats Stats;
 
-  NdbImportCsv(NdbImportUtil& util);
+  NdbImportCsv(NdbImportUtil &util);
   ~NdbImportCsv();
-  NdbImportUtil& m_util;
-  Error& m_error;       // global
+  NdbImportUtil &m_util;
+  Error &m_error;  // global
 
   // spec
 
@@ -77,11 +77,11 @@ public:
     Spec();
     ~Spec();
     // allocated into uchar* with escapes translated
-    const uchar* m_fields_terminated_by;
-    const uchar* m_fields_enclosed_by;
-    const uchar* m_fields_optionally_enclosed_by;
-    const uchar* m_fields_escaped_by;
-    const uchar* m_lines_terminated_by;
+    const uchar *m_fields_terminated_by;
+    const uchar *m_fields_enclosed_by;
+    const uchar *m_fields_optionally_enclosed_by;
+    const uchar *m_fields_escaped_by;
+    const uchar *m_lines_terminated_by;
     uint m_fields_terminated_by_len;
     uint m_fields_enclosed_by_len;
     uint m_fields_optionally_enclosed_by_len;
@@ -90,16 +90,16 @@ public:
   };
 
   // return allocated translated string and its length
-  int translate_escapes(const char* src, const uchar*& dst, uint& dstlen);
-  int set_spec(Spec& spec, const OptCsv& optcsv, OptCsv::Mode mode);
-  int set_spec(const OptCsv& optcsv, OptCsv::Mode mode);
+  int translate_escapes(const char *src, const uchar *&dst, uint &dstlen);
+  int set_spec(Spec &spec, const OptCsv &optcsv, OptCsv::Mode mode);
+  int set_spec(const OptCsv &optcsv, OptCsv::Mode mode);
 
   // items
 
   struct Chunk {
-    uint m_pos; // start position
-    uint m_len; // number of bytes returned starting at m_pos
-    uint m_end; // end position (possibly m_end > m_pos + m_len)
+    uint m_pos;  // start position
+    uint m_len;  // number of bytes returned starting at m_pos
+    uint m_end;  // end position (possibly m_end > m_pos + m_len)
   };
 
   struct Data : ListEnt {
@@ -109,9 +109,7 @@ public:
       m_end = 0;
       m_escape = false;
     }
-    Data* next() {
-      return static_cast<Data*>(m_next);
-    }
+    Data *next() { return static_cast<Data *>(m_next); }
     uint m_pos;
     uint m_len;
     uint m_end;
@@ -119,24 +117,12 @@ public:
   };
 
   struct DataList : private List {
-    Data* front() {
-      return static_cast<Data*>(List::m_front);
-    }
-    Data* back() {
-      return static_cast<Data*>(List::m_back);
-    }
-    void push_back(Data* data) {
-      List::push_back(data);
-    }
-    Data* pop_front() {
-      return static_cast<Data*>(List::pop_front());
-    }
-    void push_back_from(DataList& src) {
-      List::push_back_from(src);
-    }
-    uint cnt() const {
-      return m_cnt;
-    }
+    Data *front() { return static_cast<Data *>(List::m_front); }
+    Data *back() { return static_cast<Data *>(List::m_back); }
+    void push_back(Data *data) { List::push_back(data); }
+    Data *pop_front() { return static_cast<Data *>(List::pop_front()); }
+    void push_back_from(DataList &src) { List::push_back_from(src); }
+    uint cnt() const { return m_cnt; }
   };
 
   struct Field : ListEnt {
@@ -148,12 +134,8 @@ public:
       m_pack_end = 0;
       m_null = false;
     }
-    Field* next() {
-      return static_cast<Field*>(m_next);
-    }
-    bool is_empty() const {
-      return (m_pos == m_end);
-    }
+    Field *next() { return static_cast<Field *>(m_next); }
+    bool is_empty() const { return (m_pos == m_end); }
     uint m_fieldno;
     uint m_pos;
     uint m_end;
@@ -164,27 +146,15 @@ public:
   };
 
   struct FieldList : private List {
-    Field* front() {
-      return static_cast<Field*>(List::m_front);
-    }
-    void push_back(Field* field) {
-      List::push_back(field);
-    }
-    Field* pop_front() {
-      return static_cast<Field*>(List::pop_front());
-    }
-    void push_back_from(FieldList& src) {
-      List::push_back_from(src);
-    }
-    uint cnt() const {
-      return m_cnt;
-    }
+    Field *front() { return static_cast<Field *>(List::m_front); }
+    void push_back(Field *field) { List::push_back(field); }
+    Field *pop_front() { return static_cast<Field *>(List::pop_front()); }
+    void push_back_from(FieldList &src) { List::push_back_from(src); }
+    uint cnt() const { return m_cnt; }
     bool final_field_is_empty() const {
-      return (static_cast<Field*>(m_back))->is_empty();
+      return (static_cast<Field *>(m_back))->is_empty();
     }
-    Field * pop_back() {
-      return static_cast<Field*>(List::pop_back());
-    }
+    Field *pop_back() { return static_cast<Field *>(List::pop_back()); }
   };
 
   struct Line : ListEnt {
@@ -194,9 +164,7 @@ public:
       m_end = 0;
       m_reject = false;
     }
-    Line* next() {
-      return static_cast<Line*>(m_next);
-    }
+    Line *next() { return static_cast<Line *>(m_next); }
     uint m_lineno;
     uint m_pos;
     uint m_end;
@@ -205,35 +173,23 @@ public:
   };
 
   struct LineList : private List {
-    Line* front() {
-      return static_cast<Line*>(List::m_front);
-    }
-    Line* back() {
-      return static_cast<Line*>(List::m_back);
-    }
-    void push_back(Line* line) {
-      List::push_back(line);
-    }
-    Line* pop_front() {
-      return static_cast<Line*>(List::pop_front());
-    }
-    void push_back_from(LineList& src) {
-      List::push_back_from(src);
-    }
-    uint cnt() const {
-      return m_cnt;
-    }
+    Line *front() { return static_cast<Line *>(List::m_front); }
+    Line *back() { return static_cast<Line *>(List::m_back); }
+    void push_back(Line *line) { List::push_back(line); }
+    Line *pop_front() { return static_cast<Line *>(List::pop_front()); }
+    void push_back_from(LineList &src) { List::push_back_from(src); }
+    uint cnt() const { return m_cnt; }
   };
 
   struct Alloc {
     Alloc();
-    Data* alloc_data();
-    Field* alloc_field();
-    Line* alloc_line();
-    void free_data_list(DataList& data_list);
-    void free_field_list(FieldList& field_list);
+    Data *alloc_data();
+    Field *alloc_field();
+    Line *alloc_line();
+    void free_data_list(DataList &data_list);
+    void free_field_list(FieldList &field_list);
     void free_field(Field *);
-    void free_line_list(LineList& line_list);
+    void free_line_list(LineList &line_list);
     bool balanced();
     DataList m_data_free;
     FieldList m_field_free;
@@ -246,9 +202,9 @@ public:
     uint m_free_line_cnt;
   };
 
-  void free_data_list(Data*& data);
-  void free_field_list(Field*& field);
-  void free_line_list(Line*& line);
+  void free_data_list(Data *&data);
+  void free_field_list(Field *&field);
+  void free_line_list(Line *&line);
 
   // input
 
@@ -285,43 +241,33 @@ public:
   struct Eval;
 
   struct Input : Alloc {
-    Input(NdbImportCsv& csv,
-          const char* name,
-          const Spec& spec,
-          const Table& table,
-          Buf& buf,
-          RowList& rows_out,
-          RowList& rows_reject,
-          RowMap& rowmap_in,
-          Stats& stats);
+    Input(NdbImportCsv &csv, const char *name, const Spec &spec,
+          const Table &table, Buf &buf, RowList &rows_out, RowList &rows_reject,
+          RowMap &rowmap_in, Stats &stats);
     ~Input();
     void do_init();
     void do_resume(Range range_in);
     void do_parse();
     void do_eval();
-    void do_send(uint& curr, uint& left);
-    void do_movetail(Input& input2);
-    void reject_line(const Line* line,
-                     const Field* field,
-                     const Error& error);
-    void print(NdbOut& out);
-    NdbImportCsv& m_csv;
-    NdbImportUtil& m_util;
+    void do_send(uint &curr, uint &left);
+    void do_movetail(Input &input2);
+    void reject_line(const Line *line, const Field *field, const Error &error);
+    void print(NdbOut &out);
+    NdbImportCsv &m_csv;
+    NdbImportUtil &m_util;
     Name m_name;
-    const Spec& m_spec;
-    const Table& m_table;
-    Buf& m_buf;
-    RowList& m_rows_out;
-    RowList& m_rows_reject;
-    RowMap& m_rowmap_in;
-    Error m_error;      // local csv error
-    bool has_error() {
-      return m_util.has_error(m_error);
-    }
+    const Spec &m_spec;
+    const Table &m_table;
+    Buf &m_buf;
+    RowList &m_rows_out;
+    RowList &m_rows_reject;
+    RowMap &m_rowmap_in;
+    Error m_error;  // local csv error
+    bool has_error() { return m_util.has_error(m_error); }
     LineList m_line_list;
-    RowList m_rows;     // lines eval'd to rows
-    Parse* m_parse;
-    Eval* m_eval;
+    RowList m_rows;  // lines eval'd to rows
+    Parse *m_parse;
+    Eval *m_eval;
     uint64 m_startpos;
     uint64 m_startlineno;
     uint64 m_ignore_lines;
@@ -340,18 +286,18 @@ public:
       State_cr = 3
     };
     static const int g_statecnt = State_cr + 1;
-    Parse(Input& input);
+    Parse(Input &input);
     void do_init();
     void push_state(State state);
     void pop_state();
     void do_parse();
-    int do_lex(union YYSTYPE* lvalp);
-    void do_error(const char* msg);
-    void pack_field(Field* field);
-    Input& m_input;
-    NdbImportCsv& m_csv;
-    NdbImportUtil& m_util;
-    Error& m_error;     // team level
+    int do_lex(union YYSTYPE *lvalp);
+    void do_error(const char *msg);
+    void pack_field(Field *field);
+    Input &m_input;
+    NdbImportCsv &m_csv;
+    NdbImportUtil &m_util;
+    Error &m_error;  // team level
     int m_trans[g_statecnt][g_bytecnt];
     static const uint g_stackmax = 10;
     uint m_stacktop;
@@ -364,23 +310,24 @@ public:
     DataList m_data_list;
   };
 
-  static const char* g_str_state(Parse::State state);
+  static const char *g_str_state(Parse::State state);
 
   // eval
 
   struct Eval {
-    Eval(Input& input);
+    Eval(Input &input);
     ~Eval();
     void do_init();
     void do_eval();
-    void eval_line(Row* row, Line* line, const uint expect_attrcnt);
-    void eval_auto_inc_field(Row* row, Line* line, Field* field, const uint attr_id);
-    void eval_field(Row* row, Line* line, Field* field, const uint attr_id);
-    void eval_null(Row* row, Line* line, Field* field, const uint attr_id);
-    Input& m_input;
-    NdbImportCsv& m_csv;
-    NdbImportUtil& m_util;
-    Error& m_error;     // team level
+    void eval_line(Row *row, Line *line, const uint expect_attrcnt);
+    void eval_auto_inc_field(Row *row, Line *line, Field *field,
+                             const uint attr_id);
+    void eval_field(Row *row, Line *line, Field *field, const uint attr_id);
+    void eval_null(Row *row, Line *line, Field *field, const uint attr_id);
+    Input &m_input;
+    NdbImportCsv &m_csv;
+    NdbImportUtil &m_util;
+    Error &m_error;  // team level
   };
 
   // output
@@ -398,30 +345,27 @@ public:
    */
 
   struct Output {
-    Output(NdbImportCsv& csv,
-           const Spec& spec,
-           const Table& table,
-           Buf& buf);
+    Output(NdbImportCsv &csv, const Spec &spec, const Table &table, Buf &buf);
     void do_init();
     void add_header();
-    void add_line(const Row* row);
-    void add_field(const Attr& attr, const Row* row);
-    void add_char(const uchar* data, uint len);
+    void add_line(const Row *row);
+    void add_field(const Attr &attr, const Row *row);
+    void add_char(const uchar *data, uint len);
     void add_quote();
     void add_fieldsep();
     void add_lineend();
-    NdbImportCsv& m_csv;
-    NdbImportUtil& m_util;
-    const Spec& m_spec;
-    const Table& m_table;
-    Buf& m_buf;
+    NdbImportCsv &m_csv;
+    NdbImportUtil &m_util;
+    const Spec &m_spec;
+    const Table &m_table;
+    Buf &m_buf;
     uchar m_escapes[g_bytecnt];
   };
 };
 
-NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Input& input);
-NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Parse& parse);
-NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Eval& eval);
-NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Output& output);
+NdbOut &operator<<(NdbOut &out, const NdbImportCsv::Input &input);
+NdbOut &operator<<(NdbOut &out, const NdbImportCsv::Parse &parse);
+NdbOut &operator<<(NdbOut &out, const NdbImportCsv::Eval &eval);
+NdbOut &operator<<(NdbOut &out, const NdbImportCsv::Output &output);
 
 #endif

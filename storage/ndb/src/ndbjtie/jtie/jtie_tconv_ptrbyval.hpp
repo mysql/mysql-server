@@ -38,16 +38,15 @@
 // ---------------------------------------------------------------------------
 
 // type deriving from <jtype>Array for mappings with a required/allocated size
-template< typename J, jsize N >
+template <typename J, jsize N>
 struct _jtie_j_BoundedArray : J {
-    typedef J JA_t;
-    static const jsize length = N;
+  typedef J JA_t;
+  static const jsize length = N;
 };
 
 // wrapper type for BoundedArray mappings for template specialization
-template< typename J >
-struct _jtie_j_ArrayMapper : J {
-};
+template <typename J>
+struct _jtie_j_ArrayMapper : J {};
 
 /**
  * Defines the trait type aliases for the mapping of a
@@ -65,15 +64,11 @@ struct _jtie_j_ArrayMapper : J {
  *   ttrait_<T>_0pc_a           J <->       C * const (of unspecified length)
  *   ttrait_<T>_0cpc_a          J <-> const C * const (of unspecified length)
  */
-#define JTIE_DEFINE_ARRAY_PTR_TYPE_MAPPING( J, C, T )                   \
-    typedef ttrait< J *, C *                                            \
-                    > ttrait_##T##_0p_a;                                \
-    typedef ttrait< J *, const C *                                      \
-                    > ttrait_##T##_0cp_a;                               \
-    typedef ttrait< J *, C * const                                      \
-                    > ttrait_##T##_0pc_a;                               \
-    typedef ttrait< J *, const C * const                                \
-                    > ttrait_##T##_0cpc_a;
+#define JTIE_DEFINE_ARRAY_PTR_TYPE_MAPPING(J, C, T)  \
+  typedef ttrait<J *, C *> ttrait_##T##_0p_a;        \
+  typedef ttrait<J *, const C *> ttrait_##T##_0cp_a; \
+  typedef ttrait<J *, C *const> ttrait_##T##_0pc_a;  \
+  typedef ttrait<J *, const C *const> ttrait_##T##_0cpc_a;
 
 /**
  * Defines the trait type aliases for the mapping of a
@@ -91,16 +86,19 @@ struct _jtie_j_ArrayMapper : J {
  *   ttrait_<T>_1pc_a           J <->       C * const (of array length 1)
  *   ttrait_<T>_1cpc_a          J <-> const C * const (of array length 1)
  */
-#define JTIE_DEFINE_ARRAY_PTR_LENGTH1_TYPE_MAPPING( J, C, T )           \
-    typedef ttrait< J *, C *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
-                    > ttrait_##T##_1p_a;                                \
-    typedef ttrait< J *, const C *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
-                    > ttrait_##T##_1cp_a;                               \
-    typedef ttrait< J *, C * const, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
-                    > ttrait_##T##_1pc_a;                               \
-    typedef ttrait< J *, const C * const, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
-                    > ttrait_##T##_1cpc_a;
+#define JTIE_DEFINE_ARRAY_PTR_LENGTH1_TYPE_MAPPING(J, C, T)                   \
+  typedef ttrait<J *, C *, _jtie_j_ArrayMapper<_jtie_j_BoundedArray<J, 1>> *> \
+      ttrait_##T##_1p_a;                                                      \
+  typedef ttrait<J *, const C *,                                              \
+                 _jtie_j_ArrayMapper<_jtie_j_BoundedArray<J, 1>> *>           \
+      ttrait_##T##_1cp_a;                                                     \
+  typedef ttrait<J *, C *const,                                               \
+                 _jtie_j_ArrayMapper<_jtie_j_BoundedArray<J, 1>> *>           \
+      ttrait_##T##_1pc_a;                                                     \
+  typedef ttrait<J *, const C *const,                                         \
+                 _jtie_j_ArrayMapper<_jtie_j_BoundedArray<J, 1>> *>           \
+      ttrait_##T##_1cpc_a;
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_ptrbyval_hpp
+#endif  // jtie_tconv_ptrbyval_hpp

@@ -25,16 +25,14 @@
 
 #include <signaldata/DropIndx.hpp>
 
-bool
-printDROP_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxReq::SignalLength)
-  {
+bool printDROP_INDX_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < DropIndxReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxReq* sig = (const DropIndxReq*)theData;
+  const DropIndxReq *sig = (const DropIndxReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -48,16 +46,14 @@ printDROP_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxConf::SignalLength)
-  {
+bool printDROP_INDX_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < DropIndxConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxConf* sig = (const DropIndxConf*)theData;
+  const DropIndxConf *sig = (const DropIndxConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -68,16 +64,14 @@ printDROP_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_INDX_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropIndxRef::SignalLength)
-  {
+bool printDROP_INDX_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < DropIndxRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropIndxRef* sig = (const DropIndxRef*)theData;
+  const DropIndxRef *sig = (const DropIndxRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

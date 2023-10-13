@@ -29,8 +29,7 @@
 
 #include "ndb_limits.h"
 
-struct AccKeyReq
-{
+struct AccKeyReq {
   static constexpr Uint32 SignalLength_localKey = 10;
   static constexpr Uint32 SignalLength_keyInfo = 8 /* + keyLen */;
 
@@ -42,8 +41,7 @@ struct AccKeyReq
   Uint32 transId1;
   Uint32 transId2;
   Uint32 lockConnectPtr; /* For lock take over operation */
-  union
-  {
+  union {
     /* if keyLen == 0 use localKey */
     Uint32 localKey[2];
     Uint32 keyInfo[MAX_KEY_SIZE_IN_WORDS /*keyLen*/];
@@ -65,124 +63,90 @@ struct AccKeyReq
   static Uint32 setLockReq(Uint32 requestInfo, bool lockreq);
   static Uint32 setNoWait(Uint32 requestInfo, bool lockreq);
 
-private:
+ private:
   enum RequestInfo {
-    RI_OPERATION_SHIFT    =  0, RI_OPERATION_MASK    = 15,
-    RI_LOCK_TYPE_SHIFT    =  4, RI_LOCK_TYPE_MASK    =  3,
-    RI_DIRTY_OP_SHIFT     =  6, RI_DIRTY_OP_MASK     =  1,
-    RI_REPLICA_TYPE_SHIFT =  7, RI_REPLICA_TYPE_MASK =  3,
-    RI_TAKE_OVER_SHIFT    =  9, RI_TAKE_OVER_MASK    =  1,
-    RI_NOWAIT_SHIFT       = 10, RI_NOWAIT_MASK       =  1,
-    RI_LOCK_REQ_SHIFT     = 31, RI_LOCK_REQ_MASK     =  1,
+    RI_OPERATION_SHIFT = 0,
+    RI_OPERATION_MASK = 15,
+    RI_LOCK_TYPE_SHIFT = 4,
+    RI_LOCK_TYPE_MASK = 3,
+    RI_DIRTY_OP_SHIFT = 6,
+    RI_DIRTY_OP_MASK = 1,
+    RI_REPLICA_TYPE_SHIFT = 7,
+    RI_REPLICA_TYPE_MASK = 3,
+    RI_TAKE_OVER_SHIFT = 9,
+    RI_TAKE_OVER_MASK = 1,
+    RI_NOWAIT_SHIFT = 10,
+    RI_NOWAIT_MASK = 1,
+    RI_LOCK_REQ_SHIFT = 31,
+    RI_LOCK_REQ_MASK = 1,
   };
 };
 
-inline
-Uint32
-AccKeyReq::getOperation(Uint32 requestInfo)
-{
+inline Uint32 AccKeyReq::getOperation(Uint32 requestInfo) {
   return (requestInfo >> RI_OPERATION_SHIFT) & RI_OPERATION_MASK;
 }
 
-inline
-Uint32
-AccKeyReq::getLockType(Uint32 requestInfo)
-{
+inline Uint32 AccKeyReq::getLockType(Uint32 requestInfo) {
   return (requestInfo >> RI_LOCK_TYPE_SHIFT) & RI_LOCK_TYPE_MASK;
 }
 
-inline
-bool
-AccKeyReq::getDirtyOp(Uint32 requestInfo)
-{
+inline bool AccKeyReq::getDirtyOp(Uint32 requestInfo) {
   return (requestInfo >> RI_DIRTY_OP_SHIFT) & RI_DIRTY_OP_MASK;
 }
 
-inline
-Uint32
-AccKeyReq::getReplicaType(Uint32 requestInfo)
-{
+inline Uint32 AccKeyReq::getReplicaType(Uint32 requestInfo) {
   return (requestInfo >> RI_REPLICA_TYPE_SHIFT) & RI_REPLICA_TYPE_MASK;
 }
 
-inline
-bool
-AccKeyReq::getTakeOver(Uint32 requestInfo)
-{
+inline bool AccKeyReq::getTakeOver(Uint32 requestInfo) {
   return (requestInfo >> RI_TAKE_OVER_SHIFT) & RI_TAKE_OVER_MASK;
 }
 
-inline
-bool
-AccKeyReq::getLockReq(Uint32 requestInfo)
-{
+inline bool AccKeyReq::getLockReq(Uint32 requestInfo) {
   return (requestInfo >> RI_LOCK_REQ_SHIFT) & RI_LOCK_REQ_MASK;
 }
 
-inline
-bool
-AccKeyReq::getNoWait(Uint32 requestInfo)
-{
+inline bool AccKeyReq::getNoWait(Uint32 requestInfo) {
   return (requestInfo >> RI_NOWAIT_SHIFT) & RI_NOWAIT_MASK;
 }
 
-inline
-Uint32
-AccKeyReq::setOperation(Uint32 requestInfo, Uint32 op)
-{
+inline Uint32 AccKeyReq::setOperation(Uint32 requestInfo, Uint32 op) {
   assert(op <= RI_OPERATION_MASK);
-  return (requestInfo & ~(RI_OPERATION_MASK << RI_OPERATION_SHIFT))
-    | (op << RI_OPERATION_SHIFT);
+  return (requestInfo & ~(RI_OPERATION_MASK << RI_OPERATION_SHIFT)) |
+         (op << RI_OPERATION_SHIFT);
 }
 
-inline
-Uint32
-AccKeyReq::setLockType(Uint32 requestInfo, Uint32 locktype)
-{
+inline Uint32 AccKeyReq::setLockType(Uint32 requestInfo, Uint32 locktype) {
   assert(locktype <= RI_LOCK_TYPE_MASK);
-  return (requestInfo & ~(RI_LOCK_TYPE_MASK << RI_LOCK_TYPE_SHIFT))
-    | (locktype << RI_LOCK_TYPE_SHIFT);
+  return (requestInfo & ~(RI_LOCK_TYPE_MASK << RI_LOCK_TYPE_SHIFT)) |
+         (locktype << RI_LOCK_TYPE_SHIFT);
 }
 
-inline
-Uint32
-AccKeyReq::setDirtyOp(Uint32 requestInfo, bool dirtyop)
-{
-  return (requestInfo & ~(RI_DIRTY_OP_MASK << RI_DIRTY_OP_SHIFT))
-    | (dirtyop ? 1U << RI_DIRTY_OP_SHIFT : 0);
+inline Uint32 AccKeyReq::setDirtyOp(Uint32 requestInfo, bool dirtyop) {
+  return (requestInfo & ~(RI_DIRTY_OP_MASK << RI_DIRTY_OP_SHIFT)) |
+         (dirtyop ? 1U << RI_DIRTY_OP_SHIFT : 0);
 }
 
-inline
-Uint32
-AccKeyReq::setReplicaType(Uint32 requestInfo, Uint32 replicatype)
-{
+inline Uint32 AccKeyReq::setReplicaType(Uint32 requestInfo,
+                                        Uint32 replicatype) {
   assert(replicatype <= RI_REPLICA_TYPE_MASK);
-  return (requestInfo & ~(RI_REPLICA_TYPE_MASK << RI_REPLICA_TYPE_SHIFT))
-    | (replicatype << RI_REPLICA_TYPE_SHIFT);
+  return (requestInfo & ~(RI_REPLICA_TYPE_MASK << RI_REPLICA_TYPE_SHIFT)) |
+         (replicatype << RI_REPLICA_TYPE_SHIFT);
 }
 
-inline
-Uint32
-AccKeyReq::setTakeOver(Uint32 requestInfo, bool takeover)
-{
-  return (requestInfo & ~(RI_TAKE_OVER_MASK << RI_TAKE_OVER_SHIFT))
-    | (takeover ? 1U << RI_TAKE_OVER_SHIFT : 0);
+inline Uint32 AccKeyReq::setTakeOver(Uint32 requestInfo, bool takeover) {
+  return (requestInfo & ~(RI_TAKE_OVER_MASK << RI_TAKE_OVER_SHIFT)) |
+         (takeover ? 1U << RI_TAKE_OVER_SHIFT : 0);
 }
 
-inline
-Uint32
-AccKeyReq::setLockReq(Uint32 requestInfo, bool lockreq)
-{
-  return (requestInfo & ~(RI_LOCK_REQ_MASK << RI_LOCK_REQ_SHIFT))
-    | (lockreq ? 1U << RI_LOCK_REQ_SHIFT : 0);
+inline Uint32 AccKeyReq::setLockReq(Uint32 requestInfo, bool lockreq) {
+  return (requestInfo & ~(RI_LOCK_REQ_MASK << RI_LOCK_REQ_SHIFT)) |
+         (lockreq ? 1U << RI_LOCK_REQ_SHIFT : 0);
 }
 
-inline
-Uint32
-AccKeyReq::setNoWait(Uint32 requestInfo, bool nowait)
-{
-  return (requestInfo & ~(RI_NOWAIT_MASK << RI_NOWAIT_SHIFT))
-    | (nowait ? 1U << RI_NOWAIT_SHIFT : 0);
+inline Uint32 AccKeyReq::setNoWait(Uint32 requestInfo, bool nowait) {
+  return (requestInfo & ~(RI_NOWAIT_MASK << RI_NOWAIT_SHIFT)) |
+         (nowait ? 1U << RI_NOWAIT_SHIFT : 0);
 }
 
 #endif

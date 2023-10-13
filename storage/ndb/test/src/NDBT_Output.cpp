@@ -23,7 +23,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include "NDBT_Output.hpp"
 
 FileOutputStream gerr_fileoutputstream(stderr);
@@ -31,13 +30,12 @@ FileOutputStream gwarning_fileoutputstream(stderr);
 FileOutputStream ginfo_fileoutputstream(stdout);
 FileOutputStream gdebug_fileoutputstream(stdout);
 
-FilteredNdbOut g_err(gerr_fileoutputstream,         0, 2);
+FilteredNdbOut g_err(gerr_fileoutputstream, 0, 2);
 FilteredNdbOut g_warning(gwarning_fileoutputstream, 1, 2);
-FilteredNdbOut g_info(ginfo_fileoutputstream,       2, 2);
-FilteredNdbOut g_debug(gdebug_fileoutputstream,     3, 2);
+FilteredNdbOut g_info(ginfo_fileoutputstream, 2, 2);
+FilteredNdbOut g_debug(gdebug_fileoutputstream, 3, 2);
 
-void
-setOutputLevel(int i){
+void setOutputLevel(int i) {
   g_err.setLevel(i);
   g_warning.setLevel(i);
   g_info.setLevel(i);

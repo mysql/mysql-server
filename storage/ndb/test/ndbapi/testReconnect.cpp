@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,15 +22,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <AtrtClient.hpp>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include "SqlClient.hpp"
-#include <AtrtClient.hpp>
 
 #include <NdbRestarts.hpp>
 
-
-int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
+int runCreateTable(NDBT_Context *ctx, NDBT_Step *step) {
   SqlClient sql("test");
 
   if (!sql.doQuery("CREATE TABLE reconnect ("
@@ -43,122 +42,101 @@ int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
+int runDropTable(NDBT_Context *ctx, NDBT_Step *step) {
   SqlClient sql("test");
 
-  if (!sql.doQuery("DROP TABLE IF EXISTS reconnect"))
-    return NDBT_FAILED;
+  if (!sql.doQuery("DROP TABLE IF EXISTS reconnect")) return NDBT_FAILED;
   return NDBT_OK;
 }
 
-
-int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
-                  const char* query)
-{
+int runSQLQueries(NDBT_Context *ctx, NDBT_Step *step, const char *query) {
   int result = -1;
   SqlClient sql("test");
 
   unsigned failed = 0;
   unsigned i = 0;
-  unsigned shutdown_counter= 0;
-  while (result == -1)
-  {
+  unsigned shutdown_counter = 0;
+  while (result == -1) {
     Properties args;
     args.put("0", i);
     SqlResultSet resultSet;
-    if (!sql.doQuery(query, args, resultSet))
-    {
-      switch(resultSet.mysqlErrno()){
-      case 2006: // MySQL server has gone away(ie. crash)
-        g_err << "Fatal error: " << resultSet.mysqlError() << endl;
-        g_err.print("query: %s", query);
-        result = NDBT_FAILED;
-        break;
-      default:
-        // Ignore
-        failed++;
-        break;
+    if (!sql.doQuery(query, args, resultSet)) {
+      switch (resultSet.mysqlErrno()) {
+        case 2006:  // MySQL server has gone away(ie. crash)
+          g_err << "Fatal error: " << resultSet.mysqlError() << endl;
+          g_err.print("query: %s", query);
+          result = NDBT_FAILED;
+          break;
+        default:
+          // Ignore
+          failed++;
+          break;
       }
-    }
-    else
+    } else
       g_info << query << endl;
     i++;
 
-    if (ctx->isTestStopped())
-    {
+    if (ctx->isTestStopped()) {
       // When the test is stopped we run additional queries
       // that all should work
 
-      if (shutdown_counter == 0)
-      {
+      if (shutdown_counter == 0) {
         shutdown_counter = i;
-      }
-      else
-      {
-        unsigned extra_loops= i - shutdown_counter;
+      } else {
+        unsigned extra_loops = i - shutdown_counter;
 
-        if (extra_loops < 10)
-        {
+        if (extra_loops < 10) {
           // Check that last query succeeded
-          if (resultSet.mysqlErrno() != 0)
-          {
+          if (resultSet.mysqlErrno() != 0) {
             g_err << "Fatal error during shutdown queries: "
                   << resultSet.mysqlError() << endl;
             g_err.print("query: %s", query);
             result = NDBT_FAILED;
           }
-        }
-        else
-        {
+        } else {
           // We are done, signal success
-          result= NDBT_OK;
+          result = NDBT_OK;
         }
       }
     }
-
   }
   ctx->stopTest();
-  g_info << i - failed << " queries completed and "
-         << failed << " failed" << endl;
+  g_info << i - failed << " queries completed and " << failed << " failed"
+         << endl;
   return result;
 }
 
-
-int runINSERT(NDBT_Context* ctx, NDBT_Step* step){
+int runINSERT(NDBT_Context *ctx, NDBT_Step *step) {
   BaseString query;
-  query.assfmt("INSERT INTO reconnect "
-               "(pk, thread, b) VALUES (?, %d, 'data%d')",
-               step->getStepNo(), step->getStepNo());
+  query.assfmt(
+      "INSERT INTO reconnect "
+      "(pk, thread, b) VALUES (?, %d, 'data%d')",
+      step->getStepNo(), step->getStepNo());
   return runSQLQueries(ctx, step, query.c_str());
-
 }
 
-
-int runSELECT(NDBT_Context* ctx, NDBT_Step* step){
+int runSELECT(NDBT_Context *ctx, NDBT_Step *step) {
   return runSQLQueries(ctx, step, "SELECT * FROM reconnect");
 }
 
-
-int runDELETE(NDBT_Context* ctx, NDBT_Step* step){
+int runDELETE(NDBT_Context *ctx, NDBT_Step *step) {
   BaseString query;
   query.assfmt("DELETE from reconnect WHERE thread=%d LIMIT 10",
                step->getStepNo());
   return runSQLQueries(ctx, step, query.c_str());
 }
 
-
-int runRestartCluster(NDBT_Context* ctx, NDBT_Step* step){
+int runRestartCluster(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   NdbRestarts restarts;
   int i = 0;
   int timeout = 240;
 
-  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
+  while (i < loops && result != NDBT_FAILED && !ctx->isTestStopped()) {
+    ndbout << "Loop " << i << "/" << loops << " started" << endl;
 
-    ndbout << "Loop " << i << "/"<< loops <<" started" << endl;
-
-    if(restarts.executeRestart(ctx, "RestartAllNodesAbort", timeout) != 0){
+    if (restarts.executeRestart(ctx, "RestartAllNodesAbort", timeout) != 0) {
       g_err << "Failed to restart all nodes with abort" << endl;
       result = NDBT_FAILED;
       break;
@@ -171,31 +149,26 @@ int runRestartCluster(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-
 NDBT_TESTSUITE(testReconnect);
-TESTCASE("InsertAndRestart",
-	 "Run INSERTs while cluster restart"){
+TESTCASE("InsertAndRestart", "Run INSERTs while cluster restart") {
   INITIALIZER(runDropTable);
   INITIALIZER(runCreateTable);
   STEP(runINSERT);
   STEP(runRestartCluster);
 }
-TESTCASE("SelectAndRestart",
-	 "Run SELECTs while cluster restart"){
+TESTCASE("SelectAndRestart", "Run SELECTs while cluster restart") {
   INITIALIZER(runDropTable);
   INITIALIZER(runCreateTable);
   STEP(runSELECT);
   STEP(runRestartCluster);
 }
-TESTCASE("DeleteAndRestart",
-	 "Run DELETEs while cluster restart"){
+TESTCASE("DeleteAndRestart", "Run DELETEs while cluster restart") {
   INITIALIZER(runDropTable);
   INITIALIZER(runCreateTable);
   STEP(runDELETE);
   STEP(runRestartCluster);
 }
-TESTCASE("AllAndRestart",
-	 "Run all kind of statements while cluster restart"){
+TESTCASE("AllAndRestart", "Run all kind of statements while cluster restart") {
   INITIALIZER(runDropTable);
   INITIALIZER(runCreateTable);
   STEPS(runSELECT, 5);
@@ -206,9 +179,8 @@ TESTCASE("AllAndRestart",
 
 NDBT_TESTSUITE_END(testReconnect)
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testReconnect);
   return testReconnect.execute(argc, argv);
 }
-

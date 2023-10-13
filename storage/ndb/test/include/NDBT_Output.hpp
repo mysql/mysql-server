@@ -26,8 +26,8 @@
 #ifndef NDBT_Output_HPP
 #define NDBT_Output_HPP
 
-#include <OutputStream.hpp>
 #include <NdbOut.hpp>
+#include <OutputStream.hpp>
 
 void setOutputLevel(int i);
 

@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 74
 
-
 struct DropNodegroupReq {
   /**
    * Sender(s) / Reciver(s)
@@ -38,7 +37,7 @@ struct DropNodegroupReq {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 6;
 
@@ -70,7 +69,7 @@ struct DropNodegroupRef {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
@@ -106,7 +105,7 @@ struct DropNodegroupConf {
   /**
    * For printing
    */
-  friend bool printDROP_NODEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_NODEGROUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 3;
 
@@ -114,7 +113,6 @@ struct DropNodegroupConf {
   Uint32 senderRef;
   Uint32 transId;
 };
-
 
 #undef JAM_FILE_ID
 

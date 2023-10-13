@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 42
 
-
-struct SignalDroppedRep
-{
+struct SignalDroppedRep {
   /**
    * Receiver(s)
    */
@@ -46,14 +44,13 @@ struct SignalDroppedRep
   friend class TransporterCallbackKernel;
 
   static constexpr Uint32 SignalLength = 3;
-  friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);  
+  friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
   Uint32 originalGsn;
   Uint32 originalLength;
   Uint32 originalSectionCount;
   Uint32 originalData[1];
 };
-
 
 #undef JAM_FILE_ID
 

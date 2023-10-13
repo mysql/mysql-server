@@ -23,10 +23,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <AtrtClient.hpp>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include "SqlClient.hpp"
-#include <AtrtClient.hpp>
 
 // Create the minimal schema required for testing AtrtClient
 int runCreateAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
@@ -41,16 +41,15 @@ int runCreateAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   if (!sql.doQuery("CREATE TABLE atrt.cluster ("
-    "   id int primary key,"
-    "   name varchar(255),"
-    "   unique(name)"
-    "   ) engine = innodb")) {
+                   "   id int primary key,"
+                   "   name varchar(255),"
+                   "   unique(name)"
+                   "   ) engine = innodb")) {
     return NDBT_FAILED;
   }
 
   return NDBT_OK;
 }
-
 
 // Drop the minimal atrt schema
 int runDropAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
@@ -63,54 +62,45 @@ int runDropAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-int runTestAtrtClient(NDBT_Context* ctx, NDBT_Step* step){
+int runTestAtrtClient(NDBT_Context *ctx, NDBT_Step *step) {
   AtrtClient atrt;
 
   SqlResultSet clusters;
-  if (!atrt.getClusters(clusters))
-    return NDBT_FAILED;
+  if (!atrt.getClusters(clusters)) return NDBT_FAILED;
 
-  int i= 0;
-  while(clusters.next())
-  {
+  int i = 0;
+  while (clusters.next()) {
     ndbout << clusters.column("name") << endl;
-    if (i++ == 1){
+    if (i++ == 1) {
       ndbout << "removing: " << clusters.column("name") << endl;
       clusters.remove();
     }
   }
 
   clusters.reset();
-  while(clusters.next())
-  {
+  while (clusters.next()) {
     ndbout << clusters.column("name") << endl;
   }
 
   return NDBT_OK;
 }
 
-
-int runTestSqlClient(NDBT_Context* ctx, NDBT_Step* step){
+int runTestSqlClient(NDBT_Context *ctx, NDBT_Step *step) {
   SqlClient sql("test");
 
   {
     // Select all rows from mysql.user
     SqlResultSet result;
-    if (!sql.doQuery("SELECT * FROM mysql.user", result))
-      return NDBT_FAILED;
+    if (!sql.doQuery("SELECT * FROM mysql.user", result)) return NDBT_FAILED;
     // result.print();
 
-    while(result.next())
-    {
-      ndbout << result.column("host") << ", "
-             << result.column("uSer") << ", "
-             << result.columnAsInt("max_updates") << ", "
-             << endl;
+    while (result.next()) {
+      ndbout << result.column("host") << ", " << result.column("uSer") << ", "
+             << result.columnAsInt("max_updates") << ", " << endl;
     }
 
     result.reset();
-    while(result.next())
-    {
+    while (result.next()) {
       ndbout << result.column("host") << endl;
     }
   }
@@ -137,8 +127,8 @@ int runTestSqlClient(NDBT_Context* ctx, NDBT_Step* step){
     // Change args to an find one row
     args.clear();
     args.put("0", "localhost");
-    if (!sql.doQuery("SELECT host, user FROM mysql.user WHERE host=?",
-                     args, result))
+    if (!sql.doQuery("SELECT host, user FROM mysql.user WHERE host=?", args,
+                     result))
       return NDBT_FAILED;
     result.print();
   }
@@ -162,50 +152,43 @@ int runTestSqlClient(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     // result.print();
 
-    while(result.next())
-    {
+    while (result.next()) {
     }
 
     // Select second row from sql_client_test
     Properties args;
     args.put("0", 2);
-    if (!sql.doQuery("SELECT * FROM sql_client_test WHERE a=?", args,result))
+    if (!sql.doQuery("SELECT * FROM sql_client_test WHERE a=?", args, result))
       return NDBT_FAILED;
     result.print();
 
     result.reset();
-    while(result.next())
-    {
+    while (result.next()) {
       ndbout << "a: " << result.columnAsInt("a") << endl
              << "b: " << result.column("b") << endl
              << "c: " << result.columnAsLong("c") << endl;
-      if (result.columnAsInt("a") != 2){
+      if (result.columnAsInt("a") != 2) {
         ndbout << "hepp1" << endl;
         return NDBT_FAILED;
       }
 
-      if (strcmp(result.column("b"), "bye")){
+      if (strcmp(result.column("b"), "bye")) {
         ndbout << "hepp2" << endl;
         return NDBT_FAILED;
       }
 
-      if (result.columnAsLong("c") != 9000000000ULL){
+      if (result.columnAsLong("c") != 9000000000ULL) {
         ndbout << "hepp3" << endl;
         return NDBT_FAILED;
       }
-
     }
 
-    if (sql.selectCountTable("sql_client_test") != 2)
-    {
+    if (sql.selectCountTable("sql_client_test") != 2) {
       ndbout << "Got wrong count" << endl;
       return NDBT_FAILED;
     }
 
-
-    if (!sql.doQuery("DROP TABLE sql_client_test"))
-      return NDBT_FAILED;
-
+    if (!sql.doQuery("DROP TABLE sql_client_test")) return NDBT_FAILED;
   }
 
   return NDBT_OK;
@@ -216,8 +199,7 @@ NDBT_TESTSUITE(testNDBT);
 /*
   $> testNDBT -n AtrtClient
 */
-TESTCASE("AtrtClient",
-	 "Test AtrtClient class"){
+TESTCASE("AtrtClient", "Test AtrtClient class") {
   INITIALIZER(runCreateAtrtSchema);
   INITIALIZER(runTestAtrtClient);
   FINALIZER(runDropAtrtSchema);
@@ -225,17 +207,13 @@ TESTCASE("AtrtClient",
 /*
   $> testNDBT -n SqlClient
 */
-TESTCASE("SqlClient",
-         "Test SqlClient class"){
-  INITIALIZER(runTestSqlClient);
-}
+TESTCASE("SqlClient", "Test SqlClient class") { INITIALIZER(runTestSqlClient); }
 NDBT_TESTSUITE_END(testNDBT)
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testNDBT);
   testNDBT.setCreateTable(false);
   testNDBT.setRunAllTables(true);
   return testNDBT.execute(argc, argv);
 }
-

@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef BUILD_FK_HPP
 #define BUILD_FK_HPP
 
@@ -30,9 +29,7 @@
 
 #define JAM_FILE_ID 70
 
-
-struct BuildFKReq
-{
+struct BuildFKReq {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -41,7 +38,7 @@ struct BuildFKReq
   /**
    * For printing
    */
-  friend bool printBUILD_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
@@ -60,8 +57,7 @@ struct BuildFKReq
   Uint32 transKey;
 };
 
-struct BuildFKRef
-{
+struct BuildFKRef {
   /**
    * Sender(s)
    */
@@ -70,15 +66,11 @@ struct BuildFKRef
   /**
    * For printing
    */
-  friend bool printBUILD_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
-  enum ErrorCode {
-    NoError = 0,
-    FKNotFound = 21060,
-    InvalidFKVersion = 21061
-  };
+  enum ErrorCode { NoError = 0, FKNotFound = 21060, InvalidFKVersion = 21061 };
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -89,8 +81,7 @@ struct BuildFKRef
   Uint32 transId;
 };
 
-struct BuildFKConf
-{
+struct BuildFKConf {
   /**
    * Sender(s)
    */
@@ -104,7 +95,7 @@ struct BuildFKConf
   /**
    * For printing
    */
-  friend bool printBUILD_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printBUILD_FK_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 5;
 
@@ -114,7 +105,6 @@ struct BuildFKConf
   Uint32 fkId;
   Uint32 fkVersion;
 };
-
 
 #undef JAM_FILE_ID
 

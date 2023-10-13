@@ -25,13 +25,9 @@
 
 #include <signaldata/LqhTransConf.hpp>
 
-bool printLQH_TRANSCONF(FILE *output,
-                        const Uint32 *theData,
-                        Uint32 len,
-                        Uint16 /*receiverBlockNo*/)
-{
-  if (len < LqhTransConf::SignalLength)
-  {
+bool printLQH_TRANSCONF(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16 /*receiverBlockNo*/) {
+  if (len < LqhTransConf::SignalLength) {
     assert(false);
     return false;
   }

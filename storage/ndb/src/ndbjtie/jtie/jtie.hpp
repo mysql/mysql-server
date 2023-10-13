@@ -34,24 +34,24 @@
 // ---------------------------------------------------------------------------
 
 // API -- template types for writing an application's JNI function stubs
-#include "jtie_tconv.hpp"
-#include "jtie_tconv_xwidth.hpp"
-#include "jtie_tconv_string.hpp"
-#include "jtie_tconv_object.hpp"
-#include "jtie_tconv_enum.hpp"
 #include "jtie_gcalls.hpp"
+#include "jtie_tconv.hpp"
+#include "jtie_tconv_enum.hpp"
+#include "jtie_tconv_object.hpp"
+#include "jtie_tconv_string.hpp"
+#include "jtie_tconv_xwidth.hpp"
 
 // IMPL -- types & template specializations implementing the JTie API
-#include "jtie_tconv_value_impl.hpp"
-#include "jtie_tconv_string_impl.hpp"
-#include "jtie_tconv_ptrbybb_impl.hpp"
-#include "jtie_tconv_refbybb_impl.hpp"
-#include "jtie_tconv_ptrbyval_impl.hpp"
-#include "jtie_tconv_refbyval_impl.hpp"
-#include "jtie_tconv_object_impl.hpp"
 #include "jtie_tconv_enum_impl.hpp"
 #include "jtie_tconv_idcache_impl.hpp"
+#include "jtie_tconv_object_impl.hpp"
+#include "jtie_tconv_ptrbybb_impl.hpp"
+#include "jtie_tconv_ptrbyval_impl.hpp"
+#include "jtie_tconv_refbybb_impl.hpp"
+#include "jtie_tconv_refbyval_impl.hpp"
+#include "jtie_tconv_string_impl.hpp"
+#include "jtie_tconv_value_impl.hpp"
 // template default implementation must come last, after specializations
 #include "jtie_tconv_impl_default.hpp"
 
-#endif // jtie_hpp
+#endif  // jtie_hpp

@@ -30,12 +30,11 @@
 #define JAM_FILE_ID 498
 
 /**
- * 
+ *
  * SENDER: NDBCNTR, QMGR, DBLQH
- * RECEIVER: NDBCNTR 
+ * RECEIVER: NDBCNTR
  */
-class ReadLocalSysfileReq
-{
+class ReadLocalSysfileReq {
   friend class Ndbcntr;
   friend class Qmgr;
   friend class Dblqh;
@@ -50,25 +49,22 @@ class ReadLocalSysfileReq
   /**
    * DATA VARIABLES
    */
-  UintR userPointer;              // DATA 0
-  UintR userReference;            // DATA 1
+  UintR userPointer;    // DATA 0
+  UintR userReference;  // DATA 1
 };
 
 /**
- * 
- * SENDER: NDBCNTR 
+ *
+ * SENDER: NDBCNTR
  * RECEIVER: NDBCNTR, QMGR, DBLQH
  */
-class ReadLocalSysfileConf
-{
+class ReadLocalSysfileConf {
   friend class Ndbcntr;
   friend class Qmgr;
   friend class Dblqh;
 
-  friend bool printREAD_LOCAL_SYSFILE_CONF(FILE * output,
-                                           const Uint32 * theData,
-                                           Uint32 len,
-                                           Uint16 receiverBlockNo);
+  friend bool printREAD_LOCAL_SYSFILE_CONF(FILE *output, const Uint32 *theData,
+                                           Uint32 len, Uint16 receiverBlockNo);
 
   /**
    * Length of signal
@@ -78,27 +74,23 @@ class ReadLocalSysfileConf
   /**
    * DATA VARIABLES
    */
-  UintR userPointer;              // DATA 0
-  UintR nodeRestorableOnItsOwn;   // DATA 1
-  UintR maxGCIRestorable;         // DATA 2
+  UintR userPointer;             // DATA 0
+  UintR nodeRestorableOnItsOwn;  // DATA 1
+  UintR maxGCIRestorable;        // DATA 2
 };
 
-
 /**
- * 
+ *
  * SENDER: DBLQH, NDBCNTR
- * RECEIVER: NDBCNTR 
+ * RECEIVER: NDBCNTR
  */
-class WriteLocalSysfileReq
-{
+class WriteLocalSysfileReq {
   friend class Ndbcntr;
   friend class Dblqh;
   friend class Qmgr;
 
-  friend bool printWRITE_LOCAL_SYSFILE_REQ(FILE * output,
-                                           const Uint32 * theData,
-                                           Uint32 len,
-                                           Uint16 receiverBlockNo);
+  friend bool printWRITE_LOCAL_SYSFILE_REQ(FILE *output, const Uint32 *theData,
+                                           Uint32 len, Uint16 receiverBlockNo);
 
   /**
    * Length of signal
@@ -108,20 +100,19 @@ class WriteLocalSysfileReq
   /**
    * DATA VARIABLES
    */
-  Uint32 userPointer;              // DATA 0
-  Uint32 userReference;            // DATA 1
-  Uint32 nodeRestorableOnItsOwn;   // DATA 2
-  Uint32 maxGCIRestorable;         // DATA 3
-  Uint32 lastWrite;                // DATA 4
+  Uint32 userPointer;             // DATA 0
+  Uint32 userReference;           // DATA 1
+  Uint32 nodeRestorableOnItsOwn;  // DATA 2
+  Uint32 maxGCIRestorable;        // DATA 3
+  Uint32 lastWrite;               // DATA 4
 };
 
 /**
- * 
- * SENDER: NDBCNTR 
+ *
+ * SENDER: NDBCNTR
  * RECEIVER: DBLQH, NDBCNTR
  */
-class WriteLocalSysfileConf
-{
+class WriteLocalSysfileConf {
   friend class Ndbcntr;
   friend class Dblqh;
   friend class Qmgr;
@@ -134,7 +125,7 @@ class WriteLocalSysfileConf
   /**
    * DATA VARIABLES
    */
-  UintR userPointer;              // DATA 0
+  UintR userPointer;  // DATA 0
 };
 
 #undef JAM_FILE_ID

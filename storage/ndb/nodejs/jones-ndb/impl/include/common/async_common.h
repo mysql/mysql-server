@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2012, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -28,13 +28,13 @@
 extern "C" {
 #endif
 
-  void work_thd_run(uv_work_t *);
-  void main_thd_complete(uv_work_t *, int);
+void work_thd_run(uv_work_t *);
+void main_thd_complete(uv_work_t *, int);
 
 #ifdef __cplusplus
 }
 
-  class AsyncCall;
-  void main_thd_complete_async_call(AsyncCall *);
+class AsyncCall;
+void main_thd_complete_async_call(AsyncCall *);
 
 #endif

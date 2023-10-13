@@ -29,39 +29,32 @@
 
 #define JAM_FILE_ID 322
 
-
 struct EmulatorData;
 
-class SimBlockList 
-{
-public:
+class SimBlockList {
+ public:
   SimBlockList();
   ~SimBlockList();
-  
-  void load(EmulatorData&);
+
+  void load(EmulatorData &);
   void unload();
 
-  Uint64 getTransactionMemoryNeed(
-    const Uint32 dbtc_instance_count,
-    const Uint32 ldm_instance_count,
-    const ndb_mgm_configuration_iterator * mgm_cfg,
-    const bool use_reserved) const;
-private:
+  Uint64 getTransactionMemoryNeed(const Uint32 dbtc_instance_count,
+                                  const Uint32 ldm_instance_count,
+                                  const ndb_mgm_configuration_iterator *mgm_cfg,
+                                  const bool use_reserved) const;
+
+ private:
   int noOfBlocks;
-  SimulatedBlock** theList;
+  SimulatedBlock **theList;
 };
 
-inline
-SimBlockList::SimBlockList(){
+inline SimBlockList::SimBlockList() {
   noOfBlocks = 0;
-  theList    = 0;
+  theList = 0;
 }
 
-inline
-SimBlockList::~SimBlockList(){
-  unload();
-}
-
+inline SimBlockList::~SimBlockList() { unload(); }
 
 #undef JAM_FILE_ID
 

@@ -27,20 +27,20 @@
 
 #include <NdbOut.hpp>
 
-#define NDB_ERR_OUT(where, error) \
-  {  where << "ERROR: " << error.code << " " \
-           << error.message << endl \
-           << "           " << "Status: " << error.status \
-           << ", Classification: " << error.classification << endl\
-           << "           " << "File: " << __FILE__ \
-           << " (Line: " << __LINE__ << ")" << endl \
-      ; \
+#define NDB_ERR_OUT(where, error)                                           \
+  {                                                                         \
+    where << "ERROR: " << error.code << " " << error.message << endl        \
+          << "           "                                                  \
+          << "Status: " << error.status                                     \
+          << ", Classification: " << error.classification << endl           \
+          << "           "                                                  \
+          << "File: " << __FILE__ << " (Line: " << __LINE__ << ")" << endl; \
   }
 
-#define NDB_ERR(error) \
-{ \
-  const NdbError &_error = (error); \
-  NDB_ERR_OUT(ndberr, _error); \
-}
+#define NDB_ERR(error)                \
+  {                                   \
+    const NdbError &_error = (error); \
+    NDB_ERR_OUT(ndberr, _error);      \
+  }
 
 #endif  // NDB_TOOLS_LOGGING_HPP

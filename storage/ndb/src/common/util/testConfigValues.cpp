@@ -22,52 +22,45 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <ConfigValues.hpp>
 #include <NdbOut.hpp>
+#include "util/require.h"
 
-void print(Uint32 i, ConfigValues::ConstIterator & cf){
+void print(Uint32 i, ConfigValues::ConstIterator &cf) {
   ndbout_c("---");
-  for(Uint32 j = 2; j<=7; j++){
-    switch(cf.getTypeOf(j)){
-    case ConfigSection::IntTypeId:
-      ndbout_c("Node %d : CFG(%d) : %d",
-	       i, j, cf.get(j, 999));
-      break;
-    case ConfigSection::Int64TypeId:
-      ndbout_c("Node %d : CFG(%d) : %lld (64)",
-	       i, j, cf.get64(j, 999));
-      break;
-    case ConfigSection::StringTypeId:
-      ndbout_c("Node %d : CFG(%d) : %s",
-	       i, j, cf.get(j, "<NOT FOUND>"));
-      break;
-    default:
-      ndbout_c("Node %d : CFG(%d) : TYPE: %d",
-	       i, j, cf.getTypeOf(j));
+  for (Uint32 j = 2; j <= 7; j++) {
+    switch (cf.getTypeOf(j)) {
+      case ConfigSection::IntTypeId:
+        ndbout_c("Node %d : CFG(%d) : %d", i, j, cf.get(j, 999));
+        break;
+      case ConfigSection::Int64TypeId:
+        ndbout_c("Node %d : CFG(%d) : %lld (64)", i, j, cf.get64(j, 999));
+        break;
+      case ConfigSection::StringTypeId:
+        ndbout_c("Node %d : CFG(%d) : %s", i, j, cf.get(j, "<NOT FOUND>"));
+        break;
+      default:
+        ndbout_c("Node %d : CFG(%d) : TYPE: %d", i, j, cf.getTypeOf(j));
     }
   }
 }
 
-void print(Uint32 i, ConfigValues & _cf){
+void print(Uint32 i, ConfigValues &_cf) {
   ConfigValues::ConstIterator cf(_cf);
   print(i, cf);
 }
 
-void
-print(ConfigValues & _cf){
+void print(ConfigValues &_cf) {
   ConfigValues::ConstIterator cf(_cf);
   Uint32 i = 0;
-  while(cf.openSection(CONFIG_SECTION_NODE, i)){
+  while (cf.openSection(CONFIG_SECTION_NODE, i)) {
     print(i, cf);
     cf.closeSection();
     i++;
   }
 }
 
-
-int
-main(void){
+int main(void) {
   ndb_init();
   ConfigValuesFactory cvf;
   cvf.begin();
@@ -103,16 +96,16 @@ main(void){
   cvf.commit(false);
 
   ndbout_c("-- print --");
-  print(* cvf.m_cfg);
+  print(*cvf.m_cfg);
 
   ndbout_c("packed size: %d", cvf.m_cfg->get_v1_packed_size());
   ndbout_c("packed size v2: %d", cvf.m_cfg->get_v2_packed_size(0));
 
-  ConfigValues::ConstIterator iter(* cvf.m_cfg);
+  ConfigValues::ConstIterator iter(*cvf.m_cfg);
   require(iter.openSection(CONFIG_SECTION_NODE, 0));
-  ConfigValues * cfg2 = ConfigValuesFactory::extractCurrentSection(iter);
+  ConfigValues *cfg2 = ConfigValuesFactory::extractCurrentSection(iter);
   cvf.closeSection();
-  print(99, * cfg2);
+  print(99, *cfg2);
 
   ndbout_c("packed size: %d", cfg2->get_v1_packed_size());
   delete cfg2;

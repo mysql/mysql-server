@@ -29,57 +29,57 @@
 #include <string>
 
 #include <mgmapi.h>
+#include <NdbRestarter.hpp>
 #include <Vector.hpp>
 #include "NdbConfig.hpp"
-#include <NdbRestarter.hpp>
 
 class NdbBackup : public NdbConfig {
-public:
-  NdbBackup(const char* _addr = 0)
-    : NdbConfig(_addr), m_default_encryption_password(NULL) {}
+ public:
+  NdbBackup(const char *_addr = 0)
+      : NdbConfig(_addr), m_default_encryption_password(NULL) {}
 
   // if len == -1, then function will use strlen() to get size of pwd
-  int set_default_encryption_password(const char* pwd, int len);
+  int set_default_encryption_password(const char *pwd, int len);
 
-  int start(unsigned & _backup_id,
-	    int flags = 2,
-	    unsigned int user_backup_id= 0,
-	    unsigned int logtype= 0,
-	    const char* encryption_password = nullptr,
-	    unsigned int password_length = 0);
-  int start() { unsigned unused =0; return start(unused); }
-  int restore(unsigned _backup_id, bool restore_meta = true, bool restore_data = true, unsigned error_insert = 0, bool restore_epoch = false);
+  int start(unsigned &_backup_id, int flags = 2,
+            unsigned int user_backup_id = 0, unsigned int logtype = 0,
+            const char *encryption_password = nullptr,
+            unsigned int password_length = 0);
+  int start() {
+    unsigned unused = 0;
+    return start(unused);
+  }
+  int restore(unsigned _backup_id, bool restore_meta = true,
+              bool restore_data = true, unsigned error_insert = 0,
+              bool restore_epoch = false);
 
-  int NFMaster(NdbRestarter& _restarter);
-  int NFMasterAsSlave(NdbRestarter& _restarter);
-  int NFSlave(NdbRestarter& _restarter);
-  int NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz, bool onMaster);
+  int NFMaster(NdbRestarter &_restarter);
+  int NFMasterAsSlave(NdbRestarter &_restarter);
+  int NFSlave(NdbRestarter &_restarter);
+  int NF(NdbRestarter &_restarter, int *NFDuringBackup_codes, const int sz,
+         bool onMaster);
 
-  int FailMaster(NdbRestarter& _restarter);
-  int FailMasterAsSlave(NdbRestarter& _restarter);
-  int FailSlave(NdbRestarter& _restarter);
-  int Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool onMaster);
+  int FailMaster(NdbRestarter &_restarter);
+  int FailMasterAsSlave(NdbRestarter &_restarter);
+  int FailSlave(NdbRestarter &_restarter);
+  int Fail(NdbRestarter &_restarter, int *Fail_codes, const int sz,
+           bool onMaster);
   int startLogEvent();
   int checkBackupStatus();
 
   int clearOldBackups();
   int abort(unsigned _backup_id);
 
-private:
-
-  int execRestore(bool _restore_data,
-		  bool _restore_meta,
-                  bool _restore_epoch,
-		  int _node_id,
-		  unsigned _backup_id,
-                  unsigned error_insert=0,
-                  const char* encryption_password = nullptr,
+ private:
+  int execRestore(bool _restore_data, bool _restore_meta, bool _restore_epoch,
+                  int _node_id, unsigned _backup_id, unsigned error_insert = 0,
+                  const char *encryption_password = nullptr,
                   int password_length = -1);
 
   std::string getBackupDataDirForNode(int node_id);
   NdbLogEventHandle log_handle;
   BaseString getNdbRestoreBinaryPath();
-  char * m_default_encryption_password;
+  char *m_default_encryption_password;
   size_t m_default_encryption_password_length;
 };
 

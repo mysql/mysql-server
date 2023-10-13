@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 177
 
-
 class TcKeyRef {
-
   /**
    * Receiver(s)
    */
@@ -52,17 +50,16 @@ class TcKeyRef {
   friend class Dbspj;
 
   friend bool printTCKEYREF(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 5;
 
-private:
+ private:
   Uint32 connectPtr; /* Operation pointer */
   Uint32 transId[2];
   Uint32 errorCode;
   Uint32 errorData;
 };
-
 
 #undef JAM_FILE_ID
 

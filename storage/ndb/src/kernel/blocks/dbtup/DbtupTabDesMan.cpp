@@ -24,13 +24,12 @@
 
 #define DBTUP_C
 #define DBTUP_TAB_DES_MAN_CPP
-#include "Dbtup.hpp"
-#include <RefConvert.hpp>
 #include <ndb_limits.h>
+#include <RefConvert.hpp>
 #include <pc.hpp>
+#include "Dbtup.hpp"
 
 #define JAM_FILE_ID 412
-
 
 /*
  * TABLE DESCRIPTOR MEMORY MANAGER
@@ -45,15 +44,11 @@
  * divides itself up into free list chunks.
  */
 
-Uint32
-Dbtup::getTabDescrOffsets(Uint32 noOfAttrs,
-                          Uint32 noOfCharsets,
-                          Uint32 noOfKeyAttr,
-                          Uint32 extraColumns,
-                          Uint32* offset)
-{
+Uint32 Dbtup::getTabDescrOffsets(Uint32 noOfAttrs, Uint32 noOfCharsets,
+                                 Uint32 noOfKeyAttr, Uint32 extraColumns,
+                                 Uint32 *offset) {
   // belongs to configure.in
-  unsigned sizeOfPointer = sizeof(CHARSET_INFO*);
+  unsigned sizeOfPointer = sizeof(CHARSET_INFO *);
   ndbrequire((sizeOfPointer & 0x3) == 0);
   sizeOfPointer = (sizeOfPointer >> 2);
   // do in layout order and return offsets (see DbtupMeta.cpp)
@@ -65,31 +60,26 @@ Dbtup::getTabDescrOffsets(Uint32 noOfAttrs,
   offset[3] = allocSize += noOfCharsets * sizeOfPointer;
   offset[4] = allocSize += noOfKeyAttr;
   offset[5] = allocSize += (noOfAttrs + extraColumns) * ZAD_SIZE;
-  offset[6] = allocSize += (noOfAttrs+1) >> 1;  // real order
+  offset[6] = allocSize += (noOfAttrs + 1) >> 1;  // real order
   allocSize += ZTD_TRAILER_SIZE;
   // return number of words
   return allocSize;
 }
 
-Uint32
-Dbtup::getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset)
-{
+Uint32 Dbtup::getDynTabDescrOffsets(Uint32 MaskSize, Uint32 *offset) {
   // do in layout order and return offsets (see DbtupMeta.cpp)
-  Uint32 allocSize= 0;
-  offset[0]= allocSize += ZTD_SIZE;
-  offset[1]= allocSize += MaskSize;
-  offset[2]= allocSize += MaskSize;
-  allocSize+= ZTD_TRAILER_SIZE;
+  Uint32 allocSize = 0;
+  offset[0] = allocSize += ZTD_SIZE;
+  offset[1] = allocSize += MaskSize;
+  offset[2] = allocSize += MaskSize;
+  allocSize += ZTD_TRAILER_SIZE;
   // return number of words
   return allocSize;
 }
 
-void
-Dbtup::releaseTabDescr(Uint32 descriptor)
-{
-  if (descriptor != RNIL)
-  {
-    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
+void Dbtup::releaseTabDescr(Uint32 descriptor) {
+  if (descriptor != RNIL) {
+    Uint32 retNo = getTabDescrWord(descriptor + ZTD_DATASIZE);
     ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
     ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
     ndbrequire(ZTD_TYPE_NORMAL ==
@@ -98,21 +88,21 @@ Dbtup::releaseTabDescr(Uint32 descriptor)
   }
 }
 
-Uint32 Dbtup::allocTabDescr(Uint32 allocSize)
-{
+Uint32 Dbtup::allocTabDescr(Uint32 allocSize) {
   Uint32 reference = RNIL;
-/* ---------------------------------------------------------------- */
-/*       ALWAYS ALLOCATE A MULTIPLE OF 16 WORDS                     */
-/* ---------------------------------------------------------------- */
+  /* ---------------------------------------------------------------- */
+  /*       ALWAYS ALLOCATE A MULTIPLE OF 16 WORDS                     */
+  /* ---------------------------------------------------------------- */
   allocSize = (((allocSize - 1) >> 4) + 1) << 4;
-  Uint32 list = nextHigherTwoLog(allocSize - 1);	/* CALCULATE WHICH LIST IT BELONGS TO     */
+  Uint32 list = nextHigherTwoLog(allocSize -
+                                 1); /* CALCULATE WHICH LIST IT BELONGS TO */
   for (Uint32 i = list; i < 16; i++) {
     jam();
     if (cfreeTdList[i] != RNIL) {
       jam();
       reference = cfreeTdList[i];
-      removeTdArea(reference, i);	                /* REMOVE THE AREA FROM THE FREELIST      */
-      Uint32 retNo = (1 << i) - allocSize;	        /* CALCULATE THE DIFFERENCE               */
+      removeTdArea(reference, i); /* REMOVE THE AREA FROM THE FREELIST      */
+      Uint32 retNo = (1 << i) - allocSize; /* CALCULATE THE DIFFERENCE */
       if (retNo >= ZTD_FREE_SIZE) {
         jam();
         // return unused words, of course without attempting left merge
@@ -121,10 +111,10 @@ Uint32 Dbtup::allocTabDescr(Uint32 allocSize)
       } else {
         jam();
         allocSize = 1 << i;
-      }//if
+      }  // if
       break;
-    }//if
-  }//for
+    }  // if
+  }    // for
   if (reference == RNIL) {
     jam();
     terrorCode = ZMEM_NOTABDESCR_ERROR;
@@ -134,67 +124,58 @@ Uint32 Dbtup::allocTabDescr(Uint32 allocSize)
     setTabDescrWord((reference + allocSize) - ZTD_TR_TYPE, ZTD_TYPE_NORMAL);
     setTabDescrWord(reference + ZTD_DATASIZE, allocSize);
 
-     /* INITIALIZE THE TRAILER RECORD WITH TYPE AND SIZE     */
-     /* THE TRAILER IS USED TO SIMPLIFY MERGE OF FREE AREAS  */
+    /* INITIALIZE THE TRAILER RECORD WITH TYPE AND SIZE     */
+    /* THE TRAILER IS USED TO SIMPLIFY MERGE OF FREE AREAS  */
 
     setTabDescrWord(reference + ZTD_HEADER, ZTD_TYPE_NORMAL);
     setTabDescrWord((reference + allocSize) - ZTD_TR_SIZE, allocSize);
     return reference;
-  }//if
-}//Dbtup::allocTabDescr()
+  }  // if
+}  // Dbtup::allocTabDescr()
 
-void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal)
-{
-  itdaMergeTabDescr(retRef, retNo, normal);       /* MERGE WITH POSSIBLE NEIGHBOURS   */
+void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal) {
+  itdaMergeTabDescr(retRef, retNo,
+                    normal); /* MERGE WITH POSSIBLE NEIGHBOURS   */
   while (retNo >= ZTD_FREE_SIZE) {
     jam();
     Uint32 list = nextHigherTwoLog(retNo);
 
-    if(list == 0 || list > 16)
-    {
+    if (list == 0 || list > 16) {
       verifytabdes();
       ndbabort();
     }
 
-    list--;	/* RETURN TO NEXT LOWER LIST    */
+    list--; /* RETURN TO NEXT LOWER LIST    */
     Uint32 sizeOfChunk = 1 << list;
     insertTdArea(retRef, list);
     retRef += sizeOfChunk;
 
-    if(retNo < sizeOfChunk)
-    {
+    if (retNo < sizeOfChunk) {
       verifytabdes();
       ndbabort();
     }
 
     retNo -= sizeOfChunk;
-  }//while
+  }  // while
   ndbassert(retNo == 0);
-}//Dbtup::freeTabDescr()
+}  // Dbtup::freeTabDescr()
 
-Uint32
-Dbtup::getTabDescrWord(Uint32 index)
-{
+Uint32 Dbtup::getTabDescrWord(Uint32 index) {
   ndbrequire(index < cnoOfTabDescrRec);
   return tableDescriptor[index].tabDescr;
-}//Dbtup::getTabDescrWord()
+}  // Dbtup::getTabDescrWord()
 
-void
-Dbtup::setTabDescrWord(Uint32 index, Uint32 word)
-{
+void Dbtup::setTabDescrWord(Uint32 index, Uint32 word) {
   ndbrequire(index < cnoOfTabDescrRec);
   tableDescriptor[index].tabDescr = word;
-}//Dbtup::setTabDescrWord()
+}  // Dbtup::setTabDescrWord()
 
-void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list) 
-{
-  if(tabDesRef >= cnoOfTabDescrRec)
-  {
+void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list) {
+  if (tabDesRef >= cnoOfTabDescrRec) {
     verifytabdes();
     ndbabort();
   }
-  if(list >= 16)
-  {
+  if (list >= 16) {
     verifytabdes();
     ndbabort();
   }
@@ -203,24 +184,23 @@ void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list)
   setTabDescrWord(tabDesRef + ZTD_FL_HEADER, ZTD_TYPE_FREE);
   setTabDescrWord(tabDesRef + ZTD_FL_NEXT, cfreeTdList[list]);
   if (cfreeTdList[list] != RNIL) {
-    jam();                                                /* PREVIOUSLY EMPTY SLOT     */
+    jam(); /* PREVIOUSLY EMPTY SLOT     */
     setTabDescrWord(cfreeTdList[list] + ZTD_FL_PREV, tabDesRef);
-  }//if
-  cfreeTdList[list] = tabDesRef;	/* RELINK THE LIST           */
+  }                              // if
+  cfreeTdList[list] = tabDesRef; /* RELINK THE LIST           */
 
   setTabDescrWord(tabDesRef + ZTD_FL_PREV, RNIL);
   setTabDescrWord(tabDesRef + ZTD_FL_SIZE, 1 << list);
   setTabDescrWord((tabDesRef + (1 << list)) - ZTD_TR_TYPE, ZTD_TYPE_FREE);
   setTabDescrWord((tabDesRef + (1 << list)) - ZTD_TR_SIZE, 1 << list);
-}//Dbtup::insertTdArea()
+}  // Dbtup::insertTdArea()
 
 /*
  * Merge to-be-removed chunk (which need not be initialized with header
  * and trailer) with left and right buddies.  The start point retRef
  * moves to left and the size retNo increases to match the new chunk.
  */
-void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
-{
+void Dbtup::itdaMergeTabDescr(Uint32 &retRef, Uint32 &retNo, bool normal) {
   // merge right
   while ((retRef + retNo) < cnoOfTabDescrRec) {
     jam();
@@ -256,12 +236,11 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
       break;
     }
   }
-  if((retRef + retNo) > cnoOfTabDescrRec)
-  {
+  if ((retRef + retNo) > cnoOfTabDescrRec) {
     verifytabdes();
     ndbabort();
   }
-}//Dbtup::itdaMergeTabDescr()
+}  // Dbtup::itdaMergeTabDescr()
 
 /* ---------------------------------------------------------------- */
 /* ------------------------ REMOVE_TD_AREA ------------------------ */
@@ -274,15 +253,12 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
 /*                                                                  */
 /* SHORTNAME:   RMTA                                                */
 /* -----------------------------------------------------------------*/
-void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list) 
-{
-  if(tabDesRef >= cnoOfTabDescrRec)
-  {
+void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list) {
+  if (tabDesRef >= cnoOfTabDescrRec) {
     verifytabdes();
     ndbabort();
   }
-  if(list >= 16)
-  {
+  if (list >= 16) {
     verifytabdes();
     ndbabort();
   }
@@ -297,28 +273,26 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
 
   if (tabDesRef == cfreeTdList[list]) {
     jam();
-    cfreeTdList[list] = tabDescrNextPtr;	/* RELINK THE LIST           */
-  }//if
+    cfreeTdList[list] = tabDescrNextPtr; /* RELINK THE LIST           */
+  }                                      // if
   if (tabDescrNextPtr != RNIL) {
     jam();
     setTabDescrWord(tabDescrNextPtr + ZTD_FL_PREV, tabDescrPrevPtr);
-  }//if
+  }  // if
   if (tabDescrPrevPtr != RNIL) {
     jam();
     setTabDescrWord(tabDescrPrevPtr + ZTD_FL_NEXT, tabDescrNextPtr);
-  }//if
-}//Dbtup::removeTdArea()
+  }  // if
+}  // Dbtup::removeTdArea()
 
-void
-Dbtup::verifytabdes()
-{
+void Dbtup::verifytabdes() {
   struct WordType {
-    short fl;   // free list 0-15
-    short ti;   // table id
-    short td;   // table descriptor area 0 or >0 for dynamic
+    short fl;  // free list 0-15
+    short ti;  // table id
+    short td;  // table descriptor area 0 or >0 for dynamic
     WordType() : fl(-1), ti(-1), td(-1) {}
   };
-  WordType* wt = new WordType [cnoOfTabDescrRec];
+  WordType *wt = new WordType[cnoOfTabDescrRec];
   uint free_words = 0;
   uint free_frags = 0;
   uint used_words = 0;
@@ -331,19 +305,24 @@ Dbtup::verifytabdes()
         const Uint32 size = (1 << i);
         ndbrequire(size >= ZTD_FREE_SIZE);
         ndbrequire(desc + size <= cnoOfTabDescrRec);
-        { Uint32 index = desc + ZTD_FL_HEADER;
+        {
+          Uint32 index = desc + ZTD_FL_HEADER;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_FREE);
         }
-        { Uint32 index = desc + ZTD_FL_SIZE;
+        {
+          Uint32 index = desc + ZTD_FL_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
-        { Uint32 index = desc + size - ZTD_TR_TYPE;
+        {
+          Uint32 index = desc + size - ZTD_TR_TYPE;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_FREE);
         }
-        { Uint32 index = desc + size - ZTD_TR_SIZE;
+        {
+          Uint32 index = desc + size - ZTD_TR_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
-        { Uint32 index = desc + ZTD_FL_PREV;
+        {
+          Uint32 index = desc + ZTD_FL_PREV;
           ndbrequire(tableDescriptor[index].tabDescr == desc2);
         }
         for (uint j = 0; j < size; j++) {
@@ -363,30 +342,31 @@ Dbtup::verifytabdes()
       TablerecPtr ptr;
       ptr.i = i;
       ptrAss(ptr, tablerec);
-      if (ptr.p->tableStatus != DEFINED)
-        continue;
+      if (ptr.p->tableStatus != DEFINED) continue;
       {
         Uint32 offset[10];
-        const Uint32 alloc = getTabDescrOffsets(ptr.p->m_no_of_attributes,
-                                                ptr.p->noOfCharsets,
-                                                ptr.p->noOfKeyAttr,
-                                                ptr.p->m_no_of_extra_columns,
-                                                offset);
+        const Uint32 alloc = getTabDescrOffsets(
+            ptr.p->m_no_of_attributes, ptr.p->noOfCharsets, ptr.p->noOfKeyAttr,
+            ptr.p->m_no_of_extra_columns, offset);
         const Uint32 desc = ptr.p->readKeyArray - offset[3];
         Uint32 size = alloc;
         if (size % ZTD_FREE_SIZE != 0)
           size += ZTD_FREE_SIZE - size % ZTD_FREE_SIZE;
         ndbrequire(desc + size <= cnoOfTabDescrRec);
-        { Uint32 index = desc + ZTD_FL_HEADER;
+        {
+          Uint32 index = desc + ZTD_FL_HEADER;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
         }
-        { Uint32 index = desc + ZTD_FL_SIZE;
+        {
+          Uint32 index = desc + ZTD_FL_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
-        { Uint32 index = desc + size - ZTD_TR_TYPE;
+        {
+          Uint32 index = desc + size - ZTD_TR_TYPE;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
         }
-        { Uint32 index = desc + size - ZTD_TR_SIZE;
+        {
+          Uint32 index = desc + size - ZTD_TR_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
         for (uint j = 0; j < size; j++) {
@@ -396,8 +376,7 @@ Dbtup::verifytabdes()
         }
         used_words += size;
       }
-      for (uint k = 0; k < NO_DYNAMICS; k++)
-      {
+      for (uint k = 0; k < NO_DYNAMICS; k++) {
         Uint32 offset[3];
         Uint32 MaskSize = (ptr.p->m_dyn_null_bits[k] + 31) >> 5;
         const Uint32 alloc = getDynTabDescrOffsets(MaskSize, offset);
@@ -406,16 +385,20 @@ Dbtup::verifytabdes()
         if (size % ZTD_FREE_SIZE != 0)
           size += ZTD_FREE_SIZE - size % ZTD_FREE_SIZE;
         ndbrequire(desc + size <= cnoOfTabDescrRec);
-        { Uint32 index = desc + ZTD_FL_HEADER;
+        {
+          Uint32 index = desc + ZTD_FL_HEADER;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
         }
-        { Uint32 index = desc + ZTD_FL_SIZE;
+        {
+          Uint32 index = desc + ZTD_FL_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
-        { Uint32 index = desc + size - ZTD_TR_TYPE;
+        {
+          Uint32 index = desc + size - ZTD_TR_TYPE;
           ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
         }
-        { Uint32 index = desc + size - ZTD_TR_SIZE;
+        {
+          Uint32 index = desc + size - ZTD_TR_SIZE;
           ndbrequire(tableDescriptor[index].tabDescr == size);
         }
         for (uint j = 0; j < size; j++) {
@@ -435,7 +418,7 @@ Dbtup::verifytabdes()
       ndbrequire(is_fl != is_ti);
     }
   }
-  delete [] wt;
+  delete[] wt;
   ndbrequire(used_words + free_words == cnoOfTabDescrRec);
   g_eventLogger->info("verifytabdes: total: %u used: %u free: %u frags: %u",
                       cnoOfTabDescrRec, used_words, free_words, free_frags);

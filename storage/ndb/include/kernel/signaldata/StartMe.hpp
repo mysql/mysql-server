@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 152
 
-
 /**
  * This signal is sent...
  *
@@ -42,11 +41,11 @@ class StartMeReq {
    * Sender(s) / Receiver(s)
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:
-  
+
+ private:
   Uint32 startingRef;
   Uint32 startingVersion;
 };
@@ -56,20 +55,20 @@ class StartMeConf {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength_v1 = 25;
   static constexpr Uint32 SignalLength_v2 = 2;
-private:
-  
+
+ private:
   Uint32 startingNodeId;
   Uint32 startWord;
-  
+
   /**
    * No of free words to carry data
    */
   static constexpr Uint32 DATA_SIZE = 23;
-  
+
   Uint32 data[DATA_SIZE];
 };
 

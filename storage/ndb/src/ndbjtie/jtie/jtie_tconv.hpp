@@ -48,16 +48,16 @@
 //   JA_t <-> CA_t conversions by Param<>, Target<>, Result<>
 //   CA_t <-> CF_t conversions by assignment
 //
-template< typename JFT, typename CFT, typename JAT = JFT, typename CAT = CFT >
+template <typename JFT, typename CFT, typename JAT = JFT, typename CAT = CFT>
 struct ttrait {
-    typedef JFT JF_t; // Java formal parameter/result type
-    typedef JAT JA_t; // Java actual parameter/result type
-    typedef CFT CF_t; // C formal parameter/result type
-    typedef CAT CA_t; // C actual parameter/result type
+  typedef JFT JF_t;  // Java formal parameter/result type
+  typedef JAT JA_t;  // Java actual parameter/result type
+  typedef CFT CF_t;  // C formal parameter/result type
+  typedef CAT CA_t;  // C actual parameter/result type
 
-    // XXX pure trait, no data members, still declare c'tor private?
+  // XXX pure trait, no data members, still declare c'tor private?
 };
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_hpp
+#endif  // jtie_tconv_hpp

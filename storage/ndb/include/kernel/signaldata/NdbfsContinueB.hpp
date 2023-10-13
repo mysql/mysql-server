@@ -29,22 +29,18 @@
 
 #define JAM_FILE_ID 130
 
-
 class NdbfsContinueB {
   /**
    * Sender(s)/Reciver(s)
    */
   friend class Ndbfs;
   friend class VoidFs;
-  friend bool printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData,
-				   Uint32 len, Uint16);
-private:
-  enum {
-    ZSCAN_MEMORYCHANNEL_10MS_DELAY  =  0,
-    ZSCAN_MEMORYCHANNEL_NO_DELAY    =  1
-  };
-};
+  friend bool printCONTINUEB_NDBFS(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16);
 
+ private:
+  enum { ZSCAN_MEMORYCHANNEL_10MS_DELAY = 0, ZSCAN_MEMORYCHANNEL_NO_DELAY = 1 };
+};
 
 #undef JAM_FILE_ID
 

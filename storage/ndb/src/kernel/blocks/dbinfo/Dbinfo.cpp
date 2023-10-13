@@ -25,8 +25,8 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 
-#include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/TransIdAI.hpp>
 
 //#define DBINFO_SCAN_TRACE
@@ -36,14 +36,11 @@
 
 #define JAM_FILE_ID 455
 
+Uint32 dbinfo_blocks[] = {DBACC,  DBTUP,  BACKUP, DBTC,  SUMA,  DBUTIL, TRIX,
+                          DBTUX,  DBDICT, CMVMI,  DBLQH, LGMAN, PGMAN,  DBSPJ,
+                          THRMAN, TRPMAN, QMGR,   DBDIH, 0};
 
-Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
-                           TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN,
-                           PGMAN, DBSPJ, THRMAN, TRPMAN, QMGR, DBDIH, 0};
-
-Dbinfo::Dbinfo(Block_context& ctx) :
-  SimulatedBlock(DBINFO, ctx)
-{
+Dbinfo::Dbinfo(Block_context &ctx) : SimulatedBlock(DBINFO, ctx) {
   BLOCK_CONSTRUCTOR(Dbinfo);
 
   static_assert(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
@@ -58,32 +55,27 @@ Dbinfo::Dbinfo(Block_context& ctx) :
 
   addRecSignal(GSN_NODE_FAILREP, &Dbinfo::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Dbinfo::execINCL_NODEREQ);
-
 }
 
-Dbinfo::~Dbinfo()
-{
-}
+Dbinfo::~Dbinfo() {}
 
 BLOCK_FUNCTIONS(Dbinfo)
 
-void Dbinfo::execSTTOR(Signal *signal)
-{
+void Dbinfo::execSTTOR(Signal *signal) {
   jamEntry();
   sendSTTORRY(signal);
   return;
 }
 
-void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
-{
+void Dbinfo::execREAD_CONFIG_REQ(Signal *signal) {
   jamEntry();
-  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
   Uint32 ref = req->senderRef;
   Uint32 senderData = req->senderData;
   Uint32 ntable;
 
-  const ndb_mgm_configuration_iterator * p =
-     m_ctx.m_config.getOwnConfigIterator();
+  const ndb_mgm_configuration_iterator *p =
+      m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &ntable));
 
@@ -94,18 +86,17 @@ void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
   counts.est_tables = ntable / 3;
 
   // Count nodes
-  for(int i = 1 ; i < MAX_NODES ; i++) {
+  for (int i = 1; i < MAX_NODES; i++) {
     NodeInfo::NodeType type = getNodeInfo(i).getType();
-    if(type == NodeInfo::NodeType::DB)
-      counts.data_nodes++;
-    if(type == NodeInfo::NodeType::DB || type == NodeInfo::NodeType::API ||
-       type == NodeInfo::NodeType::MGM)
+    if (type == NodeInfo::NodeType::DB) counts.data_nodes++;
+    if (type == NodeInfo::NodeType::DB || type == NodeInfo::NodeType::API ||
+        type == NodeInfo::NodeType::MGM)
       counts.all_nodes++;
   }
 
   // Count threads
-  const THRConfigApplier & thr_cf =
-    globalEmulatorData.theConfiguration->m_thr_config;
+  const THRConfigApplier &thr_cf =
+      globalEmulatorData.theConfiguration->m_thr_config;
   counts.threads.send = globalData.ndbMtSendThreads;
   counts.threads.db = thr_cf.getThreadCount();
   counts.threads.ldm = thr_cf.getThreadCount(THRConfig::T_LDM);
@@ -113,68 +104,58 @@ void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
 
   // Count block instances
   counts.log_parts = globalData.ndbLogParts;
-  counts.instances.tc  = globalData.ndbMtTcWorkers;
+  counts.instances.tc = globalData.ndbMtTcWorkers;
   counts.instances.lqh = globalData.ndbMtLqhWorkers;
   counts.instances.pgman = counts.instances.lqh + 1;
 
   // Send conf
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  ReadConfigConf *conf = (ReadConfigConf *)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal,
-	     ReadConfigConf::SignalLength, JBB);
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, ReadConfigConf::SignalLength,
+             JBB);
 }
 
-void Dbinfo::sendSTTORRY(Signal* signal)
-{
+void Dbinfo::sendSTTORRY(Signal *signal) {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 255; // No more start phases from missra
+  signal->theData[4] = 255;  // No more start phases from missra
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
 }
 
-void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
-{
+void Dbinfo::execDUMP_STATE_ORD(Signal *signal) {
   jamEntry();
 
-  switch(signal->theData[0])
-  {
-  case DumpStateOrd::DbinfoListTables:
-    jam();
-    g_eventLogger->info("--- BEGIN NDB$INFO.TABLES ---");
-    for(int i = 0; i < Ndbinfo::getNumTables(); i++)
-    {
-      const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
-      g_eventLogger->info("%d,%s", i, tab.m.name);
-    }
-    g_eventLogger->info("--- END NDB$INFO.TABLES ---");
-    break;
+  switch (signal->theData[0]) {
+    case DumpStateOrd::DbinfoListTables:
+      jam();
+      g_eventLogger->info("--- BEGIN NDB$INFO.TABLES ---");
+      for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
+        const Ndbinfo::Table &tab = Ndbinfo::getTable(i);
+        g_eventLogger->info("%d,%s", i, tab.m.name);
+      }
+      g_eventLogger->info("--- END NDB$INFO.TABLES ---");
+      break;
 
-  case DumpStateOrd::DbinfoListColumns:
-    jam();
-    g_eventLogger->info("--- BEGIN NDB$INFO.COLUMNS ---");
-    for(int i = 0; i < Ndbinfo::getNumTables(); i++)
-    {
-      const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
+    case DumpStateOrd::DbinfoListColumns:
+      jam();
+      g_eventLogger->info("--- BEGIN NDB$INFO.COLUMNS ---");
+      for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
+        const Ndbinfo::Table &tab = Ndbinfo::getTable(i);
 
-      for(int j = 0; j < tab.m.ncols; j++)
-        g_eventLogger->info("%d,%d,%s,%d", i, j, tab.col[j].name,
-                            tab.col[j].coltype);
-    }
-    g_eventLogger->info("--- END NDB$INFO.COLUMNS ---");
-    break;
-
+        for (int j = 0; j < tab.m.ncols; j++)
+          g_eventLogger->info("%d,%d,%s,%d", i, j, tab.col[j].name,
+                              tab.col[j].coltype);
+      }
+      g_eventLogger->info("--- END NDB$INFO.COLUMNS ---");
+      break;
   };
 }
 
-
-Uint32 Dbinfo::find_next_block(Uint32 block) const
-{
+Uint32 Dbinfo::find_next_block(Uint32 block) const {
   int i = 0;
   // Find current blocks position
-  while (dbinfo_blocks[i] != block &&
-         dbinfo_blocks[i] != 0)
-    i++;
+  while (dbinfo_blocks[i] != block && dbinfo_blocks[i] != 0) i++;
 
   // Make sure current block was found
   ndbrequire(dbinfo_blocks[i]);
@@ -183,9 +164,7 @@ Uint32 Dbinfo::find_next_block(Uint32 block) const
   return dbinfo_blocks[++i];
 }
 
-static Uint32
-switchRef(Uint32 block, Uint32 node)
-{
+static Uint32 switchRef(Uint32 block, Uint32 node) {
   const Uint32 ref = numberToRef(block, node);
 #ifdef DBINFO_SCAN_TRACE
   g_eventLogger->info("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
@@ -194,16 +173,13 @@ switchRef(Uint32 block, Uint32 node)
   return ref;
 }
 
-
-bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
-{
+bool Dbinfo::find_next(Ndbinfo::ScanCursor *cursor) const {
   Uint32 node = refToNode(cursor->currRef);
   Uint32 block = refToBlock(cursor->currRef);
   const Uint32 instance = refToInstance(cursor->currRef);
   ndbrequire(instance == 0);
 
-  if (node == 0)
-  {
+  if (node == 0) {
     jam();
     // First 'find_next'
     ndbrequire(block == 0);
@@ -211,14 +187,12 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
     return true;
   }
 
-  if (block)
-  {
+  if (block) {
     jam();
     // Find next block
     ndbrequire(node == getOwnNodeId());
     block = find_next_block(block);
-    if (block)
-    {
+    if (block) {
       jam();
       cursor->currRef = switchRef(block, node);
       return true;
@@ -230,10 +204,9 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
   return false;
 }
 
-void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
-{
+void Dbinfo::execDBINFO_SCANREQ(Signal *signal) {
   jamEntry();
-  DbinfoScanReq* req_ptr = (DbinfoScanReq*)signal->getDataPtrSend();
+  DbinfoScanReq *req_ptr = (DbinfoScanReq *)signal->getDataPtrSend();
   const Uint32 senderRef = signal->header.theSendersBlockRef;
 
   // Copy signal on stack
@@ -246,27 +219,25 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
   // Validate tableId
   const Uint32 tableId = req.tableId;
-  if (tableId >= (Uint32)Ndbinfo::getNumTables())
-  {
+  if (tableId >= (Uint32)Ndbinfo::getNumTables()) {
     jam();
-    DbinfoScanRef *ref= (DbinfoScanRef*)signal->getDataPtrSend();
+    DbinfoScanRef *ref = (DbinfoScanRef *)signal->getDataPtrSend();
     ref->resultData = resultData;
     ref->transId[0] = transId0;
     ref->transId[1] = transId1;
     ref->resultRef = resultRef;
-    ref->errorCode= DbinfoScanRef::NoTable;
+    ref->errorCode = DbinfoScanRef::NoTable;
     sendSignal(senderRef, GSN_DBINFO_SCANREF, signal,
                DbinfoScanRef::SignalLength, JBB);
     return;
   }
 
   // TODO Check all scan parameters
-  Ndbinfo::ScanCursor* cursor =
-    CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&req));
+  Ndbinfo::ScanCursor *cursor =
+      CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&req));
 
   Uint32 signal_length = signal->getLength();
-  if (signal_length == DbinfoScanReq::SignalLength)
-  {
+  if (signal_length == DbinfoScanReq::SignalLength) {
     // Initialize cursor
     jam();
     cursor->senderRef = senderRef;
@@ -285,142 +256,127 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
              DbinfoScanReq::SignalLength + Ndbinfo::ScanCursor::Length);
   ndbrequire(req.cursor_sz == Ndbinfo::ScanCursor::Length);
 
-  switch(tableId)
-  {
-  case Ndbinfo::TABLES_TABLEID:
-  {
-    jam();
-
-    Ndbinfo::Ratelimit rl;
-    Uint32 tableId = cursor->data[0];
-
-    while(tableId < (Uint32)Ndbinfo::getNumTables())
-    {
+  switch (tableId) {
+    case Ndbinfo::TABLES_TABLEID: {
       jam();
-      const Ndbinfo::Table& tab = Ndbinfo::getTable(tableId);
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(tableId);
-      row.write_string(tab.m.name);
-      row.write_string(tab.m.comment);
-      row.write_uint32(tab.m.estimate_rows(counts));
-      ndbinfo_send_row(signal, req, row, rl);
 
-      tableId++;
+      Ndbinfo::Ratelimit rl;
+      Uint32 tableId = cursor->data[0];
 
-      if (rl.need_break(req))
-      {
+      while (tableId < (Uint32)Ndbinfo::getNumTables()) {
         jam();
-        ndbinfo_send_scan_break(signal, req, rl, tableId);
-        return;
-      }
-    }
-
-    // All tables sent
-    req.cursor_sz = 0; // Close cursor
-    ndbinfo_send_scan_conf(signal, req, rl);
-    return;
-
-    break;
-  }
-
-  case Ndbinfo::COLUMNS_TABLEID:
-  {
-    jam();
-
-    Ndbinfo::Ratelimit rl;
-    Uint32 tableId = cursor->data[0];
-    Uint32 columnId = cursor->data[1];
-
-    while(tableId < (Uint32)Ndbinfo::getNumTables())
-    {
-      jam();
-      const Ndbinfo::Table& tab = Ndbinfo::getTable(tableId);
-      while(columnId < (Uint32)tab.m.ncols)
-      {
-        jam();
+        const Ndbinfo::Table &tab = Ndbinfo::getTable(tableId);
         Ndbinfo::Row row(signal, req);
         row.write_uint32(tableId);
-        row.write_uint32(columnId);
-        row.write_string(tab.col[columnId].name);
-        row.write_uint32(tab.col[columnId].coltype);
-        row.write_string(tab.col[columnId].comment);
+        row.write_string(tab.m.name);
+        row.write_string(tab.m.comment);
+        row.write_uint32(tab.m.estimate_rows(counts));
         ndbinfo_send_row(signal, req, row, rl);
 
-        assert(columnId < 256);
-        columnId++;
+        tableId++;
 
-        if(rl.need_break(req))
-        {
+        if (rl.need_break(req)) {
           jam();
-          ndbinfo_send_scan_break(signal, req, rl, tableId, columnId);
+          ndbinfo_send_scan_break(signal, req, rl, tableId);
           return;
         }
       }
-      columnId = 0;
-      tableId++;
+
+      // All tables sent
+      req.cursor_sz = 0;  // Close cursor
+      ndbinfo_send_scan_conf(signal, req, rl);
+      return;
+
+      break;
     }
 
-    // All tables and columns sent
-    req.cursor_sz = 0; // Close cursor
-    ndbinfo_send_scan_conf(signal, req, rl);
-
-    break;
-  }
-
-  default:
-  {
-    jam();
-
-    ndbassert(tableId > 1);
-
-    //printSignalHeader(stdout, signal->header, 99, 98, true);
-    //printDBINFO_SCAN(stdout, signal->theData, signal->getLength(), 0);
-
-    if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) ||
-        find_next(cursor))
-    {
+    case Ndbinfo::COLUMNS_TABLEID: {
       jam();
-      ndbrequire(cursor->currRef);
 
-      // CONF or REF should be sent back here
-      cursor->senderRef = reference();
+      Ndbinfo::Ratelimit rl;
+      Uint32 tableId = cursor->data[0];
+      Uint32 columnId = cursor->data[1];
 
-      // Send SCANREQ
-      MEMCOPY_NO_WORDS(req_ptr,
-                       &req, signal_length);
-      sendSignal(cursor->currRef,
-                 GSN_DBINFO_SCANREQ,
-                 signal, signal_length, JBB);
+      while (tableId < (Uint32)Ndbinfo::getNumTables()) {
+        jam();
+        const Ndbinfo::Table &tab = Ndbinfo::getTable(tableId);
+        while (columnId < (Uint32)tab.m.ncols) {
+          jam();
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(tableId);
+          row.write_uint32(columnId);
+          row.write_string(tab.col[columnId].name);
+          row.write_uint32(tab.col[columnId].coltype);
+          row.write_string(tab.col[columnId].comment);
+          ndbinfo_send_row(signal, req, row, rl);
+
+          assert(columnId < 256);
+          columnId++;
+
+          if (rl.need_break(req)) {
+            jam();
+            ndbinfo_send_scan_break(signal, req, rl, tableId, columnId);
+            return;
+          }
+        }
+        columnId = 0;
+        tableId++;
+      }
+
+      // All tables and columns sent
+      req.cursor_sz = 0;  // Close cursor
+      ndbinfo_send_scan_conf(signal, req, rl);
+
+      break;
     }
-    else
-    {
-      // Scan is done, send SCANCONF back to caller
+
+    default: {
       jam();
-      DbinfoScanConf *apiconf= (DbinfoScanConf*)signal->getDataPtrSend();
-      MEMCOPY_NO_WORDS(apiconf, &req, DbinfoScanConf::SignalLength);
-      // Set cursor_sz back to 0 to indicate end of scan
-      apiconf->cursor_sz = 0;
-      sendSignal(resultRef, GSN_DBINFO_SCANCONF, signal,
-                 DbinfoScanConf::SignalLength, JBB);
+
+      ndbassert(tableId > 1);
+
+      // printSignalHeader(stdout, signal->header, 99, 98, true);
+      // printDBINFO_SCAN(stdout, signal->theData, signal->getLength(), 0);
+
+      if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) ||
+          find_next(cursor)) {
+        jam();
+        ndbrequire(cursor->currRef);
+
+        // CONF or REF should be sent back here
+        cursor->senderRef = reference();
+
+        // Send SCANREQ
+        MEMCOPY_NO_WORDS(req_ptr, &req, signal_length);
+        sendSignal(cursor->currRef, GSN_DBINFO_SCANREQ, signal, signal_length,
+                   JBB);
+      } else {
+        // Scan is done, send SCANCONF back to caller
+        jam();
+        DbinfoScanConf *apiconf = (DbinfoScanConf *)signal->getDataPtrSend();
+        MEMCOPY_NO_WORDS(apiconf, &req, DbinfoScanConf::SignalLength);
+        // Set cursor_sz back to 0 to indicate end of scan
+        apiconf->cursor_sz = 0;
+        sendSignal(resultRef, GSN_DBINFO_SCANCONF, signal,
+                   DbinfoScanConf::SignalLength, JBB);
+      }
+      break;
     }
-    break;
-  }
   }
 }
 
-void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
-{
-  const DbinfoScanConf* conf_ptr= (const DbinfoScanConf*)signal->getDataPtr();
+void Dbinfo::execDBINFO_SCANCONF(Signal *signal) {
+  const DbinfoScanConf *conf_ptr = (const DbinfoScanConf *)signal->getDataPtr();
   // Copy signal on stack
-  DbinfoScanConf conf= *conf_ptr;
+  DbinfoScanConf conf = *conf_ptr;
 
   jamEntry();
 
-  //printDBINFO_SCAN(stdout, signal->theData, signal->getLength(), 0);
+  // printDBINFO_SCAN(stdout, signal->theData, signal->getLength(), 0);
 
   Uint32 signal_length = signal->getLength();
   ndbrequire(signal_length ==
-             DbinfoScanReq::SignalLength+Ndbinfo::ScanCursor::Length);
+             DbinfoScanReq::SignalLength + Ndbinfo::ScanCursor::Length);
   ndbrequire(conf.cursor_sz == Ndbinfo::ScanCursor::Length);
 
   // Validate tableId
@@ -430,22 +386,20 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
 
   // Copy cursor on stack
   ndbrequire(conf.cursor_sz);
-  Ndbinfo::ScanCursor* cursor =
-    CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&conf));
+  Ndbinfo::ScanCursor *cursor =
+      CAST_PTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtrSend(&conf));
 
-  if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) || conf.returnedRows)
-  {
+  if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) || conf.returnedRows) {
     // Rate limit break, pass through to API
     jam();
     ndbrequire(cursor->currRef);
-    DbinfoScanConf *apiconf = (DbinfoScanConf*) signal->getDataPtrSend();
+    DbinfoScanConf *apiconf = (DbinfoScanConf *)signal->getDataPtrSend();
     MEMCOPY_NO_WORDS(apiconf, &conf, signal_length);
     sendSignal(resultRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
     return;
   }
 
-  if (find_next(cursor))
-  {
+  if (find_next(cursor)) {
     jam();
     ndbrequire(cursor->currRef);
 
@@ -453,17 +407,14 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
     cursor->senderRef = reference();
 
     // Send SCANREQ
-    MEMCOPY_NO_WORDS(signal->getDataPtrSend(),
-                     &conf, signal_length);
-    sendSignal(cursor->currRef,
-               GSN_DBINFO_SCANREQ,
-               signal, signal_length, JBB);
+    MEMCOPY_NO_WORDS(signal->getDataPtrSend(), &conf, signal_length);
+    sendSignal(cursor->currRef, GSN_DBINFO_SCANREQ, signal, signal_length, JBB);
     return;
   }
 
   // Scan is done, send SCANCONF back to caller
   jam();
-  DbinfoScanConf *apiconf = (DbinfoScanConf*) signal->getDataPtrSend();
+  DbinfoScanConf *apiconf = (DbinfoScanConf *)signal->getDataPtrSend();
   MEMCOPY_NO_WORDS(apiconf, &conf, DbinfoScanConf::SignalLength);
 
   // Set cursor_sz back to 0 to indicate end of scan
@@ -473,27 +424,23 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
   return;
 }
 
-
-void Dbinfo::execINCL_NODEREQ(Signal* signal)
-{
+void Dbinfo::execINCL_NODEREQ(Signal *signal) {
   jamEntry();
 
   const Uint32 senderRef = signal->theData[0];
-  const Uint32 inclNode  = signal->theData[1];
+  const Uint32 inclNode = signal->theData[1];
 
   signal->theData[0] = inclNode;
   signal->theData[1] = reference();
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
-void Dbinfo::execNODE_FAILREP(Signal* signal)
-{
+void Dbinfo::execNODE_FAILREP(Signal *signal) {
   jamEntry();
 
-  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep *rep = (NodeFailRep *)signal->getDataPtr();
 
-  if(signal->getLength() == NodeFailRep::SignalLength)
-  {
+  if (signal->getLength() == NodeFailRep::SignalLength) {
     ndbrequire(signal->getNoOfSections() == 1);
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
@@ -502,23 +449,19 @@ void Dbinfo::execNODE_FAILREP(Signal* signal)
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
-  }
-  else
-  {
-    memset(rep->theNodes + NdbNodeBitmask48::Size, 0,
-           _NDB_NBM_DIFF_BYTES);
+  } else {
+    memset(rep->theNodes + NdbNodeBitmask48::Size, 0, _NDB_NBM_DIFF_BYTES);
   }
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   for (Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
     theFailedNodes[i] = rep->theNodes[i];
 
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
-  {
-    if (NdbNodeBitmask::get(theFailedNodes, i))
-    {
-      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
-      ndbassert(elementsCleaned == 0); // DbInfo should have no distributed frag signals
-      (void) elementsCleaned; // Remove compiler warning
+  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+    if (NdbNodeBitmask::get(theFailedNodes, i)) {
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i);  // No callback
+      ndbassert(elementsCleaned ==
+                0);           // DbInfo should have no distributed frag signals
+      (void)elementsCleaned;  // Remove compiler warning
     }
   }
 }

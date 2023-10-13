@@ -25,14 +25,13 @@
 #ifndef DIGETNODES_HPP
 #define DIGETNODES_HPP
 
-#include <NodeBitmask.hpp>
 #include <ndb_limits.h>
+#include <NodeBitmask.hpp>
 
 #define JAM_FILE_ID 90
 
-
 /**
- * 
+ *
  */
 struct DiGetNodesConf {
   /**
@@ -55,10 +54,10 @@ struct DiGetNodesConf {
   Uint32 fragId;
   Uint32 reqinfo;
   Uint32 instanceKey;
-  Uint32 nodes[MAX_REPLICAS + (3 + MAX_REPLICAS)]; //+1
+  Uint32 nodes[MAX_REPLICAS + (3 + MAX_REPLICAS)];  //+1
 };
 /**
- * 
+ *
  */
 class DiGetNodesReq {
   /**
@@ -72,10 +71,12 @@ class DiGetNodesReq {
    * Receiver(s)
    */
   friend class Dbdih;
-public:
-  static constexpr Uint32 SignalLength = 6 + (sizeof(void*) / sizeof(Uint32));
+
+ public:
+  static constexpr Uint32 SignalLength = 6 + (sizeof(void *) / sizeof(Uint32));
   static constexpr Uint32 MAX_DIGETNODESREQS = 16;
-private:
+
+ private:
   Uint32 tableId;
   Uint32 hashValue;
   Uint32 distr_key_indicator;
@@ -83,11 +84,10 @@ private:
   Uint32 get_next_fragid_indicator;
   Uint32 anyNode;
   union {
-    void * jamBufferPtr;
+    void *jamBufferPtr;
     Uint32 jamBufferStorage[2];
   };
 };
-
 
 #undef JAM_FILE_ID
 

@@ -25,11 +25,10 @@
 #ifndef START_REC_HPP
 #define START_REC_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 105
-
 
 class StartRecReq {
   /**
@@ -42,12 +41,13 @@ class StartRecReq {
   friend class Dblqh;
   friend class DblqhProxy;
 
-  friend bool printSTART_REC_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
-public:
+  friend bool printSTART_REC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 6;
   static constexpr Uint32 SignalLength_v1 = 6 + NdbNodeBitmask48::Size;
-private:
-  
+
+ private:
   Uint32 receivingNodeId;
   Uint32 senderRef;
   Uint32 keepGci;
@@ -68,11 +68,12 @@ class StartRecConf {
    */
   friend class Dbdih;
 
-  friend bool printSTART_REC_CONF(FILE *, const Uint32 *, Uint32, Uint16);    
-public:
+  friend bool printSTART_REC_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:
-  
+
+ private:
   Uint32 startingNodeId;
   Uint32 senderData;
 };

@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -34,12 +34,11 @@
 
 #include <NdbApi.hpp>
 
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
-#include "Record.h"
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
-
+#include "Record.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 void get_status(Local<String>, const AccessorInfo &);
 void get_classification(Local<String>, const AccessorInfo &);
@@ -47,9 +46,8 @@ void get_code(Local<String>, const AccessorInfo &);
 void get_mysql_code(Local<String>, const AccessorInfo &);
 void get_message(Local<String>, const AccessorInfo &);
 
-
 class NdbErrorEnvelopeClass : public Envelope {
-public:
+ public:
   NdbErrorEnvelopeClass() : Envelope("NdbError") {
     addAccessor("status", get_status);
     addAccessor("classification", get_classification);
@@ -62,38 +60,36 @@ public:
 NdbErrorEnvelopeClass NdbErrorEnvelope;
 
 Local<Value> NdbError_Wrapper(const NdbError &err) {
-  return NdbErrorEnvelope.wrap(& err);
+  return NdbErrorEnvelope.wrap(&err);
 }
 
 #define V8STRING(MSG) scope.Escape(NewUtf8String(info.GetIsolate(), MSG))
 
 #define V8INTEGER(V) scope.Escape(Integer::New(info.GetIsolate(), V))
 
-#define MAP_CODE(CODE) \
-  case NdbError::CODE: \
+#define MAP_CODE(CODE)                          \
+  case NdbError::CODE:                          \
     info.GetReturnValue().Set(V8STRING(#CODE)); \
     return;
-
 
 void get_status(Local<String> property, const AccessorInfo &info) {
   EscapableHandleScope scope(info.GetIsolate());
   const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
-  
-  switch(err->status) {
+
+  switch (err->status) {
     MAP_CODE(Success);
     MAP_CODE(TemporaryError);
     MAP_CODE(PermanentError);
-    MAP_CODE(UnknownResult);  
+    MAP_CODE(UnknownResult);
   }
   info.GetReturnValue().Set(V8STRING("-unknown-"));
 }
-
 
 void get_classification(Local<String> property, const AccessorInfo &info) {
   EscapableHandleScope scope(info.GetIsolate());
   const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
 
-  switch(err->classification) {
+  switch (err->classification) {
     MAP_CODE(NoError);
     MAP_CODE(ApplicationError);
     MAP_CODE(NoDataFound);
@@ -126,7 +122,7 @@ void get_code(Local<String> property, const AccessorInfo &info) {
 void get_mysql_code(Local<String> property, const AccessorInfo &info) {
   EscapableHandleScope scope(info.GetIsolate());
   const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
-  
+
   info.GetReturnValue().Set(V8INTEGER(err->mysql_code));
 }
 
@@ -136,4 +132,3 @@ void get_message(Local<String> property, const AccessorInfo &info) {
 
   info.GetReturnValue().Set(V8STRING(err->message));
 }
-

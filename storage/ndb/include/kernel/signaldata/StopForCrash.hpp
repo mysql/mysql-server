@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 171
 
-
 /*
   The GSN_STOP_FOR_CRASH signal is only used in multi-threaded ndbd.
 
@@ -40,14 +39,14 @@
 class StopForCrash {
   friend class SimulatedBlock;
 
-  friend bool printSTOP_FOR_CRASH(FILE *,const Uint32 *, Uint32, Uint16);
-public:
+  friend bool printSTOP_FOR_CRASH(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 1;
 
-public:
-  Uint32 flags;                 // No information in this signal atm.
+ public:
+  Uint32 flags;  // No information in this signal atm.
 };
-
 
 #undef JAM_FILE_ID
 

@@ -27,11 +27,9 @@
 
 #define JAM_FILE_ID 223
 
-
 /**
  * Block callbacks
  */
-
 
 #undef JAM_FILE_ID
 

@@ -31,16 +31,14 @@
 
 #define JAM_FILE_ID 537
 
-class QRestore : public Restore
-{
+class QRestore : public Restore {
   friend class QRestoreProxy;
 
-public:
-  QRestore(Block_context& ctx,
-           Uint32 instanceNumber = 0);
+ public:
+  QRestore(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~QRestore();
 
-private:
+ private:
   BLOCK_DEFINES(QRestore);
 };
 

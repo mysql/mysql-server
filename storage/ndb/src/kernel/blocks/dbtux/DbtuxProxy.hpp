@@ -30,15 +30,14 @@
 
 #define JAM_FILE_ID 376
 
-
 class DbtuxProxy : public LocalProxy {
-public:
-  DbtuxProxy(Block_context& ctx);
+ public:
+  DbtuxProxy(Block_context &ctx);
   ~DbtuxProxy() override;
   BLOCK_DEFINES(DbtuxProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 
   // GSN_ALTER_INDX_IMPL_REQ
   struct Ss_ALTER_INDX_IMPL_REQ : SsParallel {
@@ -48,16 +47,16 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtuxProxy::sendALTER_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_ALTER_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtuxProxy*)proxy)->c_ss_ALTER_INDX_IMPL_REQ;
+    static SsPool<Ss_ALTER_INDX_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtuxProxy *)proxy)->c_ss_ALTER_INDX_IMPL_REQ;
     }
   };
   SsPool<Ss_ALTER_INDX_IMPL_REQ> c_ss_ALTER_INDX_IMPL_REQ;
-  void execALTER_INDX_IMPL_REQ(Signal*);
-  void sendALTER_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execALTER_INDX_IMPL_CONF(Signal*);
-  void execALTER_INDX_IMPL_REF(Signal*);
-  void sendALTER_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+  void execALTER_INDX_IMPL_REQ(Signal *);
+  void sendALTER_INDX_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execALTER_INDX_IMPL_CONF(Signal *);
+  void execALTER_INDX_IMPL_REF(Signal *);
+  void sendALTER_INDX_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_INDEX_STAT_IMPL_REQ
   struct Ss_INDEX_STAT_IMPL_REQ : SsParallel {
@@ -67,21 +66,20 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtuxProxy::sendINDEX_STAT_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_INDEX_STAT_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtuxProxy*)proxy)->c_ss_INDEX_STAT_IMPL_REQ;
+    static SsPool<Ss_INDEX_STAT_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtuxProxy *)proxy)->c_ss_INDEX_STAT_IMPL_REQ;
     }
   };
   SsPool<Ss_INDEX_STAT_IMPL_REQ> c_ss_INDEX_STAT_IMPL_REQ;
-  void execINDEX_STAT_IMPL_REQ(Signal*);
-  void sendINDEX_STAT_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execINDEX_STAT_IMPL_CONF(Signal*);
-  void execINDEX_STAT_IMPL_REF(Signal*);
-  void sendINDEX_STAT_IMPL_CONF(Signal*, Uint32 ssId);
+  void execINDEX_STAT_IMPL_REQ(Signal *);
+  void sendINDEX_STAT_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execINDEX_STAT_IMPL_CONF(Signal *);
+  void execINDEX_STAT_IMPL_REF(Signal *);
+  void sendINDEX_STAT_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_INDEX_STAT_REP
-  void execINDEX_STAT_REP(Signal*);
+  void execINDEX_STAT_REP(Signal *);
 };
-
 
 #undef JAM_FILE_ID
 

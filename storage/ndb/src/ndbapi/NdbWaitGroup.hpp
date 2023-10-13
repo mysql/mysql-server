@@ -43,23 +43,23 @@ class MultiNdbWakeupHandler;
    on a particular Ndb object, you can use NdbWaitGroup::addNdb() to add it
    to the group.
 
-   NdbWaitGroup::wait() returns whenever some Ndb's are ready for polling; you can
-   then call Ndb::pollNdb(0, 1) on the ones that are ready.
+   NdbWaitGroup::wait() returns whenever some Ndb's are ready for polling; you
+   can then call Ndb::pollNdb(0, 1) on the ones that are ready.
 */
 
 /* Hard upper limit on the number of Ndb objects in an NdbWaitGroup.
    A client trying to grow beyond this would hit an assert, but we expect
    to hit MAX_NO_THREADS in TransporterFacade first (error 4105).
-*/   
-#define NDBWAITGROUP_MAX_SIZE 262144 
+*/
+#define NDBWAITGROUP_MAX_SIZE 262144
 
 class NdbWaitGroup : private NdbLockable {
-friend class Ndb_cluster_connection;
-friend class Ndb_cluster_connection_impl;
-private:
+  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
 
+ private:
   /** The private constructor is used only by ndb_cluster_connection.
-      It allocates and initializes an NdbWaitGroup with an initial array 
+      It allocates and initializes an NdbWaitGroup with an initial array
       of Ndb objects. The array will grow beyond the initial size as needed.
   */
   NdbWaitGroup(Ndb_cluster_connection *conn, int initial_size);
@@ -67,40 +67,39 @@ private:
   /** The destructor is also private */
   ~NdbWaitGroup();
 
-public:
-
+ public:
   /** Push an Ndb object onto the wait queue.
       This is thread-safe: multiple threads can call push().
       Returns 0 on success, non-zero on error.
-      
+
       Error return codes:
         -1: ndb does not belong to this Ndb_cluster_connection.
   */
   int push(Ndb *ndb);
 
-  /** Wait for Ndbs to be ready for polling and report the number that are 
-      ready. 
+  /** Wait for Ndbs to be ready for polling and report the number that are
+      ready.
       wait() will return when:
         (a) at least pct_ready % of pushed Ndbs are ready for polling, or
         (b) at least timeout_millis milliseconds have expired, or
-        (c) the NdbWaitGroup receives a wakeup() call. 
-      pct_ready must be a value between 0 and 100. 
-      If pct_ready is 0, wait() will return immediately. 
-      If pct_ready is > 0 but no Ndbs have pushed, wait() will sleep until 
+        (c) the NdbWaitGroup receives a wakeup() call.
+      pct_ready must be a value between 0 and 100.
+      If pct_ready is 0, wait() will return immediately.
+      If pct_ready is > 0 but no Ndbs have pushed, wait() will sleep until
       a wakeup or timeout occurs.
 
-      Only a single thread may use wait(). 
+      Only a single thread may use wait().
 
       Returns the number of Ndbs ready for polling.
   */
-  int wait(Uint32 timeout_millis, int pct_ready = 50); 
+  int wait(Uint32 timeout_millis, int pct_ready = 50);
 
   /** Returns an Ndb ready for polling.
-      This is thread-safe: multiple threads can call pop().      
+      This is thread-safe: multiple threads can call pop().
 
       Returns NULL if no Ndbs are ready.
   */
-  Ndb * pop();
+  Ndb *pop();
 
   /** Wake up the thread that is currently waiting on this group.
       This can be used by other threads to signal a condition to the
@@ -109,24 +108,21 @@ public:
   */
   void wakeup();
 
+ private: /* private instance variables */
+  Ndb **m_array;
+  Uint32 m_array_size, m_pos_return;
+  Uint32 m_pos_new, m_pos_wait, m_pos_ready;
 
-private:  /* private instance variables */
-   Ndb **m_array;
-   Uint32 m_array_size, m_pos_return;
-   Uint32 m_pos_new, m_pos_wait, m_pos_ready;
+  MultiNdbWakeupHandler *m_multiWaitHandler;
+  Ndb **m_overflow;
+  Int32 m_overflow_size, m_pos_overflow;
+  Int32 m_nodeId;
 
-   MultiNdbWakeupHandler *m_multiWaitHandler;
-   Ndb **m_overflow;
-   Int32 m_overflow_size, m_pos_overflow;
-   Int32 m_nodeId;
+  Ndb_cluster_connection *m_conn;
+  Ndb *m_wakeNdb;
 
-   Ndb_cluster_connection *m_conn;
-   Ndb *m_wakeNdb;
-
-private:
-   void resize_list(void);
+ private:
+  void resize_list(void);
 };
 
-
 #endif
-

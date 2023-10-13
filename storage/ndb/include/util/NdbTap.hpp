@@ -30,14 +30,15 @@
 
 #define OK(b) require(b)
 
-#define TAPTEST(name)                           \
-int name##_test();                              \
-int main(int argc, const char** argv){          \
-  (void)argc; (void)argv; /* unused args */     \
-  plan(1);                                      \
-  ok(name##_test(), #name);                     \
-  return exit_status();                         \
-}                                               \
-int name##_test()
+#define TAPTEST(name)                     \
+  int name##_test();                      \
+  int main(int argc, const char **argv) { \
+    (void)argc;                           \
+    (void)argv; /* unused args */         \
+    plan(1);                              \
+    ok(name##_test(), #name);             \
+    return exit_status();                 \
+  }                                       \
+  int name##_test()
 
 #endif

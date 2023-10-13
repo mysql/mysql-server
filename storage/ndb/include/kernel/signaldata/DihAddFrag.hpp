@@ -25,39 +25,40 @@
 #ifndef DIHADDFRAG_HPP
 #define DIHADDFRAG_HPP
 
-#include <NodeBitmask.hpp>
 #include <ndb_limits.h>
+#include <NodeBitmask.hpp>
 
 #define JAM_FILE_ID 37
 
-
 /**
- * 
+ *
  */
 class DihAddFragConf {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:  
+
+ private:
   Uint32 senderNodeId;
   Uint32 tableId;
 };
 /**
- * 
+ *
  */
 class DihAddFragReq {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 10 + MAX_REPLICAS;
-private:
+
+ private:
   Uint32 masterRef;
   Uint32 tableId;
   Uint32 fragId;

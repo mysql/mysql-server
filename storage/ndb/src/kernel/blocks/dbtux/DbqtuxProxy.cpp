@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 532
 
-DbqtuxProxy::DbqtuxProxy(Block_context& ctx) :
-  LocalProxy(DBQTUX, ctx)
-{
-}
+DbqtuxProxy::DbqtuxProxy(Block_context &ctx) : LocalProxy(DBQTUX, ctx) {}
 
-DbqtuxProxy::~DbqtuxProxy()
-{
-}
+DbqtuxProxy::~DbqtuxProxy() {}
 
-SimulatedBlock*
-DbqtuxProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbqtuxProxy::newWorker(Uint32 instanceNo) {
   return new Dbqtux(m_ctx, instanceNo);
 }

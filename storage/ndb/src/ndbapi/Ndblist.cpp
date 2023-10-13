@@ -24,36 +24,32 @@
 
 #include "API.hpp"
 
-void
-Ndb::checkFailedNode()
-{
+void Ndb::checkFailedNode() {
   DBUG_ENTER("Ndb::checkFailedNode");
-  Uint32 *the_release_ind= theImpl->the_release_ind;
-  if (the_release_ind[0] == 0)
-  {
+  Uint32 *the_release_ind = theImpl->the_release_ind;
+  if (the_release_ind[0] == 0) {
     DBUG_VOID_RETURN;
   }
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
-  Uint8 *theDBnodes= theImpl->theDBnodes;
+  Uint8 *theDBnodes = theImpl->theDBnodes;
 
   DBUG_PRINT("enter", ("theNoOfDBnodes: %d", tNoOfDbNodes));
 
   assert(tNoOfDbNodes < MAX_NDB_NODES);
-  for (Uint32 i = 0; i < tNoOfDbNodes; i++){
+  for (Uint32 i = 0; i < tNoOfDbNodes; i++) {
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
-    
-    assert(node_id < MAX_NDB_NODES);    
-    if (the_release_ind[node_id] == 1){
 
+    assert(node_id < MAX_NDB_NODES);
+    if (the_release_ind[node_id] == 1) {
       /**
        * Release all connections in idle list (for node)
        */
-      NdbTransaction * tNdbCon = theConnectionArray[node_id];
+      NdbTransaction *tNdbCon = theConnectionArray[node_id];
       theConnectionArray[node_id] = nullptr;
       theConnectionArrayLast[node_id] = nullptr;
       while (tNdbCon != nullptr) {
-        NdbTransaction* tempNdbCon = tNdbCon;
+        NdbTransaction *tempNdbCon = tNdbCon;
         tNdbCon = tNdbCon->next();
         releaseNdbCon(tempNdbCon);
       }
@@ -65,79 +61,63 @@ Ndb::checkFailedNode()
 
 /***************************************************************************
  * int createConIdleList(int aNrOfCon);
- * 
- * Return Value:   Return the number of created connection object 
+ *
+ * Return Value:   Return the number of created connection object
  *                 if createConIdleList was successful
- *                 Return -1: In all other case.  
+ *                 Return -1: In all other case.
  * Parameters:     aNrOfCon : Number of connections offered to the application.
  * Remark:         Create connection idlelist with NdbTransaction objects.
- ***************************************************************************/ 
-int 
-Ndb::createConIdleList(int aNrOfCon)
-{
-  if (theImpl->theConIdleList.fill(this, aNrOfCon))
-  {
+ ***************************************************************************/
+int Ndb::createConIdleList(int aNrOfCon) {
+  if (theImpl->theConIdleList.fill(this, aNrOfCon)) {
     return -1;
   }
-  return aNrOfCon; 
+  return aNrOfCon;
 }
 
 /***************************************************************************
  * int createOpIdleList(int aNrOfOp);
  *
- * Return Value:   Return the number of created operation object if 
+ * Return Value:   Return the number of created operation object if
  *                 createOpIdleList was successful.
  *                 Return -1: In all other case.
- * Parameters:     aNrOfOp:  Number of operations offered to the application. 
+ * Parameters:     aNrOfOp:  Number of operations offered to the application.
  * Remark:         Create  operation idlelist with NdbOperation objects..
- ***************************************************************************/ 
-int 
-Ndb::createOpIdleList(int aNrOfOp)
-{ 
-  if (theImpl->theOpIdleList.fill(this, aNrOfOp))
-  {
+ ***************************************************************************/
+int Ndb::createOpIdleList(int aNrOfOp) {
+  if (theImpl->theOpIdleList.fill(this, aNrOfOp)) {
     return -1;
   }
-  return aNrOfOp; 
+  return aNrOfOp;
 }
 
 /***************************************************************************
  * NdbBranch* NdbBranch();
  *
  * Return Value:   Return a NdbBranch if the  getNdbBranch was successful.
- *                Return NULL : In all other case.  
+ *                Return NULL : In all other case.
  * Remark:         Get a NdbBranch from theBranchList and return the object .
- ***************************************************************************/ 
-NdbBranch*
-Ndb::getNdbBranch()
-{
-  return theImpl->theBranchList.seize(this);
-}
+ ***************************************************************************/
+NdbBranch *Ndb::getNdbBranch() { return theImpl->theBranchList.seize(this); }
 
 /***************************************************************************
  * NdbCall* NdbCall();
  *
  * Return Value:   Return a NdbCall if the  getNdbCall was successful.
- *                Return NULL : In all other case.  
+ *                Return NULL : In all other case.
  * Remark:         Get a NdbCall from theCallList and return the object .
- ***************************************************************************/ 
-NdbCall*
-Ndb::getNdbCall()
-{
-  return theImpl->theCallList.seize(this);
-}
+ ***************************************************************************/
+NdbCall *Ndb::getNdbCall() { return theImpl->theCallList.seize(this); }
 
 /***************************************************************************
  * NdbTransaction* getNdbCon();
  *
  * Return Value:   Return a connection if the  getNdbCon was successful.
- *                Return NULL : In all other case.  
+ *                Return NULL : In all other case.
  * Remark:         Get a connection from theConIdleList and return the object .
- ***************************************************************************/ 
-NdbTransaction*
-Ndb::getNdbCon()
-{
-  NdbTransaction* tNdbCon = theImpl->theConIdleList.seize(this);
+ ***************************************************************************/
+NdbTransaction *Ndb::getNdbCon() {
+  NdbTransaction *tNdbCon = theImpl->theConIdleList.seize(this);
   tNdbCon->theMagicNumber = tNdbCon->getMagicNumber();
   return tNdbCon;
 }
@@ -146,39 +126,29 @@ Ndb::getNdbCon()
  * NdbLabel* getNdbLabel();
  *
  * Return Value:   Return a NdbLabel if the  getNdbLabel was successful.
- *                 Return NULL : In all other case.  
+ *                 Return NULL : In all other case.
  * Remark:         Get a NdbLabel from theLabelList and return the object .
- ***************************************************************************/ 
-NdbLabel*
-Ndb::getNdbLabel()
-{
-  return theImpl->theLabelList.seize(this);
-}
+ ***************************************************************************/
+NdbLabel *Ndb::getNdbLabel() { return theImpl->theLabelList.seize(this); }
 
 /***************************************************************************
  * NdbScanReceiver* getNdbScanRec()
- * 
+ *
  * Return Value:  Return a NdbScanReceiver
- *                Return NULL : In all other case.  
- * Remark:        Get a NdbScanReceiver from theScanRecList and return the 
+ *                Return NULL : In all other case.
+ * Remark:        Get a NdbScanReceiver from theScanRecList and return the
  *                object .
- ****************************************************************************/ 
-NdbReceiver*
-Ndb::getNdbScanRec()
-{
-  return theImpl->theScanList.seize(this);
-}
+ ****************************************************************************/
+NdbReceiver *Ndb::getNdbScanRec() { return theImpl->theScanList.seize(this); }
 
 /***************************************************************************
  * NdbSubroutine* getNdbSubroutine();
  *
  * Return Value: Return a NdbSubroutine if the  getNdbSubroutine was successful.
- *                Return NULL : In all other case.  
+ *                Return NULL : In all other case.
  * Remark:    Get a NdbSubroutine from theSubroutineList and return the object .
- ***************************************************************************/ 
-NdbSubroutine*
-Ndb::getNdbSubroutine()
-{
+ ***************************************************************************/
+NdbSubroutine *Ndb::getNdbSubroutine() {
   return theImpl->theSubroutineList.seize(this);
 }
 
@@ -186,25 +156,19 @@ Ndb::getNdbSubroutine()
 NdbOperation* getOperation();
 
 Return Value:   Return theOpList : if the  getOperation was successful.
-                Return NULL : In all other case.  
+                Return NULL : In all other case.
 Remark:         Get an operation from theOpIdleList and return the object .
-***************************************************************************/ 
-NdbOperation*
-Ndb::getOperation()
-{
-  return theImpl->theOpIdleList.seize(this);
-}
+***************************************************************************/
+NdbOperation *Ndb::getOperation() { return theImpl->theOpIdleList.seize(this); }
 
 /***************************************************************************
 NdbScanOperation* getScanOperation();
 
 Return Value:   Return theOpList : if the  getScanOperation was successful.
-                Return NULL : In all other case.  
+                Return NULL : In all other case.
 Remark:         Get an operation from theScanOpIdleList and return the object .
-***************************************************************************/ 
-NdbIndexScanOperation*
-Ndb::getScanOperation()
-{
+***************************************************************************/
+NdbIndexScanOperation *Ndb::getScanOperation() {
   return theImpl->theScanOpIdleList.seize(this);
 }
 
@@ -212,12 +176,10 @@ Ndb::getScanOperation()
 NdbIndexOperation* getIndexOperation();
 
 Return Value:   Return theOpList : if the  getIndexOperation was successful.
-                Return NULL : In all other case.  
+                Return NULL : In all other case.
 Remark:         Get an operation from theIndexOpIdleList and return the object .
-***************************************************************************/ 
-NdbIndexOperation*
-Ndb::getIndexOperation()
-{
+***************************************************************************/
+NdbIndexOperation *Ndb::getIndexOperation() {
   return theImpl->theIndexOpIdleList.seize(this);
 }
 
@@ -225,14 +187,12 @@ Ndb::getIndexOperation()
 NdbRecAttr* getRecAttr();
 
 Return Value:   Return a reference to a receive attribute object.
-                Return NULL if it's not possible to get a receive attribute object.
+                Return NULL if it's not possible to get a receive attribute
+object.
 ***************************************************************************/
-NdbRecAttr*
-Ndb::getRecAttr()
-{
-  NdbRecAttr* tRecAttr = theImpl->theRecAttrIdleList.seize(this);
-  if (tRecAttr != nullptr) 
-  {
+NdbRecAttr *Ndb::getRecAttr() {
+  NdbRecAttr *tRecAttr = theImpl->theRecAttrIdleList.seize(this);
+  if (tRecAttr != nullptr) {
     tRecAttr->init();
     return tRecAttr;
   }
@@ -246,34 +206,26 @@ NdbApiSignal* getSignal();
 Return Value:   Return a reference to a signal object.
                 Return NULL if not possible to get a signal object.
 ***************************************************************************/
-NdbApiSignal*
-Ndb::getSignal()
-{
+NdbApiSignal *Ndb::getSignal() {
   return theImpl->theSignalIdleList.seize(this);
 }
 
-NdbBlob*
-Ndb::getNdbBlob()
-{
-  NdbBlob* tBlob = theImpl->theNdbBlobIdleList.seize(this);
-  if(tBlob)
-  {
+NdbBlob *Ndb::getNdbBlob() {
+  NdbBlob *tBlob = theImpl->theNdbBlobIdleList.seize(this);
+  if (tBlob) {
     tBlob->init();
   }
   return tBlob;
 }
 
-NdbLockHandle*
-Ndb::getLockHandle()
-{
-  NdbLockHandle* lh = theImpl->theLockHandleList.seize(this);
-  if (lh)
-  {
+NdbLockHandle *Ndb::getLockHandle() {
+  NdbLockHandle *lh = theImpl->theLockHandleList.seize(this);
+  if (lh) {
     lh->init();
   }
 
   return lh;
-} 
+}
 
 /***************************************************************************
 void releaseNdbBranch(NdbBranch* aNdbBranch);
@@ -281,9 +233,7 @@ void releaseNdbBranch(NdbBranch* aNdbBranch);
 Parameters:     NdbBranch: The NdbBranch object.
 Remark:         Add a NdbBranch object into the Branch idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbBranch(NdbBranch* aNdbBranch)
-{
+void Ndb::releaseNdbBranch(NdbBranch *aNdbBranch) {
   theImpl->theBranchList.release(aNdbBranch);
 }
 
@@ -293,9 +243,7 @@ void releaseNdbCall(NdbCall* aNdbCall);
 Parameters:     NdbBranch: The NdbBranch object.
 Remark:         Add a NdbBranch object into the Branch idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbCall(NdbCall* aNdbCall)
-{
+void Ndb::releaseNdbCall(NdbCall *aNdbCall) {
   theImpl->theCallList.release(aNdbCall);
 }
 
@@ -305,9 +253,7 @@ void releaseNdbCon(NdbTransaction* aNdbCon);
 Parameters:     aNdbCon: The NdbTransaction object.
 Remark:         Add a Connection object into the connection idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbCon(NdbTransaction* aNdbCon)
-{
+void Ndb::releaseNdbCon(NdbTransaction *aNdbCon) {
   aNdbCon->theMagicNumber = 0xFE11DD;
   theImpl->theConIdleList.release(aNdbCon);
 }
@@ -318,9 +264,7 @@ void releaseNdbLabel(NdbLabel* aNdbLabel);
 Parameters:     NdbLabel: The NdbLabel object.
 Remark:         Add a NdbLabel object into the Label idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbLabel(NdbLabel* aNdbLabel)
-{
+void Ndb::releaseNdbLabel(NdbLabel *aNdbLabel) {
   theImpl->theLabelList.release(aNdbLabel);
 }
 
@@ -330,9 +274,7 @@ void releaseNdbScanRec(NdbScanReceiver* aNdbScanRec);
 Parameters:     aNdbScanRec: The NdbScanReceiver object.
 Remark:         Add a NdbScanReceiver object into the Scan idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbScanRec(NdbReceiver* aNdbScanRec)
-{
+void Ndb::releaseNdbScanRec(NdbReceiver *aNdbScanRec) {
   theImpl->theScanList.release(aNdbScanRec);
 }
 
@@ -342,9 +284,7 @@ void releaseNdbSubroutine(NdbSubroutine* aNdbSubroutine);
 Parameters:     NdbSubroutine: The NdbSubroutine object.
 Remark:         Add a NdbSubroutine object into theSubroutine idlelist.
 ***************************************************************************/
-void
-Ndb::releaseNdbSubroutine(NdbSubroutine* aNdbSubroutine)
-{
+void Ndb::releaseNdbSubroutine(NdbSubroutine *aNdbSubroutine) {
   theImpl->theSubroutineList.release(aNdbSubroutine);
 }
 
@@ -354,10 +294,8 @@ void releaseOperation(NdbOperation* anOperation);
 Parameters:     anOperation : The released NdbOperation object.
 Remark:         Add a NdbOperation object into the operation idlelist.
 ***************************************************************************/
-void
-Ndb::releaseOperation(NdbOperation* anOperation)
-{
-  if(anOperation->m_tcReqGSN == GSN_TCKEYREQ){
+void Ndb::releaseOperation(NdbOperation *anOperation) {
+  if (anOperation->m_tcReqGSN == GSN_TCKEYREQ) {
     anOperation->theNdbCon = nullptr;
     anOperation->theMagicNumber = 0xFE11D0;
     theImpl->theOpIdleList.release(anOperation);
@@ -365,7 +303,7 @@ Ndb::releaseOperation(NdbOperation* anOperation)
     assert(anOperation->m_tcReqGSN == GSN_TCINDXREQ);
     anOperation->theNdbCon = nullptr;
     anOperation->theMagicNumber = 0xFE11D1;
-    theImpl->theIndexOpIdleList.release((NdbIndexOperation*)anOperation);
+    theImpl->theIndexOpIdleList.release((NdbIndexOperation *)anOperation);
   }
 }
 
@@ -375,16 +313,15 @@ void releaseScanOperation(NdbScanOperation* aScanOperation);
 Parameters:     aScanOperation : The released NdbScanOperation object.
 Remark:         Add a NdbScanOperation object into the scan idlelist.
 ***************************************************************************/
-void
-Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
-{
+void Ndb::releaseScanOperation(NdbIndexScanOperation *aScanOperation) {
   DBUG_ENTER("Ndb::releaseScanOperation");
   DBUG_PRINT("enter", ("op: %p", aScanOperation));
 #ifdef ndb_release_check_dup
-  { NdbIndexScanOperation* tOp = theScanOpIdleList;
+  {
+    NdbIndexScanOperation *tOp = theScanOpIdleList;
     while (tOp != NULL) {
       assert(tOp != aScanOperation);
-      tOp = (NdbIndexScanOperation*)tOp->theNext;
+      tOp = (NdbIndexScanOperation *)tOp->theNext;
     }
   }
 #endif
@@ -400,9 +337,7 @@ void releaseRecAttr(NdbRecAttr* aRecAttr);
 Parameters:     aRecAttr : The released NdbRecAttr object.
 Remark:         Add a NdbRecAttr object into the RecAtt idlelist.
 ***************************************************************************/
-void
-Ndb::releaseRecAttr(NdbRecAttr* aRecAttr)
-{
+void Ndb::releaseRecAttr(NdbRecAttr *aRecAttr) {
   aRecAttr->release();
   theImpl->theRecAttrIdleList.release(aRecAttr);
 }
@@ -413,9 +348,7 @@ void releaseSignal(NdbApiSignal* aSignal);
 Parameters:     aSignal : The released NdbApiSignal object.
 Remark:         Add a NdbApiSignal object into the signal idlelist.
 ***************************************************************************/
-void
-Ndb::releaseSignal(NdbApiSignal* aSignal)
-{
+void Ndb::releaseSignal(NdbApiSignal *aSignal) {
 #if defined VM_TRACE
   // Check that signal is not null
   assert(aSignal != nullptr);
@@ -434,35 +367,28 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
   theImpl->theSignalIdleList.release(aSignal);
 }
 
-void
-Ndb::releaseSignals(Uint32 cnt, NdbApiSignal* head, NdbApiSignal* tail)
-{
+void Ndb::releaseSignals(Uint32 cnt, NdbApiSignal *head, NdbApiSignal *tail) {
 #ifdef POORMANSPURIFY
   creleaseSignals += cnt;
 #endif
   theImpl->theSignalIdleList.release(cnt, head, tail);
 }
 
-void
-Ndb::releaseSignalsInList(NdbApiSignal** pList){
-  NdbApiSignal* tmp;
-  while (*pList != nullptr){
+void Ndb::releaseSignalsInList(NdbApiSignal **pList) {
+  NdbApiSignal *tmp;
+  while (*pList != nullptr) {
     tmp = *pList;
     *pList = (*pList)->next();
     releaseSignal(tmp);
   }
 }
 
-void
-Ndb::releaseNdbBlob(NdbBlob* aBlob)
-{
+void Ndb::releaseNdbBlob(NdbBlob *aBlob) {
   aBlob->release();
   theImpl->theNdbBlobIdleList.release(aBlob);
 }
 
-void
-Ndb::releaseLockHandle(NdbLockHandle* lh)
-{
+void Ndb::releaseLockHandle(NdbLockHandle *lh) {
   lh->release(this);
   theImpl->theLockHandleList.release(lh);
 }
@@ -470,35 +396,30 @@ Ndb::releaseLockHandle(NdbLockHandle* lh)
 /****************************************************************************
 int releaseConnectToNdb(NdbTransaction* aConnectConnection);
 
-Return Value:   -1 if error 
+Return Value:   -1 if error
 Parameters:     aConnectConnection : Seized schema connection to DBTC
-Remark:         Release and disconnect from DBTC a connection and seize it to theConIdleList.
+Remark:         Release and disconnect from DBTC a connection and seize it to
+theConIdleList.
 *****************************************************************************/
-void
-Ndb::releaseConnectToNdb(NdbTransaction* a_con)     
-{
+void Ndb::releaseConnectToNdb(NdbTransaction *a_con) {
   DBUG_ENTER("Ndb::releaseConnectToNdb");
-  NdbApiSignal          tSignal(theMyRef);
-  int                   tConPtr;
+  NdbApiSignal tSignal(theMyRef);
+  int tConPtr;
 
-// I need to close the connection irrespective of whether I
-// manage to reach NDB or not.
+  // I need to close the connection irrespective of whether I
+  // manage to reach NDB or not.
 
-  if (a_con == nullptr)
-    DBUG_VOID_RETURN;
+  if (a_con == nullptr) DBUG_VOID_RETURN;
 
   Uint32 node_id = a_con->getConnectedNodeId();
   Uint32 conn_seq = a_con->theNodeSequence;
   tSignal.setSignal(GSN_TCRELEASEREQ, refToBlock(a_con->m_tcRef));
   tSignal.setData((tConPtr = a_con->getTC_ConnectPtr()), 1);
   tSignal.setData(theMyRef, 2);
-  tSignal.setData(a_con->ptr2int(), 3); 
+  tSignal.setData(a_con->ptr2int(), 3);
   a_con->Status(NdbTransaction::DisConnecting);
   a_con->theMagicNumber = a_con->getMagicNumber();
-  int ret_code = sendRecSignal(node_id,
-                               WAIT_TC_RELEASE,
-                               &tSignal,
-                               conn_seq);
+  int ret_code = sendRecSignal(node_id, WAIT_TC_RELEASE, &tSignal, conn_seq);
   if (likely(ret_code == 0)) {
     ;
   } else if (ret_code == -1) {
@@ -514,101 +435,66 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
   } else {
     g_eventLogger->info("Impossible return from sendRecSignal when TCRELEASE");
     abort();
-  }//if
+  }  // if
   releaseNdbCon(a_con);
   DBUG_VOID_RETURN;
 }
 
-template<class T>
-static
-Ndb::Free_list_usage*
-update(Ndb::Free_list_usage* curr, 
-       Ndb_free_list_t<T> & list, 
-       const char * name)
-{
+template <class T>
+static Ndb::Free_list_usage *update(Ndb::Free_list_usage *curr,
+                                    Ndb_free_list_t<T> &list,
+                                    const char *name) {
   curr->m_name = name;
-  curr->m_created = list.m_used_cnt+list.m_free_cnt;
+  curr->m_created = list.m_used_cnt + list.m_free_cnt;
   curr->m_free = list.m_free_cnt;
   curr->m_sizeof = sizeof(T);
   return curr;
 }
 
-Ndb::Free_list_usage*
-Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
-{
-  if (curr == nullptr)
-  {
+Ndb::Free_list_usage *Ndb::get_free_list_usage(Ndb::Free_list_usage *curr) {
+  if (curr == nullptr) {
     return nullptr;
-  } 
+  }
 
-  if(curr->m_name == nullptr)
-  {
+  if (curr->m_name == nullptr) {
     update(curr, theImpl->theConIdleList, "NdbTransaction");
-  }
-  else if(!strcmp(curr->m_name, "NdbTransaction"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbTransaction")) {
     update(curr, theImpl->theOpIdleList, "NdbOperation");
-  }
-  else if(!strcmp(curr->m_name, "NdbOperation"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbOperation")) {
     update(curr, theImpl->theScanOpIdleList, "NdbIndexScanOperation");
-  }
-  else if(!strcmp(curr->m_name, "NdbIndexScanOperation"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbIndexScanOperation")) {
     update(curr, theImpl->theIndexOpIdleList, "NdbIndexOperation");
-  }
-  else if(!strcmp(curr->m_name, "NdbIndexOperation"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbIndexOperation")) {
     update(curr, theImpl->theRecAttrIdleList, "NdbRecAttr");
-  }
-  else if(!strcmp(curr->m_name, "NdbRecAttr"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbRecAttr")) {
     update(curr, theImpl->theSignalIdleList, "NdbApiSignal");
-  }
-  else if(!strcmp(curr->m_name, "NdbApiSignal"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbApiSignal")) {
     update(curr, theImpl->theLabelList, "NdbLabel");
-  }
-  else if(!strcmp(curr->m_name, "NdbLabel"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbLabel")) {
     update(curr, theImpl->theBranchList, "NdbBranch");
-  }
-  else if(!strcmp(curr->m_name, "NdbBranch"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbBranch")) {
     update(curr, theImpl->theSubroutineList, "NdbSubroutine");
-  }
-  else if(!strcmp(curr->m_name, "NdbSubroutine"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbSubroutine")) {
     update(curr, theImpl->theCallList, "NdbCall");
-  }
-  else if(!strcmp(curr->m_name, "NdbCall"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbCall")) {
     update(curr, theImpl->theNdbBlobIdleList, "NdbBlob");
-  }
-  else if(!strcmp(curr->m_name, "NdbBlob"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbBlob")) {
     update(curr, theImpl->theScanList, "NdbReceiver");
-  }
-  else if(!strcmp(curr->m_name, "NdbReceiver"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbReceiver")) {
     update(curr, theImpl->theLockHandleList, "NdbLockHandle");
-  }
-  else if(!strcmp(curr->m_name, "NdbLockHandle"))
-  {
+  } else if (!strcmp(curr->m_name, "NdbLockHandle")) {
     return nullptr;
-  }
-  else
-  {
+  } else {
     update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
 
   return curr;
 }
 
-#define TI(T) \
- template Ndb::Free_list_usage* \
- update(Ndb::Free_list_usage*, Ndb_free_list_t<T> &, const char * name);\
- template struct Ndb_free_list_t<T>
+#define TI(T)                                                          \
+  template Ndb::Free_list_usage *update(                               \
+      Ndb::Free_list_usage *, Ndb_free_list_t<T> &, const char *name); \
+  template struct Ndb_free_list_t<T>
 
 TI(NdbBlob);
 TI(NdbCall);

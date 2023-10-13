@@ -26,45 +26,31 @@
 #ifndef HUGO_ASYNCH_TRANSACTIONS_HPP
 #define HUGO_ASYNCH_TRANSACTIONS_HPP
 
-
-#include <NDBT.hpp>
 #include <HugoCalculator.hpp>
 #include <HugoTransactions.hpp>
+#include <NDBT.hpp>
 
 class HugoAsynchTransactions : private HugoTransactions {
-public:
-  HugoAsynchTransactions(const NdbDictionary::Table&);
+ public:
+  HugoAsynchTransactions(const NdbDictionary::Table &);
   ~HugoAsynchTransactions();
-  int loadTableAsynch(Ndb*, 
-		      int records = 0,
-		      int batch = 1,
-		      int trans = 1,
-		      int operations = 1);
-  int pkReadRecordsAsynch(Ndb*, 
-			  int records = 0,
-			  int batch= 1,
-			  int trans = 1,
-			  int operations = 1);
-  int pkUpdateRecordsAsynch(Ndb*, 
-			    int records = 0,
-			    int batch= 1,
-			    int trans = 1,
-			    int operations = 1);
-  int pkDelRecordsAsynch(Ndb*, 
-			 int records = 0,
-			 int batch = 1,
-			 int trans = 1,
-			 int operations = 1);
+  int loadTableAsynch(Ndb *, int records = 0, int batch = 1, int trans = 1,
+                      int operations = 1);
+  int pkReadRecordsAsynch(Ndb *, int records = 0, int batch = 1, int trans = 1,
+                          int operations = 1);
+  int pkUpdateRecordsAsynch(Ndb *, int records = 0, int batch = 1,
+                            int trans = 1, int operations = 1);
+  int pkDelRecordsAsynch(Ndb *, int records = 0, int batch = 1, int trans = 1,
+                         int operations = 1);
 
-private:  
-  enum NDB_OPERATION {NO_INSERT, NO_UPDATE, NO_READ, NO_DELETE};
+ private:
+  enum NDB_OPERATION { NO_INSERT, NO_UPDATE, NO_READ, NO_DELETE };
 
   long transactionsCompleted;
 
-  struct TransactionInfo
-  {
-    HugoAsynchTransactions* hugoP;
-    NdbConnection* transaction;
+  struct TransactionInfo {
+    HugoAsynchTransactions *hugoP;
+    NdbConnection *transaction;
     int startRecordId;
     int numRecords;
     int resultRowStartIndex;
@@ -72,8 +58,8 @@ private:
     NDB_OPERATION opType;
   };
 
-  TransactionInfo* transInfo;
-  Ndb* theNdb;
+  TransactionInfo *transInfo;
+  Ndb *theNdb;
 
   /* Work description */
   int totalLoops;
@@ -93,25 +79,18 @@ private:
   void allocTransactions(int trans, int maxOpsPerTrans);
   void deallocTransactions();
 
-  int getNextWorkTask(int* startRecordId, int* numRecords);
+  int getNextWorkTask(int *startRecordId, int *numRecords);
 
-  int defineUpdateOpsForTask(TransactionInfo* tInfo);
-  int defineTransactionForTask(TransactionInfo* tInfo, ExecType taskExecType);
+  int defineUpdateOpsForTask(TransactionInfo *tInfo);
+  int defineTransactionForTask(TransactionInfo *tInfo, ExecType taskExecType);
 
-  int beginNewTask(TransactionInfo* tInfo);
-  static void callbackFunc(int result, NdbConnection* trans, void* anObject);
-  void callback(int result, NdbConnection* trans, TransactionInfo* tInfo);
+  int beginNewTask(TransactionInfo *tInfo);
+  static void callbackFunc(int result, NdbConnection *trans, void *anObject);
+  void callback(int result, NdbConnection *trans, TransactionInfo *tInfo);
 
-  int executeAsynchOperation(Ndb*,		      
-                             int records,
-                             int batch,
-                             int trans,
-                             int operations,
-                             NDB_OPERATION theOperation,
+  int executeAsynchOperation(Ndb *, int records, int batch, int trans,
+                             int operations, NDB_OPERATION theOperation,
                              ExecType theType = Commit);
 };
 
-
-
 #endif
-

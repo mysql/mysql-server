@@ -25,27 +25,27 @@
 #ifndef NDB_IMPORT_IMPL_HPP
 #define NDB_IMPORT_IMPL_HPP
 
-#include <ndb_global.h>
-#include <stdint.h>
-#include <ndb_opts.h>
-#include <ndb_limits.h>
+#include <NdbSleep.h>
 #include <mgmapi.h>
+#include <ndb_global.h>
+#include <ndb_limits.h>
+#include <ndb_opts.h>
+#include <ndb_rand.h>
+#include <stdint.h>
 #include <NdbApi.hpp>
 #include <NdbError.hpp>
-#include <NdbSleep.h>
-#include <ndb_rand.h>
 #include "NdbImport.hpp"
-#include "NdbImportUtil.hpp"
 #include "NdbImportCsv.hpp"
+#include "NdbImportUtil.hpp"
 #include "my_byteorder.h"
 #include "portlib/NdbTick.h"
 
 // STL
-#include <map>
 #include <algorithm>
+#include <map>
 
 class NdbImportImpl : public NdbImport {
-public:
+ public:
   friend class NdbImport;
 
   typedef NdbImportUtil::OptGuard OptGuard;
@@ -75,27 +75,27 @@ public:
   typedef NdbImportCsv::Input CsvInput;
   typedef NdbImportCsv::Output CsvOutput;
 
-  NdbImportImpl(NdbImport& facade);
+  NdbImportImpl(NdbImport &facade);
   ~NdbImportImpl();
-  NdbImport* const m_facade;
+  NdbImport *const m_facade;
   NdbImportUtil m_util;
   NdbImportCsv m_csv;
-  Error& m_error;
+  Error &m_error;
 
   // mgm
 
   struct Mgm {
-    Mgm(NdbImportImpl& impl);
+    Mgm(NdbImportImpl &impl);
     ~Mgm();
     int do_connect();
     void do_disconnect();
     int get_status();
-    NdbImportImpl& m_impl;
-    NdbImportUtil& m_util;
-    Error& m_error;
+    NdbImportImpl &m_impl;
+    NdbImportUtil &m_util;
+    Error &m_error;
     NdbMgmHandle m_handle;
     bool m_connected;
-    ndb_mgm_cluster_state* m_status;
+    ndb_mgm_cluster_state *m_status;
   };
 
   // node
@@ -117,7 +117,7 @@ public:
 
   Nodes c_nodes;
 
-  int get_nodes(Nodes& c);
+  int get_nodes(Nodes &c);
 
   // connect
 
@@ -125,10 +125,10 @@ public:
     Connect();
     ~Connect();
     uint m_connectioncnt;
-    Ndb_cluster_connection** m_connections;
-    Ndb_cluster_connection* m_mainconnection;
+    Ndb_cluster_connection **m_connections;
+    Ndb_cluster_connection *m_mainconnection;
     bool m_connected;
-    Ndb* m_mainndb;
+    Ndb *m_mainndb;
   };
 
   Connect c_connect;
@@ -139,16 +139,14 @@ public:
 
   // tables
 
-  int add_table(const char* database,
-                const char* table,
-                uint& tabid,
-                Error& error);
+  int add_table(const char *database, const char *table, uint &tabid,
+                Error &error);
   int remove_table(uint table_id);
 
   // files
 
   struct WorkerFile : File, Lockable {
-    WorkerFile(NdbImportUtil& util, Error& error);
+    WorkerFile(NdbImportUtil &util, Error &error);
     uint m_workerno;
   };
 
@@ -260,20 +258,20 @@ public:
   static const int g_teamstatecnt = TeamState::State_stopped + 1;
   static const int g_workerstatecnt = WorkerState::State_stopped + 1;
 
-  static const char* g_str_state(JobState::State state);
-  static const char* g_str_state(TeamState::State state);
-  static const char* g_str_state(WorkerState::State state);
+  static const char *g_str_state(JobState::State state);
+  static const char *g_str_state(TeamState::State state);
+  static const char *g_str_state(WorkerState::State state);
 
   static const uint g_max_teams = 10;
 
   struct Job : Thread {
-    Job(NdbImportImpl& impl, uint jobno);
+    Job(NdbImportImpl &impl, uint jobno);
     ~Job();
     // define teams and row queues
     void do_create();
-    void add_team(Team* team);
+    void add_team(Team *team);
     // add and set table
-    int add_table(const char* database, const char* table, uint& tabid);
+    int add_table(const char *database, const char *table, uint &tabid);
     void set_table(uint tabid);
     int remove_table(uint table_id);
     // start teams and run the job until done
@@ -288,26 +286,26 @@ public:
     void stop_diag_team();
     // client request to stop the job
     void do_stop();
-    void str_state(char* str) const;
-    NdbImportImpl& m_impl;
-    NdbImportUtil& m_util;
-    uint m_runno;       // run number i.e. resume count
+    void str_state(char *str) const;
+    NdbImportImpl &m_impl;
+    NdbImportUtil &m_util;
+    uint m_runno;  // run number i.e. resume count
     const uint m_jobno;
     const Name m_name;
     // per-job stats
     Stats m_stats;
     JobState::State m_state;
     uint m_tabid;
-    bool m_dostop;      // request graceful stop
-    bool m_fatal;       // error is unlikely to be resumable
-    ErrorMap m_errormap;// temporary errors from exec-op
+    bool m_dostop;        // request graceful stop
+    bool m_fatal;         // error is unlikely to be resumable
+    ErrorMap m_errormap;  // temporary errors from exec-op
     uint m_teamcnt;
-    Team* m_teams[g_max_teams];
+    Team *m_teams[g_max_teams];
     uint m_teamstates[g_teamstatecnt];
-    RowList* m_rows_relay;
-    RowList* m_rows_exec[g_max_ndb_nodes];
-    RowList* m_rows_reject;
-    RowMap m_rowmap_in;         // old rowmap on resume
+    RowList *m_rows_relay;
+    RowList *m_rows_exec[g_max_ndb_nodes];
+    RowList *m_rows_reject;
+    RowMap m_rowmap_in;  // old rowmap on resume
     RowMap m_rowmap_out;
     // total from previous runs (if --resume)
     uint64 m_old_rows;
@@ -319,72 +317,68 @@ public:
     uint64 m_new_runtime;
     mutable Timer m_timer;
     Error m_error;
-    bool has_error() const {
-      return m_util.has_error(m_error);
-    }
+    bool has_error() const { return m_util.has_error(m_error); }
     // stats
-    Stat* m_stat_rows;          // rows inserted
-    Stat* m_stat_reject;        // rows rejected at some stage
-    Stat* m_stat_runtime;       // total runtime in milliseconds
-    Stat* m_stat_rowssec;       // rows inserted per second
-    Stat* m_stat_utime;         // from workers
-    Stat* m_stat_stime;
-    Stat* m_stat_rowmap;
-    Stat* m_stat_rowmap_utime;    // mainly from rowmap merges
+    Stat *m_stat_rows;     // rows inserted
+    Stat *m_stat_reject;   // rows rejected at some stage
+    Stat *m_stat_runtime;  // total runtime in milliseconds
+    Stat *m_stat_rowssec;  // rows inserted per second
+    Stat *m_stat_utime;    // from workers
+    Stat *m_stat_stime;
+    Stat *m_stat_rowmap;
+    Stat *m_stat_rowmap_utime;  // mainly from rowmap merges
   };
 
   struct Team {
-    Team(Job& job, const char* name, uint workercnt);
+    Team(Job &job, const char *name, uint workercnt);
     virtual ~Team() = 0;
     // create workers
     void do_create();
-    virtual Worker* create_worker(uint n) = 0;
+    virtual Worker *create_worker(uint n) = 0;
     // create worker threads
     void do_start();
     virtual void do_init() = 0;
-    Worker* get_worker(uint n);
-    void start_worker(Worker* w);
+    Worker *get_worker(uint n);
+    void start_worker(Worker *w);
     void wait_workers(WorkerState::State state);
-    void wait_worker(Worker* w, WorkerState::State state);
+    void wait_worker(Worker *w, WorkerState::State state);
     // start worker threads running
     void do_run();
-    void run_worker(Worker* w);
+    void run_worker(Worker *w);
     void check_workers();
     // stop and collect workers and stop this team
     void do_stop();
-    void stop_worker(Worker* w);
+    void stop_worker(Worker *w);
     virtual void do_end() = 0;
     void set_table(uint tabid);
-    virtual void str_state(char* str) const;
-    Job& m_job;
-    NdbImportImpl& m_impl;
-    NdbImportUtil& m_util;
+    virtual void str_state(char *str) const;
+    Job &m_job;
+    NdbImportImpl &m_impl;
+    NdbImportUtil &m_util;
     const uint m_teamno;
     const Name m_name;
     TeamState::State m_state;
     const uint m_workercnt;
-    Worker** m_workers;
+    Worker **m_workers;
     uint m_workerstates[g_workerstatecnt];
     uint m_tabid;
     RowMap m_rowmap_out;
     bool m_is_diag;
     mutable Timer m_timer;
-    Error m_error;              // team level
-    bool has_error() const {
-      return m_util.has_error(m_error);
-    }
+    Error m_error;  // team level
+    bool has_error() const { return m_util.has_error(m_error); }
     // stats
-    Stat* m_stat_runtime;
-    Stat* m_stat_slice;
-    Stat* m_stat_idleslice;
-    Stat* m_stat_idlerun;
-    Stat* m_stat_utime;
-    Stat* m_stat_stime;
-    Stat* m_stat_rowmap;
+    Stat *m_stat_runtime;
+    Stat *m_stat_slice;
+    Stat *m_stat_idleslice;
+    Stat *m_stat_idlerun;
+    Stat *m_stat_utime;
+    Stat *m_stat_stime;
+    Stat *m_stat_rowmap;
   };
 
   struct Worker : Thread {
-    Worker(Team& team, uint n);
+    Worker(Team &team, uint n);
     virtual ~Worker();
     // run the worker thread until done
     void do_start();
@@ -397,56 +391,52 @@ public:
      */
     virtual void do_run() = 0;
     virtual void do_end() = 0;
-    Worker* next_worker();
-    virtual void str_state(char* str) const;
-    Team& m_team;
-    NdbImportImpl& m_impl;
-    NdbImportUtil& m_util;
+    Worker *next_worker();
+    virtual void str_state(char *str) const;
+    Team &m_team;
+    NdbImportImpl &m_impl;
+    NdbImportUtil &m_util;
     const uint m_workerno;
     const Name m_name;
     WorkerState::State m_state;
-    bool m_dostop;      // request graceful stop
+    bool m_dostop;  // request graceful stop
     uint m_slice;
     uint m_idleslice;
-    bool m_idle;        // last slice did no work
-    uint m_idlerun;     // consecutive idle slices
+    bool m_idle;     // last slice did no work
+    uint m_idlerun;  // consecutive idle slices
     RowMap m_rowmap_out;
     mutable Timer m_timer;
-    Error& m_error;     // team level
-    bool has_error() const {
-      return m_team.has_error();
-    }
+    Error &m_error;  // team level
+    bool has_error() const { return m_team.has_error(); }
     // random for tests
-    uint get_rand() {
-      return (uint)ndb_rand_r(&m_seed);
-    }
+    uint get_rand() { return (uint)ndb_rand_r(&m_seed); }
     unsigned m_seed;
     // stats
-    Stat* m_stat_slice;         // slices
-    Stat* m_stat_idleslice;     // slices which did no work
-    Stat* m_stat_idlerun;
-    Stat* m_stat_utime;
-    Stat* m_stat_stime;
-    Stat* m_stat_rowmap;
+    Stat *m_stat_slice;      // slices
+    Stat *m_stat_idleslice;  // slices which did no work
+    Stat *m_stat_idlerun;
+    Stat *m_stat_utime;
+    Stat *m_stat_stime;
+    Stat *m_stat_rowmap;
   };
 
   // random input team
 
   struct RandomInputTeam : Team {
-    RandomInputTeam(Job& job, uint workercnt);
+    RandomInputTeam(Job &job, uint workercnt);
     ~RandomInputTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
     void do_end() override;
   };
 
   struct RandomInputWorker : Worker {
-    RandomInputWorker(Team& team, uint n);
+    RandomInputWorker(Team &team, uint n);
     ~RandomInputWorker() override;
     void do_init() override;
     void do_run() override;
     void do_end() override;
-    Row* create_row(uint64 rowid, const Table& t);
+    Row *create_row(uint64 rowid, const Table &t);
   };
 
   // csv input team
@@ -474,24 +464,24 @@ public:
     };
   };
 
-  static const char* g_str_state(InputState::State state);
+  static const char *g_str_state(InputState::State state);
 
   struct CsvInputTeam : Team {
-    CsvInputTeam(Job& job, uint workercnt);
+    CsvInputTeam(Job &job, uint workercnt);
     ~CsvInputTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
     void do_end() override;
     CsvSpec m_csvspec;
     WorkerFile m_file;
     // stats
-    Stat* m_stat_waittail;
-    Stat* m_stat_waitmove;
-    Stat* m_stat_movetail;
+    Stat *m_stat_waittail;
+    Stat *m_stat_waitmove;
+    Stat *m_stat_movetail;
   };
 
   struct CsvInputWorker : Worker {
-    CsvInputWorker(Team& team, uint n);
+    CsvInputWorker(Team &team, uint n);
     ~CsvInputWorker() override;
     void do_init() override;
     void do_run() override;
@@ -503,10 +493,10 @@ public:
     void state_movetail();
     void state_eval();
     void state_send();
-    void str_state(char* str) const override;
+    void str_state(char *str) const override;
     InputState::State m_inputstate;
     Buf m_buf;
-    CsvInput* m_csvinput;
+    CsvInput *m_csvinput;
     bool m_firstread;
     bool m_eof;
   };
@@ -514,15 +504,15 @@ public:
   // null output team
 
   struct NullOutputTeam : Team {
-    NullOutputTeam(Job& job, uint workercnt);
+    NullOutputTeam(Job &job, uint workercnt);
     ~NullOutputTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
     void do_end() override;
   };
 
   struct NullOutputWorker : Worker {
-    NullOutputWorker(Team& team, uint n);
+    NullOutputWorker(Team &team, uint n);
     ~NullOutputWorker() override;
     void do_init() override;
     void do_run() override;
@@ -534,36 +524,24 @@ public:
   struct Op : ListEnt {
     Op();
     ~Op() override;
-    Op* next() {
-      return static_cast<Op*>(m_next);
-    }
-    Row* m_row;
-    const NdbOperation* m_rowop;
-    uint m_opcnt;       // main and blob NDB ops
+    Op *next() { return static_cast<Op *>(m_next); }
+    Row *m_row;
+    const NdbOperation *m_rowop;
+    uint m_opcnt;  // main and blob NDB ops
     uint m_opsize;
   };
 
   struct OpList : private List {
     OpList();
     ~OpList() override;
-    void set_stats(Stats& stats, const char* name) {
+    void set_stats(Stats &stats, const char *name) {
       List::set_stats(stats, name);
     }
-    Op* front() {
-      return static_cast<Op*>(m_front);
-    }
-    Op* pop_front() {
-      return static_cast<Op*>(List::pop_front());
-    }
-    void push_back(Op* op) {
-      List::push_back(op);
-    }
-    void push_front(Op* op) {
-      List::push_front(op);
-    }
-    uint cnt() const {
-      return m_cnt;
-    }
+    Op *front() { return static_cast<Op *>(m_front); }
+    Op *pop_front() { return static_cast<Op *>(List::pop_front()); }
+    void push_back(Op *op) { List::push_back(op); }
+    void push_front(Op *op) { List::push_front(op); }
+    uint cnt() const { return m_cnt; }
   };
 
   // tx
@@ -571,59 +549,46 @@ public:
   struct DbWorker;
 
   struct Tx : ListEnt {
-    Tx(DbWorker* worker);
+    Tx(DbWorker *worker);
     ~Tx() override;
-    DbWorker* const m_worker;
-    NdbTransaction* m_trans;
+    DbWorker *const m_worker;
+    NdbTransaction *m_trans;
     OpList m_ops;
-    Tx* next() {
-      return static_cast<Tx*>(m_next);
-    }
+    Tx *next() { return static_cast<Tx *>(m_next); }
   };
 
   struct TxList : private List {
     TxList();
     ~TxList() override;
-    void set_stats(Stats& stats, const char* name) {
+    void set_stats(Stats &stats, const char *name) {
       List::set_stats(stats, name);
     }
-    Tx* front() {
-      return static_cast<Tx*>(m_front);
-    }
-    void push_back(Tx* tx) {
-      List::push_back(tx);
-    }
-    Tx* pop_front() {
-      return static_cast<Tx*>(List::pop_front());
-    }
-    void remove(Tx* tx) {
-      List::remove(tx);
-    }
-    uint cnt() const {
-      return m_cnt;
-    }
+    Tx *front() { return static_cast<Tx *>(m_front); }
+    void push_back(Tx *tx) { List::push_back(tx); }
+    Tx *pop_front() { return static_cast<Tx *>(List::pop_front()); }
+    void remove(Tx *tx) { List::remove(tx); }
+    uint cnt() const { return m_cnt; }
   };
 
   // db team
 
   struct DbTeam : Team {
-    DbTeam(Job& job, const char* name, uint workercnt);
+    DbTeam(Job &job, const char *name, uint workercnt);
     ~DbTeam() override = 0;
   };
 
   struct DbWorker : Worker {
-    DbWorker(Team& team, uint n);
+    DbWorker(Team &team, uint n);
     ~DbWorker() override = 0;
     int create_ndb(uint transcnt);
-    Op* alloc_op();
-    void free_op(Op* op);
-    Tx* start_trans();
-    Tx* start_trans(const NdbRecord* keyrec,
-                    const char* keydata,
-                    uchar* xfrmbuf, uint xfrmbuflen);
-    Tx* start_trans(uint nodeid, uint instanceid);
-    void close_trans(Tx* tx);
-    Ndb* m_ndb;
+    Op *alloc_op();
+    void free_op(Op *op);
+    Tx *start_trans();
+    Tx *start_trans(const NdbRecord *keyrec, const char *keydata,
+                    uchar *xfrmbuf, uint xfrmbuflen);
+    Tx *start_trans(uint nodeid, uint instanceid);
+    void close_trans(Tx *tx);
+    Ndb *m_ndb;
     OpList m_op_free;
     TxList m_tx_free;
     TxList m_tx_open;
@@ -654,18 +619,18 @@ public:
     };
   };
 
-  static const char* g_str_state(RelayState::State state);
+  static const char *g_str_state(RelayState::State state);
 
   struct RelayOpTeam : DbTeam {
-    RelayOpTeam(Job& job, uint workercnt);
+    RelayOpTeam(Job &job, uint workercnt);
     ~RelayOpTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
     void do_end() override;
   };
 
   struct RelayOpWorker : DbWorker {
-    RelayOpWorker(Team& team, uint n);
+    RelayOpWorker(Team &team, uint n);
     ~RelayOpWorker() override;
     void do_init() override;
     void do_run() override;
@@ -673,12 +638,12 @@ public:
     void state_receive();
     void state_define();
     void state_send();
-    void str_state(char* str) const override;
+    void str_state(char *str) const override;
     RelayState::State m_relaystate;
     std::unique_ptr<uint64[]> m_xfrmbuf;
     uint m_xfrmbuflen = 0;
-    RowList m_rows;     // rows received
-    RowList* m_rows_exec[g_max_ndb_nodes];      // sorted to per-node
+    RowList m_rows;                         // rows received
+    RowList *m_rows_exec[g_max_ndb_nodes];  // sorted to per-node
   };
 
   // exec op team
@@ -714,43 +679,43 @@ public:
     };
   };
 
-  static const char* g_str_state(ExecState::State state);
+  static const char *g_str_state(ExecState::State state);
 
   struct ExecOpTeam : DbTeam {
-    ExecOpTeam(Job& job, uint workercnt);
+    ExecOpTeam(Job &job, uint workercnt);
     ~ExecOpTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
     void do_end() override;
   };
 
   struct ExecOpWorker : DbWorker {
-    ExecOpWorker(Team& team, uint n);
+    ExecOpWorker(Team &team, uint n);
     ~ExecOpWorker() override = 0;
     void do_init() override;
     void do_run() override;
     void do_end() override = 0;
-    void state_receive();       // common to synch/asynch
+    void state_receive();  // common to synch/asynch
     virtual void state_define() = 0;
     virtual void state_prepare() = 0;
     virtual void state_send() = 0;
     virtual void state_poll() = 0;
-    void str_state(char* str) const override;
-    void reject_row(Row* row, const Error& error);
-    virtual void handle_error(Op *op); // Release ops, reject rows at error
+    void str_state(char *str) const override;
+    void reject_row(Row *row, const Error &error);
+    virtual void handle_error(Op *op);  // Release ops, reject rows at error
     ExecState::State m_execstate;
-    uint m_nodeindex;   // index into ndb nodes array
+    uint m_nodeindex;  // index into ndb nodes array
     uint m_nodeid;
-    RowList m_rows;     // received rows
-    OpList m_ops;       // received rows converted to ops
+    RowList m_rows;  // received rows
+    OpList m_ops;    // received rows converted to ops
     bool m_eof;
-    ErrorMap m_errormap;// temporary errors in current batch
-    uint m_opcnt;       // current batch
+    ErrorMap m_errormap;  // temporary errors in current batch
+    uint m_opcnt;         // current batch
     uint m_opsize;
   };
 
   struct ExecOpWorkerSynch : ExecOpWorker {
-    ExecOpWorkerSynch(Team& team, uint n);
+    ExecOpWorkerSynch(Team &team, uint n);
     ~ExecOpWorkerSynch() override;
     void do_end() override;
     void state_define() override;
@@ -760,29 +725,26 @@ public:
   };
 
   struct ExecOpWorkerAsynch : ExecOpWorker {
-    ExecOpWorkerAsynch(Team& team, uint n);
+    ExecOpWorkerAsynch(Team &team, uint n);
     ~ExecOpWorkerAsynch() override;
     void do_end() override;
     void state_define() override;
     void state_prepare() override;
     void state_send() override;
     void state_poll() override;
-    void asynch_callback(Tx* tx);
-    void set_auto_inc_val(const Attr& attr, Row *row,
-                          Uint64 val, Error& error);
+    void asynch_callback(Tx *tx);
+    void set_auto_inc_val(const Attr &attr, Row *row, Uint64 val, Error &error);
   };
 
   // diag team
 
   struct DiagTeam : Team {
-    DiagTeam(Job& job, uint workercnt);
+    DiagTeam(Job &job, uint workercnt);
     ~DiagTeam() override;
-    Worker* create_worker(uint n) override;
+    Worker *create_worker(uint n) override;
     void do_init() override;
-    void read_old_diags(const char* name,
-                        const char* path,
-                        const Table& table,
-                        RowList& rows_out);
+    void read_old_diags(const char *name, const char *path, const Table &table,
+                        RowList &rows_out);
     void read_old_diags();
     void open_new_diags();
     void do_end() override;
@@ -795,7 +757,7 @@ public:
   };
 
   struct DiagWorker : Worker {
-    DiagWorker(Team& team, uint n);
+    DiagWorker(Team &team, uint n);
     ~DiagWorker() override;
     void do_init() override;
     void do_run() override;
@@ -810,11 +772,11 @@ public:
     Buf m_rowmap_buf;
     Buf m_stopt_buf;
     Buf m_stats_buf;
-    CsvOutput* m_result_csv;
-    CsvOutput* m_reject_csv;
-    CsvOutput* m_rowmap_csv;
-    CsvOutput* m_stopt_csv;
-    CsvOutput* m_stats_csv;
+    CsvOutput *m_result_csv;
+    CsvOutput *m_reject_csv;
+    CsvOutput *m_rowmap_csv;
+    CsvOutput *m_stopt_csv;
+    CsvOutput *m_stats_csv;
   };
 
   // global
@@ -822,23 +784,23 @@ public:
   struct Jobs {
     Jobs();
     ~Jobs();
-    std::map<uint, Job*> m_jobs;
-    uint m_jobno;       // next job number (forever increasing)
+    std::map<uint, Job *> m_jobs;
+    uint m_jobno;  // next job number (forever increasing)
   };
   Jobs c_jobs;
 
-  Job* create_job();
-  Job* find_job(uint jobno);
-  void start_job(Job* job);
-  void stop_job(Job* job);
-  void wait_job(Job* job);
-  void destroy_job(Job* job);
+  Job *create_job();
+  Job *find_job(uint jobno);
+  void start_job(Job *job);
+  void stop_job(Job *job);
+  void wait_job(Job *job);
+  void destroy_job(Job *job);
 };
 
-NdbOut& operator<<(NdbOut& out, const NdbImportImpl& impl);
-NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Mgm& mgm);
-NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Job& job);
-NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Team& team);
-NdbOut& operator<<(NdbOut& out, const NdbImportImpl::Worker& w);
+NdbOut &operator<<(NdbOut &out, const NdbImportImpl &impl);
+NdbOut &operator<<(NdbOut &out, const NdbImportImpl::Mgm &mgm);
+NdbOut &operator<<(NdbOut &out, const NdbImportImpl::Job &job);
+NdbOut &operator<<(NdbOut &out, const NdbImportImpl::Team &team);
+NdbOut &operator<<(NdbOut &out, const NdbImportImpl::Worker &w);
 
 #endif

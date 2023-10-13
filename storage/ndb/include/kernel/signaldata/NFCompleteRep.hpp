@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 150
 
-
 /**
  * NFCompleteRep - Node Fail Complete Report
  *
@@ -37,14 +36,13 @@
  * when it has finished cleaning up after a node failure.
  *
  * It's also sent from Qmgr to the clusterMgr in API
- * to tell the API that it can now abort all transactions still waiting for response
- * from the failed NDB node
+ * to tell the API that it can now abort all transactions still waiting for
+ * response from the failed NDB node
  *
  */
 struct NFCompleteRep {
-
   friend bool printNF_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
-  
+
   static constexpr Uint32 SignalLength = 5;
 
   /**
@@ -53,12 +51,12 @@ struct NFCompleteRep {
    * NOTE: 0 means the node has completed
    */
   Uint32 blockNo;
-  
+
   /**
    * Which node has completed...
    */
   Uint32 nodeId;
-  
+
   /**
    * Which node has failed
    */
@@ -67,11 +65,10 @@ struct NFCompleteRep {
   /**
    * Is this the original message or a delayed variant.
    */
-  Uint32 unused; // originalMessage
+  Uint32 unused;  // originalMessage
 
   Uint32 from;
 };
-
 
 #undef JAM_FILE_ID
 

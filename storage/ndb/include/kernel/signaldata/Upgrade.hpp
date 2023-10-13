@@ -27,9 +27,7 @@
 
 #define JAM_FILE_ID 91
 
-
-struct UpgradeProtocolOrd 
-{
+struct UpgradeProtocolOrd {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -37,13 +35,10 @@ struct UpgradeProtocolOrd
 
   static constexpr Uint32 SignalLength = 1;
 
-  enum {
-    UPO_ENABLE_MICRO_GCP = 1
-  };
+  enum { UPO_ENABLE_MICRO_GCP = 1 };
 
   Uint32 type;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 536
 
-QBackupProxy::QBackupProxy(Block_context& ctx) :
-  LocalProxy(QBACKUP, ctx)
-{
-}
+QBackupProxy::QBackupProxy(Block_context &ctx) : LocalProxy(QBACKUP, ctx) {}
 
-QBackupProxy::~QBackupProxy()
-{
-}
+QBackupProxy::~QBackupProxy() {}
 
-SimulatedBlock*
-QBackupProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *QBackupProxy::newWorker(Uint32 instanceNo) {
   return new QBackup(m_ctx, instanceNo);
 }

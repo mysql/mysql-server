@@ -29,17 +29,12 @@
 
 #define JAM_FILE_ID 526
 
-Dbqtup::Dbqtup(Block_context& ctx,
-               Uint32 instanceNumber):
-  Dbtup(ctx, instanceNumber, DBQTUP)
-{
-}
+Dbqtup::Dbqtup(Block_context &ctx, Uint32 instanceNumber)
+    : Dbtup(ctx, instanceNumber, DBQTUP) {}
 
-Uint64 Dbqtup::getTransactionMemoryNeed()
-{
+Uint64 Dbqtup::getTransactionMemoryNeed() {
   Uint32 query_instance_count =
-    globalData.ndbMtQueryThreads +
-    globalData.ndbMtRecoverThreads;
+      globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads;
   Uint32 tup_scan_recs = 1;
   Uint32 tup_op_recs = 1;
   Uint32 tup_sp_recs = 1;
@@ -61,12 +56,8 @@ Uint64 Dbqtup::getTransactionMemoryNeed()
   scan_lock_byte_count += ScanLock_pool::getMemoryNeed(tup_scan_lock_recs);
   scan_lock_byte_count *= query_instance_count;
 
-  return (op_byte_count +
-          sp_byte_count +
-          scan_lock_byte_count +
+  return (op_byte_count + sp_byte_count + scan_lock_byte_count +
           scan_op_byte_count);
 }
 
-Dbqtup::~Dbqtup()
-{
-}
+Dbqtup::~Dbqtup() {}

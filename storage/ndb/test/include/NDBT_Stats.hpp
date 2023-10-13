@@ -29,37 +29,44 @@
 #include <ndb_global.h>
 
 class NDBT_Stats {
-public:
+ public:
   NDBT_Stats() { reset(); }
-  
-  void reset() { sum = sum2 = 0.0; max = DBL_MIN; ; min = DBL_MAX; n = 0;}
-  
-  void addObservation(double t) { 
-    sum+= t; 
-    sum2 += (t*t); 
-    n++; 
-    if(min > t) min = t;
-    if(max < t) max = t;
+
+  void reset() {
+    sum = sum2 = 0.0;
+    max = DBL_MIN;
+    ;
+    min = DBL_MAX;
+    n = 0;
   }
 
-  void addObservation(Uint64 t) { addObservation(double(t)); } 
-  
-  double getMean() const { return sum/n;}
-  double getStddev() const { return sqrt(getVariance()); }
-  double getVariance() const { return (n*sum2 - (sum*sum))/(n*n);}
-  double getMin() const { return min;}
-  double getMax() const { return max;}
-  int    getCount() const { return n;}
+  void addObservation(double t) {
+    sum += t;
+    sum2 += (t * t);
+    n++;
+    if (min > t) min = t;
+    if (max < t) max = t;
+  }
 
-  NDBT_Stats & operator+=(const NDBT_Stats & c){
+  void addObservation(Uint64 t) { addObservation(double(t)); }
+
+  double getMean() const { return sum / n; }
+  double getStddev() const { return sqrt(getVariance()); }
+  double getVariance() const { return (n * sum2 - (sum * sum)) / (n * n); }
+  double getMin() const { return min; }
+  double getMax() const { return max; }
+  int getCount() const { return n; }
+
+  NDBT_Stats &operator+=(const NDBT_Stats &c) {
     sum += c.sum;
     sum2 += c.sum2;
     n += c.n;
-    if(min > c.min) min = c.min;
-    if(max < c.max) max = c.max;
-    return * this;
+    if (min > c.min) min = c.min;
+    if (max < c.max) max = c.max;
+    return *this;
   }
-private:
+
+ private:
   double sum;
   double sum2;
   int n;

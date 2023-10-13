@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 180
 
-
 class SystemError {
-
   /**
    * Reciver(s)
    */
@@ -46,9 +44,10 @@ class SystemError {
   /**
    * For printing
    */
-  friend bool printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printSYSTEM_ERROR(FILE *output, const Uint32 *theData, Uint32 len,
+                                Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
@@ -60,14 +59,12 @@ public:
     StartFragRefError = 9,
     ProtocolError = 10
   };
-  
+
   Uint32 errorRef;
   Uint32 errorCode;
   Uint32 data[1];
 };
 
-
 #undef JAM_FILE_ID
 
 #endif
-

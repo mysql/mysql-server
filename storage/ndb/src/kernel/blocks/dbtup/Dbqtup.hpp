@@ -31,17 +31,16 @@
 
 #define JAM_FILE_ID 525
 
-class Dbqtup : public Dbtup
-{
+class Dbqtup : public Dbtup {
   friend class DbqtupProxy;
 
-public:
-  Dbqtup(Block_context& ctx,
-         Uint32 instanceNumber = 0);
+ public:
+  Dbqtup(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~Dbqtup();
 
   static Uint64 getTransactionMemoryNeed();
-private:
+
+ private:
   BLOCK_DEFINES(Dbqtup);
 };
 

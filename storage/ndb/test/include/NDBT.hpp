@@ -39,19 +39,17 @@
 #include "NDBT_ReturnCodes.h"
 
 #ifdef __cplusplus
+#include "NDBT_Error.hpp"
+#include "NDBT_Output.hpp"
+#include "NDBT_ResultRow.hpp"
 #include "NDBT_Table.hpp"
 #include "NDBT_Tables.hpp"
-#include "NDBT_Error.hpp"
-#include "NDBT_ResultRow.hpp"
-#include "NDBT_Output.hpp"
 
-#define CHK_NDB_READY(a) \
-  if ((a)->waitUntilReady() != 0) \
-  { \
-    return NDBT_FAILED; \
+#define CHK_NDB_READY(a)            \
+  if ((a)->waitUntilReady() != 0) { \
+    return NDBT_FAILED;             \
   }
 
 #endif
-
 
 #endif

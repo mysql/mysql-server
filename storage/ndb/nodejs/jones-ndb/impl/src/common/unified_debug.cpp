@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2012, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,27 +22,27 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <node.h>
 
-#include "adapter_global.h"
-#include "JsWrapper.h"
-#include "js_wrapper_macros.h"
 #include "JsValueAccess.h"
+#include "JsWrapper.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
-/* Undefine UNIFIED_DEBUG here so macros are not expanded 
+/* Undefine UNIFIED_DEBUG here so macros are not expanded
    and uni_debug is not declared as an extern
 */
-int uni_debug        = 0;
-int udeb_level       = 0;
+int uni_debug = 0;
+int udeb_level = 0;
 int udeb_initialized = 0;
-int udeb_per_file    = 0;
+int udeb_per_file = 0;
 
 #undef UNIFIED_DEBUG
 #include "unified_debug.h"
@@ -52,82 +52,76 @@ Persistent<Object> JSLoggerFunction;
 /* Initialized to all zeros? */
 unsigned char bit_index[UDEB_SOURCE_FILE_BITMASK_BYTES];
 
-
 /////  Internal Utility Functions
 
 /* libc's basename(3) is not thread-safe, so we implement a version here.
    This one is essentially a strlen() function that also remembers the final
    path separator
 */
-inline const char * udeb_basename(const char *path) {
-  const char * last_sep = 0;
-  if(path) {  
-    const char * s = path;
+inline const char *udeb_basename(const char *path) {
+  const char *last_sep = 0;
+  if (path) {
+    const char *s = path;
     last_sep = s;
-  
-    for(; *s ; s++) 
-      if(*s == '/') 
-         last_sep = s;
-    if(last_sep > path && last_sep < s) // point just past the separator
+
+    for (; *s; s++)
+      if (*s == '/') last_sep = s;
+    if (last_sep > path && last_sep < s)  // point just past the separator
       last_sep += 1;
   }
   return last_sep;
 }
 
-
 // Bernstein hash
 inline unsigned short udeb_hash(const char *name) {
   const unsigned char *p;
   unsigned int h = 5381;
-  
-  for (p = (const unsigned char *) name ; *p != '\0' ; p++) 
-      h = ((h << 5) + h) + *p;
+
+  for (p = (const unsigned char *)name; *p != '\0'; p++)
+    h = ((h << 5) + h) + *p;
 
   h = h % UDEB_SOURCE_FILE_BITMASK_BITS;
 
-  return (unsigned short) h;
+  return (unsigned short)h;
 }
 
 inline int index_read(unsigned short bit_number) {
   unsigned short byte = bit_number / 8;
-  unsigned char  mask = static_cast<unsigned char>(1U << ( bit_number % 8));
+  unsigned char mask = static_cast<unsigned char>(1U << (bit_number % 8));
   return bit_index[byte] & mask;
 }
 
 inline void index_set(unsigned short bit_number) {
   unsigned short byte = bit_number / 8;
-  unsigned char  mask = static_cast<unsigned char>(1U << ( bit_number % 8));
+  unsigned char mask = static_cast<unsigned char>(1U << (bit_number % 8));
   bit_index[byte] |= mask;
 }
 
 inline void index_clear(unsigned short bit_number) {
   unsigned short byte = bit_number / 8;
-  unsigned char  mask = static_cast<unsigned char>(1 << ( bit_number % 8)) ^ 0xFF;
+  unsigned char mask = static_cast<unsigned char>(1 << (bit_number % 8)) ^ 0xFF;
   bit_index[byte] &= mask;
 }
-
 
 inline int log_level(const char *path) {
   return index_read(udeb_hash(path)) ? UDEB_DETAIL : udeb_level;
 }
 
-
-////// The Logging API for C:  udeb_print() and udeb_enter() 
+////// The Logging API for C:  udeb_print() and udeb_enter()
 
 void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
   udeb_print(src_path, level, "Enter: %27s - line %d", fn, ln);
 }
 
-
 #define SEND_MESSAGES_TO_JAVASCRIPT 0
 
-/* udeb_print() is used by macros in the public API 
-*/ 
+/* udeb_print() is used by macros in the public API
+ */
 void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   int sz = 0;
   char message[UDEB_MSG_BUF];
-  
-  const char * src_file = udeb_basename(src_path);
+
+  const char *src_file = udeb_basename(src_path);
 
   /* Construct the message */
   va_list args;
@@ -136,7 +130,7 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
   va_end(args);
 
-  if(udeb_initialized && log_level(src_file) >= level) {
+  if (udeb_initialized && log_level(src_file) >= level) {
 #if SEND_MESSAGES_TO_JAVASCRIPT
 //    HandleScope scope;
 //    Handle<Value> jsArgs[3];
@@ -150,9 +144,7 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
 #endif
   }
   return;
-
 }
-
 
 /************************* The JavaScript API ***********************
  * setLevel():   JS tells C the global state and level.
@@ -162,8 +154,8 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
 void udeb_setLogger(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
 
-  if(! udeb_initialized) {
-    Isolate * iso = args.GetIsolate();
+  if (!udeb_initialized) {
+    Isolate *iso = args.GetIsolate();
     Local<Context> ctx = iso->GetCurrentContext();
     JSLoggerFunction.Reset(iso, args[0]->ToObject(ctx).ToLocalChecked());
     // JSLoggerFunction.Reset(Function::Cast(* (args[0])));
@@ -171,30 +163,29 @@ void udeb_setLogger(const Arguments &args) {
     // JSLoggerFunction = Persistent<Function>::New(f);
     udeb_initialized = 1;
 
-    udeb_print("unified_debug.cpp", UDEB_DEBUG, 
+    udeb_print("unified_debug.cpp", UDEB_DEBUG,
                "unified_debug.cpp C++ unified_debug enabled");
   }
   args.GetReturnValue().Set(true);
 }
 
-
 void udeb_setLevel(const Arguments &args) {
   udeb_level = GetInt32Arg(args, 0);
   // C code cannot log below UDEB_INFO
   uni_debug = (udeb_per_file || (udeb_level > UDEB_NOTICE)) ? 1 : 0;
-  
+
   // leave uni_debug off until stack corruption in udeb_print() is fixed
-  //uni_debug = 0;
-  
+  // uni_debug = 0;
+
   args.GetReturnValue().Set(true);
 }
 
 void udeb_setFileLevel(const Arguments &args) {
   unsigned char filename[250];
-  Isolate * iso = args.GetIsolate();
+  Isolate *iso = args.GetIsolate();
   Local<Context> ctx = iso->GetCurrentContext();
   args[0]->ToString(ctx).ToLocalChecked()->WriteOneByte(iso, filename, 0, 250);
-  index_set(udeb_hash(udeb_basename((const char *) filename)));
+  index_set(udeb_hash(udeb_basename((const char *)filename)));
   uni_debug = udeb_per_file = 1;
 
   args.GetReturnValue().Set(true);
@@ -202,7 +193,6 @@ void udeb_setFileLevel(const Arguments &args) {
 
 void udebug_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "setLogger", udeb_setLogger);
-  DEFINE_JS_FUNCTION(target, "setLevel" , udeb_setLevel );
+  DEFINE_JS_FUNCTION(target, "setLevel", udeb_setLevel);
   DEFINE_JS_FUNCTION(target, "setFileLevel", udeb_setFileLevel);
 }
-

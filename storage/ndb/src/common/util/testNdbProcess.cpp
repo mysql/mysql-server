@@ -36,7 +36,7 @@ static constexpr int SleeperProcessTimeMsec = 5000;
 
 int run_parent(void);
 
-const char * argv0 = nullptr;
+const char *argv0 = nullptr;
 
 /* Child process reads and writes to pipes as expected, then exits */
 int run_child_responsive() {
@@ -45,9 +45,10 @@ int run_child_responsive() {
   int r = fread(buff, 6, 1, stdin);
 
   /* Write "goodbye." */
-  if(r == 1 && strncmp("hello.", buff, 6) == 0)
+  if (r == 1 && strncmp("hello.", buff, 6) == 0)
     fprintf(stdout, "goodbye.");
-  else perror("fread()");
+  else
+    perror("fread()");
 
   return 0;
 }
@@ -61,23 +62,19 @@ int run_child_sleeper() {
 /* main()
    Depending on arguments, run a child process, or set argv0 and run parent
 */
-int main(int argc, const char * argv[]) {
-  if(argc > 1) {
-    if(strcmp(argv[1], "responsive") == 0)
-      return run_child_responsive();
-    if(strcmp(argv[1], "sleeper") == 0)
-      return run_child_sleeper();
+int main(int argc, const char *argv[]) {
+  if (argc > 1) {
+    if (strcmp(argv[1], "responsive") == 0) return run_child_responsive();
+    if (strcmp(argv[1], "sleeper") == 0) return run_child_sleeper();
     BAIL_OUT("Unrecognized option: %s", argv[1]);
   }
   argv0 = argv[0];
   return run_parent();
 }
 
-int pollReadable(NdbProcess::pipe_handle_t fd, int timeout)
-{
+int pollReadable(NdbProcess::pipe_handle_t fd, int timeout) {
 #ifdef _WIN32
-  switch(WaitForMultipleObjects(1, &fd, FALSE, timeout))
-  {
+  switch (WaitForMultipleObjects(1, &fd, FALSE, timeout)) {
     case WAIT_OBJECT_0:
       return 1;
     case WAIT_TIMEOUT:
@@ -91,23 +88,23 @@ int pollReadable(NdbProcess::pipe_handle_t fd, int timeout)
 #endif
 }
 
-bool read_response(NdbProcess::Pipes & pipes, FILE * rfp) {
+bool read_response(NdbProcess::Pipes &pipes, FILE *rfp) {
   char response[32];
   response[0] = 'F';
   bool match = false;
 
   /* Wait 50ms for socket to become readable, then read response */
-  if(pollReadable(pipes.parentRead(), 50) == 1) {
-    if(fread(response, 8, 1, rfp) == 1) {
+  if (pollReadable(pipes.parentRead(), 50) == 1) {
+    if (fread(response, 8, 1, rfp) == 1) {
       response[8] = '\0';
-      match = ! strcmp(response, "goodbye.");
+      match = !strcmp(response, "goodbye.");
     }
   }
   return match;
 }
 
-std::unique_ptr<NdbProcess> create_peer(const char * argv1,
-                                        NdbProcess::Pipes & pipes) {
+std::unique_ptr<NdbProcess> create_peer(const char *argv1,
+                                        NdbProcess::Pipes &pipes) {
   BaseString cmd;
   NdbProcess::Args args;
 
@@ -115,27 +112,39 @@ std::unique_ptr<NdbProcess> create_peer(const char * argv1,
   args.add(argv1);
 
   assert(pipes.connected());
-  std::unique_ptr<NdbProcess> p = NdbProcess::create(
-      "TestPeer", cmd, nullptr, args, &pipes);
+  std::unique_ptr<NdbProcess> p =
+      NdbProcess::create("TestPeer", cmd, nullptr, args, &pipes);
   ok((p != nullptr), "created process");
   return p;
 }
 
 class Test {
-  const char * child_argv1;
+  const char *child_argv1;
   int waitTime1{0}, waitTime2{0}, expectExitCode{0};
   bool expectResponse{false};
 
-public:
-  Test(const char * a) : child_argv1(a) {}
-  Test & setResponse(bool b)    { expectResponse=b ; return *this; }
-  Test & setWait1(int t)        { waitTime1=t; return *this; }
-  Test & setWait2(int t)        { waitTime2=t; return *this; }
-  Test & setExitCode(int i)     { expectExitCode = i; return *this; }
+ public:
+  Test(const char *a) : child_argv1(a) {}
+  Test &setResponse(bool b) {
+    expectResponse = b;
+    return *this;
+  }
+  Test &setWait1(int t) {
+    waitTime1 = t;
+    return *this;
+  }
+  Test &setWait2(int t) {
+    waitTime2 = t;
+    return *this;
+  }
+  Test &setExitCode(int i) {
+    expectExitCode = i;
+    return *this;
+  }
   void run();
 };
 
-const char * trueFalse(bool r) { return r ? "true" : "false"; }
+const char *trueFalse(bool r) { return r ? "true" : "false"; }
 
 void Test::run() {
   NdbProcess::Pipes pipes;
@@ -155,7 +164,7 @@ void Test::run() {
   fclose(rfp);
 
   bool expectWait1, expectWait2;
-  if(expectResponse) {
+  if (expectResponse) {
     expectWait1 = true;
     expectWait2 = false;
     assert(waitTime2 == 0);
@@ -165,20 +174,20 @@ void Test::run() {
   }
 
   /* Timing is unreliable, so the first wait might succeed */
-  if(waitTime1) {
+  if (waitTime1) {
     stopped = proc->wait(actualExitCode, waitTime1);
-    ok(stopped || ! expectWait1, "wait1() (%s)", trueFalse(stopped));
+    ok(stopped || !expectWait1, "wait1() (%s)", trueFalse(stopped));
   }
 
-  if(waitTime2 && ! stopped) {
+  if (waitTime2 && !stopped) {
     stopped = proc->wait(actualExitCode, waitTime2);
     ok(stopped == expectWait2, "wait2() => %s", trueFalse(expectWait2));
   }
 
   /* Kill it if necessary */
-  if(stopped) {
-    ok(actualExitCode == expectExitCode, "exit code %d == %d",
-       actualExitCode, expectExitCode);
+  if (stopped) {
+    ok(actualExitCode == expectExitCode, "exit code %d == %d", actualExitCode,
+       expectExitCode);
   } else {
     r = proc->stop();
     ok(r, "force kill process");
@@ -198,8 +207,12 @@ int run_parent() {
   puts("");
 
   puts("Test 3: no response; first wait() may fail; second wait() succeeds");
-  Test("sleeper").setResponse(false).setWait1(1500).setWait2(4000).
-    setExitCode(93).run();
+  Test("sleeper")
+      .setResponse(false)
+      .setWait1(1500)
+      .setWait2(4000)
+      .setExitCode(93)
+      .run();
   puts("");
 
   return exit_status();

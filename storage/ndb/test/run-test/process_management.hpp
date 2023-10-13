@@ -25,19 +25,19 @@
 #ifndef PROCESS_MANAGEMENT_HPP_
 #define PROCESS_MANAGEMENT_HPP_
 
-#include "util/TlsKeyManager.hpp"
 #include "atrt.hpp"
+#include "util/TlsKeyManager.hpp"
 
 class ProcessManagement {
  public:
   static const int P_NDB = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
-  static const int P_SERVERS = atrt_process::AP_MYSQLD
-                             | atrt_process::AP_CUSTOM;
-  static const int P_CLIENTS = atrt_process::AP_CLIENT
-                             | atrt_process::AP_NDB_API;
+  static const int P_SERVERS =
+      atrt_process::AP_MYSQLD | atrt_process::AP_CUSTOM;
+  static const int P_CLIENTS =
+      atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 
-  ProcessManagement(atrt_config &g_config, const char *g_setup_progname) :
-  config(g_config) {
+  ProcessManagement(atrt_config &g_config, const char *g_setup_progname)
+      : config(g_config) {
     setup_progname = g_setup_progname;
     clusterProcessesStatus = ProcessesStatus::STOPPED;
   }
@@ -51,7 +51,6 @@ class ProcessManagement {
   bool waitForProcessToStop(atrt_process &proc, int retries = 60,
                             int wait_between_retries_s = 5);
   int updateProcessesStatus();
-
 
  private:
   const char *setup_progname;
@@ -70,12 +69,11 @@ class ProcessManagement {
   int checkNdbOrServersFailures();
   bool updateStatus(int types, bool fail_on_missing = true);
   bool waitForProcessesToStop(int types = atrt_process::AP_ALL,
-                              int retries = 60,
-                              int wait_between_retries_s = 5);
+                              int retries = 60, int wait_between_retries_s = 5);
   bool setupHostsFilesystem();
 
   static int remap(int i);
-  const char* getProcessTypeName(int types);
+  const char *getProcessTypeName(int types);
 
   atrt_config &config;
   enum class ProcessesStatus { RUNNING, STOPPED, ERROR } clusterProcessesStatus;

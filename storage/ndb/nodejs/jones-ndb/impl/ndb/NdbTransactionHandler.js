@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -25,53 +25,48 @@
 "use strict";
 
 var stats = {
-  "created"		   : 0,
-  "run_async"    : 0,
-  "run_sync"     : 0,
-  "execute"      : { "commit": 0, "no_commit" : 0, "scan": 0, "scan_retry": 0 },
-  "failed_scans" : 0,
-  "commit"       : 0,
-  "rollback"     : 0
+  "created": 0,
+  "run_async": 0,
+  "run_sync": 0,
+  "execute": {"commit": 0, "no_commit": 0, "scan": 0, "scan_retry": 0},
+  "failed_scans": 0,
+  "commit": 0,
+  "rollback": 0
 };
 
-var assert          = require("assert"),
-    conf             = require("./path_config"),
-    adapter         = require(conf.binary).ndb,
-    ndboperation    = require("./NdbOperation.js"),
-    jones           = require("database-jones"),
-    doc             = require(jones.spi_doc.DBTransactionHandler),
-    stats_module    = require(jones.api.stats),
-    udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
+var assert = require("assert"), conf = require("./path_config"),
+    adapter = require(conf.binary).ndb,
+    ndboperation = require("./NdbOperation.js"),
+    jones = require("database-jones"),
+    doc = require(jones.spi_doc.DBTransactionHandler),
+    stats_module = require(jones.api.stats),
+    udebug = unified_debug.getLogger("NdbTransactionHandler.js"),
     QueuedAsyncCall = require(jones.common.QueuedAsyncCall).QueuedAsyncCall,
-    AutoIncHandler  = require("./NdbAutoIncrement.js").AutoIncHandler,
-    COMMIT          = adapter.ndbapi.Commit,
-    NOCOMMIT        = adapter.ndbapi.NoCommit,
-    ROLLBACK        = adapter.ndbapi.Rollback,
-    AO_ABORT        = adapter.ndbapi.AbortOnError,
-    AO_IGNORE       = adapter.ndbapi.AO_IgnoreError,
-    AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
-    modeNames       = [],
-    serial          = 1,
+    AutoIncHandler = require("./NdbAutoIncrement.js").AutoIncHandler,
+    COMMIT = adapter.ndbapi.Commit, NOCOMMIT = adapter.ndbapi.NoCommit,
+    ROLLBACK = adapter.ndbapi.Rollback, AO_ABORT = adapter.ndbapi.AbortOnError,
+    AO_IGNORE = adapter.ndbapi.AO_IgnoreError,
+    AO_DEFAULT = adapter.ndbapi.DefaultAbortOption, modeNames = [], serial = 1,
     usedOperationSets = new Array(4000);
 
-stats_module.register(stats, "spi","ndb","DBTransactionHandler");
+stats_module.register(stats, "spi", "ndb", "DBTransactionHandler");
 
 modeNames[COMMIT] = 'commit';
 modeNames[NOCOMMIT] = 'noCommit';
 modeNames[ROLLBACK] = 'rollback';
 
 function DBTransactionHandler(dbsession) {
-  this.dbSession          = dbsession;
-  this.autocommit         = true;
-  this.impl               = null;
-  this.sentSeizeImpl      = false;
-  this.execCount          = 0;   // number of execute calls 
-  this.pendingOpsLists    = [];  // [ execCallNumber => {}, ... ]
-  this.executedOperations = [];  // All finished operations 
-  this.asyncContext       = dbsession.parentPool.asyncNdbContext;
-  this.serial             = serial++;
-  this.moniker            = "(tx" + this.serial + ")";
-  this.retries            = 0;
+  this.dbSession = dbsession;
+  this.autocommit = true;
+  this.impl = null;
+  this.sentSeizeImpl = false;
+  this.execCount = 0;            // number of execute calls
+  this.pendingOpsLists = [];     // [ execCallNumber => {}, ... ]
+  this.executedOperations = [];  // All finished operations
+  this.asyncContext = dbsession.parentPool.asyncNdbContext;
+  this.serial = serial++;
+  this.moniker = "(tx" + this.serial + ")";
+  this.retries = 0;
   udebug.log("NEW ", this.moniker);
   stats.created++;
 }
@@ -81,11 +76,11 @@ function getOpSetWrapper() {
 }
 
 function releaseOpSetWrapper(dbOperationSet) {
-  if(dbOperationSet) {
-    dbOperationSet.free();  // Free the underlying native object 
-    if(usedOperationSets.length < 4000) {
+  if (dbOperationSet) {
+    dbOperationSet.free();  // Free the underlying native object
+    if (usedOperationSets.length < 4000) {
       usedOperationSets.push(dbOperationSet);
-    } // Keep the JavaScript wrapper for recycling
+    }  // Keep the JavaScript wrapper for recycling
   }
 }
 
@@ -105,21 +100,20 @@ function run(self, operationSet, execMode, abortFlag, callback) {
     var force_send = 1;
     var canStartImmediate;
 
-    if(this.txIsOpen) {
+    if (this.txIsOpen) {
       canStartImmediate = true;  // Transaction already started
-    } else if(this.tx.asyncContext) { 
+    } else if (this.tx.asyncContext) {
       canStartImmediate = this.operations.tryImmediateStartTransaction();
     }
 
-    if(this.tx.asyncContext && canStartImmediate) { 
+    if (this.tx.asyncContext && canStartImmediate) {
       stats.run_async++;
-      this.operations.executeAsynch(this.execMode, this.abortFlag,
-                                    force_send, this.callback);
-    }
-    else { 
+      this.operations.executeAsynch(
+          this.execMode, this.abortFlag, force_send, this.callback);
+    } else {
       stats.run_sync++;
-      this.operations.execute(this.execMode, this.abortFlag, 
-                              force_send, this.callback);      
+      this.operations.execute(
+          this.execMode, this.abortFlag, force_send, this.callback);
     }
   };
 
@@ -128,18 +122,18 @@ function run(self, operationSet, execMode, abortFlag, callback) {
 }
 
 
-/* Error handling after NdbTransaction.execute() 
-*/
+/* Error handling after NdbTransaction.execute()
+ */
 function attachErrorToTransaction(dbTxHandler, err) {
-  if(err) {
+  if (err) {
     dbTxHandler.success = false;
-    dbTxHandler.error = new ndboperation.DBOperationError().fromNdbError(err.ndb_error);
+    dbTxHandler.error =
+        new ndboperation.DBOperationError().fromNdbError(err.ndb_error);
     /* Special handling for duplicate value in unique index: */
-    if(err.ndb_error.code === 893) {
+    if (err.ndb_error.code === 893) {
       dbTxHandler.error.cause = dbTxHandler.error;
     }
-  }
-  else {
+  } else {
     dbTxHandler.success = true;
   }
 }
@@ -153,7 +147,7 @@ function attachErrorToTransaction(dbTxHandler, err) {
    If transaction is executed Commit or Rollback, it will close
    Attach results to operations, and run operation callbacks
    Run the transaction callback
-   
+
    EXECUTE PATH FOR SCAN OPERATIONS
    --------------------------------
    Seize Transaction Context
@@ -166,29 +160,30 @@ function attachErrorToTransaction(dbTxHandler, err) {
 */
 
 
-/* Common callback for execute, commit, and rollback 
-*/
+/* Common callback for execute, commit, and rollback
+ */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   var pendingOpsList = dbTxHandler.pendingOpsLists[execId];
 
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
-  if(udebug.is_debug()) {
-    udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
-                "success:", dbTxHandler.success);
+  if (udebug.is_debug()) {
+    udebug.log(
+        "onExecute", modeNames[execMode], dbTxHandler.moniker,
+        "success:", dbTxHandler.success);
   }
 
   /* Attach results to their operations */
   ndboperation.completeExecutedOps(dbTxHandler, execMode, pendingOpsList);
 
   // If we just executed with Commit or Rollback, release TransactionImpl.
-  if(execMode !== NOCOMMIT) {
+  if (execMode !== NOCOMMIT) {
     dbTxHandler.dbSession.releaseTransactionContext(dbTxHandler.impl);
     dbTxHandler.impl = null;
   }
 
   /* Optional transaction callback */
-  if(typeof userCallback === 'function') {
+  if (typeof userCallback === 'function') {
     userCallback(dbTxHandler.error, dbTxHandler);
   }
 }
@@ -197,27 +192,27 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
 function getExecIdForOperationList(self, operationList, pendingOpSet) {
   var execId = self.execCount++;
   self.pendingOpsLists[execId] = {
-    "operationList"       : operationList,
-    "pendingOperationSet" : pendingOpSet
+    "operationList": operationList,
+    "pendingOperationSet": pendingOpSet
   };
   return execId;
 }
 
 
-/* We assume there will only ever be one scan in an operationList, and there 
+/* We assume there will only ever be one scan in an operationList, and there
    will never be key operations and scans combined in a single operationList.
 */
 function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   var op, execId, scanOperation, apiCall;
 
-  /* After reading from the scan, execute the NdbTransaction with an 
-     empty operation list. 
+  /* After reading from the scan, execute the NdbTransaction with an
+     empty operation list.
   */
   function executeNdbTransaction() {
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
     }
-    
+
     udebug.log(self.moniker, "executeScan executeNdbTransaction");
     var emptyOpSet = self.impl.getEmptyOperationSet();
     execId = getExecIdForOperationList(self, dbOperationList, emptyOpSet);
@@ -225,8 +220,9 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   function canRetry(err) {
-    return (err.ndb_error && err.ndb_error.classification == 'TimeoutExpired'
-            && self.retries++ < 10);
+    return (
+        err.ndb_error && err.ndb_error.classification == 'TimeoutExpired' &&
+        self.retries++ < 10);
   }
 
 
@@ -240,7 +236,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
       udebug.log(self.moniker, "retrying scan:", self.retries);
       executeScan(self, execMode, abortFlag, dbOperationList, callback);
     }
-    
+
     function closeWithError() {
       stats.failed_scans++;
       op.result.success = false;
@@ -249,47 +245,48 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
     }
 
     function closeSuccess() {
-      if(execMode == NOCOMMIT) {
-        onExecute(self, execMode, err, execId, callback);      
+      if (execMode == NOCOMMIT) {
+        onExecute(self, execMode, err, execId, callback);
       } else {
         executeNdbTransaction();
-      }    
+      }
     }
 
-    if(err) {
+    if (err) {
       closeScanopCallback = canRetry(err) ? retryAfterClose : closeWithError;
     } else {
       closeScanopCallback = closeSuccess;
     }
 
     /* Close the Scan Operation */
-    apiCall = new QueuedAsyncCall(self.dbSession.execQueue, closeScanopCallback);
+    apiCall =
+        new QueuedAsyncCall(self.dbSession.execQueue, closeScanopCallback);
     apiCall.description = "ScanOperation.close";
     apiCall.run = function() {
       scanOperation.close(this.callback);
     };
     apiCall.enqueue();
   }
-  
+
   /* Fetch results */
   function getScanResults(err) {
     udebug.log(self.moniker, "executeScan getScanResults");
-    if(err) {
+    if (err) {
       onFetchComplete(err);
-    }
-    else if(op.isQueryOperation()) {
+    } else if (op.isQueryOperation()) {
       ndboperation.getQueryResults(op, onFetchComplete);
     } else {
       ndboperation.getScanResults(op, onFetchComplete);
     }
   }
-  
+
   function onExecNoCommit(err) {
     var fatalError;
     udebug.log(self.moniker, "executeScan onExecNoCommit");
-    if(err) {
+    if (err) {
       fatalError = self.impl.getNdbError();
-      callback(new ndboperation.DBOperationError().fromNdbError(fatalError), self);
+      callback(
+          new ndboperation.DBOperationError().fromNdbError(fatalError), self);
     } else {
       getScanResults(null);
     }
@@ -299,12 +296,12 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   udebug.log(self.moniker, "executeScan");
   op = dbOperationList[0];
   execId = getExecIdForOperationList(self, dbOperationList);
-  if(op.scanOp) {
-    if(op.isQueryOperation()) {
+  if (op.scanOp) {
+    if (op.isQueryOperation()) {
       op.scanOp.setTransactionImpl(self.impl);
       scanOperation = op.scanOp;
     } else {
-      scanOperation = op.scanOp; //  No need to rebuild if retrying after error
+      scanOperation = op.scanOp;  //  No need to rebuild if retrying after error
     }
   } else {
     scanOperation = op.prepareScan(self.impl);
@@ -328,26 +325,26 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
       onExecute(self, execMode, err, execId, callback);
       releaseOpSetWrapper(pendingOps);
     }
-    
+
     run(self, pendingOps, execMode, abortFlag, onCompleteExec);
   }
 
   function prepareOperations() {
-    udebug.log("executeNonScan prepare", dbOperationList.length, 
-               "operations", self.moniker);
-    pendingOps = ndboperation.prepareOperations(self.impl, dbOperationList, 
-                                                getOpSetWrapper());
+    udebug.log(
+        "executeNonScan prepare", dbOperationList.length, "operations",
+        self.moniker);
+    pendingOps = ndboperation.prepareOperations(
+        self.impl, dbOperationList, getOpSetWrapper());
     executeNdbTransaction();
   }
 
   function getAutoIncrementValues() {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
-    if(autoIncHandler.values_needed > 0) {
+    if (autoIncHandler.values_needed > 0) {
       autoIncHandler.getAllValues(prepareOperations);
-    }
-    else {
+    } else {
       prepareOperations();
-    }  
+    }
   }
 
   // executeNonScan() starts here:
@@ -357,28 +354,28 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
 
 /* Internal execute()
    Fetch a TransactionImpl, then call executeScan() or executeNonScan()
-*/ 
+*/
 function execute(self, execMode, abortFlag, dbOperationList, callback) {
   udebug.log("internal execute");
   function executeSpecific() {
-    if(dbOperationList[0].isScanOperation()) {
+    if (dbOperationList[0].isScanOperation()) {
       stats.execute.scan++;
       executeScan(self, execMode, abortFlag, dbOperationList, callback);
     } else {
       executeNonScan(self, execMode, abortFlag, dbOperationList, callback);
-    }  
+    }
   }
- 
-  // Execute calls are queued, so we can create one even if 
+
+  // Execute calls are queued, so we can create one even if
   // seizeTransactionContext has not yet returned.
-  if(self.sentSeizeImpl) {
+  if (self.sentSeizeImpl) {
     executeSpecific();
-  } else {                           // seize a TransactionImpl 
+  } else {  // seize a TransactionImpl
     self.sentSeizeImpl = true;
     self.dbSession.seizeTransactionContext(function onContext(impl) {
       self.impl = impl;
       executeSpecific();
-    });  
+    });
   }
 }
 
@@ -388,7 +385,7 @@ function executeNoOperations(self, execMode, userCallback) {
   var execId, pendingOps;
   pendingOps = self.impl.getEmptyOperationSet();
   execId = getExecIdForOperationList(self, [], pendingOps);
-  run(self, pendingOps, execMode, AO_IGNORE,  function onNdbExec(err) {
+  run(self, pendingOps, execMode, AO_IGNORE, function onNdbExec(err) {
     onExecute(self, execMode, err, execId, userCallback);
   });
 }
@@ -397,26 +394,29 @@ function executeNoOperations(self, execMode, userCallback) {
 /* execute(DBOperation[] dbOperationList,
            function(error, DBTransactionHandler) callback)
    ASYNC
-   
+
    Executes the DBOperations in dbOperationList.
    Commits the transaction if autocommit is true.
 */
-DBTransactionHandler.prototype.execute = function(dbOperationList, userCallback) {
-
-  if(! dbOperationList.length) {
+DBTransactionHandler.prototype.execute = function(
+    dbOperationList, userCallback) {
+  if (!dbOperationList.length) {
     udebug.log("Execute -- STUB EXECUTE (no operation list)");
     userCallback(null, this);
     return;
   }
-  
-  if(this.autocommit) {
-    if(udebug.is_debug()) { udebug.log("Execute -- AutoCommit", this.moniker); }
+
+  if (this.autocommit) {
+    if (udebug.is_debug()) {
+      udebug.log("Execute -- AutoCommit", this.moniker);
+    }
     stats.execute.commit++;
     this.dbSession.retireTransactionHandler();
     execute(this, COMMIT, AO_IGNORE, dbOperationList, userCallback);
-  }
-  else {
-    if(udebug.is_debug()) { udebug.log("Execute -- NoCommit", this.moniker); }
+  } else {
+    if (udebug.is_debug()) {
+      udebug.log("Execute -- NoCommit", this.moniker);
+    }
     stats.execute.no_commit++;
     execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
@@ -424,8 +424,8 @@ DBTransactionHandler.prototype.execute = function(dbOperationList, userCallback)
 
 
 /* commit(function(error, DBTransactionHandler) callback)
-   ASYNC 
-   
+   ASYNC
+
    Commit work.
 */
 DBTransactionHandler.prototype.commit = function commit(userCallback) {
@@ -434,7 +434,7 @@ DBTransactionHandler.prototype.commit = function commit(userCallback) {
   stats.commit++;
 
   this.dbSession.retireTransactionHandler();
-  if(this.impl) {
+  if (this.impl) {
     executeNoOperations(this, COMMIT, userCallback);
   } else {
     udebug.log("commit STUB COMMIT (no TransactionImpl)");
@@ -444,8 +444,8 @@ DBTransactionHandler.prototype.commit = function commit(userCallback) {
 
 
 /* rollback(function(error, DBTransactionHandler) callback)
-   ASYNC 
-   
+   ASYNC
+
    Roll back all previously executed operations.
 */
 DBTransactionHandler.prototype.rollback = function rollback(userCallback) {
@@ -454,7 +454,7 @@ DBTransactionHandler.prototype.rollback = function rollback(userCallback) {
   stats.rollback++;
 
   this.dbSession.retireTransactionHandler();
-  if(this.impl) {
+  if (this.impl) {
     executeNoOperations(this, ROLLBACK, userCallback);
   } else {
     udebug.log("rollback STUB ROLLBACK (no TransactionImpl)");
@@ -463,4 +463,3 @@ DBTransactionHandler.prototype.rollback = function rollback(userCallback) {
 };
 
 exports.DBTransactionHandler = DBTransactionHandler;
-

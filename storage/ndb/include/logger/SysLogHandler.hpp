@@ -30,8 +30,8 @@
 #include "LogHandler.hpp"
 
 /**
- * Logs messages to syslog. The default identity is 'NDB'. 
- * See 'man 3 syslog'. 
+ * Logs messages to syslog. The default identity is 'NDB'.
+ * See 'man 3 syslog'.
  *
  * It logs the following severity levels.
  * <pre>
@@ -57,27 +57,26 @@
  * @see LogHandler
  * @version #@ $Id: SysLogHandler.hpp,v 1.2 2003/09/01 10:15:53 innpeno Exp $
  */
-class SysLogHandler : public LogHandler
-{
-public:
+class SysLogHandler : public LogHandler {
+ public:
   /**
    * Default constructor.
    */
   SysLogHandler();
-  
+
   /**
    * Create a new syslog handler with the specified identity.
    *
    * @param pIdentity a syslog identity.
    * @param facility syslog facility, defaults to LOG_USER
    */
-  SysLogHandler(const char* pIdentity, int facility);
+  SysLogHandler(const char *pIdentity, int facility);
 
   /**
    * Destructor.
    */
   ~SysLogHandler() override;
-  
+
   bool open() override;
   bool close() override;
 
@@ -86,23 +85,23 @@ public:
   bool setParam(const BaseString &param, const BaseString &value) override;
   bool setFacility(const BaseString &facility);
 
-protected:	
-  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                           time_t now) override;
-  void writeMessage(const char* pMsg) override;
+ protected:
+  void writeHeader(const char *pCategory, Logger::LoggerLevel level,
+                   time_t now) override;
+  void writeMessage(const char *pMsg) override;
   void writeFooter() override;
 
-private:
+ private:
   /** Prohibit*/
-  SysLogHandler(const SysLogHandler&);
-  SysLogHandler operator = (const SysLogHandler&);
-  bool operator == (const SysLogHandler&);
+  SysLogHandler(const SysLogHandler &);
+  SysLogHandler operator=(const SysLogHandler &);
+  bool operator==(const SysLogHandler &);
 
   int m_severity;
-  const char* m_pCategory;
+  const char *m_pCategory;
 
   /** Syslog identity for all log entries. */
-  const char* m_pIdentity;
+  const char *m_pIdentity;
   int m_facility;
   bool m_open;
 };

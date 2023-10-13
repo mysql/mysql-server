@@ -25,59 +25,52 @@
 #include "AsyncMethodCall.h"
 
 /** These templated classes represent normal C or C++ function calls.
-  *
-  * They inherit from AsyncCall_Returning<R>, which encapsulates
-  * wrapper functions for async execution, and some return type,
-  * and from a Call_N_<> template class templated over argument types.
-  *
-  */
-
+ *
+ * They inherit from AsyncCall_Returning<R>, which encapsulates
+ * wrapper functions for async execution, and some return type,
+ * and from a Call_N_<> template class templated over argument types.
+ *
+ */
 
 /** Template class with:
-  * no arguments
-  * return value of type R
-**/
+ * no arguments
+ * return value of type R
+ **/
 
 template <typename R>
 class NativeCFunctionCall_0_ : public AsyncCall_Returning<R> {
-public:
+ public:
   /* Member variables */
   typedef R (*Function_T)();
   Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_0_(Function_T f, const Arguments &args) :
-  AsyncCall_Returning<R>(args.GetIsolate(), args[0]) /*callback*/ ,
-  function(f)
-  { }
+  NativeCFunctionCall_0_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[0]) /*callback*/,
+        function(f) {}
 
   /* Methods */
-  void run() override {
-    AsyncCall_Returning<R>::return_val = (*function)();
-  }
+  void run() override { AsyncCall_Returning<R>::return_val = (*function)(); }
 };
 
-
 /** Template class with:
-  * one argument of type A0
-  * return value of type R
-**/
+ * one argument of type A0
+ * return value of type R
+ **/
 
 template <typename R, typename A0>
 class NativeCFunctionCall_1_ : public AsyncCall_Returning<R>,
-                               public Call_1_<A0>
-{
-public:
+                               public Call_1_<A0> {
+ public:
   /* Member variables */
   typedef R (*Function_T)(A0);
   Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_1_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[1]), /* callback */
-    Call_1_<A0>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_1_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[1]), /* callback */
+        Call_1_<A0>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
@@ -85,230 +78,196 @@ public:
   }
 };
 
-
 /** Template class with:
-  * two arguments of type A0, A1
-  * return value of type R
-**/
+ * two arguments of type A0, A1
+ * return value of type R
+ **/
 
 template <typename R, typename A0, typename A1>
 class NativeCFunctionCall_2_ : public AsyncCall_Returning<R>,
-                               public Call_2_<A0, A1>
-{
-public:
+                               public Call_2_<A0, A1> {
+ public:
   /* Member variables */
-  typedef R (*Function_T)(A0,A1);
+  typedef R (*Function_T)(A0, A1);
   Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_2_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[2]), // callback
-    Call_2_<A0, A1>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_2_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[2]),  // callback
+        Call_2_<A0, A1>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
-    AsyncCall_Returning<R>::return_val = (function)(
-      Call_2_<A0, A1>::arg0,
-      Call_2_<A0, A1>::arg1
-    );
+    AsyncCall_Returning<R>::return_val =
+        (function)(Call_2_<A0, A1>::arg0, Call_2_<A0, A1>::arg1);
   }
 };
 
-
 /** Template class with:
-  * three arguments of type A0, A1, A2
-  * return value of type R
-**/
+ * three arguments of type A0, A1, A2
+ * return value of type R
+ **/
 
 template <typename R, typename A0, typename A1, typename A2>
 class NativeCFunctionCall_3_ : public AsyncCall_Returning<R>,
-                               public Call_3_<A0, A1, A2>
-{
-public:
+                               public Call_3_<A0, A1, A2> {
+ public:
   /* Member variables */
-  typedef R (*Function_T)(A0,A1,A2);
+  typedef R (*Function_T)(A0, A1, A2);
   Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_3_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[3]), /* callback */
-    Call_3_<A0, A1, A2>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_3_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[3]), /* callback */
+        Call_3_<A0, A1, A2>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
-    AsyncCall_Returning<R>::return_val = (function)(
-      Call_3_<A0, A1, A2>::arg0,
-      Call_3_<A0, A1, A2>::arg1,
-      Call_3_<A0, A1, A2>::arg2
-    );
+    AsyncCall_Returning<R>::return_val =
+        (function)(Call_3_<A0, A1, A2>::arg0, Call_3_<A0, A1, A2>::arg1,
+                   Call_3_<A0, A1, A2>::arg2);
   }
 };
 
-
 /** Template class with:
-  * 4 arguments
-  * return value of type R
-**/
+ * 4 arguments
+ * return value of type R
+ **/
 
-template <typename R, typename A0, typename A1, typename A2,
-                      typename A3>
+template <typename R, typename A0, typename A1, typename A2, typename A3>
 class NativeCFunctionCall_4_ : public AsyncCall_Returning<R>,
-                               public Call_4_<A0, A1, A2, A3>
-{
-public:
+                               public Call_4_<A0, A1, A2, A3> {
+ public:
   /* Member variables */
-  typedef R (*Function_T)(A0,A1,A2,A3);
+  typedef R (*Function_T)(A0, A1, A2, A3);
   Function_T function;
-  
+
   /* Constructor */
-  NativeCFunctionCall_4_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[4]),  /* callback */
-    Call_4_<A0, A1, A2, A3>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_4_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[4]), /* callback */
+        Call_4_<A0, A1, A2, A3>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
     AsyncCall_Returning<R>::return_val = (function)(
-      Call_4_<A0, A1, A2, A3>::arg0,
-      Call_4_<A0, A1, A2, A3>::arg1,
-      Call_4_<A0, A1, A2, A3>::arg2,
-      Call_4_<A0, A1, A2, A3>::arg3
-    );
+        Call_4_<A0, A1, A2, A3>::arg0, Call_4_<A0, A1, A2, A3>::arg1,
+        Call_4_<A0, A1, A2, A3>::arg2, Call_4_<A0, A1, A2, A3>::arg3);
   }
 };
 
-
 /** Template class with:
-  * 6 arguments
-  * return value of type R
-**/
+ * 6 arguments
+ * return value of type R
+ **/
 
-template <typename R, typename A0, typename A1, typename A2,
-                      typename A3, typename A4, typename A5>
+template <typename R, typename A0, typename A1, typename A2, typename A3,
+          typename A4, typename A5>
 class NativeCFunctionCall_6_ : public AsyncCall_Returning<R>,
-                               public Call_6_<A0, A1, A2, A3, A4, A5>
-{
-public:
+                               public Call_6_<A0, A1, A2, A3, A4, A5> {
+ public:
   /* Member variables */
-  typedef R (*Function_T)(A0,A1,A2,A3,A4,A5);
+  typedef R (*Function_T)(A0, A1, A2, A3, A4, A5);
   Function_T function;
-  
+
   /* Constructor */
-  NativeCFunctionCall_6_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[6]),  /* callback */
-    Call_6_<A0, A1, A2, A3, A4, A5>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_6_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[6]), /* callback */
+        Call_6_<A0, A1, A2, A3, A4, A5>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
-    AsyncCall_Returning<R>::return_val = (function)(
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg2,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg3,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg4,
-      Call_6_<A0, A1, A2, A3, A4, A5>::arg5
-    );
+    AsyncCall_Returning<R>::return_val =
+        (function)(Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
+                   Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
+                   Call_6_<A0, A1, A2, A3, A4, A5>::arg2,
+                   Call_6_<A0, A1, A2, A3, A4, A5>::arg3,
+                   Call_6_<A0, A1, A2, A3, A4, A5>::arg4,
+                   Call_6_<A0, A1, A2, A3, A4, A5>::arg5);
   }
 };
 
-
 /** Template class with:
-  * 8 arguments
-  * return value of type R
-**/
+ * 8 arguments
+ * return value of type R
+ **/
 
 template <typename R, typename A0, typename A1, typename A2, typename A3,
           typename A4, typename A5, typename A6, typename A7>
 class NativeCFunctionCall_8_ : public AsyncCall_Returning<R>,
-                               public Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>
-{
-public:
+                               public Call_8_<A0, A1, A2, A3, A4, A5, A6, A7> {
+ public:
   /* Member variables */
-  typedef R (*Function_T)(A0,A1,A2,A3,A4,A5,A6,A7);
+  typedef R (*Function_T)(A0, A1, A2, A3, A4, A5, A6, A7);
   Function_T function;
-  
+
   /* Constructor */
-  NativeCFunctionCall_8_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args.GetIsolate(), args[8]),  /* callback */
-    Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
-    function(f)
-  { }
+  NativeCFunctionCall_8_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<R>(args.GetIsolate(), args[8]), /* callback */
+        Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
+        function(f) {}
 
   /* Methods */
   void run() override {
     assert(function);
-    AsyncCall_Returning<R>::return_val = (function)(
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg1,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg2,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg3,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg4,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg5,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
-      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7
-    );
+    AsyncCall_Returning<R>::return_val =
+        (function)(Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg1,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg2,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg3,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg4,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg5,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
+                   Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7);
   }
 };
 
 /*********************************************************************/
 /*  Functions returning void */
 
-
 /** Template class with no arguments
  * Wrapped native function call returning void
  *
-**/
+ **/
 class NativeCVoidFunctionCall_0_ : public AsyncCall_Returning<int> {
-public:
+ public:
   /* Member variables */
   typedef void (*Function_T)();
   Function_T function;
 
   /* Constructor */
-  NativeCVoidFunctionCall_0_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<int>(args.GetIsolate(), args[1], 1) /*callback*/,
-    function(f)
-  { }
+  NativeCVoidFunctionCall_0_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<int>(args.GetIsolate(), args[1], 1) /*callback*/,
+        function(f) {}
 
   /* Methods */
-  void run() override {
-    function();
-  }
+  void run() override { function(); }
 };
-
 
 /** Template class with:
  * one argument of type A0
  * Wrapped native function call returning void
  * The javascript return value is integer 0.
  *
-**/
+ **/
 
 template <typename A0>
 class NativeCVoidFunctionCall_1_ : public AsyncCall_Returning<int>,
-                                   public Call_1_<A0>
-{
-public:
+                                   public Call_1_<A0> {
+ public:
   /* Member variables */
   typedef void (*Function_T)(A0);
   Function_T function;
 
   /* Constructor */
-  NativeCVoidFunctionCall_1_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<int>(args.GetIsolate(), args[1], 1), // callback
-    Call_1_<A0>(args),
-    function(f)
-  { }
+  NativeCVoidFunctionCall_1_(Function_T f, const Arguments &args)
+      : AsyncCall_Returning<int>(args.GetIsolate(), args[1], 1),  // callback
+        Call_1_<A0>(args),
+        function(f) {}
 
   /* Methods */
-  void run() override {
-    function(Call_1_<A0>::arg0);
-  }
+  void run() override { function(Call_1_<A0>::arg0); }
 };

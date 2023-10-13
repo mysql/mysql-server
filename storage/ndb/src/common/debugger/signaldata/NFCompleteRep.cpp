@@ -26,32 +26,25 @@
 #include <DebuggerNames.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 
-bool printNF_COMPLETE_REP(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*recBlockNo*/)
-{
-  if (len < NFCompleteRep::SignalLength)
-  {
+bool printNF_COMPLETE_REP(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*recBlockNo*/) {
+  if (len < NFCompleteRep::SignalLength) {
     assert(false);
     return false;
   }
 
-  const NFCompleteRep* sig = (const NFCompleteRep*)theData;
-  const char * who = getBlockName(sig->blockNo, nullptr);
-  
-  if(who == nullptr){
-    fprintf(output, 
-	    " Node: %d has completed failure of node %d\n",
-	    sig->nodeId, sig->failedNodeId);
+  const NFCompleteRep *sig = (const NFCompleteRep *)theData;
+  const char *who = getBlockName(sig->blockNo, nullptr);
+
+  if (who == nullptr) {
+    fprintf(output, " Node: %d has completed failure of node %d\n", sig->nodeId,
+            sig->failedNodeId);
   } else {
-    fprintf(output, 
-	    " Node: %d block: %s has completed failure of node %d\n",
-	    sig->nodeId, who, sig->failedNodeId);
+    fprintf(output, " Node: %d block: %s has completed failure of node %d\n",
+            sig->nodeId, who, sig->failedNodeId);
   }
 
-  fprintf(output, "Sent from line: %d\n",
-	  sig->from);
-  
+  fprintf(output, "Sent from line: %d\n", sig->from);
+
   return true;
 }

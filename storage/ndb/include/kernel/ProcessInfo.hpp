@@ -25,7 +25,6 @@
 #ifndef NDB_PROCESSINFO_HPP
 #define NDB_PROCESSINFO_HPP
 
-
 #include <stddef.h>  // size_t
 #include "ndb_types.h"
 #include "portlib/ndb_socket.h"  // socklen_t
@@ -37,13 +36,13 @@ class ndb_sockaddr;
 /* Class ProcessInfo */
 class ProcessInfo {
   friend void getNameFromEnvironment();
-  friend ProcessInfo * getOwnProcessInfo(Uint16);
+  friend ProcessInfo *getOwnProcessInfo(Uint16);
 
-public:
+ public:
   ProcessInfo();
   ~ProcessInfo() {}
 
-  static ProcessInfo * forNodeId(Uint16);
+  static ProcessInfo *forNodeId(Uint16);
   static void release(ProcessInfo *);
 
   static bool isValidUri(const char *scheme, const char *path);
@@ -63,16 +62,16 @@ public:
   void setPort(Uint16);
   void setNodeId(Uint16);
 
-  int getServiceUri(char * buffer, size_t length) const;
+  int getServiceUri(char *buffer, size_t length) const;
 
-  const char * getUriPath() const        { return uri_path;          }
-  const char * getUriScheme() const      { return uri_scheme;        }
-  const char * getProcessName() const    { return process_name;      }
-  const char * getHostAddress() const    { return host_address;      }
+  const char *getUriPath() const { return uri_path; }
+  const char *getUriScheme() const { return uri_scheme; }
+  const char *getProcessName() const { return process_name; }
+  const char *getHostAddress() const { return host_address; }
   int getPid() const;
-  int getAngelPid() const                { return angel_process_id;  }
-  int getPort() const                    { return application_port;  }
-  int getNodeId() const                  { return node_id;           }
+  int getAngelPid() const { return angel_process_id; }
+  int getPort() const { return application_port; }
+  int getNodeId() const { return node_id; }
 
   static constexpr Uint32 UriPathLength = 128;
   static constexpr Uint32 UriPathLengthInWords = 32;
@@ -88,8 +87,7 @@ public:
      from received signal */
   void initializeFromProcessInfoRep(ProcessInfoRep *);
 
-
-private:              /* Data Members */
+ private: /* Data Members */
   char uri_path[UriPathLength];
   char host_address[AddressStringLength];
   char process_name[ProcessNameLength];
@@ -98,11 +96,8 @@ private:              /* Data Members */
   Uint32 process_id;
   Uint32 angel_process_id;
   Uint32 application_port;
-};   // 256 bytes per node
+};  // 256 bytes per node
 
-
-inline bool ProcessInfo::isValid() const {
-  return process_id;
-}
+inline bool ProcessInfo::isValid() const { return process_id; }
 
 #endif

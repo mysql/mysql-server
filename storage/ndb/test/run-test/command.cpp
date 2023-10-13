@@ -22,23 +22,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <AtrtClient.hpp>
 #include "atrt.hpp"
 #include "process_management.hpp"
+#include "util/require.h"
 
-MYSQL* find_atrtdb_client(atrt_config& config) {
-  atrt_cluster* cluster = 0;
+MYSQL *find_atrtdb_client(atrt_config &config) {
+  atrt_cluster *cluster = 0;
   for (unsigned i = 0; i < config.m_clusters.size(); i++) {
     if (strcmp(config.m_clusters[i]->m_name.c_str(), ".atrt") == 0) {
       cluster = config.m_clusters[i];
 
       for (unsigned i = 0; i < cluster->m_processes.size(); i++) {
         if (cluster->m_processes[i]->m_type == atrt_process::AP_CLIENT) {
-          atrt_process* atrt_client = cluster->m_processes[i];
+          atrt_process *atrt_client = cluster->m_processes[i];
           if (!atrt_client) return NULL; /* No atrt db */
 
-          atrt_process* f_mysqld = atrt_client->m_mysqld;
+          atrt_process *f_mysqld = atrt_client->m_mysqld;
           require(f_mysqld);
 
           return &f_mysqld->m_mysql;
@@ -50,15 +50,15 @@ MYSQL* find_atrtdb_client(atrt_config& config) {
   return NULL;
 }
 
-static bool ack_command(AtrtClient& atrtdb, int command_id, const char* state) {
+static bool ack_command(AtrtClient &atrtdb, int command_id, const char *state) {
   BaseString sql;
   sql.assfmt("UPDATE command SET state = '%s' WHERE id = %d", state,
              command_id);
   return atrtdb.doQuery(sql);
 }
 
-static BaseString set_env_var(const BaseString& existing, const BaseString& name,
-                       const BaseString& value) {
+static BaseString set_env_var(const BaseString &existing,
+                              const BaseString &name, const BaseString &value) {
   /* Split existing on space
    * (may have issues with env vars with spaces)
    * Split assignments on =
@@ -88,10 +88,10 @@ static BaseString set_env_var(const BaseString& existing, const BaseString& name
   return newEnv;
 }
 
-static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
-  const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
-  const char* process_args = command.column("process_args");
-  atrt_process& proc = *config.m_processes[command.columnAsInt("process_id")];
+static bool do_change_prefix(atrt_config &config, SqlResultSet &command) {
+  const char *new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
+  const char *process_args = command.column("process_args");
+  atrt_process &proc = *config.m_processes[command.columnAsInt("process_id")];
 
   if ((proc.m_type == atrt_process::AP_NDB_API) && proc.m_proc.m_changed) {
     g_logger.critical("Changing API processes back is not supported");
@@ -124,11 +124,13 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   BaseString exename(proc.m_proc.m_path.substr(pos));
 
   proc.m_proc.m_path =
-      g_resources.getExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
+      g_resources.getExecutableFullPath(exename.c_str(), new_prefix_idx)
+          .c_str();
   if (proc.m_proc.m_path == "") {
     // Attempt to dynamically find executable that was not previously registered
     proc.m_proc.m_path =
-        g_resources.findExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
+        g_resources.findExecutableFullPath(exename.c_str(), new_prefix_idx)
+            .c_str();
   }
   if (proc.m_proc.m_path == "") {
     g_logger.critical("Could not find full path for exe %s", exename.c_str());
@@ -136,18 +138,18 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   }
 
   {
-  /**
-   * In 5.5...binaries aren't compiled with rpath
-   * So we need an explicit LD_LIBRARY_PATH
-   * So when upgrading..we need to change LD_LIBRARY_PATH
-   * So I hate 5.5...
-   */
+    /**
+     * In 5.5...binaries aren't compiled with rpath
+     * So we need an explicit LD_LIBRARY_PATH
+     * So when upgrading..we need to change LD_LIBRARY_PATH
+     * So I hate 5.5...
+     */
 #if defined(__MACH__)
     ssize_t p0 = proc.m_proc.m_env.indexOf(" DYLD_LIBRARY_PATH=");
-    const char* libname = g_resources.LIBMYSQLCLIENT_DYLIB;
+    const char *libname = g_resources.LIBMYSQLCLIENT_DYLIB;
 #else
     ssize_t p0 = proc.m_proc.m_env.indexOf(" LD_LIBRARY_PATH=");
-    const char* libname = g_resources.LIBMYSQLCLIENT_SO;
+    const char *libname = g_resources.LIBMYSQLCLIENT_SO;
 #endif
     ssize_t p1 = proc.m_proc.m_env.indexOf(' ', p0 + 1);
 
@@ -156,7 +158,8 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
 
     proc.m_proc.m_env.assfmt("%s%s", part0.c_str(), part1.c_str());
 
-    BaseString libdir = g_resources.getLibraryDirectory(libname, new_prefix_idx).c_str();
+    BaseString libdir =
+        g_resources.getLibraryDirectory(libname, new_prefix_idx).c_str();
 #if defined(__MACH__)
     proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
@@ -167,16 +170,16 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   return true;
 }
 
-static bool do_start_process(ProcessManagement& processManagement,
-                             atrt_config& config, SqlResultSet& command,
-                             AtrtClient& atrtdb) {
+static bool do_start_process(ProcessManagement &processManagement,
+                             atrt_config &config, SqlResultSet &command,
+                             AtrtClient &atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   if (process_id > config.m_processes.size()) {
     g_logger.critical("Invalid process id %d", process_id);
     return false;
   }
 
-  atrt_process& proc = *config.m_processes[process_id];
+  atrt_process &proc = *config.m_processes[process_id];
 
   if (proc.m_atrt_stopped != true) {
     g_logger.info("start process %s failed", proc.m_name.c_str());
@@ -189,9 +192,9 @@ static bool do_start_process(ProcessManagement& processManagement,
   return status;
 }
 
-static bool do_stop_process(ProcessManagement& processManagement,
-                            atrt_config& config, SqlResultSet& command,
-                            AtrtClient& atrtdb) {
+static bool do_stop_process(ProcessManagement &processManagement,
+                            atrt_config &config, SqlResultSet &command,
+                            AtrtClient &atrtdb) {
   uint process_id = command.columnAsInt("process_id");
 
   // Get the process
@@ -200,7 +203,7 @@ static bool do_stop_process(ProcessManagement& processManagement,
     return false;
   }
 
-  atrt_process& proc = *config.m_processes[process_id];
+  atrt_process &proc = *config.m_processes[process_id];
   proc.m_atrt_stopped = true;
 
   g_logger.info("stopping process - %s", proc.m_name.c_str());
@@ -217,9 +220,9 @@ static bool do_stop_process(ProcessManagement& processManagement,
   return true;
 }
 
-static bool do_change_version(ProcessManagement& processManagement,
-                              atrt_config& config, SqlResultSet& command,
-                              AtrtClient& atrtdb) {
+static bool do_change_version(ProcessManagement &processManagement,
+                              atrt_config &config, SqlResultSet &command,
+                              AtrtClient &atrtdb) {
   if (!do_stop_process(processManagement, config, command, atrtdb)) {
     return false;
   }
@@ -235,9 +238,9 @@ static bool do_change_version(ProcessManagement& processManagement,
   return true;
 }
 
-static bool do_reset_proc(ProcessManagement& processManagement,
-                          atrt_config& config, SqlResultSet& command,
-                          AtrtClient& atrtdb) {
+static bool do_reset_proc(ProcessManagement &processManagement,
+                          atrt_config &config, SqlResultSet &command,
+                          AtrtClient &atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   g_logger.info("Reset process: %d", process_id);
 
@@ -246,7 +249,7 @@ static bool do_reset_proc(ProcessManagement& processManagement,
     g_logger.critical("Invalid process id %d", process_id);
     return false;
   }
-  atrt_process& proc = *config.m_processes[process_id];
+  atrt_process &proc = *config.m_processes[process_id];
 
   g_logger.info("stopping process...");
   if (!processManagement.stopProcess(proc)) return false;
@@ -268,12 +271,12 @@ static bool do_reset_proc(ProcessManagement& processManagement,
   return true;
 }
 
-bool do_command(ProcessManagement& processManagement, atrt_config& config) {
+bool do_command(ProcessManagement &processManagement, atrt_config &config) {
 #ifdef _WIN32
   return true;
 #endif
 
-  MYSQL* mysql = find_atrtdb_client(config);
+  MYSQL *mysql = find_atrtdb_client(config);
   if (!mysql) return true;
 
   AtrtClient atrtdb(mysql);

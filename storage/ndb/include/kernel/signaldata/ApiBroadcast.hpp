@@ -29,16 +29,13 @@
 
 #define JAM_FILE_ID 43
 
-
-struct ApiBroadcastRep
-{
+struct ApiBroadcastRep {
   static constexpr Uint32 SignalLength = 2;
-  
+
   Uint32 gsn;
   Uint32 minVersion;
   Uint32 theData[1];
 };
-
 
 #undef JAM_FILE_ID
 

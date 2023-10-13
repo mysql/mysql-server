@@ -23,10 +23,9 @@
 #ifndef ConfigSubscriber_H
 #define ConfigSubscriber_H
 
-
 class ConfigSubscriber {
-public:
-  virtual void config_changed(NodeId, const class Config*)= 0;
+ public:
+  virtual void config_changed(NodeId, const class Config *) = 0;
   virtual ~ConfigSubscriber() {}
 };
 

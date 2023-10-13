@@ -27,9 +27,8 @@
 
 #include "util/ndbxfrm_iterator.h"
 
-class ndb_zlib
-{
-public:
+class ndb_zlib {
+ public:
   using byte = unsigned char;
   using input_iterator = ndbxfrm_input_iterator;
   using output_iterator = ndbxfrm_output_iterator;
@@ -40,21 +39,25 @@ public:
   ~ndb_zlib();
 
   void reset();
-  int set_memory(void* mem, size_t size);
-  int set_pkcs_padding() { pkcs_padded = true; return 0; }
+  int set_memory(void *mem, size_t size);
+  int set_pkcs_padding() {
+    pkcs_padded = true;
+    return 0;
+  }
   size_t get_random_access_block_size() const { return 0; }
 
   int deflate_init();
-  int deflate(output_iterator* out, input_iterator* in);
+  int deflate(output_iterator *out, input_iterator *in);
   int deflate_end();
 
   int inflate_init();
-  int inflate(output_iterator* out, input_iterator* in);
+  int inflate(output_iterator *out, input_iterator *in);
   int inflate_end();
 
   ndb_off_t get_input_position() const { return file.total_in; }
   ndb_off_t get_output_position() const { return file.total_out; }
-private:
+
+ private:
   // RFC1950 ZLIB Compressed Data Format Specification version 3.3
   // RFC1951 DEFLATE Compressed Data Format Specification version 1.3
   static constexpr int level = Z_DEFAULT_COMPRESSION;

@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 49
 
-
 /**
  * This signal is sent by anyone to local DIH
  *
@@ -36,12 +35,11 @@
  *
  */
 class WaitGCPReq {
-  
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Sender
    */
@@ -50,19 +48,20 @@ class WaitGCPReq {
   friend class Backup;
   friend class Trix;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-public:
+
+ public:
   enum RequestType {
-    Complete = 1,           ///< Wait for a GCP to complete
-    CompleteForceStart = 2, ///< Wait for a GCP to complete start one if needed
-    CompleteIfRunning = 3,  ///< Wait for ongoing GCP
-    CurrentGCI        = 8,  ///< Immediately return current GCI
-    BlockStartGcp     = 9,
-    UnblockStartGcp   = 10,
-    WaitEpoch         = 11, // If GCP is blocked, wait for epoch to not start
-    RestartGCI        = 12, // Return restart GCI
-    ShutdownSync      = 13  // System-wide shutdown synchronisation
+    Complete = 1,            ///< Wait for a GCP to complete
+    CompleteForceStart = 2,  ///< Wait for a GCP to complete start one if needed
+    CompleteIfRunning = 3,   ///< Wait for ongoing GCP
+    CurrentGCI = 8,          ///< Immediately return current GCI
+    BlockStartGcp = 9,
+    UnblockStartGcp = 10,
+    WaitEpoch = 11,    // If GCP is blocked, wait for epoch to not start
+    RestartGCI = 12,   // Return restart GCI
+    ShutdownSync = 13  // System-wide shutdown synchronisation
   };
 
   Uint32 senderRef;
@@ -71,12 +70,11 @@ public:
 };
 
 class WaitGCPConf {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Reciver(s)
    */
@@ -85,10 +83,10 @@ class WaitGCPConf {
   friend class Backup;
   friend class Trix;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 4;
-  
-public:
+
+ public:
   Uint32 senderData;
   Uint32 gci_hi;
   Uint32 blockStatus;
@@ -96,12 +94,11 @@ public:
 };
 
 class WaitGCPRef {
-  
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Reciver(s)
    */
@@ -111,7 +108,7 @@ class WaitGCPRef {
   friend class Trix;
   friend class NdbDictInterface;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   enum ErrorCode {
@@ -120,12 +117,11 @@ public:
     NoWaitGCPRecords = 2,
     NF_MasterTakeOverInProgress = 3
   };
-  
-private:
+
+ private:
   Uint32 errorCode;
   Uint32 senderData;
 };
-
 
 #undef JAM_FILE_ID
 

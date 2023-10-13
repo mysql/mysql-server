@@ -22,41 +22,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <kernel_types.h>
 #include <BlockNumbers.h>
+#include <kernel_types.h>
 #include <signaldata/PrepFailReqRef.hpp>
 
-bool printPREPFAILREQREF(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*receiverBlockNo*/)
-{
-  const PrepFailReqRef* cc = (const PrepFailReqRef*)theData;
+bool printPREPFAILREQREF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*receiverBlockNo*/) {
+  const PrepFailReqRef *cc = (const PrepFailReqRef *)theData;
 
   fprintf(output, " xxxBlockRef = (%d, %d) failNo = %d noOfNodes = %d\n",
-	  refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
-	  cc->failNo, cc->noOfNodes);
-  
+          refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef), cc->failNo,
+          cc->noOfNodes);
+
   int hits = 0;
-  if (len == cc->SignalLength_v1)
-  {
+  if (len == cc->SignalLength_v1) {
     fprintf(output, " Nodes: ");
-    for(int i = 0; i < MAX_NDB_NODES_v1; i++){
-      if(NdbNodeBitmask48::get(cc->theNodes, i)){
+    for (int i = 0; i < MAX_NDB_NODES_v1; i++) {
+      if (NdbNodeBitmask48::get(cc->theNodes, i)) {
         hits++;
         fprintf(output, " %d", i);
       }
-      if(hits == 16){
+      if (hits == 16) {
         fprintf(output, "\n Nodes: ");
         hits = 0;
       }
     }
-    if(hits != 0)
-      fprintf(output, "\n");
-  }
-  else
-  {
-    fprintf(output , " theNodes in signal section\n");
+    if (hits != 0) fprintf(output, "\n");
+  } else {
+    fprintf(output, " theNodes in signal section\n");
   }
   return true;
 }

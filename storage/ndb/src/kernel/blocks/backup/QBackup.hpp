@@ -31,16 +31,14 @@
 
 #define JAM_FILE_ID 533
 
-class QBackup : public Backup
-{
+class QBackup : public Backup {
   friend class QBackupProxy;
 
-public:
-  QBackup(Block_context& ctx,
-          Uint32 instanceNumber = 0);
+ public:
+  QBackup(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~QBackup();
 
-private:
+ private:
   BLOCK_DEFINES(QBackup);
 };
 

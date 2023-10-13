@@ -22,74 +22,71 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "NDBT_Test.hpp"
-#include "NDBT_ReturnCodes.h"
-#include "HugoTransactions.hpp"
 #include "HugoAsynchTransactions.hpp"
+#include "HugoTransactions.hpp"
+#include "NDBT_ReturnCodes.h"
+#include "NDBT_Test.hpp"
 #include "UtilTransactions.hpp"
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+int runLoadTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int transactions = (records / 100) + 1;
   int operations = (records / transactions) + 1;
 
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize, 
-				transactions, operations) != 0){
+  if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize, transactions,
+                                operations) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runInsert(NDBT_Context* ctx, NDBT_Step* step){
-
+int runInsert(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int transactions = (records / 100) + 1;
   int operations = (records / transactions) + 1;
 
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  // Insert records, dont allow any 
+  // Insert records, dont allow any
   // errors(except temporary) while inserting
-  if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize, 
-				transactions, operations) != 0){
+  if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize, transactions,
+                                operations) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runVerifyInsert(NDBT_Context* ctx, NDBT_Step* step){
+int runVerifyInsert(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int transactions = (records / 100) + 1;
   int operations = (records / transactions) + 1;
 
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.pkDelRecordsAsynch(GETNDB(step),  records, batchSize, 
-				   transactions, operations) != 0){
+  if (hugoTrans.pkDelRecordsAsynch(GETNDB(step), records, batchSize,
+                                   transactions, operations) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
+int runClearTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int transactions = (records / 100) + 1;
   int operations = (records / transactions) + 1;
-  
+
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.pkDelRecordsAsynch(GETNDB(step),  records, batchSize, 
-				   transactions, operations) != 0){
+  if (hugoTrans.pkDelRecordsAsynch(GETNDB(step), records, batchSize,
+                                   transactions, operations) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int runPkDelete(NDBT_Context* ctx, NDBT_Step* step){
-
+int runPkDelete(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -98,36 +95,15 @@ int runPkDelete(NDBT_Context* ctx, NDBT_Step* step){
 
   int i = 0;
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
+  while (i < loops) {
     ndbout << i << ": ";
-    if (hugoTrans.pkDelRecordsAsynch(GETNDB(step),  records, batchSize,
-				     transactions, operations) != 0){
+    if (hugoTrans.pkDelRecordsAsynch(GETNDB(step), records, batchSize,
+                                     transactions, operations) != 0) {
       return NDBT_FAILED;
     }
     // Load table, don't allow any primary key violations
-    if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize, 
-				  transactions, operations) != 0){
-      return NDBT_FAILED;
-    }
-    i++;
-  }  
-  return NDBT_OK;
-}
-
-
-int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  int batchSize = ctx->getProperty("BatchSize", 1);
-  int transactions = (records / 100) + 1;
-  int operations = (records / transactions) + 1;
-
-  int i = 0;
-  HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
-    ndbout << i << ": ";
-    if (hugoTrans.pkReadRecordsAsynch(GETNDB(step), records, batchSize, 
-				      transactions, operations) != NDBT_OK){
+    if (hugoTrans.loadTableAsynch(GETNDB(step), records, batchSize,
+                                  transactions, operations) != 0) {
       return NDBT_FAILED;
     }
     i++;
@@ -135,7 +111,7 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
+int runPkRead(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -144,11 +120,30 @@ int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
 
   int i = 0;
   HugoAsynchTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
+  while (i < loops) {
     ndbout << i << ": ";
-    if (hugoTrans.pkUpdateRecordsAsynch(GETNDB(step), records, 
-					batchSize, transactions, 
-					operations) != 0){
+    if (hugoTrans.pkReadRecordsAsynch(GETNDB(step), records, batchSize,
+                                      transactions, operations) != NDBT_OK) {
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int runPkUpdate(NDBT_Context *ctx, NDBT_Step *step) {
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int batchSize = ctx->getProperty("BatchSize", 1);
+  int transactions = (records / 100) + 1;
+  int operations = (records / transactions) + 1;
+
+  int i = 0;
+  HugoAsynchTransactions hugoTrans(*ctx->getTab());
+  while (i < loops) {
+    ndbout << i << ": ";
+    if (hugoTrans.pkUpdateRecordsAsynch(GETNDB(step), records, batchSize,
+                                        transactions, operations) != 0) {
       return NDBT_FAILED;
     }
     i++;
@@ -157,28 +152,28 @@ int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 NDBT_TESTSUITE(testBasicAsynch);
-TESTCASE("PkInsertAsynch", 
-	 "Verify that we can insert and delete from this table using PK"
-	 " NOTE! No errors are allowed!" ){
+TESTCASE("PkInsertAsynch",
+         "Verify that we can insert and delete from this table using PK"
+         " NOTE! No errors are allowed!") {
   INITIALIZER(runInsert);
   VERIFIER(runVerifyInsert);
 }
-TESTCASE("PkReadAsynch", 
-	 "Verify that we can insert, read and delete from this table"
-	 " using PK"){
+TESTCASE("PkReadAsynch",
+         "Verify that we can insert, read and delete from this table"
+         " using PK") {
   INITIALIZER(runLoadTable);
   STEP(runPkRead);
   FINALIZER(runClearTable);
 }
-TESTCASE("PkUpdateAsynch", 
-	 "Verify that we can insert, update and delete from this table"
-	 " using PK"){
+TESTCASE("PkUpdateAsynch",
+         "Verify that we can insert, update and delete from this table"
+         " using PK") {
   INITIALIZER(runLoadTable);
   STEP(runPkUpdate);
   FINALIZER(runClearTable);
 }
-TESTCASE("PkDeleteAsynch", 
-	 "Verify that we can delete from this table using PK"){
+TESTCASE("PkDeleteAsynch",
+         "Verify that we can delete from this table using PK") {
   INITIALIZER(runLoadTable);
   STEP(runPkDelete);
   FINALIZER(runClearTable);
@@ -186,9 +181,8 @@ TESTCASE("PkDeleteAsynch",
 
 NDBT_TESTSUITE_END(testBasicAsynch)
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testBasicAsynch);
   return testBasicAsynch.execute(argc, argv);
 }
-

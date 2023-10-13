@@ -22,22 +22,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
-#include <my_sys.h>
-#include <my_getopt.h>
 #include <my_default.h>
+#include <my_getopt.h>
+#include <my_sys.h>
 #include <mysql_version.h>
+#include <ndb_global.h>
 #include <ndb_version.h>
 #include "my_alloc.h"
 
-#include "CPCD.hpp"
-#include "APIService.hpp"
 #include <NdbSleep.h>
-#include <portlib/NdbDir.hpp>
 #include <BaseString.hpp>
-#include <logger/Logger.hpp>
 #include <logger/FileLogHandler.hpp>
+#include <logger/Logger.hpp>
 #include <logger/SysLogHandler.hpp>
+#include <portlib/NdbDir.hpp>
+#include "APIService.hpp"
+#include "CPCD.hpp"
 #include "portlib/ndb_sockaddr.h"
 
 #include "common.hpp"
@@ -51,49 +51,39 @@ static int use_syslog;
 static char *logfile = NULL;
 static char *user = 0;
 
-static struct my_option my_long_options[] =
-{
-  { "work-dir", 'w', "Work directory",
-    &work_dir, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "port", 'p', "TCP port to listen on",
-    &port, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    CPCD_DEFAULT_TCP_PORT, 0, 0, 0, 0, 0 },
-  { "syslog", 'S', "Log events to syslog",
-    &use_syslog, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "logfile", 'L', "File to log events to",
-    &logfile, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "debug", 'D', "Enable debug mode",
-    &debug, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "version", 'V', "Output version information and exit",
-    &show_version, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "user", 'u', "Run as user",
-    &user, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
+static struct my_option my_long_options[] = {
+    {"work-dir", 'w', "Work directory", &work_dir, nullptr, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"port", 'p', "TCP port to listen on", &port, nullptr, nullptr, GET_INT,
+     REQUIRED_ARG, CPCD_DEFAULT_TCP_PORT, 0, 0, 0, 0, 0},
+    {"syslog", 'S', "Log events to syslog", &use_syslog, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"logfile", 'L', "File to log events to", &logfile, nullptr, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"debug", 'D', "Enable debug mode", &debug, nullptr, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Output version information and exit", &show_version,
+     nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"user", 'u', "Run as user", &user, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 };
 
 static bool get_one_option(int /*optid*/, const struct my_option * /*opt*/,
-                           char * /*argument*/)
-{
+                           char * /*argument*/) {
   return 0;
 }
 
-static CPCD * g_cpcd = 0;
+static CPCD *g_cpcd = 0;
 
-
-int main(int argc, char** argv){
-  const char *load_default_groups[]= { "ndb_cpcd",0 };
+int main(int argc, char **argv) {
+  const char *load_default_groups[] = {"ndb_cpcd", 0};
   NDB_INIT(argv[0]);
 
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  load_defaults("ndb_cpcd",load_default_groups,&argc,&argv,&alloc);
+  load_defaults("ndb_cpcd", load_default_groups, &argc, &argv, &alloc);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
-    print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+    print_defaults(MYSQL_CONFIG_NAME, load_default_groups);
     puts("");
     my_print_help(my_long_options);
     my_print_variables(my_long_options);
@@ -108,27 +98,24 @@ int main(int argc, char** argv){
     exit(0);
   }
 
-  if(debug)
-    logger.createConsoleHandler();
+  if (debug) logger.createConsoleHandler();
 
 #ifndef _WIN32
-  if(user && runas(user) != 0){
+  if (user && runas(user) != 0) {
     logger.critical("Unable to change user: %s", user);
     _exit(1);
   }
 #endif
 
-  if(logfile != NULL){
+  if (logfile != NULL) {
     BaseString tmp;
-    if(logfile[0] != '/')
-      tmp.append(work_dir); 
+    if (logfile[0] != '/') tmp.append(work_dir);
     tmp.append(logfile);
     logger.addHandler(new FileLogHandler(tmp.c_str()));
   }
-  
+
 #ifndef _WIN32
-  if(use_syslog)
-    logger.addHandler(new SysLogHandler());
+  if (use_syslog) logger.addHandler(new SysLogHandler());
 #endif
 
   logger.info("Starting CPCD version : %s", getCpcdVersion().c_str());
@@ -145,21 +132,21 @@ int main(int argc, char** argv){
   g_cpcd = &cpcd;
 
   /* Create working directory unless it already exists */
-  if (access(work_dir, F_OK))
-  {
-    logger.info("Working directory '%s' does not exist, trying "
-                "to create it", work_dir);
+  if (access(work_dir, F_OK)) {
+    logger.info(
+        "Working directory '%s' does not exist, trying "
+        "to create it",
+        work_dir);
     if (!NdbDir::create(work_dir,
-                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()))
-    {
+                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r())) {
       logger.error("Failed to create working directory, terminating!");
       exit(1);
     }
   }
 
-  if(strlen(work_dir) > 0){
+  if (strlen(work_dir) > 0) {
     logger.debug("Changing dir to '%s'", work_dir);
-    if(NdbDir::chdir(work_dir) != 0){
+    if (NdbDir::chdir(work_dir) != 0) {
       logger.error("Cannot change directory to '%s', error: %d, terminating!",
                    work_dir, errno);
       exit(1);
@@ -167,12 +154,12 @@ int main(int argc, char** argv){
   }
 
   cpcd.loadProcessList();
-  
-  SocketServer * ss = new SocketServer();
-  CPCDAPIService * serv = new CPCDAPIService(cpcd);
-  unsigned short real_port= port; // correct type
+
+  SocketServer *ss = new SocketServer();
+  CPCDAPIService *serv = new CPCDAPIService(cpcd);
+  unsigned short real_port = port;  // correct type
   ndb_sockaddr addr(real_port);
-  if(!ss->setup(serv, &addr)){
+  if (!ss->setup(serv, &addr)) {
     logger.critical("Cannot setup server: %s", strerror(errno));
     NdbSleep_SecSleep(1);
     delete ss;
@@ -184,8 +171,7 @@ int main(int argc, char** argv){
   ss->startServer();
 
   logger.debug("Start completed");
-  while(true)
-    NdbSleep_MilliSleep(1000);
+  while (true) NdbSleep_MilliSleep(1000);
 
   delete ss;
   return 0;

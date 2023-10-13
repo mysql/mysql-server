@@ -25,25 +25,25 @@
 #ifndef ALTER_TAB_HPP
 #define ALTER_TAB_HPP
 
-#include "SignalData.hpp"
 #include "GlobalSignalNumbers.h"
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 72
-
 
 struct AlterTabReq {
   static constexpr Uint32 SignalLength = 12;
 
   enum RequestType {
-    AlterTablePrepare = 0, // Prepare alter table
-    AlterTableCommit = 1,  // Commit alter table
-    AlterTableRevert = 2,  // Prepare failed, revert instead
+    AlterTablePrepare = 0,  // Prepare alter table
+    AlterTableCommit = 1,   // Commit alter table
+    AlterTableRevert = 2,   // Prepare failed, revert instead
     AlterTableComplete = 3,
     AlterTableWaitScan = 4,
     AlterTableSumaEnable = 5,
-    AlterTableSumaFilter = 6
-    ,AlterTableReadOnly = 7  // From TUP to LQH before mtoib
-    ,AlterTableReadWrite = 8 // From TUP to LQH after mtoib
+    AlterTableSumaFilter = 6,
+    AlterTableReadOnly = 7  // From TUP to LQH before mtoib
+    ,
+    AlterTableReadWrite = 8  // From TUP to LQH after mtoib
   };
 
   Uint32 senderRef;
@@ -64,8 +64,8 @@ struct AlterTabReq {
     Uint32 new_map_ptr_i;
   };
 
-  SECTION( DICT_TAB_INFO = 0 );
-  SECTION( FRAGMENTATION = 1 );
+  SECTION(DICT_TAB_INFO = 0);
+  SECTION(FRAGMENTATION = 1);
   /*
     When sent to DICT, the first section contains the new table definition.
     When sent to TUP, the first section contains the new attributes.
@@ -88,7 +88,7 @@ struct AlterTabRef {
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 errorCode;
-  Uint32 errorLine; 
+  Uint32 errorLine;
   Uint32 errorKey;
   Uint32 errorStatus;
   Uint32 connectPtr;
@@ -104,7 +104,6 @@ union AlterTabAll {
   AlterTabRef ref;
   AlterTabConf conf;
 };
-
 
 #undef JAM_FILE_ID
 

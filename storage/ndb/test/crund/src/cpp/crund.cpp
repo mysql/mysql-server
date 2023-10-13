@@ -22,13 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "Driver.hpp"
 #include "CrundDriver.hpp"
+#include "Driver.hpp"
 
-int
-main(int argc, const char* argv[]) {
-    Driver::parseArguments(argc, argv);
-    CrundDriver d;
-    d.run();
-    return 0;
+int main(int argc, const char *argv[]) {
+  Driver::parseArguments(argc, argv);
+  CrundDriver d;
+  d.run();
+  return 0;
 }

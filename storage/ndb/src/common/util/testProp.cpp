@@ -23,19 +23,18 @@
 */
 
 #include <ndb_global.h>
-#include "Properties.hpp"
 #include <NdbOut.hpp>
 #include <algorithm>
 #include <iostream>
 #include <util/NdbTap.hpp>
+#include "Properties.hpp"
 
-TAPTEST(Properties)
-{
+TAPTEST(Properties) {
   ndb_init();
 
   Properties outer_p;
   Properties nested_p;
-  const Properties* p;
+  const Properties *p;
 
   nested_p.put("1", 1);
   nested_p.put("2", 2);
@@ -56,9 +55,8 @@ TAPTEST(Properties)
   Uint32 elem_inserted = 5;
 
   Properties::Iterator it(p);
-  const char * name;
-  for (name = it.first(); name != nullptr; name = it.next())
-  {
+  const char *name;
+  for (name = it.first(); name != nullptr; name = it.next()) {
     count++;
   }
 
@@ -79,7 +77,7 @@ TAPTEST(Properties)
   OK(p->getTypeOf("3", 1, &type));
   OK(type == PropertiesType_Uint64);
 
-  const char* sret;
+  const char *sret;
   p->get("four", &sret);
   OK(!strcmp(sret, "fourValue"));
 

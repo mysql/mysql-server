@@ -48,9 +48,9 @@ struct EventSubscribeReq {
   friend class MgmtSrvr;
 
   static constexpr Uint32 SignalLength = 2 + LogLevel::LOGLEVEL_CATEGORIES;
-  
+
   /**
-   * Note: If you use the same blockRef as you have used earlier, 
+   * Note: If you use the same blockRef as you have used earlier,
    *       you update your ongoing subscription
    */
   Uint32 blockRef;
@@ -60,15 +60,15 @@ struct EventSubscribeReq {
    * subscription
    */
   Uint32 noOfEntries;
-  
+
   Uint32 theData[LogLevel::LOGLEVEL_CATEGORIES];
-  
-  EventSubscribeReq& assign (const LogLevel& ll){
+
+  EventSubscribeReq &assign(const LogLevel &ll) {
     noOfEntries = LogLevel::LOGLEVEL_CATEGORIES;
-    for(size_t i = 0; i<noOfEntries; i++){
+    for (size_t i = 0; i < noOfEntries; i++) {
       theData[i] = Uint32(i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
     }
-    return * this;
+    return *this;
   }
 };
 

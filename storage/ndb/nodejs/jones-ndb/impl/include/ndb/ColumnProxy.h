@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -28,45 +28,41 @@ using v8::Persistent;
 
 class ColumnProxy {
   friend class NdbRecordObject;
-protected:
+
+ protected:
   ColumnProxy();
   ~ColumnProxy();
   void setHandler(const ColumnHandler *);
   void setBlobBuffer(v8::Isolate *, Local<Object>);
   bool valueIsNull();
-  BlobWriteHandler * createBlobWriteHandle(v8::Isolate *, int);
+  BlobWriteHandler *createBlobWriteHandle(v8::Isolate *, int);
 
   Local<Value> get(v8::Isolate *, char *);
-  void         set(v8::Isolate *, Local<Value>);
+  void set(v8::Isolate *, Local<Value>);
   Local<Value> write(v8::Isolate *, char *);
 
-private:
+ private:
   const ColumnHandler *handler;
   Persistent<Value> jsValue;
   Persistent<Object> blobBuffer;
-  bool isNull;           // value has been set to null
-  bool isLoaded;         // value has been read from buffer
-  bool isDirty;          // value should be rewritten in buffer
+  bool isNull;    // value has been set to null
+  bool isLoaded;  // value has been read from buffer
+  bool isDirty;   // value should be rewritten in buffer
 };
 
-
-inline ColumnProxy::ColumnProxy() :
-  jsValue(), blobBuffer(), isNull(false), isLoaded(false), isDirty(false)
-{}
+inline ColumnProxy::ColumnProxy()
+    : jsValue(), blobBuffer(), isNull(false), isLoaded(false), isDirty(false) {}
 
 inline ColumnProxy::~ColumnProxy() {
   jsValue.Reset();
   blobBuffer.Reset();
 }
 
-inline void ColumnProxy::setHandler(const ColumnHandler *h) {
-  handler = h;
-}
+inline void ColumnProxy::setHandler(const ColumnHandler *h) { handler = h; }
 
-inline bool ColumnProxy::valueIsNull() {
-  return isNull;
-}
+inline bool ColumnProxy::valueIsNull() { return isNull; }
 
-inline void ColumnProxy::setBlobBuffer(v8::Isolate *isolate, Local<Object> buffer) {
+inline void ColumnProxy::setBlobBuffer(v8::Isolate *isolate,
+                                       Local<Object> buffer) {
   blobBuffer.Reset(isolate, buffer);
 }

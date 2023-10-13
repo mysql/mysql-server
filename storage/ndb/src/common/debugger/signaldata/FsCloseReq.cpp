@@ -25,19 +25,13 @@
 
 #include <signaldata/FsCloseReq.hpp>
 
-bool printFSCLOSEREQ(FILE *output,
-                     const Uint32 *theData,
-                     Uint32 len,
-                     Uint16 /*receiverBlockNo*/)
-{
+bool printFSCLOSEREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                     Uint16 /*receiverBlockNo*/) {
   const FsCloseReq *const sig = (const FsCloseReq *)theData;
 
-  fprintf(output, " UserPointer: %d\n", 
-	  sig->userPointer);
-  fprintf(output, " FilePointer: %d\n", 
-	  sig->filePointer);
-  fprintf(output, " UserReference: H\'%.8x\n", 
-	  sig->userReference);
+  fprintf(output, " UserPointer: %d\n", sig->userPointer);
+  fprintf(output, " FilePointer: %d\n", sig->filePointer);
+  fprintf(output, " UserReference: H\'%.8x\n", sig->userReference);
 
   fprintf(output, " Flags: H\'%.8x, ", sig->fileFlag);
   if (sig->getRemoveFileFlag(sig->fileFlag))

@@ -22,17 +22,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_global.h"
 #include "mgmapi/mgmapi_config_parameters.h"
+#include "ndb_global.h"
 #include "util/InputStream.hpp"
 #include "util/OutputStream.hpp"
 #include "util/TlsKeyManager.hpp"
 
 #include "util/SocketAuthenticator.hpp"
 
-const char * SocketAuthenticator::error(int result)
-{
-  switch(result) {
+const char *SocketAuthenticator::error(int result) {
+  switch (result) {
     case negotiate_tls_ok:
       return "success (negotiated TLS)";
     case negotiate_cleartext_ok:
@@ -50,10 +49,9 @@ const char * SocketAuthenticator::error(int result)
   }
 }
 
-int SocketAuthSimple::client_authenticate(const NdbSocket & sockfd)
-{
+int SocketAuthSimple::client_authenticate(const NdbSocket &sockfd) {
   SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SocketInputStream s_input(sockfd);
 
   // Write username and password
   s_output.println("ndbd");
@@ -62,33 +60,28 @@ int SocketAuthSimple::client_authenticate(const NdbSocket & sockfd)
   char buf[16];
 
   // Read authentication result
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
+  buf[sizeof(buf) - 1] = 0;
 
   // Verify authentication result
-  if (strncmp("ok", buf, 2) == 0)
-    return AuthOk;
+  if (strncmp("ok", buf, 2) == 0) return AuthOk;
 
   return unexpected_response;
 }
 
-int SocketAuthSimple::server_authenticate(const NdbSocket & sockfd)
-{
+int SocketAuthSimple::server_authenticate(const NdbSocket &sockfd) {
   SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SocketInputStream s_input(sockfd);
 
   char buf[256];
 
   // Read username
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
+  buf[sizeof(buf) - 1] = 0;
 
   // Read password
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
+  buf[sizeof(buf) - 1] = 0;
 
   // Write authentication result
   s_output.println("ok");
@@ -96,22 +89,20 @@ int SocketAuthSimple::server_authenticate(const NdbSocket & sockfd)
   return AuthOk;
 }
 
-
 /*
  * SocketAuthTls
  */
 
-int SocketAuthTls::client_authenticate(const NdbSocket & sockfd)
-{
+int SocketAuthTls::client_authenticate(const NdbSocket &sockfd) {
   SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SocketInputStream s_input(sockfd);
   char buf[32];
   const bool tls_enabled = m_tls_keys->ctx();
 
   // Write first line
-  if(tls_required && tls_enabled)
+  if (tls_required && tls_enabled)
     s_output.println("ndbd TLS required");
-  else if(tls_enabled)
+  else if (tls_enabled)
     s_output.println("ndbd TLS enabled");
   else
     s_output.println("ndbd TLS disabled");
@@ -120,61 +111,55 @@ int SocketAuthTls::client_authenticate(const NdbSocket & sockfd)
   s_output.println("%s", "");
 
   // Read authentication result
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
 
   // Check authentication result
-  buf[sizeof(buf)-1]= '\0';
-  if (strcmp("ok\n", buf) == 0)  /* SocketAuthSimple responds "ok" */
+  buf[sizeof(buf) - 1] = '\0';
+  if (strcmp("ok\n", buf) == 0) /* SocketAuthSimple responds "ok" */
     return tls_required ? peer_requires_cleartext : negotiate_cleartext_ok;
 
   if (strcmp("TLS ok\n", buf) == 0)
     return tls_enabled ? negotiate_tls_ok : unexpected_response;
 
-  if (strcmp("TLS required\n", buf) == 0)
-    return peer_requires_tls;
+  if (strcmp("TLS required\n", buf) == 0) return peer_requires_tls;
 
   if (strcmp("Cleartext ok\n", buf) == 0)
     return tls_required ? unexpected_response : negotiate_cleartext_ok;
 
-  if (strcmp("Cleartext required\n", buf) == 0)
-    return peer_requires_cleartext;
+  if (strcmp("Cleartext required\n", buf) == 0) return peer_requires_cleartext;
 
   return negotiation_failed;
 }
 
-int SocketAuthTls::server_authenticate(const NdbSocket & sockfd)
-{
+int SocketAuthTls::server_authenticate(const NdbSocket &sockfd) {
   SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SocketInputStream s_input(sockfd);
   char buf[256];
   const bool tls_enabled = m_tls_keys->ctx();
 
   enum { unknown, too_old, tls_off, tls_on, tls_mandatory } client_status;
 
   /* Read first line */
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
 
   /* Parse first line */
-  buf[sizeof(buf)-1]= '\0';
-  if(strcmp("ndbd TLS disabled\n", buf) == 0)
+  buf[sizeof(buf) - 1] = '\0';
+  if (strcmp("ndbd TLS disabled\n", buf) == 0)
     client_status = tls_off;
-  else if(strcmp("ndbd TLS enabled\n", buf) == 0)
+  else if (strcmp("ndbd TLS enabled\n", buf) == 0)
     client_status = tls_on;
-  else if(strcmp("ndbd TLS required\n", buf) == 0)
+  else if (strcmp("ndbd TLS required\n", buf) == 0)
     client_status = tls_mandatory;
-  else if(strcmp("ndbd\n", buf) == 0)
+  else if (strcmp("ndbd\n", buf) == 0)
     client_status = too_old;
   else
     client_status = unknown;
 
   /* Read the second line */
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return negotiation_failed;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return negotiation_failed;
 
   int result = 0;
-  switch(client_status) {
+  switch (client_status) {
     case unknown:
       result = unexpected_response;
       break;
@@ -190,9 +175,9 @@ int SocketAuthTls::server_authenticate(const NdbSocket & sockfd)
       break;
   }
 
-  switch(result) {
+  switch (result) {
     case negotiate_cleartext_ok:
-      if(client_status == too_old)
+      if (client_status == too_old)
         s_output.println("ok");
       else
         s_output.println("Cleartext ok");
@@ -212,4 +197,3 @@ int SocketAuthTls::server_authenticate(const NdbSocket & sockfd)
 
   return result;
 }
-

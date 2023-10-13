@@ -66,17 +66,17 @@ struct Ndb_move_data {
     int flags;
     // for parsing --staging-tries (but caller handles retries)
     struct Tries {
-      int maxtries; // 0 = no limit
+      int maxtries;  // 0 = no limit
       int mindelay;
       int maxdelay;
-      Tries() : maxtries(0), mindelay(1000), maxdelay(60*1000) {}
+      Tries() : maxtries(0), mindelay(1000), maxdelay(60 * 1000) {}
     };
     Opts();
   };
   struct Stat {
-    Uint64 rows_moved; // in current move_data() call
-    Uint64 rows_total; // total moved so far
-    Uint64 truncated; // truncated attributes so far
+    Uint64 rows_moved;  // in current move_data() call
+    Uint64 rows_total;  // total moved so far
+    Uint64 truncated;   // truncated attributes so far
     Stat();
   };
   struct Error {
@@ -93,78 +93,74 @@ struct Ndb_move_data {
     int line;
     int code;
     char message[512];
-    NdbError ndberror; // valid if code > 0
+    NdbError ndberror;  // valid if code > 0
     bool is_temporary() const;
     Error();
   };
   Ndb_move_data();
   ~Ndb_move_data();
-  int init(const NdbDictionary::Table* source,
-           const NdbDictionary::Table* target);
+  int init(const NdbDictionary::Table *source,
+           const NdbDictionary::Table *target);
   void set_opts_flags(int flags);
-  static void unparse_opts_tries(char* opt, const Opts::Tries& ot);
-  static int parse_opts_tries(const char* opt, Opts::Tries& retry);
-  int move_data(Ndb* ndb);
-  void error_insert(); // insert random temporary error
-  const Stat& get_stat();
-  const Error& get_error();
+  static void unparse_opts_tries(char *opt, const Opts::Tries &ot);
+  static int parse_opts_tries(const char *opt, Opts::Tries &retry);
+  int move_data(Ndb *ndb);
+  void error_insert();  // insert random temporary error
+  const Stat &get_stat();
+  const Error &get_error();
 
-private:
-  const NdbDictionary::Table* m_source; // source rows moved from
-  const NdbDictionary::Table* m_target; // target rows moved to
+ private:
+  const NdbDictionary::Table *m_source;  // source rows moved from
+  const NdbDictionary::Table *m_target;  // target rows moved to
   struct Attr {
-    enum {
-      TypeNone = 0,
-      TypeArray,
-      TypeBlob,
-      TypeOther
-    };
-    const NdbDictionary::Column* column;
-    const char* name;
-    int id; // own id (array index)
-    int map_id; // column id in other table
+    enum { TypeNone = 0, TypeArray, TypeBlob, TypeOther };
+    const NdbDictionary::Column *column;
+    const char *name;
+    int id;      // own id (array index)
+    int map_id;  // column id in other table
     int type;
     Uint32 size_in_bytes;
     Uint32 length_bytes;
-    Uint32 data_size; // size_in_bytes - length_bytes
+    Uint32 data_size;  // size_in_bytes - length_bytes
     Uint32 tiny_bytes;
     int pad_char;
-    bool equal; // attr1,attr2 equal non-blobs
+    bool equal;  // attr1,attr2 equal non-blobs
     Attr();
   };
-  Attr* m_sourceattr;
-  Attr* m_targetattr;
-  void set_type(Attr& attr, const NdbDictionary::Column* c);
-  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, const char *data, uint32 maxlen);
-  int check_nopk(const Attr& attr1, const Attr& attr2);
-  int check_promotion(const Attr& attr1, const Attr& attr2);
-  int check_demotion(const Attr& attr1, const Attr& attr2);
-  int check_sizes(const Attr& attr1, const Attr& attr2);
-  int check_unsupported(const Attr& attr1, const Attr& attr2);
+  Attr *m_sourceattr;
+  Attr *m_targetattr;
+  void set_type(Attr &attr, const NdbDictionary::Column *c);
+  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, const char *data,
+                                uint32 maxlen);
+  int check_nopk(const Attr &attr1, const Attr &attr2);
+  int check_promotion(const Attr &attr1, const Attr &attr2);
+  int check_demotion(const Attr &attr1, const Attr &attr2);
+  int check_sizes(const Attr &attr1, const Attr &attr2);
+  int check_unsupported(const Attr &attr1, const Attr &attr2);
   int check_tables();
   struct Data {
-    char* data;
-    Data* next;
+    char *data;
+    Data *next;
     Data();
     ~Data();
   };
-  Data* m_data; // blob data for the batch, used for blob2blob
-  char* alloc_data(Uint32 n);
+  Data *m_data;  // blob data for the batch, used for blob2blob
+  char *alloc_data(Uint32 n);
   void release_data();
   struct Op {
-    Ndb* ndb;
-    NdbTransaction* scantrans;
-    NdbScanOperation* scanop;
-    NdbTransaction* updatetrans;
-    NdbOperation* updateop;
+    Ndb *ndb;
+    NdbTransaction *scantrans;
+    NdbScanOperation *scanop;
+    NdbTransaction *updatetrans;
+    NdbOperation *updateop;
     union Value {
-      NdbRecAttr* ra;
-      NdbBlob* bh;
+      NdbRecAttr *ra;
+      NdbBlob *bh;
     };
-    Value* values;
+    Value *values;
     int buflen;
-    char* buf1;
-    char* buf2;
+    char *buf1;
+    char *buf2;
     Uint32 rows_in_batch;
     Uint32 truncated_in_batch;
     bool end_of_scan;
@@ -173,26 +169,26 @@ private:
   };
   Op m_op;
   int start_scan();
-  int copy_other_to_other(const Attr& attr1, const Attr& attr2);
-  int copy_data_to_array(const char* data1, const Attr& attr2,
-                         Uint32 length1, Uint32 length1x);
-  int copy_array_to_array(const Attr& attr1, const Attr& attr2);
-  int copy_array_to_blob(const Attr& attr1, const Attr& attr2);
-  int copy_blob_to_array(const Attr& attr1, const Attr& attr2);
-  int copy_blob_to_blob(const Attr& attr1, const Attr& attr2);
-  int copy_attr(const Attr& attr1, const Attr& attr2);
+  int copy_other_to_other(const Attr &attr1, const Attr &attr2);
+  int copy_data_to_array(const char *data1, const Attr &attr2, Uint32 length1,
+                         Uint32 length1x);
+  int copy_array_to_array(const Attr &attr1, const Attr &attr2);
+  int copy_array_to_blob(const Attr &attr1, const Attr &attr2);
+  int copy_blob_to_array(const Attr &attr1, const Attr &attr2);
+  int copy_blob_to_blob(const Attr &attr1, const Attr &attr2);
+  int copy_attr(const Attr &attr1, const Attr &attr2);
   int move_row();
   int move_batch();
-  void close_op(Ndb* ndb, int ret);
+  void close_op(Ndb *ndb, int ret);
   Opts m_opts;
   Stat m_stat;
   Error m_error;
   void set_error_line(int line);
-  void set_error_code(int code, const char* fmt, ...)
-    MY_ATTRIBUTE((format(printf, 3, 4)));
-  void set_error_code(const NdbError& ndberror);
+  void set_error_code(int code, const char *fmt, ...)
+      MY_ATTRIBUTE((format(printf, 3, 4)));
+  void set_error_code(const NdbError &ndberror);
   void reset_error();
-  friend class NdbOut& operator<<(NdbOut&, const Error&);
+  friend class NdbOut &operator<<(NdbOut &, const Error &);
   bool m_error_insert;
   void invoke_error_insert();
   void abort_on_error();

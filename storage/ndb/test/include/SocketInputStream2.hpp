@@ -25,28 +25,25 @@
 #ifndef SOCKETINPUTSTREAM2_HPP
 #define SOCKETINPUTSTREAM2_HPP
 
-#include "portlib/ndb_socket.h"
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
+#include "portlib/ndb_socket.h"
 #include "util/NdbSocket.h"
 
 class SocketInputStream2 {
-  const NdbSocket& m_socket;
+  const NdbSocket &m_socket;
   unsigned m_read_timeout;
   UtilBuffer m_buffer;
   size_t m_buffer_read_pos;
 
   bool has_data_to_read();
-  ssize_t read_socket(char* buf, size_t len);
-  bool get_buffered_line(BaseString& str);
-  bool add_buffer(char* buf, ssize_t len);
+  ssize_t read_socket(char *buf, size_t len);
+  bool get_buffered_line(BaseString &str);
+  bool add_buffer(char *buf, ssize_t len);
 
-public:
-  SocketInputStream2(const NdbSocket& socket,
-                     unsigned read_timeout = 60) :
-    m_socket(socket),
-    m_read_timeout(read_timeout),
-    m_buffer_read_pos(0)          {}
+ public:
+  SocketInputStream2(const NdbSocket &socket, unsigned read_timeout = 60)
+      : m_socket(socket), m_read_timeout(read_timeout), m_buffer_read_pos(0) {}
 
   /*
     Read a line from socket into the string "str" until
@@ -57,8 +54,7 @@ public:
      false - EOF or read timeout occurred
 
   */
-  bool gets(BaseString& str);
-
+  bool gets(BaseString &str);
 };
 
 #endif

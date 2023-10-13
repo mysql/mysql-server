@@ -23,53 +23,42 @@
 */
 #include <signaldata/RestoreImpl.hpp>
 
-bool printRESTORE_LCP_REQ(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
-  if (len < RestoreLcpReq::SignalLength)
-  {
+bool printRESTORE_LCP_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
+  if (len < RestoreLcpReq::SignalLength) {
     assert(false);
     return false;
   }
-  const RestoreLcpReq* const sig = (const RestoreLcpReq*)theData;
+  const RestoreLcpReq *const sig = (const RestoreLcpReq *)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, lcpNo: %u\n",
           sig->senderData, sig->senderRef, sig->lcpNo);
-  fprintf(output, "tableId: %u, fragmentId: %u, lcpId: %u, restoreGcpId: %u"
-                  ", maxGciCompleted: %u, createGci: %u\n",
+  fprintf(output,
+          "tableId: %u, fragmentId: %u, lcpId: %u, restoreGcpId: %u"
+          ", maxGciCompleted: %u, createGci: %u\n",
           sig->tableId, sig->fragmentId, sig->lcpId, sig->restoreGcpId,
           sig->maxGciCompleted, sig->createGci);
   return true;
 }
 
-bool printRESTORE_LCP_REF(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
-  const RestoreLcpRef* const sig = (const RestoreLcpRef*)theData;
+bool printRESTORE_LCP_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
+  const RestoreLcpRef *const sig = (const RestoreLcpRef *)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, errorCode: %u\n",
           sig->senderData, sig->senderRef, sig->errorCode);
-  for (Uint32 i = 3; i < len; i++)
-  {
-    fprintf(output, "extra[%u]: %u", (i-3), theData[i]);
+  for (Uint32 i = 3; i < len; i++) {
+    fprintf(output, "extra[%u]: %u", (i - 3), theData[i]);
   }
   fprintf(output, "\n");
   return true;
 }
 
-bool printRESTORE_LCP_CONF(FILE* output,
-                           const Uint32* theData,
-                           Uint32 len,
-                           Uint16 /*receiverBlockNo*/)
-{
-  if (len < RestoreLcpConf::SignalLength)
-  {
+bool printRESTORE_LCP_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                           Uint16 /*receiverBlockNo*/) {
+  if (len < RestoreLcpConf::SignalLength) {
     assert(false);
     return false;
   }
-  const RestoreLcpConf* const sig = (const RestoreLcpConf*)theData;
+  const RestoreLcpConf *const sig = (const RestoreLcpConf *)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, restoredLcpId: %u",
           sig->senderData, sig->senderRef, sig->restoredLcpId);
   fprintf(output, ", restoredLocalLcpId: %u\n", sig->restoredLocalLcpId);
@@ -77,4 +66,3 @@ bool printRESTORE_LCP_CONF(FILE* output,
           sig->maxGciCompleted, sig->afterRestore);
   return true;
 }
-

@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include <ndb_global.h>
 #include <util/ndb_opts.h>
 #include <map>
@@ -31,23 +30,23 @@
 #include <util/File.hpp>
 #include <util/NdbOut.hpp>
 #include "atrt.hpp"
+#include "util/require.h"
 
 extern int g_mt;
 extern int g_mt_rr;
 
-static atrt_host* find(const char* hostname, Vector<atrt_host*>&);
-static bool load_process(atrt_config&, atrt_coverage_config&,
-                         atrt_cluster&, BaseString, atrt_process::Type,
-                         unsigned idx, const char* hostname,
-                         bool clean_shutdown);
-static bool load_options(int argc, char** argv, int type, atrt_options&);
-bool load_custom_processes(atrt_config& config,
-                           atrt_coverage_config& atrt_coverage_config,
-                           atrt_cluster& cluster, bool clean_shutdown);
-bool load_deployment_options_for_process(atrt_cluster& cluster,
-                                         atrt_process& proc);
-bool matches_custom_process_option(char* arg, BaseString& proc_name,
-                                   BaseString& hosts);
+static atrt_host *find(const char *hostname, Vector<atrt_host *> &);
+static bool load_process(atrt_config &, atrt_coverage_config &, atrt_cluster &,
+                         BaseString, atrt_process::Type, unsigned idx,
+                         const char *hostname, bool clean_shutdown);
+static bool load_options(int argc, char **argv, int type, atrt_options &);
+bool load_custom_processes(atrt_config &config,
+                           atrt_coverage_config &atrt_coverage_config,
+                           atrt_cluster &cluster, bool clean_shutdown);
+bool load_deployment_options_for_process(atrt_cluster &cluster,
+                                         atrt_process &proc);
+bool matches_custom_process_option(char *arg, BaseString &proc_name,
+                                   BaseString &hosts);
 BaseString getProcGroupName(atrt_process::Type type);
 
 enum {
@@ -58,7 +57,7 @@ enum {
 };
 
 struct proc_option {
-  const char* name;
+  const char *name;
   int type;
   int options;
 };
@@ -79,11 +78,10 @@ static struct proc_option f_options[] = {
      PO_NDB},
     {"--ndbcluster", atrt_process::AP_MYSQLD, PO_NDB},
     {0, 0, 0}};
-const char* ndbcs = "--ndb-connectstring=";
+const char *ndbcs = "--ndb-connectstring=";
 
-bool setup_config(atrt_config& config,
-                  atrt_coverage_config& coverage_config,
-                  const char* atrt_mysqld, bool clean_shutdown) {
+bool setup_config(atrt_config &config, atrt_coverage_config &coverage_config,
+                  const char *atrt_mysqld, bool clean_shutdown) {
   config.m_site = g_site;
 
   BaseString tmp(g_clusters);
@@ -98,7 +96,7 @@ bool setup_config(atrt_config& config,
 
   size_t j;
   for (unsigned i = 0; i < clusters.size(); i++) {
-    struct atrt_cluster* cluster = new atrt_cluster;
+    struct atrt_cluster *cluster = new atrt_cluster;
     config.m_clusters.push_back(cluster);
 
     cluster->m_name = clusters[i];
@@ -111,14 +109,14 @@ bool setup_config(atrt_config& config,
     cluster->m_next_nodeid = 1;
 
     int argc = 1;
-    const char* argv[] = {"atrt", 0, 0};
+    const char *argv[] = {"atrt", 0, 0};
 
     BaseString buf;
     buf.assfmt("--defaults-group-suffix=%s", clusters[i].c_str());
     argv[argc++] = buf.c_str();
-    char** tmp = (char**)argv;
-    const char* groups[] = {"cluster_config", 0};
-    MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+    char **tmp = (char **)argv;
+    const char *groups[] = {"cluster_config", 0};
+    MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
     int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
     if (ret) {
       g_logger.error("Unable to load defaults for cluster: %s",
@@ -128,8 +126,8 @@ bool setup_config(atrt_config& config,
 
     struct {
       atrt_process::Type type;
-      const char* name;
-      const char* value;
+      const char *name;
+      const char *value;
     } proc_args[] = {{atrt_process::AP_NDB_MGMD, "--ndb_mgmd=", 0},
                      {atrt_process::AP_NDBD, "--ndbd=", 0},
                      {atrt_process::AP_NDB_API, "--ndbapi=", 0},
@@ -183,18 +181,19 @@ bool setup_config(atrt_config& config,
      * Load custom processes
      */
     if (!load_custom_processes(config, coverage_config, *cluster,
-                               clean_shutdown)) return false;
+                               clean_shutdown))
+      return false;
 
     {
       /**
        * Load cluster options
        */
       int argc = 1;
-      const char* argv[] = {"atrt", 0, 0};
+      const char *argv[] = {"atrt", 0, 0};
       argv[argc++] = buf.c_str();
-      const char* groups[] = {"mysql_cluster", 0};
-      char** tmp = (char**)argv;
-      MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+      const char *groups[] = {"mysql_cluster", 0};
+      char **tmp = (char **)argv;
+      MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
       ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
 
       if (ret) {
@@ -209,19 +208,19 @@ bool setup_config(atrt_config& config,
   return true;
 }
 
-bool load_custom_processes(atrt_config& config,
-                           atrt_coverage_config& coverage_config,
-                           atrt_cluster& cluster, bool clean_shutdown) {
+bool load_custom_processes(atrt_config &config,
+                           atrt_coverage_config &coverage_config,
+                           atrt_cluster &cluster, bool clean_shutdown) {
   int argc = 1;
-  const char* argv[] = {"atrt", 0, 0};
+  const char *argv[] = {"atrt", 0, 0};
 
   BaseString buf;
   buf.assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
   argv[argc++] = buf.c_str();
-  char** tmp = (char**)argv;
-  const char* groups[] = {"cluster_deployment", 0};
+  char **tmp = (char **)argv;
+  const char *groups[] = {"cluster_deployment", 0};
 
-  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret != 0) {
     g_logger.error("Failure to '%s' group for cluster %s", groups[0],
@@ -237,10 +236,9 @@ bool load_custom_processes(atrt_config& config,
     Vector<BaseString> host_list;
     hosts.split(host_list, ",");
     for (unsigned int j = 0; j < host_list.size(); j++) {
-      bool ok =
-          load_process(config, coverage_config, cluster, proc_name,
-                       atrt_process::AP_CUSTOM, j + 1, host_list[j].c_str(),
-                       clean_shutdown);
+      bool ok = load_process(config, coverage_config, cluster, proc_name,
+                             atrt_process::AP_CUSTOM, j + 1,
+                             host_list[j].c_str(), clean_shutdown);
       if (!ok) return false;
     }
   }
@@ -248,15 +246,15 @@ bool load_custom_processes(atrt_config& config,
   return true;
 }
 
-bool matches_custom_process_option(char* arg, BaseString& proc_name,
-                                   BaseString& hosts) {
-  const char* opt_prefix = "--proc:";
+bool matches_custom_process_option(char *arg, BaseString &proc_name,
+                                   BaseString &hosts) {
+  const char *opt_prefix = "--proc:";
 
   if (strncmp(arg, opt_prefix, strlen(opt_prefix)) != 0) return false;
 
   arg += strlen(opt_prefix);  // advance prefix
 
-  char* list = strstr(arg, "=");
+  char *list = strstr(arg, "=");
   if (list == NULL) return false;
 
   proc_name.assign(arg, list - arg);
@@ -267,14 +265,14 @@ bool matches_custom_process_option(char* arg, BaseString& proc_name,
   return true;
 }
 
-static atrt_host* find(const char* hostname, Vector<atrt_host*>& hosts) {
+static atrt_host *find(const char *hostname, Vector<atrt_host *> &hosts) {
   for (unsigned i = 0; i < hosts.size(); i++) {
     if (hosts[i]->m_hostname == hostname) {
       return hosts[i];
     }
   }
 
-  atrt_host* host = new atrt_host;
+  atrt_host *host = new atrt_host;
   host->m_index = hosts.size();
   host->m_cpcd = new SimpleCpcClient(hostname, 1234);
   host->m_basedir = g_basedir;
@@ -284,8 +282,8 @@ static atrt_host* find(const char* hostname, Vector<atrt_host*>& hosts) {
   return host;
 }
 
-bool load_deployment_options_for_process(atrt_cluster& cluster,
-                                         atrt_process& proc) {
+bool load_deployment_options_for_process(atrt_cluster &cluster,
+                                         atrt_process &proc) {
   if (proc.m_name.empty()) {
     g_logger.debug("Skipping deployment_options loading for process type %d",
                    proc.m_type);
@@ -295,16 +293,16 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
   BaseString suffix;
   suffix.assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
 
-  const char* argv[] = {"atrt", suffix.c_str(), 0};
+  const char *argv[] = {"atrt", suffix.c_str(), 0};
   int argc = 2;
-  char** tmp = (char**)argv;
+  char **tmp = (char **)argv;
 
   BaseString buf[2];
   buf[0].assfmt("cluster_deployment.%s", proc.m_name.c_str());
   buf[1].assfmt("cluster_deployment.%s.%u", proc.m_name.c_str(), proc.m_index);
-  const char* groups[] = {buf[0].c_str(), buf[1].c_str(), 0};
+  const char *groups[] = {buf[0].c_str(), buf[1].c_str(), 0};
 
-  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret != 0) {
     g_logger.error("Failed to load defaults for cluster %s's process %s",
@@ -312,10 +310,10 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
     return false;
   }
 
-  char* cmd = NULL;
-  char* args = NULL;
+  char *cmd = NULL;
+  char *args = NULL;
   bool generate_port = false;
-  char* cpuset = NULL;
+  char *cpuset = NULL;
 
   struct my_option options[] = {
       {"cmd", 0, "Executable name", &cmd, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0,
@@ -349,7 +347,7 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
     return false;
   }
 
-  char* bin_path = find_bin_path(cmd);
+  char *bin_path = find_bin_path(cmd);
   if (!bin_path) {
     g_logger.error("Cluster's %s custom process %s binary could not be found",
                    cluster.m_name.c_str(), proc.m_name.c_str());
@@ -362,8 +360,8 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
     proc.m_proc.m_args.appfmt(" %s", args);
   }
 
-  const char* port_arg = "--port=";
-  const char* val;
+  const char *port_arg = "--port=";
+  const char *val;
   if (generate_port && !proc.m_options.m_loaded.get(port_arg, &val)) {
     BaseString portno;
     portno.assfmt("%d", g_baseport + proc.m_procno);
@@ -404,20 +402,20 @@ BaseString getProcGroupName(atrt_process::Type type) {
   return name;
 }
 
-static bool load_process(atrt_config& config,
-                         atrt_coverage_config& coverage_config,
-                         atrt_cluster& cluster, BaseString name,
+static bool load_process(atrt_config &config,
+                         atrt_coverage_config &coverage_config,
+                         atrt_cluster &cluster, BaseString name,
                          atrt_process::Type type, unsigned idx,
-                         const char* hostname, bool clean_shutdown) {
-  atrt_host* host_ptr = find(hostname, config.m_hosts);
-  atrt_process* proc_ptr = new atrt_process;
+                         const char *hostname, bool clean_shutdown) {
+  atrt_host *host_ptr = find(hostname, config.m_hosts);
+  atrt_process *proc_ptr = new atrt_process;
 
   const unsigned proc_no = (unsigned)config.m_processes.size();
   config.m_processes.push_back(proc_ptr);
   host_ptr->m_processes.push_back(proc_ptr);
   cluster.m_processes.push_back(proc_ptr);
 
-  atrt_process& proc = *proc_ptr;
+  atrt_process &proc = *proc_ptr;
 
   proc.m_index = idx;
   proc.m_type = type;
@@ -491,22 +489,22 @@ static bool load_process(atrt_config& config,
      * Use path from libmysqlclient.so
      */
 #if defined(__MACH__)
-    const char* libname = g_resources.LIBMYSQLCLIENT_DYLIB;
+    const char *libname = g_resources.LIBMYSQLCLIENT_DYLIB;
     BaseString libdir = g_resources.getLibraryDirectory(libname).c_str();
     proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
-    const char* libname = g_resources.LIBMYSQLCLIENT_SO;
+    const char *libname = g_resources.LIBMYSQLCLIENT_SO;
     BaseString libdir = g_resources.getLibraryDirectory(libname).c_str();
     proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", libdir.c_str());
 #endif
   }
 
   int argc = 1;
-  const char* argv[] = {"atrt", 0, 0};
+  const char *argv[] = {"atrt", 0, 0};
 
   BaseString buf[10];
-  char** tmp = (char**)argv;
-  const char* groups[] = {0, 0, 0, 0};
+  char **tmp = (char **)argv;
+  const char *groups[] = {0, 0, 0, 0};
   switch (type) {
     case atrt_process::AP_NDB_MGMD:
       proc.m_nodeid = cluster.m_next_nodeid++;  // always specify node-id
@@ -555,7 +553,7 @@ static bool load_process(atrt_config& config,
       return false;
   }
 
-  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret) {
     g_logger.error("Unable to load defaults for cluster: %s",
@@ -650,7 +648,7 @@ static bool load_process(atrt_config& config,
         proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
 
       // Add ndb connect string
-      const char* val;
+      const char *val;
       if (cluster.m_options.m_loaded.get(ndbcs, &val)) {
         proc.m_proc.m_args.appfmt(" %s=%s", ndbcs, val);
       }
@@ -684,8 +682,8 @@ static bool load_process(atrt_config& config,
       proc.m_proc.m_cwd.assfmt("%s%s.%u", dir.c_str(), proc.m_name.c_str(),
                                proc.m_index);
 
-      const char* port_arg = "--port=";
-      const char* val;
+      const char *port_arg = "--port=";
+      const char *val;
       if (proc.m_options.m_loaded.get(port_arg, &val)) {
         proc.m_proc.m_args.assfmt("%s%s", port_arg, val);
       }
@@ -703,8 +701,7 @@ static bool load_process(atrt_config& config,
      */
     BaseString name;
     if (!load_process(config, coverage_config, cluster, name,
-                      atrt_process::AP_CLIENT, idx, hostname,
-                      clean_shutdown)) {
+                      atrt_process::AP_CLIENT, idx, hostname, clean_shutdown)) {
       return false;
     }
   }
@@ -717,11 +714,11 @@ static bool load_process(atrt_config& config,
   return status;
 }
 
-static bool load_options(int argc, char** argv, int type, atrt_options& opts) {
+static bool load_options(int argc, char **argv, int type, atrt_options &opts) {
   for (size_t i = 0; i < (size_t)argc; i++) {
     if (ndb_is_load_default_arg_separator(argv[i])) continue;
     for (size_t j = 0; f_options[j].name; j++) {
-      const char* name = f_options[j].name;
+      const char *name = f_options[j].name;
       const size_t len = strlen(name);
 
       if ((f_options[j].type & type) && strncmp(argv[i], name, len) == 0) {
@@ -735,26 +732,27 @@ static bool load_options(int argc, char** argv, int type, atrt_options& opts) {
 
 struct proc_rule_ctx {
   int m_setup;
-  atrt_config* m_config;
-  atrt_host* m_host;
-  atrt_cluster* m_cluster;
-  atrt_process* m_process;
+  atrt_config *m_config;
+  atrt_host *m_host;
+  atrt_cluster *m_cluster;
+  atrt_process *m_process;
 };
 
 struct proc_rule {
   int type;
-  bool (*func)(Properties& prop, proc_rule_ctx&, int extra);
+  bool (*func)(Properties &prop, proc_rule_ctx &, int extra);
   int extra;
 };
 
-static bool pr_check_replication(Properties&, proc_rule_ctx&, int);
-static bool pr_check_features(Properties&, proc_rule_ctx&, int);
-static bool pr_fix_client(Properties&, proc_rule_ctx&, int);
-static bool pr_proc_options(Properties&, proc_rule_ctx&, int);
-static bool pr_fix_ndb_connectstring(Properties&, proc_rule_ctx&, int);
-static bool pr_set_ndb_connectstring(Properties&, proc_rule_ctx&, int);
-static bool pr_check_proc(Properties&, proc_rule_ctx&, int);
-static bool pr_set_customprocs_connectstring(Properties&, proc_rule_ctx&, int);
+static bool pr_check_replication(Properties &, proc_rule_ctx &, int);
+static bool pr_check_features(Properties &, proc_rule_ctx &, int);
+static bool pr_fix_client(Properties &, proc_rule_ctx &, int);
+static bool pr_proc_options(Properties &, proc_rule_ctx &, int);
+static bool pr_fix_ndb_connectstring(Properties &, proc_rule_ctx &, int);
+static bool pr_set_ndb_connectstring(Properties &, proc_rule_ctx &, int);
+static bool pr_check_proc(Properties &, proc_rule_ctx &, int);
+static bool pr_set_customprocs_connectstring(Properties &, proc_rule_ctx &,
+                                             int);
 
 static proc_rule f_rules[] = {
     {atrt_process::AP_CLUSTER, pr_check_features, 0},
@@ -772,7 +770,7 @@ static proc_rule f_rules[] = {
     {atrt_process::AP_CLUSTER, pr_set_customprocs_connectstring, 0},
     {0, 0, 0}};
 
-bool configure(atrt_config& config, int setup) {
+bool configure(atrt_config &config, int setup) {
   Properties props;
 
   for (size_t i = 0; f_rules[i].func; i++) {
@@ -790,9 +788,9 @@ bool configure(atrt_config& config, int setup) {
                        ctx.m_cluster->m_name.c_str());
         if (!(*f_rules[i].func)(props, ctx, f_rules[i].extra)) ok = false;
       } else {
-        atrt_cluster& cluster = *config.m_clusters[j];
+        atrt_cluster &cluster = *config.m_clusters[j];
         for (unsigned k = 0; k < cluster.m_processes.size(); k++) {
-          atrt_process& proc = *cluster.m_processes[k];
+          atrt_process &proc = *cluster.m_processes[k];
           ctx.m_process = cluster.m_processes[k];
           if (proc.m_type & f_rules[i].type) {
             g_logger.debug("applying rule %u to %s", (unsigned)i,
@@ -811,7 +809,7 @@ bool configure(atrt_config& config, int setup) {
   return true;
 }
 
-static atrt_process* find(atrt_config& config, int type, const char* name) {
+static atrt_process *find(atrt_config &config, int type, const char *name) {
   BaseString tmp(name);
   Vector<BaseString> src;
   Vector<BaseString> dst;
@@ -820,7 +818,7 @@ static atrt_process* find(atrt_config& config, int type, const char* name) {
   if (src.size() != 2) {
     return 0;
   }
-  atrt_cluster* cluster = 0;
+  atrt_cluster *cluster = 0;
   BaseString cl;
   cl.appfmt(".%s", src[1].c_str());
   for (unsigned i = 0; i < config.m_clusters.size(); i++) {
@@ -847,15 +845,15 @@ static atrt_process* find(atrt_config& config, int type, const char* name) {
   return 0;
 }
 
-static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
+static bool pr_check_replication(Properties &props, proc_rule_ctx &ctx, int) {
   if (!(ctx.m_config->m_replication == "")) {
     Vector<BaseString> list;
     ctx.m_config->m_replication.split(list, ";");
-    atrt_config& config = *ctx.m_config;
+    atrt_config &config = *ctx.m_config;
 
     ctx.m_config->m_replication = "";
 
-    const char* msg = "Invalid replication specification";
+    const char *msg = "Invalid replication specification";
     for (unsigned i = 0; i < list.size(); i++) {
       Vector<BaseString> rep;
       list[i].split(rep, ":");
@@ -864,8 +862,8 @@ static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
         return false;
       }
 
-      atrt_process* src = find(config, atrt_process::AP_MYSQLD, rep[0].c_str());
-      atrt_process* dst = find(config, atrt_process::AP_MYSQLD, rep[1].c_str());
+      atrt_process *src = find(config, atrt_process::AP_MYSQLD, rep[0].c_str());
+      atrt_process *dst = find(config, atrt_process::AP_MYSQLD, rep[1].c_str());
 
       if (src == 0 || dst == 0) {
         g_logger.error("%s: %s (%d %d)", msg, list[i].c_str(), src != 0,
@@ -890,8 +888,8 @@ static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
   return true;
 }
 
-static bool pr_check_features(Properties& props, proc_rule_ctx& ctx, int) {
-  atrt_cluster& cluster = *ctx.m_cluster;
+static bool pr_check_features(Properties &props, proc_rule_ctx &ctx, int) {
+  atrt_cluster &cluster = *ctx.m_cluster;
   if (cluster.m_name == ".atrt") {
     // skip cluster and replication features for atrt
     return true;
@@ -916,8 +914,8 @@ static bool pr_check_features(Properties& props, proc_rule_ctx& ctx, int) {
   return true;
 }
 
-static bool pr_fix_client(Properties& props, proc_rule_ctx& ctx, int) {
-  atrt_process& proc = *ctx.m_process;
+static bool pr_fix_client(Properties &props, proc_rule_ctx &ctx, int) {
+  atrt_process &proc = *ctx.m_process;
   const char *val, *name = "--host=";
   if (!proc.m_options.m_loaded.get(name, &val)) {
     val = proc.m_mysqld->m_host->m_hostname.c_str();
@@ -926,10 +924,10 @@ static bool pr_fix_client(Properties& props, proc_rule_ctx& ctx, int) {
   }
 
   for (size_t i = 0; f_options[i].name; i++) {
-    proc_option& opt = f_options[i];
-    const char* name = opt.name;
+    proc_option &opt = f_options[i];
+    const char *name = opt.name;
     if (opt.type & atrt_process::AP_CLIENT) {
-      const char* val;
+      const char *val;
       if (!proc.m_options.m_loaded.get(name, &val)) {
         require(proc.m_mysqld->m_options.m_loaded.get(name, &val));
         proc.m_options.m_loaded.put(name, val);
@@ -941,14 +939,14 @@ static bool pr_fix_client(Properties& props, proc_rule_ctx& ctx, int) {
   return true;
 }
 
-static Uint32 try_default_port(atrt_process& proc, const char* name) {
+static Uint32 try_default_port(atrt_process &proc, const char *name) {
   Uint32 port = strcmp(name, "--port=") == 0
                     ? 3306
                     : strcmp(name, "--PortNumber=") == 0 ? 1186 : 0;
 
-  atrt_host* host = proc.m_host;
+  atrt_host *host = proc.m_host;
   for (unsigned i = 0; i < host->m_processes.size(); i++) {
-    const char* val;
+    const char *val;
     if (host->m_processes[i]->m_options.m_loaded.get(name, &val)) {
       if ((Uint32)atoi(val) == port) return 0;
     }
@@ -956,8 +954,8 @@ static Uint32 try_default_port(atrt_process& proc, const char* name) {
   return port;
 }
 
-static bool generate(atrt_process& proc, const char* name, Properties& props) {
-  atrt_options& opts = proc.m_options;
+static bool generate(atrt_process &proc, const char *name, Properties &props) {
+  atrt_options &opts = proc.m_options;
   if (strcmp(name, "--port=") == 0 || strcmp(name, "--PortNumber=") == 0) {
     Uint32 val;
     if (g_default_ports == 0 || (val = try_default_port(proc, name)) == 0) {
@@ -982,12 +980,12 @@ static bool generate(atrt_process& proc, const char* name, Properties& props) {
     opts.m_generated.put(name, proc.m_proc.m_cwd.c_str());
     return true;
   } else if (strcmp(name, "--socket=") == 0) {
-    const char* sock = 0;
+    const char *sock = 0;
     if (g_default_ports) {
       sock = "/tmp/mysql.sock";
-      atrt_host* host = proc.m_host;
+      atrt_host *host = proc.m_host;
       for (unsigned i = 0; i < host->m_processes.size(); i++) {
-        const char* val;
+        const char *val;
         if (host->m_processes[i]->m_options.m_loaded.get(name, &val)) {
           if (strcmp(sock, val) == 0) {
             sock = 0;
@@ -1025,15 +1023,15 @@ static bool generate(atrt_process& proc, const char* name, Properties& props) {
   return true;
 }
 
-static bool pr_proc_options(Properties& props, proc_rule_ctx& ctx, int extra) {
+static bool pr_proc_options(Properties &props, proc_rule_ctx &ctx, int extra) {
   for (size_t i = 0; f_options[i].name; i++) {
-    proc_option& opt = f_options[i];
-    atrt_process& proc = *ctx.m_process;
-    const char* name = opt.name;
+    proc_option &opt = f_options[i];
+    atrt_process &proc = *ctx.m_process;
+    const char *name = opt.name;
     if (opt.type & proc.m_type) {
       if (opt.options == 0 ||
           (opt.options & extra & proc.m_options.m_features)) {
-        const char* val;
+        const char *val;
         if (!proc.m_options.m_loaded.get(name, &val)) {
           generate(proc, name, props);
         }
@@ -1043,10 +1041,10 @@ static bool pr_proc_options(Properties& props, proc_rule_ctx& ctx, int extra) {
   return true;
 }
 
-static bool pr_fix_ndb_connectstring(Properties& props, proc_rule_ctx& ctx,
+static bool pr_fix_ndb_connectstring(Properties &props, proc_rule_ctx &ctx,
                                      int) {
-  const char* val;
-  atrt_cluster& cluster = *ctx.m_cluster;
+  const char *val;
+  atrt_cluster &cluster = *ctx.m_cluster;
 
   if (cluster.m_options.m_features & atrt_options::AO_NDBCLUSTER) {
     if (!cluster.m_options.m_loaded.get(ndbcs, &val)) {
@@ -1055,12 +1053,12 @@ static bool pr_fix_ndb_connectstring(Properties& props, proc_rule_ctx& ctx,
        */
       BaseString str;
       for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
-        atrt_process* tmp = cluster.m_processes[i];
+        atrt_process *tmp = cluster.m_processes[i];
         if (tmp->m_type == atrt_process::AP_NDB_MGMD) {
           if (str.length()) {
             str.append(";");
           }
-          const char* port;
+          const char *port;
           require(tmp->m_options.m_loaded.get("--PortNumber=", &port));
           str.appfmt("%s:%s", tmp->m_host->m_hostname.c_str(), port);
         }
@@ -1077,11 +1075,11 @@ static bool pr_fix_ndb_connectstring(Properties& props, proc_rule_ctx& ctx,
   return true;
 }
 
-static bool pr_set_ndb_connectstring(Properties& props, proc_rule_ctx& ctx,
+static bool pr_set_ndb_connectstring(Properties &props, proc_rule_ctx &ctx,
                                      int) {
-  const char* val;
+  const char *val;
 
-  atrt_process& proc = *ctx.m_process;
+  atrt_process &proc = *ctx.m_process;
   if (proc.m_options.m_features & atrt_options::AO_NDBCLUSTER) {
     if (!proc.m_options.m_loaded.get(ndbcs, &val)) {
       require(proc.m_cluster->m_options.m_loaded.get(ndbcs, &val));
@@ -1097,18 +1095,18 @@ static bool pr_set_ndb_connectstring(Properties& props, proc_rule_ctx& ctx,
   return true;
 }
 
-static bool pr_check_proc(Properties& props, proc_rule_ctx& ctx, int) {
+static bool pr_check_proc(Properties &props, proc_rule_ctx &ctx, int) {
   bool ok = true;
   bool generated = false;
   const int setup = ctx.m_setup;
-  atrt_process& proc = *ctx.m_process;
+  atrt_process &proc = *ctx.m_process;
   for (size_t i = 0; f_options[i].name; i++) {
-    proc_option& opt = f_options[i];
-    const char* name = opt.name;
+    proc_option &opt = f_options[i];
+    const char *name = opt.name;
     if ((ctx.m_process->m_type & opt.type) &&
         (opt.options == 0 ||
          (ctx.m_process->m_options.m_features & opt.options))) {
-      const char* val;
+      const char *val;
       if (!proc.m_options.m_loaded.get(name, &val)) {
         ok = false;
         g_logger.warning("Missing parameter: %s for %s", name,
@@ -1134,14 +1132,14 @@ static bool pr_check_proc(Properties& props, proc_rule_ctx& ctx, int) {
   return ok;
 }
 
-static bool pr_set_customprocs_connectstring(Properties& props,
-                                             proc_rule_ctx& ctx, int) {
-  atrt_cluster& cluster = *ctx.m_cluster;
+static bool pr_set_customprocs_connectstring(Properties &props,
+                                             proc_rule_ctx &ctx, int) {
+  atrt_cluster &cluster = *ctx.m_cluster;
 
   std::map<BaseString, BaseString> connectstrings;
   std::map<BaseString, BaseString>::iterator it;
   for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
-    atrt_process* proc = cluster.m_processes[i];
+    atrt_process *proc = cluster.m_processes[i];
     if (proc->m_type != atrt_process::AP_CUSTOM) continue;
 
     BaseString host_list;
@@ -1154,8 +1152,8 @@ static bool pr_set_customprocs_connectstring(Properties& props,
       host_list.assign(proc->m_host->m_hostname);
     }
 
-    const char* port_arg = "--port=";
-    const char* portno;
+    const char *port_arg = "--port=";
+    const char *portno;
     if (proc->m_options.m_loaded.get(port_arg, &portno) ||
         proc->m_options.m_generated.get(port_arg, &portno)) {
       host_list.appfmt(":%s", portno);
@@ -1165,7 +1163,7 @@ static bool pr_set_customprocs_connectstring(Properties& props,
   }
 
   for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
-    atrt_process* proc = cluster.m_processes[i];
+    atrt_process *proc = cluster.m_processes[i];
 
     bool client_or_api =
         proc->m_type & (atrt_process::AP_CLIENT | atrt_process::AP_NDB_API);
@@ -1184,7 +1182,7 @@ static bool pr_set_customprocs_connectstring(Properties& props,
   return true;
 }
 
-NdbOut& operator<<(NdbOut& out, const atrt_process& proc) {
+NdbOut &operator<<(NdbOut &out, const atrt_process &proc) {
   out << "[ atrt_process: ";
   switch (proc.m_type) {
     case atrt_process::AP_NDB_MGMD:
@@ -1232,9 +1230,9 @@ NdbOut& operator<<(NdbOut& out, const atrt_process& proc) {
   return out;
 }
 
-char* find_bin_path(const char* exe) { return find_bin_path(g_prefix0, exe); }
+char *find_bin_path(const char *exe) { return find_bin_path(g_prefix0, exe); }
 
-char* find_bin_path(const char* prefix, const char* exe) {
+char *find_bin_path(const char *prefix, const char *exe) {
   if (exe == 0) return 0;
 
   if (exe[0] == '/') {

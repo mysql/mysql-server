@@ -28,7 +28,7 @@
 #include "portlib/ndb_sockaddr.h"
 
 LocalDnsCache::~LocalDnsCache() {
-  for (const auto& pair : m_resolver_cache) {
+  for (const auto &pair : m_resolver_cache) {
     delete pair.second;
   }
 }
@@ -51,7 +51,8 @@ bool LocalDnsCache::getCachedOrResolveAddress(ndb_sockaddr *result,
   return true;
 }
 
-int LocalDnsCache::getAddress(ndb_sockaddr *result_address, const char *hostname) {
+int LocalDnsCache::getAddress(ndb_sockaddr *result_address,
+                              const char *hostname) {
   if (m_failed_lookups.count(hostname) != 0) {
     // Lookup failed earlier, same result now
     return -1;

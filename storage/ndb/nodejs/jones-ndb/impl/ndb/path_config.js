@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -27,28 +27,28 @@
 var path = require("path");
 var fs = require("fs");
 
-var ndb_dir        = __dirname;   /* /impl/ndb */
-var impl_dir       = path.dirname(ndb_dir);  /* /impl */
-var root_dir       = path.dirname(impl_dir); /* / */
+var ndb_dir = __dirname;               /* /impl/ndb */
+var impl_dir = path.dirname(ndb_dir);  /* /impl */
+var root_dir = path.dirname(impl_dir); /* / */
 var converters_dir = path.join(root_dir, "Converters");
-var suites_dir     = path.join(root_dir, "test");
+var suites_dir = path.join(root_dir, "test");
 
 /* Find the build directory */
 var existsSync = fs.existsSync || path.existsSync;
 var binary_dir;
-var build1 = path.join(root_dir, "build");   // gyp builds under root dir
-var build2 = path.join(impl_dir, "build");   // waf builds under impl dir
+var build1 = path.join(root_dir, "build");  // gyp builds under root dir
+var build2 = path.join(impl_dir, "build");  // waf builds under impl dir
 var build = existsSync(build1) ? build1 : build2;
 
 binary_dir = path.join(build, "Release");
 
 // The Static build is linked with ndbclient_static and created by CMake
-if(existsSync(path.join(build, "Static", "ndb_adapter.node"))) {
+if (existsSync(path.join(build, "Static", "ndb_adapter.node"))) {
   binary_dir = path.join(build, "Static");
 }
 
 // Prefer the Debug build if one exists
-if(existsSync(path.join(build, "Debug", "ndb_adapter.node"))) {
+if (existsSync(path.join(build, "Debug", "ndb_adapter.node"))) {
   binary_dir = path.join(build, "Debug");
 }
 
@@ -57,11 +57,10 @@ if(existsSync(path.join(build, "Debug", "ndb_adapter.node"))) {
 */
 
 module.exports = {
-  "binary"         : path.join(binary_dir, "ndb_adapter.node"),
-  "root_dir"       : root_dir,
-  "impl_dir"       : impl_dir,
-  "impl_js_dir"    : ndb_dir,
-  "converters_dir" : converters_dir,
-  "suites_dir"     : suites_dir
+  "binary": path.join(binary_dir, "ndb_adapter.node"),
+  "root_dir": root_dir,
+  "impl_dir": impl_dir,
+  "impl_js_dir": ndb_dir,
+  "converters_dir": converters_dir,
+  "suites_dir": suites_dir
 };
-

@@ -25,16 +25,17 @@
 #ifndef SIGNAL_DATA_PRINT_H
 #define SIGNAL_DATA_PRINT_H
 
-#include <ndb_global.h>
 #include <kernel_types.h>
+#include <ndb_global.h>
 
 #define JAM_FILE_ID 41
-
 
 /**
  * Typedef for a Signal Data Print Function
  */
-typedef bool (* SignalDataPrintFunction)(FILE * output, const Uint32 * theData, Uint32 len, BlockNumber receiverBlockNo);
+typedef bool (*SignalDataPrintFunction)(FILE *output, const Uint32 *theData,
+                                        Uint32 len,
+                                        BlockNumber receiverBlockNo);
 
 struct NameFunctionPair {
   GlobalSignalNumber gsn;
@@ -42,8 +43,7 @@ struct NameFunctionPair {
 };
 
 extern const NameFunctionPair SignalDataPrintFunctions[];
-extern const unsigned short   NO_OF_PRINT_FUNCTIONS;
-
+extern const unsigned short NO_OF_PRINT_FUNCTIONS;
 
 #undef JAM_FILE_ID
 

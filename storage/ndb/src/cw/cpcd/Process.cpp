@@ -22,10 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <ndb_global.h>
 #include "my_config.h"
 #include "ndb_config.h"
 #include "util/require.h"
-#include <ndb_global.h>
 
 #include <time.h>
 
@@ -121,10 +121,8 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
   m_cpcd = cpcd;
 }
 
-const char *getProcessStatusName(ProcessStatus status)
-{
-  switch(status)
-  {
+const char *getProcessStatusName(ProcessStatus status) {
+  switch (status) {
     case STOPPED:
       return "Stopped";
 
@@ -140,8 +138,7 @@ const char *getProcessStatusName(ProcessStatus status)
   return nullptr;
 }
 
-bool CPCD::Process::should_be_erased() const
-{
+bool CPCD::Process::should_be_erased() const {
   return (m_status == STOPPED) && m_remove_on_stopped;
 }
 
@@ -149,55 +146,49 @@ bool CPCD::Process::allowsChangeFromSession(const uintptr_t sessionid) const {
   return (m_type == ProcessType::TEMPORARY) && (m_sessionid == sessionid);
 }
 
-void CPCD::Process::monitor()
-{
+void CPCD::Process::monitor() {
   if (m_status != m_previous_monitored_status) {
     logger.debug("Monitor: Process %s:%s:%d with pid %d is %s", m_group.c_str(),
-                  m_name.c_str(), m_id, m_pid, getProcessStatusName(m_status));
+                 m_name.c_str(), m_id, m_pid, getProcessStatusName(m_status));
     m_previous_monitored_status = m_status;
   }
 
-  switch (m_status)
-  {
+  switch (m_status) {
     case STOPPED:
     case STARTING:
       break;
 
     case RUNNING:
-      if (!isRunning())
-      {
+      if (!isRunning()) {
         logger.debug("Monitor : Process %s:%s:%d with pid %d no longer running",
-                      m_group.c_str(), m_name.c_str(), m_id, m_pid);
-        switch (m_type)
-        {
-        case ProcessType::TEMPORARY:
-          logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
-                        m_group.c_str(), m_name.c_str(), m_id, m_pid);
-          m_status = STOPPED;
-          removePid();
-          m_pid = bad_pid;
-          break;
+                     m_group.c_str(), m_name.c_str(), m_id, m_pid);
+        switch (m_type) {
+          case ProcessType::TEMPORARY:
+            logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
+                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
+            m_status = STOPPED;
+            removePid();
+            m_pid = bad_pid;
+            break;
 
-        case ProcessType::PERMANENT:
-          logger.debug("Monitor : Process %s:%s:%d with previous pid %d is STARTING",
-                        m_group.c_str(), m_name.c_str(), m_id, m_pid);
-          start();
-          break;
+          case ProcessType::PERMANENT:
+            logger.debug(
+                "Monitor : Process %s:%s:%d with previous pid %d is STARTING",
+                m_group.c_str(), m_name.c_str(), m_id, m_pid);
+            start();
+            break;
         }
       }
       break;
 
     case STOPPING:
-      if (!isRunning())
-      {
+      if (!isRunning()) {
         logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
-                      m_group.c_str(), m_name.c_str(), m_id, m_pid);
+                     m_group.c_str(), m_name.c_str(), m_id, m_pid);
         m_status = STOPPED;
         removePid();
         m_pid = bad_pid;
-      }
-      else if (time(NULL) > m_stopping_time + m_stop_timeout)
-      {
+      } else if (time(NULL) > m_stopping_time + m_stop_timeout) {
         do_shutdown(true /* force sigkill */);
       }
       break;
@@ -255,9 +246,7 @@ bool CPCD::Process::isRunning() {
   return true;
 }
 
-int CPCD::Process::getPid() {
-  return is_bad_pid(m_pid) ? bad_pid : m_pid;
-}
+int CPCD::Process::getPid() { return is_bad_pid(m_pid) ? bad_pid : m_pid; }
 
 int CPCD::Process::readPid() {
   if (!is_bad_pid(m_pid)) {
@@ -337,13 +326,12 @@ int CPCD::Process::writePid(int pid) {
   return 0;
 }
 
-void CPCD::Process::removePid()
-{
+void CPCD::Process::removePid() {
   char filename[PATH_MAX * 2 + 1];
   BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
-  logger.debug("Process %s:%s:%d with pid %d removed",
-                m_group.c_str(), m_name.c_str(), m_id, m_pid);
+  logger.debug("Process %s:%s:%d with pid %d removed", m_group.c_str(),
+               m_name.c_str(), m_id, m_pid);
 }
 
 static void setup_environment(const char *env) {
@@ -647,24 +635,23 @@ int CPCD::Process::start() {
   logger.info("Starting %d: %s", m_id, m_name.c_str());
 
   /* Check if there is a left over pid file.
-   * If so and process runs with written pid, let it run and fail starting new process.
-   * If no process runs with written pid, remove pid file.
+   * If so and process runs with written pid, let it run and fail starting new
+   * process. If no process runs with written pid, remove pid file.
    */
   if (readPid() >= 0) {
     if (isRunning()) {
-      logger.error("Fail starting %d.  Old pid file found.  Leave running "
-                   "process (pid %d) running.\n",
-                   m_id,
-                   m_pid);
+      logger.error(
+          "Fail starting %d.  Old pid file found.  Leave running "
+          "process (pid %d) running.\n",
+          m_id, m_pid);
       m_status = STOPPED;
       m_pid = bad_pid;
       return -1;
-    }
-    else {
-      logger.info("While starting %d.  Found old pid file with no running "
-                  "process (pid %d). Removing pid file!\n",
-                  m_id,
-                  m_pid);
+    } else {
+      logger.info(
+          "While starting %d.  Found old pid file with no running "
+          "process (pid %d). Removing pid file!\n",
+          m_id, m_pid);
       m_status = STOPPED;
       removePid();
       m_pid = bad_pid;
@@ -764,14 +751,11 @@ int CPCD::Process::start() {
     pid_t pgid = IF_WIN(-1, getpgid(pid));
 
     if (pgid == -1 || pgid == m_pid) {
-      if (retries < max_retries)
-      {
-        logger.info("Retry reading pid file succeeded: cpcd pid %d: forked "
-                    "pgid %d pid %d: file m_pid %d",
-                    getpid(),
-                    pgid,
-                    pid,
-                    m_pid);
+      if (retries < max_retries) {
+        logger.info(
+            "Retry reading pid file succeeded: cpcd pid %d: forked "
+            "pgid %d pid %d: file m_pid %d",
+            getpid(), pgid, pid, m_pid);
       }
       break;
     }
@@ -780,27 +764,26 @@ int CPCD::Process::start() {
 
     // For processtype PERMANENT pid and pgid must be -1 so never enter here.
     require(m_type == ProcessType::TEMPORARY);
-    logger.error("pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
-                 "pid %d: file m_pid %d",
-                 getpid(),
-                 pgid,
-                 pid,
-                 m_pid);
+    logger.error(
+        "pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
+        "pid %d: file m_pid %d",
+        getpid(), pgid, pid, m_pid);
 
     if (retries == 1) {
       /* Last try reading pid file failed.
        * For TEMPORARY where pid of started process is known, kill it.
        */
 #ifndef _WIN32
-      logger.error("After pid file mismatch, forced kill of forked process "
-                   "group (pgid %d).",
-                   pgid);
+      logger.error(
+          "After pid file mismatch, forced kill of forked process "
+          "group (pgid %d).",
+          pgid);
       kill(-pgid, 9);
 #endif
-      logger.error("After pid file mismatch, stop started process %d "
-                   "(pid %d).",
-                   m_id,
-                   m_pid);
+      logger.error(
+          "After pid file mismatch, stop started process %d "
+          "(pid %d).",
+          m_id, m_pid);
       stop();
       return -1;
     }
@@ -809,11 +792,10 @@ int CPCD::Process::start() {
     NdbSleep_SecSleep(1);
   }
 
-  if (isRunning())
-  {
+  if (isRunning()) {
     m_status = RUNNING;
-    logger.debug("Process %s:%s:%d with pid %d RUNNING",
-                  m_group.c_str(), m_name.c_str(), m_id, pid);
+    logger.debug("Process %s:%s:%d with pid %d RUNNING", m_group.c_str(),
+                 m_name.c_str(), m_id, pid);
     return 0;
   }
   m_status = STOPPED;
@@ -821,32 +803,27 @@ int CPCD::Process::start() {
   return -1;
 }
 
-void CPCD::Process::stop()
-{
+void CPCD::Process::stop() {
   if (is_bad_pid(m_pid)) {
     logger.critical("Stopping process with bogus pid: %d id: %d", m_pid, m_id);
     return;
   }
 
   m_status = STOPPING;
-  if (isRunning())
-  {
+  if (isRunning()) {
     time(&m_stopping_time);
     do_shutdown();
   }
 }
 
-void CPCD::Process::do_shutdown(bool force_sigkill)
-{
+void CPCD::Process::do_shutdown(bool force_sigkill) {
 #ifndef _WIN32
   bool do_sigkill = (m_shutdown_options == "SIGKILL" || force_sigkill);
 
   errno = 0;
-  if (!do_sigkill)
-  {
+  if (!do_sigkill) {
     int ret = kill(-m_pid, SIGTERM);
-    switch (ret)
-    {
+    switch (ret) {
       case 0:
         logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);
         break;
@@ -854,9 +831,7 @@ void CPCD::Process::do_shutdown(bool force_sigkill)
         logger.error("kill pid: %d : %s", (int)-m_pid, strerror(errno));
         break;
     }
-  }
-  else
-  {
+  } else {
     int ret = kill(-m_pid, SIGKILL);
     switch (ret) {
       case 0:

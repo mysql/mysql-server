@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 123
 
-
 // begin
 
 struct SchemaTransBeginReq {
@@ -71,7 +70,7 @@ struct SchemaTransEndReq {
   enum Flag {
     SchemaTransAbort = 1,
     SchemaTransBackground = 2,
-    SchemaTransPrepare = 4 // Only run prepare
+    SchemaTransPrepare = 4  // Only run prepare
   };
   static constexpr Uint32 SignalLength = 5;
   Uint32 clientRef;
@@ -106,10 +105,7 @@ struct SchemaTransEndRef {
 };
 
 struct SchemaTransEndRep {
-  enum ErrorCode {
-    NoError = 0,
-    TransAborted = 787
-  };
+  enum ErrorCode { NoError = 0, TransAborted = 787 };
   static constexpr Uint32 SignalLength = 6;
   Uint32 senderRef;
   Uint32 transId;
@@ -118,7 +114,6 @@ struct SchemaTransEndRep {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

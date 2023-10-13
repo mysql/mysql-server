@@ -21,21 +21,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <signaldata/DropTable.hpp>
 #include <SignalLoggerManager.hpp>
+#include <signaldata/DropTable.hpp>
 
-bool printDROP_TABLE_REQ(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*rbn*/)
-{
-  if (len < DropTableReq::SignalLength)
-  {
+bool printDROP_TABLE_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*rbn*/) {
+  if (len < DropTableReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTableReq* sig = (const DropTableReq*)theData;
+  const DropTableReq *sig = (const DropTableReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -47,18 +43,14 @@ bool printDROP_TABLE_REQ(FILE* output,
   return true;
 }
 
-bool printDROP_TABLE_CONF(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*rbn*/)
-{
-  if (len < DropTableConf::SignalLength)
-  {
+bool printDROP_TABLE_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*rbn*/) {
+  if (len < DropTableConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTableConf* sig = (const DropTableConf*)theData;
+  const DropTableConf *sig = (const DropTableConf *)theData;
   fprintf(output, " senderRef: 0%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -69,18 +61,14 @@ bool printDROP_TABLE_CONF(FILE* output,
   return true;
 }
 
-bool printDROP_TABLE_REF(FILE* output,
-                         const Uint32* theData,
-                         Uint32 len,
-                         Uint16 /*rbn*/)
-{
-  if (len < DropTableRef::SignalLength)
-  {
+bool printDROP_TABLE_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*rbn*/) {
+  if (len < DropTableRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTableRef* sig = (const DropTableRef*)theData;
+  const DropTableRef *sig = (const DropTableRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

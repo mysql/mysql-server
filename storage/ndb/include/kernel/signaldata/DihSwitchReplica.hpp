@@ -27,9 +27,8 @@
 
 #define JAM_FILE_ID 172
 
-
 /**
- * This signal is sent from master DIH to all DIH's 
+ * This signal is sent from master DIH to all DIH's
  *   switches primary / backup nodes for replica(s)
  *
  */
@@ -39,17 +38,17 @@ class DihSwitchReplicaReq {
    */
   friend class Dbdih;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 4 + MAX_REPLICAS;
-  
-private:
+
+ private:
   /**
    * Request Info
    *
    */
   Uint32 senderRef;
   Uint32 tableId;
-  Uint32 fragNo; 
+  Uint32 fragNo;
   Uint32 noOfReplicas;
   Uint32 newNodeOrder[MAX_REPLICAS];
 };
@@ -59,13 +58,13 @@ class DihSwitchReplicaRef {
    * Sender/Reciver
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
-private:
+
+ private:
   Uint32 senderNode;
-  Uint32 errorCode; // See StopPermRef::ErrorCode
+  Uint32 errorCode;  // See StopPermRef::ErrorCode
 };
 
 class DihSwitchReplicaConf {
@@ -73,11 +72,11 @@ class DihSwitchReplicaConf {
    * Sender/Reciver
    */
   friend class Dbdih;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 1;
-  
-private:
+
+ private:
   Uint32 senderNode;
 };
 

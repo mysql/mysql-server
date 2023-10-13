@@ -25,8 +25,8 @@
 #ifndef WakeupHandler_H
 #define WakeupHandler_H
 
-#include <ndb_types.h>
 #include <NdbMutex.h>
+#include <ndb_types.h>
 class Ndb;
 class Ndb_cluster_connection;
 class PollGuard;
@@ -42,45 +42,40 @@ class PollGuard;
  * WakeupHandler.
  */
 
-class WakeupHandler
-{
-public:
-  virtual void notifyTransactionCompleted(Ndb* from) = 0;
+class WakeupHandler {
+ public:
+  virtual void notifyTransactionCompleted(Ndb *from) = 0;
   virtual void notifyWakeup() = 0;
   virtual ~WakeupHandler() {}
 };
 
-class MultiNdbWakeupHandler : public WakeupHandler
-{
-public:
-  MultiNdbWakeupHandler(Ndb* _wakeNdb);
+class MultiNdbWakeupHandler : public WakeupHandler {
+ public:
+  MultiNdbWakeupHandler(Ndb *_wakeNdb);
   ~MultiNdbWakeupHandler() override;
-  void notifyTransactionCompleted(Ndb* from) override;
+  void notifyTransactionCompleted(Ndb *from) override;
   void notifyWakeup() override;
   /** returns 0 on success, -1 on timeout: */
-  int waitForInput(Ndb **objs,
-                   int cnt,
-                   int min_requested,
-                   int timeout_millis,
+  int waitForInput(Ndb **objs, int cnt, int min_requested, int timeout_millis,
                    int *nready);
 
-private:   // private methods
+ private:  // private methods
   void ignore_wakeups();
   bool is_wakeups_ignored();
   void set_wakeup(Uint32 wakeup_count);
   void finalize_wait(int *nready);
-  void registerNdb(Ndb*);
+  void registerNdb(Ndb *);
   void unregisterNdb(Ndb *);
   void swapNdbsInArray(Uint32 indexA, Uint32 indexB);
   bool isReadyToWake() const;
 
-private:   // private instance variables
+ private:  // private instance variables
   Uint32 numNdbsWithCompletedTrans;
   Uint32 minNdbsToWake;
-  Ndb* wakeNdb;
-  Ndb** objs;
+  Ndb *wakeNdb;
+  Ndb **objs;
   Uint32 cnt;
-  NdbMutex* localWakeupMutexPtr;
+  NdbMutex *localWakeupMutexPtr;
   volatile bool woken;
 };
 #endif

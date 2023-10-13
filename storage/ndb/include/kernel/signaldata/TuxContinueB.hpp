@@ -29,18 +29,17 @@
 
 #define JAM_FILE_ID 178
 
-
 class TuxContinueB {
   friend class Dbtux;
-private:
+
+ private:
   enum {
-    DropIndex = 1, // unused
+    DropIndex = 1,  // unused
     StatMon = 2,
     ShrinkTransientPools = 3,
     TransientPoolStat = 4
   };
 };
-
 
 #undef JAM_FILE_ID
 

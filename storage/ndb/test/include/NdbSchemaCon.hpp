@@ -28,8 +28,8 @@
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
 #include <ndb_types.h>
-#include "NdbError.hpp"
 #include <NdbSchemaOp.hpp>
+#include "NdbError.hpp"
 
 class NdbSchemaOp;
 class Ndb;
@@ -40,116 +40,97 @@ class NdbApiSignal;
  * @brief Represents a schema transaction.
  *
  * When creating a new table,
- * the first step is to get a NdbSchemaCon object to represent 
+ * the first step is to get a NdbSchemaCon object to represent
  * the schema transaction.
  * This is done by calling Ndb::startSchemaTransaction.
- * 
- * The next step is to get a NdbSchemaOp object by calling 
+ *
+ * The next step is to get a NdbSchemaOp object by calling
  * NdbSchemaCon::getNdbSchemaOp.
- * The NdbSchemaOp object then has methods to define the table and 
+ * The NdbSchemaOp object then has methods to define the table and
  * its attributes.
  *
- * Finally, the NdbSchemaCon::execute method inserts the table 
- * into the database. 
+ * Finally, the NdbSchemaCon::execute method inserts the table
+ * into the database.
  *
  * @note   Currently only one table can be added per transaction.
  * @note Deprecated, use NdbDictionary
  */
-class NdbSchemaCon
-{
-friend class Ndb;
-friend class NdbSchemaOp;
-  
-public:
+class NdbSchemaCon {
+  friend class Ndb;
+  friend class NdbSchemaOp;
 
-  static 
-  NdbSchemaCon* startSchemaTrans(Ndb* pNdb){
-    return  new NdbSchemaCon(pNdb);
+ public:
+  static NdbSchemaCon *startSchemaTrans(Ndb *pNdb) {
+    return new NdbSchemaCon(pNdb);
   }
-  
-  static 
-  void closeSchemaTrans(NdbSchemaCon* pSchCon){
-    delete pSchCon;
-  }
-  
+
+  static void closeSchemaTrans(NdbSchemaCon *pSchCon) { delete pSchCon; }
 
   /**
    * Execute a schema transaction.
-   * 
-   * @return    0 if successful otherwise -1. 
+   *
+   * @return    0 if successful otherwise -1.
    */
-  int 		execute();	  
-				  
+  int execute();
+
   /**
    * Get a schemaoperation.
    *
    * @note Currently, only one operation per transaction is allowed.
    *
    * @return   Pointer to a NdbSchemaOp or NULL if unsuccessful.
-   */ 
-  NdbSchemaOp*	getNdbSchemaOp(); 
-	
+   */
+  NdbSchemaOp *getNdbSchemaOp();
+
   /**
    * Get the latest error
    *
    * @return   Error object.
-   */			     
-  const NdbError & getNdbError() const;
+   */
+  const NdbError &getNdbError() const;
 
-private:
+ private:
+  /******************************************************************************
+   *	These are the create and delete methods of this class.
+   *****************************************************************************/
 
-/******************************************************************************
- *	These are the create and delete methods of this class.
- *****************************************************************************/
-
-  NdbSchemaCon(Ndb* aNdb); 
+  NdbSchemaCon(Ndb *aNdb);
   ~NdbSchemaCon();
 
-/******************************************************************************
- *	These are the private methods of this class.
- *****************************************************************************/
+  /******************************************************************************
+   *	These are the private methods of this class.
+   *****************************************************************************/
 
-  void release();	         // Release all schemaop in schemaCon
+  void release();  // Release all schemaop in schemaCon
 
- /***************************************************************************
-  *	These methods are service methods to other classes in the NDBAPI.
-  ***************************************************************************/
+  /***************************************************************************
+   *	These methods are service methods to other classes in the NDBAPI.
+   ***************************************************************************/
 
-  int           checkMagicNumber();              // Verify correct object
-  int           receiveDICTTABCONF(NdbApiSignal* aSignal);
-  int           receiveDICTTABREF(NdbApiSignal* aSignal);
+  int checkMagicNumber();  // Verify correct object
+  int receiveDICTTABCONF(NdbApiSignal *aSignal);
+  int receiveDICTTABREF(NdbApiSignal *aSignal);
 
+  int receiveCREATE_INDX_CONF(NdbApiSignal *);
+  int receiveCREATE_INDX_REF(NdbApiSignal *);
+  int receiveDROP_INDX_CONF(NdbApiSignal *);
+  int receiveDROP_INDX_REF(NdbApiSignal *);
 
-  int receiveCREATE_INDX_CONF(NdbApiSignal*);
-  int receiveCREATE_INDX_REF(NdbApiSignal*);
-  int receiveDROP_INDX_CONF(NdbApiSignal*);
-  int receiveDROP_INDX_REF(NdbApiSignal*);
+  /*****************************************************************************
+   *	These are the private variables of this class.
+   *****************************************************************************/
 
+  NdbError theError;  // Errorcode
+  Ndb *theNdb;        // Pointer to Ndb object
 
-/*****************************************************************************
- *	These are the private variables of this class.
- *****************************************************************************/
-  
- 
-  NdbError 	theError;	      	// Errorcode
-  Ndb* 	theNdb;			// Pointer to Ndb object
-
-  NdbSchemaOp*	theFirstSchemaOpInList;	// First operation in operation list.
-  int 		theMagicNumber;	// Magic number 
+  NdbSchemaOp *theFirstSchemaOpInList;  // First operation in operation list.
+  int theMagicNumber;                   // Magic number
 };
 
-inline
-int
-NdbSchemaCon::checkMagicNumber()
-{
-  if (theMagicNumber != 0x75318642)
-    return -1;
+inline int NdbSchemaCon::checkMagicNumber() {
+  if (theMagicNumber != 0x75318642) return -1;
   return 0;
-}//NdbSchemaCon::checkMagicNumber()
-
-
+}  // NdbSchemaCon::checkMagicNumber()
 
 #endif
 #endif
-
-

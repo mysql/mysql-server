@@ -48,23 +48,21 @@
  *
  * Naming convention:
  *   type alias:                specifies a mapping:
- *   ttrait_<T>                 J <->       C 
+ *   ttrait_<T>                 J <->       C
  *   ttrait_<T>_c               J <-> const C
  */
-#define JTIE_DEFINE_BASIC_TYPE_MAPPING( J, C, T )       \
-    typedef ttrait< J, C                                \
-                    > ttrait_##T;                       \
-    typedef ttrait< J, const C                          \
-                    > ttrait_##T##_c;
+#define JTIE_DEFINE_BASIC_TYPE_MAPPING(J, C, T) \
+  typedef ttrait<J, C> ttrait_##T;              \
+  typedef ttrait<J, const C> ttrait_##T##_c;
 
 /**
  * A helper class template that predicates the supported type conversions
  * by presence of specialization.
  */
 // XXX move? used where?
-template < typename J, typename C >
+template <typename J, typename C>
 struct is_valid_primitive_type_mapping;
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_value_hpp
+#endif  // jtie_tconv_value_hpp

@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 53
 
-
 struct CreateFilegroupImplReq {
   /**
    * Sender(s) / Reciver(s)
@@ -41,25 +40,26 @@ struct CreateFilegroupImplReq {
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
-  static constexpr Uint32 SignalLength = 5; // DICT2DICT
+  friend bool printCREATE_FILEGROUP_IMPL_REQ(FILE *, const Uint32 *, Uint32,
+                                             Uint16);
+
+  static constexpr Uint32 SignalLength = 5;  // DICT2DICT
   static constexpr Uint32 TablespaceLength = 7;
   static constexpr Uint32 LogfileGroupLength = 6;
-  
+
   Uint32 senderData;
-  Uint32 senderRef;  
+  Uint32 senderRef;
   Uint32 filegroup_id;
   Uint32 filegroup_version;
   Uint32 requestType;
-  
+
   union {
     struct {
       Uint32 extent_size;
       Uint32 logfile_group_id;
     } tablespace;
     struct {
-      Uint32 buffer_size; // In pages
+      Uint32 buffer_size;  // In pages
     } logfile_group;
   };
 };
@@ -71,12 +71,13 @@ struct CreateFilegroupImplRef {
   friend class Dbdict;
   friend class Tsman;
   friend class Lgman;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILEGROUP_IMPL_REF(FILE *, const Uint32 *, Uint32,
+                                             Uint16);
+
   static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
@@ -86,7 +87,7 @@ struct CreateFilegroupImplRef {
     OutOfLogBufferMemory = 1504,
     OneLogfileGroupLimit = 1514
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
@@ -99,12 +100,13 @@ struct CreateFilegroupImplConf {
   friend class Dbdict;
   friend class Tsman;
   friend class Lgman;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILEGROUP_IMPL_CONF(FILE *, const Uint32 *, Uint32,
+                                              Uint16);
+
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
@@ -122,15 +124,15 @@ struct CreateFileImplReq {
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_FILE_IMPL_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 11; // DICT2DICT
+  static constexpr Uint32 SignalLength = 11;  // DICT2DICT
   static constexpr Uint32 DatafileLength = 10;
   static constexpr Uint32 UndofileLength = 9;
   static constexpr Uint32 CommitLength = 7;
   static constexpr Uint32 AbortLength = 7;
-  SECTION( FILENAME = 0 );
-  
+  SECTION(FILENAME = 0);
+
   enum RequestInfo {
     Create = 0x1,
     CreateForce = 0x2,
@@ -138,7 +140,7 @@ struct CreateFileImplReq {
     Commit = 0x8,
     Abort = 0x10
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 requestInfo;
@@ -161,12 +163,12 @@ struct CreateFileImplRef {
   friend class Dbdict;
   friend class Tsman;
   friend class Lgman;
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILE_IMPL_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
   static constexpr Uint32 SignalLength = 5;
 
   enum ErrorCode {
@@ -184,7 +186,7 @@ struct CreateFileImplRef {
     FileSizeTooSmall = 1516,
     OutOfDiskPageBufferMemory = 1517
   };
-  
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
@@ -196,19 +198,18 @@ struct CreateFileImplConf {
   friend class Dbdict;
   friend class Tsman;
   friend class Lgman;
-  
-  
+
   /**
    * For printing
    */
-  friend bool printCREATE_FILE_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
-  
+  friend bool printCREATE_FILE_IMPL_CONF(FILE *, const Uint32 *, Uint32,
+                                         Uint16);
+
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 senderRef;
 };
-
 
 #undef JAM_FILE_ID
 

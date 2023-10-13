@@ -27,48 +27,46 @@
 #define RANDOM_H
 
 /***************************************************************
-* I N C L U D E D   F I L E S                                  *
-***************************************************************/
+ * I N C L U D E D   F I L E S                                  *
+ ***************************************************************/
 
 /***************************************************************
-* M A C R O S                                                  *
-***************************************************************/
+ * M A C R O S                                                  *
+ ***************************************************************/
 
 /***************************************************************/
 /* C O N S T A N T S                                           */
 /***************************************************************/
 
-
 /***************************************************************
-* D A T A   S T R U C T U R E S                                *
-***************************************************************/
+ * D A T A   S T R U C T U R E S                                *
+ ***************************************************************/
 
 typedef struct {
-   unsigned int  length;
-   unsigned int *values;
-   unsigned int  currentIndex;
-}RandomSequence;
+  unsigned int length;
+  unsigned int *values;
+  unsigned int currentIndex;
+} RandomSequence;
 
 typedef struct {
-   unsigned int length;
-   unsigned int value;
-}SequenceValues;
+  unsigned int length;
+  unsigned int value;
+} SequenceValues;
 
 /***************************************************************
-* P U B L I C    F U N C T I O N S                             *
-***************************************************************/
+ * P U B L I C    F U N C T I O N S                             *
+ ***************************************************************/
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 extern double getTps(unsigned int count, double timeValue);
 
 /*----------------------------*/
 /* Random Sequences Functions */
 /*----------------------------*/
-extern int  initSequence(RandomSequence *seq, SequenceValues *inputValues);
+extern int initSequence(RandomSequence *seq, SequenceValues *inputValues);
 extern unsigned int getNextRandom(RandomSequence *seq);
 extern void printSequence(RandomSequence *seq, unsigned int numPerRow);
 
@@ -84,10 +82,7 @@ extern long int myRandom48(unsigned int maxValue);
 #endif
 
 /***************************************************************
-* E X T E R N A L   D A T A                                    *
-***************************************************************/
-
-
+ * E X T E R N A L   D A T A                                    *
+ ***************************************************************/
 
 #endif /* RANDOM_H */
-

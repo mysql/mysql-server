@@ -25,16 +25,14 @@
 
 #include <signaldata/DropTrig.hpp>
 
-bool
-printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigReq::SignalLength)
-  {
+bool printDROP_TRIG_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < DropTrigReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigReq* sig = (const DropTrigReq*)theData;
+  const DropTrigReq *sig = (const DropTrigReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -53,16 +51,14 @@ printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigConf::SignalLength)
-  {
+bool printDROP_TRIG_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < DropTrigConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigConf* sig = (const DropTrigConf*) theData;
+  const DropTrigConf *sig = (const DropTrigConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -73,16 +69,14 @@ printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigRef::SignalLength)
-  {
+bool printDROP_TRIG_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < DropTrigRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigRef * sig = (const DropTrigRef*) theData;
+  const DropTrigRef *sig = (const DropTrigRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

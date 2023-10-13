@@ -25,13 +25,9 @@
 
 #include <signaldata/FsAppendReq.hpp>
 
-bool printFSAPPENDREQ(FILE *output,
-                      const Uint32 *theData,
-                      Uint32 len,
-                      Uint16 /*receiverBlockNo*/)
-{
-  if (len < FsAppendReq::SignalLength)
-  {
+bool printFSAPPENDREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*receiverBlockNo*/) {
+  if (len < FsAppendReq::SignalLength) {
     assert(false);
     return false;
   }
@@ -41,12 +37,10 @@ bool printFSAPPENDREQ(FILE *output,
   const FsAppendReq *const sig = (const FsAppendReq *)theData;
 
   fprintf(output, " FilePointer: %d\n", sig->filePointer);
-  fprintf(output, " UserReference: H\'%.8x, UserPointer: H\'%.8x\n", 
-	  sig->userReference, sig->userPointer);
-  
-  fprintf(output, " varIndex: %d offset: %d size: %d\n",
-	  sig->varIndex,
-	  sig->offset,
-	  sig->size);
+  fprintf(output, " UserReference: H\'%.8x, UserPointer: H\'%.8x\n",
+          sig->userReference, sig->userPointer);
+
+  fprintf(output, " varIndex: %d offset: %d size: %d\n", sig->varIndex,
+          sig->offset, sig->size);
   return ret;
 }

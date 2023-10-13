@@ -25,7 +25,7 @@
 #ifndef NDBT_RETURNCODES_H
 #define NDBT_RETURNCODES_H
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -37,15 +37,14 @@ extern "C" {
 
 /**
  * NDBT_ProgramExit
- * This function will print the returncode together with a prefix on 
- * the screen and then exit the test program. 
+ * This function will print the returncode together with a prefix on
+ * the screen and then exit the test program.
  * Call this function when exiting the main function in your test programs
  * Returns the return code
  */
 int NDBT_ProgramExit(int rcode);
 
-
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

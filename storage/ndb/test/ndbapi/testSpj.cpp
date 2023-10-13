@@ -22,88 +22,72 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
-#include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
-#include <HugoTransactions.hpp>
-#include <UtilTransactions.hpp>
-#include <NdbRestarter.hpp>
-#include <signaldata/DictTabInfo.hpp>
-#include <signaldata/DbspjErr.hpp>
-#include <Bitmask.hpp>
-#include <random.h>
-#include <HugoQueryBuilder.hpp>
-#include <HugoQueries.hpp>
-#include <NdbSchemaCon.hpp>
 #include <ndb_version.h>
+#include <random.h>
+#include <Bitmask.hpp>
+#include <HugoQueries.hpp>
+#include <HugoQueryBuilder.hpp>
+#include <HugoTransactions.hpp>
+#include <NDBT_Test.hpp>
+#include <NdbRestarter.hpp>
+#include <NdbSchemaCon.hpp>
+#include <UtilTransactions.hpp>
+#include <signaldata/DbspjErr.hpp>
+#include <signaldata/DictTabInfo.hpp>
+#include "util/require.h"
 
 static int faultToInject = 0;
 
-enum faultsToInject {
-  FI_START = 17001,
-  FI_END = 17531
-};
+enum faultsToInject { FI_START = 17001, FI_END = 17531 };
 
-int
-runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runLoadTable(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-int
-runClearTable(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runClearTable(NDBT_Context *ctx, NDBT_Step *step) {
   UtilTransactions utilTrans(*ctx->getTab());
-  if (utilTrans.clearTable(GETNDB(step)) != 0){
+  if (utilTrans.clearTable(GETNDB(step)) != 0) {
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-static
-void
-addMask(NDBT_Context* ctx, Uint32 val, const char * name)
-{
+static void addMask(NDBT_Context *ctx, Uint32 val, const char *name) {
   Uint32 oldValue = 0;
-  do
-  {
+  do {
     oldValue = ctx->getProperty(name);
     Uint32 newValue = oldValue | val;
-    if (ctx->casProperty(name, oldValue, newValue) == oldValue)
-      return;
+    if (ctx->casProperty(name, oldValue, newValue) == oldValue) return;
     NdbSleep_MilliSleep(5);
   } while (true);
 }
 
-int
-runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
+int runLookupJoin(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int records = ctx->getNumRecords();
-  int queries = records/joinlevel;
+  int queries = records / joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
 
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery();
-  if (query == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDef" <<endl;
+  const NdbQueryDef *query = qb.createQuery();
+  if (query == nullptr) {
+    ndbout << "Failed to create NdbQueryDef" << endl;
     return NDBT_FAILED;
   }
   HugoQueries hugoTrans(*query);
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans.runLookupQuery(GETNDB(step), queries))
-    {
+    if (hugoTrans.runLookupQuery(GETNDB(step), queries)) {
       g_info << endl;
       return NDBT_FAILED;
     }
@@ -114,65 +98,60 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
+int runLookupJoinError(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 8);
   int records = ctx->getNumRecords();
-  int queries = records/joinlevel;
+  int queries = records / joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
 
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery();
-  if (query == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDef" <<endl;
+  const NdbQueryDef *query = qb.createQuery();
+  if (query == nullptr) {
+    ndbout << "Failed to create NdbQueryDef" << endl;
     return NDBT_FAILED;
   }
   HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
   int lookupFaults[] = {
-      5078,        // Pack TCKEYREF in ROUTE_ORD and send it via SPJ.
-      7240,        // DIGETNODESREQ returns error 
+      5078,  // Pack TCKEYREF in ROUTE_ORD and send it via SPJ.
+      7240,  // DIGETNODESREQ returns error
       17001, 17005, 17006, 17008,
-      17012, // testing abort in :execDIH_SCAN_TAB_CONF
-      17013, // Simulate DbspjErr::InvalidRequest
-      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
-      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
-      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
-      17043,
-      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
-      17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
-      17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
-      17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
-      17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17122,
-      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
-      7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
-      17510,        // random failure when allocating section memory
+      17012,                // testing abort in :execDIH_SCAN_TAB_CONF
+      17013,                // Simulate DbspjErr::InvalidRequest
+      17020, 17021, 17022,  // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032,  // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042,  // lookup_parent_row -> OutOfQueryMemory
+      17043, 17050, 17051, 17052, 17053,  // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063,  // scanIndex_parent_row -> outOfSectionMem
+      17070, 17071, 17072,         // lookup_send.dupsec -> outOfSectionMem
+      17080, 17081, 17082,         // lookup_parent_row -> OutOfQueryMemory
+      17120, 17121,                // execTRANSID_AI -> OutOfRowMemory
+      17122, 17130, 17131,  // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import()
+                            // failed
+      7234,   // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
+      17510,  // random failure when allocating section memory
       17520, 17521  // failure (+random) from ::checkTableError()
-  }; 
-  loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
+  };
+  loops = faultToInject ? 1 : sizeof(lookupFaults) / sizeof(int);
 
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
 
     int inject_err = faultToInject ? faultToInject : lookupFaults[i];
     int randomId = rand() % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(randomId);
 
-    ndbout << "LookupJoinError: Injecting error "<<  inject_err <<
-      " in node " << nodeId << " loop "<< i << endl;
+    ndbout << "LookupJoinError: Injecting error " << inject_err << " in node "
+           << nodeId << " loop " << i << endl;
 
     if (restarter.getNodeStatus(nodeId) != NDB_MGM_NODE_STATUS_STARTED ||
-        restarter.insertErrorInNode(nodeId, inject_err) != 0)
-    {
-      ndbout << "Could not insert error in node "<< nodeId <<endl;
+        restarter.insertErrorInNode(nodeId, inject_err) != 0) {
+      ndbout << "Could not insert error in node " << nodeId << endl;
       g_info << endl;
       return NDBT_FAILED;
     }
@@ -180,9 +159,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     // It'd be better if test could differentiates failures from
     // fault injection and others.
     // We expect to fail, and it's a failure if we don't
-    if (!hugoTrans.runLookupQuery(GETNDB(step), queries))
-    {
-      g_info << "LookUpJoinError didn't fail as expected."<< endl;
+    if (!hugoTrans.runLookupQuery(GETNDB(step), queries)) {
+      g_info << "LookUpJoinError didn't fail as expected." << endl;
       // return NDBT_FAILED;
     }
 
@@ -194,8 +172,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
+int runScanJoin(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
@@ -204,18 +181,15 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery();
-  if (query == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDef" <<endl;
+  const NdbQueryDef *query = qb.createQuery();
+  if (query == nullptr) {
+    ndbout << "Failed to create NdbQueryDef" << endl;
     return NDBT_FAILED;
   }
-  HugoQueries hugoTrans(* query);
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  HugoQueries hugoTrans(*query);
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans.runScanQuery(GETNDB(step)))
-    {
+    if (hugoTrans.runScanQuery(GETNDB(step))) {
       g_info << endl;
       return NDBT_FAILED;
     }
@@ -226,8 +200,7 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
+int runScanJoinError(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
@@ -236,62 +209,58 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery();
-  if (query == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDef" <<endl;
+  const NdbQueryDef *query = qb.createQuery();
+  if (query == nullptr) {
+    ndbout << "Failed to create NdbQueryDef" << endl;
     return NDBT_FAILED;
   }
-  HugoQueries hugoTrans(* query);
+  HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
   int scanFaults[] = {
-      7240,        // DIGETNODESREQ returns error 
+      7240,  // DIGETNODESREQ returns error
       17002, 17004, 17005, 17006, 17008,
-      17012, // testing abort in :execDIH_SCAN_TAB_CONF
-      17013, // Simulate DbspjErr::InvalidRequest
-      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
-      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
-      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
-      17043,
-      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
-      17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
-      17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
-      17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
-      17090, 17091, 17092, 17093, // scanIndex_send -> OutOfQueryMemory
-      17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
-      17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
-      17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17122,
-      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ) -> import() failed
-      17510,        // random failure when allocating section memory
+      17012,                // testing abort in :execDIH_SCAN_TAB_CONF
+      17013,                // Simulate DbspjErr::InvalidRequest
+      17020, 17021, 17022,  // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032,  // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042,  // lookup_parent_row -> OutOfQueryMemory
+      17043, 17050, 17051, 17052, 17053,  // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063,  // scanIndex_parent_row -> outOfSectionMem
+      17070, 17071, 17072,         // lookup_send.dupsec -> outOfSectionMem
+      17080, 17081, 17082,         // lookup_parent_row -> OutOfQueryMemory
+      17090, 17091, 17092, 17093,  // scanIndex_send -> OutOfQueryMemory
+      17100,  // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
+      17110, 17111, 17112,  // scanIndex_sends invalid schema version, to get a
+                            // SCAN_FRAGREF
+      17120, 17121,         // execTRANSID_AI -> OutOfRowMemory
+      17122, 17130, 17131,  // sendSignal(DIH_SCAN_GET_NODES_REQ) -> import()
+                            // failed
+      17510,                // random failure when allocating section memory
       17520, 17521  // failure (+random) from TableRecord::checkTableError()
-  }; 
-  loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
+  };
+  loops = faultToInject ? 1 : sizeof(scanFaults) / sizeof(int);
 
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
 
     int inject_err = faultToInject ? faultToInject : scanFaults[i];
     int randomId = rand() % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(randomId);
 
-    ndbout << "ScanJoin: Injecting error "<<  inject_err <<
-              " in node " << nodeId << " loop "<< i<< endl;
+    ndbout << "ScanJoin: Injecting error " << inject_err << " in node "
+           << nodeId << " loop " << i << endl;
 
-    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
-    {
-      ndbout << "Could not insert error in node "<< nodeId <<endl;
+    if (restarter.insertErrorInNode(nodeId, inject_err) != 0) {
+      ndbout << "Could not insert error in node " << nodeId << endl;
       return NDBT_FAILED;
     }
 
     // It'd be better if test could differentiates failures from
     // fault injection and others.
     // We expect to fail, and it's a failure if we don't
-    if (!hugoTrans.runScanQuery(GETNDB(step)))
-    {
-      g_info << "ScanJoinError didn't fail as expected."<< endl;
+    if (!hugoTrans.runScanQuery(GETNDB(step))) {
+      g_info << "ScanJoinError didn't fail as expected." << endl;
       // return NDBT_FAILED;
     }
 
@@ -303,12 +272,11 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int
-runJoin(NDBT_Context* ctx, NDBT_Step* step){
+int runJoin(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int records = ctx->getNumRecords();
-  int queries = records/joinlevel;
+  int queries = records / joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   int inject_err = ctx->getProperty("ErrorCode");
   int accept_error = ctx->getProperty("AcceptError");
@@ -322,43 +290,36 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb1.setJoinLevel(joinlevel);
   qb2.setJoinLevel(joinlevel);
-  const NdbQueryDef * q1 = qb1.createQuery();
-  const NdbQueryDef * q2 = qb2.createQuery();
-  if (q1 == nullptr || q2 == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDefs" <<endl;
+  const NdbQueryDef *q1 = qb1.createQuery();
+  const NdbQueryDef *q2 = qb2.createQuery();
+  if (q1 == nullptr || q2 == nullptr) {
+    ndbout << "Failed to create NdbQueryDefs" << endl;
     return NDBT_FAILED;
   }
-  HugoQueries hugoTrans1(* q1, maxRetries);
-  HugoQueries hugoTrans2(* q2, maxRetries);
+  HugoQueries hugoTrans1(*q1, maxRetries);
+  HugoQueries hugoTrans2(*q2, maxRetries);
   NdbRestarter restarter;
 
-  if (inject_err)
-  {
-    ndbout << "insertErrorInAllNodes("<<inject_err<<")"<<endl;
-    if (restarter.insertErrorInAllNodes(inject_err) != 0){
-      g_info << "Could not insert error in all nodes "<<endl;
+  if (inject_err) {
+    ndbout << "insertErrorInAllNodes(" << inject_err << ")" << endl;
+    if (restarter.insertErrorInAllNodes(inject_err) != 0) {
+      g_info << "Could not insert error in all nodes " << endl;
       return NDBT_FAILED;
     }
   }
-  int ret =  NDBT_OK;
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  int ret = NDBT_OK;
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans1.runScanQuery(GETNDB(step)))
-    {
+    if (hugoTrans1.runScanQuery(GETNDB(step))) {
       const NdbError err = hugoTrans1.getNdbError();
-      if (err.code != accept_error)
-      {
+      if (err.code != accept_error) {
         ret = NDBT_FAILED;
         break;
       }
     }
-    if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
-    {
+    if (hugoTrans2.runLookupQuery(GETNDB(step), queries)) {
       const NdbError err = hugoTrans2.getNdbError();
-      if (err.code != accept_error)
-      {
+      if (err.code != accept_error) {
         ret = NDBT_FAILED;
         break;
       }
@@ -367,43 +328,38 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
   }
   g_info << endl;
-  if (inject_err)
-  {
+  if (inject_err) {
     restarter.insertErrorInAllNodes(0);
   }
   return ret;
 }
 
-int
-runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
+int runAbortedJoin(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int records = ctx->getNumRecords();
-  int queries = records/joinlevel;
+  int queries = records / joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
   int i = 0;
 
   HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb2.setJoinLevel(joinlevel);
-  const NdbQueryDef * q2 = qb2.createQuery();
-  if (q2 == nullptr)
-  {
-    ndbout << "Failed to create NdbQueryDef" <<endl;
+  const NdbQueryDef *q2 = qb2.createQuery();
+  if (q2 == nullptr) {
+    ndbout << "Failed to create NdbQueryDef" << endl;
     return NDBT_FAILED;
   }
-  HugoQueries hugoTrans2(* q2, 1); //maxRetry==1 -> Don't retry temp errors
+  HugoQueries hugoTrans2(*q2, 1);  // maxRetry==1 -> Don't retry temp errors
   NdbRestarter restarter;
 
-  while ((i<loops || until_stopped) && !ctx->isTestStopped())
-  {
+  while ((i < loops || until_stopped) && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
-    {
+    if (hugoTrans2.runLookupQuery(GETNDB(step), queries)) {
       const NdbError err = hugoTrans2.getNdbError();
 
       // Test pass as long as we don't get errors 'promoted' to nodeFailures
-      if (err.code == DbspjErr::NodeFailure)  //NodeFailure == 20016
+      if (err.code == DbspjErr::NodeFailure)  // NodeFailure == 20016
       {
         g_info << endl;
         return NDBT_FAILED;
@@ -416,10 +372,7 @@ runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-
-int
-runRestarter(NDBT_Context* ctx, NDBT_Step* step)
-{
+int runRestarter(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int waitprogress = ctx->getProperty("WaitProgress", (unsigned)0);
@@ -429,135 +382,118 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
   int i = 0;
   int lastId = 0;
 
-  if (restarter.getNumDbNodes() < 2){
+  if (restarter.getNumDbNodes() < 2) {
     ctx->stopTest();
     return NDBT_OK;
   }
 
-  if(restarter.waitClusterStarted() != 0){
+  if (restarter.waitClusterStarted() != 0) {
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
 
   loops *= (restarter.getNumDbNodes() > 2 ? 2 : restarter.getNumDbNodes());
-  if (loops < restarter.getNumDbNodes())
-    loops = restarter.getNumDbNodes();
+  if (loops < restarter.getNumDbNodes()) loops = restarter.getNumDbNodes();
 
   NdbSleep_MilliSleep(200);
   Uint32 running = ctx->getProperty("Running", (Uint32)0);
-  while (running == 0 && !ctx->isTestStopped())
-  {
+  while (running == 0 && !ctx->isTestStopped()) {
     NdbSleep_MilliSleep(100);
     running = ctx->getProperty("Running", (Uint32)0);
   }
 
-  if (ctx->isTestStopped())
-    return NDBT_FAILED;
+  if (ctx->isTestStopped()) return NDBT_FAILED;
 
-  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
-
+  while (i < loops && result != NDBT_FAILED && !ctx->isTestStopped()) {
     int id = lastId % restarter.getNumDbNodes();
-    if (randnode == 1)
-    {
+    if (randnode == 1) {
       id = rand() % restarter.getNumDbNodes();
     }
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl;
 
-    if(restarter.restartOneDbNode(nodeId, false, true, true) != 0){
+    if (restarter.restartOneDbNode(nodeId, false, true, true) != 0) {
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
     }
 
-    if (restarter.waitNodesNoStart(&nodeId, 1))
-    {
+    if (restarter.waitNodesNoStart(&nodeId, 1)) {
       g_err << "Failed to waitNodesNoStart" << endl;
       result = NDBT_FAILED;
       break;
     }
 
-    if (waitprogress)
-    {
+    if (waitprogress) {
       Uint32 maxwait = 60;
       ndbout_c("running: 0x%.8x", running);
-      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
-      {
+      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++) {
         ctx->setProperty("Running", (Uint32)0);
-        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--)
-        {
+        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--) {
           if ((ctx->getProperty("Running", (Uint32)0) & running) == running)
             goto ok;
           NdbSleep_SecSleep(1);
         }
 
-        if (ctx->isTestStopped())
-        {
+        if (ctx->isTestStopped()) {
           g_err << "Test stopped while waiting for progress!" << endl;
           return NDBT_FAILED;
         }
 
         g_err << "No progress made!!" << endl;
         return NDBT_FAILED;
-    ok:
+      ok:
         g_err << "Progress made!! " << endl;
       }
     }
 
-    if (inject_err)
-    {
+    if (inject_err) {
       ndbout << "RestartWithErrorCode: (" << inject_err << ")" << endl;
-      if (restarter.insertErrorInNode(nodeId, inject_err) != 0){
-        g_info << "Could not insert error in node " << nodeId <<endl;
+      if (restarter.insertErrorInNode(nodeId, inject_err) != 0) {
+        g_info << "Could not insert error in node " << nodeId << endl;
         return NDBT_FAILED;
       }
     }
 
-    if (restarter.startNodes(&nodeId, 1))
-    {
+    if (restarter.startNodes(&nodeId, 1)) {
       g_err << "Failed to start node" << endl;
       result = NDBT_FAILED;
       break;
     }
 
-    if(restarter.waitClusterStarted() != 0){
+    if (restarter.waitClusterStarted() != 0) {
       g_err << "Cluster failed to start" << endl;
       result = NDBT_FAILED;
       break;
     }
 
-    if (waitprogress)
-    {
+    if (waitprogress) {
       Uint32 maxwait = 60;
       ndbout_c("running: 0x%.8x", running);
-      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
-      {
+      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++) {
         ctx->setProperty("Running", (Uint32)0);
-        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--)
-        {
+        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--) {
           if ((ctx->getProperty("Running", (Uint32)0) & running) == running)
             goto ok2;
           NdbSleep_SecSleep(1);
         }
 
-        if (ctx->isTestStopped())
-        {
+        if (ctx->isTestStopped()) {
           g_err << "Test stopped while waiting for progress!" << endl;
           return NDBT_FAILED;
         }
 
         g_err << "No progress made!!" << endl;
         return NDBT_FAILED;
-    ok2:
+      ok2:
         g_err << "Progress made!! " << endl;
         ctx->setProperty("Running", (Uint32)0);
       }
     }
 
-    if (inject_err)
-    {
-      if (restarter.insertErrorInNode(nodeId, 0) != 0){
-        g_info << "Could not clear error in node " << nodeId <<endl;
+    if (inject_err) {
+      if (restarter.insertErrorInNode(nodeId, 0) != 0) {
+        g_info << "Could not clear error in node " << nodeId << endl;
         return NDBT_FAILED;
       }
     }
@@ -573,32 +509,28 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
 
 static const int nt2StrLen = 20;
 
-static int
-createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
-{
-  for (int i = 0; i<2; i++)
-  {
+static int createNegativeSchema(NDBT_Context *ctx, NDBT_Step *step) {
+  for (int i = 0; i < 2; i++) {
     NdbDictionary::Column::Type type = NdbDictionary::Column::Undefined;
     Uint32 arraySize = 0;
-    const char* tabName = NULL;
-    const char* ordIdxName = NULL;
-    const char* unqIdxName = NULL;
-    switch (i)
-    {
-    case 0:
-      type = NdbDictionary::Column::Int;
-      arraySize = 1;
-      tabName = "nt1";
-      ordIdxName = "nt1_oix";
-      unqIdxName = "nt1_uix";
-      break;
-    case 1:
-      type = NdbDictionary::Column::Varchar;
-      arraySize = nt2StrLen;
-      tabName = "nt2";
-      ordIdxName = "nt2_oix";
-      unqIdxName = "nt2_uix";
-      break;
+    const char *tabName = NULL;
+    const char *ordIdxName = NULL;
+    const char *unqIdxName = NULL;
+    switch (i) {
+      case 0:
+        type = NdbDictionary::Column::Int;
+        arraySize = 1;
+        tabName = "nt1";
+        ordIdxName = "nt1_oix";
+        unqIdxName = "nt1_uix";
+        break;
+      case 1:
+        type = NdbDictionary::Column::Varchar;
+        arraySize = nt2StrLen;
+        tabName = "nt2";
+        ordIdxName = "nt2_oix";
+        unqIdxName = "nt2_uix";
+        break;
     }
 
     /****************************************************************
@@ -611,13 +543,14 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
     NDBT_Attribute ui1("ui1", type, arraySize);
     NDBT_Attribute ui2("ui2", type, arraySize);
 
-    NdbDictionary::Column* columns[] = {&pk1, &pk2, &oi1, &oi2, &ui1, &ui2};
+    NdbDictionary::Column *columns[] = {&pk1, &pk2, &oi1, &oi2, &ui1, &ui2};
 
-    const NDBT_Table tabDef(tabName, sizeof columns/sizeof columns[0], columns);
+    const NDBT_Table tabDef(tabName, sizeof columns / sizeof columns[0],
+                            columns);
 
-    Ndb* const ndb = step->getNdb();
+    Ndb *const ndb = step->getNdb();
 
-    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
+    NdbDictionary::Dictionary *const dictionary = ndb->getDictionary();
 
     dictionary->dropTable(tabName);
     require(dictionary->createTable(tabDef) == 0);
@@ -639,7 +572,7 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
     require(unqIdx.addColumn(ui1) == 0);
     require(unqIdx.addColumn(ui2) == 0);
     require(dictionary->createIndex(unqIdx, tabDef) == 0);
-  } // for (...
+  }  // for (...
   return NDBT_OK;
 }
 
@@ -671,36 +604,40 @@ static const int Err_KeyIsNULL = 4316;
 /**
  * Context data for negative tests of api extensions.
  */
-class NegativeTest
-{
-public:
+class NegativeTest {
+ public:
   // Static wrapper for each test case.
-  static int keyTest(NDBT_Context* ctx, NDBT_Step* step)
-  { return NegativeTest(ctx, step).runKeyTest();}
+  static int keyTest(NDBT_Context *ctx, NDBT_Step *step) {
+    return NegativeTest(ctx, step).runKeyTest();
+  }
 
-  static int graphTest(NDBT_Context* ctx, NDBT_Step* step)
-  { return NegativeTest(ctx, step).runGraphTest();}
+  static int graphTest(NDBT_Context *ctx, NDBT_Step *step) {
+    return NegativeTest(ctx, step).runGraphTest();
+  }
 
-  static int setBoundTest(NDBT_Context* ctx, NDBT_Step* step)
-  { return NegativeTest(ctx, step).runSetBoundTest();}
+  static int setBoundTest(NDBT_Context *ctx, NDBT_Step *step) {
+    return NegativeTest(ctx, step).runSetBoundTest();
+  }
 
-  static int valueTest(NDBT_Context* ctx, NDBT_Step* step)
-  { return NegativeTest(ctx, step).runValueTest();}
+  static int valueTest(NDBT_Context *ctx, NDBT_Step *step) {
+    return NegativeTest(ctx, step).runValueTest();
+  }
 
-  static int featureDisabledTest(NDBT_Context* ctx, NDBT_Step* step)
-  { return NegativeTest(ctx, step).runFeatureDisabledTest();}
+  static int featureDisabledTest(NDBT_Context *ctx, NDBT_Step *step) {
+    return NegativeTest(ctx, step).runFeatureDisabledTest();
+  }
 
-private:
-  Ndb* m_ndb;
-  NdbDictionary::Dictionary* m_dictionary;
-  const NdbDictionary::Table* m_nt1Tab;
-  const NdbDictionary::Index* m_nt1OrdIdx;
-  const NdbDictionary::Index* m_nt1UnqIdx;
-  const NdbDictionary::Table* m_nt2Tab;
-  const NdbDictionary::Index* m_nt2OrdIdx;
-  const NdbDictionary::Index* m_nt2UnqIdx;
+ private:
+  Ndb *m_ndb;
+  NdbDictionary::Dictionary *m_dictionary;
+  const NdbDictionary::Table *m_nt1Tab;
+  const NdbDictionary::Index *m_nt1OrdIdx;
+  const NdbDictionary::Index *m_nt1UnqIdx;
+  const NdbDictionary::Table *m_nt2Tab;
+  const NdbDictionary::Index *m_nt2OrdIdx;
+  const NdbDictionary::Index *m_nt2UnqIdx;
 
-  NegativeTest(NDBT_Context* ctx, NDBT_Step* step);
+  NegativeTest(NDBT_Context *ctx, NDBT_Step *step);
 
   // Tests
   int runKeyTest() const;
@@ -709,12 +646,11 @@ private:
   int runValueTest() const;
   int runFeatureDisabledTest() const;
   // No copy.
-  NegativeTest(const NegativeTest&);
-  NegativeTest& operator=(const NegativeTest&);
+  NegativeTest(const NegativeTest &);
+  NegativeTest &operator=(const NegativeTest &);
 };
 
-NegativeTest::NegativeTest(NDBT_Context* ctx, NDBT_Step* step)
-{
+NegativeTest::NegativeTest(NDBT_Context *ctx, NDBT_Step *step) {
   m_ndb = step->getNdb();
   m_dictionary = m_ndb->getDictionary();
 
@@ -737,19 +673,16 @@ NegativeTest::NegativeTest(NDBT_Context* ctx, NDBT_Step* step)
   require(m_nt2UnqIdx != NULL);
 }
 
-int
-NegativeTest::runKeyTest() const
-{
+int NegativeTest::runKeyTest() const {
   // Make key with too long strings
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const char* longTxt= "x012345678901234567890123456789";
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(longTxt), builder->constValue(longTxt), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const char *longTxt = "x012345678901234567890123456789";
+    const NdbQueryOperand *const keyOperands[] = {
+        builder->constValue(longTxt), builder->constValue(longTxt), NULL};
 
     if (builder->readTuple(m_nt2Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_CHAR_OPERAND_TRUNCATED)
-    {
+        builder->getNdbError().code != QRY_CHAR_OPERAND_TRUNCATED) {
       g_err << "Lookup with truncated char values gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -758,16 +691,16 @@ NegativeTest::runKeyTest() const
   }
 
   // Make key with integer value outside column range.
-  if (false) // Temporarily disabled.
+  if (false)  // Temporarily disabled.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1ull), builder->constValue(~0ull), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {
+        builder->constValue(1ull), builder->constValue(~0ull), NULL};
 
     if (builder->readTuple(m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_NUM_OPERAND_RANGE)
-    {
-      g_err << "Lookup with integer value outside column range gave unexpected result.";
+        builder->getNdbError().code != QRY_NUM_OPERAND_RANGE) {
+      g_err << "Lookup with integer value outside column range gave unexpected "
+               "result.";
       builder->destroy();
       return NDBT_FAILED;
     }
@@ -776,13 +709,11 @@ NegativeTest::runKeyTest() const
 
   // Make key with too few fields
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1), NULL};
 
     if (builder->readTuple(m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_TOO_FEW_KEY_VALUES)
-    {
+        builder->getNdbError().code != QRY_TOO_FEW_KEY_VALUES) {
       g_err << "Read with too few key values gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -792,13 +723,13 @@ NegativeTest::runKeyTest() const
 
   // Make key with too many fields
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
     if (builder->readTuple(m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_TOO_MANY_KEY_VALUES)
-    {
+        builder->getNdbError().code != QRY_TOO_MANY_KEY_VALUES) {
       g_err << "Read with too many key values gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -808,13 +739,12 @@ NegativeTest::runKeyTest() const
 
   // Make key with fields of wrong type.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue("xxx"), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {
+        builder->constValue(1), builder->constValue("xxx"), NULL};
 
     if (builder->readTuple(m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_OPERAND_HAS_WRONG_TYPE)
-    {
+        builder->getNdbError().code != QRY_OPERAND_HAS_WRONG_TYPE) {
       g_err << "Read with key values of wrong type gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -824,23 +754,21 @@ NegativeTest::runKeyTest() const
 
   // Make key with unknown column. Try preparing failed NdbQueryBuilder.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
-    const NdbQueryLookupOperationDef* parentOperation
-      = builder->readTuple(m_nt1Tab, keyOperands);
+    const NdbQueryLookupOperationDef *parentOperation =
+        builder->readTuple(m_nt1Tab, keyOperands);
     require(parentOperation != NULL);
 
     if (builder->linkedValue(parentOperation, "unknown_col") != NULL ||
-        builder->getNdbError().code != Err_UnknownColumn)
-    {
+        builder->getNdbError().code != Err_UnknownColumn) {
       g_err << "Link to unknown column gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
     }
-    if (builder->prepare(m_ndb) != NULL)
-    {
+    if (builder->prepare(m_ndb) != NULL) {
       g_err << "prepare() on failed query gave non-NULL result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -850,25 +778,21 @@ NegativeTest::runKeyTest() const
 
   // Give too few parameter values.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->paramValue(), builder->paramValue(), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->paramValue(),
+                                                  builder->paramValue(), NULL};
 
     require(builder->readTuple(m_nt1Tab, keyOperands) != NULL);
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    const NdbQueryParamValue params[] = {
-      Uint32(1),
-      NdbQueryParamValue()
-    };
+    const NdbQueryParamValue params[] = {Uint32(1), NdbQueryParamValue()};
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef, params);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef, params);
 
-    if (query != NULL || trans->getNdbError().code != Err_KeyIsNULL)
-    {
+    if (query != NULL || trans->getNdbError().code != Err_KeyIsNULL) {
       g_err << "Read with too few parameter values gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -884,18 +808,14 @@ NegativeTest::runKeyTest() const
    * used for specifying actual null values.
    */
   return NDBT_OK;
-} // NegativeTest::runKeyTest()
+}  // NegativeTest::runKeyTest()
 
-
-int
-NegativeTest::runGraphTest() const
-{
+int NegativeTest::runGraphTest() const {
   // Try preparing empty NdbQueryBuilder
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
     if (builder->prepare(m_ndb) != NULL ||
-        builder->getNdbError().code != QRY_HAS_ZERO_OPERATIONS)
-    {
+        builder->getNdbError().code != QRY_HAS_ZERO_OPERATIONS) {
       g_err << "prepare() on empty query gave non-NULL result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -905,32 +825,27 @@ NegativeTest::runGraphTest() const
 
   // Make query with too many operations.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
-    const NdbQueryLookupOperationDef* const parentOperation
-      = builder->readTuple(m_nt1Tab, keyOperands);
+    const NdbQueryLookupOperationDef *const parentOperation =
+        builder->readTuple(m_nt1Tab, keyOperands);
     require(parentOperation != NULL);
 
-    const NdbQueryOperand* const childOperands[] =
-      {builder->linkedValue(parentOperation, "ui1"),
-       builder->linkedValue(parentOperation, "oi1"),
-      NULL};
+    const NdbQueryOperand *const childOperands[] = {
+        builder->linkedValue(parentOperation, "ui1"),
+        builder->linkedValue(parentOperation, "oi1"), NULL};
 
-    for (Uint32 i = 0; i<32; i++)
-    {
-      const NdbQueryLookupOperationDef* const childOperation
-        = builder->readTuple(m_nt1Tab, childOperands);
-      if (i < 31)
-      {
+    for (Uint32 i = 0; i < 32; i++) {
+      const NdbQueryLookupOperationDef *const childOperation =
+          builder->readTuple(m_nt1Tab, childOperands);
+      if (i < 31) {
         require(childOperation != NULL);
-      }
-      else if (childOperation != NULL &&
-               builder->getNdbError().code != QRY_DEFINITION_TOO_LARGE)
-      {
+      } else if (childOperation != NULL &&
+                 builder->getNdbError().code != QRY_DEFINITION_TOO_LARGE) {
         g_err << "Building query with too many operations gave unexpected "
-          "result.";
+                 "result.";
         builder->destroy();
         return NDBT_FAILED;
       }
@@ -940,17 +855,16 @@ NegativeTest::runGraphTest() const
 
   // Make query with two root operations.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
-    const NdbQueryLookupOperationDef* const root1
-      = builder->readTuple(m_nt1Tab, keyOperands);
+    const NdbQueryLookupOperationDef *const root1 =
+        builder->readTuple(m_nt1Tab, keyOperands);
     require(root1 != NULL);
 
-    if (builder->readTuple(m_nt1Tab, keyOperands)!= NULL ||
-        builder->getNdbError().code != QRY_UNKNOWN_PARENT)
-    {
+    if (builder->readTuple(m_nt1Tab, keyOperands) != NULL ||
+        builder->getNdbError().code != QRY_UNKNOWN_PARENT) {
       g_err << "Query with two root operations gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -960,13 +874,12 @@ NegativeTest::runGraphTest() const
 
   // Try lookup on ordered index.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
     if (builder->readTuple(m_nt1OrdIdx, m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_WRONG_INDEX_TYPE)
-    {
+        builder->getNdbError().code != QRY_WRONG_INDEX_TYPE) {
       g_err << "Lookup on ordered index gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -976,13 +889,12 @@ NegativeTest::runGraphTest() const
 
   // Try lookup on index on wrong table.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
     if (builder->readTuple(m_nt2OrdIdx, m_nt1Tab, keyOperands) != NULL ||
-        builder->getNdbError().code != QRY_UNRELATED_INDEX)
-    {
+        builder->getNdbError().code != QRY_UNRELATED_INDEX) {
       g_err << "Lookup on unrelated index gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -992,14 +904,13 @@ NegativeTest::runGraphTest() const
 
   // Try scanning unique index.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const boundOperands[] =
-      {builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const boundOperands[] = {builder->constValue(1),
+                                                    NULL};
     const NdbQueryIndexBound bound(boundOperands);
 
     if (builder->scanIndex(m_nt1UnqIdx, m_nt1Tab, &bound) != NULL ||
-        builder->getNdbError().code != QRY_WRONG_INDEX_TYPE)
-    {
+        builder->getNdbError().code != QRY_WRONG_INDEX_TYPE) {
       g_err << "Scan of unique index gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -1009,14 +920,13 @@ NegativeTest::runGraphTest() const
 
   // Try scanning index on wrong table.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const boundOperands[] =
-      {builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const boundOperands[] = {builder->constValue(1),
+                                                    NULL};
     const NdbQueryIndexBound bound(boundOperands);
 
     if (builder->scanIndex(m_nt2OrdIdx, m_nt1Tab, &bound) != NULL ||
-        builder->getNdbError().code != QRY_UNRELATED_INDEX)
-    {
+        builder->getNdbError().code != QRY_UNRELATED_INDEX) {
       g_err << "Scan of unrelated index gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -1026,23 +936,21 @@ NegativeTest::runGraphTest() const
 
   // Try adding a scan child to a lookup root.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const keyOperands[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const keyOperands[] = {builder->constValue(1),
+                                                  builder->constValue(1), NULL};
 
-    const NdbQueryLookupOperationDef* parentOperation
-      = builder->readTuple(m_nt1Tab, keyOperands);
+    const NdbQueryLookupOperationDef *parentOperation =
+        builder->readTuple(m_nt1Tab, keyOperands);
     require(parentOperation != NULL);
 
-    const NdbQueryOperand* const childOperands[] =
-      {builder->linkedValue(parentOperation, "ui1"),
-       builder->linkedValue(parentOperation, "oi1"),
-      NULL};
+    const NdbQueryOperand *const childOperands[] = {
+        builder->linkedValue(parentOperation, "ui1"),
+        builder->linkedValue(parentOperation, "oi1"), NULL};
     const NdbQueryIndexBound bound(childOperands);
 
     if (builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, &bound) != NULL ||
-        builder->getNdbError().code != QRY_WRONG_OPERATION_TYPE)
-    {
+        builder->getNdbError().code != QRY_WRONG_OPERATION_TYPE) {
       g_err << "Lookup with scan child gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -1052,22 +960,21 @@ NegativeTest::runGraphTest() const
 
   // Try adding a sorted child scan to a query.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryTableScanOperationDef* parentOperation
-      = builder->scanTable(m_nt1Tab);
+    const NdbQueryTableScanOperationDef *parentOperation =
+        builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryOperand* const childOperands[] =
-      {builder->linkedValue(parentOperation, "ui1"),
-      NULL};
+    const NdbQueryOperand *const childOperands[] = {
+        builder->linkedValue(parentOperation, "ui1"), NULL};
     const NdbQueryIndexBound bound(childOperands);
     NdbQueryOptions childOptions;
     childOptions.setOrdering(NdbQueryOptions::ScanOrdering_ascending);
 
-    if (builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, &bound, &childOptions) != NULL ||
-        builder->getNdbError().code != QRY_MULTIPLE_SCAN_SORTED)
-    {
+    if (builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, &bound, &childOptions) !=
+            NULL ||
+        builder->getNdbError().code != QRY_MULTIPLE_SCAN_SORTED) {
       g_err << "Query with sorted child scan gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -1076,40 +983,40 @@ NegativeTest::runGraphTest() const
   }
 
   /**
-   * Try adding a child operation with two parents that are not descendants of each
-   * other (i.e. a diamond-shaped query graph).
+   * Try adding a child operation with two parents that are not descendants of
+   * each other (i.e. a diamond-shaped query graph).
    */
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    const NdbQueryOperand* const rootKey[] =
-      {builder->constValue(1), builder->constValue(1), NULL};
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+    const NdbQueryOperand *const rootKey[] = {builder->constValue(1),
+                                              builder->constValue(1), NULL};
 
-    const NdbQueryLookupOperationDef* rootOperation
-      = builder->readTuple(m_nt1Tab, rootKey);
+    const NdbQueryLookupOperationDef *rootOperation =
+        builder->readTuple(m_nt1Tab, rootKey);
     require(rootOperation != NULL);
 
-    const NdbQueryOperand* const leftKey[] =
-      {builder->linkedValue(rootOperation, "ui1"), builder->constValue(1), NULL};
+    const NdbQueryOperand *const leftKey[] = {
+        builder->linkedValue(rootOperation, "ui1"), builder->constValue(1),
+        NULL};
 
-    const NdbQueryLookupOperationDef* leftOperation
-      = builder->readTuple(m_nt1Tab, leftKey);
+    const NdbQueryLookupOperationDef *leftOperation =
+        builder->readTuple(m_nt1Tab, leftKey);
     require(leftOperation != NULL);
 
-    const NdbQueryOperand* const rightKey[] =
-      {builder->linkedValue(rootOperation, "ui1"), builder->constValue(1), NULL};
+    const NdbQueryOperand *const rightKey[] = {
+        builder->linkedValue(rootOperation, "ui1"), builder->constValue(1),
+        NULL};
 
-    const NdbQueryLookupOperationDef* rightOperation
-      = builder->readTuple(m_nt1Tab, rightKey);
+    const NdbQueryLookupOperationDef *rightOperation =
+        builder->readTuple(m_nt1Tab, rightKey);
     require(rightOperation != NULL);
 
-    const NdbQueryOperand* const bottomKey[] =
-      {builder->linkedValue(leftOperation, "ui1"),
-       builder->linkedValue(rightOperation, "oi1"),
-       NULL};
+    const NdbQueryOperand *const bottomKey[] = {
+        builder->linkedValue(leftOperation, "ui1"),
+        builder->linkedValue(rightOperation, "oi1"), NULL};
 
     if (builder->readTuple(m_nt1Tab, bottomKey) != NULL ||
-        builder->getNdbError().code != QRY_MULTIPLE_PARENTS)
-    {
+        builder->getNdbError().code != QRY_MULTIPLE_PARENTS) {
       g_err << "Diamond-shaped query graph gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
@@ -1118,49 +1025,53 @@ NegativeTest::runGraphTest() const
   }
 
   return NDBT_OK;
-} // NegativeTest::runGraphTest()
+}  // NegativeTest::runGraphTest()
 
-
-int
-NegativeTest::runSetBoundTest() const
-{
+int NegativeTest::runSetBoundTest() const {
   // Test NdbQueryOperation::setBound() with too long string value.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt2OrdIdx, m_nt2Tab);
+    const NdbQueryIndexScanOperationDef *parentOperation =
+        builder->scanIndex(m_nt2OrdIdx, m_nt2Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
     // Make bound with too long string.
-    const NdbDictionary::RecordSpecification ordIdxRecSpec[] =
-      {{m_nt2Tab->getColumn("oi1"), 0, 0, 0, 0}};
+    const NdbDictionary::RecordSpecification ordIdxRecSpec[] = {
+        {m_nt2Tab->getColumn("oi1"), 0, 0, 0, 0}};
 
-    const NdbRecord* const ordIdxRecord =
-      m_dictionary->createRecord(m_nt2OrdIdx, ordIdxRecSpec,
-                                 sizeof ordIdxRecSpec/sizeof ordIdxRecSpec[0],
-                                 sizeof(NdbDictionary::RecordSpecification));
+    const NdbRecord *const ordIdxRecord = m_dictionary->createRecord(
+        m_nt2OrdIdx, ordIdxRecSpec,
+        sizeof ordIdxRecSpec / sizeof ordIdxRecSpec[0],
+        sizeof(NdbDictionary::RecordSpecification));
     require(ordIdxRecord != NULL);
 
-    struct { Uint8 len; char data[nt2StrLen + 10]; } boundRow;
+    struct {
+      Uint8 len;
+      char data[nt2StrLen + 10];
+    } boundRow;
     memset(boundRow.data, 'x', sizeof(boundRow.data));
     // Set string length field.
     boundRow.len = nt2StrLen + 10;
 
-    NdbIndexScanOperation::IndexBound
-      bound = {reinterpret_cast<const char*>(&boundRow), 1, true,
-               reinterpret_cast<const char*>(&boundRow), 1, true, 0};
+    NdbIndexScanOperation::IndexBound bound = {
+        reinterpret_cast<const char *>(&boundRow),
+        1,
+        true,
+        reinterpret_cast<const char *>(&boundRow),
+        1,
+        true,
+        0};
 
     if (query->setBound(ordIdxRecord, &bound) == 0 ||
-        query->getNdbError().code != Err_WrongFieldLength)
-    {
+        query->getNdbError().code != Err_WrongFieldLength) {
       g_err << "Scan bound with too long string value gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1171,8 +1082,7 @@ NegativeTest::runSetBoundTest() const
     boundRow.len = nt2StrLen;
     bound.range_no = 1;
     if (query->setBound(ordIdxRecord, &bound) == 0 ||
-        query->getNdbError().code != QRY_ILLEGAL_STATE)
-    {
+        query->getNdbError().code != QRY_ILLEGAL_STATE) {
       g_err << "setBound() in failed state gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1185,29 +1095,33 @@ NegativeTest::runSetBoundTest() const
 
   // Test NdbQueryOperation::setBound() with wrong bound no.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
+    const NdbQueryIndexScanOperationDef *parentOperation =
+        builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
     const int boundRow[] = {1, 1};
 
     // Make bound with wrong bound no.
-    NdbIndexScanOperation::IndexBound
-      bound = {reinterpret_cast<const char*>(boundRow), 1, true,
-               reinterpret_cast<const char*>(boundRow), 1, true, 1/*Should be 0.*/};
+    NdbIndexScanOperation::IndexBound bound = {
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        1 /*Should be 0.*/};
 
     if (query->setBound(m_nt1OrdIdx->getDefaultRecord(), &bound) == 0 ||
-        query->getNdbError().code != Err_InvalidRangeNo)
-    {
+        query->getNdbError().code != Err_InvalidRangeNo) {
       g_err << "Scan bound with wrong range no gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1220,28 +1134,32 @@ NegativeTest::runSetBoundTest() const
 
   // Test NdbQueryOperation::setBound() on table scan.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryTableScanOperationDef* parentOperation
-      = builder->scanTable(m_nt1Tab);
+    const NdbQueryTableScanOperationDef *parentOperation =
+        builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
     const int boundRow[] = {1, 1};
 
-    NdbIndexScanOperation::IndexBound
-      bound = {reinterpret_cast<const char*>(boundRow), 1, true,
-               reinterpret_cast<const char*>(boundRow), 1, true, 0};
+    NdbIndexScanOperation::IndexBound bound = {
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        0};
 
     if (query->setBound(m_nt1OrdIdx->getDefaultRecord(), &bound) == 0 ||
-        query->getNdbError().code != QRY_WRONG_OPERATION_TYPE)
-    {
+        query->getNdbError().code != QRY_WRONG_OPERATION_TYPE) {
       g_err << "Scan bound on table scan gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1254,39 +1172,40 @@ NegativeTest::runSetBoundTest() const
 
   // Test NdbQueryOperation::setBound() in executed query.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
+    const NdbQueryIndexScanOperationDef *parentOperation =
+        builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
-    const char* resultRow;
+    const char *resultRow;
 
-    require(
-      query->getQueryOperation(0u)->setResultRowRef(
-        m_nt1Tab->getDefaultRecord(),
-        resultRow,
-        NULL) == 0);
+    require(query->getQueryOperation(0u)->setResultRowRef(
+                m_nt1Tab->getDefaultRecord(), resultRow, NULL) == 0);
 
-    require(trans->execute(NoCommit)==0);
+    require(trans->execute(NoCommit) == 0);
 
     const int boundRow[] = {1, 1};
 
     // Add bound now.
-    NdbIndexScanOperation::IndexBound
-      bound = {reinterpret_cast<const char*>(boundRow), 1, true,
-               reinterpret_cast<const char*>(boundRow), 1, true, 0};
+    NdbIndexScanOperation::IndexBound bound = {
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        reinterpret_cast<const char *>(boundRow),
+        1,
+        true,
+        0};
 
     if (query->setBound(m_nt1OrdIdx->getDefaultRecord(), &bound) == 0 ||
-        query->getNdbError().code != QRY_ILLEGAL_STATE)
-    {
+        query->getNdbError().code != QRY_ILLEGAL_STATE) {
       g_err << "Adding scan bound to executed query gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1298,31 +1217,28 @@ NegativeTest::runSetBoundTest() const
   }
 
   return NDBT_OK;
-} // NegativeTest::runSetBoundTest()
+}  // NegativeTest::runSetBoundTest()
 
-
-int
-NegativeTest::runValueTest() const
-{
+int NegativeTest::runValueTest() const {
   // Test NdbQueryOperation::getValue() on an unknown column.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryTableScanOperationDef* parentOperation
-      = builder->scanTable(m_nt1Tab);
+    const NdbQueryTableScanOperationDef *parentOperation =
+        builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
     if (query->getQueryOperation(0u)->getValue("unknownCol") != NULL ||
-        query->getNdbError().code != Err_UnknownColumn)
-    {
-      g_err << "NdbQueryOperation::getValue() on unknown column gave unexpected result.";
+        query->getNdbError().code != Err_UnknownColumn) {
+      g_err << "NdbQueryOperation::getValue() on unknown column gave "
+               "unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
       return NDBT_FAILED;
@@ -1334,27 +1250,27 @@ NegativeTest::runValueTest() const
 
   // Try fetching results with an NdbRecord for a different table.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryTableScanOperationDef* parentOperation
-      = builder->scanTable(m_nt1Tab);
+    const NdbQueryTableScanOperationDef *parentOperation =
+        builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
-    const char* resultRow;
+    const char *resultRow;
 
-    if (query->getQueryOperation(0u)->setResultRowRef(m_nt2Tab->getDefaultRecord(),
-                                                      resultRow, NULL) == 0 ||
-        query->getNdbError().code != Err_DifferentTabForKeyRecAndAttrRec)
-    {
-      g_err << "NdbQueryOperation::setResultRowRef() on wrong table gave unexpected "
-        "result.";
+    if (query->getQueryOperation(0u)->setResultRowRef(
+            m_nt2Tab->getDefaultRecord(), resultRow, NULL) == 0 ||
+        query->getNdbError().code != Err_DifferentTabForKeyRecAndAttrRec) {
+      g_err << "NdbQueryOperation::setResultRowRef() on wrong table gave "
+               "unexpected "
+               "result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
       return NDBT_FAILED;
@@ -1366,31 +1282,27 @@ NegativeTest::runValueTest() const
 
   // Try defining result row twice.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryTableScanOperationDef* parentOperation
-      = builder->scanTable(m_nt1Tab);
+    const NdbQueryTableScanOperationDef *parentOperation =
+        builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
-    const char* resultRow;
+    const char *resultRow;
 
-    require(
-      query->getQueryOperation(0u)->setResultRowRef(
-        m_nt1Tab->getDefaultRecord(),
-        resultRow,
-        NULL) == 0);
+    require(query->getQueryOperation(0u)->setResultRowRef(
+                m_nt1Tab->getDefaultRecord(), resultRow, NULL) == 0);
 
-    if (query->getQueryOperation(0u)->setResultRowRef(m_nt1Tab->getDefaultRecord(),
-                                                      resultRow, NULL) == 0 ||
-        query->getNdbError().code != QRY_RESULT_ROW_ALREADY_DEFINED)
-    {
+    if (query->getQueryOperation(0u)->setResultRowRef(
+            m_nt1Tab->getDefaultRecord(), resultRow, NULL) == 0 ||
+        query->getNdbError().code != QRY_RESULT_ROW_ALREADY_DEFINED) {
       g_err << "Defining result row twice gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1403,23 +1315,22 @@ NegativeTest::runValueTest() const
 
   // Test operation with empty projection.
   {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+    NdbQueryBuilder *const builder = NdbQueryBuilder::create();
 
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
+    const NdbQueryIndexScanOperationDef *parentOperation =
+        builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
+    const NdbQueryDef *const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
-    NdbTransaction* const trans = m_ndb->startTransaction();
-    NdbQuery* const query = trans->createQuery(queryDef);
+    NdbTransaction *const trans = m_ndb->startTransaction();
+    NdbQuery *const query = trans->createQuery(queryDef);
 
     // Execute without defining a projection.
     if (trans->execute(NoCommit) == 0 ||
-        query->getNdbError().code != QRY_EMPTY_PROJECTION)
-    {
+        query->getNdbError().code != QRY_EMPTY_PROJECTION) {
       g_err << "Having operation with empty projection gave unexpected result.";
       m_ndb->closeTransaction(trans);
       queryDef->destroy();
@@ -1430,53 +1341,42 @@ NegativeTest::runValueTest() const
     queryDef->destroy();
   }
   return NDBT_OK;
-} // NegativeTest::runValueBoundTest()
+}  // NegativeTest::runValueBoundTest()
 
 /**
  * Check that query pushdown is disabled in older versions of the code
  * (even if the API extensions are present in the code).
  */
-int
-NegativeTest::runFeatureDisabledTest() const
-{
-  NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-  
-  const NdbQueryTableScanOperationDef* const parentOperation
-    = builder->scanTable(m_nt1Tab);
-  
+int NegativeTest::runFeatureDisabledTest() const {
+  NdbQueryBuilder *const builder = NdbQueryBuilder::create();
+
+  const NdbQueryTableScanOperationDef *const parentOperation =
+      builder->scanTable(m_nt1Tab);
+
   int result = NDBT_OK;
 
   {
-    if (parentOperation == NULL)
-    {
-      g_err << "scanTable() failed: " << builder->getNdbError()
-            << endl;
+    if (parentOperation == NULL) {
+      g_err << "scanTable() failed: " << builder->getNdbError() << endl;
       result = NDBT_FAILED;
-    }
-    else
-    {
-      g_info << "scanTable() succeeded in version "
-             << ndbGetOwnVersionString() << " as expected." << endl;
+    } else {
+      g_info << "scanTable() succeeded in version " << ndbGetOwnVersionString()
+             << " as expected." << endl;
     }
   }
 
   builder->destroy();
   return result;
-} // NegativeTest::runFeatureDisabledTest()
+}  // NegativeTest::runFeatureDisabledTest()
 
-static int
-dropNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
-{
-  NdbDictionary::Dictionary* const dictionary
-    = step->getNdb()->getDictionary();
+static int dropNegativeSchema(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbDictionary::Dictionary *const dictionary = step->getNdb()->getDictionary();
 
-  if (dictionary->dropTable("nt1") != 0)
-  {
+  if (dictionary->dropTable("nt1") != 0) {
     g_err << "Failed to drop table nt1." << endl;
     return NDBT_FAILED;
   }
-  if (dictionary->dropTable("nt2") != 0)
-  {
+  if (dictionary->dropTable("nt2") != 0) {
     g_err << "Failed to drop table nt2." << endl;
     return NDBT_FAILED;
   }
@@ -1484,7 +1384,7 @@ dropNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 NDBT_TESTSUITE(testSpj);
-TESTCASE("NegativeJoin", ""){
+TESTCASE("NegativeJoin", "") {
   INITIALIZER(createNegativeSchema);
   INITIALIZER(NegativeTest::keyTest);
   INITIALIZER(NegativeTest::graphTest);
@@ -1492,73 +1392,72 @@ TESTCASE("NegativeJoin", ""){
   INITIALIZER(NegativeTest::valueTest);
   FINALIZER(dropNegativeSchema);
 }
-TESTCASE("FeatureDisabled", ""){
+TESTCASE("FeatureDisabled", "") {
   INITIALIZER(createNegativeSchema);
   INITIALIZER(NegativeTest::featureDisabledTest);
   FINALIZER(dropNegativeSchema);
 }
-TESTCASE("LookupJoin", ""){
+TESTCASE("LookupJoin", "") {
   INITIALIZER(runLoadTable);
   STEP(runLookupJoin);
   VERIFIER(runClearTable);
 }
-TESTCASE("ScanJoin", ""){
+TESTCASE("ScanJoin", "") {
   INITIALIZER(runLoadTable);
   STEP(runScanJoin);
   FINALIZER(runClearTable);
 }
-TESTCASE("MixedJoin", ""){
+TESTCASE("MixedJoin", "") {
   INITIALIZER(runLoadTable);
   STEPS(runJoin, 6);
   FINALIZER(runClearTable);
 }
-TESTCASE("MixedJoin17131", "Simulate CONTINUEB for DIGETNODESREQ"){
+TESTCASE("MixedJoin17131", "Simulate CONTINUEB for DIGETNODESREQ") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 17131);
   STEPS(runJoin, 6);
   FINALIZER(runClearTable);
 }
-TESTCASE("MixedJoinDiskWait", "Simulate disk wait during pushed joins"){
+TESTCASE("MixedJoinDiskWait", "Simulate disk wait during pushed joins") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 4035);
   STEPS(runJoin, 4);
   FINALIZER(runClearTable);
 }
 TESTCASE("MultiFrag_OOM",
-         "'Out of LongMessageBuffer' during 'import' of MultiFrag list")
-{
+         "'Out of LongMessageBuffer' during 'import' of MultiFrag list") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 8116);
   TC_PROPERTY("AcceptError", 218);
   STEP(runJoin);
   FINALIZER(runClearTable);
 }
-TESTCASE("MultiFrag_OOM_rand",
-         "Random 'Out of LongMessageBuffer' during 'import' of MultiFrag list")
-{
+TESTCASE(
+    "MultiFrag_OOM_rand",
+    "Random 'Out of LongMessageBuffer' during 'import' of MultiFrag list") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 8117);
   TC_PROPERTY("AcceptError", 218);
   STEP(runJoin);
   FINALIZER(runClearTable);
 }
-TESTCASE("NF_Join", ""){
+TESTCASE("NF_Join", "") {
   TC_PROPERTY("UntilStopped", 1);
   TC_PROPERTY("WaitProgress", 20);
   INITIALIZER(runLoadTable);
-  //STEPS(runScanJoin, 6);
-  //STEPS(runLookupJoin, 6);
+  // STEPS(runScanJoin, 6);
+  // STEPS(runLookupJoin, 6);
   STEPS(runJoin, 6);
   STEP(runRestarter);
   FINALIZER(runClearTable);
 }
 TESTCASE("bug#23049170",
          "Test abort() when partially connected after a node restart. "
-         "Should not see misreported 'NodeFailure' error (20016) due to bug#23049170")
-{
+         "Should not see misreported 'NodeFailure' error (20016) due to "
+         "bug#23049170") {
   TC_PROPERTY("UntilStopped", 1);
   TC_PROPERTY("WaitProgress", 20);
-  TC_PROPERTY("RestartWithErrorCode", 17530); //OJA, note -> restarter set it
+  TC_PROPERTY("RestartWithErrorCode", 17530);  // OJA, note -> restarter set it
   INITIALIZER(runLoadTable);
   STEPS(runAbortedJoin, 6);
   STEP(runRestarter);
@@ -1566,20 +1465,19 @@ TESTCASE("bug#23049170",
 }
 TESTCASE("bug#23048816",
          "Test handling of out of section memory during signal receive. "
-         "Should REF/abort query, not crash SPJ node")
-{
+         "Should REF/abort query, not crash SPJ node") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 17531);
   TC_PROPERTY("AcceptError", 20006);
   STEP(runJoin);
   FINALIZER(runClearTable);
 }
-TESTCASE("LookupJoinError", ""){
+TESTCASE("LookupJoinError", "") {
   INITIALIZER(runLoadTable);
   STEP(runLookupJoinError);
   VERIFIER(runClearTable);
 }
-TESTCASE("ScanJoinError", ""){
+TESTCASE("ScanJoinError", "") {
   INITIALIZER(runLoadTable);
   TC_PROPERTY("NodeNumber", 2);
   STEP(runScanJoinError);
@@ -1587,17 +1485,15 @@ TESTCASE("ScanJoinError", ""){
 }
 NDBT_TESTSUITE_END(testSpj)
 
-
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
 
   /* To inject a single fault, for testing fault injection.
      Add the required fault number at the end
      of the command line. */
 
-  if (argc > 0) sscanf(argv[argc-1], "%d",  &faultToInject);
-  if (faultToInject && (faultToInject < FI_START || faultToInject > FI_END))
-  {
+  if (argc > 0) sscanf(argv[argc - 1], "%d", &faultToInject);
+  if (faultToInject && (faultToInject < FI_START || faultToInject > FI_END)) {
     ndbout_c("Illegal fault to inject: %d. Legal range is between %d and %d",
              faultToInject, FI_START, FI_END);
     exit(1);

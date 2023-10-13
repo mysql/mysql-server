@@ -25,16 +25,13 @@
 
 #include <signaldata/UtilDelete.hpp>
 
-bool 
-printUTIL_DELETE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_DELETE_REQ(FILE *out, const Uint32 *data, Uint32 l, Uint16 b) {
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  const UtilDeleteReq* sig = (const UtilDeleteReq*)data;
+  const UtilDeleteReq *sig = (const UtilDeleteReq *)data;
   fprintf(out, " senderData: %d prepareId: %d totalDataLen: %d\n",
-	  sig->senderData,
-	  sig->prepareId,
-	  sig->totalDataLen);
+          sig->senderData, sig->prepareId, sig->totalDataLen);
   fprintf(out,
           " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n"
           " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n"
@@ -46,28 +43,25 @@ printUTIL_DELETE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
           sig->attrData[12], sig->attrData[13], sig->attrData[14],
           sig->attrData[15], sig->attrData[16], sig->attrData[17],
           sig->attrData[18], sig->attrData[19], sig->attrData[20],
-          sig->attrData[21]
-          );
+          sig->attrData[21]);
 
   return true;
 }
 
-bool 
-printUTIL_DELETE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_DELETE_CONF(FILE *out, const Uint32 *data, Uint32 l, Uint16 b) {
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  const UtilDeleteConf* sig = (const UtilDeleteConf*)data;
+  const UtilDeleteConf *sig = (const UtilDeleteConf *)data;
   fprintf(out, " senderData: %d\n", sig->senderData);
   return true;
 }
 
-bool 
-printUTIL_DELETE_REF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_DELETE_REF(FILE *out, const Uint32 *data, Uint32 l, Uint16 b) {
   (void)l;  // Don't want compiler warning
   (void)b;  // Don't want compiler warning
 
-  const UtilDeleteRef* sig = (const UtilDeleteRef*)data;
+  const UtilDeleteRef *sig = (const UtilDeleteRef *)data;
   fprintf(out, " senderData: %d\n", sig->senderData);
   fprintf(out, " errorCode: %d\n", sig->errorCode);
   return true;

@@ -39,12 +39,3 @@
 /strings/uca_data.h !filter
 /internal/meb/meb/mysqloption_list.cpp !filter
 
-# Some NDB source is currently exempt
-/storage/ndb/clusterj/** !filter
-/storage/ndb/include/** !filter
-/storage/ndb/memcache/** !filter
-/storage/ndb/ndbapi-examples/** !filter
-/storage/ndb/nodejs/** !filter
-/storage/ndb/src/** !filter
-/storage/ndb/test/** !filter
-/storage/ndb/tools/** !filter

@@ -30,10 +30,10 @@
 #include <EventLogger.hpp>
 #include <SocketClient.hpp>
 
-#include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
-#include "TransporterDefinitions.hpp"
+#include <TransporterRegistry.hpp>
 #include "Packer.hpp"
+#include "TransporterDefinitions.hpp"
 
 #include <NdbMutex.h>
 #include <NdbThread.h>
@@ -42,25 +42,23 @@
 #include "portlib/ndb_socket.h"
 #include "util/NdbSocket.h"
 
-#define DISCONNECT_ERRNO(e, sz) ( \
-                (sz == 0) || \
-                 (!((sz == -1) && \
-                  ((e == SOCKET_EAGAIN) || \
-                   (e == SOCKET_EWOULDBLOCK) || \
-                   (e == SOCKET_EINTR)))))
+#define DISCONNECT_ERRNO(e, sz)                                           \
+  ((sz == 0) ||                                                           \
+   (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || \
+                     (e == SOCKET_EINTR)))))
 
 class Transporter {
   friend class TransporterRegistry;
   friend class Multi_Transporter;
   friend class Qmgr;
-public:
+
+ public:
   virtual bool initTransporter() = 0;
 
   /**
    * Destructor
    */
   virtual ~Transporter();
-
 
   /**
    * Disconnect node/socket
@@ -78,34 +76,22 @@ public:
    * It is a real transporter, but can be connected
    * when the node is in the state connected.
    */
-  virtual bool isPartOfMultiTransporter()
-  {
+  virtual bool isPartOfMultiTransporter() {
     return (m_multi_transporter_instance != 0);
   }
 
-  Uint32 get_multi_transporter_instance()
-  {
+  Uint32 get_multi_transporter_instance() {
     return m_multi_transporter_instance;
   }
-  virtual bool isMultiTransporter()
-  {
-    return false;
-  }
+  virtual bool isMultiTransporter() { return false; }
 
-  void set_multi_transporter_instance(Uint32 val)
-  {
+  void set_multi_transporter_instance(Uint32 val) {
     m_multi_transporter_instance = val;
   }
 
-  virtual Uint64 get_bytes_sent() const
-  {
-    return m_bytes_sent;
-  }
+  virtual Uint64 get_bytes_sent() const { return m_bytes_sent; }
 
-  virtual Uint64 get_bytes_received() const
-  {
-    return m_bytes_received;
-  }
+  virtual Uint64 get_bytes_received() const { return m_bytes_received; }
 
   /**
    * In most cases we use only one transporter per node connection.
@@ -116,9 +102,8 @@ public:
    * get_send_transporter based on sending thread and receiving
    * thread.
    */
-  virtual Transporter* get_send_transporter(Uint32 recBlock[[maybe_unused]],
-                                            Uint32 sendBlock[[maybe_unused]])
-  {
+  virtual Transporter *get_send_transporter(Uint32 recBlock [[maybe_unused]],
+                                            Uint32 sendBlock [[maybe_unused]]) {
     return this;
   }
 
@@ -127,9 +112,9 @@ public:
    *    Use isConnected() to check status
    */
   virtual bool connect_client();
-  bool connect_client(NdbSocket&&);
+  bool connect_client(NdbSocket &&);
   bool connect_client_mgm(int);
-  bool connect_server(NdbSocket&& socket, BaseString& errormsg);
+  bool connect_server(NdbSocket &&socket, BaseString &errormsg);
 
   /**
    * Returns socket used (sockets are used for all transporters to ensure
@@ -149,7 +134,7 @@ public:
    * Are we currently connected
    */
   bool isConnected() const;
-  
+
   /**
    * Remote Node Id
    */
@@ -168,19 +153,14 @@ public:
   /**
    * Get port we're connecting to (signed)
    */
-  int get_s_port() const {
-    return m_s_port;
-  }
-  
+  int get_s_port() const { return m_s_port; }
+
   /**
    * Set port to connect to (signed)
    */
-  void set_s_port(int port) {
-    m_s_port = port;
-  }
+  void set_s_port(int port) { m_s_port = port; }
 
-  void update_status_overloaded(Uint32 used)
-  {
+  void update_status_overloaded(Uint32 used) {
     m_transporter_registry.set_status_overloaded(remoteNodeId,
                                                  used >= m_overload_limit);
     m_transporter_registry.set_status_slowdown(remoteNodeId,
@@ -193,20 +173,16 @@ public:
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
 
   Uint32 get_connect_count() { return m_connect_count; }
-  virtual bool is_encrypted() const  { return m_encrypted; }
+  virtual bool is_encrypted() const { return m_encrypted; }
 
   void inc_overload_count() { m_overload_count++; }
   Uint32 get_overload_count() { return m_overload_count; }
   void inc_slowdown_count() { m_slowdown_count++; }
   Uint32 get_slowdown_count() { return m_slowdown_count; }
-  void set_recv_thread_idx (Uint32 recv_thread_idx)
-  {
+  void set_recv_thread_idx(Uint32 recv_thread_idx) {
     m_recv_thread_idx = recv_thread_idx;
   }
-  void set_transporter_active(bool active)
-  {
-    m_is_active = active;
-  }
+  void set_transporter_active(bool active) { m_is_active = active; }
   Uint32 get_recv_thread_idx() { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
@@ -217,39 +193,28 @@ public:
    * multi socket setup.
    * Shut down only for writes when all data have been sent.
    */
-  virtual void shutdown() { abort();}
+  virtual void shutdown() { abort(); }
 
-protected:
-  Transporter(TransporterRegistry &,
-              TrpId transporter_index,
-	      TransporterType,
-	      const char *lHostName,
-	      const char *rHostName, 
-	      int s_port,
-	      bool isMgmConnection,
-	      NodeId lNodeId,
-	      NodeId rNodeId,
-	      NodeId serverNodeId,
-	      int byteorder, 
-	      bool compression, 
-	      bool checksum, 
-	      bool signalId,
-              Uint32 max_send_buffer,
-              bool _presend_checksum,
-              Uint32 spintime);
+ protected:
+  Transporter(TransporterRegistry &, TrpId transporter_index, TransporterType,
+              const char *lHostName, const char *rHostName, int s_port,
+              bool isMgmConnection, NodeId lNodeId, NodeId rNodeId,
+              NodeId serverNodeId, int byteorder, bool compression,
+              bool checksum, bool signalId, Uint32 max_send_buffer,
+              bool _presend_checksum, Uint32 spintime);
 
-  virtual bool configure(const TransporterConfiguration* conf);
-  virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
+  virtual bool configure(const TransporterConfiguration *conf);
+  virtual bool configure_derived(const TransporterConfiguration *conf) = 0;
   void use_tls_client_auth();
 
   /**
    * Blocking, for max timeOut milli seconds
    *   Returns true if connect succeeded
    */
-  virtual bool connect_server_impl(NdbSocket&&) = 0;
-  virtual bool connect_client_impl(NdbSocket&&) = 0;
-  virtual int pre_connect_options(ndb_socket_t) { return 0;}
-  
+  virtual bool connect_server_impl(NdbSocket &&) = 0;
+  virtual bool connect_client_impl(NdbSocket &&) = 0;
+  virtual int pre_connect_options(ndb_socket_t) { return 0; }
+
   /**
    * Disconnects the Transporter, possibly blocking.
    * releaseAfterDisconnect() need to be called when
@@ -271,10 +236,7 @@ protected:
   int m_s_port;
 
   Uint32 m_spintime;
-  Uint32 get_spintime()
-  {
-    return m_spintime;
-  }
+  Uint32 get_spintime() { return m_spintime; }
   const NodeId remoteNodeId;
   const NodeId localNodeId;
 
@@ -286,7 +248,7 @@ protected:
   bool checksumUsed;
   bool check_send_checksum;
   bool signalIdUsed;
-  Packer m_packer;  
+  Packer m_packer;
   Uint32 m_max_send_buffer;
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
@@ -300,8 +262,9 @@ protected:
 
   // Sending/Receiving socket used by both client and server
   NdbSocket theSocket;
-private:
-  SocketClient *m_socket_client {nullptr};
+
+ private:
+  SocketClient *m_socket_client{nullptr};
   ndb_sockaddr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
@@ -309,7 +272,7 @@ private:
 
   void update_connect_state(bool connected);
 
-protected:
+ protected:
   /**
    * means that we transform an MGM connection into
    * a transporter connection
@@ -322,7 +285,7 @@ protected:
 
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
-  bool m_connected;     // Are we connected
+  bool m_connected;  // Are we connected
   TransporterType m_type;
   bool m_require_tls;  // Configured mode
   bool m_encrypted;    // Actual: true only if current connection is secure.
@@ -337,211 +300,162 @@ protected:
   Uint64 sendSize;
 
   TransporterRegistry &m_transporter_registry;
-  TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
-  void report_error(enum TransporterError err, const char *info = nullptr)
-    { m_transporter_registry.report_error(remoteNodeId, err, info); }
+  TransporterCallback *get_callback_obj() {
+    return m_transporter_registry.callbackObj;
+  }
+  void report_error(enum TransporterError err, const char *info = nullptr) {
+    m_transporter_registry.report_error(remoteNodeId, err, info);
+  }
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 
-  void set_get(ndb_socket_t fd,
-               int level,
-               int optval,
-               const char *optname, 
+  void set_get(ndb_socket_t fd, int level, int optval, const char *optname,
                int val);
   /*
    * Keep checksum state for Protocol6 messages over a byte stream.
    */
   class checksum_state {
-    enum cs_states
-    {
-      CS_INIT,
-      CS_MSG_CHECK,
-      CS_MSG_NOCHECK
-    };
+    enum cs_states { CS_INIT, CS_MSG_CHECK, CS_MSG_NOCHECK };
     cs_states state;
-    Uint32 chksum; // of already sent bytes, rotated so next byte to process matches first byte of chksum
-    Uint16 pending; // remaining bytes before state change
-  public:
-    bool computev(const struct iovec *iov, int iovcnt, size_t bytecnt = SIZE_T_MAX);
-    checksum_state(): state(CS_INIT), chksum(0), pending(4) {}
-    void init() { state = CS_INIT; chksum = 0; pending = 4; }
-  private:
-    bool compute(const void* bytes, size_t len);
-    void dumpBadChecksumInfo(Uint32 inputSum,
-                             Uint32 badSum,
-                             size_t offset,
-                             Uint32 remaining,
-                             const void* buf,
+    Uint32 chksum;   // of already sent bytes, rotated so next byte to process
+                     // matches first byte of chksum
+    Uint16 pending;  // remaining bytes before state change
+   public:
+    bool computev(const struct iovec *iov, int iovcnt,
+                  size_t bytecnt = SIZE_T_MAX);
+    checksum_state() : state(CS_INIT), chksum(0), pending(4) {}
+    void init() {
+      state = CS_INIT;
+      chksum = 0;
+      pending = 4;
+    }
+
+   private:
+    bool compute(const void *bytes, size_t len);
+    void dumpBadChecksumInfo(Uint32 inputSum, Uint32 badSum, size_t offset,
+                             Uint32 remaining, const void *buf,
                              size_t len) const;
 
-    static_assert(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
+    static_assert(MAX_SEND_MESSAGE_BYTESIZE ==
+                  (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
     static_assert(SIZE_T_MAX == (size_t)SIZE_T_MAX);
   };
   checksum_state send_checksum_state;
 };
 
-inline
-ndb_socket_t
-Transporter::getSocket() const {
+inline ndb_socket_t Transporter::getSocket() const {
   return theSocket.ndb_socket();
 }
 
-inline
-TransporterType
-Transporter::getTransporterType() const
-{
+inline TransporterType Transporter::getTransporterType() const {
   return m_type;
 }
 
-inline
-bool
-Transporter::isConnected() const {
-  return m_connected;
-}
+inline bool Transporter::isConnected() const { return m_connected; }
 
-inline
-NodeId
-Transporter::getRemoteNodeId() const {
-  return remoteNodeId;
-}
+inline NodeId Transporter::getRemoteNodeId() const { return remoteNodeId; }
 
-inline
-TrpId
-Transporter::getTransporterIndex() const {
+inline TrpId Transporter::getTransporterIndex() const {
   return m_transporter_index;
 }
 
-inline
-void
-Transporter::setTransporterIndex(TrpId val)
-{
+inline void Transporter::setTransporterIndex(TrpId val) {
   m_transporter_index = val;
 }
 
-inline
-NodeId
-Transporter::getLocalNodeId() const {
-  return localNodeId;
-}
+inline NodeId Transporter::getLocalNodeId() const { return localNodeId; }
 
 /**
  * Get data to send (in addition to data possibly remaining from previous
  * partial send).
  */
-inline
-Uint32
-Transporter::fetch_send_iovec_data(struct iovec dst[], Uint32 cnt)
-{
-  return get_callback_obj()->get_bytes_to_send_iovec(m_transporter_index,
-                                                     dst,
+inline Uint32 Transporter::fetch_send_iovec_data(struct iovec dst[],
+                                                 Uint32 cnt) {
+  return get_callback_obj()->get_bytes_to_send_iovec(m_transporter_index, dst,
                                                      cnt);
 }
 
-inline
-void
-Transporter::iovec_data_sent(int nBytesSent)
-{
-  Uint32 used_bytes = get_callback_obj()->bytes_sent(m_transporter_index,
-                                                     nBytesSent);
+inline void Transporter::iovec_data_sent(int nBytesSent) {
+  Uint32 used_bytes =
+      get_callback_obj()->bytes_sent(m_transporter_index, nBytesSent);
   update_status_overloaded(used_bytes);
 }
 
-inline
-bool
-Transporter::checksum_state::compute(const void* buf, size_t len)
-{
+inline bool Transporter::checksum_state::compute(const void *buf, size_t len) {
   const Uint32 inputSum = chksum;
   Uint32 off = 0;
-  unsigned char* psum = static_cast<unsigned char*>(static_cast<void*>(&chksum));
-  const unsigned char* bytes = static_cast<const unsigned char*>(buf);
+  unsigned char *psum =
+      static_cast<unsigned char *>(static_cast<void *>(&chksum));
+  const unsigned char *bytes = static_cast<const unsigned char *>(buf);
 
-  while (off < len)
-  {
+  while (off < len) {
     const Uint32 available = len - off;
-    switch (state)
-    {
-    case CS_INIT:
-    {
-      assert(pending <= 4);
-      assert(chksum == 0 || pending < 4);
-      const Uint32 nb = MIN(pending, available);
-      memcpy(psum + (4-pending), bytes + off, nb);
-      off+= nb;
-      pending-= nb;
+    switch (state) {
+      case CS_INIT: {
+        assert(pending <= 4);
+        assert(chksum == 0 || pending < 4);
+        const Uint32 nb = MIN(pending, available);
+        memcpy(psum + (4 - pending), bytes + off, nb);
+        off += nb;
+        pending -= nb;
 
-      if (pending == 0)
-      {
-        /* Msg header word 0 complete, parse to determine msg length */
-        assert(Protocol6::getMessageLength(chksum) <= (MAX_SEND_MESSAGE_BYTESIZE >> 2));
-        assert(Protocol6::getMessageLength(chksum) >= 2);
-        pending = (Protocol6::getMessageLength(chksum) * 4) - 4; /* Word 0 eaten */
-        state = (Protocol6::getCheckSumIncluded(chksum)? CS_MSG_CHECK : CS_MSG_NOCHECK);
-      }
-      break;
-    }
-    case CS_MSG_CHECK:
-    case CS_MSG_NOCHECK:
-    {
-      if (available < pending)
-      {
-        /* Only part of current msg body present */
-        if (state == CS_MSG_CHECK)
-        {
-          /* Add available content to the checksum */
-          chksum = computeXorChecksumBytes(bytes + off, available, chksum);
+        if (pending == 0) {
+          /* Msg header word 0 complete, parse to determine msg length */
+          assert(Protocol6::getMessageLength(chksum) <=
+                 (MAX_SEND_MESSAGE_BYTESIZE >> 2));
+          assert(Protocol6::getMessageLength(chksum) >= 2);
+          pending =
+              (Protocol6::getMessageLength(chksum) * 4) - 4; /* Word 0 eaten */
+          state = (Protocol6::getCheckSumIncluded(chksum) ? CS_MSG_CHECK
+                                                          : CS_MSG_NOCHECK);
         }
-        off += available;
-        pending -= available;
+        break;
       }
-      else
-      {
-        /* All of current msg body present, consume and check it */
-        if (state == CS_MSG_CHECK)
-        {
-          chksum = computeXorChecksumBytes(bytes + off, pending, chksum);
-          if (chksum != 0)
-          {
-            dumpBadChecksumInfo(inputSum,
-                                chksum,
-                                off,
-                                pending,
-                                buf,
-                                len);
-            return false;
+      case CS_MSG_CHECK:
+      case CS_MSG_NOCHECK: {
+        if (available < pending) {
+          /* Only part of current msg body present */
+          if (state == CS_MSG_CHECK) {
+            /* Add available content to the checksum */
+            chksum = computeXorChecksumBytes(bytes + off, available, chksum);
           }
-        }
-        off += pending;
+          off += available;
+          pending -= available;
+        } else {
+          /* All of current msg body present, consume and check it */
+          if (state == CS_MSG_CHECK) {
+            chksum = computeXorChecksumBytes(bytes + off, pending, chksum);
+            if (chksum != 0) {
+              dumpBadChecksumInfo(inputSum, chksum, off, pending, buf, len);
+              return false;
+            }
+          }
+          off += pending;
 
-        /* Now we are ready for the next msg */
-        pending = 4;
-        state = CS_INIT;
+          /* Now we are ready for the next msg */
+          pending = 4;
+          state = CS_INIT;
+        }
+        break;
       }
-      break;
     }
-    }
-  } // while (off < len)
+  }  // while (off < len)
 
   return true;
 }
 
-
-inline
-bool
-Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_t bytecnt)
-{
+inline bool Transporter::checksum_state::computev(const struct iovec *iov,
+                                                  int iovcnt, size_t bytecnt) {
   // bytecnt is SIZE_T_MAX implies use all iovec
   size_t off = 0;
   bool ok = true;
-  for(int iovi = 0; ok && bytecnt > off && iovi < iovcnt; iovi ++)
-  {
+  for (int iovi = 0; ok && bytecnt > off && iovi < iovcnt; iovi++) {
     int nb = iov[iovi].iov_len;
-    if (bytecnt < off + nb)
-    {
+    if (bytecnt < off + nb) {
       nb = bytecnt - off;
     }
-    if (!compute(iov[iovi].iov_base, nb))
-    {
+    if (!compute(iov[iovi].iov_base, nb)) {
       g_eventLogger->info(
           "Transporter::checksum_state::computev() failed on IOV %u/%u "
           "byteCount %llu off %llu nb %u",
@@ -551,8 +465,7 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
     }
     off += nb;
   }
-  if (bytecnt != SIZE_T_MAX && bytecnt != off)
-  {
+  if (bytecnt != SIZE_T_MAX && bytecnt != off) {
     g_eventLogger->info(
         "Transporter::checksum_state::computev() failed : "
         "bytecnt %llu off %llu",
@@ -562,4 +475,4 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
   return ok;
 }
 
-#endif // Define of Transporter_H
+#endif  // Define of Transporter_H

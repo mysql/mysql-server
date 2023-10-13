@@ -26,35 +26,29 @@
 #define MGM_AUTH_HPP
 
 class MgmAuth {
-public:
-
+ public:
   typedef unsigned short level;
 
   enum {
     serverRequiresTls = 0x001,  // Server requires TLS past bootstrap stage
-    clientHasTls      = 0x010,  // Client session is using TLS
-    clientHasCert     = 0x020,  // Client session is authenticated via cert
-    cmdIsBootstrap    = 0x100,  // Command is used to bootstrap a client
+    clientHasTls = 0x010,       // Client session is using TLS
+    clientHasCert = 0x020,      // Client session is authenticated via cert
+    cmdIsBootstrap = 0x100,     // Command is used to bootstrap a client
   };
 
-  enum result {
-    Ok,
-    ServerRequiresTls,
-    END_ERRORS
-  };
+  enum result { Ok, ServerRequiresTls, END_ERRORS };
 
   static int checkAuth(int cmdAuthLevel, int serverOpt, int sessionAuthLevel);
 
-  static const char * message(int code) {
-    if(code >= 0 && code < result::END_ERRORS) return _message[code];
+  static const char *message(int code) {
+    if (code >= 0 && code < result::END_ERRORS) return _message[code];
     return "(MgmAuth unexpected error code)";
   }
 
-private:
-  static constexpr const char * _message[result::END_ERRORS] =
-  {
-    "(no error)",
-    "Requires TLS",
+ private:
+  static constexpr const char *_message[result::END_ERRORS] = {
+      "(no error)",
+      "Requires TLS",
   };
 };
 

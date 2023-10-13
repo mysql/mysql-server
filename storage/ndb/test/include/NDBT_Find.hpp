@@ -27,31 +27,29 @@
 
 #include <BaseString.hpp>
 
-/* 
+/*
   Look for the binary named 'binary_name' in any of the
   given paths. Adds platform specific searc locations when
   necessary.
   Returns the full absolute path to the binary in 'name' if
-  found, otherwise print error message and 'abort' 
+  found, otherwise print error message and 'abort'
 */
-void NDBT_find_binary(BaseString& name,
-                     const char* binary_name,
-                     const char* first_path, ...);
-
+void NDBT_find_binary(BaseString &name, const char *binary_name,
+                      const char *first_path, ...);
 
 /*
   Wrapper around 'NDBT_find_binary' hardcoded to find ndb_mgmd
 */
-void NDBT_find_ndb_mgmd(BaseString& path);
+void NDBT_find_ndb_mgmd(BaseString &path);
 
 /*
   Wrapper to find ndbd
 */
-void NDBT_find_ndbd(BaseString& path);
+void NDBT_find_ndbd(BaseString &path);
 
 /*
   Wrapper to find ndb_sign_keys in a test environment
 */
-void NDBT_find_sign_keys(BaseString& path);
+void NDBT_find_sign_keys(BaseString &path);
 
 #endif

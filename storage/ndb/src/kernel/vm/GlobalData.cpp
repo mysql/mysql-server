@@ -20,19 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <ndb_global.h>
-#include <kernel_types.h>
-#include <SimulatedBlock.hpp>
 #include "GlobalData.hpp"
+#include <kernel_types.h>
+#include <ndb_global.h>
+#include <SimulatedBlock.hpp>
 
 #define JAM_FILE_ID 279
 
-
-SimulatedBlock*
-GlobalData::getBlock(BlockNumber blockNo, Uint32 instanceNo)
-{
-  SimulatedBlock* b = getBlock(blockNo);
-  if (b != 0 && instanceNo != 0)
-    b = b->getInstance(instanceNo);
+SimulatedBlock *GlobalData::getBlock(BlockNumber blockNo, Uint32 instanceNo) {
+  SimulatedBlock *b = getBlock(blockNo);
+  if (b != 0 && instanceNo != 0) b = b->getInstance(instanceNo);
   return b;
 }

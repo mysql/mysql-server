@@ -31,125 +31,106 @@
 extern "C" {
 #endif
 
-  /**
-   * Start signal logging.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node Id.
-   * @param reply the reply message.
-   * @return 0 if successful.
-   */
-  int ndb_mgm_start_signallog(NdbMgmHandle handle,
-			      int nodeId,
-			      struct ndb_mgm_reply* reply);
+/**
+ * Start signal logging.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node Id.
+ * @param reply the reply message.
+ * @return 0 if successful.
+ */
+int ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId,
+                            struct ndb_mgm_reply *reply);
 
-  /**
-   * Stop signal logging.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node Id.
-   * @param reply the reply message.
-   * @return 0 if successful.
-   */
-  int ndb_mgm_stop_signallog(NdbMgmHandle handle,
-			     int nodeId,
-			     struct ndb_mgm_reply* reply);
+/**
+ * Stop signal logging.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node Id.
+ * @param reply the reply message.
+ * @return 0 if successful.
+ */
+int ndb_mgm_stop_signallog(NdbMgmHandle handle, int nodeId,
+                           struct ndb_mgm_reply *reply);
 
-  /**
-   * Set the signals to log.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id.
-   * @param mode the signal log mode.
-   * @param blockNames the block names (space separated).
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
-  int ndb_mgm_log_signals(NdbMgmHandle handle,
-			  int nodeId, 
-			  enum ndb_mgm_signal_log_mode mode, 
-			  const char* blockNames,
-			  struct ndb_mgm_reply* reply);
+/**
+ * Set the signals to log.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node id.
+ * @param mode the signal log mode.
+ * @param blockNames the block names (space separated).
+ * @param reply the reply message.
+ * @return 0 if successful or an error code.
+ */
+int ndb_mgm_log_signals(NdbMgmHandle handle, int nodeId,
+                        enum ndb_mgm_signal_log_mode mode,
+                        const char *blockNames, struct ndb_mgm_reply *reply);
 
-  /**
-   * Set trace.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id.
-   * @param traceNumber the trace number.
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
-  int ndb_mgm_set_trace(NdbMgmHandle handle,
-			int nodeId,
-			int traceNumber,
-			struct ndb_mgm_reply* reply);
+/**
+ * Set trace.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node id.
+ * @param traceNumber the trace number.
+ * @param reply the reply message.
+ * @return 0 if successful or an error code.
+ */
+int ndb_mgm_set_trace(NdbMgmHandle handle, int nodeId, int traceNumber,
+                      struct ndb_mgm_reply *reply);
 
-  /**
-   * Provoke an error.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id.
-   * @param errorCode the errorCode.
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
-  int ndb_mgm_insert_error(NdbMgmHandle handle,
-			   int nodeId,
-			   int errorCode,
-			   struct ndb_mgm_reply* reply);
+/**
+ * Provoke an error.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node id.
+ * @param errorCode the errorCode.
+ * @param reply the reply message.
+ * @return 0 if successful or an error code.
+ */
+int ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
+                         struct ndb_mgm_reply *reply);
 
-  /**
-   * Provoke an error.
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id.
-   * @param errorCode the errorCode.
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
-  int ndb_mgm_insert_error2(NdbMgmHandle handle,
-                            int nodeId,
-                            int errorCode,
-                            int extra,
-                            struct ndb_mgm_reply* reply);
+/**
+ * Provoke an error.
+ *
+ * @param handle the NDB management handle.
+ * @param nodeId the node id.
+ * @param errorCode the errorCode.
+ * @param reply the reply message.
+ * @return 0 if successful or an error code.
+ */
+int ndb_mgm_insert_error2(NdbMgmHandle handle, int nodeId, int errorCode,
+                          int extra, struct ndb_mgm_reply *reply);
 
-  int ndb_mgm_set_int_parameter(NdbMgmHandle handle,
-				int node,
-				int param,
-				unsigned value,
-				struct ndb_mgm_reply* reply);
+int ndb_mgm_set_int_parameter(NdbMgmHandle handle, int node, int param,
+                              unsigned value, struct ndb_mgm_reply *reply);
 
-  int ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
-				  int node,
-				  int param,
-				  unsigned long long value,
-				  struct ndb_mgm_reply* reply);
+int ndb_mgm_set_int64_parameter(NdbMgmHandle handle, int node, int param,
+                                unsigned long long value,
+                                struct ndb_mgm_reply *reply);
 
-  int ndb_mgm_set_string_parameter(NdbMgmHandle handle,
-				   int node, 
-				   int param,
-				   const char * value,
-				   struct ndb_mgm_reply* reply);
+int ndb_mgm_set_string_parameter(NdbMgmHandle handle, int node, int param,
+                                 const char *value,
+                                 struct ndb_mgm_reply *reply);
 
-  Uint64 ndb_mgm_get_session_id(NdbMgmHandle handle);
+Uint64 ndb_mgm_get_session_id(NdbMgmHandle handle);
 
-  struct NdbMgmSession {
-    Uint64 id;
-    Uint32 m_stopSelf;
-    Uint32 m_stop;
-    Uint32 nodeid;
-    Uint32 parser_buffer_len;
-    Uint32 parser_status;
-    Uint32 tls;
-  };
+struct NdbMgmSession {
+  Uint64 id;
+  Uint32 m_stopSelf;
+  Uint32 m_stop;
+  Uint32 nodeid;
+  Uint32 parser_buffer_len;
+  Uint32 parser_status;
+  Uint32 tls;
+};
 
-  int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
-                          struct NdbMgmSession *s, int *len);
+int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id, struct NdbMgmSession *s,
+                        int *len);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

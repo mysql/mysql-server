@@ -30,32 +30,31 @@
 /* Ndb include files */
 #include <NdbOut.hpp>
 
-static
-const char* rcodeToChar(int rcode){
-  switch (rcode){
-  case NDBT_OK:
-    return "OK";
-    break;
-  case NDBT_FAILED:
-    return "Failed";
-    break;
-  case NDBT_WRONGARGS:
-    return "Wrong arguments";
-    break;
-  case NDBT_TEMPORARY:
-    return "Temporary error";
-    break;
-  case NDBT_SKIPPED:
-    return "Skipped";
-    break;
-  default:
-    return "Unknown";
-    break;
+static const char *rcodeToChar(int rcode) {
+  switch (rcode) {
+    case NDBT_OK:
+      return "OK";
+      break;
+    case NDBT_FAILED:
+      return "Failed";
+      break;
+    case NDBT_WRONGARGS:
+      return "Wrong arguments";
+      break;
+    case NDBT_TEMPORARY:
+      return "Temporary error";
+      break;
+    case NDBT_SKIPPED:
+      return "Skipped";
+      break;
+    default:
+      return "Unknown";
+      break;
   }
 }
 
-int NDBT_ProgramExit(int rcode){
-   ndbout_c("\nNDBT_ProgramExit: %d - %s\n", rcode, rcodeToChar(rcode));
-   //   exit(rcode);
-   return rcode;
+int NDBT_ProgramExit(int rcode) {
+  ndbout_c("\nNDBT_ProgramExit: %d - %s\n", rcode, rcodeToChar(rcode));
+  //   exit(rcode);
+  return rcode;
 }

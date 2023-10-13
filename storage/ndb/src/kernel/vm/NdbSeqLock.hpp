@@ -31,10 +31,8 @@
 
 #define JAM_FILE_ID 251
 
-
-#if defined (NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
-struct NdbSeqLock
-{
+#if defined(NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
+struct NdbSeqLock {
   std::atomic<uint32_t> m_seq = 0;
   static_assert(decltype(m_seq)::is_always_lock_free);
 
@@ -45,10 +43,7 @@ struct NdbSeqLock
   bool read_unlock(Uint32 val) const;
 };
 
-inline
-void
-NdbSeqLock::write_lock()
-{
+inline void NdbSeqLock::write_lock() {
   // atomic read not needed but since m_seq is atomic do it relaxed
   Uint32 val = m_seq.load(std::memory_order_relaxed);
   assert((val & 1) == 0);
@@ -57,10 +52,7 @@ NdbSeqLock::write_lock()
   wmb();
 }
 
-inline
-void
-NdbSeqLock::write_unlock()
-{
+inline void NdbSeqLock::write_unlock() {
   // atomic read not needed but since m_seq is atomic do it relaxed
   Uint32 val = m_seq.load(std::memory_order_relaxed);
   assert((val & 1) == 1);
@@ -69,15 +61,11 @@ NdbSeqLock::write_unlock()
   m_seq.store(val, std::memory_order_relaxed);
 }
 
-inline
-Uint32
-NdbSeqLock::read_lock()
-{
+inline Uint32 NdbSeqLock::read_lock() {
 loop:
   Uint32 val = m_seq.load(std::memory_order_relaxed);
   rmb();
-  if (unlikely(val & 1))
-  {
+  if (unlikely(val & 1)) {
 #ifdef NDB_HAVE_CPU_PAUSE
     cpu_pause();
 #endif
@@ -86,10 +74,7 @@ loop:
   return val;
 }
 
-inline
-bool
-NdbSeqLock::read_unlock(Uint32 val) const
-{
+inline bool NdbSeqLock::read_unlock(Uint32 val) const {
   rmb();
   return val == m_seq.load(std::memory_order_relaxed);
 }
@@ -98,19 +83,17 @@ NdbSeqLock::read_unlock(Uint32 val) const
  * Only for ndbd...
  */
 
-struct NdbSeqLock
-{
-  NdbSeqLock() { }
+struct NdbSeqLock {
+  NdbSeqLock() {}
 
   void write_lock() {}
   void write_unlock() {}
 
   Uint32 read_lock() { return 0; }
-  bool read_unlock(Uint32 val) const { return true;}
+  bool read_unlock(Uint32 val) const { return true; }
 };
 
 #endif
-
 
 #undef JAM_FILE_ID
 

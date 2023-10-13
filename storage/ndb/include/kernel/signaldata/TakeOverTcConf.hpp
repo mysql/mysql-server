@@ -29,8 +29,7 @@
 
 #define JAM_FILE_ID 515
 
-class TakeOverTcConf
-{
+class TakeOverTcConf {
   /* Sender */
   friend class Dbtc;
   friend class DbtcProxy;
@@ -40,8 +39,8 @@ class TakeOverTcConf
   friend class Dbtc;
   friend class DbtcProxy;
 
-  static constexpr Uint32 SignalLength_v8_0_17 = 2; // Last use in 8.0.17
-  static constexpr Uint32 SignalLength = 3; // In use since 8.0.18
+  static constexpr Uint32 SignalLength_v8_0_17 = 2;  // Last use in 8.0.17
+  static constexpr Uint32 SignalLength = 3;          // In use since 8.0.18
 
   Uint32 failedNode;
   Uint32 senderRef;

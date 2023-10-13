@@ -29,17 +29,16 @@
 
 #define JAM_FILE_ID 202
 
-
 /**
- * 
- * SENDER:  
+ *
+ * SENDER:
  * RECIVER: Ndbfs
  */
 class FsCloseReq {
   /**
    * Reciver(s)
    */
-  friend class Ndbfs;         // Reciver
+  friend class Ndbfs;  // Reciver
   friend class VoidFs;
   friend class Lgman;
   friend class Tsman;
@@ -57,49 +56,42 @@ class FsCloseReq {
   /**
    * For printing
    */
-  friend bool printFSCLOSEREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printFSCLOSEREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                              Uint16 receiverBlockNo);
 
-public:
+ public:
   /**
    * Length of signal
    */
   static constexpr Uint32 SignalLength = 4;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
 
-  UintR filePointer;          // DATA 0
-  UintR userReference;        // DATA 1
-  UintR userPointer;          // DATA 2
-  UintR fileFlag;             // DATA 3
+  UintR filePointer;    // DATA 0
+  UintR userReference;  // DATA 1
+  UintR userPointer;    // DATA 2
+  UintR fileFlag;       // DATA 3
 
-  static bool  getRemoveFileFlag(const UintR & fileflag);
-  static void setRemoveFileFlag(UintR & fileflag, bool removefile);
-
+  static bool getRemoveFileFlag(const UintR &fileflag);
+  static void setRemoveFileFlag(UintR &fileflag, bool removefile);
 };
 
 DECLARE_SIGNAL_SCOPE(GSN_FSCLOSEREQ, Local);
 
-inline
-bool 
-FsCloseReq::getRemoveFileFlag(const UintR & fileflag){
+inline bool FsCloseReq::getRemoveFileFlag(const UintR &fileflag) {
   return (fileflag == 1);
 }
 
-inline
-void
-FsCloseReq::setRemoveFileFlag(UintR & fileflag, bool removefile){
-//  ASSERT_BOOL(removefile, "FsCloseReq::setRemoveFileFlag");
+inline void FsCloseReq::setRemoveFileFlag(UintR &fileflag, bool removefile) {
+  //  ASSERT_BOOL(removefile, "FsCloseReq::setRemoveFileFlag");
   if (removefile)
     fileflag = 1;
   else
     fileflag = 0;
 }
-
-
 
 #undef JAM_FILE_ID
 

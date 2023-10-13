@@ -30,8 +30,7 @@
 #define JAM_FILE_ID 496
 
 /* Head of a List implemented using Segmented Sections */
-struct SegmentListHead
-{
+struct SegmentListHead {
   SegmentListHead();
 
   Uint32 headPtr;
@@ -81,18 +80,17 @@ struct SegmentListHead
  * A list can be treated as a long section, as the size value includes the valid
  * data and the offset.
  *
- * The complexities of per-thread segment caches are hidden using the SegmentUtils
- * abstraction.
+ * The complexities of per-thread segment caches are hidden using the
+ * SegmentUtils abstraction.
  */
-class LocalSegmentList
-{
-private:
-  SegmentListHead& m_headRef;
-  SegmentUtils& m_segmentUtils;
+class LocalSegmentList {
+ private:
+  SegmentListHead &m_headRef;
+  SegmentUtils &m_segmentUtils;
 
   Uint32 m_headVal;
 
-public:
+ public:
   /* This is a 'local handle' class which is used to work on
    * a SegmentList, which is normally represented with just
    * a single segment IVal.
@@ -101,20 +99,19 @@ public:
    * The destructor writes the (new) queue head back into the
    * SegmentListHead object.
    */
-  LocalSegmentList(SegmentListHead& headRef,
-                   SegmentUtils& segmentUtils);
+  LocalSegmentList(SegmentListHead &headRef, SegmentUtils &segmentUtils);
 
   ~LocalSegmentList();
 
   /* Enqueue len 32 bit words onto the tail of the queue from
    * the src pointer.
    */
-  bool enqWords(const Uint32* src, Uint32 len);
+  bool enqWords(const Uint32 *src, Uint32 len);
 
   /* Dequeue len 32 bit words from the head of the queue to
    * the dst pointer.
    */
-  bool deqWords(Uint32* dst, Uint32 len);
+  bool deqWords(Uint32 *dst, Uint32 len);
 
   /**
    * TODO
@@ -133,13 +130,12 @@ public:
   /* Get the length of the queue in 32 bit words */
   Uint32 getLen() const;
 
-private:
+ private:
   bool verify() const;
   // copy ops are private to prevent copying
-  LocalSegmentList(const LocalSegmentList&); // no implementation
-  LocalSegmentList& operator= (const LocalSegmentList&); // no implementation
+  LocalSegmentList(const LocalSegmentList &);             // no implementation
+  LocalSegmentList &operator=(const LocalSegmentList &);  // no implementation
 };
-
 
 /**
  * SegmentSubPool
@@ -149,11 +145,10 @@ private:
  * This can be useful for 'reserving' a certain number of segments
  * for a particular usage.
  */
-class SegmentSubPool :
-  public SegmentUtils /* Implements SegmentUtils Api */
+class SegmentSubPool : public SegmentUtils /* Implements SegmentUtils Api */
 {
-public:
-  explicit SegmentSubPool(SegmentUtils& parentPool);
+ public:
+  explicit SegmentSubPool(SegmentUtils &parentPool);
   ~SegmentSubPool() override;
 
   /**
@@ -164,13 +159,12 @@ public:
    * Separate from the constructor to allow delayed initialisation
    * of the parent pool.
    */
-  bool init(Uint32 minSegments,
-            Uint32 maxSegments);
+  bool init(Uint32 minSegments, Uint32 maxSegments);
 
   /* SegmentUtils Api */
-  SectionSegment* getSegmentPtr(Uint32 iVal) override;
-  virtual void getSegmentPtr(Ptr<SectionSegment>& p, Uint32 iVal);
-  bool seizeSegment(Ptr<SectionSegment>& p) override;
+  SectionSegment *getSegmentPtr(Uint32 iVal) override;
+  virtual void getSegmentPtr(Ptr<SectionSegment> &p, Uint32 iVal);
+  bool seizeSegment(Ptr<SectionSegment> &p) override;
   void releaseSegment(Uint32 iVal) override;
 
   /* Release a section (ll of segments with size) */
@@ -184,10 +178,7 @@ public:
    * (seized from parent, and in freelist or given
    * to pool users)
    */
-  Uint32 getNumOwned() const
-  {
-    return m_numOwned;
-  }
+  Uint32 getNumOwned() const { return m_numOwned; }
 
   /**
    * getNumAvailable
@@ -195,15 +186,12 @@ public:
    * Returns number of segments available without
    * requiring seize from the parent pool
    */
-  Uint32 getNumAvailable() const
-  {
-    return m_numAvailable;
-  }
+  Uint32 getNumAvailable() const { return m_numAvailable; }
 
-private:
+ private:
   bool checkInvariants();
 
-  SegmentUtils& m_parentPool;
+  SegmentUtils &m_parentPool;
   Uint32 m_minSegments;
   Uint32 m_maxSegments;
   Uint32 m_numOwned;
@@ -211,10 +199,9 @@ private:
   Uint32 m_firstFree;
 
   // copy ops are private to prevent copying
-  SegmentSubPool(SegmentSubPool&); // no implementation
-  SegmentSubPool & operator= (const SegmentSubPool&); // no implementation
+  SegmentSubPool(SegmentSubPool &);                   // no implementation
+  SegmentSubPool &operator=(const SegmentSubPool &);  // no implementation
 };
-
 
 #undef JAM_FILE_ID
 

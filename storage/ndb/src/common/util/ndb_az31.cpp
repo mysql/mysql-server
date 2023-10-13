@@ -23,33 +23,28 @@
 #include "util/ndb_az31.h"
 
 const ndb_az31::byte ndb_az31::header[512] = {
-  254,  3,  1, 16,  0,  0,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,
+    254, 3, 1, 16, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0, 2, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 };
 
-int ndb_az31::write_header(output_iterator* out)
-{
-  if (out->size() < sizeof(header))
-    return need_more_input;
+int ndb_az31::write_header(output_iterator *out) {
+  if (out->size() < sizeof(header)) return need_more_input;
   memcpy(out->begin(), header, sizeof(header));
   out->advance(sizeof(header));
   return 0;
 }
 
-int ndb_az31::write_trailer(output_iterator* out, int pad_len, output_iterator* extra) const
-{
-  if (!m_have_data_size)
-    return -1;
-  if (!m_have_data_crc32)
-    return -1;
+int ndb_az31::write_trailer(output_iterator *out, int pad_len,
+                            output_iterator *extra) const {
+  if (!m_have_data_size) return -1;
+  if (!m_have_data_crc32) return -1;
 
-  if (pad_len < 0 || pad_len >= 512)
-    return -1;
+  if (pad_len < 0 || pad_len >= 512) return -1;
 
-  if (out->size() + (extra == nullptr ? 0 : extra->size()) < size_t{12} + pad_len)
+  if (out->size() + (extra == nullptr ? 0 : extra->size()) <
+      size_t{12} + pad_len)
     return have_more_output;
 
   byte trailer[12 + 512];
@@ -73,54 +68,41 @@ int ndb_az31::write_trailer(output_iterator* out, int pad_len, output_iterator* 
   memcpy(out->begin(), trailer, out_trailer_len);
   out->advance(out_trailer_len);
   out->set_last();
-  if (out_trailer_len < trailer_len)
-  {
+  if (out_trailer_len < trailer_len) {
     require(extra != nullptr);
-    memcpy(extra->begin(), trailer + out_trailer_len, trailer_len - out_trailer_len);
+    memcpy(extra->begin(), trailer + out_trailer_len,
+           trailer_len - out_trailer_len);
     extra->advance(trailer_len - out_trailer_len);
     extra->set_last();
   }
   return 0;
 }
 
-int ndb_az31::detect_header(const input_iterator* in)
-{
-  if (in->size() < 3)
-    return in->last() ? -1 : need_more_input;
-  if (memcmp(in->cbegin(), header, 3) != 0)
-    return -1;
+int ndb_az31::detect_header(const input_iterator *in) {
+  if (in->size() < 3) return in->last() ? -1 : need_more_input;
+  if (memcmp(in->cbegin(), header, 3) != 0) return -1;
   return 0;
 }
 
-int ndb_az31::read_header(input_iterator* in)
-{
-  if (in->size() < sizeof(header))
-    return in->last() ? -1 : need_more_input;
-  if (memcmp(in->cbegin(), header, sizeof(header)) != 0)
-    return -1;
+int ndb_az31::read_header(input_iterator *in) {
+  if (in->size() < sizeof(header)) return in->last() ? -1 : need_more_input;
+  if (memcmp(in->cbegin(), header, sizeof(header)) != 0) return -1;
   in->advance(sizeof(header));
   return 0;
 }
 
-int ndb_az31::read_trailer(input_reverse_iterator* in)
-{
-  const byte* pbeg = in->cend();
-  const byte* pend = in->cbegin();
+int ndb_az31::read_trailer(input_reverse_iterator *in) {
+  const byte *pbeg = in->cend();
+  const byte *pend = in->cbegin();
   while (pbeg < pend && pend[-1] == 0) pend--;
-  if (pend - pbeg < 12)
-    return -1;
+  if (pend - pbeg < 12) return -1;
   pend -= 12;
-  if (memcmp(pend + 8, "DBDN", 4) != 0)
-    return -1;
-  m_data_size = Uint32(pend[4]) |
-                (Uint32(pend[5]) << 8) |
-                (Uint32(pend[6]) << 16) |
-                (Uint32(pend[7]) << 24);
+  if (memcmp(pend + 8, "DBDN", 4) != 0) return -1;
+  m_data_size = Uint32(pend[4]) | (Uint32(pend[5]) << 8) |
+                (Uint32(pend[6]) << 16) | (Uint32(pend[7]) << 24);
   m_have_data_size = true;
-  m_data_crc32 = Uint32(pend[0]) |
-                 (Uint32(pend[1]) << 8) |
-                 (Uint32(pend[2]) << 16) |
-                 (Uint32(pend[3]) << 24);
+  m_data_crc32 = Uint32(pend[0]) | (Uint32(pend[1]) << 8) |
+                 (Uint32(pend[2]) << 16) | (Uint32(pend[3]) << 24);
   m_have_data_crc32 = true;
   in->advance(in->cbegin() - pend);
   return 0;

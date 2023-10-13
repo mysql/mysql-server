@@ -22,45 +22,38 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "NdbInfo.hpp"
 #include "NdbInfoScanNodes.hpp"
-#include "SignalSender.hpp"
 #include <kernel/GlobalSignalNumbers.h>
 #include <AttributeHeader.hpp>
 #include <signaldata/DbinfoScan.hpp>
-#include <signaldata/TransIdAI.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include "NdbInfo.hpp"
+#include "SignalSender.hpp"
 
-NdbInfoScanNodes::NdbInfoScanNodes(Ndb_cluster_connection* connection,
-                                   const NdbInfo::Table* table,
-                                   Uint32 max_rows, Uint32 max_bytes,
-                                   Uint32 max_nodes) :
-  m_state(Undefined),
-  m_connection(connection),
-  m_signal_sender(nullptr),
-  m_table(table),
-  m_recAttrs(table->columns()),
-  m_node_id(0),
-  m_max_rows(max_rows),
-  m_max_bytes(max_bytes),
-  m_result_data(0x37),
-  m_rows_received(0),
-  m_rows_confirmed(0),
-  m_nodes(0),
-  m_max_nodes(max_nodes)
-{
-}
+NdbInfoScanNodes::NdbInfoScanNodes(Ndb_cluster_connection *connection,
+                                   const NdbInfo::Table *table, Uint32 max_rows,
+                                   Uint32 max_bytes, Uint32 max_nodes)
+    : m_state(Undefined),
+      m_connection(connection),
+      m_signal_sender(nullptr),
+      m_table(table),
+      m_recAttrs(table->columns()),
+      m_node_id(0),
+      m_max_rows(max_rows),
+      m_max_bytes(max_bytes),
+      m_result_data(0x37),
+      m_rows_received(0),
+      m_rows_confirmed(0),
+      m_nodes(0),
+      m_max_nodes(max_nodes) {}
 
-int
-NdbInfoScanNodes::init(Uint32 id)
-{
+int NdbInfoScanNodes::init(Uint32 id) {
   DBUG_ENTER("NdbInfoScanNodes::init");
-  if (m_state != Undefined)
-    DBUG_RETURN(NdbInfo::ERR_WrongState);
+  if (m_state != Undefined) DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   m_signal_sender = new SignalSender(m_connection);
-  if (!m_signal_sender)
-    DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
+  if (!m_signal_sender) DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
 
   m_transid0 = id;
   m_transid1 = m_table->getTableId();
@@ -71,64 +64,43 @@ NdbInfoScanNodes::init(Uint32 id)
     connected and have been API_REGCONFed. Don't include
     own node since it will always be "connected"
   */
-  for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
-    m_nodes_to_scan.set(i);
+  for (Uint32 i = 1; i < MAX_NDB_NODES; i++) m_nodes_to_scan.set(i);
   m_nodes_to_scan.clear(refToNode(m_result_ref));
 
   m_state = Initial;
   DBUG_RETURN(NdbInfo::ERR_NoError);
-
 }
 
-NdbInfoScanNodes::~NdbInfoScanNodes()
-{
-  delete m_signal_sender;
-}
+NdbInfoScanNodes::~NdbInfoScanNodes() { delete m_signal_sender; }
 
-int
-NdbInfoScanNodes::readTuples()
-{
-  if (m_state != Initial)
-    return NdbInfo::ERR_WrongState;
+int NdbInfoScanNodes::readTuples() {
+  if (m_state != Initial) return NdbInfo::ERR_WrongState;
 
   m_state = Prepared;
   return 0;
 }
 
-const NdbInfoRecAttr *
-NdbInfoScanNodes::getValue(const char * anAttrName)
-{
-  if (m_state != Prepared)
-    return nullptr;
+const NdbInfoRecAttr *NdbInfoScanNodes::getValue(const char *anAttrName) {
+  if (m_state != Prepared) return nullptr;
 
-  const NdbInfo::Column* column = m_table->getColumn(anAttrName);
-  if (!column)
-    return nullptr;
+  const NdbInfo::Column *column = m_table->getColumn(anAttrName);
+  if (!column) return nullptr;
   return getValue(column->m_column_id);
 }
 
-const NdbInfoRecAttr *
-NdbInfoScanNodes::getValue(Uint32 anAttrId)
-{
-  if (m_state != Prepared)
-    return nullptr;
+const NdbInfoRecAttr *NdbInfoScanNodes::getValue(Uint32 anAttrId) {
+  if (m_state != Prepared) return nullptr;
 
-  if (anAttrId >= m_table->columns())
-    return nullptr;
+  if (anAttrId >= m_table->columns()) return nullptr;
 
   return m_recAttrs.get_value(anAttrId);
 }
 
-
-bool
-NdbInfoScanNodes::find_next_node()
-{
+bool NdbInfoScanNodes::find_next_node() {
   DBUG_ENTER("NdbInfoScanNodes::find_next_node");
 
-  const NodeId next =
-    m_signal_sender->find_confirmed_node(m_nodes_to_scan);
-  if (next == 0)
-  {
+  const NodeId next = m_signal_sender->find_confirmed_node(m_nodes_to_scan);
+  if (next == 0) {
     DBUG_PRINT("info", ("no more alive nodes"));
     DBUG_RETURN(false);
   }
@@ -139,8 +111,7 @@ NdbInfoScanNodes::find_next_node()
 
   // Check if number of nodes to scan is limited
   DBUG_PRINT("info", ("nodes: %d, max_nodes: %d", m_nodes, m_max_nodes));
-  if (m_max_nodes && m_nodes > m_max_nodes)
-  {
+  if (m_max_nodes && m_nodes > m_max_nodes) {
     DBUG_PRINT("info", ("Reached max nodes to scan"));
     DBUG_RETURN(false);
   }
@@ -149,23 +120,19 @@ NdbInfoScanNodes::find_next_node()
   DBUG_RETURN(true);
 }
 
-
-int NdbInfoScanNodes::execute()
-{
+int NdbInfoScanNodes::execute() {
   DBUG_ENTER("NdbInfoScanNodes::execute");
-  DBUG_PRINT("info", ("name: '%s', id: %d",
-             m_table->getName(), m_table->getTableId()));
+  DBUG_PRINT("info",
+             ("name: '%s', id: %d", m_table->getName(), m_table->getTableId()));
 
-  if (m_state != Prepared)
-    DBUG_RETURN(NdbInfo::ERR_WrongState);
+  if (m_state != Prepared) DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   assert(m_cursor.size() == 0);
   m_state = MoreData;
 
   m_signal_sender->lock();
 
-  if (!find_next_node())
-  {
+  if (!find_next_node()) {
     m_signal_sender->unlock();
     DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
   }
@@ -176,13 +143,11 @@ int NdbInfoScanNodes::execute()
   DBUG_RETURN(ret);
 }
 
-int
-NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
-{
+int NdbInfoScanNodes::sendDBINFO_SCANREQ(void) {
   DBUG_ENTER("NdbInfoScanNodes::sendDBINFO_SCANREQ");
 
   SimpleSignal ss;
-  DbinfoScanReq * req = CAST_PTR(DbinfoScanReq, ss.getDataPtrSend());
+  DbinfoScanReq *req = CAST_PTR(DbinfoScanReq, ss.getDataPtrSend());
 
   // API Identifiers
   req->resultData = m_result_data;
@@ -203,9 +168,8 @@ NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
   req->returnedRows = 0;
 
   // Cursor data
-  Uint32* cursor_ptr = DbinfoScan::getCursorPtrSend(req);
-  for (unsigned i = 0; i < m_cursor.size(); i++)
-  {
+  Uint32 *cursor_ptr = DbinfoScan::getCursorPtrSend(req);
+  for (unsigned i = 0; i < m_cursor.size(); i++) {
     *cursor_ptr = m_cursor[i];
     DBUG_PRINT("info", ("cursor[%u]: 0x%x", i, m_cursor[i]));
     cursor_ptr++;
@@ -213,8 +177,8 @@ NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
   req->cursor_sz = m_cursor.size();
   m_cursor.clear();
 
-  assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) || // first
-         m_rows_received == m_rows_confirmed);                       // subsequent
+  assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) ||  // first
+         m_rows_received == m_rows_confirmed);  // subsequent
 
   // No rows received in this batch yet
   m_rows_received = 0;
@@ -224,9 +188,8 @@ NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
 
   assert(m_node_id);
   Uint32 len = DbinfoScanReq::SignalLength + req->cursor_sz;
-  if (m_signal_sender->sendSignal(m_node_id, ss, DBINFO,
-                                  GSN_DBINFO_SCANREQ, len) != SEND_OK)
-  {
+  if (m_signal_sender->sendSignal(m_node_id, ss, DBINFO, GSN_DBINFO_SCANREQ,
+                                  len) != SEND_OK) {
     m_state = Error;
     DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
   }
@@ -234,182 +197,154 @@ NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
   DBUG_RETURN(0);
 }
 
-int NdbInfoScanNodes::receive(void)
-{
+int NdbInfoScanNodes::receive(void) {
   DBUG_ENTER("NdbInfoScanNodes::receive");
-  while (true)
-  {
-    const SimpleSignal* sig = m_signal_sender->waitFor();
-    if (!sig)
-      DBUG_RETURN(-1);
-    //sig->print();
+  while (true) {
+    const SimpleSignal *sig = m_signal_sender->waitFor();
+    if (!sig) DBUG_RETURN(-1);
+    // sig->print();
 
     int sig_number = sig->readSignalNumber();
     switch (sig_number) {
+      case GSN_DBINFO_TRANSID_AI: {
+        if (execDBINFO_TRANSID_AI(sig)) continue;  // Wait for next signal
 
-    case GSN_DBINFO_TRANSID_AI:
-    {
-      if (execDBINFO_TRANSID_AI(sig))
-        continue;  // Wait for next signal
+        if (m_rows_received < m_rows_confirmed)
+          DBUG_RETURN(1);  // Row available
 
-      if (m_rows_received < m_rows_confirmed)
-        DBUG_RETURN(1); // Row available
+        // All rows in this batch received
+        assert(m_rows_received == m_rows_confirmed);
 
-      // All rows in this batch received
-      assert(m_rows_received == m_rows_confirmed);
+        if (m_cursor.size() == 0 && !find_next_node()) {
+          DBUG_PRINT("info", ("No cursor -> EOF"));
+          m_state = End;
+          DBUG_RETURN(1);  // Row available(will get End on next 'nextResult')
+        }
 
-      if (m_cursor.size() == 0 && !find_next_node())
-      {
-        DBUG_PRINT("info", ("No cursor -> EOF"));
-        m_state = End;
-        DBUG_RETURN(1); // Row available(will get End on next 'nextResult')
+        // Cursor is still set, fetch more rows
+        assert(m_state == MoreData);
+        int err = sendDBINFO_SCANREQ();
+        if (err != 0) {
+          DBUG_PRINT("error", ("Failed to request more data"));
+          assert(m_state == Error);
+          // Return error immediately
+          DBUG_RETURN(err);
+        }
+
+        DBUG_RETURN(1);  // Row available
+        break;
       }
 
-      // Cursor is still set, fetch more rows
-      assert(m_state == MoreData);
-      int err = sendDBINFO_SCANREQ();
-      if (err != 0)
-      {
-        DBUG_PRINT("error", ("Failed to request more data"));
+      case GSN_DBINFO_SCANCONF: {
+        if (execDBINFO_SCANCONF(sig)) continue;  // Wait for next signal
+
+        if (m_rows_received < m_rows_confirmed)
+          continue;  // Continue waiting(for late TRANSID_AI signals)
+
+        // All rows in this batch received
+        assert(m_rows_received == m_rows_confirmed);
+
+        if (m_cursor.size() == 0 && !find_next_node()) {
+          DBUG_PRINT("info", ("No cursor -> EOF"));
+          m_state = End;
+          DBUG_RETURN(0);  // No more rows
+        }
+
+        // Cursor is still set, fetch more rows
+        assert(m_state == MoreData);
+        int err = sendDBINFO_SCANREQ();
+        if (err != 0) {
+          DBUG_PRINT("error", ("Failed to request more data"));
+          assert(m_state == Error);
+          DBUG_RETURN(err);
+        }
+
+        continue;
+      }
+
+      case GSN_DBINFO_SCANREF: {
+        int error;
+        if (execDBINFO_SCANREF(sig, error)) continue;  // Wait for next signal
         assert(m_state == Error);
-        // Return error immediately
-        DBUG_RETURN(err);
+        DBUG_RETURN(error);
+        break;
       }
 
-      DBUG_RETURN(1); // Row available
-      break;
-    }
-
-    case GSN_DBINFO_SCANCONF:
-    {
-      if (execDBINFO_SCANCONF(sig))
-        continue; // Wait for next signal
-
-      if (m_rows_received < m_rows_confirmed)
-        continue;  // Continue waiting(for late TRANSID_AI signals)
-
-      // All rows in this batch received
-      assert(m_rows_received == m_rows_confirmed);
-
-      if (m_cursor.size() == 0 && !find_next_node())
-      {
-        DBUG_PRINT("info", ("No cursor -> EOF"));
-        m_state = End;
-        DBUG_RETURN(0); // No more rows
+      case GSN_NODE_FAILREP: {
+        const NodeFailRep *const rep =
+            CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
+        Uint32 len = NodeFailRep::getNodeMaskLength(sig->getLength());
+        const Uint32 *nbm;
+        if (sig->header.m_noOfSections >= 1) {
+          assert(len == 0);
+          nbm = sig->ptr[0].p;
+          len = sig->ptr[0].sz;
+        } else {
+          assert(len == NodeBitmask::Size);  // only full length in ndbapi
+          nbm = rep->theAllNodes;
+        }
+        if (BitmaskImpl::safe_get(len, nbm, m_node_id)) {
+          DBUG_PRINT("info",
+                     ("Node %d where scan was runnig failed", m_node_id));
+          m_state = Error;
+          DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
+        }
+        break;
       }
 
-      // Cursor is still set, fetch more rows
-      assert(m_state == MoreData);
-      int err = sendDBINFO_SCANREQ();
-      if (err != 0)
-      {
-        DBUG_PRINT("error", ("Failed to request more data"));
-        assert(m_state == Error);
-        DBUG_RETURN(err);
-      }
+      case GSN_NF_COMPLETEREP:
+        // Already handled in NODE_FAILREP
+        break;
 
-      continue;
-    }
+      case GSN_SUB_GCP_COMPLETE_REP:
+      case GSN_API_REGCONF:
+      case GSN_TAKE_OVERTCCONF:
+      case GSN_CONNECT_REP:
+        // ignore
+        break;
 
-    case GSN_DBINFO_SCANREF:
-    {
-      int error;
-      if (execDBINFO_SCANREF(sig, error))
-        continue; // Wait for next signal
-      assert(m_state == Error);
-      DBUG_RETURN(error);
-      break;
-    }
-
-    case GSN_NODE_FAILREP:
-    {
-      const NodeFailRep * const rep =
-        CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
-      Uint32 len = NodeFailRep::getNodeMaskLength(sig->getLength());
-      const Uint32* nbm;
-      if (sig->header.m_noOfSections >= 1)
-      {
-        assert (len == 0);
-        nbm = sig->ptr[0].p;
-        len = sig->ptr[0].sz;
-      }
-      else
-      {
-        assert(len == NodeBitmask::Size); // only full length in ndbapi
-        nbm = rep->theAllNodes;
-      }
-      if (BitmaskImpl::safe_get(len, nbm, m_node_id))
-      {
-        DBUG_PRINT("info", ("Node %d where scan was runnig failed", m_node_id));
-        m_state = Error;
-        DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
-      }
-      break;
-    }
-
-    case GSN_NF_COMPLETEREP:
-      // Already handled in NODE_FAILREP
-      break;
-
-    case GSN_SUB_GCP_COMPLETE_REP:
-    case GSN_API_REGCONF:
-    case GSN_TAKE_OVERTCCONF:
-    case GSN_CONNECT_REP:
-      // ignore
-      break;
-
-    default:
-      DBUG_PRINT("error", ("Got unexpected signal: %d", sig_number));
-      assert(false);
-      break;
+      default:
+        DBUG_PRINT("error", ("Got unexpected signal: %d", sig_number));
+        assert(false);
+        break;
     }
   }
-  assert(false); // Should never come here
+  assert(false);  // Should never come here
   DBUG_RETURN(-1);
 }
 
-int
-NdbInfoScanNodes::nextResult()
-{
+int NdbInfoScanNodes::nextResult() {
   DBUG_ENTER("NdbInfoScanNodes::nextResult");
 
-  switch(m_state)
-  {
-  case MoreData:
-  {
-    m_signal_sender->lock();
-    int ret = receive();
-    m_signal_sender->unlock();
-    DBUG_RETURN(ret);
-    break;
-  }
-  case End:
-    DBUG_RETURN(0); // EOF
-    break;
-  default:
-    break;
+  switch (m_state) {
+    case MoreData: {
+      m_signal_sender->lock();
+      int ret = receive();
+      m_signal_sender->unlock();
+      DBUG_RETURN(ret);
+      break;
+    }
+    case End:
+      DBUG_RETURN(0);  // EOF
+      break;
+    default:
+      break;
   }
   DBUG_RETURN(-1);
 }
 
-bool NdbInfoScanNodes::seek(NdbInfoScanOperation::Seek, int)
-{
+bool NdbInfoScanNodes::seek(NdbInfoScanOperation::Seek, int) {
   assert(false);
   return false;
 }
 
-bool
-NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
-{
+bool NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal *signal) {
   DBUG_ENTER("NdbInfoScanNodes::execDBINFO_TRANSID_AI");
-  const TransIdAI* transid =
-          CAST_CONSTPTR(TransIdAI, signal->getDataPtr());
+  const TransIdAI *transid = CAST_CONSTPTR(TransIdAI, signal->getDataPtr());
   if (transid->connectPtr != m_result_data ||
-      transid->transId[0] != m_transid0 ||
-      transid->transId[1] != m_transid1)
-  {
+      transid->transId[0] != m_transid0 || transid->transId[1] != m_transid1) {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(true); // Continue waiting
+    DBUG_RETURN(true);  // Continue waiting
   }
 
   m_rows_received++;
@@ -419,44 +354,33 @@ NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   m_recAttrs.reset_recattrs();
 
   // Read attributes from long signal section
-  const AttributeHeader* attr = (const AttributeHeader*)signal->ptr[0].p;
-  const AttributeHeader* last =
-      (const AttributeHeader*)(signal->ptr[0].p + signal->ptr[0].sz);
-  while (attr < last)
-  {
+  const AttributeHeader *attr = (const AttributeHeader *)signal->ptr[0].p;
+  const AttributeHeader *last =
+      (const AttributeHeader *)(signal->ptr[0].p + signal->ptr[0].sz);
+  while (attr < last) {
     const Uint32 col = attr->getAttributeId();
     const Uint32 len = attr->getByteSize();
     DBUG_PRINT("info", ("col: %u, len: %u", col, len));
-    if (col < m_table->columns())
-    {
-      if (m_recAttrs.is_requested(col))
-      {
+    if (col < m_table->columns()) {
+      if (m_recAttrs.is_requested(col)) {
         // Update NdbInfoRecAttr pointer, length and defined flag
-        m_recAttrs.set_recattr(col,
-                               (const char*)attr->getDataPtr(),
-                               len);
+        m_recAttrs.set_recattr(col, (const char *)attr->getDataPtr(), len);
       }
     }
 
     attr = attr->getNext();
   }
 
-  DBUG_RETURN(false); // Don't wait more, process this row
+  DBUG_RETURN(false);  // Don't wait more, process this row
 }
 
-bool
-NdbInfoScanNodes::execDBINFO_SCANCONF(const SimpleSignal * sig)
-{
+bool NdbInfoScanNodes::execDBINFO_SCANCONF(const SimpleSignal *sig) {
   DBUG_ENTER("NdbInfoScanNodes::execDBINFO_SCANCONF");
-  const DbinfoScanConf* conf =
-          CAST_CONSTPTR(DbinfoScanConf, sig->getDataPtr());
-  if (conf->resultData != m_result_data ||
-      conf->transId[0] != m_transid0 ||
-      conf->transId[1] != m_transid1 ||
-      conf->resultRef != m_result_ref)
-  {
+  const DbinfoScanConf *conf = CAST_CONSTPTR(DbinfoScanConf, sig->getDataPtr());
+  if (conf->resultData != m_result_data || conf->transId[0] != m_transid0 ||
+      conf->transId[1] != m_transid1 || conf->resultRef != m_result_ref) {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(true); // Continue waiting
+    DBUG_RETURN(true);  // Continue waiting
   }
   assert(conf->tableId == m_table->getTableId());
 
@@ -472,40 +396,34 @@ NdbInfoScanNodes::execDBINFO_SCANCONF(const SimpleSignal * sig)
   // Save cursor data
   DBUG_PRINT("info", ("cursor size: %d", conf->cursor_sz));
   assert(m_cursor.size() == 0);
-  const Uint32* cursor_ptr = DbinfoScan::getCursorPtr(conf);
-  for (unsigned i = 0; i < conf->cursor_sz; i++)
-  {
+  const Uint32 *cursor_ptr = DbinfoScan::getCursorPtr(conf);
+  for (unsigned i = 0; i < conf->cursor_sz; i++) {
     m_cursor.push_back(*cursor_ptr);
-    //DBUG_PRINT("info", ("cursor[%u]: 0x%x", i, m_cursor[i]));
+    // DBUG_PRINT("info", ("cursor[%u]: 0x%x", i, m_cursor[i]));
     cursor_ptr++;
   }
   assert(conf->cursor_sz == m_cursor.size());
 
-  assert(m_rows_confirmed == (Uint32)~0); // Should've been unknown until now
+  assert(m_rows_confirmed == (Uint32)~0);  // Should've been unknown until now
   m_rows_confirmed = conf->returnedRows;
 
   // Don't allow confirmation of less rows than already been received
-  DBUG_PRINT("info", ("received: %d, confirmed: %d", m_rows_received, m_rows_confirmed));
+  DBUG_PRINT("info", ("received: %d, confirmed: %d", m_rows_received,
+                      m_rows_confirmed));
   assert(m_rows_received <= m_rows_confirmed);
 
   DBUG_RETURN(false);
 }
 
-bool
-NdbInfoScanNodes::execDBINFO_SCANREF(const SimpleSignal * signal,
-                                         int& error_code)
-{
+bool NdbInfoScanNodes::execDBINFO_SCANREF(const SimpleSignal *signal,
+                                          int &error_code) {
   DBUG_ENTER("NdbInfoScanNodes::execDBINFO_SCANREF");
-  const DbinfoScanRef* ref =
-          CAST_CONSTPTR(DbinfoScanRef, signal->getDataPtr());
+  const DbinfoScanRef *ref = CAST_CONSTPTR(DbinfoScanRef, signal->getDataPtr());
 
-  if (ref->resultData != m_result_data ||
-      ref->transId[0] != m_transid0 ||
-      ref->transId[1] != m_transid1 ||
-      ref->resultRef != m_result_ref)
-  {
+  if (ref->resultData != m_result_data || ref->transId[0] != m_transid0 ||
+      ref->transId[1] != m_transid1 || ref->resultRef != m_result_ref) {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(true); // Continue waiting
+    DBUG_RETURN(true);  // Continue waiting
   }
 
   error_code = ref->errorCode;

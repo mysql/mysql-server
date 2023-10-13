@@ -44,79 +44,66 @@
 
 #define GUARD_EXPAND Guard g(m_mutex)
 
-
-NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz, NdbMutex* mutex):
-  m_mutex(mutex),
-  m_expandSize(eSz),
-  m_size(0),
-  m_firstFree(InvalidId),
-  m_lastFree(InvalidId),
-  m_map(nullptr)
-{
+NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz, NdbMutex *mutex)
+    : m_mutex(mutex),
+      m_expandSize(eSz),
+      m_size(0),
+      m_firstFree(InvalidId),
+      m_lastFree(InvalidId),
+      m_map(nullptr) {
   expand(sz);
 #ifdef DEBUG_OBJECTMAP
   g_eventLogger->info("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
 #endif
 }
 
-NdbObjectIdMap::~NdbObjectIdMap()
-{
+NdbObjectIdMap::~NdbObjectIdMap() {
   assert(checkConsistency());
   free(m_map);
   m_map = nullptr;
 }
 
-int NdbObjectIdMap::expand(Uint32 incSize)
-{
+int NdbObjectIdMap::expand(Uint32 incSize) {
   GUARD_EXPAND;
 
   assert(checkConsistency());
-  MapEntry* tmp = nullptr;
+  MapEntry *tmp = nullptr;
   const Uint32 newSize = m_size + incSize;
 #ifdef TEST_MAP_REALLOC
-  //DEBUG: Always move into new memory object, shred old.
-  tmp = (MapEntry*)malloc(newSize * sizeof(MapEntry));
-  if (m_map != NULL)
-  {
+  // DEBUG: Always move into new memory object, shred old.
+  tmp = (MapEntry *)malloc(newSize * sizeof(MapEntry));
+  if (m_map != NULL) {
     memcpy(tmp, m_map, m_size * sizeof(MapEntry));
     memset(m_map, 0x11, m_size * sizeof(MapEntry));
     free(m_map);
   }
 #else
-  tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
+  tmp = (MapEntry *)realloc(m_map, newSize * sizeof(MapEntry));
 #endif
 
-  if (likely(tmp != nullptr))
-  {
+  if (likely(tmp != nullptr)) {
     m_map = tmp;
-    
-    for(Uint32 i = m_size; i < newSize-1; i++)
-    {
-      m_map[i].setNext(i+1);
+
+    for (Uint32 i = m_size; i < newSize - 1; i++) {
+      m_map[i].setNext(i + 1);
     }
     m_firstFree = m_size;
     m_lastFree = newSize - 1;
-    m_map[newSize-1].setNext(InvalidId);
+    m_map[newSize - 1].setNext(InvalidId);
     m_size = newSize;
     assert(checkConsistency());
-  }
-  else
-  {
+  } else {
     g_eventLogger->error("NdbObjectIdMap::expand: realloc(%u*%lu) failed",
-                         newSize, (unsigned long) sizeof(MapEntry));
+                         newSize, (unsigned long)sizeof(MapEntry));
     return -1;
   }
   return 0;
 }
 
-bool NdbObjectIdMap::checkConsistency()
-{
-  if (m_firstFree == InvalidId)
-  {
-    for (Uint32 i = 0; i<m_size; i++)
-    {
-      if (m_map[i].isFree())
-      {
+bool NdbObjectIdMap::checkConsistency() {
+  if (m_firstFree == InvalidId) {
+    for (Uint32 i = 0; i < m_size; i++) {
+      if (m_map[i].isFree()) {
         assert(false);
         return false;
       }
@@ -125,8 +112,7 @@ bool NdbObjectIdMap::checkConsistency()
   }
 
   Uint32 i = m_firstFree;
-  while (m_map[i].getNext() != InvalidId)
-  {
+  while (m_map[i].getNext() != InvalidId) {
     i = m_map[i].getNext();
   }
   assert(i == m_lastFree);

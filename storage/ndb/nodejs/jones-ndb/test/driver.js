@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,26 +24,23 @@
 
 "use strict";
 
-var jones       = require("database-jones"),
-    jonesNdb    = require("jones-ndb"),
-    jonesMysql  = require("jones-mysql"),
-    driver      = require(jones.fs.test_driver),
+var jones = require("database-jones"), jonesNdb = require("jones-ndb"),
+    jonesMysql = require("jones-mysql"), driver = require(jones.fs.test_driver),
     properties;
 
 driver.processCommandLineOptions();
 properties = driver.getConnectionProperties("ndb");
 
-//driver.name is used in summary of results (see jones-test/lib/Result.js)
+// driver.name is used in summary of results (see jones-test/lib/Result.js)
 driver.name = "ndb";
 
 // Setup globals:
 global.test_conn_properties = properties;
-global.mynode               = jones;
-global.adapter              = "ndb";
+global.mynode = jones;
+global.adapter = "ndb";
 
 /* Find and run all tests */
 driver.addSuitesFromDirectory(jones.fs.suites_dir);
 driver.addSuitesFromDirectory(jonesMysql.config.suites_dir);
 driver.addSuitesFromDirectory(jonesNdb.config.suites_dir);
 driver.runAllTests();
-

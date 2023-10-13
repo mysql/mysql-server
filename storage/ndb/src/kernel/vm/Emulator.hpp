@@ -36,12 +36,11 @@
 
 #define JAM_FILE_ID 260
 
-
-extern class  JobTable            globalJobTable;
-extern class  TimeQueue           globalTimeQueue;
-extern class  FastScheduler       globalScheduler;
-extern class  TransporterRegistry globalTransporterRegistry;
-extern struct GlobalData          globalData;
+extern class JobTable globalJobTable;
+extern class TimeQueue globalTimeQueue;
+extern class FastScheduler globalScheduler;
+extern class TransporterRegistry globalTransporterRegistry;
+extern struct GlobalData globalData;
 
 #ifdef VM_TRACE
 extern class SignalLoggerManager globalSignalLoggers;
@@ -58,68 +57,51 @@ extern class SignalLoggerManager globalSignalLoggers;
 
 /**
  * JamEvents are used for recording that control passes a given point int the
- * code, represented by a JAM_FILE_ID value (which uniquely identifies a 
+ * code, represented by a JAM_FILE_ID value (which uniquely identifies a
  * source file, and a line number. The reason for using JAM_FILE_ID rather
  * than the predefined __FILE__ is that is faster to store a 16-bit integer
  * than a pointer. For a description of how to maintain and debug JAM_FILE_IDs,
  * please refer to the comments for jamFileNames in Emulator.cpp.
  */
-class JamEvent
-{
-public:
+class JamEvent {
+ public:
   /**
-   * This method is used for verifying that JAM_FILE_IDs matches the contents 
-   * of the jamFileNames table. The file name may include driectory names, 
+   * This method is used for verifying that JAM_FILE_IDs matches the contents
+   * of the jamFileNames table. The file name may include driectory names,
    * which will be ignored.
    * @returns: true if fileId and pathName matches the jamFileNames table.
    */
-  static bool verifyId(Uint32 fileId, const char* pathName);
+  static bool verifyId(Uint32 fileId, const char *pathName);
 
-  explicit JamEvent()
-    :m_jamVal(0x7fffffff){}
+  explicit JamEvent() : m_jamVal(0x7fffffff) {}
 
   explicit JamEvent(Uint32 fileId, Uint32 lineNo)
-    :m_jamVal(fileId << 16 | lineNo){}
+      : m_jamVal(fileId << 16 | lineNo) {}
 
-  Uint32 getFileId() const
-  {
-    return (m_jamVal >> 16) & 0x7fff;
-  }
+  Uint32 getFileId() const { return (m_jamVal >> 16) & 0x7fff; }
 
   // Get the name of the source file, or NULL if unknown.
-  const char* getFileName() const;
+  const char *getFileName() const;
 
-  Uint32 getLineNo() const
-  {
-    return m_jamVal & 0xffff;
-  }
+  Uint32 getLineNo() const { return m_jamVal & 0xffff; }
 
-  bool isEmpty() const
-  {
-    return m_jamVal == 0x7fffffff;
-  }
+  bool isEmpty() const { return m_jamVal == 0x7fffffff; }
 
   /*
-    True if the next JamEvent is the first in the execution of an incoming 
+    True if the next JamEvent is the first in the execution of an incoming
     signal.
   */
-  bool isEndOfSig() const
-  {
-    return (m_jamVal >> 31) == 1;
-  }
+  bool isEndOfSig() const { return (m_jamVal >> 31) == 1; }
 
   /*
-    Mark this event as the last one before the execution of the next incoming 
+    Mark this event as the last one before the execution of the next incoming
     signal. (We mark the last event before a signal instead of the fist event
     in a signal since this makes jam() more efficient, by eliminating the need
-    to preserve bit 31 in the event that it accesses.) 
+    to preserve bit 31 in the event that it accesses.)
   */
-  void setEndOfSig(bool isEnd)
-  {
-    m_jamVal |= (isEnd << 31);
-  }
+  void setEndOfSig(bool isEnd) { m_jamVal |= (isEnd << 31); }
 
-private:
+ private:
   /*
     Bit 0-15:  line number.
     Bit 16-30: JAM_FILE_ID.
@@ -131,27 +113,25 @@ private:
 /***
  * This is a ring buffer of JamEvents for a thread.
  */
-struct EmulatedJamBuffer
-{
+struct EmulatedJamBuffer {
   // Index of the next entry.
   Uint32 theEmulatedJamIndex;
   JamEvent theEmulatedJam[EMULATED_JAM_SIZE];
 
   // Mark current JamEvent as the last one before processing a new signal.
-  void markEndOfSigExec()
-  {
+  void markEndOfSigExec() {
     const Uint32 eventNo = (theEmulatedJamIndex - 1) & JAM_MASK;
-    theEmulatedJam[eventNo].setEndOfSig(true);    
+    theEmulatedJam[eventNo].setEndOfSig(true);
   }
 };
 
 struct EmulatorData {
-  class Configuration * theConfiguration;
-  class WatchDog      * theWatchDog;
-  class ThreadConfig  * theThreadConfig;
-  class SimBlockList  * theSimBlockList;
-  class SocketServer  * m_socket_server;
-  class Ndbd_mem_manager * m_mem_manager;
+  class Configuration *theConfiguration;
+  class WatchDog *theWatchDog;
+  class ThreadConfig *theThreadConfig;
+  class SimBlockList *theSimBlockList;
+  class SocketServer *m_socket_server;
+  class Ndbd_mem_manager *m_mem_manager;
 
   /**
    * Constructor
@@ -159,12 +139,12 @@ struct EmulatorData {
    *  Sets all the pointers to NULL
    */
   EmulatorData();
-  
+
   /**
    * Create all the objects
    */
   void create();
-  
+
   /**
    * Destroys all the objects
    */
@@ -182,9 +162,8 @@ Uint32 mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
 /**
  * Compute no of pages to be used as job-buffer
  */
-Uint32 compute_jb_pages(struct EmulatorData* ed);
-
+Uint32 compute_jb_pages(struct EmulatorData *ed);
 
 #undef JAM_FILE_ID
 
-#endif 
+#endif

@@ -22,39 +22,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <BlockNames.hpp>
 
 const BlockName BlockNames[] = {
-  { "CMVMI", CMVMI },
-  { "DBACC", DBACC },
-  { "DBDICT", DBDICT },
-  { "DBDIH", DBDIH },
-  { "DBLQH", DBLQH },
-  { "DBTC", DBTC },
-  { "DBTUP", DBTUP },
-  { "NDBFS", NDBFS },
-  { "NDBCNTR", NDBCNTR },
-  { "QMGR", QMGR },
-  { "TRIX", TRIX },
-  { "BACKUP", BACKUP },
-  { "DBUTIL", DBUTIL },
-  { "SUMA", SUMA },
-  { "DBTUX", DBTUX }
-  ,{ "TSMAN", TSMAN}
-  ,{ "LGMAN", LGMAN }
-  ,{ "PGMAN", PGMAN }
-  ,{ "RESTORE", RESTORE }
-  ,{ "DBINFO", DBINFO }
-  ,{ "DBSPJ", DBSPJ }
-  ,{ "THRMAN", THRMAN }
-  ,{ "TRPMAN", TRPMAN }
-  ,{ "DBQLQH", DBQLQH }
-  ,{ "DBQACC", DBQACC }
-  ,{ "DBQTUP", DBQTUP }
-  ,{ "DBQTUX", DBQTUX }
-  ,{ "QBACKUP", QBACKUP }
-  ,{ "QRESTORE", QRESTORE }
-};
+    {"CMVMI", CMVMI},     {"DBACC", DBACC},      {"DBDICT", DBDICT},
+    {"DBDIH", DBDIH},     {"DBLQH", DBLQH},      {"DBTC", DBTC},
+    {"DBTUP", DBTUP},     {"NDBFS", NDBFS},      {"NDBCNTR", NDBCNTR},
+    {"QMGR", QMGR},       {"TRIX", TRIX},        {"BACKUP", BACKUP},
+    {"DBUTIL", DBUTIL},   {"SUMA", SUMA},        {"DBTUX", DBTUX},
+    {"TSMAN", TSMAN},     {"LGMAN", LGMAN},      {"PGMAN", PGMAN},
+    {"RESTORE", RESTORE}, {"DBINFO", DBINFO},    {"DBSPJ", DBSPJ},
+    {"THRMAN", THRMAN},   {"TRPMAN", TRPMAN},    {"DBQLQH", DBQLQH},
+    {"DBQACC", DBQACC},   {"DBQTUP", DBQTUP},    {"DBQTUX", DBQTUX},
+    {"QBACKUP", QBACKUP}, {"QRESTORE", QRESTORE}};
 
 const BlockNumber NO_OF_BLOCK_NAMES = sizeof(BlockNames) / sizeof(BlockName);

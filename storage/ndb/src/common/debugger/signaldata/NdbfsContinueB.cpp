@@ -25,24 +25,21 @@
 
 #include <signaldata/NdbfsContinueB.hpp>
 
-bool printCONTINUEB_NDBFS(FILE* output,
-                          const Uint32* theData,
-                          Uint32 /*len*/,
-                          Uint16)
-{
+bool printCONTINUEB_NDBFS(FILE *output, const Uint32 *theData, Uint32 /*len*/,
+                          Uint16) {
   switch (theData[0]) {
-  case NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY:
-    fprintf(output, " Scanning the memory channel every 10ms\n");
-    return true;
-    break;
-  case NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY:
-    fprintf(output, " Scanning the memory channel again with no delay\n");
-    return true;
-    break;
-  default:
-    fprintf(output, " Default system error lab...\n");
-    return false;
-    break;
-  }//switch
+    case NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY:
+      fprintf(output, " Scanning the memory channel every 10ms\n");
+      return true;
+      break;
+    case NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY:
+      fprintf(output, " Scanning the memory channel again with no delay\n");
+      return true;
+      break;
+    default:
+      fprintf(output, " Default system error lab...\n");
+      return false;
+      break;
+  }  // switch
   return false;
 }

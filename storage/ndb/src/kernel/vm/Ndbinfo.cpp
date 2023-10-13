@@ -23,65 +23,55 @@
 */
 
 #include "Ndbinfo.hpp"
-#include "SimulatedBlock.hpp"
-#include "util/require.h"
 #include <kernel/AttributeHeader.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include "SimulatedBlock.hpp"
+#include "util/require.h"
 
 #define JAM_FILE_ID 326
 
-
-Ndbinfo::Row::Row(Signal* signal, DbinfoScanReq& req) :
-  col_counter(0),
-  m_req(req)
-{
+Ndbinfo::Row::Row(Signal *signal, DbinfoScanReq &req)
+    : col_counter(0), m_req(req) {
   // Use the "temporary" part of signal->theData as row buffer
   start = signal->getDataPtrSend() + DbinfoScanReq::SignalLength;
-  const Uint32 data_sz = sizeof(signal->theData)/sizeof(signal->theData[0]);
+  const Uint32 data_sz = sizeof(signal->theData) / sizeof(signal->theData[0]);
   end = signal->getDataPtrSend() + data_sz;
   assert(start < end);
 
   curr = start;
 }
 
-bool
-Ndbinfo::Row::check_buffer_space(AttributeHeader& ah) const
-{
-  const Uint32 needed =  ah.getHeaderSize() + ah.getDataSize();
+bool Ndbinfo::Row::check_buffer_space(AttributeHeader &ah) const {
+  const Uint32 needed = ah.getHeaderSize() + ah.getDataSize();
   const Uint32 avail = (Uint32)(end - curr);
 
-  if(needed > avail)
-  {
+  if (needed > avail) {
     g_eventLogger->info(
         "Warning, too small row buffer for attribute: %d, "
         "needed: %d, avail: %d",
         ah.getAttributeId(), needed, avail);
     assert(false);
-    return false; // Not enough room in row buffer
+    return false;  // Not enough room in row buffer
   }
   return true;
 }
 
-void
-Ndbinfo::Row::check_attribute_type(AttributeHeader& ah, ColumnType type) const
-{
+void Ndbinfo::Row::check_attribute_type(AttributeHeader &ah,
+                                        ColumnType type) const {
 #ifdef VM_TRACE
-  const Table& tab = getTable(m_req.tableId);
+  const Table &tab = getTable(m_req.tableId);
   const Uint32 colid = ah.getAttributeId();
   require(colid < (Uint32)tab.m.ncols);
   require(tab.col[colid].coltype == type);
 #endif
 }
 
-void
-Ndbinfo::Row::write_string(const char* str)
-{
+void Ndbinfo::Row::write_string(const char *str) {
   const size_t clen = strlen(str) + 1;
   // Create AttributeHeader
   AttributeHeader ah(col_counter++, (Uint32)clen);
   check_attribute_type(ah, Ndbinfo::String);
-  if (!check_buffer_space(ah))
-    return;
+  if (!check_buffer_space(ah)) return;
 
   // Write AttributeHeader to buffer
   ah.insertHeader(curr);
@@ -95,14 +85,11 @@ Ndbinfo::Row::write_string(const char* str)
   return;
 }
 
-void
-Ndbinfo::Row::write_uint32(Uint32 value)
-{
+void Ndbinfo::Row::write_uint32(Uint32 value) {
   // Create AttributeHeader
   AttributeHeader ah(col_counter++, sizeof(Uint32));
   check_attribute_type(ah, Ndbinfo::Number);
-  if (!check_buffer_space(ah))
-    return;
+  if (!check_buffer_space(ah)) return;
 
   // Write AttributeHeader to buffer
   ah.insertHeader(curr);
@@ -116,14 +103,11 @@ Ndbinfo::Row::write_uint32(Uint32 value)
   return;
 }
 
-void
-Ndbinfo::Row::write_uint64(Uint64 value)
-{
+void Ndbinfo::Row::write_uint64(Uint64 value) {
   // Create AttributeHeader
   AttributeHeader ah(col_counter++, sizeof(Uint64));
   check_attribute_type(ah, Ndbinfo::Number64);
-  if (!check_buffer_space(ah))
-    return;
+  if (!check_buffer_space(ah)) return;
 
   // Write AttributeHeader to buffer
   ah.insertHeader(curr);
@@ -136,5 +120,3 @@ Ndbinfo::Row::write_uint64(Uint64 value)
   assert(curr <= end);
   return;
 }
-
-
