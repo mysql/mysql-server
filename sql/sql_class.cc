@@ -3230,6 +3230,11 @@ void Transactional_ddl_context::init(dd::String_type db,
                                      dd::String_type tablename,
                                      const handlerton *hton) {
   assert(m_hton == nullptr);
+  /*
+    Currently, Transactional_ddl_context is used only for CREATE TABLE ... START
+    TRANSACTION statement.
+  */
+  assert(m_thd->lex->sql_command == SQLCOM_CREATE_TABLE);
   m_db = db;
   m_tablename = tablename;
   m_hton = hton;
@@ -3241,7 +3246,15 @@ void Transactional_ddl_context::init(dd::String_type db,
 */
 void Transactional_ddl_context::rollback() {
   if (!inited()) return;
+  /*
+    Since the transaction is being rolledback, We need to unlock and close the
+    table belonging to this transaction.
+  */
+  if (m_thd->lock) mysql_unlock_tables(m_thd, m_thd->lock);
+  m_thd->lock = nullptr;
+  if (m_thd->open_tables) close_thread_table(m_thd, &m_thd->open_tables);
   table_cache_manager.lock_all_and_tdc();
+
   TABLE_SHARE *share =
       get_cached_table_share(m_db.c_str(), m_tablename.c_str());
   if (share) {
