@@ -1114,7 +1114,7 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
   }
 }
 
-dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
+void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (;;) {
     mutex_enter(&recv_sys->mutex);
 
@@ -1152,20 +1152,19 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   auto start_time = std::chrono::steady_clock::now();
 
   for (const auto &space : *recv_sys->spaces) {
-    bool dropped;
+    bool dropped = false;
 
-    if (space.first == TRX_SYS_SPACE) {
-      dropped = false;
-    } else {
+    if (space.first != TRX_SYS_SPACE) {
       dberr_t err = fil_tablespace_open_for_recovery(space.first);
-      if (err == DB_SUCCESS) {
-        dropped = false;
-      } else if (err == DB_CORRUPTION) {
-        /* Page couldn't be recovered from doublewrite, we cannot proceed
+      if (err == DB_CORRUPTION) {
+        /* Page couldn't be recovered from double-write, we cannot proceed
         with recovery. Skip applying redos and abort the startup. */
         mutex_exit(&recv_sys->mutex);
-        return err;
-      } else {
+        ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_CORRUPT_TABLESPACE_UNRECOVERABLE,
+                  space.first);
+      } else if (err != DB_SUCCESS) {
+        ut_a_eq(err, DB_FAIL);
+
         /* Tablespace was dropped. It should not have been scanned unless it
         is an undo space that was under construction. */
 
@@ -1261,7 +1260,6 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   mutex_exit(&recv_sys->mutex);
 
   ib::info(ER_IB_MSG_710);
-  return DB_SUCCESS;
 }
 
 #else /* !UNIV_HOTBACKUP */
@@ -3739,7 +3737,6 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
     finished =
         recv_scan_log_recs(log, delta_hashmap_max_mem, log.buf,
                            end_lsn - start_lsn, start_lsn, &log.m_scanned_lsn);
-
     start_lsn = end_lsn;
   }
 

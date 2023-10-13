@@ -12565,6 +12565,9 @@ ER_RPL_ASYNC_REPLICA_IO_THD_FETCH_GROUP_MAJORITY_ERROR
 ER_RPL_ASYNC_GET_GROUP_MEMBERSHIP_DETAILS_ERROR
   eng "The Monitor IO thread failed to get group membership details. Error: %s. The query failed to execute on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
 
+ER_IB_ERR_CORRUPT_TABLESPACE_UNRECOVERABLE
+  eng "Tablespace '%u' mentioned in the redo log is corrupted in a way it is unrecoverable by double-write buffer, so further redo log recovery is not possible!"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -6,18 +6,23 @@
 #                (innodb doesn't treat all-zero as corrupted page)
 perl;
 use IO::Handle;
-my $file = $ENV{'IBD_FILE'} or die;
-my $page_size = $ENV{'INNODB_PAGE_SIZE'} or die;
-my $page_num = $ENV{'PAGE_NUM'} or die;
-my $all_zeroes = $ENV{'ALL_ZEROES'};
+my $file        = $ENV{'IBD_FILE'}         or die;
+my $page_size   = $ENV{'INNODB_PAGE_SIZE'} or die;
+my $page_num    = $ENV{'PAGE_NUM'}         or die;
+my $all_zeroes  = $ENV{'ALL_ZEROES'} || 0;
+my $file_offset = $page_size * $page_num;
+my $bytes_to_corrupt;
 open(FILE, "+<", $file) or die;
 FILE->autoflush(1);
 binmode FILE;
-seek(FILE, $page_size * $page_num, SEEK_SET);
+
 if ($all_zeroes) {
- print FILE chr(0) x $page_size;
+  $bytes_to_corrupt = $page_size;
 } else {
- print FILE chr(0) x ($page_size/2);
+  $bytes_to_corrupt = $page_size / 2;
+  $file_offset      = $file_offset + $bytes_to_corrupt;
 }
+seek(FILE, $file_offset, SEEK_SET);
+print FILE chr(0) x $bytes_to_corrupt;
 close FILE;
 EOF

@@ -1,0 +1,55 @@
+call mtr.add_suppression("Checksum mismatch in datafile");
+call mtr.add_suppression("Corrupted page .* of datafile .*  could not be found in the doublewrite buffer");
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 CHAR(255), c3 CHAR(255),
+c4 CHAR(255), c5 CHAR(255)) CHARACTER SET latin1 ENGINE=INNODB;
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 TEXT)
+CHARACTER SET latin1 ENGINE=INNODB;
+#
+# Prepare the table and flush dirty pages to ensure it doesn't
+# produce MLOG_FILE_EXTEND log records later
+#
+#
+# Stop the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+#
+# Produce the log records without extending the tablespace t1
+# size by simply updating the rows in the table
+#
+#
+# Insert enough rows to another table t2 so that :
+# (1) Size of hash table of log records could exceed max size of the hash table
+# (2) Corrupt page of table t1 move out of the double-write buffer
+#
+
+# Kill the server
+
+
+# Copy the tablespace file t1.ibd before corrupting the page
+
+# Corrupt page: '0' in t1.ibd
+
+#
+# Start the server with reduced buffer pool size to have smaller batch.
+# Crash recovery must detect the tablespace page is corrupt and abort
+#
+Pattern "MY-012224" found
+Pattern "MY-012237" found
+Pattern "MY-015091" found
+
+# Restore the tablespace file t1.ibd and start the server as usual
+
+# restart:
+
+# cleanup
+
+DROP TABLE t1;
+DROP TABLE t2;
