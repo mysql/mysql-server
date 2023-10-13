@@ -144,13 +144,13 @@ class MysqlCacheManager {
   virtual CachedObject get_empty(collector::MySQLConnection type, bool wait) {
     switch (type) {
       case collector::kMySQLConnectionMetadataRO:
-        return {&cache_manager_metadata_ro_, wait};
+        return CachedObject(&cache_manager_metadata_ro_, wait);
       case collector::kMySQLConnectionUserdataRO:
-        return {&cache_manager_userdata_ro_, wait};
+        return CachedObject(&cache_manager_userdata_ro_, wait);
       case collector::kMySQLConnectionMetadataRW:
-        return {&cache_manager_metadata_rw_, wait};
+        return CachedObject(&cache_manager_metadata_rw_, wait);
       case collector::kMySQLConnectionUserdataRW:
-        return {&cache_manager_userdata_rw_, wait};
+        return CachedObject(&cache_manager_userdata_rw_, wait);
       default:
         assert(nullptr && "Shouldn't happen");
         return {};

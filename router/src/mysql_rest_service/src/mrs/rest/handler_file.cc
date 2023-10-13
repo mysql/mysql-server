@@ -49,7 +49,7 @@ using MySQLConnection = collector::MySQLConnection;
 static CachedObject get_session(
     MySQLSession session, MysqlCacheManager *cache_manager,
     MySQLConnection type = MySQLConnection::kMySQLConnectionMetadataRO) {
-  if (session) return CachedObject(nullptr, session);
+  if (session) return CachedObject(nullptr, true, session);
 
   return cache_manager->get_instance(type, false);
 }
@@ -119,18 +119,22 @@ HttpResult HandlerFile::handle_get(rest::RequestContext *ctxt) {
   auto result_type = get_result_type_from_extension(
       mysql_harness::make_lower(path.extension()));
 
+  log_debug("A0");
   if (auto content = route_->get_default_content())
     return {*content, result_type, route_->get_version()};
 
+  log_debug("A1");
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionMetadataRO);
 
+  log_debug("A2");
   if (nullptr == session.get())
     throw http::Error(HttpStatusCode::InternalError);
 
+  log_debug("A3");
   auto file = factory_->create_query_content_file();
   file->query_file(session.get(), route_->get_id());
-
+  log_debug("A4");
   return {std::move(file->result), result_type, route_->get_version()};
 }
 
