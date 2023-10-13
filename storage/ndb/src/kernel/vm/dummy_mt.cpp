@@ -28,73 +28,40 @@
 #include "Emulator.hpp"
 #include "VMSignal.hpp"
 
-#include <SignalLoggerManager.hpp>
 #include <BlockNumbers.h>
 #include <GlobalSignalNumbers.h>
+#include <NdbTick.h>
+#include <SignalLoggerManager.hpp>
+#include <TimeQueue.hpp>
 #include <signaldata/EventReport.hpp>
 #include "LongSignal.hpp"
-#include <NdbTick.h>
-#include <TimeQueue.hpp>
 
 #define JAM_FILE_ID 229
 
+FastScheduler::FastScheduler() {}
 
+FastScheduler::~FastScheduler() {}
 
-FastScheduler::FastScheduler()
-{
-}
+void FastScheduler::clear() {}
 
-FastScheduler::~FastScheduler()
-{
-}
+void bnr_error() {}
 
-void
-FastScheduler::clear()
-{
-}
+void jbuf_error() {}
 
+void FastScheduler::prio_level_error() {}
 
-void bnr_error()
-{
-}
+APZJobBuffer::APZJobBuffer() {}
 
-void jbuf_error()
-{
-}
+APZJobBuffer::~APZJobBuffer() {}
 
-void
-FastScheduler::prio_level_error()
-{
-}
+void APZJobBuffer::insert(const SignalHeader *const sh,
+                          const Uint32 *const theData,
+                          const Uint32 secPtrI[3]) {}
 
-APZJobBuffer::APZJobBuffer()
-{
-}
+void APZJobBuffer::signal2buffer(Signal25 *signal, BufferEntry &buf) {}
 
-APZJobBuffer::~APZJobBuffer()
-{
-}
+TimeQueue::TimeQueue() {}
 
-void
-APZJobBuffer::insert(const SignalHeader * const sh,
-		     const Uint32 * const theData, const Uint32 secPtrI[3]){
-}
+TimeQueue::~TimeQueue() {}
 
-void 
-APZJobBuffer::signal2buffer(Signal25* signal, BufferEntry& buf)
-{
-}
-
-TimeQueue::TimeQueue()
-{
-}
-
-TimeQueue::~TimeQueue()
-{
-}
-
-bool
-NdbIsMultiThreaded()
-{
-  return true;
-}
+bool NdbIsMultiThreaded() { return true; }

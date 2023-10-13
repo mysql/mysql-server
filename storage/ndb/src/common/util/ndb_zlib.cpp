@@ -20,54 +20,52 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "util/require.h"
 #include "util/ndb_zlib.h"
+#include "util/require.h"
 
-#include <assert.h> // assert()
+#include <assert.h>  // assert()
+#include <stdlib.h>  // abort()
 #include <cstdint>
-#include <stdlib.h> // abort()
 
 #include "zlib.h"
 
 #ifndef REQUIRE
-#define REQUIRE(r) do { if (unlikely(!(r))) { \
-  fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); \
-  require((r)); \
-} } while (0)
+#define REQUIRE(r)                                                       \
+  do {                                                                   \
+    if (unlikely(!(r))) {                                                \
+      fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, \
+              __func__, (r));                                            \
+      require((r));                                                      \
+    }                                                                    \
+  } while (0)
 #endif
 
-#define RETURN(rv) return(rv)
+#define RETURN(rv) return (rv)
 //#define RETURN(rv) REQUIRE(rv)
 
 ndb_zlib::ndb_zlib()
-: mem_begin(nullptr),
-  mem_top(nullptr),
-  mem_end(nullptr),
-  m_op_mode(NO_OP),
-  pkcs_padded(false),
-  padding(0),
-  padding_left(0)
-{
+    : mem_begin(nullptr),
+      mem_top(nullptr),
+      mem_end(nullptr),
+      m_op_mode(NO_OP),
+      pkcs_padded(false),
+      padding(0),
+      padding_left(0) {
   file.zalloc = Z_NULL;
   file.zfree = Z_NULL;
   file.opaque = Z_NULL;
 }
 
-ndb_zlib::~ndb_zlib()
-{
-  require(mem_begin == mem_top);
-}
+ndb_zlib::~ndb_zlib() { require(mem_begin == mem_top); }
 
-void ndb_zlib::reset()
-{
+void ndb_zlib::reset() {
   m_op_mode = NO_OP;
   pkcs_padded = false;
   padding = 0;
   padding_left = 0;
 }
 
-int ndb_zlib::set_memory(void* mem, size_t size)
-{
+int ndb_zlib::set_memory(void *mem, size_t size) {
   require(mem != nullptr);
   require(size >= MEMORY_NEED);
 
@@ -76,23 +74,21 @@ int ndb_zlib::set_memory(void* mem, size_t size)
   require(mem_top == nullptr);
   require(mem_end == nullptr);
 
-  mem_begin = static_cast<byte*>(mem);
+  mem_begin = static_cast<byte *>(mem);
   mem_top = mem_begin;
   mem_end = mem_begin + size;
 
   file.zalloc = alloc;
   file.zfree = free;
-  file.opaque = static_cast<void*>(this);
+  file.opaque = static_cast<void *>(this);
 
   return 0;
 }
 
-void *ndb_zlib::alloc(void *opaque, unsigned items, unsigned size)
-{
+void *ndb_zlib::alloc(void *opaque, unsigned items, unsigned size) {
   ndb_zlib *ths = static_cast<ndb_zlib *>(opaque);
   size_t sz = size_t{items} * size_t{size};
-  if (ths->mem_top + sz <= ths->mem_end)
-  {
+  if (ths->mem_top + sz <= ths->mem_end) {
     void *p = ths->mem_top;
     ths->mem_top += sz;
     return p;
@@ -100,8 +96,7 @@ void *ndb_zlib::alloc(void *opaque, unsigned items, unsigned size)
   return nullptr;
 }
 
-void ndb_zlib::free(void *opaque, void *address)
-{
+void ndb_zlib::free(void *opaque, void *address) {
   ndb_zlib *ths = static_cast<ndb_zlib *>(opaque);
   REQUIRE(ths->mem_begin <= address);
   REQUIRE(address < ths->mem_top);
@@ -109,19 +104,16 @@ void ndb_zlib::free(void *opaque, void *address)
   ths->mem_top = (byte *)address;
 }
 
-int ndb_zlib::deflate_init()
-{
+int ndb_zlib::deflate_init() {
   assert(m_op_mode == NO_OP);
-  if (m_op_mode != NO_OP)
-    return -1;
+  if (m_op_mode != NO_OP) return -1;
 
   assert(padding == 0);
-  if (padding != 0)
-    return -1;
+  if (padding != 0) return -1;
 
-  int err = ::deflateInit2(&file, level, method, zlib_windowBits, memLevel, strategy);
-  switch (err)
-  {
+  int err =
+      ::deflateInit2(&file, level, method, zlib_windowBits, memLevel, strategy);
+  switch (err) {
     case Z_OK:
       m_op_mode = DEFLATE;
       return 0;
@@ -135,18 +127,14 @@ int ndb_zlib::deflate_init()
   }
 }
 
-int ndb_zlib::deflate_end()
-{
-  if (m_op_mode != DEFLATE)
-    RETURN(-1);
+int ndb_zlib::deflate_end() {
+  if (m_op_mode != DEFLATE) RETURN(-1);
   int err = ::deflateEnd(&file);
-  switch (err)
-  {
+  switch (err) {
     case Z_OK:
       require(mem_top == mem_begin);
       m_op_mode = NO_OP;
-      if (padding != 0)
-        RETURN(-1);
+      if (padding != 0) RETURN(-1);
       return 0;
     case Z_DATA_ERROR:
     case Z_STREAM_ERROR:
@@ -157,20 +145,16 @@ int ndb_zlib::deflate_end()
   }
 }
 
-int ndb_zlib::inflate_init()
-{
+int ndb_zlib::inflate_init() {
   assert(m_op_mode == NO_OP);
-  if (m_op_mode != NO_OP)
-    return -1;
+  if (m_op_mode != NO_OP) return -1;
   assert(padding == 0);
-  if (padding != 0)
-    return -1;
+  if (padding != 0) return -1;
 
   file.next_in = nullptr;
   file.avail_in = 0;
   int err = ::inflateInit2(&file, zlib_windowBits);
-  switch (err)
-  {
+  switch (err) {
     case Z_OK:
       m_op_mode = INFLATE;
       return 0;
@@ -184,27 +168,21 @@ int ndb_zlib::inflate_init()
   }
 }
 
-int ndb_zlib::inflate_end()
-{
-  if (m_op_mode == NO_OP)
-    return 0;
-  if (m_op_mode != INFLATE)
-  {
+int ndb_zlib::inflate_end() {
+  if (m_op_mode == NO_OP) return 0;
+  if (m_op_mode != INFLATE) {
     return -1;
   }
-  if (padding_left != 0)
-  {
+  if (padding_left != 0) {
     // Not all padding processed
     RETURN(-1);
   }
-  if (pkcs_padded && padding == 0)
-  {
+  if (pkcs_padded && padding == 0) {
     // No padding processed
     RETURN(-1);
   }
   int err = ::inflateEnd(&file);
-  switch (err)
-  {
+  switch (err) {
     case Z_OK:
       require(mem_begin == mem_top);
       m_op_mode = NO_OP;
@@ -224,18 +202,15 @@ int ndb_zlib::inflate_end()
  *  2 - have more output
  * -1 - unrecoverable error
  */
-int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
-{
+int ndb_zlib::deflate(output_iterator *out, input_iterator *in) {
   assert(m_op_mode == DEFLATE);
-  if (m_op_mode != DEFLATE)
-    return -1;
+  if (m_op_mode != DEFLATE) return -1;
 
-  if (padding == 0)
-  {
+  if (padding == 0) {
     size_t in_size = in->size();
     size_t out_size = out->size();
 
-    file.next_in = const_cast<byte*>(in->cbegin());
+    file.next_in = const_cast<byte *>(in->cbegin());
     file.avail_in = in_size;
     file.next_out = out->begin();
     file.avail_out = out_size;
@@ -246,44 +221,39 @@ int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
     size_t out_advance = out_size - file.avail_out;
 
     in->advance(in_advance);
-    require(file.next_in == const_cast<byte*>(in->cbegin()));
+    require(file.next_in == const_cast<byte *>(in->cbegin()));
     out->advance(out_advance);
     require(file.next_out == out->begin());
 
-    switch (err)
-    {
-    case Z_OK:
-    case Z_BUF_ERROR:
-    {
-      if (out->empty()) return have_more_output;
-      return need_more_input;
-    }
-    case Z_STREAM_END:
-      require(file.avail_in == 0);
-      require(in->last());
-      if (pkcs_padded)
-      {
-        padding = 16 - file.total_out % 16;
-        padding_left = padding;
-        break; // handle padding
+    switch (err) {
+      case Z_OK:
+      case Z_BUF_ERROR: {
+        if (out->empty()) return have_more_output;
+        return need_more_input;
       }
-      out->set_last();
-      return 0;
-    default:
-      RETURN(-1);
+      case Z_STREAM_END:
+        require(file.avail_in == 0);
+        require(in->last());
+        if (pkcs_padded) {
+          padding = 16 - file.total_out % 16;
+          padding_left = padding;
+          break;  // handle padding
+        }
+        out->set_last();
+        return 0;
+      default:
+        RETURN(-1);
     }
   }
   // padding if Z_STREAM_END
   require(pkcs_padded);
   require(padding_left > 0);
-  while (!out->empty() && padding_left > 0)
-  {
-    *out->begin()= padding;
+  while (!out->empty() && padding_left > 0) {
+    *out->begin() = padding;
     out->advance(1);
     padding_left--;
   }
-  if (padding_left == 0)
-  {
+  if (padding_left == 0) {
     padding = 0;
     out->set_last();
     return 0;
@@ -291,27 +261,23 @@ int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
   return have_more_output;
 }
 
-int ndb_zlib::inflate(output_iterator* out, input_iterator* in)
-{
+int ndb_zlib::inflate(output_iterator *out, input_iterator *in) {
   assert(m_op_mode == INFLATE);
-  if (m_op_mode != INFLATE)
-  {
+  if (m_op_mode != INFLATE) {
     return -1;
   }
 
-  if (padding_left == 0)
-  {
+  if (padding_left == 0) {
     size_t in_size = in->size();
     size_t out_size = out->size();
 
-    file.next_in = const_cast<byte*>(in->cbegin());
+    file.next_in = const_cast<byte *>(in->cbegin());
     file.avail_in = in_size;
     file.next_out = out->begin();
     file.avail_out = out_size;
     int flush_mode = in->last() ? Z_FINISH : Z_NO_FLUSH;
     int err = Z_OK;
-    if (file.avail_in || file.avail_out)
-    {
+    if (file.avail_in || file.avail_out) {
       err = ::inflate(&file, flush_mode);
     }
 
@@ -321,63 +287,53 @@ int ndb_zlib::inflate(output_iterator* out, input_iterator* in)
     in->advance(in_advance);
     out->advance(out_advance);
 
-    switch (err)
-    {
-    case Z_OK:
-    case Z_BUF_ERROR:  // no progress
-      if (out->empty()) return have_more_output;
-      return need_more_input;
-    case Z_STREAM_END:
-      if (!pkcs_padded)
-      {
-        out->set_last();
-        return 0;
-      }
-      if (in->empty() && in->last() && padding != 0 && padding_left == 0)
-      {
-        // All padding already processed
-        out->set_last();
-        return 0;
-      }
-      if (file.avail_in > 0)
-      {
-        padding = file.next_in[0];
-        assert(padding == (16 - (file.total_in % 16)));
-        if (padding != (16 - (file.total_in % 16)))
-        {
-          RETURN(-1);
+    switch (err) {
+      case Z_OK:
+      case Z_BUF_ERROR:  // no progress
+        if (out->empty()) return have_more_output;
+        return need_more_input;
+      case Z_STREAM_END:
+        if (!pkcs_padded) {
+          out->set_last();
+          return 0;
         }
-      }
-      else
-      {
-        padding = 16 - (file.total_in % 16);
-      }
-      require(padding > 0);
-      require(padding <= 16);
-      padding_left = padding;
-    break;
-    case Z_MEM_ERROR:
-    case Z_STREAM_ERROR:
-    case Z_DATA_ERROR:
-      RETURN(-1);
-    default:
-      RETURN(-1);
+        if (in->empty() && in->last() && padding != 0 && padding_left == 0) {
+          // All padding already processed
+          out->set_last();
+          return 0;
+        }
+        if (file.avail_in > 0) {
+          padding = file.next_in[0];
+          assert(padding == (16 - (file.total_in % 16)));
+          if (padding != (16 - (file.total_in % 16))) {
+            RETURN(-1);
+          }
+        } else {
+          padding = 16 - (file.total_in % 16);
+        }
+        require(padding > 0);
+        require(padding <= 16);
+        padding_left = padding;
+        break;
+      case Z_MEM_ERROR:
+      case Z_STREAM_ERROR:
+      case Z_DATA_ERROR:
+        RETURN(-1);
+      default:
+        RETURN(-1);
     }
   }
   // padding if Z_STREAM_END
   require(pkcs_padded);
   require(padding_left > 0);
-  while (!in->empty() && padding_left > 0)
-  {
-    if (*in->cbegin() != padding)
-    {
+  while (!in->empty() && padding_left > 0) {
+    if (*in->cbegin() != padding) {
       RETURN(-1);
     }
     in->advance(1);
     padding_left--;
   }
-  if (padding_left == 0)
-  {
+  if (padding_left == 0) {
     require(in->last());
     out->set_last();
     return 0;
@@ -460,19 +416,19 @@ size_t Ndbxfrm_zlib::max_read_memory()
 #ifdef TEST_NDB_ZLIB
 #include <cstdio>
 
-void require_fn(bool cc, const char cc_str[], const char file[], int line, const char func[])
-{
+void require_fn(bool cc, const char cc_str[], const char file[], int line,
+                const char func[]) {
   if (cc) return;
-  fprintf(stderr,"YYY: %s: %u: %s: require(%s) failed.\n", file, line, func, cc_str);
+  fprintf(stderr, "YYY: %s: %u: %s: require(%s) failed.\n", file, line, func,
+          cc_str);
   abort();
 }
 
-int main()
-{
+int main() {
   using byte = unsigned char;
 
   ndb_zlib zlib;
-  
+
   byte ibuf[32768];
   byte obuf[32768];
 
@@ -512,14 +468,12 @@ int main()
   in = ndbxfrm_input_iterator{ibuf, ibuf, true};
   out = ndbxfrm_output_iterator{obuf, obuf + 1, false};
   require(zlib.deflate_init() == 0);
-  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
-  {
+  for (int err = ndbxfrm_progress::need_more_input; err > 0;) {
     err = zlib.deflate(&out, &in);
-    fprintf(stderr, "zlib.deflate() = %d total output %zu bytes last %d\n",
-            err, out.begin() - obuf, out.last());
-    if (err == ndbxfrm_progress::have_more_output && out.empty())
-    {
-      byte* oend = out.begin();
+    fprintf(stderr, "zlib.deflate() = %d total output %zu bytes last %d\n", err,
+            out.begin() - obuf, out.last());
+    if (err == ndbxfrm_progress::have_more_output && out.empty()) {
+      byte *oend = out.begin();
       require(oend != obuf + sizeof(obuf));
       out = ndbxfrm_output_iterator{oend, oend + 1, false};
     }

@@ -22,71 +22,52 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "portlib/ndb_socket_poller.h"
+#include "util/require.h"
 
 #include "SocketInputStream2.hpp"
 
-bool
-SocketInputStream2::gets(BaseString& str)
-{
-  if (get_buffered_line(str))
-    return true;
+bool SocketInputStream2::gets(BaseString &str) {
+  if (get_buffered_line(str)) return true;
 
   char buf[16];
   do {
     ssize_t read_res = read_socket(buf, sizeof(buf));
-    if (read_res == -1)
-      return false;
+    if (read_res == -1) return false;
 
-    if (!add_buffer(buf, read_res))
-      return false;
+    if (!add_buffer(buf, read_res)) return false;
 
-    if (get_buffered_line(str))
-      return true;
+    if (get_buffered_line(str)) return true;
 
-  } while(true);
+  } while (true);
 
-  abort(); // Should never come here
+  abort();  // Should never come here
   return false;
 }
 
-
-bool
-SocketInputStream2::has_data_to_read()
-{
+bool SocketInputStream2::has_data_to_read() {
   int res = m_socket.poll_readable(m_read_timeout * 1000);
 
   return (res == 1);
 }
 
-
-ssize_t
-SocketInputStream2::read_socket(char* buf, size_t len)
-{
-  if (!has_data_to_read())
-    return -1;
+ssize_t SocketInputStream2::read_socket(char *buf, size_t len) {
+  if (!has_data_to_read()) return -1;
 
   size_t read_res = m_socket.recv(buf, len, 0);
-  if (read_res == 0)
-    return -1; // Has data to read but only EOF received
+  if (read_res == 0) return -1;  // Has data to read but only EOF received
 
   return read_res;
 }
 
-
-bool
-SocketInputStream2::get_buffered_line(BaseString& str)
-{
+bool SocketInputStream2::get_buffered_line(BaseString &str) {
   char *start, *ptr;
-  char *end = (char*)m_buffer.get_data() + m_buffer.length();
-  start = ptr =(char*)m_buffer.get_data() + m_buffer_read_pos;
+  char *end = (char *)m_buffer.get_data() + m_buffer.length();
+  start = ptr = (char *)m_buffer.get_data() + m_buffer_read_pos;
 
-  while(ptr && ptr < end && *ptr)
-  {
-    if (*ptr == '\n')
-    {
-      size_t len = ptr-start;
+  while (ptr && ptr < end && *ptr) {
+    if (*ptr == '\n') {
+      size_t len = ptr - start;
       /* Found end of line, return this part of the buffer */
       str.assign(start, len);
 
@@ -103,11 +84,7 @@ SocketInputStream2::get_buffered_line(BaseString& str)
   return false;
 }
 
-
-bool
-SocketInputStream2::add_buffer(char* buf, ssize_t len)
-{
-  if (m_buffer.append(buf, len) != 0)
-    return false;
+bool SocketInputStream2::add_buffer(char *buf, ssize_t len) {
+  if (m_buffer.append(buf, len) != 0) return false;
   return true;
 }

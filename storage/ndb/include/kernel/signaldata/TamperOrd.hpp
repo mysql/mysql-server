@@ -29,26 +29,23 @@
 
 #define JAM_FILE_ID 117
 
-
-class TamperOrd  {
+class TamperOrd {
   /**
    * Sender
    */
   friend class MgmtSrvr;
-  
+
   /**
    * Receiver
    */
   friend class Cmvmi;
-  
-private:
+
+ private:
   static constexpr Uint32 SignalLength = 1;
-  
+
   UintR errorNo;
 };
 
-
 #undef JAM_FILE_ID
 
-#endif // TAMPERORD_H
-
+#endif  // TAMPERORD_H

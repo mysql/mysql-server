@@ -26,10 +26,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 var harness = require("jones-test");
 var config = require("jones-ndb").config;
-var tests = [ new harness.LintSmokeTest() ];
+var tests = [new harness.LintSmokeTest()];
 
 function more(more_tests) {
-  if(harness.linterAvailable) {
+  if (harness.linterAvailable) {
     Array.prototype.push.apply(tests, more_tests);
   }
 }
@@ -39,9 +39,14 @@ more(harness.getLintTestsForDirectory(config.converters_dir));
 more(harness.getLintTestsForDirectory(config.root_dir));
 
 harness.ignoreLint("NdbOperation.js", 22, "Use the array literal notation");
-harness.ignoreLint("NdbOperation.js", 27, "'gather' was used before it was defined.");
+harness.ignoreLint(
+    "NdbOperation.js", 27, "'gather' was used before it was defined.");
 
-harness.ignoreLint("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
-harness.ignoreLint("NdbConnectionPool.js",17,"Expected a conditional expression and instead saw an assignment.");
+harness.ignoreLint(
+    "NdbConnectionPool.js", 15,
+    "Expected a conditional expression and instead saw an assignment.");
+harness.ignoreLint(
+    "NdbConnectionPool.js", 17,
+    "Expected a conditional expression and instead saw an assignment.");
 
 module.exports.tests = tests;

@@ -23,16 +23,14 @@
 
 #include <signaldata/CreateTable.hpp>
 
-bool
-printCREATE_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateTableReq::SignalLength)
-  {
+bool printCREATE_TABLE_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                           Uint16) {
+  if (len < CreateTableReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateTableReq* sig = (const CreateTableReq*)theData;
+  const CreateTableReq *sig = (const CreateTableReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " requestInfo: %x", sig->requestInfo);
@@ -42,16 +40,14 @@ printCREATE_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printCREATE_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateTableConf::SignalLength)
-  {
+bool printCREATE_TABLE_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                            Uint16) {
+  if (len < CreateTableConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateTableConf* sig = (const CreateTableConf*)theData;
+  const CreateTableConf *sig = (const CreateTableConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -62,16 +58,14 @@ printCREATE_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printCREATE_TABLE_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateTableRef::SignalLength)
-  {
+bool printCREATE_TABLE_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                           Uint16) {
+  if (len < CreateTableRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateTableRef* sig = (const CreateTableRef*)theData;
+  const CreateTableRef *sig = (const CreateTableRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

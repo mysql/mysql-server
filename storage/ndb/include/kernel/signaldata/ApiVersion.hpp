@@ -29,9 +29,8 @@
 
 #define JAM_FILE_ID 35
 
-
 class ApiVersionReq {
-/**
+  /**
    * Sender(s)
    */
   friend class MgmtSrvr;
@@ -46,15 +45,13 @@ class ApiVersionReq {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
-  Uint32 nodeId; //api node id
-  Uint32 version; // Version of API node
-  Uint32 mysql_version; // MySQL version
+  Uint32 nodeId;         // api node id
+  Uint32 version;        // Version of API node
+  Uint32 mysql_version;  // MySQL version
 };
 
-
-
 class ApiVersionConf {
-/**
+  /**
    * Sender(s)
    */
   friend class Qmgr;
@@ -68,20 +65,20 @@ class ApiVersionConf {
 
   static constexpr Uint32 SignalLengthWithoutSingleUser = 5;
   static constexpr Uint32 SignalLengthIPv4 = 6;
-  static constexpr Uint32 AddrLenWords = (16 * sizeof(unsigned char)) / sizeof(Uint32);
+  static constexpr Uint32 AddrLenWords =
+      (16 * sizeof(unsigned char)) / sizeof(Uint32);
   static constexpr Uint32 SignalLength = 6 + AddrLenWords;
 
   Uint32 senderRef;
-  Uint32 nodeId; //api node id
-  Uint32 version; // Version of API node
+  Uint32 nodeId;   // api node id
+  Uint32 version;  // Version of API node
   // for backward compatibility only
   // The bare name "inet_addr" can conflict with arpa/inet.h
   Uint32 m_inet_addr;
-  Uint32 mysql_version; // MySQL version
-  Uint32 isSingleUser; // Node is the single user
+  Uint32 mysql_version;  // MySQL version
+  Uint32 isSingleUser;   // Node is the single user
   unsigned char m_inet6_addr[16];
 };
-
 
 #undef JAM_FILE_ID
 

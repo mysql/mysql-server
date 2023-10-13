@@ -64,5 +64,4 @@ struct UpdQueryDistrOrd {
   Uint32 zero;
 };
 
-
 #endif

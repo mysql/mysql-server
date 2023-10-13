@@ -28,11 +28,9 @@
 
 #define JAM_FILE_ID 251
 
-
-#if defined (NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
-struct NdbSeqLock
-{
-  NdbSeqLock() { m_seq = 0;}
+#if defined(NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
+struct NdbSeqLock {
+  NdbSeqLock() { m_seq = 0; }
   volatile Uint32 m_seq;
 
   void write_lock();
@@ -42,33 +40,23 @@ struct NdbSeqLock
   bool read_unlock(Uint32 val) const;
 };
 
-inline
-void
-NdbSeqLock::write_lock()
-{
+inline void NdbSeqLock::write_lock() {
   assert((m_seq & 1) == 0);
   m_seq++;
   wmb();
 }
 
-inline
-void
-NdbSeqLock::write_unlock()
-{
+inline void NdbSeqLock::write_unlock() {
   assert((m_seq & 1) == 1);
   wmb();
   m_seq++;
 }
 
-inline
-Uint32
-NdbSeqLock::read_lock()
-{
+inline Uint32 NdbSeqLock::read_lock() {
 loop:
   Uint32 val = m_seq;
   rmb();
-  if (unlikely(val & 1))
-  {
+  if (unlikely(val & 1)) {
 #ifdef NDB_HAVE_CPU_PAUSE
     cpu_pause();
 #endif
@@ -77,10 +65,7 @@ loop:
   return val;
 }
 
-inline
-bool
-NdbSeqLock::read_unlock(Uint32 val) const
-{
+inline bool NdbSeqLock::read_unlock(Uint32 val) const {
   rmb();
   return val == m_seq;
 }
@@ -89,19 +74,17 @@ NdbSeqLock::read_unlock(Uint32 val) const
  * Only for ndbd...
  */
 
-struct NdbSeqLock
-{
-  NdbSeqLock() { }
+struct NdbSeqLock {
+  NdbSeqLock() {}
 
   void write_lock() {}
   void write_unlock() {}
 
   Uint32 read_lock() { return 0; }
-  bool read_unlock(Uint32 val) const { return true;}
+  bool read_unlock(Uint32 val) const { return true; }
 };
 
 #endif
-
 
 #undef JAM_FILE_ID
 

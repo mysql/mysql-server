@@ -23,14 +23,14 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <NdbOut.hpp>
-#include <NdbApi.hpp>
-#include <NDBT.hpp>
-#include <NdbIndexStatImpl.hpp>
 #include <ndb_rand.h>
+#include <NDBT.hpp>
+#include <NdbApi.hpp>
+#include <NdbIndexStatImpl.hpp>
+#include <NdbOut.hpp>
 
 // stats options
-static const char* _dbname = 0;
+static const char *_dbname = 0;
 static bool _delete = false;
 static bool _update = false;
 static bool _dump = false;
@@ -49,56 +49,51 @@ static int _sys_any = 0;
 static bool _verbose = false;
 static int _loops = 1;
 
-static Ndb_cluster_connection* g_ncc = 0;
-static Ndb* g_ndb = 0;
-static Ndb* g_ndb_sys = 0;
-static NdbDictionary::Dictionary* g_dic = 0;
-static NdbIndexStat* g_is = 0;
+static Ndb_cluster_connection *g_ncc = 0;
+static Ndb *g_ndb = 0;
+static Ndb *g_ndb_sys = 0;
+static NdbDictionary::Dictionary *g_dic = 0;
+static NdbIndexStat *g_is = 0;
 
-static const char* g_tabname = 0;
-static const NdbDictionary::Table* g_tab = 0;
+static const char *g_tabname = 0;
+static const NdbDictionary::Table *g_tab = 0;
 static int g_indcount = 0;
-static const char** g_indnames = 0;
-static const NdbDictionary::Index** g_indlist = 0;
+static const char **g_indnames = 0;
+static const NdbDictionary::Index **g_indlist = 0;
 // current index in loop
-static const char* g_indname = 0;
-static const NdbDictionary::Index* g_ind = 0;
+static const char *g_indname = 0;
+static const NdbDictionary::Index *g_ind = 0;
 
 #define CHK1(b) \
-  if (!(b)) { \
-    ret = -1; \
-    break; \
+  if (!(b)) {   \
+    ret = -1;   \
+    break;      \
   }
 
-#define CHK2(b, e) \
-  if (!(b)) { \
-    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
-          << ": " << e << endl; \
-    ret = -1; \
-    break; \
+#define CHK2(b, e)                                                        \
+  if (!(b)) {                                                             \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ << ": " << e \
+          << endl;                                                        \
+    ret = -1;                                                             \
+    break;                                                                \
   }
 
-static NdbError
-getNdbError(Ndb_cluster_connection* ncc)
-{
+static NdbError getNdbError(Ndb_cluster_connection *ncc) {
   NdbError err;
   err.code = g_ncc->get_latest_error();
   err.message = g_ncc->get_latest_error_msg();
   return err;
 }
 
-static int
-doconnect()
-{
+static int doconnect() {
   int ret = 0;
-  do
-  {
+  do {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
-    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0, getNdbError(g_ncc));
+    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0,
+         getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
-    if (!_sys_any)
-    {
+    if (!_sys_any) {
       g_ndb = new Ndb(g_ncc, _dbname);
       CHK2(g_ndb->init() == 0, g_ndb->getNdbError());
       CHK2(g_ndb->waitUntilReady(30) == 0, g_ndb->getNdbError());
@@ -111,14 +106,11 @@ doconnect()
 
     g_is = new NdbIndexStat;
     g_info << "connected" << endl;
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-static void
-dodisconnect()
-{
+static void dodisconnect() {
   delete g_is;
   delete g_ndb_sys;
   delete g_ndb;
@@ -126,25 +118,19 @@ dodisconnect()
   g_info << "disconnected" << endl;
 }
 
-static const char*
-format(Uint64 us64, char* buf)
-{
+static const char *format(Uint64 us64, char *buf) {
   Uint32 ms = (Uint32)(us64 / (Uint64)1000);
   Uint32 us = (Uint32)(us64 % (Uint64)1000);
   sprintf(buf, "%u.%03u", ms, us);
   return buf;
 }
 
-static const char*
-format(double x, char* buf)
-{
+static const char *format(double x, char *buf) {
   sprintf(buf, "%.02f", x);
   return buf;
 }
 
-static void
-show_head(const NdbIndexStat::Head& head)
-{
+static void show_head(const NdbIndexStat::Head &head) {
   setOutputLevel(2);
   g_info << "table:" << g_tabname;
   g_info << " index:" << g_indname;
@@ -158,9 +144,8 @@ show_head(const NdbIndexStat::Head& head)
   setOutputLevel(_verbose ? 2 : 0);
 }
 
-static void
-show_cache_info(const char* name, const NdbIndexStat::CacheInfo& info)
-{
+static void show_cache_info(const char *name,
+                            const NdbIndexStat::CacheInfo &info) {
   Uint64 us64;
   char buf[100];
   setOutputLevel(2);
@@ -172,8 +157,7 @@ show_cache_info(const char* name, const NdbIndexStat::CacheInfo& info)
   g_info << "times in ms:";
   g_info << " save: " << format(info.m_save_time, buf);
   g_info << " sort: " << format(info.m_sort_time, buf);
-  if (info.m_sampleCount != 0)
-  {
+  if (info.m_sampleCount != 0) {
     us64 = info.m_sort_time / (Uint64)info.m_sampleCount;
     g_info << " sort per sample: " << format(us64, buf);
   }
@@ -181,12 +165,10 @@ show_cache_info(const char* name, const NdbIndexStat::CacheInfo& info)
   setOutputLevel(_verbose ? 2 : 0);
 }
 
-static void
-show_cache_entry(const NdbIndexStatImpl::CacheIter& iter)
-{
+static void show_cache_entry(const NdbIndexStatImpl::CacheIter &iter) {
   setOutputLevel(2);
-  const NdbPack::DataC& key = iter.m_keyData;
-  const NdbPack::DataC& value = iter.m_valueData;
+  const NdbPack::DataC &key = iter.m_keyData;
+  const NdbPack::DataC &value = iter.m_valueData;
   char buf[8000];
   key.print(buf, sizeof(buf));
   g_info << "key:" << buf << endl;
@@ -195,9 +177,7 @@ show_cache_entry(const NdbIndexStatImpl::CacheIter& iter)
   setOutputLevel(_verbose ? 2 : 0);
 }
 
-static int
-doquery()
-{
+static int doquery() {
   int ret = 0;
   char buf[100];
 
@@ -205,28 +185,21 @@ doquery()
   Uint8 b_hi_buffer[NdbIndexStat::BoundBufferBytes];
   NdbIndexStat::Bound b_lo(g_is, b_lo_buffer);
   NdbIndexStat::Bound b_hi(g_is, b_hi_buffer);
-  do
-  {
+  do {
     NdbIndexStat::Range r(b_lo, b_hi);
     Uint8 s_buffer[NdbIndexStat::StatBufferBytes];
     NdbIndexStat::Stat s(s_buffer);
 
-    for (int n = 0; n < _query; n++)
-    {
+    for (int n = 0; n < _query; n++) {
       g_is->reset_range(r);
-      for (int i = 0; i <= 1; i++)
-      {
-        NdbIndexStat::Bound& b = (i == 0 ? b_lo : b_hi);
+      for (int i = 0; i <= 1; i++) {
+        NdbIndexStat::Bound &b = (i == 0 ? b_lo : b_hi);
 
-        if (ndb_rand() % 3 != 0)
-        {
-          if (ndb_rand() % 3 != 0)
-          {
+        if (ndb_rand() % 3 != 0) {
+          if (ndb_rand() % 3 != 0) {
             Uint32 x = ndb_rand();
             CHK2(g_is->add_bound(b, &x) == 0, g_is->getNdbError());
-          }
-          else
-          {
+          } else {
             CHK2(g_is->add_bound_null(b) == 0, g_is->getNdbError());
           }
           bool strict = (ndb_rand() % 2 == 0);
@@ -241,46 +214,34 @@ doquery()
       g_info << "rir: " << format(rir, buf) << endl;
     }
     CHK2(ret == 0, "failed");
-  }
-  while (0);
+  } while (0);
 
   return ret;
 }
 
-static int
-dostats(int i)
-{
+static int dostats(int i) {
   int ret = 0;
-  do
-  {
+  do {
     g_indname = g_indnames[i];
     g_ind = g_indlist[i];
 
     g_is->reset_index();
     CHK2(g_is->set_index(*g_ind, *g_tab) == 0, g_is->getNdbError());
 
-    if (_delete)
-    {
+    if (_delete) {
       g_info << g_indname << ": delete stats" << endl;
-      if (ndb_rand() % 2 == 0)
-      {
+      if (ndb_rand() % 2 == 0) {
         CHK2(g_dic->deleteIndexStat(*g_ind, *g_tab) == 0, g_dic->getNdbError());
-      }
-      else
-      {
+      } else {
         CHK2(g_is->delete_stat(g_ndb_sys) == 0, g_is->getNdbError());
       }
     }
 
-    if (_update)
-    {
+    if (_update) {
       g_info << g_indname << ": update stats" << endl;
-      if (ndb_rand() % 2 == 0)
-      {
+      if (ndb_rand() % 2 == 0) {
         CHK2(g_dic->updateIndexStat(*g_ind, *g_tab) == 0, g_dic->getNdbError());
-      }
-      else
-      {
+      } else {
         CHK2(g_is->update_stat(g_ndb_sys) == 0, g_is->getNdbError());
       }
     }
@@ -289,8 +250,7 @@ dostats(int i)
     g_is->read_head(g_ndb_sys);
     g_is->get_head(head);
     CHK2(head.m_found != -1, g_is->getNdbError());
-    if (head.m_found == false)
-    {
+    if (head.m_found == false) {
       g_info << "no stats" << endl;
       break;
     }
@@ -306,63 +266,48 @@ dostats(int i)
     g_is->get_cache_info(infoQuery, NdbIndexStat::CacheQuery);
     show_cache_info("query cache", infoQuery);
 
-    if (_dump)
-    {
-      NdbIndexStatImpl& impl = g_is->getImpl();
+    if (_dump) {
+      NdbIndexStatImpl &impl = g_is->getImpl();
       NdbIndexStatImpl::CacheIter iter(impl);
       CHK2(impl.dump_cache_start(iter) == 0, g_is->getNdbError());
-      while (impl.dump_cache_next(iter) == true)
-      {
+      while (impl.dump_cache_next(iter) == true) {
         show_cache_entry(iter);
       }
     }
 
-    if (_query > 0)
-    {
+    if (_query > 0) {
       CHK2(doquery() == 0, "failed");
     }
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-static int
-dostats()
-{
+static int dostats() {
   int ret = 0;
-  do
-  {
-    for (int i = 0; i < g_indcount; i++)
-    {
+  do {
+    for (int i = 0; i < g_indcount; i++) {
       CHK1(dostats(i) == 0);
     }
     CHK1(ret == 0);
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-static int
-checkobjs()
-{
+static int checkobjs() {
   int ret = 0;
-  do
-  {
+  do {
     CHK2((g_tab = g_dic->getTable(g_tabname)) != 0,
-          g_tabname << ": " << g_dic->getNdbError());
+         g_tabname << ": " << g_dic->getNdbError());
 
-    if (g_indcount == 0)
-    {
+    if (g_indcount == 0) {
       NdbDictionary::Dictionary::List list;
       CHK2(g_dic->listIndexes(list, g_tabname) == 0, g_dic->getNdbError());
       const int count = list.count;
-      g_indnames = (const char**)malloc(sizeof(char*) * count);
+      g_indnames = (const char **)malloc(sizeof(char *) * count);
       CHK2(g_indnames != 0, "out of memory");
-      for (int i = 0; i < count; i++)
-      {
-        const NdbDictionary::Dictionary::List::Element& e = list.elements[i];
-        if (e.type == NdbDictionary::Object::OrderedIndex)
-        {
+      for (int i = 0; i < count; i++) {
+        const NdbDictionary::Dictionary::List::Element &e = list.elements[i];
+        if (e.type == NdbDictionary::Object::OrderedIndex) {
           g_indnames[g_indcount] = strdup(e.name);
           CHK2(g_indnames[g_indcount] != 0, "out of memory");
           g_indcount++;
@@ -370,28 +315,22 @@ checkobjs()
       }
       CHK1(ret == 0);
     }
-    g_indlist = (const NdbDictionary::Index**)malloc(sizeof(NdbDictionary::Index*) * g_indcount);
+    g_indlist = (const NdbDictionary::Index **)malloc(
+        sizeof(NdbDictionary::Index *) * g_indcount);
     CHK2(g_indlist != 0, "out of memory");
-    for (int i = 0; i < g_indcount; i++)
-    {
+    for (int i = 0; i < g_indcount; i++) {
       CHK2((g_indlist[i] = g_dic->getIndex(g_indnames[i], g_tabname)) != 0,
-            g_tabname << "." << g_indnames[i] << ": " << g_dic->getNdbError());
+           g_tabname << "." << g_indnames[i] << ": " << g_dic->getNdbError());
     }
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-static int
-dosys()
-{
+static int dosys() {
   int ret = 0;
-  do
-  {
-    if (_sys_drop)
-    {
-      if (!_sys_skip_events)
-      {
+  do {
+    if (_sys_drop) {
+      if (!_sys_skip_events) {
         g_info << "dropping sys events" << endl;
         CHK2(g_is->drop_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
         CHK2(g_is->check_sysevents(g_ndb_sys) == -1, "unexpected success");
@@ -399,8 +338,7 @@ dosys()
              "unexpected error: " << g_is->getNdbError());
       }
 
-      if (!_sys_skip_tables)
-      {
+      if (!_sys_skip_tables) {
         g_info << "dropping all sys tables" << endl;
         CHK2(g_is->drop_systables(g_ndb_sys) == 0, g_is->getNdbError());
         CHK2(g_is->check_systables(g_ndb_sys) == -1, "unexpected success");
@@ -410,17 +348,14 @@ dosys()
       g_info << "drop done" << endl;
     }
 
-    if (_sys_create)
-    {
-      if (!_sys_skip_tables)
-      {
+    if (_sys_create) {
+      if (!_sys_skip_tables) {
         g_info << "creating all sys tables" << endl;
         CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
         CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
       }
 
-      if (!_sys_skip_events)
-      {
+      if (!_sys_skip_events) {
         g_info << "creating sys events" << endl;
         CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
         CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
@@ -428,50 +363,37 @@ dosys()
       }
     }
 
-    if (_sys_create_if_not_exist)
-    {
-      if (!_sys_skip_tables)
-      {
-        if (g_is->check_systables(g_ndb_sys) == -1)
-        {
+    if (_sys_create_if_not_exist) {
+      if (!_sys_skip_tables) {
+        if (g_is->check_systables(g_ndb_sys) == -1) {
           CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
                g_is->getNdbError());
           g_info << "creating all sys tables" << endl;
           CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
           CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
           g_info << "create done" << endl;
-        }
-        else
-        {
+        } else {
           g_info << "using existing sys tables" << endl;
         }
       }
 
-      if (!_sys_skip_events)
-      {
-        if (g_is->check_sysevents(g_ndb_sys) == -1)
-        {
+      if (!_sys_skip_events) {
+        if (g_is->check_sysevents(g_ndb_sys) == -1) {
           CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysEvents,
                g_is->getNdbError());
           g_info << "creating sys events" << endl;
           CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
           g_info << "create done" << endl;
-        }
-        else
-        {
+        } else {
           g_info << "using existing sys events" << endl;
         }
       }
     }
 
-    if (_sys_create_if_not_valid)
-    {
-      if (!_sys_skip_tables)
-      {
-        if (g_is->check_systables(g_ndb_sys) == -1)
-        {
-          if (g_is->getNdbError().code != NdbIndexStat::NoSysTables)
-          {
+    if (_sys_create_if_not_valid) {
+      if (!_sys_skip_tables) {
+        if (g_is->check_systables(g_ndb_sys) == -1) {
+          if (g_is->getNdbError().code != NdbIndexStat::NoSysTables) {
             CHK2(g_is->getNdbError().code == NdbIndexStat::BadSysTables,
                  g_is->getNdbError());
             g_info << "dropping invalid sys tables" << endl;
@@ -485,18 +407,13 @@ dosys()
           CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
           CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
           g_info << "create done" << endl;
-        }
-        else
-        {
+        } else {
           g_info << "using existing sys tables" << endl;
         }
       }
-      if (!_sys_skip_events)
-      {
-        if (g_is->check_sysevents(g_ndb_sys) == -1)
-        {
-          if (g_is->getNdbError().code != NdbIndexStat::NoSysEvents)
-          {
+      if (!_sys_skip_events) {
+        if (g_is->check_sysevents(g_ndb_sys) == -1) {
+          if (g_is->getNdbError().code != NdbIndexStat::NoSysEvents) {
             CHK2(g_is->getNdbError().code == NdbIndexStat::BadSysEvents,
                  g_is->getNdbError());
             g_info << "dropping invalid sys events" << endl;
@@ -510,210 +427,162 @@ dosys()
           CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
           CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
           g_info << "create done" << endl;
-        }
-        else
-        {
+        } else {
           g_info << "using existing sys events" << endl;
         }
       }
     }
 
-    if (_sys_check)
-    {
-      if (!_sys_skip_tables)
-      {
+    if (_sys_check) {
+      if (!_sys_skip_tables) {
         CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
         g_info << "sys tables ok" << endl;
       }
-      if (!_sys_skip_events)
-      {
+      if (!_sys_skip_events) {
         CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
         g_info << "sys events ok" << endl;
       }
     }
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-static int
-doall()
-{
+static int doall() {
   int ret = 0;
-  do
-  {
+  do {
     CHK2(doconnect() == 0, "connect to NDB");
 
     int loop = 0;
-    while (++loop <= _loops)
-    {
+    while (++loop <= _loops) {
       g_info << "loop " << loop << " of " << _loops << endl;
-      if (!_sys_any)
-      {
-        if (loop == 1)
-        {
+      if (!_sys_any) {
+        if (loop == 1) {
           CHK1(checkobjs() == 0);
         }
         CHK2(dostats() == 0, "at loop " << loop);
-      }
-      else
-      {
+      } else {
         CHK2(dosys() == 0, "at loop " << loop);
       }
     }
     CHK1(ret == 0);
-  }
-  while (0);
+  } while (0);
 
   dodisconnect();
   return ret;
 }
 
-static struct my_option
-my_long_options[] =
-{
-  NdbStdOpt::usage,
-  NdbStdOpt::help,
-  NdbStdOpt::version,
-  NdbStdOpt::ndb_connectstring,
-  NdbStdOpt::mgmd_host,
-  NdbStdOpt::connectstring,
-  NdbStdOpt::ndb_nodeid,
-  NdbStdOpt::connect_retry_delay,
-  NdbStdOpt::connect_retries,
-  NDB_STD_OPT_DEBUG
-  // stats options
-  { "database", 'd', "Name of database table is in",
-    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "delete", NDB_OPT_NOSHORT, "Delete index stats of given table"
+static struct my_option my_long_options[] = {
+    NdbStdOpt::usage,
+    NdbStdOpt::help,
+    NdbStdOpt::version,
+    NdbStdOpt::ndb_connectstring,
+    NdbStdOpt::mgmd_host,
+    NdbStdOpt::connectstring,
+    NdbStdOpt::ndb_nodeid,
+    NdbStdOpt::connect_retry_delay,
+    NdbStdOpt::connect_retries,
+    NDB_STD_OPT_DEBUG
+    // stats options
+    {"database", 'd', "Name of database table is in", &_dbname, nullptr,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"delete", NDB_OPT_NOSHORT,
+     "Delete index stats of given table"
      " and stop any configured auto update",
-    &_delete, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "update", NDB_OPT_NOSHORT, "Update index stats of given table"
+     &_delete, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"update", NDB_OPT_NOSHORT,
+     "Update index stats of given table"
      " and restart any configured auto update",
-    &_update, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "dump", NDB_OPT_NOSHORT, "Dump query cache",
-    &_dump, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "query", NDB_OPT_NOSHORT,
-    "Perform random range queries on first key attr (must be int unsigned)",
-    &_query, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  // sys options
-  { "sys-drop", NDB_OPT_NOSHORT,
-    "Drop any stats tables and events in NDB kernel (all stats is lost)",
-    &_sys_drop, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-create", NDB_OPT_NOSHORT,
-    "Create stats tables and events in NDB kernel (must not exist)",
-    &_sys_create, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-create-if-not-exist", NDB_OPT_NOSHORT,
-    "Like --sys-create but do nothing if correct objects exist",
-    &_sys_create_if_not_exist, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-create-if-not-valid", NDB_OPT_NOSHORT,
-    "Like --sys-create-if-not-exist but first drop any invalid objects",
-    &_sys_create_if_not_valid, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-check", NDB_OPT_NOSHORT,
-    "Check that correct stats tables and events exist in NDB kernel",
-    &_sys_check, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-skip-tables", NDB_OPT_NOSHORT, "Do not apply sys options to tables",
-    &_sys_skip_tables, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "sys-skip-events", NDB_OPT_NOSHORT, "Do not apply sys options to events",
-    &_sys_skip_events, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  // other
-  { "verbose", 'v', "Verbose messages",
-    &_verbose, nullptr, nullptr, GET_BOOL, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  { "loops", NDB_OPT_NOSHORT,
-    "Repeat same commands a number of times (for testing)",
-    &_loops, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    1, 0, 0, nullptr, 0, nullptr },
-   NdbStdOpt::end_of_options
-};
+     &_update, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"dump", NDB_OPT_NOSHORT, "Dump query cache", &_dump, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"query", NDB_OPT_NOSHORT,
+     "Perform random range queries on first key attr (must be int unsigned)",
+     &_query, nullptr, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    // sys options
+    {"sys-drop", NDB_OPT_NOSHORT,
+     "Drop any stats tables and events in NDB kernel (all stats is lost)",
+     &_sys_drop, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"sys-create", NDB_OPT_NOSHORT,
+     "Create stats tables and events in NDB kernel (must not exist)",
+     &_sys_create, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"sys-create-if-not-exist", NDB_OPT_NOSHORT,
+     "Like --sys-create but do nothing if correct objects exist",
+     &_sys_create_if_not_exist, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"sys-create-if-not-valid", NDB_OPT_NOSHORT,
+     "Like --sys-create-if-not-exist but first drop any invalid objects",
+     &_sys_create_if_not_valid, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"sys-check", NDB_OPT_NOSHORT,
+     "Check that correct stats tables and events exist in NDB kernel",
+     &_sys_check, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"sys-skip-tables", NDB_OPT_NOSHORT, "Do not apply sys options to tables",
+     &_sys_skip_tables, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"sys-skip-events", NDB_OPT_NOSHORT, "Do not apply sys options to events",
+     &_sys_skip_events, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    // other
+    {"verbose", 'v', "Verbose messages", &_verbose, nullptr, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"loops", NDB_OPT_NOSHORT,
+     "Repeat same commands a number of times (for testing)", &_loops, nullptr,
+     nullptr, GET_INT, REQUIRED_ARG, 1, 0, 0, nullptr, 0, nullptr},
+    NdbStdOpt::end_of_options};
 
-const char*
-load_default_groups[]= { "mysql_cluster", 0 };
+const char *load_default_groups[] = {"mysql_cluster", 0};
 
-static void
-short_usage_sub(void)
-{
-  ndb_short_usage_sub("[table [index...]]");
-}
+static void short_usage_sub(void) { ndb_short_usage_sub("[table [index...]]"); }
 
-static void
-usage_extra()
-{
+static void usage_extra() {
   printf("%s: ordered index stats tool and test\n", my_progname);
 }
 
-static int
-checkopts(int argc, char** argv)
-{
+static int checkopts(int argc, char **argv) {
   int ret = 0;
-  do
-  {
-    _stats_any =
-      (_dbname != 0) +
-      (_delete != 0) +
-      (_update != 0) +
-      (_dump != 0) +
-      (_query != 0);
-    _sys_any =
-      (_sys_create != 0) +
-      (_sys_create_if_not_exist != 0) +
-      (_sys_create_if_not_valid != 0) +
-      (_sys_drop != 0) +
-      ( _sys_check != 0) +
-      (_sys_skip_tables != 0) +
-      (_sys_skip_events != 0);
-    if (!_sys_any)
-    {
-      if (_dbname == 0)
-        _dbname = "TEST_DB";
+  do {
+    _stats_any = (_dbname != 0) + (_delete != 0) + (_update != 0) +
+                 (_dump != 0) + (_query != 0);
+    _sys_any = (_sys_create != 0) + (_sys_create_if_not_exist != 0) +
+               (_sys_create_if_not_valid != 0) + (_sys_drop != 0) +
+               (_sys_check != 0) + (_sys_skip_tables != 0) +
+               (_sys_skip_events != 0);
+    if (!_sys_any) {
+      if (_dbname == 0) _dbname = "TEST_DB";
       CHK2(argc >= 1, "stats options require table");
       g_tabname = strdup(argv[0]);
       CHK2(g_tabname != 0, "out of memory");
       g_indcount = argc - 1;
-      if (g_indcount != 0)
-      {
-        g_indnames = (const char**)malloc(sizeof(char*) * g_indcount);
+      if (g_indcount != 0) {
+        g_indnames = (const char **)malloc(sizeof(char *) * g_indcount);
         CHK2(g_indnames != 0, "out of memory");
-        for (int i = 0; i < g_indcount; i++)
-        {
+        for (int i = 0; i < g_indcount; i++) {
           g_indnames[i] = strdup(argv[1 + i]);
           CHK2(g_indnames[i] != 0, "out of memory");
         }
         CHK1(ret == 0);
       }
-    }
-    else
-    {
+    } else {
       CHK2(_stats_any == 0, "cannot mix --sys options with stats options");
       CHK2(argc == 0, "--sys options take no args");
     }
-  }
-  while (0);
+  } while (0);
   return ret;
 }
 
-int
-main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
   int ret;
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   ret = opts.handle_options();
-  if (ret != 0 || checkopts(argc, argv) != 0)
-  {
+  if (ret != 0 || checkopts(argc, argv) != 0) {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
   setOutputLevel(_verbose ? 2 : 0);
@@ -723,8 +592,7 @@ main(int argc, char** argv)
   ndb_srand(seed);
 
   ret = doall();
-  if (ret == -1)
-  {
+  if (ret == -1) {
     exit(NDBT_ProgramExit(NDBT_FAILED));
   }
   exit(NDBT_ProgramExit(NDBT_OK));

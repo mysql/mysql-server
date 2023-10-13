@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 67
 
-
 class StartFragReq {
   /**
    * Sender(s)
@@ -40,17 +39,14 @@ class StartFragReq {
    * Receiver(s)
    */
   friend class Dblqh;
-public:
+
+ public:
   static constexpr Uint32 SignalOldLength = 20;
   static constexpr Uint32 SignalLength = 21;
 
-  friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
-  
-  enum
-  {
-    SFR_RESTORE_LCP = 1,
-    SFR_COPY_FRAG = 2
-  };
+  friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+  enum { SFR_RESTORE_LCP = 1, SFR_COPY_FRAG = 2 };
 
   Uint32 userPtr;
   Uint32 userRef;

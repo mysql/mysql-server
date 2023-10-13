@@ -27,8 +27,8 @@
 
 #include <ndb_types.h>
 #include "NdbDictionary.hpp"
-#include "NdbTransaction.hpp"
 #include "NdbError.hpp"
+#include "NdbTransaction.hpp"
 
 class Ndb;
 class NdbTransaction;
@@ -94,7 +94,7 @@ class NdbEventOperationImpl;
  *
  * - readTuple or scan readTuples with lock mode LM_CommittedRead is
  *   temporarily upgraded to lock mode LM_Read if any blob attributes
- *   are accessed (to guarantee consistent view).  After the Blob 
+ *   are accessed (to guarantee consistent view).  After the Blob
  *   handle is closed, the LM_Read lock is removed on the next
  *   execute() call.
  *
@@ -134,17 +134,11 @@ class NdbEventOperationImpl;
 #endif
 
 class NdbBlob {
-public:
+ public:
   /**
    * State.
    */
-  enum State {
-    Idle = 0,
-    Prepared = 1,
-    Active = 2,
-    Closed = 3,
-    Invalid = 9
-  };
+  enum State { Idle = 0, Prepared = 1, Active = 2, Closed = 3, Invalid = 9 };
   /**
    * Get the state of a NdbBlob object.
    */
@@ -153,7 +147,7 @@ public:
    * Returns -1 for normal statement based blob and 0/1 for event
    * operation post/pre data blob.  Always succeeds.
    */
-  void getVersion(int& version);
+  void getVersion(int &version);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Blob head V1 is 8 bytes:
@@ -169,17 +163,16 @@ public:
    * not be C-cast to/from the head+inline attribute value.
    */
   struct Head {
-    Uint16 varsize;     // length of head+inline minus the 2 length bytes
-    Uint16 reserved;    // must be 0  wl3717_todo checksum?
-    Uint32 pkid;        // connects part and row with same PK within tx
-    Uint64 length;      // blob length
+    Uint16 varsize;   // length of head+inline minus the 2 length bytes
+    Uint16 reserved;  // must be 0  wl3717_todo checksum?
+    Uint32 pkid;      // connects part and row with same PK within tx
+    Uint64 length;    // blob length
     //
-    Uint32 headsize;    // for convenience, number of bytes in head
-    Head() :
-      varsize(0), reserved(0), pkid(0), length(0), headsize(0) {}
+    Uint32 headsize;  // for convenience, number of bytes in head
+    Head() : varsize(0), reserved(0), pkid(0), length(0), headsize(0) {}
   };
-  static void packBlobHead(const Head& head, char* buf, int blobVersion);
-  static void unpackBlobHead(Head& head, const char* buf, int blobVersion);
+  static void packBlobHead(const Head &head, char *buf, int blobVersion);
+  static void unpackBlobHead(Head &head, const char *buf, int blobVersion);
 #endif
   /**
    * Prepare to read blob value.  The value is available after execute.
@@ -187,14 +180,14 @@ public:
    * and to check for truncation.  Sets current read/write position to
    * after the data read.
    */
-  int getValue(void* data, Uint32 bytes);
+  int getValue(void *data, Uint32 bytes);
   /**
    * Prepare to insert or update blob value.  An existing longer blob
    * value will be truncated.  The data buffer must remain valid until
    * execute.  Sets current read/write position to after the data.  Set
    * data to null pointer (0) to create a NULL value.
    */
-  int setValue(const void* data, Uint32 bytes);
+  int setValue(const void *data, Uint32 bytes);
   /**
    * Callback for setActiveHook().  Invoked immediately when the prepared
    * operation has been executed (but not committed).  Any getValue() or
@@ -202,22 +195,22 @@ public:
    * writeData() etc can be used to manipulate blob value.  A user-defined
    * argument is passed along.  Returns non-zero on error.
    */
-  typedef int ActiveHook(NdbBlob* me, void* arg);
+  typedef int ActiveHook(NdbBlob *me, void *arg);
   /**
    * Define callback for blob handle activation.  The queue of prepared
    * operations will be executed in no commit mode up to this point and
    * then the callback is invoked.
    */
-  int setActiveHook(ActiveHook* activeHook, void* arg);
+  int setActiveHook(ActiveHook *activeHook, void *arg);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int getDefined(int& isNull);
-  int getNull(bool& isNull);
+  int getDefined(int &isNull);
+  int getNull(bool &isNull);
 #endif
   /**
    * Return -1, 0, 1 if blob is undefined, non-null, or null.  For
    * non-event blob, undefined causes a state error.
    */
-  int getNull(int& isNull);
+  int getNull(int &isNull);
   /**
    * Set blob to NULL.
    */
@@ -226,7 +219,7 @@ public:
    * Get current length in bytes.  Use getNull to distinguish between
    * length 0 blob and NULL blob.
    */
-  int getLength(Uint64& length);
+  int getLength(Uint64 &length);
   /**
    * Truncate blob to given length.  Has no effect if the length is
    * larger than current length.
@@ -235,7 +228,7 @@ public:
   /**
    * Get current read/write position.
    */
-  int getPos(Uint64& pos);
+  int getPos(Uint64 &pos);
   /**
    * Set read/write position.  Must be between 0 and current length.
    * "Sparse blobs" are not supported.
@@ -246,25 +239,27 @@ public:
    * the data read.  A read past blob end returns actual number of bytes
    * read in the in/out bytes parameter.
    */
-  int readData(void* data, Uint32& bytes);
+  int readData(void *data, Uint32 &bytes);
   /**
    * Write at current position and set new position to first byte after
    * the data written.  A write past blob end extends the blob value.
    */
-  int writeData(const void* data, Uint32 bytes);
+  int writeData(const void *data, Uint32 bytes);
   /**
    * Return the blob column.
    */
-  const NdbDictionary::Column* getColumn();
+  const NdbDictionary::Column *getColumn();
   /**
    * Get blob parts table name.  Useful only to test programs.
    */
-  static int getBlobTableName(char* btname, Ndb* anNdb, const char* tableName, const char* columnName);
+  static int getBlobTableName(char *btname, Ndb *anNdb, const char *tableName,
+                              const char *columnName);
   /**
    * Get blob event name.  The blob event is created if the main event
    * monitors the blob column.  The name includes main event name.
    */
-  static int getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName);
+  static int getBlobEventName(char *bename, Ndb *anNdb, const char *eventName,
+                              const char *columnName);
   /**
    * Return error object.  The error may be blob specific or may be
    * copied from a failed implicit operation.
@@ -272,30 +267,30 @@ public:
    * The error code is copied back to the operation unless the operation
    * already has a non-zero error code.
    */
-  const NdbError& getNdbError() const;
+  const NdbError &getNdbError() const;
   /**
    * Get a pointer to the operation which this Blob Handle
    * was initially created as part of.
    * Note that this could be a scan operation.
    * Note that the pointer returned is a const pointer.
    */
-  const NdbOperation* getNdbOperation() const;  
+  const NdbOperation *getNdbOperation() const;
   /**
    * Return info about all blobs in this operation.
    *
    * Get first blob in list.
    */
-  NdbBlob* blobsFirstBlob();
+  NdbBlob *blobsFirstBlob();
   /**
    * Return info about all blobs in this operation.
    *
    * Get next blob in list. Initialize with blobsFirstBlob().
    */
-  NdbBlob* blobsNextBlob();
+  NdbBlob *blobsNextBlob();
   /**
    * Close the BlobHandle
    *
-   * The BlobHandle can be closed to release internal 
+   * The BlobHandle can be closed to release internal
    * resources before transaction commit / abort time.
    *
    * The close method can only be called when the Blob is in
@@ -305,33 +300,33 @@ public:
    * will be flushed before the Blob handle is closed.
    * If execPendingBlobOps = false then the Blob handle must
    * have no pending read or write operations.
-   * 
+   *
    * Read operations and locks
-   * 
+   *
    * Where a Blob handle is created on a read operation using
    * lockmode LM_Read or LM_Exclusive, the read operation can
-   * only be unlocked after all Blob handles created on the 
+   * only be unlocked after all Blob handles created on the
    * operation are closed.
    *
    * Where a row containing Blobs has been read with lockmode
-   * LM_CommittedRead, the lockmode is automatically upgraded to 
+   * LM_CommittedRead, the lockmode is automatically upgraded to
    * LM_Read to ensure consistency.
-   * In this case, when all the BlobHandles for the row have been 
-   * close()d, an unlock operation for the row is automatically 
+   * In this case, when all the BlobHandles for the row have been
+   * close()d, an unlock operation for the row is automatically
    * issued by the close() call, adding a pending 'write' operation
    * to the Blob.
    * After the next execute() call, the upgraded lock is released.
    */
   int close(bool execPendingBlobOps = true);
 
-private:
+ private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbTransaction;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbDictionaryImpl;
-  friend class NdbResultSet; // atNextResult
+  friend class NdbResultSet;  // atNextResult
   friend class NdbEventBuffer;
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
@@ -340,15 +335,13 @@ private:
 
   /**
    * BlobTask
-   * 
+   *
    * Encapsulated state for some task requested to be performed
    * on a Blob
    */
-  class BlobTask
-  {
-  public:
-    enum State
-    {
+  class BlobTask {
+   public:
+    enum State {
       BTS_INIT,
       BTS_READ_HEAD,
       BTS_READ_PARTS,
@@ -358,37 +351,39 @@ private:
       BTS_DONE
     } m_state;
 
-    char* m_readBuffer;
+    char *m_readBuffer;
     Uint64 m_readBufferLen;
 
     Uint16 m_lastPartLen;
 
-    const char* m_writeBuffer;
+    const char *m_writeBuffer;
     Uint64 m_writeBufferLen;
 
     Uint64 m_oldLen;
     Uint64 m_position;
 
-    NdbOperation* m_lastDeleteOp;
+    NdbOperation *m_lastDeleteOp;
 
 #ifndef BUG_31546136_FIXED
     bool m_delayedWriteHead;
 #endif
 
-    BlobTask():
-      m_state(BTS_INIT),
-      m_readBuffer(0), // NULL
-      m_readBufferLen(0),
-      m_lastPartLen(0),
-      m_writeBuffer(0),   // NULL
-      m_writeBufferLen(0),
-      m_oldLen(0),
-      m_position(0),
-      m_lastDeleteOp(0)  // NULL
+    BlobTask()
+        : m_state(BTS_INIT),
+          m_readBuffer(0),  // NULL
+          m_readBufferLen(0),
+          m_lastPartLen(0),
+          m_writeBuffer(0),  // NULL
+          m_writeBufferLen(0),
+          m_oldLen(0),
+          m_position(0),
+          m_lastDeleteOp(0)  // NULL
 #ifndef BUG_31546136_FIXED
-      ,m_delayedWriteHead(false)
+          ,
+          m_delayedWriteHead(false)
 #endif
-    {}
+    {
+    }
   } m_blobOp;
 
   int theBlobVersion;
@@ -409,36 +404,40 @@ private:
   bool theNdbRecordFlag;
   void setState(State newState);
   // quick and dirty support for events (consider subclassing)
-  int theEventBlobVersion; // -1=data op 0=post event 1=pre event
+  int theEventBlobVersion;  // -1=data op 0=post event 1=pre event
   // define blob table
-  static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
-  static int getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, struct NdbError& error);
-  static void getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c);
-  static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
+  static void getBlobTableName(char *btname, const NdbTableImpl *t,
+                               const NdbColumnImpl *c);
+  static int getBlobTable(NdbTableImpl &bt, const NdbTableImpl *t,
+                          const NdbColumnImpl *c, struct NdbError &error);
+  static void getBlobEventName(char *bename, const NdbEventImpl *e,
+                               const NdbColumnImpl *c);
+  static void getBlobEvent(NdbEventImpl &be, const NdbEventImpl *e,
+                           const NdbColumnImpl *c);
   // compute blob table column number for faster access
   enum {
-    BtColumnPk = 0,    /* V1 only */
-    BtColumnDist = 1,  /* if stripe size != 0 */
+    BtColumnPk = 0,   /* V1 only */
+    BtColumnDist = 1, /* if stripe size != 0 */
     BtColumnPart = 2,
-    BtColumnPkid = 3,  /* V2 only */
+    BtColumnPkid = 3, /* V2 only */
     BtColumnData = 4
   };
   int theBtColumnNo[5];
   // ndb api stuff
-  Ndb* theNdb;
-  NdbTransaction* theNdbCon;
-  NdbOperation* theNdbOp;
-  NdbEventOperationImpl* theEventOp;
-  NdbEventOperationImpl* theBlobEventOp;
-  NdbRecAttr* theBlobEventPkRecAttr;
-  NdbRecAttr* theBlobEventDistRecAttr;
-  NdbRecAttr* theBlobEventPartRecAttr;
-  NdbRecAttr* theBlobEventPkidRecAttr;
-  NdbRecAttr* theBlobEventDataRecAttr;
-  const NdbTableImpl* theTable;
-  const NdbTableImpl* theAccessTable;
-  const NdbTableImpl* theBlobTable;
-  const NdbColumnImpl* theColumn;
+  Ndb *theNdb;
+  NdbTransaction *theNdbCon;
+  NdbOperation *theNdbOp;
+  NdbEventOperationImpl *theEventOp;
+  NdbEventOperationImpl *theBlobEventOp;
+  NdbRecAttr *theBlobEventPkRecAttr;
+  NdbRecAttr *theBlobEventDistRecAttr;
+  NdbRecAttr *theBlobEventPartRecAttr;
+  NdbRecAttr *theBlobEventPkidRecAttr;
+  NdbRecAttr *theBlobEventDataRecAttr;
+  const NdbTableImpl *theTable;
+  const NdbTableImpl *theAccessTable;
+  const NdbTableImpl *theBlobTable;
+  const NdbColumnImpl *theColumn;
   unsigned char theFillChar;
   // sizes
   Uint32 theInlineSize;
@@ -446,19 +445,19 @@ private:
   Uint32 theStripeSize;
   // getValue/setValue
   bool theGetFlag;
-  char* theGetBuf;
+  char *theGetBuf;
   bool theSetFlag;
   bool theSetValueInPreExecFlag;
-  const char* theSetBuf;
+  const char *theSetBuf;
   Uint32 theGetSetBytes;
   // pending ops
   Uint8 thePendingBlobOps;
   // activation callback
-  ActiveHook* theActiveHook;
-  void* theActiveHookArg;
+  ActiveHook *theActiveHook;
+  void *theActiveHookArg;
   // buffers
   struct Buf {
-    char* data;
+    char *data;
     unsigned size;
     unsigned maxsize;
     Buf();
@@ -466,13 +465,13 @@ private:
     void alloc(unsigned n);
     void release();
     void zerorest();
-    void copyfrom(const Buf& src);
+    void copyfrom(const Buf &src);
   };
   Buf theKeyBuf;
   Buf theAccessKeyBuf;
   Buf thePackKeyBuf;
   Buf theHeadInlineBuf;
-  Buf theHeadInlineCopyBuf;     // for writeTuple
+  Buf theHeadInlineCopyBuf;  // for writeTuple
   Buf thePartBuf;
   Uint16 thePartLen;
   Buf theBlobEventDataBuf;
@@ -480,15 +479,15 @@ private:
   Uint32 theBlobEventPartValue;
   Uint32 theBlobEventPkidValue;
   Head theHead;
-  char* theInlineData;
-  NdbRecAttr* theHeadInlineRecAttr;
-  NdbOperation* theHeadInlineReadOp;
+  char *theInlineData;
+  NdbRecAttr *theHeadInlineRecAttr;
+  NdbOperation *theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
   // partition id for data events
   bool userDefinedPartitioning;
   Uint32 noPartitionId() { return ~(Uint32)0; }
   Uint32 thePartitionId;
-  NdbRecAttr* thePartitionIdRecAttr;
+  NdbRecAttr *thePartitionIdRecAttr;
   // length and read/write position
   int theNullFlag;
   Uint64 theLength;
@@ -497,22 +496,21 @@ private:
   // Allow update error from const methods.
   mutable NdbError theError;
   // for keeping in lists
-  NdbBlob* theNext;
+  NdbBlob *theNext;
 
   /* For key hashing */
   bool m_keyHashSet;
   Uint32 m_keyHash;
-  NdbBlob* m_keyHashNext;
+  NdbBlob *m_keyHashNext;
 
-  typedef enum blobAction
-  {
-    BA_ERROR = -1,             /* A fatal error */
-    BA_DONE = 0,               /* All operations defined */
-    BA_EXEC = 1,               /* Execute needed and then more work */
+  typedef enum blobAction {
+    BA_ERROR = -1, /* A fatal error */
+    BA_DONE = 0,   /* All operations defined */
+    BA_EXEC = 1,   /* Execute needed and then more work */
   } BlobAction;
 
   // initialization
-  NdbBlob(Ndb*);
+  NdbBlob(Ndb *);
   void init();
   void release();
   // classify operations
@@ -533,69 +531,71 @@ private:
   Uint32 getPartCount();
   Uint32 getDistKey(Uint32 part);
   // pack / unpack
-  int packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf);
-  int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
-  int copyKeyFromRow(const NdbRecord *record, const char *row,
-                     Buf& packedBuf, Buf& unpackedBuf);
+  int packKeyValue(const NdbTableImpl *aTable, const Buf &srcBuf);
+  int unpackKeyValue(const NdbTableImpl *aTable, Buf &dstBuf);
+  int copyKeyFromRow(const NdbRecord *record, const char *row, Buf &packedBuf,
+                     Buf &unpackedBuf);
   Uint32 getHeadInlineSize() { return theHeadSize + theInlineSize; }
   void prepareSetHeadInlineValue();
-  void getNullOrEmptyBlobHeadDataPtr(const char * & data, Uint32 & byteSize);
+  void getNullOrEmptyBlobHeadDataPtr(const char *&data, Uint32 &byteSize);
   // getters and setters
   void packBlobHead();
   void unpackBlobHead();
-  int getTableKeyValue(NdbOperation* anOp);
-  int setTableKeyValue(NdbOperation* anOp);
-  int setAccessKeyValue(NdbOperation* anOp);
-  int setDistKeyValue(NdbOperation* anOp, Uint32 part);
-  int setPartKeyValue(NdbOperation* anOp, Uint32 part);
-  int setPartPkidValue(NdbOperation* anOp, Uint32 pkid);
-  int getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc);
-  int setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLen);
-  int getHeadInlineValue(NdbOperation* anOp);
+  int getTableKeyValue(NdbOperation *anOp);
+  int setTableKeyValue(NdbOperation *anOp);
+  int setAccessKeyValue(NdbOperation *anOp);
+  int setDistKeyValue(NdbOperation *anOp, Uint32 part);
+  int setPartKeyValue(NdbOperation *anOp, Uint32 part);
+  int setPartPkidValue(NdbOperation *anOp, Uint32 pkid);
+  int getPartDataValue(NdbOperation *anOp, char *buf, Uint16 *aLenLoc);
+  int setPartDataValue(NdbOperation *anOp, const char *buf, const Uint16 &aLen);
+  int getHeadInlineValue(NdbOperation *anOp);
   void getHeadFromRecAttr();
-  int setHeadInlineValue(NdbOperation* anOp);
-  void setHeadPartitionId(NdbOperation* anOp);
-  void setPartPartitionId(NdbOperation* anOp);
+  int setHeadInlineValue(NdbOperation *anOp);
+  void setHeadPartitionId(NdbOperation *anOp);
+  void setPartPartitionId(NdbOperation *anOp);
 
   // Blob async tasks
   int initBlobTask(NdbTransaction::ExecType anExecType);
   NdbBlob::BlobAction handleBlobTask(NdbTransaction::ExecType anExecType);
 
   // data operations
-  int readDataPrivate(char* buf, Uint32& bytes);
-  int writeDataPrivate(const char* buf, Uint32 bytes);
-  int readParts(char* buf, Uint32 part, Uint32 count);
-  int readPart(char* buf, Uint32 part, Uint16& len);
-  int readTableParts(char* buf, Uint32 part, Uint32 count);
-  int readTablePart(char* buf, Uint32 part, Uint16& len);
-  int readEventParts(char* buf, Uint32 part, Uint32 count);
-  int readEventPart(char* buf, Uint32 part, Uint16& len);
-  int insertParts(const char* buf, Uint32 part, Uint32 count);
-  int insertPart(const char* buf, Uint32 part, const Uint16& len);
-  int updateParts(const char* buf, Uint32 part, Uint32 count);
-  int updatePart(const char* buf, Uint32 part, const Uint16& len);
+  int readDataPrivate(char *buf, Uint32 &bytes);
+  int writeDataPrivate(const char *buf, Uint32 bytes);
+  int readParts(char *buf, Uint32 part, Uint32 count);
+  int readPart(char *buf, Uint32 part, Uint16 &len);
+  int readTableParts(char *buf, Uint32 part, Uint32 count);
+  int readTablePart(char *buf, Uint32 part, Uint16 &len);
+  int readEventParts(char *buf, Uint32 part, Uint32 count);
+  int readEventPart(char *buf, Uint32 part, Uint16 &len);
+  int insertParts(const char *buf, Uint32 part, Uint32 count);
+  int insertPart(const char *buf, Uint32 part, const Uint16 &len);
+  int updateParts(const char *buf, Uint32 part, Uint32 count);
+  int updatePart(const char *buf, Uint32 part, const Uint16 &len);
   int deletePartsThrottled(Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
   int deletePartsUnknown(Uint32 part);
-  int writePart(const char* buf, Uint32 part, const Uint16& len);
+  int writePart(const char *buf, Uint32 part, const Uint16 &len);
   // pending ops
   int executePendingBlobReads();
   int executePendingBlobWrites();
   // callbacks
   int invokeActiveHook();
   // blob handle maintenance
-  int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
-  int atPrepareNdbRecord(NdbTransaction* aCon, NdbOperation* anOp,
-                         const NdbColumnImpl* aColumn,
+  int atPrepare(NdbTransaction *aCon, NdbOperation *anOp,
+                const NdbColumnImpl *aColumn);
+  int atPrepareNdbRecord(NdbTransaction *aCon, NdbOperation *anOp,
+                         const NdbColumnImpl *aColumn,
                          const NdbRecord *key_record, const char *key_row);
-  int atPrepareNdbRecordTakeover(NdbTransaction* aCon, NdbOperation* anOp,
-                                 const NdbColumnImpl* aColumn,
+  int atPrepareNdbRecordTakeover(NdbTransaction *aCon, NdbOperation *anOp,
+                                 const NdbColumnImpl *aColumn,
                                  const char *keyinfo, Uint32 keyinfo_bytes);
-  int atPrepareNdbRecordScan(NdbTransaction* aCon, NdbOperation* anOp,
-                             const NdbColumnImpl* aColumn);
-  int atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
-                      const NdbColumnImpl* aColumn);
-  int atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version);
+  int atPrepareNdbRecordScan(NdbTransaction *aCon, NdbOperation *anOp,
+                             const NdbColumnImpl *aColumn);
+  int atPrepareCommon(NdbTransaction *aCon, NdbOperation *anOp,
+                      const NdbColumnImpl *aColumn);
+  int atPrepare(NdbEventOperationImpl *anOp, NdbEventOperationImpl *aBlobOp,
+                const NdbColumnImpl *aColumn, int version);
   int prepareColumn();
   BlobAction preExecute(NdbTransaction::ExecType anExecType);
   BlobAction postExecute(NdbTransaction::ExecType anExecType);
@@ -606,11 +606,11 @@ private:
   int atNextEvent();
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = false);
-  void setErrorCode(NdbOperation* anOp, bool invalidFlag = false);
-  void setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag = false);
+  void setErrorCode(NdbOperation *anOp, bool invalidFlag = false);
+  void setErrorCode(NdbEventOperationImpl *anOp, bool invalidFlag = false);
   // list stuff
-  void next(NdbBlob* obj) { theNext= obj;}
-  NdbBlob* next() { return theNext;}
+  void next(NdbBlob *obj) { theNext = obj; }
+  NdbBlob *next() { return theNext; }
 
   /**
    * Batching support
@@ -618,33 +618,32 @@ private:
    * Use operation types and operation key info to decide
    * whether operations can execute concurrently in a batch
    */
-  typedef enum opTypes
-  {
-    OT_READ   = 1 << 0,
+  typedef enum opTypes {
+    OT_READ = 1 << 0,
     OT_INSERT = 1 << 1,
     OT_UPDATE = 1 << 2,
-    OT_WRITE  = 1 << 3,
+    OT_WRITE = 1 << 3,
     OT_DELETE = 1 << 4
   } OpTypes;
-  Uint32 getOpType(); // Not const as used methods !const
+  Uint32 getOpType();  // Not const as used methods !const
   static bool isOpTypeSafeWithBatch(const Uint32 batchOpTypes,
                                     const Uint32 newOpType);
 
   // Key compare
   /* Returns 0 if different, 1 if same, - otherwise */
-  int isBlobOnDifferentKey(const NdbBlob* other);
+  int isBlobOnDifferentKey(const NdbBlob *other);
 
   Uint32 getBlobKeyHash();
-  int getBlobKeysEqual(NdbBlob* other);
-  void setBlobHashNext(NdbBlob* next);
-  NdbBlob* getBlobHashNext() const;
+  int getBlobKeysEqual(NdbBlob *other);
+  void setBlobHashNext(NdbBlob *next);
+  NdbBlob *getBlobHashNext() const;
 
   friend class BlobBatchChecker;
 
   friend struct Ndb_free_list_t<NdbBlob>;
 
-  NdbBlob(const NdbBlob&); // Not impl.
-  NdbBlob&operator=(const NdbBlob&);
+  NdbBlob(const NdbBlob &);  // Not impl.
+  NdbBlob &operator=(const NdbBlob &);
 };
 
 #endif

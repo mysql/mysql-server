@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,16 +24,15 @@
 
 #include <NdbApi.hpp>
 
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
-#include "TransactionImpl.h"
-#include "QueryOperation.h"
-#include "SessionImpl.h"
+#include "JsValueAccess.h"
 #include "NativeCFunctionCall.h"
 #include "NativeMethodCall.h"
 #include "NdbWrappers.h"
-#include "JsValueAccess.h"
-
+#include "QueryOperation.h"
+#include "SessionImpl.h"
+#include "TransactionImpl.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 V8WrapperFn newSessionImpl;
 V8WrapperFn seizeTransaction;
@@ -42,7 +41,7 @@ V8WrapperFn freeTransactions;
 V8WrapperFn SessionImplDestructor;
 
 class SessionImplEnvelopeClass : public Envelope {
-public:
+ public:
   SessionImplEnvelopeClass() : Envelope("SessionImpl") {
     addMethod("seizeTransaction", seizeTransaction);
     addMethod("releaseTransaction", releaseTransaction);
@@ -59,51 +58,51 @@ MaybeLocal<Value> SessionImpl_Wrapper(SessionImpl *dbsi) {
   return jsobj;
 }
 
-SessionImpl * asyncNewSessionImpl(Ndb_cluster_connection *conn,
-                                  AsyncNdbContext *ctx,
-                                  const char *db, int maxTx) {
+SessionImpl *asyncNewSessionImpl(Ndb_cluster_connection *conn,
+                                 AsyncNdbContext *ctx, const char *db,
+                                 int maxTx) {
   return new SessionImpl(conn, ctx, db, maxTx);
 }
 
-
-void newSessionImpl(const Arguments & args) {
+void newSessionImpl(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
-  
+
   PROHIBIT_CONSTRUCTOR_CALL();
   REQUIRE_ARGS_LENGTH(5);
 
   typedef NativeCFunctionCall_4_<SessionImpl *, Ndb_cluster_connection *,
-                                 AsyncNdbContext *, const char *, int> MCALL;
-  MCALL * mcallptr = new MCALL(& asyncNewSessionImpl, args);
-  mcallptr->wrapReturnValueAs(& SessionImplEnvelope);
+                                 AsyncNdbContext *, const char *, int>
+      MCALL;
+  MCALL *mcallptr = new MCALL(&asyncNewSessionImpl, args);
+  mcallptr->wrapReturnValueAs(&SessionImplEnvelope);
   mcallptr->runAsync();
   args.GetReturnValue().SetUndefined();
 }
 
-/* The seizeTransaction() wrapper is unusual because a 
+/* The seizeTransaction() wrapper is unusual because a
    TransactionImpl holds a reference to its own JS wrapper
-*/   
-void seizeTransaction(const Arguments & args) {
-  SessionImpl * session = unwrapPointer<SessionImpl *>(args.Holder());
-  TransactionImpl * ctx = session->seizeTransaction(args.GetIsolate());
-  if(ctx)
+*/
+void seizeTransaction(const Arguments &args) {
+  SessionImpl *session = unwrapPointer<SessionImpl *>(args.Holder());
+  TransactionImpl *ctx = session->seizeTransaction(args.GetIsolate());
+  if (ctx)
     args.GetReturnValue().Set(ctx->getJsWrapper());
   else
     args.GetReturnValue().SetNull();
 }
 
-void releaseTransaction(const Arguments & args) {
+void releaseTransaction(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
   typedef NativeMethodCall_1_<bool, SessionImpl, TransactionImpl *> MCALL;
-  MCALL mcall(& SessionImpl::releaseTransaction, args);
+  MCALL mcall(&SessionImpl::releaseTransaction, args);
   mcall.run();
   args.GetReturnValue().Set(scope.Escape(mcall.jsReturnVal()));
 }
 
-void freeTransactions(const Arguments & args) {
+void freeTransactions(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
-  SessionImpl * session = unwrapPointer<SessionImpl *>(args.Holder());
+  SessionImpl *session = unwrapPointer<SessionImpl *>(args.Holder());
   session->freeTransactions();
   args.GetReturnValue().SetUndefined();
 }
@@ -111,7 +110,7 @@ void freeTransactions(const Arguments & args) {
 void SessionImplDestructor(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   typedef NativeDestructorCall<SessionImpl> DCALL;
-  DCALL * dcall = new DCALL(args);
+  DCALL *dcall = new DCALL(args);
   dcall->runAsync();
   args.GetReturnValue().SetUndefined();
 }
@@ -123,5 +122,3 @@ void SessionImpl_initOnLoad(Local<Object> target) {
 
   DEFINE_JS_FUNCTION(jsObj, "create", newSessionImpl);
 }
-
-

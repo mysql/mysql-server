@@ -26,21 +26,19 @@
 #define Ndb_mgmclient_hpp
 
 class CommandInterpreter;
-class Ndb_mgmclient
-{
-public:
-  Ndb_mgmclient(const char* host,
-                const char* default_prompt,
-                int verbose,
+class Ndb_mgmclient {
+ public:
+  Ndb_mgmclient(const char *host, const char *default_prompt, int verbose,
                 int connect_retry_delay);
   ~Ndb_mgmclient();
   bool execute(const char *line, int try_reconnect = -1,
                bool interactive = true, int *error = NULL);
-  const char* get_current_prompt() const;
+  const char *get_current_prompt() const;
   int set_default_backup_password(const char backup_password[]) const;
   int set_always_encrypt_backup(bool on) const;
-private:
+
+ private:
   CommandInterpreter *m_cmd;
 };
 
-#endif // Ndb_mgmclient_hpp
+#endif  // Ndb_mgmclient_hpp

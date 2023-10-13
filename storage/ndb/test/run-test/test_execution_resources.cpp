@@ -22,13 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "test_execution_resources.hpp"
+#include "util/require.h"
 
 #include <string>
+#include <util/File.hpp>
 #include <utility>
 #include <vector>
-#include <util/File.hpp>
 
 bool TestExecutionResources::registerExecutable(std::string exe,
                                                 bool isRequired) {

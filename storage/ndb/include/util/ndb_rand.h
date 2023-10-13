@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 int ndb_rand(void);
-int ndb_rand_r(unsigned * seed);
+int ndb_rand_r(unsigned *seed);
 void ndb_srand(unsigned seed);
 
 #ifdef __cplusplus

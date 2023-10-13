@@ -30,32 +30,20 @@
 
 #define JAM_FILE_ID 55
 
-
-struct ListTablesData
-{
+struct ListTablesData {
   Uint32 requestData;
   Uint32 tableId;
   Uint32 tableType;
 
-  void init() {
-    requestData = 0;
-  }
+  void init() { requestData = 0; }
 
-  Uint32 getTableId() const {
-    return tableId;
-  }
+  Uint32 getTableId() const { return tableId; }
 
-  void setTableId(Uint32 val) {
-    tableId = val;
-  }
+  void setTableId(Uint32 val) { tableId = val; }
 
-  Uint32 getTableType() const {
-    return tableType;
-  }
+  Uint32 getTableType() const { return tableType; }
 
-  void setTableType(Uint32 val) {
-    tableType = val;
-  }
+  void setTableType(Uint32 val) { tableType = val; }
 
   Uint32 getTableStore() const {
     return BitmaskImpl::getField(1, &requestData, 20, 3);
@@ -102,47 +90,47 @@ struct ListTablesData
  *
  */
 class OldListTablesData {
-public:
+ public:
   static Uint32 getTableId(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 0, 12);
   }
-  static void setTableId(Uint32& data, Uint32 val) {
+  static void setTableId(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 0, 12, val);
   }
   static Uint32 getTableType(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 12, 8);
   }
-  static void setTableType(Uint32& data, Uint32 val) {
+  static void setTableType(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 12, 8, val);
   }
   static Uint32 getTableStore(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 20, 3);
   }
-  static void setTableStore(Uint32& data, Uint32 val) {
+  static void setTableStore(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 20, 3, val);
   }
   static Uint32 getTableTemp(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 23, 1);
   }
-  static void setTableTemp(Uint32& data, Uint32 val) {
+  static void setTableTemp(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 23, 1, val);
   }
   static Uint32 getTableState(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 24, 4);
   }
-  static void setTableState(Uint32& data, Uint32 val) {
+  static void setTableState(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 24, 4, val);
   }
   static Uint32 getListNames(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 28, 1);
   }
-  static void setListNames(Uint32& data, Uint32 val) {
+  static void setListNames(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 28, 1, val);
   }
   static Uint32 getListIndexes(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 29, 1);
   }
-  static void setListIndexes(Uint32& data, Uint32 val) {
+  static void setListIndexes(Uint32 &data, Uint32 val) {
     BitmaskImpl::setField(1, &data, 29, 1, val);
   }
 };
@@ -154,56 +142,33 @@ class ListTablesReq {
   friend class Backup;
   friend class Table;
   friend class Suma;
-  
+
   /**
    * Reciver(s)
    */
   friend class Dbdict;
 
-public:
+ public:
   static constexpr Uint32 oldSignalLength = 3;
   static constexpr Uint32 SignalLength = 5;
 
-public:  
+ public:
   Uint32 senderData;
   Uint32 senderRef;
   ListTablesData data;
 
-  void init(){
-    data.init();
-  }
+  void init() { data.init(); }
 
-  Uint32 getTableId() const {
-    return data.getTableId();
-  }
-  void setTableId(Uint32 val) {
-    data.setTableId(val);
-  }
-  Uint32 getTableType() const {
-    return data.getTableType();
-  }
-  void setTableType(Uint32 val) {
-    data.setTableType(val);
-  }
-  Uint32 getListNames() const {
-    return data.getListNames();
-  }
-  void setListNames(Uint32 val) {
-    data.setListNames(val);
-  }
-  Uint32 getListIndexes() const {
-    return data.getListIndexes();
-  }
-  void setListIndexes(Uint32 val) {
-    data.setListIndexes(val);
-  }
-  Uint32 getListDependent() const {
-    return data.getListDependent();
-  }
-  void setListDependent(Uint32 val) {
-    data.setListDependent(val);
-  }
-
+  Uint32 getTableId() const { return data.getTableId(); }
+  void setTableId(Uint32 val) { data.setTableId(val); }
+  Uint32 getTableType() const { return data.getTableType(); }
+  void setTableType(Uint32 val) { data.setTableType(val); }
+  Uint32 getListNames() const { return data.getListNames(); }
+  void setListNames(Uint32 val) { data.setListNames(val); }
+  Uint32 getListIndexes() const { return data.getListIndexes(); }
+  void setListIndexes(Uint32 val) { data.setListIndexes(val); }
+  Uint32 getListDependent() const { return data.getListDependent(); }
+  void setListDependent(Uint32 val) { data.setListDependent(val); }
 
   /* For backwards compatility */
   Uint32 oldGetTableId() {
@@ -225,22 +190,22 @@ class ListTablesConf {
    * Sender(s)
    */
   friend class Dbdict;
-  
+
   /**
    * Reciver(s)
    */
   friend class Backup;
   friend class Table;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-public:
+ public:
   Uint32 senderData;
   Uint32 noOfTables;
 
-  SECTION( TABLE_DATA = 0 );
-  SECTION( TABLE_NAMES = 1 );
+  SECTION(TABLE_DATA = 0);
+  SECTION(TABLE_NAMES = 1);
 };
 
 class OldListTablesConf {
@@ -255,7 +220,7 @@ class OldListTablesConf {
   friend class Backup;
   friend class Table;
 
-public:
+ public:
   /**
    * Note: last signal is indicated by having length < 25
    */
@@ -263,7 +228,7 @@ public:
   static constexpr Uint32 HeaderLength = 2;
   static constexpr Uint32 DataLength = 23;
 
-public:  
+ public:
   Uint32 senderData;
   Uint32 counter;
   Uint32 tableData[DataLength];
@@ -299,7 +264,6 @@ public:
     OldListTablesData::setTableTemp(tableData[pos], val);
   }
 };
-
 
 #undef JAM_FILE_ID
 

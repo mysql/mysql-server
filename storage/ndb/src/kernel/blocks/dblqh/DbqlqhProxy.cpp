@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 520
 
-DbqlqhProxy::DbqlqhProxy(Block_context& ctx) :
-  LocalProxy(DBQLQH, ctx)
-{
-}
+DbqlqhProxy::DbqlqhProxy(Block_context &ctx) : LocalProxy(DBQLQH, ctx) {}
 
-DbqlqhProxy::~DbqlqhProxy()
-{
-}
+DbqlqhProxy::~DbqlqhProxy() {}
 
-SimulatedBlock*
-DbqlqhProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbqlqhProxy::newWorker(Uint32 instanceNo) {
   return new Dbqlqh(m_ctx, instanceNo);
 }

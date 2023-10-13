@@ -29,23 +29,22 @@
 
 #define JAM_FILE_ID 75
 
-
 /**
  */
 class ReadConfigReq {
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-  
+
   Uint32 senderRef;
   Uint32 senderData;
-  Uint32 noOfParameters; // 0 Means read all relevant for block
-  Uint32 parameters[1];  // see mgmapi_config_parameters.h
+  Uint32 noOfParameters;  // 0 Means read all relevant for block
+  Uint32 parameters[1];   // see mgmapi_config_parameters.h
 };
 
 DECLARE_SIGNAL_SCOPE(GSN_READ_CONFIG_REQ, Local);
 
 class ReadConfigConf {
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;

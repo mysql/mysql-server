@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 540
 
-QRestoreProxy::QRestoreProxy(Block_context& ctx) :
-  LocalProxy(QRESTORE, ctx)
-{
-}
+QRestoreProxy::QRestoreProxy(Block_context &ctx) : LocalProxy(QRESTORE, ctx) {}
 
-QRestoreProxy::~QRestoreProxy()
-{
-}
+QRestoreProxy::~QRestoreProxy() {}
 
-SimulatedBlock*
-QRestoreProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *QRestoreProxy::newWorker(Uint32 instanceNo) {
   return new QRestore(m_ctx, instanceNo);
 }

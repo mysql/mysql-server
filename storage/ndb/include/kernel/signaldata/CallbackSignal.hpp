@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 22
 
-
 /*
  * Callbacks via signals.  The "Req" is done by a method call
  * so there is only "Conf" and optional "Ack".
@@ -35,12 +34,12 @@
 
 struct CallbackConf {
   static constexpr Uint32 SignalLength = 6;
-  Uint32 senderData;    // callee: e.g. lgman logfile_group_id
-  Uint32 senderRef;     // callee
-  Uint32 callbackIndex; // caller: index into own CallbackTable passed in Req
-  Uint32 callbackData;  // caller: e.g. dbtup opPtr.i passed in Req
-  Uint32 callbackInfo;  // callee: anything, returned in CallbackAck
-  Uint32 returnCode;    // callee
+  Uint32 senderData;     // callee: e.g. lgman logfile_group_id
+  Uint32 senderRef;      // callee
+  Uint32 callbackIndex;  // caller: index into own CallbackTable passed in Req
+  Uint32 callbackData;   // caller: e.g. dbtup opPtr.i passed in Req
+  Uint32 callbackInfo;   // callee: anything, returned in CallbackAck
+  Uint32 returnCode;     // callee
 };
 
 struct CallbackAck {
@@ -48,7 +47,6 @@ struct CallbackAck {
   Uint32 senderData;    // from CallbackConf
   Uint32 callbackInfo;  // from CallbackConf
 };
-
 
 #undef JAM_FILE_ID
 

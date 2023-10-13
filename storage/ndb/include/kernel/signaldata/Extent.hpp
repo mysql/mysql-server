@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 86
 
-
 struct AllocExtentReq {
   /**
    * Sender(s) / Reciver(s)
@@ -38,7 +37,7 @@ struct AllocExtentReq {
   /**
    * For printing
    */
-  
+
   static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
@@ -46,18 +45,15 @@ struct AllocExtentReq {
     NoExtentAvailable = 1601,
     NoDatafile = 1602
   };
-  
-  union 
-  {
-    struct 
-    {
+
+  union {
+    struct {
       Uint32 tablespace_id;
       Uint32 table_id;
       Uint32 fragment_id;
       Uint32 create_table_version;
     } request;
-    struct 
-    {
+    struct {
       Uint32 errorCode;
       Local_key page_id;
       Uint32 page_count;
@@ -73,25 +69,20 @@ struct FreeExtentReq {
   /**
    * For printing
    */
-  
+
   static constexpr Uint32 SignalLength = 4;
 
-  enum ErrorCode {
-    UnmappedExtentPageIsNotImplemented = 1
-  };
-  
-  union 
-  {
-    struct 
-    {
+  enum ErrorCode { UnmappedExtentPageIsNotImplemented = 1 };
+
+  union {
+    struct {
       Local_key key;
       Uint32 table_id;
       Uint32 tablespace_id;
       Uint32 lsn_hi;
       Uint32 lsn_lo;
     } request;
-    struct 
-    {
+    struct {
       Uint32 errorCode;
     } reply;
   };
@@ -105,32 +96,24 @@ struct AllocPageReq {
   /**
    * For printing
    */
-  
+
   static constexpr Uint32 SignalLength = 3;
 
-  enum ErrorCode {
-    UnmappedExtentPageIsNotImplemented = 1,
-    NoPageFree= 2
-  };
-  
-  Local_key key; // in out
-  Uint32 bits;   // in out
-  union 
-  {
-    struct 
-    {
+  enum ErrorCode { UnmappedExtentPageIsNotImplemented = 1, NoPageFree = 2 };
+
+  Local_key key;  // in out
+  Uint32 bits;    // in out
+  union {
+    struct {
       Uint32 table_id;
       Uint32 fragment_id;
       Uint32 tablespace_id;
     } request;
-    struct 
-    {
+    struct {
       Uint32 errorCode;
     } reply;
   };
 };
-
-
 
 #undef JAM_FILE_ID
 

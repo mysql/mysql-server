@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef DROP_FK_IMPL_HPP
 #define DROP_FK_IMPL_HPP
 
@@ -30,9 +29,7 @@
 
 #define JAM_FILE_ID 120
 
-
-struct DropFKImplReq
-{
+struct DropFKImplReq {
   /**
    * Sender(s) / Reciver(s)
    */
@@ -41,15 +38,15 @@ struct DropFKImplReq
   /**
    * For printing
    */
-  friend bool printDROP_FK_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_IMPL_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 5;
 
   enum {
-    RT_PARSE    = 0x1,
-    RT_PREPARE  = 0x2,
-    RT_ABORT    = 0x3,
-    RT_COMMIT   = 0x4,
+    RT_PARSE = 0x1,
+    RT_PREPARE = 0x2,
+    RT_ABORT = 0x3,
+    RT_COMMIT = 0x4,
     RT_COMPLETE = 0x5
   };
 
@@ -60,8 +57,7 @@ struct DropFKImplReq
   Uint32 fkVersion;
 };
 
-struct DropFKImplRef
-{
+struct DropFKImplRef {
   /**
    * Sender(s)
    */
@@ -70,7 +66,7 @@ struct DropFKImplRef
   /**
    * For printing
    */
-  friend bool printDROP_FK_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_IMPL_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 3;
 
@@ -78,14 +74,10 @@ struct DropFKImplRef
   Uint32 senderRef;
   Uint32 errorCode;
 
-  enum ErrCode
-  {
-    NoSuchObject = 21042
-  };
+  enum ErrCode { NoSuchObject = 21042 };
 };
 
-struct DropFKImplConf
-{
+struct DropFKImplConf {
   /**
    * Sender(s)
    */
@@ -94,14 +86,13 @@ struct DropFKImplConf
   /**
    * For printing
    */
-  friend bool printDROP_FK_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printDROP_FK_IMPL_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;
 };
-
 
 #undef JAM_FILE_ID
 

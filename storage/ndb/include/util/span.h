@@ -72,13 +72,11 @@
  * for(int i = 0; i < vec.size(); i++) vec[i] = i;
  */
 
-namespace ndb
-{
+namespace ndb {
 static inline constexpr std::size_t dynamic_extent =
     std::numeric_limits<std::size_t>::max();
 
-namespace detail
-{
+namespace detail {
 template <class T>
 class span_base;
 
@@ -87,8 +85,7 @@ class span_extent;
 }  // namespace detail
 
 template <class T, std::size_t Extent = ndb::dynamic_extent>
-class span : private detail::span_base<T>, detail::span_extent<Extent>
-{
+class span : private detail::span_base<T>, detail::span_extent<Extent> {
  public:
   using element_type = T;
   using value_type = std::remove_cv_t<T>;
@@ -108,61 +105,43 @@ class span : private detail::span_base<T>, detail::span_extent<Extent>
    */
   constexpr span(
       element_type (&arr)[Extent != dynamic_extent ? Extent : 0]) noexcept
-      : detail::span_base<T>(arr)
-  {
+      : detail::span_base<T>(arr) {
     static_assert(Extent != dynamic_extent);
   }
   template <class U>
   constexpr span(std::array<U, Extent> &arr) noexcept
-      : detail::span_base<T>(arr.data())
-  {
-  }
+      : detail::span_base<T>(arr.data()) {}
   template <class U>
   constexpr span(const std::array<U, Extent> &arr) noexcept
-      : detail::span_base<T>(arr.data())
-  {
-  }
+      : detail::span_base<T>(arr.data()) {}
   template <class U>
   constexpr span(const ndb::span<U, Extent> &source) noexcept
-      : detail::span_base<T>(source.data())
-  {
-  }
+      : detail::span_base<T>(source.data()) {}
   template <class U>
   constexpr span(U &source) noexcept
       : detail::span_base<typename U::value_type>(source.data()),
-        detail::span_extent<Extent>(source.size())
-  {
-  }
+        detail::span_extent<Extent>(source.size()) {}
   constexpr span(pointer base, size_type len) noexcept
-      : detail::span_base<T>(base), detail::span_extent<Extent>(len)
-  {
-  }
+      : detail::span_base<T>(base), detail::span_extent<Extent>(len) {}
   constexpr span(pointer base, pointer end) noexcept
-      : detail::span_base<T>(base), detail::span_extent<Extent>(end - base)
-  {
-  }
+      : detail::span_base<T>(base), detail::span_extent<Extent>(end - base) {}
 
-  constexpr reference operator[](size_type pos)
-  {
+  constexpr reference operator[](size_type pos) {
     return this->get_base()[pos];
   }
-  constexpr const_reference operator[](size_type pos) const
-  {
+  constexpr const_reference operator[](size_type pos) const {
     return this->get_base()[pos];
   }
 
   constexpr iterator begin() const noexcept { return this->get_base(); }
-  constexpr iterator end() const noexcept
-  {
+  constexpr iterator end() const noexcept {
     return this->get_base() + this->get_extent();
   }
-  constexpr iterator rbegin() const noexcept
-  {
+  constexpr iterator rbegin() const noexcept {
     return this->get_base() + this->get_extent() - 1;
   }
   constexpr iterator rend() const noexcept { return this->get_base() - 1; }
-  [[nodiscard]] constexpr bool empty() const noexcept
-  {
+  [[nodiscard]] constexpr bool empty() const noexcept {
     return (this->get_extent() == 0);
   }
   constexpr pointer data() const noexcept { return this->get_base(); }
@@ -188,11 +167,9 @@ span(Container &) -> span<typename Container::value_type>;
 
 // implementation details
 
-namespace detail
-{
+namespace detail {
 template <class T>
-class span_base
-{
+class span_base {
  public:
   constexpr span_base(T *p) noexcept : m_base(p) {}
   constexpr T *get_base() const noexcept { return m_base; }
@@ -202,20 +179,17 @@ class span_base
 };
 
 template <std::size_t Extent>
-class span_extent
-{
+class span_extent {
  public:
   constexpr span_extent() noexcept { static_assert(Extent != dynamic_extent); }
-  constexpr span_extent(std::size_t e) noexcept
-  {
+  constexpr span_extent(std::size_t e) noexcept {
     if (e != Extent) std::terminate();
   }
   constexpr std::size_t get_extent() const noexcept { return Extent; }
 };
 
 template <>
-class span_extent<dynamic_extent>
-{
+class span_extent<dynamic_extent> {
   const std::size_t m_extent;
 
  public:

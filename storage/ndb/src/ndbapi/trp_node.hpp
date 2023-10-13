@@ -30,11 +30,10 @@
 #include <kernel/NodeState.hpp>
 
 class NdbOut;
-NdbOut& operator<<(NdbOut&, const struct trp_node&);
+NdbOut &operator<<(NdbOut &, const struct trp_node &);
 
-struct trp_node
-{
-  NodeInfo  m_info;
+struct trp_node {
+  NodeInfo m_info;
   NodeState m_state{NodeState::SL_NOTHING};
 
   Uint32 minDbVersion = 0;
@@ -48,7 +47,6 @@ struct trp_node
   bool m_connected = false;     // Transporter connected
   bool m_api_reg_conf = false;  // API_REGCONF has arrived
  public:
-
   void set_connected(bool connected) {
     assert(defined);
     m_connected = connected;
@@ -56,27 +54,23 @@ struct trp_node
   bool is_connected(void) const {
     const bool connected = m_connected;
     // Must be defined if connected
-    assert(!connected ||
-           (connected && defined));
+    assert(!connected || (connected && defined));
     return connected;
   }
 
   void set_confirmed(bool confirmed) {
-    if (confirmed)
-      assert(is_connected());
+    if (confirmed) assert(is_connected());
     m_api_reg_conf = confirmed;
   }
 
   bool is_confirmed(void) const {
     const bool confirmed = m_api_reg_conf;
-    assert(!confirmed ||
-           (confirmed && is_connected()));
+    assert(!confirmed || (confirmed && is_connected()));
     return confirmed;
   }
 
-private:
-
-  friend NdbOut& operator<<(NdbOut&, const trp_node&);
+ private:
+  friend NdbOut &operator<<(NdbOut &, const trp_node &);
 };
 
 #endif

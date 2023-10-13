@@ -24,17 +24,16 @@
 
 #include <ndb_global.h>
 
+#include <GlobalSignalNumbers.h>
+#include <NdbEnv.h>
+#include <NdbTick.h>
+#include <DebuggerNames.hpp>
+#include <EventLogger.hpp>
 #include "SignalLoggerManager.hpp"
 #include "TransporterDefinitions.hpp"
-#include <GlobalSignalNumbers.h>
-#include <DebuggerNames.hpp>
-#include <NdbTick.h>
-#include <NdbEnv.h>
-#include <EventLogger.hpp>
 
 #ifdef VM_TRACE_TIME
-static char* mytime()
-{
+static char *mytime() {
   Uint64 t = NdbTick_CurrentMillisecond();
   uint s = (t / 1000) % 3600;
   uint ms = t % 1000;
@@ -43,10 +42,9 @@ static char* mytime()
   return buf;
 }
 #endif
-SignalLoggerManager::SignalLoggerManager()
-{
-  for (int i = 0; i < NO_OF_BLOCKS; i++){
-      logModes[i] = 0;
+SignalLoggerManager::SignalLoggerManager() {
+  for (int i = 0; i < NO_OF_BLOCKS; i++) {
+    logModes[i] = 0;
   }
   outputStream = nullptr;
   m_ownNodeId = 0;
@@ -56,15 +54,13 @@ SignalLoggerManager::SignalLoggerManager()
   m_mutex = nullptr;
 
 #ifdef NDB_USE_GET_ENV
-  const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char*)0, 0);
-  if (p != 0 && strchr("1Y", p[0]) != 0)
-    m_mutex = NdbMutex_Create();
+  const char *p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char *)0, 0);
+  if (p != 0 && strchr("1Y", p[0]) != 0) m_mutex = NdbMutex_Create();
 #endif
 }
 
-SignalLoggerManager::~SignalLoggerManager()
-{
-  if(outputStream != nullptr){
+SignalLoggerManager::~SignalLoggerManager() {
+  if (outputStream != nullptr) {
     fflush(outputStream);
     fclose(outputStream);
     outputStream = nullptr;
@@ -75,118 +71,84 @@ SignalLoggerManager::~SignalLoggerManager()
   }
 }
 
-FILE *
-SignalLoggerManager::setOutputStream(FILE * output)
-{
-  if (outputStream != nullptr)
-  {
+FILE *SignalLoggerManager::setOutputStream(FILE *output) {
+  if (outputStream != nullptr) {
     lock();
     fflush(outputStream);
     unlock();
   }
 
-  FILE * out = outputStream;
+  FILE *out = outputStream;
   outputStream = output;
   return out;
 }
 
-FILE *
-SignalLoggerManager::getOutputStream() const
-{
-  return outputStream;
-}
+FILE *SignalLoggerManager::getOutputStream() const { return outputStream; }
 
-void
-SignalLoggerManager::flushSignalLog()
-{
-  if (outputStream != nullptr)
-  {
+void SignalLoggerManager::flushSignalLog() {
+  if (outputStream != nullptr) {
     lock();
     fflush(outputStream);
     unlock();
   }
 }
 
-void
-SignalLoggerManager::setTrace(unsigned long trace)
-{
-  traceId = trace;
-}
+void SignalLoggerManager::setTrace(unsigned long trace) { traceId = trace; }
 
-unsigned long
-SignalLoggerManager::getTrace() const
-{
-  return traceId;
-}
+unsigned long SignalLoggerManager::getTrace() const { return traceId; }
 
-void
-SignalLoggerManager::setOwnNodeId(int nodeId){
-  m_ownNodeId = nodeId;
-}
-  
-void
-SignalLoggerManager::setLogDistributed(bool val){
+void SignalLoggerManager::setOwnNodeId(int nodeId) { m_ownNodeId = nodeId; }
+
+void SignalLoggerManager::setLogDistributed(bool val) {
   m_logDistributed = val;
 }
 
-static int
-getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
-{
-  const char * loc = strstr(line, par);
-  if(loc == nullptr)
-    return 0;
+static int getParameter(char *blocks[NO_OF_BLOCKS], const char *par,
+                        const char *line) {
+  const char *loc = strstr(line, par);
+  if (loc == nullptr) return 0;
 
   loc += strlen(par);
 
   int found = 0;
 
-  char * copy = strdup(loc);
-  char * tmp = copy;
+  char *copy = strdup(loc);
+  char *tmp = copy;
   bool done = false;
-  while(!done){
+  while (!done) {
     int len = (int)strcspn(tmp, ", ;:\0");
-    if(len == 0)
+    if (len == 0)
       done = true;
     else {
-      if(* (tmp + len) != ',')
-	done = true;
-      * (tmp + len) = 0;
+      if (*(tmp + len) != ',') done = true;
+      *(tmp + len) = 0;
       blocks[found] = strdup(tmp);
-      found ++;
+      found++;
       tmp += (len + 1);
-    } 
+    }
   }
   free(copy);
   return found;
 }
 
-
-#define SLM_OFF    0
-#define SLM_ON     1
+#define SLM_OFF 0
+#define SLM_ON 1
 #define SLM_TOGGLE 2
 
-int
-SignalLoggerManager::log(LogMode logMode, const char * params)
-{
-  char * blocks[NO_OF_BLOCKS];
+int SignalLoggerManager::log(LogMode logMode, const char *params) {
+  char *blocks[NO_OF_BLOCKS];
   const int count = getParameter(blocks, "BLOCK=", params);
-  
+
   int cnt = 0;
-  if(count == 0 ||
-     (count == 1 && !strcmp(blocks[0], "ALL")))
-  {
+  if (count == 0 || (count == 1 && !strcmp(blocks[0], "ALL"))) {
     // Inform all blocks about the new log mode
     for (int number = 0; number < NO_OF_BLOCKS; ++number)
       cnt += log(SLM_ON, MIN_BLOCK_NO + number, logMode);
-  }
-  else
-  {
+  } else {
     // Inform only specified blocks about the new log mode
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
       BlockNumber bno = getBlockNo(blocks[i]);
-      if (bno == 0)
-      {
+      if (bno == 0) {
         // Could not find any block with matching name
         g_eventLogger->info(
             "Could not turn on signal logging for unknown block '%s'",
@@ -196,95 +158,88 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
       cnt += log(SLM_ON, bno, logMode);
     }
   }
-  for(int i = 0; i<count; i++){
+  for (int i = 0; i < count; i++) {
     free(blocks[i]);
   }
 
   return cnt;
 }
 
-int
-SignalLoggerManager::log(int cmd, BlockNumber bno, LogMode logMode)
-{
+int SignalLoggerManager::log(int cmd, BlockNumber bno, LogMode logMode) {
   // Make sure bno is valid range
   assert(bno >= MIN_BLOCK_NO && bno <= MAX_BLOCK_NO);
 
   // Convert bno to index into logModes
-  const size_t index = bno-MIN_BLOCK_NO;
+  const size_t index = bno - MIN_BLOCK_NO;
   assert(index < NDB_ARRAY_SIZE(logModes));
 
-  switch(cmd){
-  case SLM_ON:
-    logModes[index] |= logMode;
-    return 1;
-    break;
-  case SLM_OFF:
-    logModes[index] &= (~logMode);
-    return 1;
-    break;
-  case SLM_TOGGLE:
-    logModes[index] ^= logMode;
-    return 1;
-    break;
+  switch (cmd) {
+    case SLM_ON:
+      logModes[index] |= logMode;
+      return 1;
+      break;
+    case SLM_OFF:
+      logModes[index] &= (~logMode);
+      return 1;
+      break;
+    case SLM_TOGGLE:
+      logModes[index] ^= logMode;
+      return 1;
+      break;
   }
   return 0;
 }
 
-int
-SignalLoggerManager::logOn(bool allBlocks, BlockNumber bno, LogMode logMode)
-{
-  if(!allBlocks){
+int SignalLoggerManager::logOn(bool allBlocks, BlockNumber bno,
+                               LogMode logMode) {
+  if (!allBlocks) {
     return log(SLM_ON, bno, logMode);
-  } 
+  }
   int cnt = 0;
-  for(unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
+  for (unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
     cnt += log(SLM_ON, i, logMode);
   return cnt;
 }
 
-int
-SignalLoggerManager::logOff(bool allBlocks, BlockNumber bno, LogMode logMode)
-{
-  if(!allBlocks){
+int SignalLoggerManager::logOff(bool allBlocks, BlockNumber bno,
+                                LogMode logMode) {
+  if (!allBlocks) {
     return log(SLM_OFF, bno, logMode);
-  } 
+  }
   int cnt = 0;
-  for(unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
+  for (unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
     cnt += log(SLM_OFF, i, logMode);
   return cnt;
-
 }
 
-int
-SignalLoggerManager::logToggle(bool allBlocks, BlockNumber bno, LogMode logMode)
-{
-  if(!allBlocks){
+int SignalLoggerManager::logToggle(bool allBlocks, BlockNumber bno,
+                                   LogMode logMode) {
+  if (!allBlocks) {
     return log(SLM_TOGGLE, bno, logMode);
-  } 
+  }
   int cnt = 0;
-  for(unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
+  for (unsigned int i = MIN_BLOCK_NO; i <= MAX_BLOCK_NO; i++)
     cnt += log(SLM_TOGGLE, i, logMode);
   return cnt;
 }
 
-void
-SignalLoggerManager::executeDirect(const SignalHeader& sh, 
-				   Uint8 prio,  // in-out flag
-				   const Uint32 * theData, Uint32 node)
-{
+void SignalLoggerManager::executeDirect(const SignalHeader &sh,
+                                        Uint8 prio,  // in-out flag
+                                        const Uint32 *theData, Uint32 node) {
   Uint32 trace = sh.theTrace;
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
-  
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(senderBlockNo, LogOut) || logMatch(receiverBlockNo, LogIn))){
+
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(senderBlockNo, LogOut) || logMatch(receiverBlockNo, LogIn))) {
     lock();
-    const char* inOutStr = prio == 0 ? "In" : "Out";
+    const char *inOutStr = prio == 0 ? "In" : "Out";
 #ifdef VM_TRACE_TIME
-    fprintf(outputStream, "---- Direct --- Signal --- %s - %s ----\n", inOutStr, mytime());
+    fprintf(outputStream, "---- Direct --- Signal --- %s - %s ----\n", inOutStr,
+            mytime());
 #else
-    fprintf(outputStream, "---- Direct --- Signal --- %s ----------------\n", inOutStr);
+    fprintf(outputStream, "---- Direct --- Signal --- %s ----------------\n",
+            inOutStr);
 #endif
     // XXX pass in/out to print* function somehow
     printSignalHeader(outputStream, sh, 0, node, true);
@@ -296,20 +251,18 @@ SignalLoggerManager::executeDirect(const SignalHeader& sh,
 /**
  * For input signals
  */
-void
-SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio, 
-				   const Uint32 * theData, Uint32 node,
-                                   const SegmentedSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::executeSignal(const SignalHeader &sh, Uint8 prio,
+                                        const Uint32 *theData, Uint32 node,
+                                        const SegmentedSectionPtr ptr[3],
+                                        Uint32 secs) {
   Uint32 trace = sh.theTrace;
-  //Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
+  // Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
   Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(receiverBlockNo, LogOut) ||
-      (m_logDistributed && m_ownNodeId != senderNode))){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(receiverBlockNo, LogOut) ||
+       (m_logDistributed && m_ownNodeId != senderNode))) {
     lock();
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Received - Signal - %s ----\n", mytime());
@@ -325,20 +278,18 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
   }
 }
 
-void
-SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio, 
-				   const Uint32 * theData, Uint32 node,
-                                   const LinearSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::executeSignal(const SignalHeader &sh, Uint8 prio,
+                                        const Uint32 *theData, Uint32 node,
+                                        const LinearSectionPtr ptr[3],
+                                        Uint32 secs) {
   Uint32 trace = sh.theTrace;
-  //Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
+  // Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
   Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
   Uint32 senderNode = refToNode(sh.theSendersBlockRef);
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(receiverBlockNo, LogOut) ||
-      (m_logDistributed && m_ownNodeId != senderNode))){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(receiverBlockNo, LogOut) ||
+       (m_logDistributed && m_ownNodeId != senderNode))) {
     lock();
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Received - Signal - %s ----\n", mytime());
@@ -357,20 +308,17 @@ SignalLoggerManager::executeSignal(const SignalHeader& sh, Uint8 prio,
 /**
  * For output signals
  */
-void
-SignalLoggerManager::sendSignal(const SignalHeader& sh,
-                                Uint8 prio,
-				const Uint32 * theData, Uint32 node,
-                                const LinearSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::sendSignal(const SignalHeader &sh, Uint8 prio,
+                                     const Uint32 *theData, Uint32 node,
+                                     const LinearSectionPtr ptr[3],
+                                     Uint32 secs) {
   Uint32 trace = sh.theTrace;
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
-  //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  // Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(senderBlockNo, LogOut) ||
-      (m_logDistributed && m_ownNodeId != node))){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(senderBlockNo, LogOut) ||
+       (m_logDistributed && m_ownNodeId != node))) {
     lock();
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Send ----- Signal - %s ----\n", mytime());
@@ -389,19 +337,17 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh,
 /**
  * For output signals
  */
-void
-SignalLoggerManager::sendSignal(const SignalHeader& sh, Uint8 prio, 
-				const Uint32 * theData, Uint32 node,
-                                const SegmentedSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::sendSignal(const SignalHeader &sh, Uint8 prio,
+                                     const Uint32 *theData, Uint32 node,
+                                     const SegmentedSectionPtr ptr[3],
+                                     Uint32 secs) {
   Uint32 trace = sh.theTrace;
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
-  //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  // Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(senderBlockNo, LogOut) ||
-      (m_logDistributed && m_ownNodeId != node))){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(senderBlockNo, LogOut) ||
+       (m_logDistributed && m_ownNodeId != node))) {
     lock();
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Send ----- Signal - %s ----\n", mytime());
@@ -417,20 +363,17 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh, Uint8 prio,
   }
 }
 
-void
-SignalLoggerManager::sendSignal(const SignalHeader& sh,
-                                Uint8 prio,
-				const Uint32 * theData, Uint32 node,
-                                const GenericSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::sendSignal(const SignalHeader &sh, Uint8 prio,
+                                     const Uint32 *theData, Uint32 node,
+                                     const GenericSectionPtr ptr[3],
+                                     Uint32 secs) {
   Uint32 trace = sh.theTrace;
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
-  //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  // Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     (logMatch(senderBlockNo, LogOut) ||
-      (m_logDistributed && m_ownNodeId != node))){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      (logMatch(senderBlockNo, LogOut) ||
+       (m_logDistributed && m_ownNodeId != node))) {
     lock();
 #ifdef VM_TRACE_TIME
     fprintf(outputStream, "---- Send ----- Signal - %s ----\n", mytime());
@@ -446,31 +389,28 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh,
   }
 }
 
-void
-SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
-					 const SignalHeader & sh, Uint8 prio, 
-					 const Uint32 * theData, Uint32 node,
-                                         const SegmentedSectionPtr ptr[3], Uint32 secs)
-{
+void SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
+                                              const SignalHeader &sh,
+                                              Uint8 prio, const Uint32 *theData,
+                                              Uint32 node,
+                                              const SegmentedSectionPtr ptr[3],
+                                              Uint32 secs) {
   Uint32 trace = sh.theTrace;
   Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
-  //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+  // Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
 
-  if(outputStream != nullptr && 
-     (traceId == 0 || traceId == trace) &&
-     logMatch(senderBlockNo, LogOut)){
+  if (outputStream != nullptr && (traceId == 0 || traceId == trace) &&
+      logMatch(senderBlockNo, LogOut)) {
     lock();
 #ifdef VM_TRACE_TIME
-    fprintf(outputStream, 
-	    "---- Send ----- Signal (%d ms) %s\n", 
-	    delayInMilliSeconds, 
-	    mytime());
+    fprintf(outputStream, "---- Send ----- Signal (%d ms) %s\n",
+            delayInMilliSeconds, mytime());
 #else
-    fprintf(outputStream, "---- Send delay Signal (%d ms) ----------\n", 
-	    delayInMilliSeconds);
+    fprintf(outputStream, "---- Send delay Signal (%d ms) ----------\n",
+            delayInMilliSeconds);
 #endif
 
-    printSignalHeader(outputStream, sh, prio, node, false);    
+    printSignalHeader(outputStream, sh, prio, node, false);
     printSignalData(outputStream, sh, theData);
     for (unsigned i = 0; i < secs; i++)
       printSegmentedSection(outputStream, sh, ptr, i);
@@ -481,15 +421,12 @@ SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
 /**
  * Generic messages in the signal log
  */
-void
-SignalLoggerManager::log(BlockNumber bno, const char * msg, ...)
-{
+void SignalLoggerManager::log(BlockNumber bno, const char *msg, ...) {
   // Normalise blocknumber for use in logModes array
   const BlockNumber bno2 = bno - MIN_BLOCK_NO;
-  assert(bno2<NO_OF_BLOCKS);
+  assert(bno2 < NO_OF_BLOCKS);
 
-  if(outputStream != nullptr &&
-     logModes[bno2] != LogOff){
+  if (outputStream != nullptr && logModes[bno2] != LogOff) {
     lock();
     va_list ap;
     va_start(ap, msg);
@@ -501,38 +438,30 @@ SignalLoggerManager::log(BlockNumber bno, const char * msg, ...)
   }
 }
 
-static inline bool
-isSysBlock(BlockNumber block, Uint32 gsn)
-{
-  if (block != 0)
-    return false;
+static inline bool isSysBlock(BlockNumber block, Uint32 gsn) {
+  if (block != 0) return false;
   switch (gsn) {
-  case GSN_START_ORD:
-    return true; // first sig
-  case GSN_CONNECT_REP:
-  case GSN_DISCONNECT_REP:
-  case GSN_EVENT_REP:
-    return true; // transporter
-  case GSN_STOP_FOR_CRASH:
-    return true; // mt scheduler
+    case GSN_START_ORD:
+      return true;  // first sig
+    case GSN_CONNECT_REP:
+    case GSN_DISCONNECT_REP:
+    case GSN_EVENT_REP:
+      return true;  // transporter
+    case GSN_STOP_FOR_CRASH:
+      return true;  // mt scheduler
   }
   return false;
 }
 
-static inline bool
-isApiBlock(BlockNumber block)
-{
+static inline bool isApiBlock(BlockNumber block) {
   return block >= 0x8000 || block == 4002 || block == 2047;
 }
 
-void 
-SignalLoggerManager::printSignalHeader(FILE * output, 
-				       const SignalHeader & sh,
-				       Uint8 prio, 
-				       Uint32 node,
-				       bool printReceiversSignalId)
-{
-  const char* const dummy_block_name = "UUNET";
+void SignalLoggerManager::printSignalHeader(FILE *output,
+                                            const SignalHeader &sh, Uint8 prio,
+                                            Uint32 node,
+                                            bool printReceiversSignalId) {
+  const char *const dummy_block_name = "UUNET";
 
   bool receiverIsApi = isApiBlock(sh.theReceiversBlockNumber);
   Uint32 receiverBlockNo;
@@ -567,14 +496,13 @@ SignalLoggerManager::printSignalHeader(FILE * output,
   Uint32 rSigId = sh.theSignalId;
   Uint32 sSigId = sh.theSendersSignalId;
 
-  const char * signalName = getSignalName(gsn);
-  const char * rBlockName =
-    receiverIsApi ? "API" :
-    getBlockName(receiverBlockNo, dummy_block_name);
-  const char * sBlockName =
-    senderIsSys ? "SYS" :
-    senderIsApi ? "API" :
-    getBlockName(senderBlockNo, dummy_block_name);
+  const char *signalName = getSignalName(gsn);
+  const char *rBlockName =
+      receiverIsApi ? "API" : getBlockName(receiverBlockNo, dummy_block_name);
+  const char *sBlockName =
+      senderIsSys
+          ? "SYS"
+          : senderIsApi ? "API" : getBlockName(senderBlockNo, dummy_block_name);
 
   char rInstanceText[20];
   char sInstanceText[20];
@@ -586,82 +514,76 @@ SignalLoggerManager::printSignalHeader(FILE * output,
     sprintf(sInstanceText, "/%u", (uint)senderInstanceNo);
 
   if (printReceiversSignalId)
-    fprintf(output, 
-	    "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %u gsn: %d \"%s\" prio: %d\n"
-	    ,receiverBlockNo, rInstanceText, rBlockName, receiverProcessor,
-            rSigId, gsn, signalName, prio);
-  else 
-    fprintf(output,
-	    "r.bn: %d%s \"%s\", r.proc: %d, gsn: %d \"%s\" prio: %d\n",
-	    receiverBlockNo, rInstanceText, rBlockName, receiverProcessor,
-            gsn, signalName, prio);
-  
-  fprintf(output, 
-	  "s.bn: %d%s \"%s\", s.proc: %d, s.sigId: %u length: %d trace: %d "
-	  "#sec: %d fragInf: %d\n",
-	  senderBlockNo, sInstanceText, sBlockName, senderProcessor,
-          sSigId, length, trace, sh.m_noOfSections, sh.m_fragmentInfo);
+    fprintf(
+        output,
+        "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %u gsn: %d \"%s\" prio: %d\n",
+        receiverBlockNo, rInstanceText, rBlockName, receiverProcessor, rSigId,
+        gsn, signalName, prio);
+  else
+    fprintf(output, "r.bn: %d%s \"%s\", r.proc: %d, gsn: %d \"%s\" prio: %d\n",
+            receiverBlockNo, rInstanceText, rBlockName, receiverProcessor, gsn,
+            signalName, prio);
 
-  //assert(strcmp(rBlockName, dummy_block_name) != 0);
-  //assert(strcmp(sBlockName, dummy_block_name) != 0);
+  fprintf(output,
+          "s.bn: %d%s \"%s\", s.proc: %d, s.sigId: %u length: %d trace: %d "
+          "#sec: %d fragInf: %d\n",
+          senderBlockNo, sInstanceText, sBlockName, senderProcessor, sSigId,
+          length, trace, sh.m_noOfSections, sh.m_fragmentInfo);
+
+  // assert(strcmp(rBlockName, dummy_block_name) != 0);
+  // assert(strcmp(sBlockName, dummy_block_name) != 0);
 }
 
-void
-SignalLoggerManager::printSignalData(FILE * output, 
-				     const SignalHeader & sh,
-				     const Uint32 * signalData)
-{
+void SignalLoggerManager::printSignalData(FILE *output, const SignalHeader &sh,
+                                          const Uint32 *signalData) {
   Uint32 len = sh.theLength;
-  SignalDataPrintFunction printFunction = 
-    findPrintFunction(sh.theVerId_signalNumber);
-  
-  bool ok = false;      // done with printing
-  if(printFunction != nullptr){
-    ok = (* printFunction)(output, signalData, len, sh.theReceiversBlockNumber);
+  SignalDataPrintFunction printFunction =
+      findPrintFunction(sh.theVerId_signalNumber);
+
+  bool ok = false;  // done with printing
+  if (printFunction != nullptr) {
+    ok = (*printFunction)(output, signalData, len, sh.theReceiversBlockNumber);
   }
-  if(!ok){
-    while(len >= 7){
-      fprintf(output, 
+  if (!ok) {
+    while (len >= 7) {
+      fprintf(output,
               " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
-              signalData[0], signalData[1], signalData[2], signalData[3], 
+              signalData[0], signalData[1], signalData[2], signalData[3],
               signalData[4], signalData[5], signalData[6]);
       len -= 7;
       signalData += 7;
     }
-    if(len > 0){
-      for(Uint32 i = 0; i<len; i++)
+    if (len > 0) {
+      for (Uint32 i = 0; i < len; i++)
         fprintf(output, " H\'%.8x", signalData[i]);
       fprintf(output, "\n");
     }
   }
 }
 
-void SignalLoggerManager::printLinearSection(FILE* output,
-                                             const SignalHeader& /*sh*/,
+void SignalLoggerManager::printLinearSection(FILE *output,
+                                             const SignalHeader & /*sh*/,
                                              const LinearSectionPtr ptr[3],
-                                             unsigned i)
-{
+                                             unsigned i) {
   fprintf(output, "SECTION %u type=linear", i);
   if (i >= 3) {
     fprintf(output, " *** invalid ***\n");
     return;
   }
   const Uint32 len = ptr[i].sz;
-  const Uint32 * data = ptr[i].p;
+  const Uint32 *data = ptr[i].p;
   Uint32 pos = 0;
   fprintf(output, " size=%u\n", (unsigned)len);
   while (pos < len) {
     printDataWord(output, pos, data[pos]);
   }
-  if (len > 0)
-    putc('\n', output);
+  if (len > 0) putc('\n', output);
 }
 
-void SignalLoggerManager::printGenericSection(FILE* output,
-                                              const SignalHeader& /*sh*/,
+void SignalLoggerManager::printGenericSection(FILE *output,
+                                              const SignalHeader & /*sh*/,
                                               const GenericSectionPtr ptr[3],
-                                              unsigned i)
-{
+                                              unsigned i) {
   fprintf(output, "SECTION %u type=generic", i);
   if (i >= 3) {
     fprintf(output, " *** invalid ***\n");
@@ -672,26 +594,20 @@ void SignalLoggerManager::printGenericSection(FILE* output,
   Uint32 chunksz = 0;
   fprintf(output, " size=%u\n", (unsigned)len);
   while (pos < len) {
-    const Uint32* data= ptr[i].sectionIter->getNextWords(chunksz);
-    Uint32 i=0;
-    while (i < chunksz)
-      printDataWord(output, pos, data[i++]);
+    const Uint32 *data = ptr[i].sectionIter->getNextWords(chunksz);
+    Uint32 i = 0;
+    while (i < chunksz) printDataWord(output, pos, data[i++]);
   }
-  if (len > 0)
-    putc('\n', output);
+  if (len > 0) putc('\n', output);
 }
 
-
-void
-SignalLoggerManager::printDataWord(FILE * output, Uint32 & pos, const Uint32 data)
-{
-  const char* const hex = "0123456789abcdef";
-  if (pos > 0 && pos % 7 == 0)
-    putc('\n', output);
+void SignalLoggerManager::printDataWord(FILE *output, Uint32 &pos,
+                                        const Uint32 data) {
+  const char *const hex = "0123456789abcdef";
+  if (pos > 0 && pos % 7 == 0) putc('\n', output);
   putc(' ', output);
   putc('H', output);
   putc('\'', output);
-  for (int i = 7; i >= 0; i--)
-    putc(hex[(data >> (i << 2)) & 0xf], output);
+  for (int i = 7; i >= 0; i--) putc(hex[(data >> (i << 2)) & 0xf], output);
   pos++;
 }

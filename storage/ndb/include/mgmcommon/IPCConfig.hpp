@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,12 +25,11 @@
 #ifndef IPCConfig_H
 #define IPCConfig_H
 
-#include <ndb_types.h>         // Uint32
+#include <ndb_types.h>  // Uint32
 
 struct ndb_mgm_configuration;
 
-struct IPCConfig
-{
+struct IPCConfig {
   /*
     Create and configure transporters in TransporterRegistry
 
@@ -45,4 +44,4 @@ struct IPCConfig
                                     bool transporter_to_self = false);
 };
 
-#endif // IPCConfig_H
+#endif  // IPCConfig_H

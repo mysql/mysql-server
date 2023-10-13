@@ -26,28 +26,26 @@
 #define ThreadConfig_H
 
 #include <kernel_types.h>
-#include <NodeState.hpp>
 #include <portlib/NdbThread.h>
+#include <NodeState.hpp>
 
 #define JAM_FILE_ID 231
 
-
-class ThreadConfig
-{
-public:
+class ThreadConfig {
+ public:
   ThreadConfig();
   ~ThreadConfig();
   void init(void);
 
-  void ipControlLoop(NdbThread*);
+  void ipControlLoop(NdbThread *);
 
   int doStart(NodeState::StartLevel startLevel);
   void scanZeroTimeQueue();
-private:
 
+ private:
   void scanTimeQueue();
 };
 
 #undef JAM_FILE_ID
 
-#endif // ThreadConfig_H
+#endif  // ThreadConfig_H

@@ -26,15 +26,13 @@
 #include <signaldata/AlterIndx.hpp>
 #include <signaldata/DictSignal.hpp>
 
-bool
-printALTER_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterIndxReq::SignalLength)
-  {
+bool printALTER_INDX_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < AlterIndxReq::SignalLength) {
     assert(false);
     return false;
   }
-  const AlterIndxReq* sig = (const AlterIndxReq*)theData;
+  const AlterIndxReq *sig = (const AlterIndxReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -42,9 +40,9 @@ printALTER_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   fprintf(output, " transKey: %u", sig->transKey);
   fprintf(output, "\n");
   fprintf(output, " requestInfo: type: %u extra: %u flags: [%s]",
-                  DictSignal::getRequestType(sig->requestInfo),
-                  DictSignal::getRequestExtra(sig->requestInfo),
-                  DictSignal::getRequestFlagsText(sig->requestInfo));
+          DictSignal::getRequestType(sig->requestInfo),
+          DictSignal::getRequestExtra(sig->requestInfo),
+          DictSignal::getRequestFlagsText(sig->requestInfo));
   fprintf(output, "\n");
   fprintf(output, " indexId: %u", sig->indexId);
   fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
@@ -52,15 +50,13 @@ printALTER_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printALTER_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterIndxConf::SignalLength)
-  {
+bool printALTER_INDX_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16) {
+  if (len < AlterIndxConf::SignalLength) {
     assert(false);
     return false;
   }
-  const AlterIndxConf* sig = (const AlterIndxConf*)theData;
+  const AlterIndxConf *sig = (const AlterIndxConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -72,15 +68,13 @@ printALTER_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printALTER_INDX_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterIndxRef::SignalLength)
-  {
+bool printALTER_INDX_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < AlterIndxRef::SignalLength) {
     assert(false);
     return false;
   }
-  const AlterIndxRef* sig = (const AlterIndxRef*)theData;
+  const AlterIndxRef *sig = (const AlterIndxRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");

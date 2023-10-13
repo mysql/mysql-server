@@ -249,8 +249,7 @@
  * authenticated encryption that will change.
  */
 
-class ndbxfrm_file
-{
+class ndbxfrm_file {
  public:
   static constexpr size_t BUFFER_SIZE = ndbxfrm_buffer::size();
   static constexpr Uint64 INDEFINITE_SIZE = UINT64_MAX;
@@ -265,30 +264,23 @@ class ndbxfrm_file
   /*
    * open returns 0 on success, -1 on failure.
    */
-  int open(ndb_file& file,
-           const byte* pwd_key,
-           size_t pwd_key_len);
+  int open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len);
 
   /*
    * Returns 0 on success, -1 on failure.
    * Used by ndbxfrmt tool to access file header and trailer even if no
    * or wrong password is provided.
    */
-  int read_header_and_trailer(ndb_file &file, ndb_ndbxfrm1::header& header,
-                              ndb_ndbxfrm1::trailer& trailer);
+  int read_header_and_trailer(ndb_file &file, ndb_ndbxfrm1::header &header,
+                              ndb_ndbxfrm1::trailer &trailer);
 
-  int create(ndb_file& file,
-             bool compress,
-             const byte* pwd,
-             size_t pwd_len,
-             int kdf_iter_count, // 0 - aeskw, else pbkdf2, -1 let ndb_ndbxfrm decide
-             int key_cipher,  // 0 - none, ndb_ndbxfrm1::cipher_*
-             int key_count, // -1 let ndbxfrm_file decide
-             size_t key_data_unit_size,
-             size_t file_block_size,
-             Uint64 data_size,
-             bool is_data_size_estimated
-             );
+  int create(
+      ndb_file &file, bool compress, const byte *pwd, size_t pwd_len,
+      int kdf_iter_count,  // 0 - aeskw, else pbkdf2, -1 let ndb_ndbxfrm decide
+      int key_cipher,      // 0 - none, ndb_ndbxfrm1::cipher_*
+      int key_count,       // -1 let ndbxfrm_file decide
+      size_t key_data_unit_size, size_t file_block_size, Uint64 data_size,
+      bool is_data_size_estimated);
   /*
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
@@ -327,26 +319,23 @@ class ndbxfrm_file
    * Instead of providing a more complex interface to read and write supporting
    * different approaches, the caller need to provide the transformed buffers.
    */
-  int transform_pages(ndb_openssl_evp::operation* op,
-                      ndb_off_t data_pos,
-                      ndbxfrm_output_iterator* out,
-                      ndbxfrm_input_iterator* in);
-  int untransform_pages(ndb_openssl_evp::operation* op,
-                        ndb_off_t data_pos,
-                        ndbxfrm_output_iterator* out,
-                        ndbxfrm_input_iterator* in);
-  int read_transformed_pages(ndb_off_t data_pos, ndbxfrm_output_iterator* out);
-  int write_transformed_pages(ndb_off_t data_pos, ndbxfrm_input_iterator* in);
+  int transform_pages(ndb_openssl_evp::operation *op, ndb_off_t data_pos,
+                      ndbxfrm_output_iterator *out, ndbxfrm_input_iterator *in);
+  int untransform_pages(ndb_openssl_evp::operation *op, ndb_off_t data_pos,
+                        ndbxfrm_output_iterator *out,
+                        ndbxfrm_input_iterator *in);
+  int read_transformed_pages(ndb_off_t data_pos, ndbxfrm_output_iterator *out);
+  int write_transformed_pages(ndb_off_t data_pos, ndbxfrm_input_iterator *in);
 
-  int write_forward(ndbxfrm_input_iterator* in);
+  int write_forward(ndbxfrm_input_iterator *in);
 
-  int read_forward(ndbxfrm_output_iterator* out);
-  int read_backward(ndbxfrm_output_reverse_iterator* out);
+  int read_forward(ndbxfrm_output_iterator *out);
+  int read_backward(ndbxfrm_output_reverse_iterator *out);
   ndb_off_t move_to_end();
 
  private:
   // file fixed properties
-  ndb_file* m_file;
+  ndb_file *m_file;
   size_t m_file_block_size;
   ndb_off_t m_payload_start;
   bool m_append;
@@ -355,15 +344,9 @@ class ndbxfrm_file
   bool m_is_estimated_data_size;
   bool m_have_data_crc32;
   ndb_openssl_evp openssl_evp;
-  enum
-  {
-    FF_UNKNOWN,
-    FF_RAW,
-    FF_AZ31,
-    FF_NDBXFRM1
-  } m_file_format;
-  alignas(ndb_openssl_evp::MEMORY_ALIGN)
-      byte m_encryption_keys[ndb_openssl_evp::MEMORY_NEED];
+  enum { FF_UNKNOWN, FF_RAW, FF_AZ31, FF_NDBXFRM1 } m_file_format;
+  alignas(ndb_openssl_evp::MEMORY_ALIGN) byte
+      m_encryption_keys[ndb_openssl_evp::MEMORY_NEED];
   size_t m_data_block_size;
   Uint32 m_data_crc32;
 
@@ -378,13 +361,7 @@ class ndbxfrm_file
   ndb_openssl_evp::operation openssl_evp_op;
   // operation per file properties
   ndb_zlib zlib;
-  enum
-  {
-    OP_NONE,
-    OP_WRITE_FORW,
-    OP_READ_FORW,
-    OP_READ_BACKW
-  } m_file_op;
+  enum { OP_NONE, OP_WRITE_FORW, OP_READ_FORW, OP_READ_BACKW } m_file_op;
   Uint32 m_crc32;  // should be zeroed for new op
 
   ndbxfrm_buffer m_decrypted_buffer;
@@ -392,49 +369,38 @@ class ndbxfrm_file
   Uint64 m_data_pos;
 
   /*
-  * open returns 0 on success, -1 on failure, -2 almost succeeded
-  * header and trailer are valid but for example unwrapping encryption
-  * keys failed.
-  * The -2 is needed to allow "ndbxfrm --[detailed-]info" to access file
-  * header and trailer even if no or wrong password is provided.
-  */
-  int open(ndb_file& file, const byte* pwd_key,
-           size_t pwd_key_len, ndb_ndbxfrm1::header& header,
-           ndb_ndbxfrm1::trailer& trailer);
+   * open returns 0 on success, -1 on failure, -2 almost succeeded
+   * header and trailer are valid but for example unwrapping encryption
+   * keys failed.
+   * The -2 is needed to allow "ndbxfrm --[detailed-]info" to access file
+   * header and trailer even if no or wrong password is provided.
+   */
+  int open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len,
+           ndb_ndbxfrm1::header &header, ndb_ndbxfrm1::trailer &trailer);
 
   int flush_payload();
 
   bool in_file_mode() const { return (m_payload_end >= 0); }
   bool in_stream_mode() const { return !in_file_mode(); }
-  int read_header(ndbxfrm_input_iterator* in,
-                  const byte* pwd_key,
-                  size_t pwd_key_len,
-                  size_t* max_trailer_size,
-                  ndb_ndbxfrm1::header& header);
-  int read_trailer(ndbxfrm_input_reverse_iterator* in,
-                   ndb_ndbxfrm1::trailer& trailer);
-  int generate_keying_material(ndb_ndbxfrm1::header* ndbxfrm1,
-                               const byte* pwd_key,
-                               size_t pwd_key_len,
-                               int key_cipher,
-                               int key_count);
+  int read_header(ndbxfrm_input_iterator *in, const byte *pwd_key,
+                  size_t pwd_key_len, size_t *max_trailer_size,
+                  ndb_ndbxfrm1::header &header);
+  int read_trailer(ndbxfrm_input_reverse_iterator *in,
+                   ndb_ndbxfrm1::trailer &trailer);
+  int generate_keying_material(ndb_ndbxfrm1::header *ndbxfrm1,
+                               const byte *pwd_key, size_t pwd_key_len,
+                               int key_cipher, int key_count);
   int write_header(
-      ndbxfrm_output_iterator* out,
-      size_t data_page_size,
-      const byte* pwd_key,
-      size_t pwd_key_len,
-      int kdf_iter_count,
+      ndbxfrm_output_iterator *out, size_t data_page_size, const byte *pwd_key,
+      size_t pwd_key_len, int kdf_iter_count,
       int key_cipher,  // 0 - none, 1 - cbc, 2 - xts (always no padding)
-      int key_count,
-      size_t key_data_unit_size);
-  int write_trailer(ndbxfrm_output_iterator* out,
-                    ndbxfrm_output_iterator* extra);
+      int key_count, size_t key_data_unit_size);
+  int write_trailer(ndbxfrm_output_iterator *out,
+                    ndbxfrm_output_iterator *extra);
 };
 
-inline size_t ndbxfrm_file::get_random_access_block_size() const
-{
-  if (m_compressed)
-  {
+inline size_t ndbxfrm_file::get_random_access_block_size() const {
+  if (m_compressed) {
     size_t alignment = zlib.get_random_access_block_size();
 #if !defined(NDEBUG)
     /*
@@ -442,8 +408,7 @@ inline size_t ndbxfrm_file::get_random_access_block_size() const
      * random access, then it is assumed that encryption also allows random
      * access for same alignment.
      */
-    if (alignment > 0 && m_encrypted)
-    {
+    if (alignment > 0 && m_encrypted) {
       size_t align = openssl_evp.get_random_access_block_size();
       assert(align > 0);
       assert(alignment % align == 0);
@@ -451,8 +416,7 @@ inline size_t ndbxfrm_file::get_random_access_block_size() const
 #endif
     return alignment;
   }
-  if (m_encrypted)
-  {
+  if (m_encrypted) {
     return openssl_evp.get_random_access_block_size();
   }
   size_t alignment = m_file->get_block_size();
@@ -460,23 +424,19 @@ inline size_t ndbxfrm_file::get_random_access_block_size() const
   return 1;
 }
 
-inline bool ndbxfrm_file::has_definite_data_size() const
-{
+inline bool ndbxfrm_file::has_definite_data_size() const {
   return (m_data_size != INDEFINITE_SIZE);
 }
 
-inline bool ndbxfrm_file::has_definite_file_size() const
-{
+inline bool ndbxfrm_file::has_definite_file_size() const {
   return (m_file_size != INDEFINITE_SIZE);
 }
 
-inline bool ndbxfrm_file::is_definite_size(Uint64 size)
-{
+inline bool ndbxfrm_file::is_definite_size(Uint64 size) {
   return (size != INDEFINITE_SIZE);
 }
 
-inline bool ndbxfrm_file::is_definite_offset(ndb_off_t offset)
-{
+inline bool ndbxfrm_file::is_definite_offset(ndb_off_t offset) {
   return (offset != INDEFINITE_OFFSET);
 }
 

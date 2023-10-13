@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -31,20 +31,19 @@ var jones = require("database-jones"),
 
 exports.toDB = function(dateString) {
   var dbtime;
-  if(typeof dateString === 'string') {
+  if (typeof dateString === 'string') {
     dbtime = new MySQLTime().initializeFromDateString(dateString);
-  } else if(dateString === null) {
+  } else if (dateString === null) {
     dbtime = null;
   }
   return dbtime;
 };
 
 exports.fromDB = function(dbTime) {
-  if(dbTime === null) {
+  if (dbTime === null) {
     return null;
   }
-  if(typeof dbTime === 'object') {
+  if (typeof dbTime === 'object') {
     return MySQLTime.initializeFromNdb(dbTime).toDateString();
   }
 };
-

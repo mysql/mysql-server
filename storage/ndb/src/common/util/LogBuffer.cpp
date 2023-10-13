@@ -22,43 +22,39 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "portlib/ndb_compiler.h"
-#include "util/cstrbuf.h"
-#include "util/require.h"
-#include <LogBuffer.hpp>
+#include <NdbSleep.h>
 #include <portlib/NdbCondition.h>
 #include <portlib/NdbThread.h>
 #include <BaseString.hpp>
-#include <NdbSleep.h>
+#include <LogBuffer.hpp>
+#include "portlib/ndb_compiler.h"
+#include "util/cstrbuf.h"
+#include "util/require.h"
 
 size_t ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes,
-                                                  size_t /*lost_msgs*/)
-{
+                                                  size_t /*lost_msgs*/) {
   cstrbuf<0> nullbuf;
   require(nullbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
   return nullbuf.untruncated_length();
 }
 
-bool ByteStreamLostMsgHandler::writeLostMsg(char* buf,
-                                            size_t buf_size,
+bool ByteStreamLostMsgHandler::writeLostMsg(char *buf, size_t buf_size,
                                             size_t lost_bytes,
-                                            size_t /*lost_msgs*/)
-{
+                                            size_t /*lost_msgs*/) {
   cstrbuf strbuf({buf, buf_size});
   require(strbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
   return true;
 }
 
-LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
-    m_log_buf(nullptr),
-    m_max_size(size),
-    m_size(0),
-    m_lost_bytes(0),
-    m_lost_messages(0),
-    m_lost_msg_handler(lost_msg_handler),
-    m_stop(false)
-{
-  m_log_buf = (char*)malloc(size+1);
+LogBuffer::LogBuffer(size_t size, LostMsgHandler *lost_msg_handler)
+    : m_log_buf(nullptr),
+      m_max_size(size),
+      m_size(0),
+      m_lost_bytes(0),
+      m_lost_messages(0),
+      m_lost_msg_handler(lost_msg_handler),
+      m_stop(false) {
+  m_log_buf = (char *)malloc(size + 1);
   assert(m_log_buf != nullptr);
 
   m_read_ptr = m_log_buf;
@@ -71,8 +67,7 @@ LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
   assert(checkInvariants());
 }
 
-LogBuffer::~LogBuffer()
-{
+LogBuffer::~LogBuffer() {
   assert(checkInvariants());
   free(m_log_buf);
   delete m_lost_msg_handler;
@@ -80,55 +75,41 @@ LogBuffer::~LogBuffer()
   NdbMutex_Destroy(m_mutex);
 }
 
-char*
-LogBuffer::getWritePtr(size_t bytes) const
-{
-  char* ret = nullptr;
+char *LogBuffer::getWritePtr(size_t bytes) const {
+  char *ret = nullptr;
 
-  if(bytes == 0)
-  {
+  if (bytes == 0) {
     return ret;
   }
 
-  if(m_write_ptr == m_read_ptr)
-  {
+  if (m_write_ptr == m_read_ptr) {
     // Border cases: size zero or full
 
-    if(m_size == 0 && m_max_size >= bytes)
-    {
+    if (m_size == 0 && m_max_size >= bytes) {
       /* Log buffer empty and has enough contiguous space
        * to fit in 'bytes'*/
       assert(m_write_ptr == m_log_buf);
       ret = m_write_ptr;
-    }
-    else
-    {
+    } else {
       // Log buffer is either full or empty with insufficient space
       ret = nullptr;
     }
-  }
-  else if(m_write_ptr > m_read_ptr)
-  {
+  } else if (m_write_ptr > m_read_ptr) {
     // m_write_ptr is ahead of m_read_ptr
-    if((size_t)(m_top - m_write_ptr) >= bytes)
-    {
+    if ((size_t)(m_top - m_write_ptr) >= bytes) {
       /**
        * There's sufficient space between write_ptr
        * and top of the buffer.
        */
       ret = m_write_ptr;
-    }
-    else if((size_t)(m_read_ptr - m_log_buf) >= bytes)
-    {
+    } else if ((size_t)(m_read_ptr - m_log_buf) >= bytes) {
       /**
        * There's enough space b/w start of buffer and read_ptr.
        * Make buf_end point to write_ptr - 1. Wrap around write_ptr.
        */
       ret = m_log_buf;
     }
-  }
-  else if((size_t)(m_read_ptr - m_write_ptr) >= bytes)
-  {
+  } else if ((size_t)(m_read_ptr - m_write_ptr) >= bytes) {
     /**
      * m_write_ptr is behind m_read_ptr
      * and there's enough space
@@ -139,30 +120,25 @@ LogBuffer::getWritePtr(size_t bytes) const
   return ret;
 }
 
-void
-LogBuffer::wrapWritePtr()
-{
+void LogBuffer::wrapWritePtr() {
   // deal with wrap around.
   m_buf_end = m_write_ptr - 1;
   m_write_ptr = m_log_buf;
 }
 
-void
-LogBuffer::updateWritePtr(size_t written_bytes)
-{
+void LogBuffer::updateWritePtr(size_t written_bytes) {
   assert(getWritePtr(written_bytes) != nullptr);
 
-  m_write_ptr = m_write_ptr + written_bytes; // update m_write_ptr
+  m_write_ptr = m_write_ptr + written_bytes;  // update m_write_ptr
   assert(m_write_ptr <= m_top);
   m_size += written_bytes;
 
-  if(m_buf_end < (m_write_ptr -1)) //update m_buf_end if required
+  if (m_buf_end < (m_write_ptr - 1))  // update m_buf_end if required
   {
     m_buf_end = m_write_ptr - 1;
   }
 
-  if(m_write_ptr == m_top)
-  {
+  if (m_write_ptr == m_top) {
     /**
      * Wrap around- if m_write_ptr reaches the top of buffer,
      * wrap it around to point to the start of buffer.
@@ -171,34 +147,30 @@ LogBuffer::updateWritePtr(size_t written_bytes)
   }
 }
 
-bool
-LogBuffer::checkForBufferSpace(size_t write_bytes)
-{
+bool LogBuffer::checkForBufferSpace(size_t write_bytes) {
   bool ret = true;
   assert(checkInvariants());
-  if(m_lost_bytes)// there are lost bytes
+  if (m_lost_bytes)  // there are lost bytes
   {
     assert(m_lost_messages != 0);
-    char* write_ptr = nullptr;
-    int lost_msg_len = m_lost_msg_handler->getSizeOfLostMsg(m_lost_bytes, m_lost_messages);
+    char *write_ptr = nullptr;
+    int lost_msg_len =
+        m_lost_msg_handler->getSizeOfLostMsg(m_lost_bytes, m_lost_messages);
     assert(lost_msg_len > 0);
 
     // append the lost msg
-    if((write_ptr = getWritePtr(write_bytes + lost_msg_len + 1)))
-    {
-      m_lost_msg_handler->writeLostMsg(write_ptr, lost_msg_len + 1, m_lost_bytes, m_lost_messages);
+    if ((write_ptr = getWritePtr(write_bytes + lost_msg_len + 1))) {
+      m_lost_msg_handler->writeLostMsg(write_ptr, lost_msg_len + 1,
+                                       m_lost_bytes, m_lost_messages);
       // make lost counts 0
       m_lost_bytes = 0;
       m_lost_messages = 0;
-      if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
-      {
+      if (write_ptr == m_log_buf && m_write_ptr != m_log_buf) {
         // need to wrap the write ptr
         wrapWritePtr();
       }
       updateWritePtr(lost_msg_len);
-    }
-    else
-    {
+    } else {
       // no space for lost msg and write_bytes
       m_lost_bytes += write_bytes;
       m_lost_messages += 1;
@@ -209,46 +181,38 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   return ret;
 }
 
-size_t LogBuffer::append(const void* buf, size_t write_bytes)
-{
+size_t LogBuffer::append(const void *buf, size_t write_bytes) {
   Guard g(m_mutex);
   assert(checkInvariants());
   assert(write_bytes <= m_max_size);
-  char* write_ptr = nullptr;
+  char *write_ptr = nullptr;
   size_t ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
-  if (write_bytes == 0)
-  {
+  if (write_bytes == 0) {
     // nothing to be appended
     return ret;
   }
   // preliminary check for space availability
-  if (!checkForBufferSpace(write_bytes))
-  {
+  if (!checkForBufferSpace(write_bytes)) {
     // this append is not possible since there's no space for log message
     return ret;
   }
 
   write_ptr = getWritePtr(write_bytes);
-  if (write_ptr)
-  {
+  if (write_ptr) {
     memcpy(write_ptr, buf, write_bytes);
-    if (write_ptr == m_log_buf && m_write_ptr != m_log_buf)
-    {
-      //need to wrap the write ptr
+    if (write_ptr == m_log_buf && m_write_ptr != m_log_buf) {
+      // need to wrap the write ptr
       wrapWritePtr();
     }
     updateWritePtr(write_bytes);
     ret = write_bytes;
-    if (buffer_was_empty)
-    {
+    if (buffer_was_empty) {
       // signal consumers if log buf was empty previously
       NdbCondition_Signal(m_cond);
     }
-  }
-  else
-  {
+  } else {
     // insufficient space to write
     m_lost_bytes += write_bytes;
     m_lost_messages += 1;
@@ -258,62 +222,52 @@ size_t LogBuffer::append(const void* buf, size_t write_bytes)
   return ret;
 }
 
-int
-LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
-{
+int LogBuffer::append(const char *fmt, va_list ap, size_t len, bool append_ln) {
   Guard g(m_mutex);
   assert(checkInvariants());
-  char* write_ptr = nullptr;
+  char *write_ptr = nullptr;
   int ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
   // extra byte for null termination, will be discarded
   size_t write_bytes = len + 1 + append_ln;
 
-  if(write_bytes == 1)
-  {
+  if (write_bytes == 1) {
     // nothing to be appended
     return ret;
   }
   assert(write_bytes > 0);
   assert(write_bytes <= m_max_size);
 
-  // preliminary check for space availability, -1 to exclude space for trailing NULL
-  if(!checkForBufferSpace(write_bytes - 1))
-  {
+  // preliminary check for space availability, -1 to exclude space for trailing
+  // NULL
+  if (!checkForBufferSpace(write_bytes - 1)) {
     // this append is not possible since there's no space for log message.
     ret = 0;
-  }
-  else // print actual msg
+  } else  // print actual msg
   {
-    write_ptr= getWritePtr(write_bytes);
+    write_ptr = getWritePtr(write_bytes);
 
-    if(write_ptr)
-    {
+    if (write_ptr) {
       int res = vsnprintf(write_ptr, write_bytes, fmt, ap);
       size_t fmt_len = unlikely(res < 0) ? 0 : (size_t)res;
       assert(fmt_len == len);
       if (unlikely(fmt_len > len)) fmt_len = len;
 
-      if(append_ln)
-      {
+      if (append_ln) {
         write_ptr[fmt_len] = '\n';
       }
-      if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
-      {
-        //need to wrap the write ptr
+      if (write_ptr == m_log_buf && m_write_ptr != m_log_buf) {
+        // need to wrap the write ptr
         wrapWritePtr();
       }
       updateWritePtr(fmt_len + append_ln);
       ret = fmt_len + append_ln;
-      if(buffer_was_empty)
-      {
+      if (buffer_was_empty) {
         // Signal consumers if log buf was empty previously.
         NdbCondition_Signal(m_cond);
       }
-    }
-    else
-    {
+    } else {
       /**
        * Insufficient space to write, lost count doesn't include
        * the null byte at the end of string.
@@ -328,72 +282,60 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
   return ret;
 }
 
-size_t
-LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
-{
+size_t LogBuffer::get(char *buf, size_t buf_size, uint timeout_ms) {
   Guard g(m_mutex);
   assert(checkInvariants());
-  size_t size = buf_size; // max. number of bytes that can be copied to buf
+  size_t size = buf_size;  // max. number of bytes that can be copied to buf
   int cond_ret = 0;
 
-  if(buf_size == 0)
-  {
+  if (buf_size == 0) {
     return 0;
   }
 
   // Wait until there's something in the buffer or until timeout
-  while((m_size == 0) && (cond_ret == 0) && (m_stop == false))
-  {
+  while ((m_size == 0) && (cond_ret == 0) && (m_stop == false)) {
     /**
      * Log buffer is empty, block until signal is received
      * or until timeout.
      */
     cond_ret = NdbCondition_WaitTimeout(m_cond, m_mutex, timeout_ms);
-    if(cond_ret != 0)
-    {
+    if (cond_ret != 0) {
       assert(cond_ret == ETIMEDOUT);
     }
   }
 
-
-  if(m_size == 0)
-  {
+  if (m_size == 0) {
     // log buffer empty even after timeout, return
     return 0;
-  }
-  else if(m_size < buf_size)
-  {
+  } else if (m_size < buf_size) {
     // change num of bytes to be copied to available bytes
     size = m_size;
   }
 
   // Bytes present in log buffer for sure at this point.
 
-  if(m_write_ptr <= m_read_ptr && ((size_t)(m_buf_end - m_read_ptr + 1) < size))
-  {
+  if (m_write_ptr <= m_read_ptr &&
+      ((size_t)(m_buf_end - m_read_ptr + 1) < size)) {
     // Read and copy to buf in parts.
     size_t first_part_size, second_part_size;
     first_part_size = m_buf_end - m_read_ptr + 1;
     second_part_size = size - first_part_size;
 
     memcpy(buf, m_read_ptr, first_part_size);
-    memcpy(buf+first_part_size, m_log_buf, second_part_size);
+    memcpy(buf + first_part_size, m_log_buf, second_part_size);
     m_read_ptr = m_log_buf + second_part_size;
     m_size -= size;
-  }
-  else
-  {
+  } else {
     /**
      * wptr >= rptr, read in one go, or
-     * write_ptr <= read_ptr && bytes between read_ptr and end of buff is greater
-     * than size
+     * write_ptr <= read_ptr && bytes between read_ptr and end of buff is
+     * greater than size
      */
     memcpy(buf, m_read_ptr, size);
-    m_read_ptr += size; // update m_read_ptr
+    m_read_ptr += size;  // update m_read_ptr
     m_size -= size;
 
-    if((m_read_ptr == m_buf_end + 1) && m_read_ptr != m_write_ptr)
-    {
+    if ((m_read_ptr == m_buf_end + 1) && m_read_ptr != m_write_ptr) {
       /* m_read_ptr has read up until m_buf_end,
        * make m_read_ptr wrap around to start of log buffer.
        */
@@ -401,8 +343,7 @@ LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
     }
   }
 
-  if(m_read_ptr < m_write_ptr)
-  {
+  if (m_read_ptr < m_write_ptr) {
     /**
      * m_read_ptr could have wrapped around through m_buf_end,
      * reassign m_buf_end to point to one byte before m_write_ptr.
@@ -410,8 +351,7 @@ LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
     m_buf_end = m_write_ptr - 1;
   }
 
-  if(m_read_ptr == m_write_ptr)
-  {
+  if (m_read_ptr == m_write_ptr) {
     /**
      * Make m_read_ptr, m_write_ptr, m_buf_end point
      * to start of log buffer (like it is initially).
@@ -425,56 +365,34 @@ LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
   return size;
 }
 
-size_t
-LogBuffer::getSize() const
-{
-  return m_size;
-}
+size_t LogBuffer::getSize() const { return m_size; }
 
-size_t
-LogBuffer::getLostCount() const
-{
-  return m_lost_bytes;
-}
+size_t LogBuffer::getLostCount() const { return m_lost_bytes; }
 
-bool
-LogBuffer::is_stopped() const
-{
-  return m_stop;
-}
+bool LogBuffer::is_stopped() const { return m_stop; }
 
-void
-LogBuffer::stop()
-{
+void LogBuffer::stop() {
   Guard g(m_mutex);
   m_stop = true;
   NdbCondition_Signal(m_cond);
 }
 
-bool
-LogBuffer::checkInvariants() const
-{
-  assert(m_read_ptr <= m_buf_end); // equal if log buf is empty or has one byte
+bool LogBuffer::checkInvariants() const {
+  assert(m_read_ptr <= m_buf_end);  // equal if log buf is empty or has one byte
   assert(m_size <= m_max_size);
   assert(m_write_ptr < m_top);
 
-  if(m_size == 0)
-  {
-     assert(m_read_ptr == m_log_buf);
-     assert(m_write_ptr == m_log_buf);
-     assert(m_buf_end == m_log_buf);
-  }
-  else
-  {
-    if(m_read_ptr != m_write_ptr)
-    {
-      if(m_read_ptr < m_write_ptr)
-      {
+  if (m_size == 0) {
+    assert(m_read_ptr == m_log_buf);
+    assert(m_write_ptr == m_log_buf);
+    assert(m_buf_end == m_log_buf);
+  } else {
+    if (m_read_ptr != m_write_ptr) {
+      if (m_read_ptr < m_write_ptr) {
         assert(m_size == (size_t)(m_write_ptr - m_read_ptr));
-      }
-      else
-      {
-        assert(m_size == (size_t)((m_write_ptr - m_log_buf) + (m_buf_end - m_read_ptr) + 1));
+      } else {
+        assert(m_size == (size_t)((m_write_ptr - m_log_buf) +
+                                  (m_buf_end - m_read_ptr) + 1));
       }
     }
   }
@@ -483,10 +401,10 @@ LogBuffer::checkInvariants() const
 
 #ifdef TEST_LOGBUFFER
 
-LogBuffer* buf_t1;
-LogBuffer* buf_t2;
-LogBuffer* buf_t3;
-LogBuffer* buf_t4;
+LogBuffer *buf_t1;
+LogBuffer *buf_t2;
+LogBuffer *buf_t3;
+LogBuffer *buf_t4;
 
 bool stop_t2 = false;
 bool stop_t3 = false;
@@ -497,15 +415,11 @@ int bytes_written_t3 = 0;
 int total_to_write_t3 = 0;
 
 // Helper function to test va_list version of append
-static int append_fmt(LogBuffer* log_buffer,
-                      size_t len,
-                      bool append_ln,
-                      const char* fmt,
-                      ...) ATTRIBUTE_FORMAT(printf, 4, 5);
+static int append_fmt(LogBuffer *log_buffer, size_t len, bool append_ln,
+                      const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
 
-int append_fmt(
-    LogBuffer* log_buffer, size_t len, bool append_ln, const char* fmt, ...)
-{
+int append_fmt(LogBuffer *log_buffer, size_t len, bool append_ln,
+               const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   int rc = log_buffer->append(fmt, ap, len, append_ln);
@@ -513,16 +427,11 @@ int append_fmt(
   return rc;
 }
 
-void clearbuf(char* buf, uint size)
-{
-  memset(buf, '*', size);
-}
+void clearbuf(char *buf, uint size) { memset(buf, '*', size); }
 
-void fun(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+void fun(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
-void fun(const char* fmt, ...)
-{
+void fun(const char *fmt, ...) {
   va_list arguments;
 
   va_start(arguments, fmt);
@@ -534,13 +443,10 @@ void fun(const char* fmt, ...)
   va_end(arguments);
 }
 
-void* thread_producer1(void*)
-{
+void *thread_producer1(void *) {
   BaseString string;
-  for(int i = 1; i <= 1000; i++)
-  {
-    if(i%40 == 0)
-    {
+  for (int i = 1; i <= 1000; i++) {
+    if (i % 40 == 0) {
       NdbSleep_SecSleep(1);
     }
     string = string.assfmt("Log %*d\n", 5, i);
@@ -550,12 +456,9 @@ void* thread_producer1(void*)
   return nullptr;
 }
 
-void* thread_producer2(void*)
-{
-  for(int i = 1;i <= 1000; i++)
-  {
-    if(i%40 == 0)
-    {
+void *thread_producer2(void *) {
+  for (int i = 1; i <= 1000; i++) {
+    if (i % 40 == 0) {
       NdbSleep_SecSleep(1);
     }
     fun("Log %*d\n", 5, -i);
@@ -564,29 +467,23 @@ void* thread_producer2(void*)
   return nullptr;
 }
 
-void* thread_producer3(void*)
-{
+void *thread_producer3(void *) {
   char buf[10];
   memset(buf, '$', 10);
   size_t to_write_bytes = 0;
   srand((unsigned int)time(nullptr));
   int sleep_when = rand() % 10 + 1;
-  for(int i = 0; i < 20; i++)
-  {
-    if(i % sleep_when == 0)
-    {
+  for (int i = 0; i < 20; i++) {
+    if (i % sleep_when == 0) {
       NdbSleep_SecSleep(1);
     }
     to_write_bytes = rand() % 10 + 1;
     total_to_write_t3 += to_write_bytes;
     int ret = buf_t3->append(buf, to_write_bytes);
-    if(ret)
-    {
+    if (ret) {
       printf("Write: %d bytes\n", ret);
       bytes_written_t3 += ret;
-    }
-    else
-    {
+    } else {
       printf("Lost: %lu bytes\n", (long unsigned)to_write_bytes);
       bytes_lost_t3 += to_write_bytes;
     }
@@ -596,29 +493,25 @@ void* thread_producer3(void*)
   return nullptr;
 }
 
-void* thread_consumer1(void*)
-{
+void *thread_consumer1(void *) {
   char buf[256];
   size_t bytes = 0;
   int i = 0;
-  size_t get_bytes= 256;
+  size_t get_bytes = 256;
   setbuf(stdout, nullptr);
-  while(!stop_t2)
-  {
-    get_bytes= 256;
-    if(i == 20)
-    {
-      NdbSleep_SecSleep(3); // simulate slow IO
+  while (!stop_t2) {
+    get_bytes = 256;
+    if (i == 20) {
+      NdbSleep_SecSleep(3);  // simulate slow IO
     }
-    if((bytes = buf_t2->get(buf, get_bytes)))
-    {
+    if ((bytes = buf_t2->get(buf, get_bytes))) {
       require(fwrite(buf, bytes, 1, stdout) == 1);
     }
     i++;
   }
 
   // flush remaining logs
-  char* flush = (char*)malloc(buf_t2->getSize());
+  char *flush = (char *)malloc(buf_t2->getSize());
   bytes = buf_t2->get(flush, buf_t2->getSize());
   if (bytes != 0) {
     require(fwrite(flush, bytes, 1, stdout) == 1);
@@ -627,8 +520,7 @@ void* thread_consumer1(void*)
 
   // print lost bytes if any
   size_t lost_count = buf_t2->getLostCount();
-  if(lost_count)
-  {
+  if (lost_count) {
     fprintf(stdout, LostMsgHandler::LOST_BYTES_FMT, lost_count);
   }
 
@@ -636,23 +528,21 @@ void* thread_consumer1(void*)
   return nullptr;
 }
 
-void* thread_consumer2(void*)
-{
+void *thread_consumer2(void *) {
   total_bytes_read_t3 = 0;
   char buf[10];
   size_t to_read = 0;
   size_t bytes_read = 0;
   size_t bytes_flushed = 0;
 
-  while(!stop_t3)
-  {
+  while (!stop_t3) {
     to_read = rand() % 10 + 1;
     bytes_read = buf_t3->get(buf, to_read);
     total_bytes_read_t3 += bytes_read;
     printf("Read: %lu bytes\n", (long unsigned)bytes_read);
   }
 
-  char* flush = (char*)malloc(buf_t3->getSize());
+  char *flush = (char *)malloc(buf_t3->getSize());
   bytes_flushed = buf_t3->get(flush, buf_t3->getSize());
   total_bytes_read_t3 += bytes_flushed;
   free(flush);
@@ -662,8 +552,7 @@ void* thread_consumer2(void*)
 }
 
 #include <util/NdbTap.hpp>
-TAPTEST(LogBuffer)
-{
+TAPTEST(LogBuffer) {
   ndb_init();
 
   buf_t1 = new LogBuffer(10);
@@ -677,11 +566,12 @@ TAPTEST(LogBuffer)
   char buf1[bufsize];
 
   /**
-   * Note: There are a few comments below that represent the contents of the LogBuffer
-   * at the particular line of code during execution.
+   * Note: There are a few comments below that represent the contents of the
+   * LogBuffer at the particular line of code during execution.
    * '*' represents a free byte
-   * '#' represents the top of the buffer (empty byte, should never be written by append()/get())
-   *  All other characters represent the content of the occupied byte.
+   * '#' represents the top of the buffer (empty byte, should never be written
+   * by append()/get()) All other characters represent the content of the
+   * occupied byte.
    */
 
   // should return 0 after sleeping for 1s since the log buffer is empty
@@ -691,7 +581,6 @@ TAPTEST(LogBuffer)
   OK(bytes == 0);
   clearbuf(buf1, bufsize);
   printf("Sub-test 1 OK\n");
-
 
   // **********#
   OK(buf_t1->append("123", 3) == 3);
@@ -705,7 +594,6 @@ TAPTEST(LogBuffer)
   clearbuf(buf1, bufsize);
   printf("Sub-test 2 OK\n");
 
-
   // append string of max. length that the log buffer can hold
   // **********#
   OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
@@ -718,29 +606,27 @@ TAPTEST(LogBuffer)
   printf("Sub-test 3 OK\n");
   clearbuf(buf1, bufsize);
 
-
   // **********#
   OK(buf_t1->append("01234", 5) == 5);  // w == r, empty logbuf
   // 01234*****#
   OK(buf_t1->append("56789", 5) == 5);  // w > r, no-wrap
   // 0123456789#
-  buf_t1->get(buf1, 5); // read in one go, w < r
+  buf_t1->get(buf1, 5);  // read in one go, w < r
   // *****56789#
   OK(buf_t1->append("01234", 5) == 5);  // w < r
   // 0123456789#
   clearbuf(buf1, bufsize);
-  bytes = buf_t1->get(buf1, 3); // read in one go, w == r
+  bytes = buf_t1->get(buf1, 3);  // read in one go, w == r
   // 01234***89#
   buf1[bytes] = '\0';
   OK(strcmp("567", buf1) == 0);
-  bytes = buf_t1->get(buf1, 10);// read in parts, empty the log buffer
+  bytes = buf_t1->get(buf1, 10);  // read in parts, empty the log buffer
   // **********#
   buf1[bytes] = '\0';
   OK(strcmp(buf1, "8901234") == 0);
   printf("Sub-test 4 OK\n");
   clearbuf(buf1, bufsize);
   assert(buf_t1->getSize() == 0);
-
 
   // **********#
   OK(buf_t1->append("01234", 5) == 5);
@@ -752,18 +638,18 @@ TAPTEST(LogBuffer)
   OK(buf_t1->append("01234", 5) == 5);
   // 0123456789#
   clearbuf(buf1, bufsize);
-  bytes = buf_t1->get(buf1, 3); // read in one go, w == r
+  bytes = buf_t1->get(buf1, 3);  // read in one go, w == r
   // 01234***89#
   buf1[bytes] = '\0';
   OK(strcmp("567", buf1) == 0);
-  bytes = buf_t1->get(buf1, 2);// read in parts, empty the log buffer
+  bytes = buf_t1->get(buf1, 2);  // read in parts, empty the log buffer
   // 01234*****#
   buf1[bytes] = '\0';
   OK(strcmp(buf1, "89") == 0);
   bytes = buf_t1->get(buf1, 3);
   // **34*****#
   buf1[bytes] = '\0';
-  OK(strcmp(buf1, "012") == 0); // read in one go, w > r
+  OK(strcmp(buf1, "012") == 0);  // read in one go, w > r
   bytes = buf_t1->get(buf1, 3);
   // **********#
   buf1[bytes] = '\0';
@@ -771,7 +657,6 @@ TAPTEST(LogBuffer)
   clearbuf(buf1, bufsize);
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 5 OK\n");
-
 
   // **********#
   OK(append_fmt(buf_t1, 8, false, "01234567") == 8);
@@ -792,9 +677,8 @@ TAPTEST(LogBuffer)
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 6 OK\n");
 
-
-  //check functionality after reading in parts
-  //append string of length = size_of_buf - 1
+  // check functionality after reading in parts
+  // append string of length = size_of_buf - 1
   // **********#
   OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
   // 123456789*#
@@ -806,7 +690,6 @@ TAPTEST(LogBuffer)
   printf("Sub-test 7 OK\n");
   clearbuf(buf1, bufsize);
 
-
   // **********#
   OK(buf_t1->append("012345678", 9) == 9);
   // 012345678*#
@@ -814,16 +697,15 @@ TAPTEST(LogBuffer)
   // ****45678*#
   OK(append_fmt(buf_t1, 3, false, "90a") == 3);  // append in the beginning
   // 90a*45678*#
-  OK(buf_t1->get(buf1, 8) == 8); // read in parts
+  OK(buf_t1->get(buf1, 8) == 8);  // read in parts
   // **********#
   buf1[8] = '\0';
   OK(strcmp(buf1, "4567890a") == 0);
-  OK(buf_t1->append("123", 0) == 0);           // length zero
+  OK(buf_t1->append("123", 0) == 0);             // length zero
   OK(append_fmt(buf_t1, 0, false, "123") == 0);  // length zero
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 8 OK\n");
   clearbuf(buf1, bufsize);
-
 
   // **********#
   buf_t1->append("01234", 5);
@@ -839,21 +721,21 @@ TAPTEST(LogBuffer)
 
   printf("Sub-test 9 OK\n");
 
-  printf("\n--------TESTCASE 1 COMPLETE--------\n\n");;
-
+  printf("\n--------TESTCASE 1 COMPLETE--------\n\n");
+  ;
 
   printf("--------TESTCASE 2- TWO PRODUCERS, ONE CONSUMER--------\n\n");
-  struct NdbThread* log_threadvar1;
-  struct NdbThread* prod_threadvar1;
-  struct NdbThread* prod_threadvar2;
-  prod_threadvar1 = NdbThread_Create(
-      thread_producer1, (void**)nullptr, 0, "thread_test1", NDB_THREAD_PRIO_MEAN);
+  struct NdbThread *log_threadvar1;
+  struct NdbThread *prod_threadvar1;
+  struct NdbThread *prod_threadvar2;
+  prod_threadvar1 = NdbThread_Create(thread_producer1, (void **)nullptr, 0,
+                                     "thread_test1", NDB_THREAD_PRIO_MEAN);
 
-  prod_threadvar2 = NdbThread_Create(
-      thread_producer2, (void**)nullptr, 0, "thread_test2", NDB_THREAD_PRIO_MEAN);
+  prod_threadvar2 = NdbThread_Create(thread_producer2, (void **)nullptr, 0,
+                                     "thread_test2", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar1 = NdbThread_Create(
-      thread_consumer1, (void**)nullptr, 0, "thread_io1", NDB_THREAD_PRIO_MEAN);
+  log_threadvar1 = NdbThread_Create(thread_consumer1, (void **)nullptr, 0,
+                                    "thread_io1", NDB_THREAD_PRIO_MEAN);
 
   NdbThread_WaitFor(prod_threadvar1, nullptr);
   NdbThread_WaitFor(prod_threadvar2, nullptr);
@@ -868,13 +750,13 @@ TAPTEST(LogBuffer)
 
   printf("--------TESTCASE 3- RANDOM READS & WRITES--------\n\n");
 
-  struct NdbThread* log_threadvar2;
-  struct NdbThread* prod_threadvar3;
-  prod_threadvar3 = NdbThread_Create(
-      thread_producer3, (void**)nullptr, 0, "thread_test3", NDB_THREAD_PRIO_MEAN);
+  struct NdbThread *log_threadvar2;
+  struct NdbThread *prod_threadvar3;
+  prod_threadvar3 = NdbThread_Create(thread_producer3, (void **)nullptr, 0,
+                                     "thread_test3", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar2 = NdbThread_Create(
-      thread_consumer2, (void**)nullptr, 0, "thread_io2", NDB_THREAD_PRIO_MEAN);
+  log_threadvar2 = NdbThread_Create(thread_consumer2, (void **)nullptr, 0,
+                                    "thread_io2", NDB_THREAD_PRIO_MEAN);
   NdbThread_WaitFor(prod_threadvar3, nullptr);
   stop_t3 = true;
   NdbThread_WaitFor(log_threadvar2, nullptr);
@@ -883,8 +765,7 @@ TAPTEST(LogBuffer)
   printf("Total bytes lost = %d\n", bytes_lost_t3);
   printf("Total bytes read = %d\n", total_bytes_read_t3);
   assert(bytes_written_t3 == total_bytes_read_t3);
-  if(bytes_lost_t3 == 0)
-  {
+  if (bytes_lost_t3 == 0) {
     assert(total_to_write_t3 == bytes_written_t3);
   }
 

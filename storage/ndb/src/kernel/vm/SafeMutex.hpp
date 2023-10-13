@@ -23,15 +23,14 @@
 #ifndef NDB_SAFE_MUTEX_HPP
 #define NDB_SAFE_MUTEX_HPP
 
-#include <ndb_global.h>
-#include "thr_cond.h"
-#include "thr_mutex.h"
 #include <assert.h>
+#include <ndb_global.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>
+#include "thr_cond.h"
+#include "thr_mutex.h"
 
 #define JAM_FILE_ID 220
-
 
 /*
  * Recursive mutex with recursion limit >= 1.  Intended for debugging.
@@ -47,30 +46,29 @@
  */
 
 class SafeMutex {
-  const char* const m_name;
-  const Uint32 m_limit; // error if usage exceeds this
-  const bool m_debug;   // use recursive implementation even for limit 1
+  const char *const m_name;
+  const Uint32 m_limit;  // error if usage exceeds this
+  const bool m_debug;    // use recursive implementation even for limit 1
   const bool m_simple;
   native_mutex_t m_mutex;
   native_cond_t m_cond;
   my_thread_t m_owner;
   bool m_initdone;
   Uint32 m_level;
-  Uint32 m_usage;       // max level used so far
+  Uint32 m_usage;  // max level used so far
   int m_errcode;
   int m_errline;
   int err(int errcode, int errline);
-  friend class NdbOut& operator<<(NdbOut&, const SafeMutex&);
+  friend class NdbOut &operator<<(NdbOut &, const SafeMutex &);
 
-public:
-  SafeMutex(const char* name, Uint32 limit, bool debug) :
-    m_name(name),
-    m_limit(limit),
-    m_debug(debug),
-    m_simple(!(limit > 1 || debug))
-  {
+ public:
+  SafeMutex(const char *name, Uint32 limit, bool debug)
+      : m_name(name),
+        m_limit(limit),
+        m_debug(debug),
+        m_simple(!(limit > 1 || debug)) {
     assert(m_limit >= 1),
-    m_owner = 0;        // wl4391_todo assuming numeric non-zero
+        m_owner = 0;  // wl4391_todo assuming numeric non-zero
     m_initdone = false;
     m_level = 0;
     m_usage = 0;
@@ -78,27 +76,25 @@ public:
     m_errline = 0;
   }
   ~SafeMutex() {
-    if (m_initdone)
-      (void)destroy();
+    if (m_initdone) (void)destroy();
   }
 
   enum {
     // caller must crash on any error - recovery is not possible
-    ErrState = -101,    // user error
-    ErrLevel = -102,    // level exceeded limit
-    ErrOwner = -103,    // unlock when not owner
-    ErrNolock = -104    // unlock when no lock
+    ErrState = -101,  // user error
+    ErrLevel = -102,  // level exceeded limit
+    ErrOwner = -103,  // unlock when not owner
+    ErrNolock = -104  // unlock when no lock
   };
   int create();
   int destroy();
   int lock();
   int unlock();
 
-private:
+ private:
   int lock_impl();
   int unlock_impl();
 };
-
 
 #undef JAM_FILE_ID
 

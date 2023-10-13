@@ -23,71 +23,54 @@
 
 #include <signaldata/FsOpenReq.hpp>
 
-bool printFSOPENREQ(FILE *output,
-                    const Uint32 *theData,
-                    Uint32 len,
-                    Uint16 /*receiverBlockNo*/)
-{
-  if (len < FsOpenReq::SignalLength)
-  {
+bool printFSOPENREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                    Uint16 /*receiverBlockNo*/) {
+  if (len < FsOpenReq::SignalLength) {
     assert(false);
     return false;
   }
 
   const FsOpenReq *const sig = (const FsOpenReq *)theData;
 
-  fprintf(output, " UserReference: H\'%.8x, userPointer: H\'%.8x\n", 
-	  sig->userReference, sig->userPointer);
-  fprintf(output, " FileNumber[1-4]: H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n", 
-	  sig->fileNumber[0], sig->fileNumber[1], sig->fileNumber[2], sig->fileNumber[3]);
-  fprintf(output, " FileFlags: H\'%.8x ", 
-	  sig->fileFlags);
-  
+  fprintf(output, " UserReference: H\'%.8x, userPointer: H\'%.8x\n",
+          sig->userReference, sig->userPointer);
+  fprintf(output, " FileNumber[1-4]: H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
+          sig->fileNumber[0], sig->fileNumber[1], sig->fileNumber[2],
+          sig->fileNumber[3]);
+  fprintf(output, " FileFlags: H\'%.8x ", sig->fileFlags);
+
   // File open mode must be one of ReadOnly, WriteOnly or ReadWrite
   const Uint32 flags = sig->fileFlags;
-  switch(flags & 3){
-  case FsOpenReq::OM_READONLY:
-    fprintf(output, "Open read only");
-    break;
-  case FsOpenReq::OM_WRITEONLY:
-    fprintf(output, "Open write only");
-    break;
-  case FsOpenReq::OM_READWRITE:
-    fprintf(output, "Open read and write");
-    break;
-  default:
-    fprintf(output, "Open mode unknown!");
+  switch (flags & 3) {
+    case FsOpenReq::OM_READONLY:
+      fprintf(output, "Open read only");
+      break;
+    case FsOpenReq::OM_WRITEONLY:
+      fprintf(output, "Open write only");
+      break;
+    case FsOpenReq::OM_READWRITE:
+      fprintf(output, "Open read and write");
+      break;
+    default:
+      fprintf(output, "Open mode unknown!");
   }
 
-  if (flags & FsOpenReq::OM_APPEND)
-    fprintf(output, ", Append");
-  if (flags & FsOpenReq::OM_SYNC)
-    fprintf(output, ", Sync");
-  if (flags & FsOpenReq::OM_CREATE)
-    fprintf(output, ", Create new file");
+  if (flags & FsOpenReq::OM_APPEND) fprintf(output, ", Append");
+  if (flags & FsOpenReq::OM_SYNC) fprintf(output, ", Sync");
+  if (flags & FsOpenReq::OM_CREATE) fprintf(output, ", Create new file");
   if (flags & FsOpenReq::OM_TRUNCATE)
     fprintf(output, ", Truncate existing file");
-  if (flags & FsOpenReq::OM_AUTOSYNC)
-    fprintf(output, ", Auto Sync");
+  if (flags & FsOpenReq::OM_AUTOSYNC) fprintf(output, ", Auto Sync");
 
-  if (flags & FsOpenReq::OM_CREATE_IF_NONE)
-    fprintf(output, ", Create if None");
-  if (flags & FsOpenReq::OM_INIT)
-    fprintf(output, ", Initialise");
-  if (flags & FsOpenReq::OM_CHECK_SIZE)
-    fprintf(output, ", Check Size");
-  if (flags & FsOpenReq::OM_DIRECT)
-    fprintf(output, ", O_DIRECT");
-  if (flags & FsOpenReq::OM_GZ)
-    fprintf(output, ", gz compressed");
-  if (flags & FsOpenReq::OM_THREAD_POOL)
-    fprintf(output, ", threadpool");
-  if (flags & FsOpenReq::OM_WRITE_BUFFER)
-    fprintf(output, ", write buffer");
-  if (flags & FsOpenReq::OM_READ_SIZE)
-    fprintf(output, ", read size");
-  if (flags & FsOpenReq::OM_DIRECT_SYNC)
-    fprintf(output, ", O_DIRECT_SYNC");
+  if (flags & FsOpenReq::OM_CREATE_IF_NONE) fprintf(output, ", Create if None");
+  if (flags & FsOpenReq::OM_INIT) fprintf(output, ", Initialise");
+  if (flags & FsOpenReq::OM_CHECK_SIZE) fprintf(output, ", Check Size");
+  if (flags & FsOpenReq::OM_DIRECT) fprintf(output, ", O_DIRECT");
+  if (flags & FsOpenReq::OM_GZ) fprintf(output, ", gz compressed");
+  if (flags & FsOpenReq::OM_THREAD_POOL) fprintf(output, ", threadpool");
+  if (flags & FsOpenReq::OM_WRITE_BUFFER) fprintf(output, ", write buffer");
+  if (flags & FsOpenReq::OM_READ_SIZE) fprintf(output, ", read size");
+  if (flags & FsOpenReq::OM_DIRECT_SYNC) fprintf(output, ", O_DIRECT_SYNC");
   if (flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) fprintf(output, ", encrypted");
   if ((flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == FsOpenReq::OM_ENCRYPT_CBC)
     fprintf(output, ", with cbc");
@@ -99,8 +82,7 @@ bool printFSOPENREQ(FILE *output,
   if ((flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
       FsOpenReq::OM_ENCRYPT_KEY)
     fprintf(output, ", with key");
-  if (flags & FsOpenReq::OM_READ_FORWARD)
-    fprintf(output, ", read forward");
+  if (flags & FsOpenReq::OM_READ_FORWARD) fprintf(output, ", read forward");
 
   fprintf(output, "\n");
   return true;

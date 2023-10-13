@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "Config.hpp"
+#include "util/require.h"
 
 #include <mgmapi.h>
 #include <NdbOut.hpp>
@@ -31,92 +31,74 @@
 
 #include <HashMap.hpp>
 
-Config::Config(ndb_mgm_configuration *configuration) :
-  m_configuration(configuration)
-{
-}
+Config::Config(ndb_mgm_configuration *configuration)
+    : m_configuration(configuration) {}
 
+Config::Config(ConfigValues *config_values)
+    : m_configuration(
+          reinterpret_cast<ndb_mgm_configuration *>(config_values)) {}
 
-Config::Config(ConfigValues *config_values) :
-  m_configuration(reinterpret_cast<ndb_mgm_configuration*>(config_values))
-{
-}
-
-Config::Config(const Config* conf)
-{
+Config::Config(const Config *conf) {
   assert(conf);
   UtilBuffer buf;
   conf->pack(buf, OUR_V2_VERSION);
   ConfigValuesFactory cvf;
   cvf.unpack_buf(buf);
-  m_configuration= (ndb_mgm_configuration*)cvf.getConfigValues();
+  m_configuration = (ndb_mgm_configuration *)cvf.getConfigValues();
 }
 
+Config::~Config() { ndb_mgm_destroy_configuration(m_configuration); }
 
-Config::~Config() {
-  ndb_mgm_destroy_configuration(m_configuration);
-}
+unsigned sections[] = {CFG_SECTION_SYSTEM, CFG_SECTION_NODE,
+                       CFG_SECTION_CONNECTION};
+const size_t num_sections = sizeof(sections) / sizeof(unsigned);
 
-unsigned sections[]=
-{
-  CFG_SECTION_SYSTEM,
-  CFG_SECTION_NODE,
-  CFG_SECTION_CONNECTION
-};
-const size_t num_sections= sizeof(sections)/sizeof(unsigned);
+void Config::print(const char *section_filter, NodeId nodeid_filter,
+                   const char *param_filter, NdbOut &out) const {
+  const ConfigInfo &default_info = ConfigInfo::default_instance();
 
-void
-Config::print(const char* section_filter, NodeId nodeid_filter,
-              const char* param_filter,
-              NdbOut& out) const {
-  const ConfigInfo& default_info = ConfigInfo::default_instance();
-
-  for(unsigned i= 0; i < num_sections; i++) {
-    unsigned section= sections[i];
+  for (unsigned i = 0; i < num_sections; i++) {
+    unsigned section = sections[i];
     ConfigIter it(this, section);
 
-    if (it.first())
-      continue;
+    if (it.first()) continue;
 
-    for(;it.valid();it.next()) {
-
+    for (; it.valid(); it.next()) {
       Uint32 section_type;
-      if(it.get(CFG_TYPE_OF_SECTION, &section_type) != 0)
-        continue;
+      if (it.get(CFG_TYPE_OF_SECTION, &section_type) != 0) continue;
 
-      const ConfigInfo::ParamInfo* pinfo= nullptr;
+      const ConfigInfo::ParamInfo *pinfo = nullptr;
       ConfigInfo::ParamInfoIter param_iter(default_info, section, section_type);
 
-      const char* section_name =
+      const char *section_name =
           default_info.sectionName(section, section_type);
 
       // Section name filter
-      if (section_filter &&                     // Filter is on
-          strcmp(section_filter, section_name)) // Value is different
+      if (section_filter &&                      // Filter is on
+          strcmp(section_filter, section_name))  // Value is different
         continue;
 
       // NodeId filter
       Uint32 nodeid = 0;
       it.get(CFG_NODE_ID, &nodeid);
-      if (nodeid_filter &&                   // Filter is on
-          nodeid_filter != nodeid)           // Value is different
+      if (nodeid_filter &&          // Filter is on
+          nodeid_filter != nodeid)  // Value is different
         continue;
 
       /*  Loop through the section and print those values that exist */
       Uint32 val;
       Uint64 val64;
-      const char* val_str;
-      while((pinfo= param_iter.next())){
-
+      const char *val_str;
+      while ((pinfo = param_iter.next())) {
         // Param name filter
-        if (param_filter &&                      // Filter is on
-            strcmp(param_filter, pinfo->_fname)) // Value is different
+        if (param_filter &&                       // Filter is on
+            strcmp(param_filter, pinfo->_fname))  // Value is different
           continue;
 
-        if (section_name) // Print section name only first time
+        if (section_name)  // Print section name only first time
         {
           out << "[" << section_name << "]" << endl;
-          section_name= nullptr;
+          section_name = nullptr;
         }
 
         if (!it.get(pinfo->_paramId, &val))
@@ -130,117 +112,73 @@ Config::print(const char* section_filter, NodeId nodeid_filter,
   }
 }
 
-
-
-Uint32
-Config::getGeneration() const
-{
+Uint32 Config::getGeneration() const {
   Uint32 generation;
   ConfigIter iter(this, CFG_SECTION_SYSTEM);
 
-  if (iter.get(CFG_SYS_CONFIG_GENERATION, &generation))
-    return 0;
+  if (iter.get(CFG_SYS_CONFIG_GENERATION, &generation)) return 0;
 
   return generation;
 }
 
-
-Uint32
-Config::getPrimaryMgmNode() const
-{
+Uint32 Config::getPrimaryMgmNode() const {
   Uint32 primaryMgmNode;
   ConfigIter iter(this, CFG_SECTION_SYSTEM);
 
-  if (iter.get(CFG_SYS_PRIMARY_MGM_NODE, &primaryMgmNode))
-    return 0;
+  if (iter.get(CFG_SYS_PRIMARY_MGM_NODE, &primaryMgmNode)) return 0;
 
   return primaryMgmNode;
 }
 
-
-const char*
-Config::getName() const
-{
-  const char* name;
+const char *Config::getName() const {
+  const char *name;
   ConfigIter iter(this, CFG_SECTION_SYSTEM);
 
-  if (iter.get(CFG_SYS_NAME, &name))
-    return nullptr;
+  if (iter.get(CFG_SYS_NAME, &name)) return nullptr;
 
   return name;
 }
 
-
-bool
-Config::setValue(Uint32 section, Uint32 section_no,
-                 Uint32 id, Uint32 new_val)
-{
+bool Config::setValue(Uint32 section, Uint32 section_no, Uint32 id,
+                      Uint32 new_val) {
   ConfigValues::Iterator iter(m_configuration->m_config_values);
-  if (!iter.openSection(section, section_no))
-    return false;
+  if (!iter.openSection(section, section_no)) return false;
 
-  if (!iter.set(id, new_val))
-    return false;
+  if (!iter.set(id, new_val)) return false;
 
   return true;
 }
 
-
-bool
-Config::setValue(Uint32 section, Uint32 section_no,
-                 Uint32 id, const char* new_val)
-{
+bool Config::setValue(Uint32 section, Uint32 section_no, Uint32 id,
+                      const char *new_val) {
   ConfigValues::Iterator iter(m_configuration->m_config_values);
-  if (!iter.openSection(section, section_no))
-    return false;
+  if (!iter.openSection(section, section_no)) return false;
 
-  if (!iter.set(id, new_val))
-    return false;
+  if (!iter.set(id, new_val)) return false;
 
   return true;
 }
 
-
-bool
-Config::setGeneration(Uint32 new_gen)
-{
-  return setValue(CFG_SECTION_SYSTEM, 0,
-                  CFG_SYS_CONFIG_GENERATION,
-                  new_gen);
+bool Config::setGeneration(Uint32 new_gen) {
+  return setValue(CFG_SECTION_SYSTEM, 0, CFG_SYS_CONFIG_GENERATION, new_gen);
 }
 
-
-bool
-Config::setPrimaryMgmNode(Uint32 new_primary)
-{
-  return setValue(CFG_SECTION_SYSTEM, 0,
-                  CFG_SYS_PRIMARY_MGM_NODE,
-                  new_primary);
+bool Config::setPrimaryMgmNode(Uint32 new_primary) {
+  return setValue(CFG_SECTION_SYSTEM, 0, CFG_SYS_PRIMARY_MGM_NODE, new_primary);
 }
 
-
-bool
-Config::setName(const char* new_name)
-{
-  return setValue(CFG_SECTION_SYSTEM, 0,
-                  CFG_SYS_NAME,
-                  new_name);
+bool Config::setName(const char *new_name) {
+  return setValue(CFG_SECTION_SYSTEM, 0, CFG_SYS_NAME, new_name);
 }
 
-
-Uint32
-Config::pack(UtilBuffer& buf, bool v2) const
-{
-  return v2 ?
-    m_configuration->m_config_values.pack_v2(buf) :
-    m_configuration->m_config_values.pack_v1(buf);
+Uint32 Config::pack(UtilBuffer &buf, bool v2) const {
+  return v2 ? m_configuration->m_config_values.pack_v2(buf)
+            : m_configuration->m_config_values.pack_v1(buf);
 }
-
 
 #include <ndb_base64.h>
 
-bool Config::pack64_encode(BaseString& encoded, const UtilBuffer& buf) const
-{
+bool Config::pack64_encode(BaseString &encoded, const UtilBuffer &buf) const {
   const uint64 encoded_length = base64_needed_encoded_length(buf.length());
   require(encoded_length > 0);  // Always need room for null termination
   if (encoded_length > UINT32_MAX) return false;
@@ -252,50 +190,39 @@ bool Config::pack64_encode(BaseString& encoded, const UtilBuffer& buf) const
    * size above, and we now that base64_encode will write exactly that much
    * including null termination.
    */
-  char* encoded_buf = const_cast<char*>(encoded.c_str());
+  char *encoded_buf = const_cast<char *>(encoded.c_str());
 
   if (base64_encode(buf.get_data(), buf.length(), encoded_buf)) return false;
   assert(strlen(encoded.c_str()) == encoded_length - 1);
   return true;
 }
 
-bool
-Config::pack64_v1(BaseString& encoded) const
-{
+bool Config::pack64_v1(BaseString &encoded) const {
   UtilBuffer buf;
-  if (m_configuration->m_config_values.pack_v1(buf) == 0)
-    return false;
+  if (m_configuration->m_config_values.pack_v1(buf) == 0) return false;
 
   return pack64_encode(encoded, buf);
 }
 
-bool
-Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
-{
+bool Config::pack64_v2(BaseString &encoded, Uint32 node_id) const {
   UtilBuffer buf;
-  if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0)
-    return false;
+  if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0) return false;
 
   return pack64_encode(encoded, buf);
 }
-
 
 enum diff_types {
-  DT_DIFF,            // Value differed
-  DT_MISSING_VALUE,   // Value didn't exist
-  DT_MISSING_SECTION, // Section missing
+  DT_DIFF,             // Value differed
+  DT_MISSING_VALUE,    // Value didn't exist
+  DT_MISSING_SECTION,  // Section missing
   DT_ILLEGAL_CHANGE    // Illegal change detected
 };
 
-
-static void
-add_diff(const char* name, const char* key,
-         Properties& diff,
-         const char* value_name, Properties* value)
-{
+static void add_diff(const char *name, const char *key, Properties &diff,
+                     const char *value_name, Properties *value) {
   Properties *section;
   // Create a new section if it did not exist
-  if (!diff.getCopy(key, &section)){
+  if (!diff.getCopy(key, &section)) {
     Properties new_section(true);
     new_section.put("Key", key);
     new_section.put("Name", name);
@@ -324,38 +251,28 @@ add_diff(const char* name, const char* key,
   delete section;
 }
 
-
-static void
-compare_value(const char* name, const char* key,
-              const ConfigInfo::ParamInfo* pinfo,
-              ConfigValues::ConstIterator& it,
-              ConfigValues::ConstIterator& it2,
-              Properties& diff)
-{
-  Uint32 pid= pinfo->_paramId;
+static void compare_value(const char *name, const char *key,
+                          const ConfigInfo::ParamInfo *pinfo,
+                          ConfigValues::ConstIterator &it,
+                          ConfigValues::ConstIterator &it2, Properties &diff) {
+  Uint32 pid = pinfo->_paramId;
   {
     Uint32 val;
     if (it.get(pid, &val) == true) {
       Uint32 val2;
       if (it2.get(pid, &val2) == true) {
-        if (val != val2){
+        if (val != val2) {
           Properties info(true);
           info.put("Type", DT_DIFF);
           info.put("New", val2);
           info.put("Old", val);
-          add_diff(name, key,
-                   diff,
-                   pinfo->_fname, &info);
+          add_diff(name, key, diff, pinfo->_fname, &info);
         }
-      }
-      else
-      {
+      } else {
         Properties info(true);
         info.put("Type", DT_MISSING_VALUE);
         info.put("Old", val);
-        add_diff(name, key,
-                 diff,
-                 pinfo->_fname, &info);
+        add_diff(name, key, diff, pinfo->_fname, &info);
       }
       return;
     }
@@ -371,81 +288,61 @@ compare_value(const char* name, const char* key,
           info.put("Type", DT_DIFF);
           info.put64("New", Uint64(val2));
           info.put64("Old", Uint64(val));
-          add_diff(name, key,
-                   diff,
-                   pinfo->_fname, &info);
+          add_diff(name, key, diff, pinfo->_fname, &info);
         }
-      }
-      else
-      {
+      } else {
         Properties info(true);
         info.put("Type", DT_MISSING_VALUE);
         info.put64("Old", Uint64(val));
-        add_diff(name, key,
-                 diff,
-                 pinfo->_fname, &info);
+        add_diff(name, key, diff, pinfo->_fname, &info);
       }
       return;
     }
   }
 
   {
-    const char* val;
+    const char *val;
     if (it.get(pid, &val) == true) {
-      const char* val2;
+      const char *val2;
       if (it2.get(pid, &val2) == true) {
         if (strcmp(val, val2)) {
           Properties info(true);
           info.put("Type", DT_DIFF);
           info.put("New", val2);
           info.put("Old", val);
-          add_diff(name, key,
-                   diff,
-                   pinfo->_fname, &info);
+          add_diff(name, key, diff, pinfo->_fname, &info);
         }
-      }
-      else
-      {
+      } else {
         Properties info(true);
         info.put("Type", DT_MISSING_VALUE);
         info.put("Old", val);
-        add_diff(name, key,
-                 diff,
-                 pinfo->_fname, &info);
+        add_diff(name, key, diff, pinfo->_fname, &info);
       }
       return;
     }
   }
 }
 
-
-static void
-diff_system(const Config* a, const Config* b, Properties& diff)
-{
+static void diff_system(const Config *a, const Config *b, Properties &diff) {
   ConfigIter itA(a, CFG_SECTION_SYSTEM);
   ConfigIter itB(b, CFG_SECTION_SYSTEM);
 
   // Check each possible configuration value
-  const ConfigInfo& default_info = ConfigInfo::default_instance();
-  const ConfigInfo::ParamInfo* pinfo= nullptr;
-  ConfigInfo::ParamInfoIter param_iter(
-      default_info, CFG_SECTION_SYSTEM, CFG_SECTION_SYSTEM);
-  while((pinfo= param_iter.next())) {
+  const ConfigInfo &default_info = ConfigInfo::default_instance();
+  const ConfigInfo::ParamInfo *pinfo = nullptr;
+  ConfigInfo::ParamInfoIter param_iter(default_info, CFG_SECTION_SYSTEM,
+                                       CFG_SECTION_SYSTEM);
+  while ((pinfo = param_iter.next())) {
     /*  Loop through the section and compare values */
     compare_value("SYSTEM", "", pinfo, itA.m_config, itB.m_config, diff);
   }
 }
 
-
-static void
-diff_nodes(const Config* a, const Config* b, Properties& diff)
-{
-  const ConfigInfo& default_info = ConfigInfo::default_instance();
+static void diff_nodes(const Config *a, const Config *b, Properties &diff) {
+  const ConfigInfo &default_info = ConfigInfo::default_instance();
   ConfigIter itA(a, CFG_SECTION_NODE);
 
-  for(;itA.valid(); itA.next())
-  {
-
+  for (; itA.valid(); itA.next()) {
     /* Get typ of Node */
     Uint32 nodeType;
     require(itA.get(CFG_TYPE_OF_SECTION, &nodeType) == 0);
@@ -461,15 +358,12 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
 
     /* Position itB in the section with same NodeId */
     ConfigIter itB(b, CFG_SECTION_NODE);
-    if (itB.find(CFG_NODE_ID, nodeId) != 0)
-    {
+    if (itB.find(CFG_NODE_ID, nodeId) != 0) {
       // A whole node has been removed
       Properties info(true);
       info.put("Type", DT_MISSING_SECTION);
       info.put("Why", "Node removed");
-      add_diff(name.c_str(), key.c_str(),
-               diff,
-               "Node removed", &info);
+      add_diff(name.c_str(), key.c_str(), diff, "Node removed", &info);
 
       continue;
     }
@@ -478,30 +372,26 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
     Uint32 nodeType2;
     require(itB.get(CFG_TYPE_OF_SECTION, &nodeType2) == 0);
     if ((nodeType == NODE_TYPE_DB || nodeType == NODE_TYPE_MGM) &&
-        nodeType != nodeType2)
-    {
+        nodeType != nodeType2) {
       // DB or MGM node has changed type -> not allowed change
       Properties info(true);
       info.put("Type", DT_ILLEGAL_CHANGE);
       info.put("Why", "Node has changed type");
-      add_diff(name.c_str(), key.c_str(),
-               diff,
-               "Node type changed", &info);
+      add_diff(name.c_str(), key.c_str(), diff, "Node type changed", &info);
       continue;
     }
 
     // Check each possible configuration value
-    const ConfigInfo::ParamInfo* pinfo= nullptr;
-    ConfigInfo::ParamInfoIter param_iter(
-        default_info, CFG_SECTION_NODE, nodeType);
-    while((pinfo= param_iter.next())) {
+    const ConfigInfo::ParamInfo *pinfo = nullptr;
+    ConfigInfo::ParamInfoIter param_iter(default_info, CFG_SECTION_NODE,
+                                         nodeType);
+    while ((pinfo = param_iter.next())) {
       /*  Loop through the section and compare values */
-      compare_value(name.c_str(), key.c_str(), pinfo,
-                    itA.m_config, itB.m_config, diff);
+      compare_value(name.c_str(), key.c_str(), pinfo, itA.m_config,
+                    itB.m_config, diff);
     }
   }
 }
-
 
 struct NodePair {
   Uint32 nodeId1;
@@ -509,9 +399,8 @@ struct NodePair {
   NodePair(Uint32 n1, Uint32 n2) : nodeId1(n1), nodeId2(n2) {}
 };
 
-static void
-diff_connections(const Config* a, const Config* b, Properties& diff)
-{
+static void diff_connections(const Config *a, const Config *b,
+                             Properties &diff) {
   // Build lookup table to make it a quick operation to check
   // if a given connection(with "primary key" NodeId1+NodeId2)
   // exists in other config, in such case return the section number
@@ -520,8 +409,7 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
   {
     Uint32 nodeId1, nodeId2;
     ConfigIter itB(b, CFG_SECTION_CONNECTION);
-    for(; itB.valid(); itB.next())
-    {
+    for (; itB.valid(); itB.next()) {
       require(itB.get(CFG_CONNECTION_NODE_1, &nodeId1) == 0);
       require(itB.get(CFG_CONNECTION_NODE_2, &nodeId2) == 0);
 
@@ -529,11 +417,10 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     }
   }
 
-  const ConfigInfo& default_info = ConfigInfo::default_instance();
+  const ConfigInfo &default_info = ConfigInfo::default_instance();
   ConfigIter itA(a, CFG_SECTION_CONNECTION);
 
-  for(;itA.valid(); itA.next())
-  {
+  for (; itA.valid(); itA.next()) {
     /* Get typ of connection */
     Uint32 connectionType;
     require(itA.get(CFG_TYPE_OF_SECTION, &connectionType) == 0);
@@ -551,15 +438,12 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
 
     /* Lookup connection and get section no if it exists */
     Uint32 sectionNo;
-    if (!lookup.search(NodePair(nodeId1_A, nodeId2_A), sectionNo))
-    {
+    if (!lookup.search(NodePair(nodeId1_A, nodeId2_A), sectionNo)) {
       // A connection has been removed
       Properties info(true);
       info.put("Type", DT_MISSING_SECTION);
       info.put("Why", "Connection removed");
-      add_diff(name.c_str(), key.c_str(),
-               diff,
-               "Connection removed", &info);
+      add_diff(name.c_str(), key.c_str(), diff, "Connection removed", &info);
 
       continue;
     }
@@ -575,38 +459,32 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     require(nodeId1_A == nodeId1_B && nodeId2_A == nodeId2_B);
 
     // Check each possible configuration value
-    const ConfigInfo::ParamInfo* pinfo= nullptr;
-    ConfigInfo::ParamInfoIter param_iter(
-        default_info, CFG_SECTION_CONNECTION, connectionType);
-    while((pinfo= param_iter.next())) {
+    const ConfigInfo::ParamInfo *pinfo = nullptr;
+    ConfigInfo::ParamInfoIter param_iter(default_info, CFG_SECTION_CONNECTION,
+                                         connectionType);
+    while ((pinfo = param_iter.next())) {
       /*  Loop through the section and compare values */
       compare_value(name.c_str(), key.c_str(), pinfo, itA.m_config, itB, diff);
     }
   }
 }
 
+static bool include_section(const unsigned *exclude, unsigned section) {
+  if (exclude == nullptr) return true;
 
-static bool
-include_section(const unsigned* exclude, unsigned section){
-  if (exclude == nullptr)
-    return true;
-
-  while(*exclude){
-    if (*exclude == section)
-      return false;
+  while (*exclude) {
+    if (*exclude == section) return false;
     exclude++;
   }
   return true;
 }
 
-
 /**
   Generate a diff list
 */
 
-void Config::diff(const Config* other, Properties& diff,
-                  const unsigned* exclude) const {
-
+void Config::diff(const Config *other, Properties &diff,
+                  const unsigned *exclude) const {
   if (include_section(exclude, CFG_SECTION_SYSTEM)) {
     diff_system(this, other, diff);
     diff_system(other, this, diff);
@@ -621,46 +499,39 @@ void Config::diff(const Config* other, Properties& diff,
   }
 }
 
-
-static const char*
-p2s(const Properties* prop, const char* name, BaseString& buf){
+static const char *p2s(const Properties *prop, const char *name,
+                       BaseString &buf) {
   PropertiesType type;
   require(prop->getTypeOf(name, &type));
-  switch(type){
-  case PropertiesType_Uint32:
-  {
-    Uint32 val;
-    require(prop->get(name, &val));
-    buf.assfmt("%u", val);
-    break;
-  }
-  case PropertiesType_Uint64:
-  {
-    Uint64 val;
-    require(prop->get(name, &val));
-    buf.assfmt("%llu", val);
-    break;
-  }
-  case PropertiesType_char:
-  {
-    require(prop->get(name, buf));
-    break;
-  }
-  default:
-    require(false);
-    break;
+  switch (type) {
+    case PropertiesType_Uint32: {
+      Uint32 val;
+      require(prop->get(name, &val));
+      buf.assfmt("%u", val);
+      break;
+    }
+    case PropertiesType_Uint64: {
+      Uint64 val;
+      require(prop->get(name, &val));
+      buf.assfmt("%llu", val);
+      break;
+    }
+    case PropertiesType_char: {
+      require(prop->get(name, buf));
+      break;
+    }
+    default:
+      require(false);
+      break;
   }
   return buf.c_str();
 }
 
-
-const char*
-Config::diff2str(const Properties& diff_list, BaseString& str) const
-{
-  const char* name;
+const char *Config::diff2str(const Properties &diff_list,
+                             BaseString &str) const {
+  const char *name;
   Properties::Iterator prop_it(&diff_list);
-  while ((name= prop_it.next())){
-
+  while ((name = prop_it.next())) {
     const Properties *node;
     require(diff_list.get(name, &node));
 
@@ -669,59 +540,51 @@ Config::diff2str(const Properties& diff_list, BaseString& str) const
 
     BaseString key;
     require(node->get("Key", key));
-    if (key.length() > 0){
+    if (key.length() > 0) {
       Vector<BaseString> keys;
       key.split(keys, ";");
-      for (unsigned i= 0; i < keys.size(); i++)
+      for (unsigned i = 0; i < keys.size(); i++)
         str.appfmt("%s\n", keys[i].c_str());
     }
 
     BaseString buf;
     Properties::Iterator prop_it2(node);
-    while ((name= prop_it2.next())){
-
+    while ((name = prop_it2.next())) {
       const Properties *what;
-      if (!node->get(name, &what))
-        continue;
+      if (!node->get(name, &what)) continue;
 
       Uint32 type;
       require(what->get("Type", &type));
       require(what->get("Name", &name));
       switch (type) {
-      case DT_DIFF:
-      {
-        str.appfmt("-%s=%s\n", name, p2s(what, "Old", buf));
-        str.appfmt("+%s=%s\n", name, p2s(what, "New", buf));
-        break;
-      }
+        case DT_DIFF: {
+          str.appfmt("-%s=%s\n", name, p2s(what, "Old", buf));
+          str.appfmt("+%s=%s\n", name, p2s(what, "New", buf));
+          break;
+        }
 
-      case DT_MISSING_VALUE:
-      {
-        str.appfmt("-%s=%s\n", name, p2s(what, "Old", buf));
-        break;
-      }
+        case DT_MISSING_VALUE: {
+          str.appfmt("-%s=%s\n", name, p2s(what, "Old", buf));
+          break;
+        }
 
-      case DT_MISSING_SECTION:
-      {
-        const char* why;
-        if (what->get("Why", &why))
-          str.appfmt("%s\n", why);
-        break;
-      }
+        case DT_MISSING_SECTION: {
+          const char *why;
+          if (what->get("Why", &why)) str.appfmt("%s\n", why);
+          break;
+        }
 
-      case DT_ILLEGAL_CHANGE:
-      {
-        const char* why;
-        str.appfmt("Illegal change\n");
-        if (what->get("Why", &why))
-          str.appfmt("%s\n", why);
-        break;
-      }
+        case DT_ILLEGAL_CHANGE: {
+          const char *why;
+          str.appfmt("Illegal change\n");
+          if (what->get("Why", &why)) str.appfmt("%s\n", why);
+          break;
+        }
 
-      default:
-        str.appfmt("Illegal 'type' found in diff_list\n");
-        require(false);
-        break;
+        default:
+          str.appfmt("Illegal 'type' found in diff_list\n");
+          require(false);
+          break;
       }
     }
     str.appfmt("\n");
@@ -729,61 +592,50 @@ Config::diff2str(const Properties& diff_list, BaseString& str) const
   return str.c_str();
 }
 
-
-void Config::print_diff(const Config* other) const {
+void Config::print_diff(const Config *other) const {
   Properties diff_list;
   diff(other, diff_list);
   BaseString str;
   ndbout_c("%s", diff2str(diff_list, str));
 }
 
-
-const char*
-Config::diff2str(const Config* other, BaseString& str, const unsigned * exclude) const {
+const char *Config::diff2str(const Config *other, BaseString &str,
+                             const unsigned *exclude) const {
   Properties diff_list;
   diff(other, diff_list, exclude);
   return diff2str(diff_list, str);
 }
 
-
-bool Config::equal(const Properties& diff_list) const {
-  int count= 0;
+bool Config::equal(const Properties &diff_list) const {
+  int count = 0;
   Properties::Iterator prop_it(&diff_list);
-  while ((prop_it.next()))
-    count++;
+  while ((prop_it.next())) count++;
   return (count == 0);
 }
 
-
-bool Config::equal(const Config* other, const unsigned * exclude) const {
+bool Config::equal(const Config *other, const unsigned *exclude) const {
   Properties diff_list;
   diff(other, diff_list, exclude);
   return equal(diff_list);
 }
 
-
-
-bool Config::illegal_change(const Properties& diff_list) const {
-  bool illegal= false;
-  const char* name;
+bool Config::illegal_change(const Properties &diff_list) const {
+  bool illegal = false;
+  const char *name;
   Properties::Iterator prop_it(&diff_list);
-  while ((name= prop_it.next())){
-
+  while ((name = prop_it.next())) {
     const Properties *node;
     require(diff_list.get(name, &node));
 
     Properties::Iterator prop_it2(node);
-    while ((name= prop_it2.next())){
-
+    while ((name = prop_it2.next())) {
       const Properties *what;
-      if (!node->get(name, &what))
-        continue;
+      if (!node->get(name, &what)) continue;
 
       Uint32 type;
       require(what->get("Type", &type));
-      if (type == DT_ILLEGAL_CHANGE)
-      {
-        illegal= true;
+      if (type == DT_ILLEGAL_CHANGE) {
+        illegal = true;
         break;
       }
     }
@@ -791,59 +643,46 @@ bool Config::illegal_change(const Properties& diff_list) const {
   return illegal;
 }
 
-
-bool Config::illegal_change(const Config* other) const {
+bool Config::illegal_change(const Config *other) const {
   Properties diff_list;
   diff(other, diff_list);
   return illegal_change(diff_list);
 }
 
-
-void Config::getConnectString(BaseString& connectstring,
-                              const BaseString& separator) const
-{
-  bool first= true;
+void Config::getConnectString(BaseString &connectstring,
+                              const BaseString &separator) const {
+  bool first = true;
   ConfigIter it(this, CFG_SECTION_NODE);
 
-  for(;it.valid(); it.next())
-  {
+  for (; it.valid(); it.next()) {
     /* Get type of Node */
     Uint32 nodeType;
     require(it.get(CFG_TYPE_OF_SECTION, &nodeType) == 0);
 
-    if (nodeType != NODE_TYPE_MGM)
-      continue;
+    if (nodeType != NODE_TYPE_MGM) continue;
 
     Uint32 port;
-    const char* hostname;
+    const char *hostname;
     require(it.get(CFG_NODE_HOST, &hostname) == 0);
     require(it.get(CFG_MGM_PORT, &port) == 0);
 
-    if (!first)
-      connectstring.append(separator);
-    first= false;
+    if (!first) connectstring.append(separator);
+    first = false;
 
     connectstring.appfmt("%s %d", hostname, port);
-
   }
   ndbout << connectstring << endl;
 }
 
-
-void
-Config::get_nodemask(NodeBitmask& mask,
-                     ndb_mgm_node_type type) const
-{
+void Config::get_nodemask(NodeBitmask &mask, ndb_mgm_node_type type) const {
   mask.clear();
   ConfigIter it(this, CFG_SECTION_NODE);
-  for (; it.valid(); it.next())
-  {
+  for (; it.valid(); it.next()) {
     Uint32 node_type;
     require(it.get(CFG_TYPE_OF_SECTION, &node_type) == 0);
 
-    if (type == NDB_MGM_NODE_TYPE_UNKNOWN || // UNKOWN -> add all nodes to mask
-        type == (ndb_mgm_node_type)node_type)
-    {
+    if (type == NDB_MGM_NODE_TYPE_UNKNOWN ||  // UNKOWN -> add all nodes to mask
+        type == (ndb_mgm_node_type)node_type) {
       Uint32 nodeid;
       require(it.get(CFG_NODE_ID, &nodeid) == 0);
       mask.set(nodeid);
@@ -851,19 +690,16 @@ Config::get_nodemask(NodeBitmask& mask,
   }
 }
 
-
-Uint32
-Config::checksum(bool v2) const {
+Uint32 Config::checksum(bool v2) const {
   Uint32 chk;
 
   UtilBuffer buf;
   pack(buf, v2);
 
   // Checksum is the last 4 bytes in buffer
-  const char* chk_ptr = (const char*)buf.get_data();
+  const char *chk_ptr = (const char *)buf.get_data();
   chk_ptr += buf.length() - sizeof(Uint32);
-  chk = *(const Uint32*)chk_ptr;
+  chk = *(const Uint32 *)chk_ptr;
 
   return chk;
 }
-

@@ -30,57 +30,48 @@
 /* *************************************************************
  * HugoCalculator
  *
- *  Common class for the Hugo test suite, provides the functions 
- *  that is used for calculating values to load in to table and 
- *  also knows how to verify a row that's been read from db 
+ *  Common class for the Hugo test suite, provides the functions
+ *  that is used for calculating values to load in to table and
+ *  also knows how to verify a row that's been read from db
  *
  * ************************************************************/
 class HugoCalculator {
-public:
-  HugoCalculator(const NdbDictionary::Table& tab);
+ public:
+  HugoCalculator(const NdbDictionary::Table &tab);
   Int32 calcValue(int record, int attrib, int updates) const;
-  const char* calcValue(int record, int attrib, int updates, char* buf, 
-			int len, Uint32* real_len) const;
+  const char *calcValue(int record, int attrib, int updates, char *buf, int len,
+                        Uint32 *real_len) const;
 
-  int verifyRowValues(NDBT_ResultRow* const  pRow) const;
-  int verifyRecAttr(int record, int updates, const NdbRecAttr* recAttr);
-  int verifyColValue(int record, int attrib, int updates, 
-                     const char* valPtr, Uint32 valLen);
-  int getIdValue(NDBT_ResultRow* const pRow) const;
-  int getUpdatesValue(NDBT_ResultRow* const pRow) const;
-  int getIdColNo() const { return m_idCol;}
+  int verifyRowValues(NDBT_ResultRow *const pRow) const;
+  int verifyRecAttr(int record, int updates, const NdbRecAttr *recAttr);
+  int verifyColValue(int record, int attrib, int updates, const char *valPtr,
+                     Uint32 valLen);
+  int getIdValue(NDBT_ResultRow *const pRow) const;
+  int getUpdatesValue(NDBT_ResultRow *const pRow) const;
+  int getIdColNo() const { return m_idCol; }
   bool isIdCol(int colId) { return m_idCol == colId; }
-  bool isUpdateCol(int colId){ return m_updatesCol == colId; }
+  bool isUpdateCol(int colId) { return m_updatesCol == colId; }
 
-  const NdbDictionary::Table& getTable() const { return m_tab;}
+  const NdbDictionary::Table &getTable() const { return m_tab; }
 
-  int equalForRow(Uint8 *, const NdbRecord*, int rowid);
-  int setValues(Uint8*, const NdbRecord*, int rowid, int updateval);
+  int equalForRow(Uint8 *, const NdbRecord *, int rowid);
+  int setValues(Uint8 *, const NdbRecord *, int rowid, int updateval);
 
-  class KeyParts
-  {
-  public:
-    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
+  class KeyParts {
+   public:
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 1];
     char buffer[NDB_MAX_TUPLE_SIZE];
 
-    KeyParts()
-    {
-      ptrs[0].ptr = 0;
-    }
+    KeyParts() { ptrs[0].ptr = 0; }
   };
 
   /* Init buffer and ptrs in KeyParts object for row */
-  int setKeyParts(KeyParts* keyParts, int rowid);
+  int setKeyParts(KeyParts *keyParts, int rowid);
 
-private:
-  const NdbDictionary::Table& m_tab;
+ private:
+  const NdbDictionary::Table &m_tab;
   int m_idCol;
   int m_updatesCol;
 };
 
-
 #endif
-
-
-
-

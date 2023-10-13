@@ -35,16 +35,15 @@
 /*
   Decode a base64 string into data
 */
-static inline
-int ndb_base64_decode(const char *src, size_t src_len,
-                      void *dst, const char **end_ptr)
-{
-
-  return base64_decode(src, src_len, dst, end_ptr
-  // Signature of base64_decode changed to be extended
-  // with a "flags" argument in 5.6.3, no flags needed for
-  // vanilla base64_decode so ignore it in this impl.
-                       , 0);
+static inline int ndb_base64_decode(const char *src, size_t src_len, void *dst,
+                                    const char **end_ptr) {
+  return base64_decode(src, src_len, dst,
+                       end_ptr
+                       // Signature of base64_decode changed to be extended
+                       // with a "flags" argument in 5.6.3, no flags needed for
+                       // vanilla base64_decode so ignore it in this impl.
+                       ,
+                       0);
 }
 
 #endif

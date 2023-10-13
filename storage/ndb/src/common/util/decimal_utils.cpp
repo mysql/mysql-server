@@ -26,41 +26,36 @@
 
 #include <assert.h>
 
-#include "m_string.h"
 #include "decimal.h"
+#include "m_string.h"
 
 #include "decimal_utils.hpp"
 
-int decimal_str2bin(const char *str, int str_len,
-                    int prec, int scale,
-                    void *bin, int bin_len)
-{
-    int retval;                               /* return value from str2dec() */
-    decimal_t dec;                            /* intermediate representation */
-    decimal_digit_t digits[9];                /* for dec->buf */
-    const char *end = str + str_len;
-    
-    assert(str != nullptr);   
-    assert(bin != nullptr);
-    if(prec < 1) return E_DEC_BAD_PREC;
-    if((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
-    
-    if(decimal_bin_size(prec, scale) > bin_len)
-        return E_DEC_OOM;
-    
-    dec.len = 9;                              /* big enough for any decimal */
-    dec.buf = digits;
-    
-    retval = string2decimal(str, &dec, &end);
-    if(retval != E_DEC_OK) return retval;
-    
-    return decimal2bin(&dec, (unsigned char *) bin, prec, scale);
+int decimal_str2bin(const char *str, int str_len, int prec, int scale,
+                    void *bin, int bin_len) {
+  int retval;                /* return value from str2dec() */
+  decimal_t dec;             /* intermediate representation */
+  decimal_digit_t digits[9]; /* for dec->buf */
+  const char *end = str + str_len;
+
+  assert(str != nullptr);
+  assert(bin != nullptr);
+  if (prec < 1) return E_DEC_BAD_PREC;
+  if ((scale < 0) || (scale > prec)) return E_DEC_BAD_SCALE;
+
+  if (decimal_bin_size(prec, scale) > bin_len) return E_DEC_OOM;
+
+  dec.len = 9; /* big enough for any decimal */
+  dec.buf = digits;
+
+  retval = string2decimal(str, &dec, &end);
+  if (retval != E_DEC_OK) return retval;
+
+  return decimal2bin(&dec, (unsigned char *)bin, prec, scale);
 }
 
-int decimal_bin2str(const void *bin, int bin_len,
-                    int prec, int scale, 
-                    char *str, int str_len)
-{
+int decimal_bin2str(const void *bin, int bin_len, int prec, int scale,
+                    char *str, int str_len) {
   int retval;                /* return from bin2decimal() */
   decimal_t dec;             /* intermediate representation */
   decimal_digit_t digits[9]; /* for dec->buf */

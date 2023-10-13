@@ -23,65 +23,54 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include "ndb_global.h"
 
 #include "InputStream.hpp"
 
 FileInputStream Stdin(stdin);
 
-FileInputStream::FileInputStream(FILE * file)
-  : f(file) {
-}
+FileInputStream::FileInputStream(FILE *file) : f(file) {}
 
-char* 
-FileInputStream::gets(char * buf, int bufLen){ 
-  if(!feof(f)){
+char *FileInputStream::gets(char *buf, int bufLen) {
+  if (!feof(f)) {
     return fgets(buf, bufLen, f);
   }
   return nullptr;
 }
 
-SocketInputStream::SocketInputStream(const NdbSocket & socket,
+SocketInputStream::SocketInputStream(const NdbSocket &socket,
                                      unsigned read_timeout_ms)
-  : m_socket(socket) {
-  m_startover= true;
-  m_timeout_remain= m_timeout_ms = read_timeout_ms;
+    : m_socket(socket) {
+  m_startover = true;
+  m_timeout_remain = m_timeout_ms = read_timeout_ms;
 
-  m_timedout= false;
+  m_timedout = false;
 }
 
-char*
-SocketInputStream::gets(char * buf, int bufLen) {
-  if(timedout())
-    return nullptr;
+char *SocketInputStream::gets(char *buf, int bufLen) {
+  if (timedout()) return nullptr;
   assert(bufLen >= 2);
-  int offset= 0;
-  if(m_startover)
-  {
-    buf[0]= '\0';
-    m_startover= false;
-  }
-  else
-    offset= (int)strlen(buf);
+  int offset = 0;
+  if (m_startover) {
+    buf[0] = '\0';
+    m_startover = false;
+  } else
+    offset = (int)strlen(buf);
 
-  int time= 0;
-  int res = m_socket.readln(m_timeout_remain, &time,
-                            buf+offset, bufLen-offset, m_mutex);
+  int time = 0;
+  int res = m_socket.readln(m_timeout_remain, &time, buf + offset,
+                            bufLen - offset, m_mutex);
 
-  if(res >= 0)
-    m_timeout_remain-=time;
-  if(res == 0 || m_timeout_remain<=0)
-  {
-    m_timedout= true;
-    buf[0]=0;
+  if (res >= 0) m_timeout_remain -= time;
+  if (res == 0 || m_timeout_remain <= 0) {
+    m_timedout = true;
+    buf[0] = 0;
     return buf;
   }
 
-  m_startover= true;
+  m_startover = true;
 
-  if(res == -1)
-  {
+  if (res == -1) {
     return nullptr;
   }
 

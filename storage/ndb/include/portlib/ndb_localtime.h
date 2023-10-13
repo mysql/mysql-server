@@ -31,14 +31,11 @@
 
 **/
 
-static inline
-struct tm*
-ndb_localtime_r(const time_t *timep, struct tm *result)
-{
+static inline struct tm *ndb_localtime_r(const time_t *timep,
+                                         struct tm *result) {
 #ifdef _WIN32
   // NOTE! reversed args and different return type
-  if (localtime_s(result, timep) != 0)
-  {
+  if (localtime_s(result, timep) != 0) {
     return NULL;
   }
   return result;
@@ -46,6 +43,5 @@ ndb_localtime_r(const time_t *timep, struct tm *result)
   return localtime_r(timep, result);
 #endif
 }
-
 
 #endif

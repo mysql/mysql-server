@@ -24,58 +24,45 @@
 
 #include "TimeQueue.hpp"
 #include <ErrorHandlingMacros.hpp>
-#include <GlobalData.hpp>
 #include <FastScheduler.hpp>
-#include <VMSignal.hpp>
+#include <GlobalData.hpp>
 #include <SimulatedBlock.hpp>
+#include <VMSignal.hpp>
 
 #define JAM_FILE_ID 273
 
-
 static const int MAX_TIME_QUEUE_VALUE = 32000;
 
-TimeQueue::TimeQueue()
-{
-  clear();
-}
+TimeQueue::TimeQueue() { clear(); }
 
-TimeQueue::~TimeQueue()
-{
-}
+TimeQueue::~TimeQueue() {}
 
-void 
-TimeQueue::clear()
-{
+void TimeQueue::clear() {
   globalData.theNextTimerJob = 65535;
   globalData.theCurrentTimer = 0;
   globalData.theZeroTQIndex = 0;
   globalData.theShortTQIndex = 0;
   globalData.theLongTQIndex = 0;
-  for (int i = 0; i < MAX_NO_OF_TQ; i++)
-    theFreeIndex[i] = i+1;
+  for (int i = 0; i < MAX_NO_OF_TQ; i++) theFreeIndex[i] = i + 1;
   theFreeIndex[MAX_NO_OF_TQ - 1] = NULL_TQ_ENTRY;
   globalData.theFirstFreeTQIndex = 0;
 }
 
-void 
-TimeQueue::insert(Signal25* signal, Uint32 delayTime)
-{
+void TimeQueue::insert(Signal25 *signal, Uint32 delayTime) {
   Uint32 regCurrentTime = globalData.theCurrentTimer;
   Uint32 i;
   Uint32 regSave;
   TimerEntry newEntry;
- 
-  if (delayTime == 0)
-    delayTime = 1;
+
+  if (delayTime == 0) delayTime = 1;
 
   newEntry.time_struct.delay_time = regCurrentTime + delayTime;
   newEntry.time_struct.job_index = getIndex();
   regSave = newEntry.copy_struct;
-  
+
   globalScheduler.insertTimeQueue(signal, newEntry.time_struct.job_index);
- 
-  if (delayTime == SimulatedBlock::BOUNDED_DELAY)
-  {
+
+  if (delayTime == SimulatedBlock::BOUNDED_DELAY) {
     /**
      * Bounded delay signals are put into special zero time queue, no real
      * check of timers here, it will be put back into the
@@ -83,45 +70,41 @@ TimeQueue::insert(Signal25* signal, Uint32 delayTime)
      * run job buffer loop.
      */
     Uint32 regZeroIndex = globalData.theZeroTQIndex;
-    if (regZeroIndex < MAX_NO_OF_ZERO_TQ - 1)
-    {
+    if (regZeroIndex < MAX_NO_OF_ZERO_TQ - 1) {
       theZeroQueue[regZeroIndex].copy_struct = newEntry.copy_struct;
       globalData.theZeroTQIndex = regZeroIndex + 1;
-    }
-    else
-    {
-      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_ZERO, 
-                "Too many in Zero Time Queue", "TimeQueue.C" );
+    } else {
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_ZERO,
+                "Too many in Zero Time Queue", "TimeQueue.C");
     }
     return;
   }
 
   if (newEntry.time_struct.delay_time < globalData.theNextTimerJob)
     globalData.theNextTimerJob = newEntry.time_struct.delay_time;
-  if (delayTime < 100){
+  if (delayTime < 100) {
     Uint32 regShortIndex = globalData.theShortTQIndex;
-    if (regShortIndex == 0){
+    if (regShortIndex == 0) {
       theShortQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regShortIndex >= MAX_NO_OF_SHORT_TQ - 1) {
-      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_SHORT, 
-		"Too many in Short Time Queue", "TimeQueue.C" );
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_SHORT,
+                "Too many in Short Time Queue", "TimeQueue.C");
     } else {
       for (i = 0; i < regShortIndex; i++) {
-        if (theShortQueue[i].time_struct.delay_time > 
-	    newEntry.time_struct.delay_time)  {
-	  
+        if (theShortQueue[i].time_struct.delay_time >
+            newEntry.time_struct.delay_time) {
           regSave = theShortQueue[i].copy_struct;
           theShortQueue[i].copy_struct = newEntry.copy_struct;
           break;
-	}
+        }
       }
       if (i == regShortIndex) {
         theShortQueue[regShortIndex].copy_struct = regSave;
       } else {
         for (i++; i < regShortIndex; i++) {
-	  Uint32 regTmp = theShortQueue[i].copy_struct;
-	  theShortQueue[i].copy_struct = regSave;
-	  regSave = regTmp;
+          Uint32 regTmp = theShortQueue[i].copy_struct;
+          theShortQueue[i].copy_struct = regSave;
+          regSave = regTmp;
         }
         theShortQueue[regShortIndex].copy_struct = regSave;
       }
@@ -132,13 +115,12 @@ TimeQueue::insert(Signal25* signal, Uint32 delayTime)
     if (regLongIndex == 0) {
       theLongQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regLongIndex >= MAX_NO_OF_LONG_TQ - 1) {
-      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_LONG, 
-		"Too many in Long Time Queue", "TimeQueue.C" );
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_LONG,
+                "Too many in Long Time Queue", "TimeQueue.C");
     } else {
       for (i = 0; i < regLongIndex; i++) {
-        if (theLongQueue[i].time_struct.delay_time > 
-	    newEntry.time_struct.delay_time) {
-	  
+        if (theLongQueue[i].time_struct.delay_time >
+            newEntry.time_struct.delay_time) {
           regSave = theLongQueue[i].copy_struct;
           theLongQueue[i].copy_struct = newEntry.copy_struct;
           break;
@@ -157,17 +139,14 @@ TimeQueue::insert(Signal25* signal, Uint32 delayTime)
     }
     globalData.theLongTQIndex = regLongIndex + 1;
   } else {
-    ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_DELAY, 
-	      "Too long delay for Time Queue", "TimeQueue.C" );
+    ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_DELAY,
+              "Too long delay for Time Queue", "TimeQueue.C");
   }
 }
 
-void
-TimeQueue::scanZeroTimeQueue()
-{
+void TimeQueue::scanZeroTimeQueue() {
   /* Put all jobs in zero time queue into job buffer */
-  for (Uint32 i = 0; i < globalData.theZeroTQIndex; i++)
-  {
+  for (Uint32 i = 0; i < globalData.theZeroTQIndex; i++) {
     releaseIndex((Uint32)theZeroQueue[i].time_struct.job_index);
     globalScheduler.scheduleTimeQueue(theZeroQueue[i].time_struct.job_index);
   }
@@ -175,19 +154,15 @@ TimeQueue::scanZeroTimeQueue()
 }
 
 // executes the expired signals;
-void
-TimeQueue::scanTable()
-{
+void TimeQueue::scanTable() {
   Uint32 i, j;
-  
+
   globalData.theCurrentTimer++;
-  if (globalData.theCurrentTimer == 32000)
-    recount_timers();
-  if (globalData.theNextTimerJob > globalData.theCurrentTimer)
-    return;
-  globalData.theNextTimerJob = 65535; // If no more timer jobs
+  if (globalData.theCurrentTimer == 32000) recount_timers();
+  if (globalData.theNextTimerJob > globalData.theCurrentTimer) return;
+  globalData.theNextTimerJob = 65535;  // If no more timer jobs
   for (i = 0; i < globalData.theShortTQIndex; i++) {
-    if (theShortQueue[i].time_struct.delay_time > globalData.theCurrentTimer){
+    if (theShortQueue[i].time_struct.delay_time > globalData.theCurrentTimer) {
       break;
     } else {
       releaseIndex((Uint32)theShortQueue[i].time_struct.job_index);
@@ -199,7 +174,7 @@ TimeQueue::scanTable()
       theShortQueue[j - i].copy_struct = theShortQueue[j].copy_struct;
     globalData.theShortTQIndex -= i;
   }
-  if (globalData.theShortTQIndex != 0) // If not empty
+  if (globalData.theShortTQIndex != 0)  // If not empty
     globalData.theNextTimerJob = theShortQueue[0].time_struct.delay_time;
   for (i = 0; i < globalData.theLongTQIndex; i++) {
     if (theLongQueue[i].time_struct.delay_time > globalData.theCurrentTimer) {
@@ -213,15 +188,13 @@ TimeQueue::scanTable()
     for (j = i; j < globalData.theLongTQIndex; j++)
       theLongQueue[j - i].copy_struct = theLongQueue[j].copy_struct;
     globalData.theLongTQIndex -= i;
-  }  
-  if (globalData.theLongTQIndex != 0) // If not empty
+  }
+  if (globalData.theLongTQIndex != 0)  // If not empty
     if (globalData.theNextTimerJob > theLongQueue[0].time_struct.delay_time)
       globalData.theNextTimerJob = theLongQueue[0].time_struct.delay_time;
 }
 
-void
-TimeQueue::recount_timers()
-{
+void TimeQueue::recount_timers() {
   Uint32 i;
 
   globalData.theCurrentTimer = 0;
@@ -233,22 +206,16 @@ TimeQueue::recount_timers()
     theLongQueue[i].time_struct.delay_time -= 32000;
 }
 
-Uint32
-TimeQueue::getIndex()
-{
+Uint32 TimeQueue::getIndex() {
   Uint32 retValue = globalData.theFirstFreeTQIndex;
   globalData.theFirstFreeTQIndex = (Uint32)theFreeIndex[retValue];
   if (retValue >= MAX_NO_OF_TQ)
-    ERROR_SET(fatal, NDBD_EXIT_TIME_QUEUE_INDEX, 
-	      "Index out of range", "TimeQueue.C" );
+    ERROR_SET(fatal, NDBD_EXIT_TIME_QUEUE_INDEX, "Index out of range",
+              "TimeQueue.C");
   return retValue;
 }
 
-void
-TimeQueue::releaseIndex(Uint32 aIndex)
-{
+void TimeQueue::releaseIndex(Uint32 aIndex) {
   theFreeIndex[aIndex] = globalData.theFirstFreeTQIndex;
   globalData.theFirstFreeTQIndex = aIndex;
 }
-
-

@@ -26,60 +26,30 @@
 
 #include <time.h>
 
-ConsoleLogHandler::ConsoleLogHandler(NdbOut& out)
- : LogHandler(), _out(out)
-{
-}
+ConsoleLogHandler::ConsoleLogHandler(NdbOut &out) : LogHandler(), _out(out) {}
 
-ConsoleLogHandler::~ConsoleLogHandler()
-{
+ConsoleLogHandler::~ConsoleLogHandler() {}
 
-}
+bool ConsoleLogHandler::open() { return true; }
 
-bool
-ConsoleLogHandler::open()
-{
-  return true;
-}
+bool ConsoleLogHandler::close() { return true; }
 
-bool
-ConsoleLogHandler::close()
-{
-  return true;
-}
-
-bool
-ConsoleLogHandler::is_open()
-{
-  return true;
-}
+bool ConsoleLogHandler::is_open() { return true; }
 
 //
 // PROTECTED
 //
-void 
-ConsoleLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                               time_t now)
-{
+void ConsoleLogHandler::writeHeader(const char *pCategory,
+                                    Logger::LoggerLevel level, time_t now) {
   char str[MAX_HEADER_LENGTH];
   _out << getDefaultHeader(str, pCategory, level, now);
 }
 
-void 
-ConsoleLogHandler::writeMessage(const char* pMsg)
-{
-  _out << pMsg;	
-}
+void ConsoleLogHandler::writeMessage(const char *pMsg) { _out << pMsg; }
 
-void 
-ConsoleLogHandler::writeFooter()
-{
-  _out << getDefaultFooter() << flush;
-}
+void ConsoleLogHandler::writeFooter() { _out << getDefaultFooter() << flush; }
 
-  
-bool
-ConsoleLogHandler::setParam(const BaseString &/*param*/,
-			    const BaseString &/*value*/) {
+bool ConsoleLogHandler::setParam(const BaseString & /*param*/,
+                                 const BaseString & /*value*/) {
   return false;
 }

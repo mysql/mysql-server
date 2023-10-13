@@ -30,31 +30,30 @@
 
 #define JAM_FILE_ID 489
 
-
 #define ERROR_SET_SIGNAL(not_used, messageID, problemData, objectRef) \
-        ErrorReporter::handleError(messageID, problemData, objectRef, NST_ErrorHandlerSignal)
+  ErrorReporter::handleError(messageID, problemData, objectRef,       \
+                             NST_ErrorHandlerSignal)
 #define ERROR_SET(not_used, messageID, problemData, objectRef) \
-        ErrorReporter::handleError(messageID, problemData, objectRef)
-        // Description:
-        //      Call ErrorHandler with the supplied arguments. The
-        //      ErrorHandler decides how to report the error.
-        // Parameters:
-        //      messageID       IN      Code identifying the error. If less
-        //                              than 1000 a unix error is assumed. If
-        //                              greater than 1000 the code is treated 
-        //                              as the specific problem code.
-        //      problemData     IN      A (short) text describing the error.
-        //                              The context information is added to
-        //                              this text.
-        //      objectRef       IN      The name of the "victim" of the error.
-        //                              Specify NULL if not applicable.
-        // Return value:
-        //      -
-        // Reported errors:
-        //      -
-        // Additional information:
-        //      -
-
+  ErrorReporter::handleError(messageID, problemData, objectRef)
+// Description:
+//      Call ErrorHandler with the supplied arguments. The
+//      ErrorHandler decides how to report the error.
+// Parameters:
+//      messageID       IN      Code identifying the error. If less
+//                              than 1000 a unix error is assumed. If
+//                              greater than 1000 the code is treated
+//                              as the specific problem code.
+//      problemData     IN      A (short) text describing the error.
+//                              The context information is added to
+//                              this text.
+//      objectRef       IN      The name of the "victim" of the error.
+//                              Specify NULL if not applicable.
+// Return value:
+//      -
+// Reported errors:
+//      -
+// Additional information:
+//      -
 
 #undef JAM_FILE_ID
 

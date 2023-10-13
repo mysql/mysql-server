@@ -23,13 +23,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /*****************************************************************************
 Name:          NdbSchemaOp.cpp
 Include:
 Link:
 Author:        UABMNST Mona Natterkvist UAB/B/SD
-               EMIKRON Mikael Ronstrom                         
+               EMIKRON Mikael Ronstrom
 Date:          040524
 Version:       3.0
 Description:   Interface between application and NDB
@@ -46,9 +45,8 @@ Adjust:  980125  UABMNST   First version.
 
 #include <ndb_global.h>
 #include <NdbApi.hpp>
-#include <NdbSchemaOp.hpp>
 #include <NdbSchemaCon.hpp>
-
+#include <NdbSchemaOp.hpp>
 
 /*****************************************************************************
 NdbSchemaOp(Ndb* aNdb, Table* aTable);
@@ -56,40 +54,29 @@ NdbSchemaOp(Ndb* aNdb, Table* aTable);
 Return Value:  None
 Parameters:    aNdb: Pointers to the Ndb object.
                aTable: Pointers to the Table object
-Remark:        Create an object of NdbSchemaOp. 
+Remark:        Create an object of NdbSchemaOp.
 *****************************************************************************/
-NdbSchemaOp::NdbSchemaOp(Ndb* aNdb) : 
-  theNdb(aNdb),
-  theSchemaCon(NULL),
-  m_currentTable(NULL)
-{
-}//NdbSchemaOp::NdbSchemaOp()
+NdbSchemaOp::NdbSchemaOp(Ndb *aNdb)
+    : theNdb(aNdb),
+      theSchemaCon(NULL),
+      m_currentTable(NULL) {}  // NdbSchemaOp::NdbSchemaOp()
 
 /*****************************************************************************
 ~NdbSchemaOp();
 
 Remark:         Delete tables for connection pointers (id).
 *****************************************************************************/
-NdbSchemaOp::~NdbSchemaOp( )
-{
-}//~NdbSchemaOp::NdbSchemaOp()
-     
+NdbSchemaOp::~NdbSchemaOp() {}  //~NdbSchemaOp::NdbSchemaOp()
+
 /*****************************************************************************
 int createTable( const char* tableName )
 *****************************************************************************/
-int
-NdbSchemaOp::createTable(const char* aTableName, 
-                         Uint32 aTableSize, 
-                         KeyType aTupleKey,
-                         int aNrOfPages, 
-                         FragmentType aFragmentType, 
-                         int aKValue,
-                         int aMinLoadFactor,
-                         int aMaxLoadFactor,
-                         int aMemoryType,
-                         bool aStoredTable)
-{
-  if(m_currentTable != 0){
+int NdbSchemaOp::createTable(const char *aTableName, Uint32 aTableSize,
+                             KeyType aTupleKey, int aNrOfPages,
+                             FragmentType aFragmentType, int aKValue,
+                             int aMinLoadFactor, int aMaxLoadFactor,
+                             int aMemoryType, bool aStoredTable) {
+  if (m_currentTable != 0) {
     return -1;
   }
 
@@ -100,68 +87,59 @@ NdbSchemaOp::createTable(const char* aTableName,
   m_currentTable->setLogging(aStoredTable);
   m_currentTable->setFragmentType(NdbDictionary::Object::FragAllMedium);
   return 0;
-}//NdbSchemaOp::createTable()
+}  // NdbSchemaOp::createTable()
 
 /******************************************************************************
-int createAttribute( const char* anAttrName,            
-                         KeyType aTupleyKey,            
-                             int anAttrSize,                    
-                             int anArraySize,                           
+int createAttribute( const char* anAttrName,
+                         KeyType aTupleyKey,
+                             int anAttrSize,
+                             int anArraySize,
                         AttrType anAttrType,
-                        SafeType aSafeType,             
+                        SafeType aSafeType,
                      StorageMode aStorageMode,
                              int aNullAttr,
                              int aStorageAttr );
 
 ******************************************************************************/
-int     
-NdbSchemaOp::createAttribute( const char* anAttrName,                   
-                              KeyType aTupleKey,                        
-                              int anAttrSize,                   
-                              int anArraySize,                          
-                              AttrType anAttrType,      
-                              StorageMode aStorageMode,
-                              bool nullable,
-                              int aStorageAttr,
-			      int aDistributionKeyFlag,
-			      int aDistributionGroupFlag,
-			      int aDistributionGroupNoOfBits,
-                              bool aAutoIncrement,
-                              const char* aDefaultValue)
-{
-  if (m_currentTable == 0){
+int NdbSchemaOp::createAttribute(
+    const char *anAttrName, KeyType aTupleKey, int anAttrSize, int anArraySize,
+    AttrType anAttrType, StorageMode aStorageMode, bool nullable,
+    int aStorageAttr, int aDistributionKeyFlag, int aDistributionGroupFlag,
+    int aDistributionGroupNoOfBits, bool aAutoIncrement,
+    const char *aDefaultValue) {
+  if (m_currentTable == 0) {
     return -1;
-  }//if
-  
+  }  // if
+
   NdbDictionary::Column col(anAttrName);
-  switch(anAttrType){
-  case Signed:
-    if(anAttrSize == 64)
-      col.setType(NdbDictionary::Column::Bigint);
-    else
-      col.setType(NdbDictionary::Column::Int);
-    break;
-  case UnSigned:
-    if(anAttrSize == 64)
-      col.setType(NdbDictionary::Column::Bigunsigned);
-    else
-      col.setType(NdbDictionary::Column::Unsigned);
-    break;
-  case Float:
-    if(anAttrSize == 64)
-      col.setType(NdbDictionary::Column::Double);
-    else
-      col.setType(NdbDictionary::Column::Float);
-    break;
-  case String:
-    col.setType(NdbDictionary::Column::Char);
-    break;
-  case NoAttrTypeDef:
-    abort();
+  switch (anAttrType) {
+    case Signed:
+      if (anAttrSize == 64)
+        col.setType(NdbDictionary::Column::Bigint);
+      else
+        col.setType(NdbDictionary::Column::Int);
+      break;
+    case UnSigned:
+      if (anAttrSize == 64)
+        col.setType(NdbDictionary::Column::Bigunsigned);
+      else
+        col.setType(NdbDictionary::Column::Unsigned);
+      break;
+    case Float:
+      if (anAttrSize == 64)
+        col.setType(NdbDictionary::Column::Double);
+      else
+        col.setType(NdbDictionary::Column::Float);
+      break;
+    case String:
+      col.setType(NdbDictionary::Column::Char);
+      break;
+    case NoAttrTypeDef:
+      abort();
   }
   col.setLength(anArraySize);
   col.setNullable(nullable);
-  if(aTupleKey != NoKey)
+  if (aTupleKey != NoKey)
     col.setPrimaryKey(true);
   else
     col.setPrimaryKey(false);
@@ -169,9 +147,9 @@ NdbSchemaOp::createAttribute( const char* anAttrName,
   col.setDistributionKey(aDistributionKeyFlag);
   col.setAutoIncrement(aAutoIncrement);
   col.setDefaultValue(aDefaultValue != 0 ? aDefaultValue : "");
-  
+
   m_currentTable->addColumn(col);
-  return 0;      
+  return 0;
 }
 
 /******************************************************************************
@@ -179,50 +157,41 @@ void release();
 
 Remark:        Release all objects connected to the schemaop object.
 ******************************************************************************/
-void
-NdbSchemaOp::release(){
-}//NdbSchemaOp::release()
+void NdbSchemaOp::release() {}  // NdbSchemaOp::release()
 
 /******************************************************************************
 int sendRec()
 
 Return Value:   Return 0 : send was successful.
-                Return -1: In all other case.   
+                Return -1: In all other case.
 Parameters:
 Remark:         Send and receive signals for schema transaction based on state
 ******************************************************************************/
-int
-NdbSchemaOp::sendRec(){
+int NdbSchemaOp::sendRec() {
   int retVal = 0;
-  if(m_currentTable == 0){
+  if (m_currentTable == 0) {
     retVal = -1;
   } else {
-    retVal = theNdb->getDictionary()->createTable(* m_currentTable);
+    retVal = theNdb->getDictionary()->createTable(*m_currentTable);
     delete m_currentTable;
     theSchemaCon->theError.code = theNdb->getDictionary()->getNdbError().code;
   }
-  
+
   return retVal;
-}//NdbSchemaOp::sendRec()
+}  // NdbSchemaOp::sendRec()
 
 /******************************************************************************
 int init();
 
 Return Value:  Return 0 : init was successful.
-               Return -1: In all other case.  
+               Return -1: In all other case.
 Remark:        Initiates SchemaOp record after allocation.
 ******************************************************************************/
-int
-NdbSchemaOp::init(NdbSchemaCon* aSchemaCon)
-{
+int NdbSchemaOp::init(NdbSchemaCon *aSchemaCon) {
   theSchemaCon = aSchemaCon;
   return 0;
-}//NdbSchemaOp::init()
+}  // NdbSchemaOp::init()
 
-
-const NdbError &
-NdbSchemaOp::getNdbError() const
-{
-   return theSchemaCon->getNdbError();
+const NdbError &NdbSchemaOp::getNdbError() const {
+  return theSchemaCon->getNdbError();
 }
-

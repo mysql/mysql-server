@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 84
 
-
-struct DihRestartReq
-{
+struct DihRestartReq {
   static constexpr Uint32 SignalLength = 1;
   Uint32 senderRef;
 
@@ -41,20 +39,20 @@ struct DihRestartReq
    *
    * Below only for direct signal.
    */
-  static constexpr Uint32 CheckLength = 1 + NdbNodeBitmask::Size + MAX_NDB_NODES;
+  static constexpr Uint32 CheckLength =
+      1 + NdbNodeBitmask::Size + MAX_NDB_NODES;
   Uint32 nodemask[NdbNodeBitmask::Size];
   Uint32 node_gcis[MAX_NDB_NODES];
 };
 
-struct DihRestartRef
-{
-  static constexpr Uint32 SignalLength = 1; // Dummy length, only data in section
-  NdbNodeBitmask no_nodegroup_mask; // Not part of signal but first section
+struct DihRestartRef {
+  static constexpr Uint32 SignalLength =
+      1;                             // Dummy length, only data in section
+  NdbNodeBitmask no_nodegroup_mask;  // Not part of signal but first section
 };
 
 // Local signal
-struct DihRestartConf
-{
+struct DihRestartConf {
   static constexpr Uint32 SignalLength = 3;
   static constexpr Uint32 SignalLengthWithBitmask = 3 + NdbNodeBitmask::Size;
   Uint32 unused;
@@ -63,7 +61,6 @@ struct DihRestartConf
   // Not part of signal but in first section
   Uint32 no_nodegroup_mask[NdbNodeBitmask::Size];
 };
-
 
 #undef JAM_FILE_ID
 

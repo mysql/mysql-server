@@ -22,55 +22,39 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
-#include "m_ctype.h"
-#include <ndb_global.h>
-#include <NdbPack.hpp>
-#include <NdbOut.hpp>
 #include <NdbEnv.h>
+#include <ndb_global.h>
+#include <NdbOut.hpp>
+#include <NdbPack.hpp>
+#include "m_ctype.h"
+#include "util/require.h"
 
 // NdbPack::Error
 
-int
-NdbPack::Error::get_error_code() const
-{
-  return m_error_code;
-}
+int NdbPack::Error::get_error_code() const { return m_error_code; }
 
-int
-NdbPack::Error::get_error_line() const
-{
-  return m_error_line;
-}
+int NdbPack::Error::get_error_line() const { return m_error_line; }
 
-void
-NdbPack::Error::set_error(int code, int line) const
-{
+void NdbPack::Error::set_error(int code, int line) const {
   m_error_code = code;
   m_error_line = line;
 #ifdef VM_TRACE
 #ifdef NDB_USE_GET_ENV
-  const char* p = NdbEnv_GetEnv("NDB_PACK_ABORT_ON_ERROR", (char*)0, 0);
-  if (p != 0 && strchr("1Y", p[0]) != 0)
-    require(false);
+  const char *p = NdbEnv_GetEnv("NDB_PACK_ABORT_ON_ERROR", (char *)0, 0);
+  if (p != 0 && strchr("1Y", p[0]) != 0) require(false);
 #endif
 #endif
 }
 
-void
-NdbPack::Error::set_error(const Error& e2) const
-{
+void NdbPack::Error::set_error(const Error &e2) const {
   set_error(e2.m_error_code, e2.m_error_line);
 }
 
 // NdbPack::Endian
 
-void
-NdbPack::Endian::convert(void* ptr, Uint32 len)
-{
-  Uint8* p = (Uint8*)ptr;
-  for (Uint32 i = 0; i < len / 2; i++)
-  {
+void NdbPack::Endian::convert(void *ptr, Uint32 len) {
+  Uint8 *p = (Uint8 *)ptr;
+  for (Uint32 i = 0; i < len / 2; i++) {
     Uint32 j = len - i - 1;
     Uint8 tmp = p[i];
     p[i] = p[j];
@@ -82,118 +66,103 @@ NdbPack::Endian::convert(void* ptr, Uint32 len)
 
 struct Ndb_pack_type_info {
   bool m_supported;
-  Uint16 m_fixSize;     // if non-zero must have this exact size
-  Uint16 m_arrayType;   // 0,1,2 length bytes
-  bool m_charType;      // type with character set
-  bool m_convert;       // convert endian (reverse byte order)
+  Uint16 m_fixSize;    // if non-zero must have this exact size
+  Uint16 m_arrayType;  // 0,1,2 length bytes
+  bool m_charType;     // type with character set
+  bool m_convert;      // convert endian (reverse byte order)
 };
 
-static const Ndb_pack_type_info
-g_ndb_pack_type_info[] = {
-  { 0, 0, 0, 0, 0 }, // NDB_TYPE_UNDEFINED
-  { 1, 1, 0, 0, 1 }, // NDB_TYPE_TINYINT
-  { 1, 1, 0, 0, 1 }, // NDB_TYPE_TINYUNSIGNED
-  { 1, 2, 0, 0, 1 }, // NDB_TYPE_SMALLINT
-  { 1, 2, 0, 0, 1 }, // NDB_TYPE_SMALLUNSIGNED
-  { 1, 3, 0, 0, 1 }, // NDB_TYPE_MEDIUMINT
-  { 1, 3, 0, 0, 1 }, // NDB_TYPE_MEDIUMUNSIGNED
-  { 1, 4, 0, 0, 1 }, // NDB_TYPE_INT
-  { 1, 4, 0, 0, 1 }, // NDB_TYPE_UNSIGNED
-  { 1, 8, 0, 0, 1 }, // NDB_TYPE_BIGINT
-  { 1, 8, 0, 0, 1 }, // NDB_TYPE_BIGUNSIGNED
-  { 1, 4, 0, 0, 1 }, // NDB_TYPE_FLOAT
-  { 1, 8, 0, 0, 1 }, // NDB_TYPE_DOUBLE
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_OLDDECIMAL
-  { 1, 0, 0, 1, 0 }, // NDB_TYPE_CHAR
-  { 1, 0, 1, 1, 0 }, // NDB_TYPE_VARCHAR
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_BINARY
-  { 1, 0, 1, 0, 0 }, // NDB_TYPE_VARBINARY
-  { 1, 8, 0, 0, 0 }, // NDB_TYPE_DATETIME
-  { 1, 3, 0, 0, 0 }, // NDB_TYPE_DATE
-  { 0, 0, 0, 0, 0 }, // NDB_TYPE_BLOB
-  { 0, 0, 0, 1, 0 }, // NDB_TYPE_TEXT
-  { 0, 0, 0, 0, 0 }, // NDB_TYPE_BIT
-  { 1, 0, 2, 1, 0 }, // NDB_TYPE_LONGVARCHAR
-  { 1, 0, 2, 0, 0 }, // NDB_TYPE_LONGVARBINARY
-  { 1, 3, 0, 0, 0 }, // NDB_TYPE_TIME
-  { 1, 1, 0, 0, 0 }, // NDB_TYPE_YEAR
-  { 1, 4, 0, 0, 0 }, // NDB_TYPE_TIMESTAMP
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_OLDDECIMALUNSIGNED
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_DECIMAL
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_DECIMALUNSIGNED
-  /*
-   * Fractional time types are varsized.
-   * There is no size validation yet.
-   */
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_TIME2      (3+(0-3) bytes)
-  { 1, 0, 0, 0, 0 }, // NDB_TYPE_DATETIME2  (5+(0-3) bytes)
-  { 1, 0, 0, 0, 0 }  // NDB_TYPE_TIMESTAMP2 (4+(0-3) bytes)
+static const Ndb_pack_type_info g_ndb_pack_type_info[] = {
+    {0, 0, 0, 0, 0},  // NDB_TYPE_UNDEFINED
+    {1, 1, 0, 0, 1},  // NDB_TYPE_TINYINT
+    {1, 1, 0, 0, 1},  // NDB_TYPE_TINYUNSIGNED
+    {1, 2, 0, 0, 1},  // NDB_TYPE_SMALLINT
+    {1, 2, 0, 0, 1},  // NDB_TYPE_SMALLUNSIGNED
+    {1, 3, 0, 0, 1},  // NDB_TYPE_MEDIUMINT
+    {1, 3, 0, 0, 1},  // NDB_TYPE_MEDIUMUNSIGNED
+    {1, 4, 0, 0, 1},  // NDB_TYPE_INT
+    {1, 4, 0, 0, 1},  // NDB_TYPE_UNSIGNED
+    {1, 8, 0, 0, 1},  // NDB_TYPE_BIGINT
+    {1, 8, 0, 0, 1},  // NDB_TYPE_BIGUNSIGNED
+    {1, 4, 0, 0, 1},  // NDB_TYPE_FLOAT
+    {1, 8, 0, 0, 1},  // NDB_TYPE_DOUBLE
+    {1, 0, 0, 0, 0},  // NDB_TYPE_OLDDECIMAL
+    {1, 0, 0, 1, 0},  // NDB_TYPE_CHAR
+    {1, 0, 1, 1, 0},  // NDB_TYPE_VARCHAR
+    {1, 0, 0, 0, 0},  // NDB_TYPE_BINARY
+    {1, 0, 1, 0, 0},  // NDB_TYPE_VARBINARY
+    {1, 8, 0, 0, 0},  // NDB_TYPE_DATETIME
+    {1, 3, 0, 0, 0},  // NDB_TYPE_DATE
+    {0, 0, 0, 0, 0},  // NDB_TYPE_BLOB
+    {0, 0, 0, 1, 0},  // NDB_TYPE_TEXT
+    {0, 0, 0, 0, 0},  // NDB_TYPE_BIT
+    {1, 0, 2, 1, 0},  // NDB_TYPE_LONGVARCHAR
+    {1, 0, 2, 0, 0},  // NDB_TYPE_LONGVARBINARY
+    {1, 3, 0, 0, 0},  // NDB_TYPE_TIME
+    {1, 1, 0, 0, 0},  // NDB_TYPE_YEAR
+    {1, 4, 0, 0, 0},  // NDB_TYPE_TIMESTAMP
+    {1, 0, 0, 0, 0},  // NDB_TYPE_OLDDECIMALUNSIGNED
+    {1, 0, 0, 0, 0},  // NDB_TYPE_DECIMAL
+    {1, 0, 0, 0, 0},  // NDB_TYPE_DECIMALUNSIGNED
+    /*
+     * Fractional time types are varsized.
+     * There is no size validation yet.
+     */
+    {1, 0, 0, 0, 0},  // NDB_TYPE_TIME2      (3+(0-3) bytes)
+    {1, 0, 0, 0, 0},  // NDB_TYPE_DATETIME2  (5+(0-3) bytes)
+    {1, 0, 0, 0, 0}   // NDB_TYPE_TIMESTAMP2 (4+(0-3) bytes)
 };
 
 static const int g_ndb_pack_type_info_cnt =
-  sizeof(g_ndb_pack_type_info) / sizeof(g_ndb_pack_type_info[0]);
+    sizeof(g_ndb_pack_type_info) / sizeof(g_ndb_pack_type_info[0]);
 
-int
-NdbPack::Type::complete()
-{
-  if (unlikely(m_typeId == 0))
-  {
+int NdbPack::Type::complete() {
+  if (unlikely(m_typeId == 0)) {
     set_error(TypeNotSet, __LINE__);
     return -1;
   }
-  if (unlikely(m_typeId >= g_ndb_pack_type_info_cnt))
-  {
+  if (unlikely(m_typeId >= g_ndb_pack_type_info_cnt)) {
     set_error(TypeNotSet, __LINE__);
     return -1;
   }
-  const Ndb_pack_type_info& info = g_ndb_pack_type_info[m_typeId];
-  if (unlikely(!info.m_supported))
-  {
+  const Ndb_pack_type_info &info = g_ndb_pack_type_info[m_typeId];
+  if (unlikely(!info.m_supported)) {
     set_error(TypeNotSupported, __LINE__);
     return -1;
   }
-  if (unlikely(m_byteSize == 0))
-  {
+  if (unlikely(m_byteSize == 0)) {
     set_error(TypeSizeZero, __LINE__);
     return -1;
   }
-  if (unlikely(info.m_fixSize != 0 && m_byteSize != info.m_fixSize))
-  {
+  if (unlikely(info.m_fixSize != 0 && m_byteSize != info.m_fixSize)) {
     set_error(TypeFixSizeInvalid, __LINE__);
     return -1;
   }
-  if (unlikely(!(m_nullable <= 1)))
-  {
+  if (unlikely(!(m_nullable <= 1))) {
     set_error(TypeNullableNotBool, __LINE__);
     return -1;
   }
-  if (unlikely(info.m_charType))
-  {
-    if (unlikely(m_csNumber == 0))
-    {
+  if (unlikely(info.m_charType)) {
+    if (unlikely(m_csNumber == 0)) {
       set_error(CharsetNotSpecified, __LINE__);
       return -1;
     }
 
-    if (unlikely(m_csNumber >= NDB_ARRAY_SIZE(all_charsets)))
-    {
+    if (unlikely(m_csNumber >= NDB_ARRAY_SIZE(all_charsets))) {
       set_error(CharsetNotFound, __LINE__);
       return -1;
     }
 
-    if (unlikely(all_charsets[m_csNumber] == nullptr))
-    {
-      CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-      if (unlikely(cs == nullptr))
-      {
+    if (unlikely(all_charsets[m_csNumber] == nullptr)) {
+      CHARSET_INFO *cs = get_charset(m_csNumber, MYF(0));
+      if (unlikely(cs == nullptr)) {
         set_error(CharsetNotFound, __LINE__);
         return -1;
       }
-      all_charsets[m_csNumber] = cs; // yes caller must do this
+      all_charsets[m_csNumber] = cs;  // yes caller must do this
     }
   }
-  if (unlikely(!info.m_charType && m_csNumber != 0))
-  {
+  if (unlikely(!info.m_charType && m_csNumber != 0)) {
     set_error(CharsetNotAllowed, __LINE__);
     return -1;
   }
@@ -203,31 +172,25 @@ NdbPack::Type::complete()
 
 // NdbPack::Spec
 
-int
-NdbPack::Spec::add(Type type)
-{
+int NdbPack::Spec::add(Type type) {
   Uint32 cnt = m_cnt;
   Uint32 nullable_cnt = m_nullableCnt;
   Uint32 varsize_cnt = m_varsizeCnt;
   Uint32 max_byte_size = m_maxByteSize;
-  if (unlikely(type.complete() == -1))
-  {
+  if (unlikely(type.complete() == -1)) {
     set_error(type);
     return -1;
   }
   type.m_nullbitPos = 0xFFFF;
-  if (type.m_nullable)
-  {
+  if (type.m_nullable) {
     type.m_nullbitPos = nullable_cnt;
     nullable_cnt++;
   }
-  if (type.m_arrayType != 0)
-  {
+  if (type.m_arrayType != 0) {
     varsize_cnt++;
   }
   max_byte_size += type.m_byteSize;
-  if (unlikely(cnt >= m_bufMaxCnt))
-  {
+  if (unlikely(cnt >= m_bufMaxCnt)) {
     set_error(SpecBufOverflow, __LINE__);
     return -1;
   }
@@ -240,64 +203,54 @@ NdbPack::Spec::add(Type type)
   return 0;
 }
 
-int
-NdbPack::Spec::add(Type type, Uint32 cnt)
-{
-  for (Uint32 i = 0; i < cnt; i++)
-  {
-    if (unlikely(add(type) == -1))
-      return -1;
+int NdbPack::Spec::add(Type type, Uint32 cnt) {
+  for (Uint32 i = 0; i < cnt; i++) {
+    if (unlikely(add(type) == -1)) return -1;
   }
   return 0;
 }
 
-void
-NdbPack::Spec::copy(const Spec& s2)
-{
+void NdbPack::Spec::copy(const Spec &s2) {
   assert(m_bufMaxCnt >= s2.m_cnt);
   reset();
   m_cnt = s2.m_cnt;
   m_nullableCnt = s2.m_nullableCnt;
   m_varsizeCnt = s2.m_varsizeCnt;
   m_maxByteSize = s2.m_maxByteSize;
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
+  for (Uint32 i = 0; i < m_cnt; i++) {
     m_buf[i] = s2.m_buf[i];
   }
 }
 
 // NdbPack::Iter
 
-int
-NdbPack::Iter::desc(const Uint8* item)
-{
-  const Uint32 i = m_cnt; // item index
+int NdbPack::Iter::desc(const Uint8 *item) {
+  const Uint32 i = m_cnt;  // item index
   assert(i < m_spec.m_cnt);
-  const Type& type = m_spec.m_buf[i];
+  const Type &type = m_spec.m_buf[i];
   const Uint32 lenBytes = type.m_arrayType;
   Uint32 bareLen = 0;
   switch (lenBytes) {
-  case 0:
-    bareLen = type.m_byteSize;
-    break;
-  case 1:
-    bareLen = item[0];
-    break;
-  case 2:
-    bareLen = item[0] + (item[1] << 8);
-    break;
-  default:
-    assert(false);
-    set_error(InternalError, __LINE__);
-    return -1;
+    case 0:
+      bareLen = type.m_byteSize;
+      break;
+    case 1:
+      bareLen = item[0];
+      break;
+    case 2:
+      bareLen = item[0] + (item[1] << 8);
+      break;
+    default:
+      assert(false);
+      set_error(InternalError, __LINE__);
+      return -1;
   }
   const Uint32 itemLen = lenBytes + bareLen;
-  if (unlikely(itemLen > type.m_byteSize))
-  {
+  if (unlikely(itemLen > type.m_byteSize)) {
     set_error(DataValueOverflow, __LINE__);
     return -1;
   }
-  m_itemPos += m_itemLen; // skip previous item
+  m_itemPos += m_itemLen;  // skip previous item
   m_cnt++;
   m_lenBytes = lenBytes;
   m_bareLen = bareLen;
@@ -305,12 +258,10 @@ NdbPack::Iter::desc(const Uint8* item)
   return 0;
 }
 
-int
-NdbPack::Iter::desc_null()
-{
+int NdbPack::Iter::desc_null() {
   assert(m_cnt < m_spec.m_cnt);
   // caller checks if null allowed
-  m_itemPos += m_itemLen; // skip previous item
+  m_itemPos += m_itemLen;  // skip previous item
   m_cnt++;
   m_nullCnt++;
   m_lenBytes = 0;
@@ -322,16 +273,13 @@ NdbPack::Iter::desc_null()
 /**
  * Initialise a DataArray from a NdbPack::BoundC object.
  */
-void NdbPack::DataArray::init_bound(const BoundC& b,
-                                    const Uint32 cnt)
-{
+void NdbPack::DataArray::init_bound(const BoundC &b, const Uint32 cnt) {
   m_cnt = cnt;
-  const DataC& data = b.m_data;
+  const DataC &data = b.m_data;
   Iter iter(data);
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     data.desc(iter);
-    m_entries[i].m_data_ptr = (const Uint8*)&data.m_buf[iter.m_itemPos];
+    m_entries[i].m_data_ptr = (const Uint8 *)&data.m_buf[iter.m_itemPos];
     m_entries[i].m_data_len = iter.m_itemLen;
   }
   m_null_cnt = iter.m_nullCnt;
@@ -341,28 +289,20 @@ void NdbPack::DataArray::init_bound(const BoundC& b,
  * Initialise a DataArray object from Attrinfo retrieved
  * from DBTUP.
  */
-void
-NdbPack::DataArray::init_poai(const Uint32 *buffer,
-                              const Uint32 cnt)
-{
+void NdbPack::DataArray::init_poai(const Uint32 *buffer, const Uint32 cnt) {
   Uint32 inx = 0;
   m_cnt = cnt;
   m_null_cnt = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
-    const AttributeHeader ah =
-      *(const AttributeHeader*)&buffer[inx++];
+  for (Uint32 i = 0; i < cnt; i++) {
+    const AttributeHeader ah = *(const AttributeHeader *)&buffer[inx++];
 
-    if (!ah.isNULL())
-    {
+    if (!ah.isNULL()) {
       Uint32 byte_size = ah.getByteSize();
       Uint32 word_size = ah.getDataSize();
       m_entries[i].m_data_len = byte_size;
-      m_entries[i].m_data_ptr = (const Uint8*)&buffer[inx];
+      m_entries[i].m_data_ptr = (const Uint8 *)&buffer[inx];
       inx += word_size;
-    }
-    else
-    {
+    } else {
       m_null_cnt++;
       m_entries[i].m_data_ptr = nullptr;
       m_entries[i].m_data_len = 0;
@@ -370,87 +310,64 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
   }
 }
 
-int
-NdbPack::DataArray::cmp(const Spec* spec,
-                        const DataArray* d2,
-                        const Uint32 cnt) const
-{
+int NdbPack::DataArray::cmp(const Spec *spec, const DataArray *d2,
+                            const Uint32 cnt) const {
   int res = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
-    const Type& type = spec->m_buf[i];
-    const Uint8* p1 = m_entries[i].m_data_ptr;
+  for (Uint32 i = 0; i < cnt; i++) {
+    const Type &type = spec->m_buf[i];
+    const Uint8 *p1 = m_entries[i].m_data_ptr;
     const Uint32 n1 = m_entries[i].m_data_len;
-    const NdbSqlUtil::Type& sqlType = getSqlType(type.m_typeId);
-    const Uint8* p2 = d2->m_entries[i].m_data_ptr;
+    const NdbSqlUtil::Type &sqlType = getSqlType(type.m_typeId);
+    const Uint8 *p2 = d2->m_entries[i].m_data_ptr;
     const Uint32 n2 = d2->m_entries[i].m_data_len;
-    CHARSET_INFO* cs = all_charsets[type.m_csNumber];
-    if (n1 != 0)
-    {
-      if (n2 != 0)
-      {
+    CHARSET_INFO *cs = all_charsets[type.m_csNumber];
+    if (n1 != 0) {
+      if (n2 != 0) {
         res = (*sqlType.m_cmp)(cs, p1, n1, p2, n2);
-      }
-      else
-      {
+      } else {
         res = +1;
       }
+    } else {
+      if (n2 != 0) res = -1;
     }
-    else
-    {
-      if (n2 != 0)
-        res = -1;
-    }
-    if (res != 0)
-      break;
+    if (res != 0) break;
   }
   return res;
 }
 
-int
-NdbPack::Iter::cmp(const Iter& r2, const Uint8* buf1, const Uint8* buf2) const
-{
-  const Iter& r1 = *this;
+int NdbPack::Iter::cmp(const Iter &r2, const Uint8 *buf1,
+                       const Uint8 *buf2) const {
+  const Iter &r1 = *this;
   assert(&r1.m_spec == &r2.m_spec);
   assert(r1.m_cnt == r2.m_cnt && r1.m_cnt > 0);
-  const Uint32 i = r1.m_cnt - 1; // item index
+  const Uint32 i = r1.m_cnt - 1;  // item index
   int res = 0;
   const Uint32 n1 = r1.m_itemLen;
   const Uint32 n2 = r2.m_itemLen;
-  if (n1 != 0)
-  {
-    if (n2 != 0)
-    {
-      const Type& type = r1.m_spec.m_buf[i];
-      const NdbSqlUtil::Type& sqlType = getSqlType(type.m_typeId);
-      const Uint8* p1 = &buf1[r1.m_itemPos];
-      const Uint8* p2 = &buf2[r2.m_itemPos];
-      CHARSET_INFO* cs = all_charsets[type.m_csNumber];
+  if (n1 != 0) {
+    if (n2 != 0) {
+      const Type &type = r1.m_spec.m_buf[i];
+      const NdbSqlUtil::Type &sqlType = getSqlType(type.m_typeId);
+      const Uint8 *p1 = &buf1[r1.m_itemPos];
+      const Uint8 *p2 = &buf2[r2.m_itemPos];
+      CHARSET_INFO *cs = all_charsets[type.m_csNumber];
       res = (*sqlType.m_cmp)(cs, p1, n1, p2, n2);
-    }
-    else
-    {
+    } else {
       res = +1;
     }
-  }
-  else
-  {
-    if (n2 != 0)
-      res = -1;
+  } else {
+    if (n2 != 0) res = -1;
   }
   return res;
 }
 
 // NdbPack::DataC
 
-int
-NdbPack::DataC::desc(Iter& r) const
-{
-  const Uint32 i = r.m_cnt; // item index
+int NdbPack::DataC::desc(Iter &r) const {
+  const Uint32 i = r.m_cnt;  // item index
   assert(i < m_cnt);
-  const Type& type = m_spec.m_buf[i];
-  if (type.m_nullable || m_allNullable)
-  {
+  const Type &type = m_spec.m_buf[i];
+  if (type.m_nullable || m_allNullable) {
     Uint32 nullbitPos = 0;
     if (!m_allNullable)
       nullbitPos = type.m_nullbitPos;
@@ -459,11 +376,9 @@ NdbPack::DataC::desc(Iter& r) const
     const Uint32 byte_pos = nullbitPos / 8;
     const Uint32 bit_pos = nullbitPos % 8;
     const Uint8 bit_mask = (1 << bit_pos);
-    const Uint8& the_byte = m_buf[byte_pos];
-    if ((the_byte & bit_mask) != 0)
-    {
-      if (unlikely(r.desc_null() == -1))
-      {
+    const Uint8 &the_byte = m_buf[byte_pos];
+    if ((the_byte & bit_mask) != 0) {
+      if (unlikely(r.desc_null() == -1)) {
         set_error(r);
         return -1;
       }
@@ -471,32 +386,27 @@ NdbPack::DataC::desc(Iter& r) const
     }
   }
   const Uint32 pos = r.m_itemPos + r.m_itemLen;
-  const Uint8* item = &m_buf[pos];
-  if (unlikely(r.desc(item) == -1))
-  {
+  const Uint8 *item = &m_buf[pos];
+  if (unlikely(r.desc(item) == -1)) {
     set_error(r);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::DataC::cmp(const DataC& d2, Uint32 cnt, Uint32& num_eq) const
-{
-  const DataC& d1 = *this;
+int NdbPack::DataC::cmp(const DataC &d2, Uint32 cnt, Uint32 &num_eq) const {
+  const DataC &d1 = *this;
   assert(cnt <= d1.m_cnt);
   assert(cnt <= d2.m_cnt);
   Iter r1(d1);
   Iter r2(d2);
   int res = 0;
-  Uint32 i; // remember last
-  for (i = 0; i < cnt; i++)
-  {
+  Uint32 i;  // remember last
+  for (i = 0; i < cnt; i++) {
     d1.desc(r1);
     d2.desc(r2);
     res = r1.cmp(r2, d1.m_buf, d2.m_buf);
-    if (res != 0)
-      break;
+    if (res != 0) break;
   }
   num_eq = i;
   return res;
@@ -504,27 +414,22 @@ NdbPack::DataC::cmp(const DataC& d2, Uint32 cnt, Uint32& num_eq) const
 
 // NdbPack::Data
 
-int
-NdbPack::Data::add(const void* data, Uint32* len_out)
-{
+int NdbPack::Data::add(const void *data, Uint32 *len_out) {
   assert(data != nullptr);
-  const Uint8* item = (const Uint8*)data;
-  const Uint32 i = m_cnt; // item index
-  if (unlikely(i >= m_spec.m_cnt))
-  {
+  const Uint8 *item = (const Uint8 *)data;
+  const Uint32 i = m_cnt;  // item index
+  if (unlikely(i >= m_spec.m_cnt)) {
     set_error(DataCntOverflow, __LINE__);
     return -1;
   }
-  Iter& r = m_iter;
+  Iter &r = m_iter;
   assert(r.m_cnt == i);
   const Uint32 fullLen = m_varBytes + r.m_itemPos + r.m_itemLen;
-  if (unlikely(r.desc(item) == -1))
-  {
+  if (unlikely(r.desc(item) == -1)) {
     set_error(r);
     return -1;
   }
-  if (unlikely(fullLen + r.m_itemLen > m_bufMaxLen))
-  {
+  if (unlikely(fullLen + r.m_itemLen > m_bufMaxLen)) {
     set_error(DataBufOverflow, __LINE__);
     return -1;
   }
@@ -534,59 +439,46 @@ NdbPack::Data::add(const void* data, Uint32* len_out)
   return 0;
 }
 
-int
-NdbPack::Data::add(const void* data, Uint32 cnt, Uint32* len_out)
-{
-  const Uint8* data_ptr = (const Uint8*)data;
+int NdbPack::Data::add(const void *data, Uint32 cnt, Uint32 *len_out) {
+  const Uint8 *data_ptr = (const Uint8 *)data;
   Uint32 len_tot = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     Uint32 len;
-    if (unlikely(add(data_ptr, &len) == -1))
-      return -1;
-    if (data != nullptr)
-      data_ptr += len;
+    if (unlikely(add(data_ptr, &len) == -1)) return -1;
+    if (data != nullptr) data_ptr += len;
     len_tot += len;
   }
   *len_out = len_tot;
   return 0;
 }
 
-int
-NdbPack::Data::add_null(Uint32* len_out)
-{
-  const Uint32 i = m_cnt; // item index
-  if (unlikely(i >= m_spec.m_cnt))
-  {
+int NdbPack::Data::add_null(Uint32 *len_out) {
+  const Uint32 i = m_cnt;  // item index
+  if (unlikely(i >= m_spec.m_cnt)) {
     set_error(DataCntOverflow, __LINE__);
     return -1;
   }
-  Iter& r = m_iter;
+  Iter &r = m_iter;
   assert(r.m_cnt == i);
-  if (unlikely(r.desc_null() == -1))
-  {
+  if (unlikely(r.desc_null() == -1)) {
     set_error(r);
     return -1;
   }
   Uint32 nullbitPos = 0;
-  if (!m_allNullable)
-  {
-    const Type& type = m_spec.m_buf[i];
-    if (unlikely(!type.m_nullable))
-    {
+  if (!m_allNullable) {
+    const Type &type = m_spec.m_buf[i];
+    if (unlikely(!type.m_nullable)) {
       set_error(DataNotNullable, __LINE__);
       return -1;
     }
     nullbitPos = type.m_nullbitPos;
-  }
-  else
-  {
+  } else {
     nullbitPos = i;
   }
   const Uint32 byte_pos = nullbitPos / 8;
   const Uint32 bit_pos = nullbitPos % 8;
   const Uint8 bit_mask = (1 << bit_pos);
-  Uint8& the_byte = m_buf[m_varBytes + byte_pos];
+  Uint8 &the_byte = m_buf[m_varBytes + byte_pos];
   assert((the_byte & bit_mask) == 0);
   the_byte |= bit_mask;
   *len_out = r.m_itemLen;
@@ -594,52 +486,36 @@ NdbPack::Data::add_null(Uint32* len_out)
   return 0;
 }
 
-int
-NdbPack::Data::add_null(Uint32 cnt, Uint32* len_out)
-{
+int NdbPack::Data::add_null(Uint32 cnt, Uint32 *len_out) {
   Uint32 len_tot = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     Uint32 len;
-    if (unlikely(add_null(&len) == -1))
-      return -1;
+    if (unlikely(add_null(&len) == -1)) return -1;
     len_tot += len;
   }
   *len_out = len_tot;
   return 0;
 }
 
-int
-NdbPack::Data::add_poai(const Uint32* poai, Uint32* len_out)
-{
-  const AttributeHeader ah = *(const AttributeHeader*)&poai[0];
-  if (!ah.isNULL())
-  {
-    if (unlikely(add(&poai[1], len_out) == -1))
-      return -1;
+int NdbPack::Data::add_poai(const Uint32 *poai, Uint32 *len_out) {
+  const AttributeHeader ah = *(const AttributeHeader *)&poai[0];
+  if (!ah.isNULL()) {
+    if (unlikely(add(&poai[1], len_out) == -1)) return -1;
+  } else {
+    if (unlikely(add_null(len_out) == -1)) return -1;
   }
-  else
-  {
-    if (unlikely(add_null(len_out) == -1))
-      return -1;
-  }
-  if (unlikely(ah.getByteSize() != *len_out))
-  {
+  if (unlikely(ah.getByteSize() != *len_out)) {
     set_error(InvalidAttrInfo, __LINE__);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::Data::add_poai(const Uint32* poai, Uint32 cnt, Uint32* len_out)
-{
+int NdbPack::Data::add_poai(const Uint32 *poai, Uint32 cnt, Uint32 *len_out) {
   Uint32 len_tot = 0;
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  for (Uint32 i = 0; i < cnt; i++) {
     Uint32 len;
-    if (unlikely(add_poai(poai, &len) == -1))
-      return -1;
+    if (unlikely(add_poai(poai, &len) == -1)) return -1;
     len_tot += len;
     poai += 1 + (len + 3) / 4;
   }
@@ -647,99 +523,75 @@ NdbPack::Data::add_poai(const Uint32* poai, Uint32 cnt, Uint32* len_out)
   return 0;
 }
 
-int
-NdbPack::Data::finalize_impl()
-{
+int NdbPack::Data::finalize_impl() {
   const Uint32 dataLen = m_iter.m_itemPos + m_iter.m_itemLen;
   switch (m_varBytes) {
-  // case 0: inlined
-  case 1:
-    if (dataLen <= 0xFF)
-    {
-      m_buf[0] = dataLen;
-      return 0;
-    }
-    break;
-  case 2:
-    if (dataLen <= 0xFFFF)
-    {
-      m_buf[0] = (dataLen & 0xFF);
-      m_buf[1] = (dataLen >> 8);
-      return 0;
-    }
-    break;
-  default:
-    break;
+    // case 0: inlined
+    case 1:
+      if (dataLen <= 0xFF) {
+        m_buf[0] = dataLen;
+        return 0;
+      }
+      break;
+    case 2:
+      if (dataLen <= 0xFFFF) {
+        m_buf[0] = (dataLen & 0xFF);
+        m_buf[1] = (dataLen >> 8);
+        return 0;
+      }
+      break;
+    default:
+      break;
   }
   set_error(InternalError, __LINE__);
   return -1;
 }
 
-int
-NdbPack::Data::desc_all(Uint32 cnt, Endian::Value from_endian)
-{
+int NdbPack::Data::desc_all(Uint32 cnt, Endian::Value from_endian) {
   if (from_endian == NdbPack::Endian::Native)
     from_endian = NdbPack::Endian::get_endian();
   m_endian = from_endian;
-  assert(m_cnt == 0); // reset() would destroy nullmask
-  for (Uint32 i = 0; i < cnt; i++)
-  {
+  assert(m_cnt == 0);  // reset() would destroy nullmask
+  for (Uint32 i = 0; i < cnt; i++) {
     m_cnt++;
-    if (unlikely(desc(m_iter) == -1))
-      return -1;
+    if (unlikely(desc(m_iter) == -1)) return -1;
   }
-  if (unlikely(finalize() == -1))
-    return -1;
+  if (unlikely(finalize() == -1)) return -1;
   return 0;
 }
 
-int
-NdbPack::Data::copy(const DataC& d2)
-{
+int NdbPack::Data::copy(const DataC &d2) {
   reset();
   Iter r2(d2);
   const Uint32 cnt2 = d2.m_cnt;
-  for (Uint32 i = 0; i < cnt2; i++)
-  {
-    if (unlikely(d2.desc(r2) == -1))
-      return -1;
+  for (Uint32 i = 0; i < cnt2; i++) {
+    if (unlikely(d2.desc(r2) == -1)) return -1;
     Uint32 len_out = ~(Uint32)0;
-    if (r2.m_itemLen != 0)
-    {
-      if (unlikely(add(&d2.m_buf[r2.m_itemPos], &len_out) == -1))
-          return -1;
+    if (r2.m_itemLen != 0) {
+      if (unlikely(add(&d2.m_buf[r2.m_itemPos], &len_out) == -1)) return -1;
       assert(len_out == r2.m_itemLen);
-    }
-    else
-    {
-      if (unlikely(add_null(&len_out) == -1))
-        return -1;
-      assert(len_out ==0);
+    } else {
+      if (unlikely(add_null(&len_out) == -1)) return -1;
+      assert(len_out == 0);
     }
   }
-  if (unlikely(finalize() == -1))
-    return -1;
+  if (unlikely(finalize() == -1)) return -1;
   return 0;
 }
 
-int
-NdbPack::Data::convert_impl()
-{
-  const Spec& spec = m_spec;
+int NdbPack::Data::convert_impl() {
+  const Spec &spec = m_spec;
   Iter r(*this);
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
-    if (unlikely(DataC::desc(r) == -1))
-    {
+  for (Uint32 i = 0; i < m_cnt; i++) {
+    if (unlikely(DataC::desc(r) == -1)) {
       set_error(r);
       return -1;
     }
-    const Type& type = spec.m_buf[i];
+    const Type &type = spec.m_buf[i];
     const Uint32 typeId = type.m_typeId;
-    const Ndb_pack_type_info& info = g_ndb_pack_type_info[typeId];
-    if (info.m_convert)
-    {
-      Uint8* ptr = &m_buf[m_varBytes + r.m_itemPos];
+    const Ndb_pack_type_info &info = g_ndb_pack_type_info[typeId];
+    if (info.m_convert) {
+      Uint8 *ptr = &m_buf[m_varBytes + r.m_itemPos];
       Uint32 len = r.m_itemLen;
       Endian::convert(ptr, len);
     }
@@ -749,16 +601,12 @@ NdbPack::Data::convert_impl()
 
 // NdbPack::BoundC
 
-int
-NdbPack::BoundC::finalize(int side)
-{
-  if (unlikely(m_data.m_cnt == 0 && side != 0))
-  {
+int NdbPack::BoundC::finalize(int side) {
+  if (unlikely(m_data.m_cnt == 0 && side != 0)) {
     set_error(BoundEmptySide, __LINE__);
     return -1;
   }
-  if (unlikely(m_data.m_cnt != 0 && side != -1 && side != +1))
-  {
+  if (unlikely(m_data.m_cnt != 0 && side != -1 && side != +1)) {
     set_error(BoundNonemptySide, __LINE__);
     return -1;
   }
@@ -766,15 +614,12 @@ NdbPack::BoundC::finalize(int side)
   return 0;
 }
 
-int
-NdbPack::BoundC::cmp(const BoundC& b2, Uint32 cnt, Uint32& num_eq) const
-{
-  const BoundC& b1 = *this;
-  const DataC& d1 = b1.m_data;
-  const DataC& d2 = b2.m_data;
+int NdbPack::BoundC::cmp(const BoundC &b2, Uint32 cnt, Uint32 &num_eq) const {
+  const BoundC &b1 = *this;
+  const DataC &d1 = b1.m_data;
+  const DataC &d2 = b2.m_data;
   int res = d1.cmp(d2, cnt, num_eq);
-  if (res == 0)
-  {
+  if (res == 0) {
     if (cnt < d1.m_cnt && cnt < d2.m_cnt)
       ;
     else if (d1.m_cnt < d2.m_cnt)
@@ -793,16 +638,13 @@ NdbPack::BoundC::cmp(const BoundC& b2, Uint32 cnt, Uint32& num_eq) const
 
 // print
 
-NdbPack::Print::Print(char* buf, Uint32 bufsz) :
-  m_buf(buf), m_bufsz(bufsz), m_sz(0) {}
+NdbPack::Print::Print(char *buf, Uint32 bufsz)
+    : m_buf(buf), m_bufsz(bufsz), m_sz(0) {}
 
-void
-NdbPack::Print::print(const char* fmt, ...)
-{
+void NdbPack::Print::print(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  if (m_bufsz > m_sz)
-  {
+  if (m_bufsz > m_sz) {
     BaseString::vsnprintf(&m_buf[m_sz], m_bufsz - m_sz, fmt, ap);
     m_sz += (Uint32)strlen(&m_buf[m_sz]);
   }
@@ -811,23 +653,17 @@ NdbPack::Print::print(const char* fmt, ...)
 
 // print Type
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::Type& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::Type &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::Type::print(NdbOut& out) const
-{
+void NdbPack::Type::print(NdbOut &out) const {
   char buf[200];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::Type::print(char* buf, Uint32 bufsz) const
-{
+const char *NdbPack::Type::print(char *buf, Uint32 bufsz) const {
   Print p(buf, bufsz);
   p.print("typeId:%u", m_typeId);
   p.print(" byteSize:%u", m_byteSize);
@@ -838,32 +674,25 @@ NdbPack::Type::print(char* buf, Uint32 bufsz) const
 
 // print Spec
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::Spec& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::Spec &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::Spec::print(NdbOut& out) const
-{
+void NdbPack::Spec::print(NdbOut &out) const {
   char buf[8000];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::Spec::print(char* buf, Uint32 bufsz) const
-{
+const char *NdbPack::Spec::print(char *buf, Uint32 bufsz) const {
   Print p(buf, bufsz);
   p.print("cnt:%u", m_cnt);
   p.print(" nullableCnt:%u", m_nullableCnt);
   p.print(" varsizeCnt:%u", m_varsizeCnt);
   p.print(" nullmaskLen:%u", get_nullmask_len(false));
   p.print(" maxByteSize:%u", m_maxByteSize);
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
-    const Type& type = m_buf[i];
+  for (Uint32 i = 0; i < m_cnt; i++) {
+    const Type &type = m_buf[i];
     p.print(" [%u", i);
     p.print(" typeId:%u", type.m_typeId);
     p.print(" nullable:%u", type.m_nullable);
@@ -878,143 +707,105 @@ NdbPack::Spec::print(char* buf, Uint32 bufsz) const
 
 bool g_ndb_pack_print_hex_always = true;
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::DataC& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::DataC &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::DataC::print(NdbOut& out) const
-{
+void NdbPack::DataC::print(NdbOut &out) const {
   char buf[8000];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::DataC::print(char* buf, Uint32 bufsz, bool convert_flag) const
-{
+const char *NdbPack::DataC::print(char *buf, Uint32 bufsz,
+                                  bool convert_flag) const {
   Print p(buf, bufsz);
-  const Spec& spec = m_spec;
+  const Spec &spec = m_spec;
   const Uint32 nullmask_len = spec.get_nullmask_len(m_allNullable);
-  if (nullmask_len != 0)
-  {
+  if (nullmask_len != 0) {
     p.print("nullmask:");
-    for (Uint32 i = 0; i < nullmask_len; i++)
-    {
+    for (Uint32 i = 0; i < nullmask_len; i++) {
       int x = m_buf[i];
       p.print("%02x", x);
     }
   }
   Iter r(*this);
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
+  for (Uint32 i = 0; i < m_cnt; i++) {
     desc(r);
-    const Uint8* value = &m_buf[r.m_itemPos];
+    const Uint8 *value = &m_buf[r.m_itemPos];
     p.print(" [%u", i);
     p.print(" pos:%u", r.m_itemPos);
     p.print(" len:%u", r.m_itemLen);
-    if (r.m_itemLen > 0)
-    {
+    if (r.m_itemLen > 0) {
       p.print(" value:");
       // some specific types for debugging
-      const Type& type = spec.m_buf[i];
+      const Type &type = spec.m_buf[i];
       bool ok = true;
       switch (type.m_typeId) {
-      case NDB_TYPE_TINYINT:
-        {
+        case NDB_TYPE_TINYINT: {
           Int8 x;
           memcpy(&x, value, 1);
-          if (convert_flag)
-            Endian::convert(&x, 1);
+          if (convert_flag) Endian::convert(&x, 1);
           p.print("%d", (int)x);
-        }
-        break;
-      case NDB_TYPE_TINYUNSIGNED:
-        {
+        } break;
+        case NDB_TYPE_TINYUNSIGNED: {
           Uint8 x;
           memcpy(&x, value, 1);
-          if (convert_flag)
-            Endian::convert(&x, 1);
+          if (convert_flag) Endian::convert(&x, 1);
           p.print("%u", (uint)x);
-        }
-        break;
-      case NDB_TYPE_SMALLINT:
-        {
+        } break;
+        case NDB_TYPE_SMALLINT: {
           Int16 x;
           memcpy(&x, value, 2);
-          if (convert_flag)
-            Endian::convert(&x, 2);
+          if (convert_flag) Endian::convert(&x, 2);
           p.print("%d", (int)x);
-        }
-        break;
-      case NDB_TYPE_SMALLUNSIGNED:
-        {
+        } break;
+        case NDB_TYPE_SMALLUNSIGNED: {
           Uint16 x;
           memcpy(&x, value, 2);
-          if (convert_flag)
-            Endian::convert(&x, 2);
+          if (convert_flag) Endian::convert(&x, 2);
           p.print("%u", (uint)x);
-        }
-        break;
-      case NDB_TYPE_INT:
-        {
+        } break;
+        case NDB_TYPE_INT: {
           Int32 x;
           memcpy(&x, value, 4);
-          if (convert_flag)
-            Endian::convert(&x, 4);
+          if (convert_flag) Endian::convert(&x, 4);
           p.print("%d", (int)x);
-        }
-        break;
-      case NDB_TYPE_UNSIGNED:
-        {
+        } break;
+        case NDB_TYPE_UNSIGNED: {
           Uint32 x;
           memcpy(&x, value, 4);
-          if (convert_flag)
-            Endian::convert(&x, 4);
+          if (convert_flag) Endian::convert(&x, 4);
           p.print("%u", (uint)x);
-        }
-        break;
-      case NDB_TYPE_FLOAT:
-        {
+        } break;
+        case NDB_TYPE_FLOAT: {
           float x;
           memcpy(&x, value, 4);
-          if (convert_flag)
-            Endian::convert(&x, 4);
+          if (convert_flag) Endian::convert(&x, 4);
           p.print("%g", (double)x);
-        }
-        break;
-      case NDB_TYPE_DOUBLE:
-        {
+        } break;
+        case NDB_TYPE_DOUBLE: {
           double x;
           memcpy(&x, value, 8);
-          if (convert_flag)
-            Endian::convert(&x, 8);
+          if (convert_flag) Endian::convert(&x, 8);
           p.print("%g", x);
-        }
-        break;
-      case NDB_TYPE_CHAR:
-      case NDB_TYPE_VARCHAR:
-      case NDB_TYPE_LONGVARCHAR:
-        {
+        } break;
+        case NDB_TYPE_CHAR:
+        case NDB_TYPE_VARCHAR:
+        case NDB_TYPE_LONGVARCHAR: {
           const Uint32 off = type.m_arrayType;
-          for (Uint32 j = 0; j < r.m_bareLen; j++)
-          {
+          for (Uint32 j = 0; j < r.m_bareLen; j++) {
             Uint8 x = value[off + j];
             p.print("%c", (int)x);
           }
-        }
-        break;
-      default:
-        ok = false;
-        break;
+        } break;
+        default:
+          ok = false;
+          break;
       }
-      if (!ok || g_ndb_pack_print_hex_always)
-      {
+      if (!ok || g_ndb_pack_print_hex_always) {
         p.print("<");
-        for (Uint32 j = 0; j < r.m_itemLen; j++)
-        {
+        for (Uint32 j = 0; j < r.m_itemLen; j++) {
           int x = value[j];
           p.print("%02x", x);
         }
@@ -1028,29 +819,21 @@ NdbPack::DataC::print(char* buf, Uint32 bufsz, bool convert_flag) const
 
 // print Data
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::Data& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::Data &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::Data::print(NdbOut& out) const
-{
+void NdbPack::Data::print(NdbOut &out) const {
   char buf[8000];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::Data::print(char* buf, Uint32 bufsz) const
-{
+const char *NdbPack::Data::print(char *buf, Uint32 bufsz) const {
   Print p(buf, bufsz);
-  if (m_varBytes != 0)
-  {
+  if (m_varBytes != 0) {
     p.print("varBytes:");
-    for (Uint32 i = 0; i < m_varBytes; i++)
-    {
+    for (Uint32 i = 0; i < m_varBytes; i++) {
       int r = m_buf[i];
       p.print("%02x", r);
     }
@@ -1059,31 +842,24 @@ NdbPack::Data::print(char* buf, Uint32 bufsz) const
   p.print("dataLen:%u", m_iter.m_itemPos + m_iter.m_itemLen);
   p.print(" ");
   const bool convert_flag =
-    m_endian != Endian::Native &&
-    m_endian != Endian::get_endian();
+      m_endian != Endian::Native && m_endian != Endian::get_endian();
   DataC::print(&buf[p.m_sz], bufsz - p.m_sz, convert_flag);
   return buf;
 }
 
 // print BoundC
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::BoundC& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::BoundC &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::BoundC::print(NdbOut& out) const
-{
+void NdbPack::BoundC::print(NdbOut &out) const {
   char buf[8000];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::BoundC::print(char* buf, Uint32 bufsz) const
-{
+const char *NdbPack::BoundC::print(char *buf, Uint32 bufsz) const {
   Print p(buf, bufsz);
   p.print("side:%s ", m_side < 0 ? "-" : m_side > 0 ? "+" : "0");
   m_data.print(&buf[p.m_sz], bufsz - p.m_sz);
@@ -1092,145 +868,108 @@ NdbPack::BoundC::print(char* buf, Uint32 bufsz) const
 
 // print Bound
 
-NdbOut&
-operator<<(NdbOut& out, const NdbPack::Bound& a)
-{
+NdbOut &operator<<(NdbOut &out, const NdbPack::Bound &a) {
   a.print(out);
   return out;
 }
 
-void
-NdbPack::Bound::print(NdbOut& out) const
-{
+void NdbPack::Bound::print(NdbOut &out) const {
   char buf[8000];
   out << print(buf, sizeof(buf));
 }
 
-const char*
-NdbPack::Bound::print(char* buf, Uint32 bufsz) const
-{
+const char *NdbPack::Bound::print(char *buf, Uint32 bufsz) const {
   BoundC::print(buf, bufsz);
   return buf;
 }
 
 // validate
 
-int
-NdbPack::Type::validate() const
-{
+int NdbPack::Type::validate() const {
   Type type2 = *this;
-  if (type2.complete() == -1)
-  {
+  if (type2.complete() == -1) {
     set_error(type2);
     return -1;
   }
-  if (memcmp(this, &type2, sizeof(Type)) != 0)
-  {
+  if (memcmp(this, &type2, sizeof(Type)) != 0) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::Spec::validate() const
-{
+int NdbPack::Spec::validate() const {
   Uint32 nullableCnt = 0;
   Uint32 varsizeCnt = 0;
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
-    const Type& type = m_buf[i];
-    if (type.validate() == -1)
-    {
+  for (Uint32 i = 0; i < m_cnt; i++) {
+    const Type &type = m_buf[i];
+    if (type.validate() == -1) {
       set_error(type);
       return -1;
     }
-    if (type.m_nullable)
-      nullableCnt++;
-    if (type.m_arrayType != 0)
-      varsizeCnt++;
+    if (type.m_nullable) nullableCnt++;
+    if (type.m_arrayType != 0) varsizeCnt++;
   }
-  if (m_nullableCnt != nullableCnt)
-  {
+  if (m_nullableCnt != nullableCnt) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
-  if (m_varsizeCnt != varsizeCnt)
-  {
+  if (m_varsizeCnt != varsizeCnt) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::Data::validate() const
-{
-  if (DataC::validate() == -1)
-    return -1;
-  const Iter& r = m_iter;
-  if (r.m_cnt != m_cnt)
-  {
+int NdbPack::Data::validate() const {
+  if (DataC::validate() == -1) return -1;
+  const Iter &r = m_iter;
+  if (r.m_cnt != m_cnt) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
   Iter r2(*this);
-  for (Uint32 i = 0; i < m_cnt; i++)
-  {
-    if (desc(r2) == -1)
-      return -1;
+  for (Uint32 i = 0; i < m_cnt; i++) {
+    if (desc(r2) == -1) return -1;
   }
-  if (r.m_itemPos != r2.m_itemPos)
-  {
+  if (r.m_itemPos != r2.m_itemPos) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
-  if (r.m_cnt != r2.m_cnt)
-  {
+  if (r.m_cnt != r2.m_cnt) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
-  if (r.m_nullCnt != r2.m_nullCnt)
-  {
+  if (r.m_nullCnt != r2.m_nullCnt) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
-  if (r.m_itemLen != r2.m_itemLen)
-  {
+  if (r.m_itemLen != r2.m_itemLen) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::BoundC::validate() const
-{
-  if (m_data.validate() == -1)
-  {
+int NdbPack::BoundC::validate() const {
+  if (m_data.validate() == -1) {
     set_error(m_data);
     return -1;
   }
-  if (m_data.m_cnt == 0 && m_side != 0)
-  {
+  if (m_data.m_cnt == 0 && m_side != 0) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
-  if (m_data.m_cnt != 0 && m_side != -1 && m_side != +1)
-  {
+  if (m_data.m_cnt != 0 && m_side != -1 && m_side != +1) {
     set_error(ValidationError, __LINE__);
     return -1;
   }
   return 0;
 }
 
-int
-NdbPack::Bound::validate() const
-{
-  if (BoundC::validate() == -1)
-    return -1;
-  if (m_data.validate() == -1)
-  {
+int NdbPack::Bound::validate() const {
+  if (BoundC::validate() == -1) return -1;
+  if (m_data.validate() == -1) {
     set_error(m_data);
     return -1;
   }
@@ -1240,23 +979,50 @@ NdbPack::Bound::validate() const
 #ifdef TEST_NDBPACK
 #include <util/NdbTap.hpp>
 
-#define chk1(x) do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; require(false); } while (0)
+#define chk1(x)                                          \
+  do {                                                   \
+    if (x) break;                                        \
+    ndbout << "line " << __LINE__ << ": " << #x << endl; \
+    require(false);                                      \
+  } while (0)
 
-#define chk2(x, e) do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; ndbout << "NdbPack code: " << (e).get_error_code() << " line: " << (e).get_error_line() << endl; require(false); } while (0)
+#define chk2(x, e)                                       \
+  do {                                                   \
+    if (x) break;                                        \
+    ndbout << "line " << __LINE__ << ": " << #x << endl; \
+    ndbout << "NdbPack code: " << (e).get_error_code()   \
+           << " line: " << (e).get_error_line() << endl; \
+    require(false);                                      \
+  } while (0)
 
-#define ll0(x) do { if (verbose < 0) break; ndbout << "0- " << x << endl; } while (0)
-#define ll1(x) do { if (verbose < 1) break; ndbout << "1- " << x << endl; } while (0)
-#define ll2(x) do { if (verbose < 2) break; ndbout << "2- " << x << endl; } while (0)
-#define ll3(x) do { if (verbose < 3) break; ndbout << "3- " << x << endl; } while (0)
+#define ll0(x)                    \
+  do {                            \
+    if (verbose < 0) break;       \
+    ndbout << "0- " << x << endl; \
+  } while (0)
+#define ll1(x)                    \
+  do {                            \
+    if (verbose < 1) break;       \
+    ndbout << "1- " << x << endl; \
+  } while (0)
+#define ll2(x)                    \
+  do {                            \
+    if (verbose < 2) break;       \
+    ndbout << "2- " << x << endl; \
+  } while (0)
+#define ll3(x)                    \
+  do {                            \
+    if (verbose < 3) break;       \
+    ndbout << "3- " << x << endl; \
+  } while (0)
 
 #define xmin(a, b) ((a) < (b) ? (a) : (b))
 
-#include <ndb_rand.h>
 #include <NdbHost.h>
+#include <ndb_rand.h>
 
-static uint // random 0..n-1
-getrandom(uint n)
-{
+static uint  // random 0..n-1
+getrandom(uint n) {
   if (n != 0) {
     uint k = ndb_rand();
     return k % n;
@@ -1264,9 +1030,8 @@ getrandom(uint n)
   return 0;
 }
 
-static uint // random 0..n-1 biased exponentially to smaller
-getrandom(uint n, uint bias)
-{
+static uint  // random 0..n-1 biased exponentially to smaller
+getrandom(uint n, uint bias) {
   assert(bias != 0);
   uint k = getrandom(n);
   bias--;
@@ -1277,20 +1042,16 @@ getrandom(uint n, uint bias)
   return k;
 }
 
-static bool
-getrandompct(uint pct)
-{
-  return getrandom(100) < pct;
-}
+static bool getrandompct(uint pct) { return getrandom(100) < pct; }
 
 // change in TAPTEST
-static int seed = -1; // random
+static int seed = -1;  // random
 static int loops = 0;
-static int spec_cnt = -1; // random
-static int fix_type = 0; // all types
+static int spec_cnt = -1;  // random
+static int fix_type = 0;   // all types
 static int no_nullable = 0;
-static int data_cnt = -1; // Max
-static int bound_cnt = -1; // Max
+static int data_cnt = -1;   // Max
+static int bound_cnt = -1;  // Max
 static int verbose = 0;
 
 struct Tspec {
@@ -1298,39 +1059,32 @@ struct Tspec {
   enum { MaxBuf = Max * 4000 };
   NdbPack::Spec m_spec;
   NdbPack::Type m_type[Max];
-  Tspec() {
-    m_spec.set_buf(m_type, Max);
-  }
+  Tspec() { m_spec.set_buf(m_type, Max); }
   void create();
 };
 
-static NdbOut&
-operator<<(NdbOut& out, const Tspec& tspec)
-{
+static NdbOut &operator<<(NdbOut &out, const Tspec &tspec) {
   out << tspec.m_spec;
   return out;
 }
 
-void
-Tspec::create()
-{
+void Tspec::create() {
   m_spec.reset();
   int cnt = spec_cnt == -1 ? 1 + getrandom(Tspec::Max, 3) : spec_cnt;
   int i = 0;
   while (i < cnt) {
     int typeId = fix_type;
-    if (typeId == 0)
-      typeId = getrandom(g_ndb_pack_type_info_cnt);
-    const Ndb_pack_type_info& info = g_ndb_pack_type_info[typeId];
+    if (typeId == 0) typeId = getrandom(g_ndb_pack_type_info_cnt);
+    const Ndb_pack_type_info &info = g_ndb_pack_type_info[typeId];
     switch (typeId) {
-    case NDB_TYPE_INT:
-    case NDB_TYPE_UNSIGNED:
-    case NDB_TYPE_CHAR:
-    case NDB_TYPE_VARCHAR:
-    case NDB_TYPE_LONGVARCHAR:
-      break;
-    default:
-      continue;
+      case NDB_TYPE_INT:
+      case NDB_TYPE_UNSIGNED:
+      case NDB_TYPE_CHAR:
+      case NDB_TYPE_VARCHAR:
+      case NDB_TYPE_LONGVARCHAR:
+        break;
+      default:
+        continue;
     }
     require(info.m_supported);
     int byteSize = 0;
@@ -1341,13 +1095,13 @@ Tspec::create()
     else if (info.m_arrayType == 1)
       byteSize = 1 + getrandom(256, 2);  // varchar(0-255)
     else if (info.m_arrayType == 2)
-      byteSize = 2 + getrandom(1024, 3); // longvarchar(0-1023)
+      byteSize = 2 + getrandom(1024, 3);  // longvarchar(0-1023)
     else
       require(false);
     bool nullable = no_nullable ? false : getrandompct(50);
     int csNumber = 0;
     if (info.m_charType) {
-      csNumber = 8; // should include ascii
+      csNumber = 8;  // should include ascii
     }
     NdbPack::Type type(typeId, byteSize, nullable, csNumber);
     chk2(m_spec.add(type) == 0, m_spec);
@@ -1357,57 +1111,52 @@ Tspec::create()
 }
 
 struct Tdata {
-  const Tspec& m_tspec;
+  const Tspec &m_tspec;
   NdbPack::Data m_data;
   const bool m_isBound;
   int m_cnt;
-  Uint8* m_xbuf;        // unpacked
+  Uint8 *m_xbuf;  // unpacked
   int m_xsize;
   int m_xoff[Tspec::Max];
   int m_xlen[Tspec::Max];
   bool m_xnull[Tspec::Max];
   int m_xnulls;
-  Uint32* m_poaiBuf;    // plain old attr info
+  Uint32 *m_poaiBuf;  // plain old attr info
   int m_poaiSize;
-  Uint8* m_packBuf;     // packed
+  Uint8 *m_packBuf;  // packed
   int m_packLen;
-  Tdata(Tspec& tspec, bool isBound, uint varBytes) :
-    m_tspec(tspec),
-    m_data(tspec.m_spec, isBound, varBytes),
-    m_isBound(isBound)
-  {
+  Tdata(Tspec &tspec, bool isBound, uint varBytes)
+      : m_tspec(tspec),
+        m_data(tspec.m_spec, isBound, varBytes),
+        m_isBound(isBound) {
     m_cnt = tspec.m_spec.get_cnt();
     m_xbuf = nullptr;
     m_poaiBuf = nullptr;
     m_packBuf = nullptr;
   }
   ~Tdata() {
-    delete [] m_xbuf;
-    delete [] m_poaiBuf;
-    delete [] m_packBuf;
+    delete[] m_xbuf;
+    delete[] m_poaiBuf;
+    delete[] m_packBuf;
   }
   void create();
   void add();
   void finalize();
   // compare using unpacked data
-  int xcmp(const Tdata& tdata2, int* num_eq) const;
+  int xcmp(const Tdata &tdata2, int *num_eq) const;
 };
 
-static NdbOut&
-operator<<(NdbOut& out, const Tdata& tdata)
-{
+static NdbOut &operator<<(NdbOut &out, const Tdata &tdata) {
   out << tdata.m_data;
   return out;
 }
 
-void
-Tdata::create()
-{
+void Tdata::create() {
   union {
     Uint8 xbuf[Tspec::MaxBuf];
     Uint64 xbuf_align;
   };
-  (void)xbuf_align; // compiler warning
+  (void)xbuf_align;  // compiler warning
   memset(xbuf, 0x3f, sizeof(xbuf));
   m_xsize = 0;
   m_xnulls = 0;
@@ -1418,92 +1167,75 @@ Tdata::create()
   m_packLen += (m_tspec.m_spec.get_nullable_cnt(m_isBound) + 7) / 8;
   int i = 0, j;
   while (i < m_cnt) {
-    const NdbPack::Type& type = m_tspec.m_spec.get_type(i);
+    const NdbPack::Type &type = m_tspec.m_spec.get_type(i);
     const int typeId = type.get_type_id();
-    const Ndb_pack_type_info& info = g_ndb_pack_type_info[typeId];
+    const Ndb_pack_type_info &info = g_ndb_pack_type_info[typeId];
     m_xnull[i] = type.get_nullable() && getrandompct(25);
     m_xnull[i] = false;
-    if (type.get_nullable() || m_isBound)
-      m_xnull[i] = getrandompct(20);
-    int pad = 0; // null-char pad not counted in xlen
+    if (type.get_nullable() || m_isBound) m_xnull[i] = getrandompct(20);
+    int pad = 0;  // null-char pad not counted in xlen
     if (!m_xnull[i]) {
       m_xoff[i] = m_xsize;
-      Uint8* xptr = &xbuf[m_xsize];
+      Uint8 *xptr = &xbuf[m_xsize];
       switch (typeId) {
-      case NDB_TYPE_INT:
-        {
+        case NDB_TYPE_INT: {
           Int32 x = getrandom(10);
-          if (getrandompct(50))
-            x = (-1) * x;
+          if (getrandompct(50)) x = (-1) * x;
           memcpy(xptr, &x, 4);
           m_xlen[i] = info.m_fixSize;
-        }
-        break;
-      case NDB_TYPE_UNSIGNED:
-        {
+        } break;
+        case NDB_TYPE_UNSIGNED: {
           Uint32 x = getrandom(10);
           memcpy(xptr, &x, 4);
           m_xlen[i] = info.m_fixSize;
-        }
-        break;
-      case NDB_TYPE_CHAR:
-        {
+        } break;
+        case NDB_TYPE_CHAR: {
           require(type.get_byte_size() >= 1);
           int max_len = type.get_byte_size();
           int len = getrandom(max_len + 1, 1);
-          for (j = 0; j < len; j++)
-          {
+          for (j = 0; j < len; j++) {
             xptr[j] = 'a' + getrandom(3);
           }
-          for (j = len; j < max_len; j++)
-          {
+          for (j = len; j < max_len; j++) {
             xptr[j] = 0x20;
           }
           m_xlen[i] = max_len;
           xptr[max_len] = 0;
           pad = 1;
-        }
-        break;
-      case NDB_TYPE_VARCHAR:
-        {
+        } break;
+        case NDB_TYPE_VARCHAR: {
           require(type.get_byte_size() >= 1);
           int max_len = type.get_byte_size() - 1;
           int len = getrandom(max_len, 2);
           require(len < 256);
           xptr[0] = len;
-          for (j = 0; j < len; j++)
-          {
+          for (j = 0; j < len; j++) {
             xptr[1 + j] = 'a' + getrandom(3);
           }
           m_xlen[i] = 1 + len;
           xptr[1 + len] = 0;
           pad = 1;
-        }
-        break;
-      case NDB_TYPE_LONGVARCHAR:
-        {
+        } break;
+        case NDB_TYPE_LONGVARCHAR: {
           require(type.get_byte_size() >= 2);
           int max_len = type.get_byte_size() - 2;
           int len = getrandom(max_len, 3);
           require(len < 256 * 256);
           xptr[0] = (len & 0xFF);
           xptr[1] = (len >> 8);
-          for (j = 0; j < len; j++)
-          {
+          for (j = 0; j < len; j++) {
             xptr[2 + j] = 'a' + getrandom(3);
           }
           m_xlen[i] = 2 + len;
           xptr[2 + len] = 0;
           pad = 1;
-        }
-        break;
-      default:
-        require(false);
-        break;
+        } break;
+        default:
+          require(false);
+          break;
       }
       m_xsize += m_xlen[i] + pad;
-      while (m_xsize % 8 != 0)
-        m_xsize++;
+      while (m_xsize % 8 != 0) m_xsize++;
       m_packLen += m_xlen[i];
     } else {
       m_xoff[i] = -1;
@@ -1513,7 +1245,7 @@ Tdata::create()
     require(m_xnull[i] == (m_xoff[i] == -1));
     require(m_xnull[i] == (m_xlen[i] == 0));
     AttributeHeader ah;
-    ah.setAttributeId(i); // not used
+    ah.setAttributeId(i);  // not used
     ah.setByteSize(m_xlen[i]);
     poaiBuf[m_poaiSize] = ah.m_value;
     m_poaiSize++;
@@ -1524,28 +1256,25 @@ Tdata::create()
     i++;
   }
   require(m_xsize % 8 == 0);
-  m_xbuf = (Uint8*) new Uint64 [m_xsize / 8];
+  m_xbuf = (Uint8 *)new Uint64[m_xsize / 8];
   memcpy(m_xbuf, xbuf, m_xsize);
-  m_poaiBuf = (Uint32*) new Uint32 [m_poaiSize];
+  m_poaiBuf = (Uint32 *)new Uint32[m_poaiSize];
   memcpy(m_poaiBuf, poaiBuf, m_poaiSize << 2);
 }
 
-void
-Tdata::add()
-{
-  m_packBuf = new Uint8 [m_packLen];
+void Tdata::add() {
+  m_packBuf = new Uint8[m_packLen];
   m_data.set_buf(m_packBuf, m_packLen);
   int i, j;
   j = 0;
   while (j <= 1) {
-    if (j == 1)
-      m_data.reset();
+    if (j == 1) m_data.reset();
     i = 0;
     while (i < m_cnt) {
       Uint32 xlen = ~(Uint32)0;
       if (!m_xnull[i]) {
         int xoff = m_xoff[i];
-        const Uint8* xptr = &m_xbuf[xoff];
+        const Uint8 *xptr = &m_xbuf[xoff];
         chk2(m_data.add(xptr, &xlen) == 0, m_data);
         chk1((int)xlen == m_xlen[i]);
       } else {
@@ -1560,24 +1289,20 @@ Tdata::add()
   }
 }
 
-void
-Tdata::finalize()
-{
+void Tdata::finalize() {
   chk2(m_data.finalize() == 0, m_data);
   ll3("create: " << m_data);
   chk1((int)m_data.get_full_len() == m_packLen);
   {
-    const Uint8* p = (const Uint8*)m_data.get_full_buf();
+    const Uint8 *p = (const Uint8 *)m_data.get_full_buf();
     chk1(p[0] + (p[1] << 8) == m_packLen - 2);
   }
 }
 
-int
-Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
-{
-  const Tdata& tdata1 = *this;
+int Tdata::xcmp(const Tdata &tdata2, int *num_eq) const {
+  const Tdata &tdata1 = *this;
   require(&tdata1.m_tspec == &tdata2.m_tspec);
-  const Tspec& tspec = tdata1.m_tspec;
+  const Tspec &tspec = tdata1.m_tspec;
   int res = 0;
   int cnt = xmin(tdata1.m_cnt, tdata2.m_cnt);
   int i;
@@ -1585,94 +1310,83 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
     if (!tdata1.m_xnull[i]) {
       if (!tdata2.m_xnull[i]) {
         // the pointers are Uint64-aligned
-        const Uint8* xptr1 = &tdata1.m_xbuf[tdata1.m_xoff[i]];
-        const Uint8* xptr2 = &tdata2.m_xbuf[tdata2.m_xoff[i]];
+        const Uint8 *xptr1 = &tdata1.m_xbuf[tdata1.m_xoff[i]];
+        const Uint8 *xptr2 = &tdata2.m_xbuf[tdata2.m_xoff[i]];
         const int xlen1 = tdata1.m_xlen[i];
         const int xlen2 = tdata2.m_xlen[i];
-        const NdbPack::Type& type = tspec.m_spec.get_type(i);
+        const NdbPack::Type &type = tspec.m_spec.get_type(i);
         const int typeId = type.get_type_id();
         const int csNumber = type.get_cs_number();
-        CHARSET_INFO* cs = all_charsets[csNumber];
+        CHARSET_INFO *cs = all_charsets[csNumber];
         switch (typeId) {
-        case NDB_TYPE_INT:
-          {
+          case NDB_TYPE_INT: {
             require(cs == nullptr);
-            Int32 x1 = *(const Int32*)xptr1;
-            Int32 x2 = *(const Int32*)xptr2;
+            Int32 x1 = *(const Int32 *)xptr1;
+            Int32 x2 = *(const Int32 *)xptr2;
             if (x1 < x2)
               res = -1;
             else if (x1 > x2)
               res = +1;
-            ll3("cmp res:" << res <<" x1:" << x1 << " x2:" << x2);
-          }
-          break;
-        case NDB_TYPE_UNSIGNED:
-          {
+            ll3("cmp res:" << res << " x1:" << x1 << " x2:" << x2);
+          } break;
+          case NDB_TYPE_UNSIGNED: {
             require(cs == nullptr);
-            Uint32 x1 = *(const Uint32*)xptr1;
-            Uint32 x2 = *(const Uint32*)xptr2;
+            Uint32 x1 = *(const Uint32 *)xptr1;
+            Uint32 x2 = *(const Uint32 *)xptr2;
             if (x1 < x2)
               res = -1;
             else if (x1 > x2)
               res = +1;
-            ll3("cmp res:" << res <<" x1:" << x1 << " x2:" << x2);
-          }
-          break;
-        case NDB_TYPE_CHAR:
-          {
+            ll3("cmp res:" << res << " x1:" << x1 << " x2:" << x2);
+          } break;
+          case NDB_TYPE_CHAR: {
             require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xlen1;
             const uint n2 = xlen2;
-            const uchar* t1 = &xptr1[0];
-            const uchar* t2 = &xptr2[0];
-            const char* s1 = (const char*)t1;
-            const char* s2 = (const char*)t2;
+            const uchar *t1 = &xptr1[0];
+            const uchar *t2 = &xptr2[0];
+            const char *s1 = (const char *)t1;
+            const char *s2 = (const char *)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
             res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
-            ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
-          }
-          break;
-        case NDB_TYPE_VARCHAR:
-          {
+            ll3("cmp res:" << res << " s1:" << s1 << " s2:" << s2);
+          } break;
+          case NDB_TYPE_VARCHAR: {
             require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xptr1[0];
             const uint n2 = xptr2[0];
-            const uchar* t1 = &xptr1[1];
-            const uchar* t2 = &xptr2[1];
-            const char* s1 = (const char*)t1;
-            const char* s2 = (const char*)t2;
+            const uchar *t1 = &xptr1[1];
+            const uchar *t2 = &xptr2[1];
+            const char *s1 = (const char *)t1;
+            const char *s2 = (const char *)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
             res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
-            ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
-          }
-          break;
-        case NDB_TYPE_LONGVARCHAR:
-          {
+            ll3("cmp res:" << res << " s1:" << s1 << " s2:" << s2);
+          } break;
+          case NDB_TYPE_LONGVARCHAR: {
             require(cs != nullptr && cs->coll != nullptr);
             const uint n1 = xptr1[0] | (xptr1[1] << 8);
             const uint n2 = xptr2[0] | (xptr2[1] << 8);
-            const uchar* t1 = &xptr1[2];
-            const uchar* t2 = &xptr2[2];
-            const char* s1 = (const char*)t1;
-            const char* s2 = (const char*)t2;
+            const uchar *t1 = &xptr1[2];
+            const uchar *t2 = &xptr2[2];
+            const char *s1 = (const char *)t1;
+            const char *s2 = (const char *)t2;
             chk1(n1 == strlen(s1));
             chk1(n2 == strlen(s2));
             res = (*cs->coll->strnncollsp)(cs, t1, n1, t2, n2);
-            ll3("cmp res:" << res <<" s1:" << s1 << " s2:" << s2);
-          }
-          break;
-        default:
-          require(false);
-          break;
+            ll3("cmp res:" << res << " s1:" << s1 << " s2:" << s2);
+          } break;
+          default:
+            require(false);
+            break;
         }
       } else
         res = +1;
     } else if (!tdata2.m_xnull[i])
       res = -1;
-    if (res != 0)
-      break;
+    if (res != 0) break;
   }
   *num_eq = i;
   ll3("xcmp res:" << res << " num_eq:" << *num_eq);
@@ -1680,54 +1394,37 @@ Tdata::xcmp(const Tdata& tdata2, int* num_eq) const
 }
 
 struct Tbound {
-  Tdata& m_tdata;
+  Tdata &m_tdata;
   NdbPack::Bound m_bound;
-  Tbound(Tdata& tdata) :
-    m_tdata(tdata),
-    m_bound(tdata.m_data)
-  {
+  Tbound(Tdata &tdata) : m_tdata(tdata), m_bound(tdata.m_data) {
     m_tdata.m_cnt = 1 + getrandom(m_tdata.m_cnt);
   }
   void create();
   void add();
   void finalize();
-  int xcmp(const Tdata& tdata2, int* num_eq) const;
-  int xcmp(const Tbound& tbound2, int* num_eq) const;
+  int xcmp(const Tdata &tdata2, int *num_eq) const;
+  int xcmp(const Tbound &tbound2, int *num_eq) const;
 };
 
-static NdbOut&
-operator<<(NdbOut& out, const Tbound& tbound)
-{
+static NdbOut &operator<<(NdbOut &out, const Tbound &tbound) {
   out << tbound.m_bound;
   return out;
 }
 
-void
-Tbound::create()
-{
-  m_tdata.create();
-}
+void Tbound::create() { m_tdata.create(); }
 
-void
-Tbound::add()
-{
-  m_tdata.add();
-}
+void Tbound::add() { m_tdata.add(); }
 
-void
-Tbound::finalize()
-{
+void Tbound::finalize() {
   int side = getrandompct(50) ? -1 : +1;
   chk2(m_bound.finalize(side) == 0, m_bound);
   chk2(m_bound.validate() == 0, m_bound);
   chk1((int)m_tdata.m_data.get_full_len() == m_tdata.m_packLen);
 }
 
-int
-Tbound::xcmp(const Tdata& tdata2, int* num_eq) const
-{
-  const Tbound& tbound1 = *this;
-  const Tdata& tdata1 = tbound1.m_tdata;
+int Tbound::xcmp(const Tdata &tdata2, int *num_eq) const {
+  const Tbound &tbound1 = *this;
+  const Tdata &tdata1 = tbound1.m_tdata;
   require(tdata1.m_cnt <= tdata2.m_cnt);
   *num_eq = -1;
   int res = tdata1.xcmp(tdata2, num_eq);
@@ -1738,12 +1435,10 @@ Tbound::xcmp(const Tdata& tdata2, int* num_eq) const
   return res;
 }
 
-int
-Tbound::xcmp(const Tbound& tbound2, int* num_eq) const
-{
-  const Tbound& tbound1 = *this;
-  const Tdata& tdata1 = tbound1.m_tdata;
-  const Tdata& tdata2 = tbound2.m_tdata;
+int Tbound::xcmp(const Tbound &tbound2, int *num_eq) const {
+  const Tbound &tbound1 = *this;
+  const Tdata &tdata1 = tbound1.m_tdata;
+  const Tdata &tdata2 = tbound2.m_tdata;
   *num_eq = -1;
   int res = tdata1.xcmp(tdata2, num_eq);
   chk1(0 <= *num_eq && *num_eq <= xmin(tdata1.m_cnt, tdata2.m_cnt));
@@ -1763,9 +1458,9 @@ Tbound::xcmp(const Tbound& tbound2, int* num_eq) const
 
 struct Tdatalist {
   enum { Max = 1000 };
-  Tdata* m_tdata[Max];
+  Tdata *m_tdata[Max];
   int m_cnt;
-  Tdatalist(Tspec& tspec) {
+  Tdatalist(Tspec &tspec) {
     m_cnt = data_cnt == -1 ? Max : data_cnt;
     int i;
     for (i = 0; i < m_cnt; i++) {
@@ -1782,35 +1477,28 @@ struct Tdatalist {
   void sort();
 };
 
-static NdbOut&
-operator<<(NdbOut& out, const Tdatalist& tdatalist)
-{
+static NdbOut &operator<<(NdbOut &out, const Tdatalist &tdatalist) {
   int i;
   for (i = 0; i < tdatalist.m_cnt; i++) {
     out << "data " << i << ": " << *tdatalist.m_tdata[i];
-    if (i + 1 < tdatalist.m_cnt)
-      out << endl;
+    if (i + 1 < tdatalist.m_cnt) out << endl;
   }
   return out;
 }
 
-void
-Tdatalist::create()
-{
+void Tdatalist::create() {
   int i;
   for (i = 0; i < m_cnt; i++) {
-    Tdata& tdata = *m_tdata[i];
+    Tdata &tdata = *m_tdata[i];
     tdata.create();
     tdata.add();
     tdata.finalize();
   }
 }
 
-static int
-data_cmp(const void* a1, const void* a2)
-{
-  const Tdata& tdata1 = **(const Tdata* const*)a1;
-  const Tdata& tdata2 = **(const Tdata* const*)a2;
+static int data_cmp(const void *a1, const void *a2) {
+  const Tdata &tdata1 = **(const Tdata *const *)a1;
+  const Tdata &tdata2 = **(const Tdata *const *)a2;
   require(tdata1.m_cnt == tdata2.m_cnt);
   const Uint32 cnt = tdata1.m_cnt;
   Uint32 num_eq = ~(Uint32)0;
@@ -1820,18 +1508,16 @@ data_cmp(const void* a1, const void* a2)
   return res;
 }
 
-void
-Tdatalist::sort()
-{
+void Tdatalist::sort() {
   ll1("data sort: in");
   ll3(endl << *this);
-  qsort(m_tdata, m_cnt, sizeof(Tdata*), data_cmp);
+  qsort(m_tdata, m_cnt, sizeof(Tdata *), data_cmp);
   ll1("data sort: out");
   ll3(endl << *this);
   int i;
   for (i = 0; i + 1 < m_cnt; i++) {
-    const Tdata& tdata1 = *m_tdata[i];
-    const Tdata& tdata2 = *m_tdata[i + 1];
+    const Tdata &tdata1 = *m_tdata[i];
+    const Tdata &tdata2 = *m_tdata[i + 1];
     require(tdata1.m_cnt == tdata2.m_cnt);
     const Uint32 cnt = tdata1.m_cnt;
     Uint32 num_eq1 = ~(Uint32)0;
@@ -1852,20 +1538,20 @@ Tdatalist::sort()
 
 struct Tboundlist {
   enum { Max = 1000 };
-  Tbound* m_tbound[Max];
+  Tbound *m_tbound[Max];
   int m_cnt;
-  Tboundlist(Tspec& tspec) {
+  Tboundlist(Tspec &tspec) {
     m_cnt = bound_cnt == -1 ? Max : bound_cnt;
     int i;
     for (i = 0; i < m_cnt; i++) {
-      Tdata* tdata = new Tdata(tspec, true, 0);
+      Tdata *tdata = new Tdata(tspec, true, 0);
       m_tbound[i] = new Tbound(*tdata);
     }
   }
   ~Tboundlist() {
     int i;
     for (i = 0; i < m_cnt; i++) {
-      Tdata* tdata = &m_tbound[i]->m_tdata;
+      Tdata *tdata = &m_tbound[i]->m_tdata;
       delete m_tbound[i];
       delete tdata;
     }
@@ -1874,35 +1560,28 @@ struct Tboundlist {
   void sort();
 };
 
-static NdbOut&
-operator<<(NdbOut& out, const Tboundlist& tboundlist)
-{
+static NdbOut &operator<<(NdbOut &out, const Tboundlist &tboundlist) {
   int i;
   for (i = 0; i < tboundlist.m_cnt; i++) {
     out << "bound " << i << ": " << *tboundlist.m_tbound[i];
-    if (i + 1 < tboundlist.m_cnt)
-      out << endl;
+    if (i + 1 < tboundlist.m_cnt) out << endl;
   }
   return out;
 }
 
-void
-Tboundlist::create()
-{
+void Tboundlist::create() {
   int i;
   for (i = 0; i < m_cnt; i++) {
-    Tbound& tbound = *m_tbound[i];
+    Tbound &tbound = *m_tbound[i];
     tbound.create();
     tbound.add();
     tbound.finalize();
   }
 }
 
-static int
-bound_cmp(const void* a1, const void* a2)
-{
-  const Tbound& tbound1 = **(const Tbound* const*)a1;
-  const Tbound& tbound2 = **(const Tbound* const*)a2;
+static int bound_cmp(const void *a1, const void *a2) {
+  const Tbound &tbound1 = **(const Tbound *const *)a1;
+  const Tbound &tbound2 = **(const Tbound *const *)a2;
   const Uint32 cnt = xmin(tbound1.m_tdata.m_cnt, tbound2.m_tdata.m_cnt);
   Uint32 num_eq = ~(Uint32)0;
   int res = tbound1.m_bound.cmp(tbound2.m_bound, cnt, num_eq);
@@ -1911,18 +1590,16 @@ bound_cmp(const void* a1, const void* a2)
   return res;
 }
 
-void
-Tboundlist::sort()
-{
+void Tboundlist::sort() {
   ll1("bound sort: in");
   ll3(endl << *this);
-  qsort(m_tbound, m_cnt, sizeof(Tbound*), bound_cmp);
+  qsort(m_tbound, m_cnt, sizeof(Tbound *), bound_cmp);
   ll1("bound sort: out");
   ll3(endl << *this);
   int i;
   for (i = 0; i + 1 < m_cnt; i++) {
-    const Tbound& tbound1 = *m_tbound[i];
-    const Tbound& tbound2 = *m_tbound[i + 1];
+    const Tbound &tbound1 = *m_tbound[i];
+    const Tbound &tbound2 = *m_tbound[i + 1];
     const Uint32 cnt = xmin(tbound1.m_tdata.m_cnt, tbound2.m_tdata.m_cnt);
     Uint32 num_eq1 = ~(Uint32)0;
     int res = tbound1.m_bound.cmp(tbound2.m_bound, cnt, num_eq1);
@@ -1940,13 +1617,11 @@ Tboundlist::sort()
   }
 }
 
-static void
-testdesc(const Tdata& tdata)
-{
+static void testdesc(const Tdata &tdata) {
   ll3("testdesc: " << tdata);
-  const Tspec& tspec = tdata.m_tspec;
-  const NdbPack::Data& data = tdata.m_data;
-  const Uint8* buf_old = (const Uint8*)data.get_full_buf();
+  const Tspec &tspec = tdata.m_tspec;
+  const NdbPack::Data &data = tdata.m_data;
+  const Uint8 *buf_old = (const Uint8 *)data.get_full_buf();
   const Uint32 varBytes = data.get_var_bytes();
   // const Uint32 nullMaskLen = tspec.m_spec.get_nullmask_len(false);
   const Uint32 dataLen = data.get_data_len();
@@ -1964,12 +1639,10 @@ testdesc(const Tdata& tdata)
   chk1(data_new.get_null_cnt() == data.get_null_cnt());
 }
 
-static void
-testcopy(const Tdata& tdata)
-{
+static void testcopy(const Tdata &tdata) {
   ll3("testcopy: " << tdata);
-  const Tspec& tspec = tdata.m_tspec;
-  const NdbPack::Data& data = tdata.m_data;
+  const Tspec &tspec = tdata.m_tspec;
+  const NdbPack::Data &data = tdata.m_data;
   uint n = getrandom(tdata.m_cnt + 1);
   do {
     ll3("testcopy: cnt:" << tdata.m_cnt << " n:" << n);
@@ -1991,12 +1664,10 @@ testcopy(const Tdata& tdata)
   } while (n != 0);
 }
 
-static void
-testpoai(const Tdata& tdata)
-{
+static void testpoai(const Tdata &tdata) {
   ll3("testpoai: " << tdata);
-  const Tspec& tspec = tdata.m_tspec;
-  const NdbPack::Data& data = tdata.m_data;
+  const Tspec &tspec = tdata.m_tspec;
+  const NdbPack::Data &data = tdata.m_data;
   NdbPack::Data data_new(tspec.m_spec, false, data.get_var_bytes());
   Uint8 buf_new[Tspec::MaxBuf];
   data_new.set_buf(buf_new, sizeof(buf_new));
@@ -2006,16 +1677,15 @@ testpoai(const Tdata& tdata)
   chk2(data_new.validate() == 0, data_new);
   chk1(tspec.m_spec.get_nullmask_len(false) + poaiLen == data.get_data_len());
   chk1(data_new.get_full_len() == data.get_full_len());
-  chk1(memcmp(data_new.get_full_buf(), data.get_full_buf(), data.get_full_len()) == 0);
+  chk1(memcmp(data_new.get_full_buf(), data.get_full_buf(),
+              data.get_full_len()) == 0);
   chk1(data_new.get_null_cnt() == data.get_null_cnt());
 }
 
-static void
-testconvert(const Tdata& tdata)
-{
+static void testconvert(const Tdata &tdata) {
   ll3("testconvert: " << tdata);
-  const Tspec& tspec = tdata.m_tspec;
-  const NdbPack::Data& data = tdata.m_data;
+  const Tspec &tspec = tdata.m_tspec;
+  const NdbPack::Data &data = tdata.m_data;
   NdbPack::Data data_new(tspec.m_spec, false, 2);
   Uint8 buf_new[Tspec::MaxBuf];
   data_new.set_buf(buf_new, sizeof(buf_new));
@@ -2026,11 +1696,10 @@ testconvert(const Tdata& tdata)
   Uint32 num_eq;
   int i;
   for (i = 0; i < 10; i++) {
-    int k = getrandom(3); // assumes Endian::Value 0,1,2
+    int k = getrandom(3);  // assumes Endian::Value 0,1,2
     NdbPack::Endian::Value v = (NdbPack::Endian::Value)k;
     chk2(data_new.convert(v) == 0, data_new);
-    if (v == NdbPack::Endian::Native ||
-        v == NdbPack::Endian::get_endian()) {
+    if (v == NdbPack::Endian::Native || v == NdbPack::Endian::get_endian()) {
       num_eq = ~(Uint32)0;
       chk1(data.cmp(data_new, cnt, num_eq) == 0);
       require(num_eq == cnt);
@@ -2038,12 +1707,10 @@ testconvert(const Tdata& tdata)
   }
 }
 
-static void
-testdata(const Tdatalist& tdatalist)
-{
+static void testdata(const Tdatalist &tdatalist) {
   int i;
   for (i = 0; i < tdatalist.m_cnt; i++) {
-    const Tdata& tdata = *tdatalist.m_tdata[i];
+    const Tdata &tdata = *tdatalist.m_tdata[i];
     testdesc(tdata);
     testcopy(tdata);
     testpoai(tdata);
@@ -2051,16 +1718,14 @@ testdata(const Tdatalist& tdatalist)
   }
 }
 
-static void
-testcmp(const Tbound& tbound, const Tdatalist& tdatalist, int* kb)
-{
+static void testcmp(const Tbound &tbound, const Tdatalist &tdatalist, int *kb) {
   ll3("testcmp: " << tbound);
   int oldres = 0;
   int n1 = 0;
   int n2 = 0;
   int i;
   for (i = 0; i < tdatalist.m_cnt; i++) {
-    const Tdata& tdata = *tdatalist.m_tdata[i];
+    const Tdata &tdata = *tdatalist.m_tdata[i];
     require(tbound.m_tdata.m_cnt == (int)tbound.m_bound.get_data().get_cnt());
     const Uint32 cnt = tbound.m_tdata.m_cnt;
     Uint32 num_eq1 = ~(Uint32)0;
@@ -2087,13 +1752,11 @@ testcmp(const Tbound& tbound, const Tdatalist& tdatalist, int* kb)
   *kb = n1;
 }
 
-static void
-testcmp(const Tboundlist& tboundlist, const Tdatalist& tdatalist)
-{
+static void testcmp(const Tboundlist &tboundlist, const Tdatalist &tdatalist) {
   int i;
   int oldkb = 0;
   for (i = 0; i < tboundlist.m_cnt; i++) {
-    const Tbound& tbound = *tboundlist.m_tbound[i];
+    const Tbound &tbound = *tboundlist.m_tbound[i];
     int kb = 0;
     testcmp(tbound, tdatalist, &kb);
     if (i > 0) {
@@ -2103,9 +1766,7 @@ testcmp(const Tboundlist& tboundlist, const Tdatalist& tdatalist)
   }
 }
 
-static void
-testrun()
-{
+static void testrun() {
   Tspec tspec;
   tspec.create();
   ll1("spec: " << tspec);
@@ -2123,20 +1784,17 @@ testrun()
 
 extern void NdbOut_Init();
 
-static int
-testmain()
-{
+static int testmain() {
   ndb_init();
   signal(SIGABRT, SIG_DFL);
-  { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)nullptr, 0);
-    if (p != nullptr)
-      verbose = atoi(p);
+  {
+    const char *p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char *)nullptr, 0);
+    if (p != nullptr) verbose = atoi(p);
   }
   if (seed == 0)
     ll0("random seed: loop number");
   else {
-    if (seed < 0)
-      seed = NdbHost_GetProcessId();
+    if (seed < 0) seed = NdbHost_GetProcessId();
     ll0("random seed: " << seed);
     ndb_srand(seed);
   }
@@ -2144,8 +1802,7 @@ testmain()
   int i;
   for (i = 0; loops == 0 || i < loops; i++) {
     ll0("loop:" << i << "/" << loops);
-    if (seed == 0)
-      ndb_srand(i);
+    if (seed == 0) ndb_srand(i);
     testrun();
   }
   // do not print "ok" in TAPTEST
@@ -2154,8 +1811,7 @@ testmain()
   return 0;
 }
 
-TAPTEST(NdbPack)
-{
+TAPTEST(NdbPack) {
   int ret = testmain();
   return (ret == 0);
 }

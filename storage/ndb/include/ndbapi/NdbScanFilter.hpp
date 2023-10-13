@@ -34,34 +34,34 @@
  * @class NdbScanFilter
  * @brief A simple way to specify filters for scan operations
  *
- * @note  This filter interface is under development and may change in 
- *        the future! 
- * 
+ * @note  This filter interface is under development and may change in
+ *        the future!
+ *
  */
 class NdbScanFilter {
-public:
+ public:
   /**
    * Constructor
    * Using this constructor, a ScanFilter is created which will
-   * build and finalise a scan filter program using the 
+   * build and finalise a scan filter program using the
    * NdbInterpretedCode object passed.
-   * Once defined, the generated NdbInterpretedCode object can 
-   * be used to specify a scan filter for one or more NdbRecord defined 
+   * Once defined, the generated NdbInterpretedCode object can
+   * be used to specify a scan filter for one or more NdbRecord defined
    * ScanOperations on the supplied table.
-   * The NdbInterpretedCode object is passed to the ScanTable() 
+   * The NdbInterpretedCode object is passed to the ScanTable()
    * or ScanIndex() call via the ScanOptions structure.
    *
-   * @param code Pointer to the NdbInterpretedCode object to build 
+   * @param code Pointer to the NdbInterpretedCode object to build
    * the ScanFilter in.
    */
-  NdbScanFilter(NdbInterpretedCode* code);
+  NdbScanFilter(NdbInterpretedCode *code);
 
   /**
    * Constructor
    * This constructor is used to create an ScanFilter object
    * for use with a non-NdbRecord defined ScanOperation.
-   * 
-   * As part of the filter definition, it is automatically added 
+   *
+   * As part of the filter definition, it is automatically added
    * to the supplied operation.
    * ScanFilters defined this way can only be used with the passed
    * Scan operation.
@@ -70,42 +70,41 @@ public:
    *            Note that this MUST be an NdbScanOperation or
    *            NdbIndexScanOperation object created using the
    *            NdbTransaction->getNdbScanOperation() or
-   *            NdbTransaciton->getNdbIndexScanOperation() 
+   *            NdbTransaciton->getNdbIndexScanOperation()
    *            methods
    */
-  NdbScanFilter(class NdbOperation * op);
+  NdbScanFilter(class NdbOperation *op);
 
   ~NdbScanFilter();
 
   void setSqlCmpSemantics();
-  
+
   /**
    *  Group operators
    */
   enum Group {
-    AND  = 1,    ///< (x1 AND x2 AND x3)
-    OR   = 2,    ///< (x1 OR x2 OR X3)
-    NAND = 3,    ///< NOT (x1 AND x2 AND x3)
-    NOR  = 4     ///< NOT (x1 OR x2 OR x3)
+    AND = 1,   ///< (x1 AND x2 AND x3)
+    OR = 2,    ///< (x1 OR x2 OR X3)
+    NAND = 3,  ///< NOT (x1 AND x2 AND x3)
+    NOR = 4    ///< NOT (x1 OR x2 OR x3)
   };
 
-  enum BinaryCondition 
-  {
-    COND_LE = 0,           ///< lower bound
-    COND_LT = 1,           ///< lower bound, strict
-    COND_GE = 2,           ///< upper bound
-    COND_GT = 3,           ///< upper bound, strict
-    COND_EQ = 4,           ///< equality
-    COND_NE = 5,           ///< not equal
-    COND_LIKE = 6,         ///< like
-    COND_NOT_LIKE = 7,     ///< not like
-    COND_AND_EQ_MASK = 8,  ///< (bit & mask) == mask
-    COND_AND_NE_MASK = 9,  ///< (bit & mask) != mask (incl. NULL)
-    COND_AND_EQ_ZERO = 10, ///< (bit & mask) == 0
-    COND_AND_NE_ZERO = 11  ///< (bit & mask) != 0 (incl. NULL)
+  enum BinaryCondition {
+    COND_LE = 0,            ///< lower bound
+    COND_LT = 1,            ///< lower bound, strict
+    COND_GE = 2,            ///< upper bound
+    COND_GT = 3,            ///< upper bound, strict
+    COND_EQ = 4,            ///< equality
+    COND_NE = 5,            ///< not equal
+    COND_LIKE = 6,          ///< like
+    COND_NOT_LIKE = 7,      ///< not like
+    COND_AND_EQ_MASK = 8,   ///< (bit & mask) == mask
+    COND_AND_NE_MASK = 9,   ///< (bit & mask) != mask (incl. NULL)
+    COND_AND_EQ_ZERO = 10,  ///< (bit & mask) == 0
+    COND_AND_NE_ZERO = 11   ///< (bit & mask) != 0 (incl. NULL)
   };
 
-  /** 
+  /**
    * @name Grouping
    * @{
    */
@@ -115,7 +114,7 @@ public:
    *  If no group type is passed, defaults to AND.
    *  ®return  0 if successful, -1 otherwise
    */
-  int begin(Group group = AND);    
+  int begin(Group group = AND);
 
   /**
    *  End of compound.
@@ -146,8 +145,8 @@ public:
   /**
    * Compare column <b>ColId</b> with <b>val</b>
    *
-   * For all BinaryConditions except LIKE and NOT_LIKE, the value pointed 
-   * to by val should be in normal column format as described in the 
+   * For all BinaryConditions except LIKE and NOT_LIKE, the value pointed
+   * to by val should be in normal column format as described in the
    * documentation for NdbOperation::equal().
    * For BinaryConditions LIKE and NOT_LIKE, the value pointed to by val
    * should NOT include initial length bytes.
@@ -157,7 +156,7 @@ public:
    *
    *  ®return  0 if successful, -1 otherwise
    */
-  int cmp(BinaryCondition cond, int ColId, const void *val, Uint32 len = 0); 
+  int cmp(BinaryCondition cond, int ColId, const void *val, Uint32 len = 0);
 
   /**
    * Compare column <b>ColId1</b> with <b>ColId2</b>
@@ -172,74 +171,72 @@ public:
 
   int cmp_param(BinaryCondition cond, int ColId, int ParamId);
 
-  /** 
+  /**
    * @name Integer Comparators
    * @{
    */
-  /** Compare column value with integer for equal   
+  /** Compare column value with integer for equal
    *  ®return  0 if successful, -1 otherwise
    */
-  int eq(int ColId, Uint32 value) { return cmp(COND_EQ, ColId, &value, 4);}
+  int eq(int ColId, Uint32 value) { return cmp(COND_EQ, ColId, &value, 4); }
 
   /** Compare column value with integer for not equal.
-   *  ®return  0 if successful, -1 otherwise 
+   *  ®return  0 if successful, -1 otherwise
    */
-  int ne(int ColId, Uint32 value) { return cmp(COND_NE, ColId, &value, 4);}  
+  int ne(int ColId, Uint32 value) { return cmp(COND_NE, ColId, &value, 4); }
   /** Compare column value with integer for less than.
-   *  ®return  0 if successful, -1 otherwise 
-   */
-  int lt(int ColId, Uint32 value) { return cmp(COND_LT, ColId, &value, 4);}
-  /** Compare column value with integer for less than or equal. 
    *  ®return  0 if successful, -1 otherwise
    */
-  int le(int ColId, Uint32 value) { return cmp(COND_LE, ColId, &value, 4);}
-  /** Compare column value with integer for greater than. 
+  int lt(int ColId, Uint32 value) { return cmp(COND_LT, ColId, &value, 4); }
+  /** Compare column value with integer for less than or equal.
    *  ®return  0 if successful, -1 otherwise
    */
-  int gt(int ColId, Uint32 value) { return cmp(COND_GT, ColId, &value, 4);} 
+  int le(int ColId, Uint32 value) { return cmp(COND_LE, ColId, &value, 4); }
+  /** Compare column value with integer for greater than.
+   *  ®return  0 if successful, -1 otherwise
+   */
+  int gt(int ColId, Uint32 value) { return cmp(COND_GT, ColId, &value, 4); }
   /** Compare column value with integer for greater than or equal.
    *  ®return  0 if successful, -1 otherwise
    */
-  int ge(int ColId, Uint32 value) { return cmp(COND_GE, ColId, &value, 4);}
+  int ge(int ColId, Uint32 value) { return cmp(COND_GE, ColId, &value, 4); }
 
-  /** Compare column value with integer for equal. 64-bit.  
+  /** Compare column value with integer for equal. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int eq(int ColId, Uint64 value) { return cmp(COND_EQ, ColId, &value, 8);}
+  int eq(int ColId, Uint64 value) { return cmp(COND_EQ, ColId, &value, 8); }
   /** Compare column value with integer for not equal. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int ne(int ColId, Uint64 value) { return cmp(COND_NE, ColId, &value, 8);}
+  int ne(int ColId, Uint64 value) { return cmp(COND_NE, ColId, &value, 8); }
   /** Compare column value with integer for less than. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int lt(int ColId, Uint64 value) { return cmp(COND_LT, ColId, &value, 8);}  
+  int lt(int ColId, Uint64 value) { return cmp(COND_LT, ColId, &value, 8); }
   /** Compare column value with integer for less than or equal. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int le(int ColId, Uint64 value) { return cmp(COND_LE, ColId, &value, 8);}
+  int le(int ColId, Uint64 value) { return cmp(COND_LE, ColId, &value, 8); }
   /** Compare column value with integer for greater than. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int gt(int ColId, Uint64 value) { return cmp(COND_GT, ColId, &value, 8);}
+  int gt(int ColId, Uint64 value) { return cmp(COND_GT, ColId, &value, 8); }
   /** Compare column value with integer for greater than or equal. 64-bit.
    *  ®return  0 if successful, -1 otherwise
    */
-  int ge(int ColId, Uint64 value) { return cmp(COND_GE, ColId, &value, 8);}
+  int ge(int ColId, Uint64 value) { return cmp(COND_GE, ColId, &value, 8); }
   /** @} *********************************************************************/
 
-  /** Check if column value is NULL 
+  /** Check if column value is NULL
    *  ®return  0 if successful, -1 otherwise
    */
-  int isnull(int ColId);             
-  /** Check if column value is non-NULL 
+  int isnull(int ColId);
+  /** Check if column value is non-NULL
    *  ®return  0 if successful, -1 otherwise
    */
-  int isnotnull(int ColId);          
-  
-  enum Error {
-    FilterTooLarge = 4294
-  };
+  int isnotnull(int ColId);
+
+  enum Error { FilterTooLarge = 4294 };
 
   /**
    * Get filter level error.
@@ -248,30 +245,31 @@ public:
    * to any involved NdbOperation object.  This method gives access
    * to error information.
    */
-  const struct NdbError & getNdbError() const;
+  const struct NdbError &getNdbError() const;
 
   /**
    * Get filter's associated InterpretedCode object.  For
    * ScanFilters associated with a non-NdbRecord scan operation,
    * this method always returns NULL.
    */
-  const NdbInterpretedCode* getInterpretedCode() const;
+  const NdbInterpretedCode *getInterpretedCode() const;
 
   /**
    * Get NdbScanFilter's associated NdbScanOperation
-   * 
+   *
    * Where the NdbScanFilter was constructed with an NdbOperation
    * this method can be used to obtain a pointer to the NdbOperation
    * object.
    * For other NdbScanFilter objects it will return NULL
    */
-  NdbOperation * getNdbOperation() const;
-private:
+  NdbOperation *getNdbOperation() const;
+
+ private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbScanFilterImpl;
 #endif
-  class NdbScanFilterImpl & m_impl;
-  NdbScanFilter& operator=(const NdbScanFilter&); ///< Defined not implemented
+  class NdbScanFilterImpl &m_impl;
+  NdbScanFilter &operator=(const NdbScanFilter &);  ///< Defined not implemented
 };
 
 #endif

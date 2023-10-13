@@ -25,13 +25,12 @@
 #ifndef FIRE_TRIG_ORD_HPP
 #define FIRE_TRIG_ORD_HPP
 
-#include "SignalData.hpp"
-#include <NodeBitmask.hpp>
-#include <trigger_definitions.h>
 #include <string.h>
+#include <trigger_definitions.h>
+#include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 69
-
 
 /**
  * FireTrigOrd
@@ -44,12 +43,12 @@ class FireTrigOrd {
    * Sender(s)
    */
   // API
-  
+
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbtup;
-  
+
   /**
    * Reciver(s)
    */
@@ -57,18 +56,19 @@ class FireTrigOrd {
   friend class Backup;
   friend class SumaParticipant;
   friend class Suma;
-  
+
   /**
    * For printing
    */
-  friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printFIRE_TRIG_ORD(FILE *output, const Uint32 *theData,
+                                 Uint32 len, Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 11;
   static constexpr Uint32 SignalWithGCILength = 9;
   static constexpr Uint32 SignalLengthSuma = 14;
 
-private:
+ private:
   Uint32 m_connectionPtr;
   Uint32 m_userRef;
   Uint32 m_triggerId;
@@ -87,9 +87,9 @@ private:
   Uint32 m_hashValue;
   Uint32 m_any_value;
   // Public methods
-public:
+ public:
   Uint32 getConnectionPtr() const;
-  void setConnectionPtr(Uint32);  
+  void setConnectionPtr(Uint32);
   Uint32 getUserRef() const;
   void setUserRef(Uint32);
   Uint32 getTriggerId() const;
@@ -110,128 +110,69 @@ public:
   void setAnyValue(Uint32);
 };
 
-inline
-Uint32 FireTrigOrd::getConnectionPtr() const
-{
-  return m_connectionPtr;
-}
+inline Uint32 FireTrigOrd::getConnectionPtr() const { return m_connectionPtr; }
 
-inline 
-void FireTrigOrd::setConnectionPtr(Uint32 aConnectionPtr)
-{
+inline void FireTrigOrd::setConnectionPtr(Uint32 aConnectionPtr) {
   m_connectionPtr = aConnectionPtr;
 }
 
-inline
-Uint32 FireTrigOrd::getUserRef() const
-{
-  return m_userRef;
-}
+inline Uint32 FireTrigOrd::getUserRef() const { return m_userRef; }
 
-inline 
-void FireTrigOrd::setUserRef(Uint32 aUserRef)
-{
-  m_userRef = aUserRef;
-}
+inline void FireTrigOrd::setUserRef(Uint32 aUserRef) { m_userRef = aUserRef; }
 
-inline
-Uint32 FireTrigOrd::getTriggerId() const
-{
-  return m_triggerId;
-}
+inline Uint32 FireTrigOrd::getTriggerId() const { return m_triggerId; }
 
-inline
-void FireTrigOrd::setTriggerId(Uint32 aTriggerId)
-{
+inline void FireTrigOrd::setTriggerId(Uint32 aTriggerId) {
   m_triggerId = aTriggerId;
 }
 
-inline
-TriggerEvent::Value FireTrigOrd::getTriggerEvent() const
-{
+inline TriggerEvent::Value FireTrigOrd::getTriggerEvent() const {
   return (TriggerEvent::Value)m_triggerEvent;
 }
 
-inline
-void FireTrigOrd::setTriggerEvent(TriggerEvent::Value aTriggerEvent)
-{
+inline void FireTrigOrd::setTriggerEvent(TriggerEvent::Value aTriggerEvent) {
   m_triggerEvent = aTriggerEvent;
 }
 
-inline
-Uint32 FireTrigOrd::getNoOfPrimaryKeyWords() const
-{
+inline Uint32 FireTrigOrd::getNoOfPrimaryKeyWords() const {
   return m_noPrimKeyWords;
 }
 
-inline
-void FireTrigOrd::setNoOfPrimaryKeyWords(Uint32 noPrim)
-{
+inline void FireTrigOrd::setNoOfPrimaryKeyWords(Uint32 noPrim) {
   m_noPrimKeyWords = noPrim;
 }
 
-inline
-Uint32 FireTrigOrd::getNoOfBeforeValueWords() const
-{
+inline Uint32 FireTrigOrd::getNoOfBeforeValueWords() const {
   return m_noBeforeValueWords;
 }
 
-inline
-void FireTrigOrd::setNoOfBeforeValueWords(Uint32 noBefore)
-{
+inline void FireTrigOrd::setNoOfBeforeValueWords(Uint32 noBefore) {
   m_noBeforeValueWords = noBefore;
 }
 
-inline
-Uint32 FireTrigOrd::getNoOfAfterValueWords() const
-{
+inline Uint32 FireTrigOrd::getNoOfAfterValueWords() const {
   return m_noAfterValueWords;
 }
 
-inline
-void FireTrigOrd::setNoOfAfterValueWords(Uint32 noAfter)
-{
+inline void FireTrigOrd::setNoOfAfterValueWords(Uint32 noAfter) {
   m_noAfterValueWords = noAfter;
 }
 
-inline
-Uint32 FireTrigOrd::getGCI() const
-{
-  return m_gci_hi;
-}
+inline Uint32 FireTrigOrd::getGCI() const { return m_gci_hi; }
 
-inline
-void FireTrigOrd::setGCI(Uint32 aGCI)
-{
-  m_gci_hi = aGCI;
-}
+inline void FireTrigOrd::setGCI(Uint32 aGCI) { m_gci_hi = aGCI; }
 
-inline
-Uint32 FireTrigOrd::getHashValue() const
-{
-  return m_hashValue;
-}
+inline Uint32 FireTrigOrd::getHashValue() const { return m_hashValue; }
 
-inline
-void FireTrigOrd::setHashValue(Uint32 flag)
-{
-  m_hashValue = flag;
-}
+inline void FireTrigOrd::setHashValue(Uint32 flag) { m_hashValue = flag; }
 
-inline
-Uint32 FireTrigOrd::getAnyValue() const
-{
-  return m_any_value;
-}
+inline Uint32 FireTrigOrd::getAnyValue() const { return m_any_value; }
 
-inline
-void FireTrigOrd::setAnyValue(Uint32 any_value)
-{
+inline void FireTrigOrd::setAnyValue(Uint32 any_value) {
   m_any_value = any_value;
 }
 
-struct FireTrigReq
-{
+struct FireTrigReq {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
@@ -239,28 +180,22 @@ struct FireTrigReq
   Uint32 pass;
 };
 
-struct FireTrigRef
-{
+struct FireTrigRef {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
   Uint32 transId[2];
   Uint32 errCode;
 
-  enum ErrorCode
-  {
-    FTR_UnknownOperation = 1235
-    ,FTR_IncorrectState = 1236
-  };
+  enum ErrorCode { FTR_UnknownOperation = 1235, FTR_IncorrectState = 1236 };
 };
 
-struct FireTrigConf
-{
+struct FireTrigConf {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
   Uint32 transId[2];
-  Uint32 numFiredTriggers; // bit 31 deferred trigger
+  Uint32 numFiredTriggers;  // bit 31 deferred trigger
 
   static Uint32 getFiredCount(Uint32 v) {
     return NoOfFiredTriggers::getFiredCount(v);
@@ -268,17 +203,16 @@ struct FireTrigConf
   static Uint32 getDeferredUKBit(Uint32 v) {
     return NoOfFiredTriggers::getDeferredUKBit(v);
   }
-  static void setDeferredUKBit(Uint32 & v) {
+  static void setDeferredUKBit(Uint32 &v) {
     NoOfFiredTriggers::setDeferredUKBit(v);
   }
   static Uint32 getDeferredFKBit(Uint32 v) {
     return NoOfFiredTriggers::getDeferredFKBit(v);
   }
-  static void setDeferredFKBit(Uint32 & v) {
+  static void setDeferredFKBit(Uint32 &v) {
     NoOfFiredTriggers::setDeferredFKBit(v);
   }
 };
-
 
 #undef JAM_FILE_ID
 

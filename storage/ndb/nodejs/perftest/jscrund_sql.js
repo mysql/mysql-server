@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -27,70 +27,78 @@
 var mysql = require('mysql');
 
 var tableHandlers = {
-    'a': {
-      insertSQL: 'INSERT INTO a(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
-      createInsertParameterList: function(object) {
-        var result = [];
-        result.push(object.id);
-        result.push(object.cint);
-        result.push(object.clong);
-        result.push(object.cfloat);
-        result.push(object.cdouble);
-        return result;
-      },
-      deleteSQL: 'DELETE FROM a WHERE id = ?',
-      createDeleteParameterList: function(object) {
-        if (typeof(object) === 'number') {
-          return [object];
-        } else if (typeof(object) === 'object') {
-          return [object.id];
-        } else throw new Error('createFindParameterList parameter must be number or object');
-      },
-      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = ?',
-      createFindParameterList: function(object) {
-        if (typeof(object) === 'number') {
-          return [object];
-        } else if (typeof(object) === 'object') {
-          return [object.id];
-        } else throw new Error('createFindParameterList parameter must be number or object');
-      }
+  'a': {
+    insertSQL:
+        'INSERT INTO a(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
+    createInsertParameterList: function(object) {
+      var result = [];
+      result.push(object.id);
+      result.push(object.cint);
+      result.push(object.clong);
+      result.push(object.cfloat);
+      result.push(object.cdouble);
+      return result;
     },
-    'b': {
-      insertSQL: 'INSERT INTO b(id) VALUES (?)',
-      createInsertParameterList: function(object) {
-        var result = [];
-        result.push(object.id);
-          return result;
-      },
-      deleteSQL: 'DELETE FROM b WHERE id = ?',
-      createDeleteParameterList: function(object) {
-        if (typeof(object) === 'number') {
-          return [object];
-        } else if (typeof(object) === 'object') {
-          return [object.id];
-        } else throw new Error('createFindParameterList parameter must be number or object');
-      },
-      findSQL: 'SELECT id, cvarbinary_def FROM b WHERE id = ?',
-      createFindParameterList: function(object) {
-        if (typeof(object) === 'number') {
-          return [object];
-        } else if (typeof(object) === 'object') {
-          return [object.id];
-        } else throw new Error('createFindParameterList parameter must be number or object');
-      }
+    deleteSQL: 'DELETE FROM a WHERE id = ?',
+    createDeleteParameterList: function(object) {
+      if (typeof (object) === 'number') {
+        return [object];
+      } else if (typeof (object) === 'object') {
+        return [object.id];
+      } else
+        throw new Error(
+            'createFindParameterList parameter must be number or object');
+    },
+    findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = ?',
+    createFindParameterList: function(object) {
+      if (typeof (object) === 'number') {
+        return [object];
+      } else if (typeof (object) === 'object') {
+        return [object.id];
+      } else
+        throw new Error(
+            'createFindParameterList parameter must be number or object');
     }
+  },
+  'b': {
+    insertSQL: 'INSERT INTO b(id) VALUES (?)',
+    createInsertParameterList: function(object) {
+      var result = [];
+      result.push(object.id);
+      return result;
+    },
+    deleteSQL: 'DELETE FROM b WHERE id = ?',
+    createDeleteParameterList: function(object) {
+      if (typeof (object) === 'number') {
+        return [object];
+      } else if (typeof (object) === 'object') {
+        return [object.id];
+      } else
+        throw new Error(
+            'createFindParameterList parameter must be number or object');
+    },
+    findSQL: 'SELECT id, cvarbinary_def FROM b WHERE id = ?',
+    createFindParameterList: function(object) {
+      if (typeof (object) === 'number') {
+        return [object];
+      } else if (typeof (object) === 'object') {
+        return [object.id];
+      } else
+        throw new Error(
+            'createFindParameterList parameter must be number or object');
+    }
+  }
 };
 
-var implementation = function() {
-};
+var implementation = function() {};
 
 implementation.prototype.getConnectionProperties = function() {
   return {
-    mysql_host      : 'localhost',
-    mysql_port      : 3306,
-    mysql_user      : 'root',
-    mysql_password  : '',
-    database        : 'test'
+    mysql_host: 'localhost',
+    mysql_port: 3306,
+    mysql_user: 'root',
+    mysql_password: '',
+    database: 'test'
   };
 };
 
@@ -104,40 +112,40 @@ implementation.prototype.initialize = function(options, callback) {
   properties.password = options.properties.mysql_password;
   properties.database = options.properties.database;
   properties.multipleStatements = true;
-  JSCRUND.udebug.log_detail('jscrund_sql.initialize calling mysql.createConnection', properties);
+  JSCRUND.udebug.log_detail(
+      'jscrund_sql.initialize calling mysql.createConnection', properties);
   this.inBatchMode = false;
   this.connection = mysql.createConnection(properties);
   this.connection.connect(callback);
 };
 
-implementation.prototype.exec = function(statement, values, callback) {
+implementation.prototype.exec =
+    function(statement, values, callback) {
   var v;
-  if(this.inBatchMode) {
+  if (this.inBatchMode) {
     this.batchCallbacks.push(callback);
     this.batchQuery += statement + "; ";
-    while((v = values.shift()) != undefined) {
+    while ((v = values.shift()) != undefined) {
       this.batchValues.push(v);
     }
-  }
-  else {
+  } else {
     this.connection.query(statement, values, callback);
   }
-
 }
 
-implementation.prototype.persist = function(parameters, callback) {
+    implementation.prototype.persist = function(parameters, callback) {
   // which object is it
   var mapping = parameters.object.constructor.prototype.jones.mapping;
   var tableName = mapping.table;
   var object = parameters.object;
-  JSCRUND.udebug.log_detail('jscrund_sql implementation.insert object:', object,
-      'table', tableName);
+  JSCRUND.udebug.log_detail(
+      'jscrund_sql implementation.insert object:', object, 'table', tableName);
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.exec(tableHandler.insertSQL,
-            tableHandler.createInsertParameterList(object),
-            callback);
+  this.exec(
+      tableHandler.insertSQL, tableHandler.createInsertParameterList(object),
+      callback);
 };
 
 implementation.prototype.find = function(parameters, callback) {
@@ -145,13 +153,15 @@ implementation.prototype.find = function(parameters, callback) {
   var mapping = parameters.object.constructor.prototype.jones.mapping;
   var tableName = mapping.table;
   var object = parameters.object;
-  JSCRUND.udebug.log_detail('jscrund_sql implementation.find key:', parameters.key, 'table', tableName);
+  JSCRUND.udebug.log_detail(
+      'jscrund_sql implementation.find key:', parameters.key, 'table',
+      tableName);
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.exec(tableHandler.findSQL,
-            tableHandler.createFindParameterList(parameters.key),
-            callback);
+  this.exec(
+      tableHandler.findSQL,
+      tableHandler.createFindParameterList(parameters.key), callback);
 };
 
 implementation.prototype.remove = function(parameters, callback) {
@@ -159,14 +169,16 @@ implementation.prototype.remove = function(parameters, callback) {
   var mapping = parameters.object.constructor.prototype.jones.mapping;
   var tableName = mapping.table;
   var object = parameters.object;
-  JSCRUND.udebug.log_detail('jscrund_sql implementation.remove key:', parameters.key, 'table', tableName);
+  JSCRUND.udebug.log_detail(
+      'jscrund_sql implementation.remove key:', parameters.key, 'table',
+      tableName);
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.exec(tableHandler.deleteSQL,
-            tableHandler.createFindParameterList(parameters.key),
-            callback);
- };
+  this.exec(
+      tableHandler.deleteSQL,
+      tableHandler.createFindParameterList(parameters.key), callback);
+};
 
 implementation.prototype.createBatch = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_sql implementation.createBatch');
@@ -182,7 +194,7 @@ implementation.prototype.executeBatch = function(callback) {
   var callbacks = this.batchCallbacks;
   function allCallbacks(err, results) {
     var n;
-    for(n = 0 ; n < callbacks.length ; n++) {
+    for (n = 0; n < callbacks.length; n++) {
       callbacks[n](err, results[n]);
     }
   }
@@ -196,7 +208,8 @@ implementation.prototype.begin = function(callback) {
   var impl = this;
   this.connection.query('begin', function(err) {
     if (err) {
-      JSCRUND.udebug.log_detail('jscrund_sql implementation.begin callback err:', err);
+      JSCRUND.udebug.log_detail(
+          'jscrund_sql implementation.begin callback err:', err);
     } else {
       JSCRUND.udebug.log_detail('jscrund_sql implementation.begin no error');
     }
@@ -208,7 +221,8 @@ implementation.prototype.commit = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_sql implementation.commit');
   this.connection.query('commit', function(err) {
     if (err) {
-      JSCRUND.udebug.log_detail('jscrund_sql implementation.commit callback err:', err);
+      JSCRUND.udebug.log_detail(
+          'jscrund_sql implementation.commit callback err:', err);
     } else {
       JSCRUND.udebug.log_detail('jscrund_sql implementation.commit no error');
     }

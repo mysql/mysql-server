@@ -25,29 +25,29 @@
 #ifndef MGMAPI_SERVICE_HPP
 #define MGMAPI_SERVICE_HPP
 
-#include "util/SocketServer.hpp"
 #include "NdbSleep.h"
 #include "Parser.hpp"
-#include "util/OutputStream.hpp"
 #include "util/InputStream.hpp"
 #include "util/NdbSocket.h"
+#include "util/OutputStream.hpp"
+#include "util/SocketServer.hpp"
 
 #include "MgmtSrvr.hpp"
 
-class MgmApiSession : public SocketServer::Session
-{
+class MgmApiSession : public SocketServer::Session {
   static void list_session(SocketServer::Session *_s, void *data);
   static void get_session(SocketServer::Session *_s, void *data);
-private:
+
+ private:
   typedef Parser<MgmApiSession> Parser_t;
 
   NdbSocket m_secure_socket;
-  class MgmtSrvr & m_mgmsrv;
+  class MgmtSrvr &m_mgmsrv;
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;
   char m_err_str[1024];
-  int m_stopSelf; // -1 is restart, 0 do nothing, 1 stop
+  int m_stopSelf;  // -1 is restart, 0 do nothing, 1 stop
   NdbMutex *m_mutex;
 
   // for listing sessions and other fun:
@@ -57,18 +57,19 @@ private:
   int m_errorInsert;
 
   BaseString m_name;
-  const char* name() { return m_name.c_str(); }
+  const char *name() { return m_name.c_str(); }
 
-  const char *get_error_text(int err_no)
-  { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
+  const char *get_error_text(int err_no) {
+    return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str));
+  }
 
   /* Client version info, m_vMajor != 0 if known */
   unsigned int m_vMajor;
   unsigned int m_vMinor;
   unsigned int m_vBuild;
 
-public:
-  MgmApiSession(class MgmtSrvr & mgm, NdbSocket&& sock, Uint64 session_id);
+ public:
+  MgmApiSession(class MgmtSrvr &mgm, NdbSocket &&sock, Uint64 session_id);
   ~MgmApiSession() override;
   void runSession() override;
 
@@ -111,21 +112,19 @@ public:
   void bye(Parser_t::Context &ctx, const class Properties &args);
   void endSession(Parser_t::Context &ctx, const class Properties &args);
   void setLogLevel(Parser_t::Context &ctx, const class Properties &args);
-  void getClusterLogLevel(Parser_t::Context &ctx, 
-			  const class Properties &args);
-  void setClusterLogLevel(Parser_t::Context &ctx, 
-			  const class Properties &args);
+  void getClusterLogLevel(Parser_t::Context &ctx, const class Properties &args);
+  void setClusterLogLevel(Parser_t::Context &ctx, const class Properties &args);
   void setLogFilter(Parser_t::Context &ctx, const class Properties &args);
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void setConnectionParameter(Parser_t::Context &ctx,
-			      const class Properties &args);
-  void getConnectionParameter(Parser_t::Context &ctx,
-			      Properties const &args);
+                              const class Properties &args);
+  void getConnectionParameter(Parser_t::Context &ctx, Properties const &args);
 
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
 
-  void purge_stale_sessions(Parser_t::Context &ctx, const class Properties &args);
+  void purge_stale_sessions(Parser_t::Context &ctx,
+                            const class Properties &args);
   void check_connection(Parser_t::Context &ctx, const class Properties &args);
 
   void transporter_connect(Parser_t::Context &ctx, Properties const &args);
@@ -152,27 +151,18 @@ public:
 };
 
 class MgmApiService : public SocketServer::Service {
-  MgmtSrvr& m_mgmsrv;
-  Uint64 m_next_session_id; // Protected by m_sessions mutex it SocketServer
-public:
-  MgmApiService(MgmtSrvr& mgm):
-    m_mgmsrv(mgm),
-    m_next_session_id(1) {}
+  MgmtSrvr &m_mgmsrv;
+  Uint64 m_next_session_id;  // Protected by m_sessions mutex it SocketServer
+ public:
+  MgmApiService(MgmtSrvr &mgm) : m_mgmsrv(mgm), m_next_session_id(1) {}
 
-  SocketServer::Session * newSession(NdbSocket&& socket) override {
+  SocketServer::Session *newSession(NdbSocket &&socket) override {
     return new MgmApiSession(m_mgmsrv, std::move(socket), m_next_session_id++);
   }
 };
 
-static const char* str_null(const char* str)
-{
-  return (str ? str : "(null)");
-}
+static const char *str_null(const char *str) { return (str ? str : "(null)"); }
 
-static const char* yes_no(bool value)
-{
-  return (value ? "yes" : "no");
-}
-
+static const char *yes_no(bool value) { return (value ? "yes" : "no"); }
 
 #endif

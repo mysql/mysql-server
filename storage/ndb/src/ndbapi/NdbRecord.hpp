@@ -31,84 +31,82 @@
 #include "util/NdbSqlUtil.hpp"
 
 class NdbRecord {
-public:
+ public:
   /* Flag bits for the entire NdbRecord. */
-  enum RecFlags
-  {
+  enum RecFlags {
     /*
       This flag tells whether this NdbRecord is a PK record for the table,
       ie. that it describes _exactly_ the primary key attributes, no more and
       no less.
     */
-    RecIsKeyRecord= 0x1,
+    RecIsKeyRecord = 0x1,
 
     /*
       This flag tells whether this NdbRecord includes _at least_ all PK columns
       (and possibly other columns). This is a requirement for many key-based
       operations.
     */
-    RecHasAllKeys= 0x2,
+    RecHasAllKeys = 0x2,
 
     /* This NdbRecord is for an ordered index, not a table. */
-    RecIsIndex= 0x4,
+    RecIsIndex = 0x4,
 
     /* This NdbRecord has at least one blob. */
-    RecHasBlob= 0x8,
+    RecHasBlob = 0x8,
 
     /*
       The table has at least one blob (though the NdbRecord may not include
       it). This is needed so that deleteTuple() can know to delete all blob
       parts.
     */
-    RecTableHasBlob= 0x10,
+    RecTableHasBlob = 0x10,
 
     /* This NdbRecord is a default NdbRecord */
-    RecIsDefaultRec= 0x20
+    RecIsDefaultRec = 0x20
 
     /* The table has user defined partitioning */
-    ,RecHasUserDefinedPartitioning = 0x40
+    ,
+    RecHasUserDefinedPartitioning = 0x40
   };
 
   /* Flag bits for individual columns in the NdbRecord. */
-  enum ColFlags
-  {
+  enum ColFlags {
     /*
       This flag tells whether the column is part of the primary key, used
       for insert.
     */
-    IsKey=   0x1,
+    IsKey = 0x1,
     /* This flag is true if column is disk based. */
-    IsDisk= 0x2,
+    IsDisk = 0x2,
     /* True if column can be NULL and has a NULL bit. */
-    IsNullable= 0x04,
+    IsNullable = 0x04,
     /*
       Flags for determining the actual length of data (which for varsize
       columns is different from the maximum size.
       The flags are mutually exclusive.
     */
-    IsVar1ByteLen= 0x08,
-    IsVar2ByteLen= 0x10,
+    IsVar1ByteLen = 0x08,
+    IsVar2ByteLen = 0x10,
     /* Flag for column that is a part of the distribution key. */
-    IsDistributionKey= 0x20,
+    IsDistributionKey = 0x20,
     /* Flag for blob columns. */
-    IsBlob= 0x40,
-    /* 
+    IsBlob = 0x40,
+    /*
        Flag for special handling of short varchar for index keys, which is
        used by mysqld to avoid converting index key rows.
     */
-    IsMysqldShrinkVarchar= 0x80,
+    IsMysqldShrinkVarchar = 0x80,
     /* Bitfield stored in the internal mysqld format. */
-    IsMysqldBitfield= 0x100,
+    IsMysqldBitfield = 0x100,
     /*
       Bit field maps only null bits.
       No overflow bits.
       Used only with IsMysqldBitfield.
     */
-    BitFieldMapsNullBitOnly= 0x200
+    BitFieldMapsNullBitOnly = 0x200
   };
 
-  struct Attr
-  {
+  struct Attr {
     Uint32 attrId;
 
     /* Character set information, for ordered index merge sort. */
@@ -149,18 +147,16 @@ public:
     */
     Uint32 orgAttrSize;
 
-    bool get_var_length(const char *row, Uint32& len) const
-    {
+    bool get_var_length(const char *row, Uint32 &len) const {
       if (flags & IsVar1ByteLen)
         len = 1 + *((const Uint8 *)(row + offset));
       else if (flags & IsVar2ByteLen)
-        len= 2 + uint2korr(row+offset);
+        len = 2 + uint2korr(row + offset);
       else
-        len= maxSize;
+        len = maxSize;
       return len <= maxSize;
     }
-    bool is_null(const char *row) const
-    {
+    bool is_null(const char *row) const {
       return (flags & IsNullable) &&
              (row[nullbit_byte_offset] & (1 << nullbit_bit_in_byte));
     }
@@ -173,18 +169,16 @@ public:
       for max size < 256.
       This converts to the usual format expected by NDB kernel.
     */
-    bool shrink_varchar(const char *row, Uint32& out_len, char *buf) const
-    {
-      const char *p= row + offset;
-      Uint32 len= uint2korr(p);
-      if (len >= SHRINK_VARCHAR_BUFFSIZE || len >= maxSize)
-      {
+    bool shrink_varchar(const char *row, Uint32 &out_len, char *buf) const {
+      const char *p = row + offset;
+      Uint32 len = uint2korr(p);
+      if (len >= SHRINK_VARCHAR_BUFFSIZE || len >= maxSize) {
         out_len = 0;
         return false;
       }
-      buf[0]= (unsigned char)len;
-      memcpy(buf+1, p+2, len);
-      out_len= len + 1;
+      buf[0] = (unsigned char)len;
+      memcpy(buf + 1, p + 2, len);
+      out_len = len + 1;
       return true;
     }
     /*
@@ -270,9 +264,8 @@ public:
   void copyMask(Uint32 *dst, const unsigned char *src) const;
 
   /* Clear internal mask. */
-  void clearMask(Uint32 *dst) const
-  {
-    BitmaskImpl::clear((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst);
+  void clearMask(Uint32 *dst) const {
+    BitmaskImpl::clear((NDB_MAX_ATTRIBUTES_IN_TABLE + 31) >> 5, dst);
   }
 };
 

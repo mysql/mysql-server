@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 212
 
-
 /**
  * This signal is used for transferring the sysfile
  * between Dih on different nodes.
@@ -45,20 +44,20 @@ class CopyGCIReq {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
-  friend bool printCOPY_GCI_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
-public:
+
+  friend bool printCOPY_GCI_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   enum CopyReason {
-    IDLE                    = 0,
-    LOCAL_CHECKPOINT        = 1,
-    RESTART                 = 2,
-    GLOBAL_CHECKPOINT       = 3,
+    IDLE = 0,
+    LOCAL_CHECKPOINT = 1,
+    RESTART = 2,
+    GLOBAL_CHECKPOINT = 3,
     INITIAL_START_COMPLETED = 4,
-    RESTART_NR              = 5
+    RESTART_NR = 5
   };
-  
-private:
-  
+
+ private:
   Uint32 anyData;
   Uint32 copyReason;
   Uint32 startWord;
@@ -68,10 +67,9 @@ private:
    */
   static constexpr Uint32 SignalLength = 3;
   static constexpr Uint32 DATA_SIZE = 22;
-  
+
   Uint32 data[DATA_SIZE];
 };
-
 
 #undef JAM_FILE_ID
 

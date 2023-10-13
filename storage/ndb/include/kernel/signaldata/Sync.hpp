@@ -27,9 +27,7 @@
 
 #define JAM_FILE_ID 31
 
-
-struct SyncReq
-{
+struct SyncReq {
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 prio;
@@ -37,31 +35,24 @@ struct SyncReq
   static constexpr Uint32 SignalLength = 3;
 };
 
-struct SyncRef
-{
+struct SyncRef {
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 errorCode;
 
   static constexpr Uint32 SignalLength = 3;
 
-  enum ErrorCode
-  {
-    SR_OK = 0,
-    SR_OUT_OF_MEMORY = 1
-  };
+  enum ErrorCode { SR_OK = 0, SR_OUT_OF_MEMORY = 1 };
 };
 
-struct SyncConf
-{
+struct SyncConf {
   Uint32 senderRef;
   Uint32 senderData;
 
   static constexpr Uint32 SignalLength = 3;
 };
 
-struct SyncPathReq
-{
+struct SyncPathReq {
   Uint32 senderData;
   Uint32 prio;
   Uint32 count;
@@ -72,42 +63,36 @@ struct SyncPathReq
   static constexpr Uint32 MaxPathLen = 25 - SignalLength;
 };
 
-struct SyncPathConf
-{
+struct SyncPathConf {
   Uint32 senderData;
   Uint32 count;
 
   static constexpr Uint32 SignalLength = 2;
 };
 
-struct FreezeThreadReq
-{
+struct FreezeThreadReq {
   Uint32 nodeId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 2;
 };
 
-struct FreezeThreadConf
-{
+struct FreezeThreadConf {
   Uint32 nodeId;
   static constexpr Uint32 SignalLength = 1;
 };
 
-struct FreezeActionReq
-{
+struct FreezeActionReq {
   Uint32 nodeId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 2;
 };
 
-struct FreezeActionConf
-{
+struct FreezeActionConf {
   Uint32 nodeId;
   static constexpr Uint32 SignalLength = 1;
 };
 
-struct ActivateTrpReq
-{
+struct ActivateTrpReq {
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 numTrps;
@@ -115,52 +100,43 @@ struct ActivateTrpReq
   static constexpr Uint32 SignalLength = 4;
 };
 
-struct ActivateTrpConf
-{
+struct ActivateTrpConf {
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 3;
 };
 
-struct AddEpollTrpReq
-{
+struct AddEpollTrpReq {
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 3;
 };
 
-struct AddEpollTrpConf
-{
+struct AddEpollTrpConf {
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 3;
 };
 
-struct SwitchMultiTrpReq
-{
+struct SwitchMultiTrpReq {
   Uint32 nodeId;
   Uint32 senderRef;
   static constexpr Uint32 SignalLength = 2;
 };
 
-struct SwitchMultiTrpConf
-{
+struct SwitchMultiTrpConf {
   Uint32 nodeId;
   static constexpr Uint32 SignalLength = 1;
 };
 
-struct SwitchMultiTrpRef
-{
+struct SwitchMultiTrpRef {
   Uint32 nodeId;
   Uint32 errorCode;
   static constexpr Uint32 SignalLength = 2;
-  enum ErrorCode
-  {
-    SMTR_NOT_READY_FOR_SWITCH = 1
-  };
+  enum ErrorCode { SMTR_NOT_READY_FOR_SWITCH = 1 };
 };
 #undef JAM_FILE_ID
 

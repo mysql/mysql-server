@@ -24,19 +24,18 @@
 
 #ifdef TEST_MT_SEND
 
-#include <cstring>
-#include "portlib/mt-asm.h"
-#include "mt-lock.hpp"
-#include <NdbTick.h>
+#include <NdbCondition.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
-#include <NdbCondition.h>
-#include <NdbTap.hpp>
-#include <Bitmask.hpp>
+#include <NdbTick.h>
 #include <ndb_rand.h>
+#include <Bitmask.hpp>
+#include <NdbTap.hpp>
+#include <cstring>
+#include "mt-lock.hpp"
+#include "portlib/mt-asm.h"
 
 #define JAM_FILE_ID 312
-
 
 #define BUGGY_VERSION 0
 
@@ -111,10 +110,9 @@ static unsigned cnt_inner_loops = 5000;
  */
 static unsigned pct_force = 15;
 
-typedef Bitmask<(MAX_TRANSPORTERS+31)/32> TransporterMask;
+typedef Bitmask<(MAX_TRANSPORTERS + 31) / 32> TransporterMask;
 
-struct Producer
-{
+struct Producer {
   Producer() {
     std::memset(val, 0, sizeof(val));
     pendingcount = 0;
@@ -151,23 +149,22 @@ struct Producer
   void consume(bool force);
 };
 
-struct Thread
-{
-  Thread() { thread= 0; }
+struct Thread {
+  Thread() { thread = 0; }
 
   void init() { p.init(); }
 
-  NdbThread * thread;
+  NdbThread *thread;
   Producer p;
 };
 
 /**
  * This is the consumer of values for *one* transporter
  */
-struct Consumer
-{
+struct Consumer {
   Consumer() {
-    m_force_send = 0; std::memset(val, 0, sizeof(val));
+    m_force_send = 0;
+    std::memset(val, 0, sizeof(val));
   }
 
   void init() {}
@@ -187,13 +184,11 @@ struct Consumer
   void forceConsume(unsigned D);
 };
 
-struct alignas(NDB_CL) Consumer_pad
-{
+struct alignas(NDB_CL) Consumer_pad {
   Consumer c;
 };
 
-struct alignas(NDB_CL) Thread_pad
-{
+struct alignas(NDB_CL) Thread_pad {
   Thread t;
 };
 
@@ -201,9 +196,7 @@ struct alignas(NDB_CL) Thread_pad
  * Thread repository
  *   and an instance of it
  */
-static
-struct Rep
-{
+static struct Rep {
   Thread_pad t[MAX_THREADS];
   Consumer_pad c[MAX_TRANSPORTERS];
 
@@ -212,12 +205,9 @@ struct Rep
    *   so it's safe to read values without locks
    */
   void validate() {
-    for (unsigned ic = 0; ic < cnt_transporters; ic++)
-    {
-      for (unsigned it = 0; it < cnt_threads; it++)
-      {
-        if (c[ic].c.val[it] != t[it].t.p.val[ic])
-        {
+    for (unsigned ic = 0; ic < cnt_transporters; ic++) {
+      for (unsigned it = 0; it < cnt_threads; it++) {
+        if (c[ic].c.val[it] != t[it].t.p.val[ic]) {
           printf("Detected bug!!!\n");
           printf("ic: %u it: %u c[ic].c.val[it]: %u t[it].t.p.val[ic]: %u\n",
                  ic, it, c[ic].c.val[it], t[it].t.p.val[ic]);
@@ -228,17 +218,13 @@ struct Rep
   }
 
   void init() {
-    for (unsigned i = 0; i < cnt_threads; i++)
-      t[i].t.init();
+    for (unsigned i = 0; i < cnt_threads; i++) t[i].t.init();
 
-    for (unsigned i = 0; i < cnt_transporters; i++)
-      c[i].c.init();
+    for (unsigned i = 0; i < cnt_transporters; i++) c[i].c.init();
   }
 } rep;
 
-static
-struct Test
-{
+static struct Test {
   Test() {
     waiting_start = 0;
     waiting_stop = 0;
@@ -258,29 +244,22 @@ struct Test
 
   unsigned waiting_start;
   unsigned waiting_stop;
-  NdbMutex* mutex;
-  NdbCondition* cond;
+  NdbMutex *mutex;
+  NdbCondition *cond;
 
   void wait_started();
   void wait_completed();
 } test;
 
-void*
-thread_main(void * _t)
-{
-  const NDB_TICKS now = NdbTick_getCurrentTicks(); 
-  unsigned seed =
-    (unsigned)now.getUint64() +
-    (unsigned)(unsigned long long)_t;
+void *thread_main(void *_t) {
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  unsigned seed = (unsigned)now.getUint64() + (unsigned)(unsigned long long)_t;
 
-  Thread * self = (Thread*) _t;
-  for (unsigned i = 0; i < cnt_inner_loops; i++)
-  {
+  Thread *self = (Thread *)_t;
+  for (unsigned i = 0; i < cnt_inner_loops; i++) {
     test.wait_started();
-    for (unsigned j = 0; j < cnt_signals_per_inner_loop;)
-    {
-      for (unsigned k = 0; k < cnt_signals_before_consume; k++)
-      {
+    for (unsigned j = 0; j < cnt_signals_per_inner_loop;) {
+      for (unsigned k = 0; k < cnt_signals_before_consume; k++) {
         /**
          * Produce a signal to destination D
          */
@@ -301,40 +280,31 @@ thread_main(void * _t)
   return 0;
 }
 
-static
-bool
-match(const char * arg, const char * val, unsigned * valptr)
-{
-  if (strncmp(arg, val, strlen(val)) == 0)
-  {
-    * valptr = atoi(arg + strlen(val));
+static bool match(const char *arg, const char *val, unsigned *valptr) {
+  if (strncmp(arg, val, strlen(val)) == 0) {
+    *valptr = atoi(arg + strlen(val));
     return true;
   }
   return false;
 }
 
-int
-main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
   plan(1);
   ndb_init();
   test.init();
   rep.init();
 
-  if (argc == 1)
-  {
-    printf("No arguments supplied...\n"
-           "assuming we're being run from MTR or similar.\n"
-           "decreasing loop counts to ridiculously small values...\n");
+  if (argc == 1) {
+    printf(
+        "No arguments supplied...\n"
+        "assuming we're being run from MTR or similar.\n"
+        "decreasing loop counts to ridiculously small values...\n");
     cnt_seconds = 10;
     cnt_inner_loops = 3000;
     cnt_threads = 4;
-  }
-  else
-  {
+  } else {
     printf("Arguments supplied...\n");
-    for (int i = 1; i < argc; i++)
-    {
+    for (int i = 1; i < argc; i++) {
       if (match(argv[i], "cnt_seconds=", &cnt_seconds))
         continue;
       else if (match(argv[i], "cnt_threads=", &cnt_threads))
@@ -349,71 +319,57 @@ main(int argc, char ** argv)
       else if (match(argv[i], "cnt_signals_per_inner_loop=",
                      &cnt_signals_per_inner_loop))
         continue;
-      else if (match(argv[i], "pct_force=",
-                     &pct_force))
+      else if (match(argv[i], "pct_force=", &pct_force))
         continue;
-      else
-      {
+      else {
         printf("ignoreing unknown argument: %s\n", argv[i]);
       }
     }
   }
 
-  printf("%s"
-         " cnt_seconds=%u"
-         " cnt_threads=%u"
-         " cnt_transporters=%u"
-         " cnt_inner_loops=%u"
-         " cnt_signals_before_consume=%u"
-         " cnt_signals_per_inner_loop=%u"
-         " pct_force=%u"
-         "\n",
-         argv[0],
-         cnt_seconds,
-         cnt_threads,
-         cnt_transporters,
-         cnt_inner_loops,
-         cnt_signals_before_consume,
-         cnt_signals_per_inner_loop,
-         pct_force);
+  printf(
+      "%s"
+      " cnt_seconds=%u"
+      " cnt_threads=%u"
+      " cnt_transporters=%u"
+      " cnt_inner_loops=%u"
+      " cnt_signals_before_consume=%u"
+      " cnt_signals_per_inner_loop=%u"
+      " pct_force=%u"
+      "\n",
+      argv[0], cnt_seconds, cnt_threads, cnt_transporters, cnt_inner_loops,
+      cnt_signals_before_consume, cnt_signals_per_inner_loop, pct_force);
 
   Uint32 loop = 0;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
-  while (NdbTick_Elapsed(start,NdbTick_getCurrentTicks()).seconds() <= cnt_seconds)
-  {
-    printf("%u ", loop++); fflush(stdout);
-    if ((loop < 100 && (loop % 25) == 0) ||
-        (loop >= 100 && (loop % 20) == 0))
+  while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() <=
+         cnt_seconds) {
+    printf("%u ", loop++);
+    fflush(stdout);
+    if ((loop < 100 && (loop % 25) == 0) || (loop >= 100 && (loop % 20) == 0))
       printf("\n");
 
-    for (unsigned t = 0; t < cnt_threads; t++)
-    {
-      rep.t[t].t.thread = NdbThread_Create(thread_main,
-                                           (void**)&rep.t[t].t,
-                                           1024*1024,
-                                           "execute thread",
-                                           NDB_THREAD_PRIO_MEAN);
+    for (unsigned t = 0; t < cnt_threads; t++) {
+      rep.t[t].t.thread =
+          NdbThread_Create(thread_main, (void **)&rep.t[t].t, 1024 * 1024,
+                           "execute thread", NDB_THREAD_PRIO_MEAN);
     }
 
-    for (unsigned t = 0; t < cnt_threads; t++)
-    {
-      void * ret;
+    for (unsigned t = 0; t < cnt_threads; t++) {
+      void *ret;
       NdbThread_WaitFor(rep.t[t].t.thread, &ret);
       NdbThread_Destroy(&rep.t[t].t.thread);
     }
   }
-  printf("\n"); fflush(stdout);
+  printf("\n");
+  fflush(stdout);
 
   ok(true, "ok");
   return 0;
 }
 
-inline
-void
-Producer::produce(unsigned D)
-{
-  if (!pendingmask.get(D))
-  {
+inline void Producer::produce(unsigned D) {
+  if (!pendingmask.get(D)) {
     pendingmask.set(D);
     pendinglist[pendingcount] = D;
     pendingcount++;
@@ -421,16 +377,12 @@ Producer::produce(unsigned D)
   val[D]++;
 }
 
-inline
-void
-Producer::consume(bool force)
-{
+inline void Producer::consume(bool force) {
   unsigned count = pendingcount;
   pendingmask.clear();
   pendingcount = 0;
 
-  for (unsigned i = 0; i < count; i++)
-  {
+  for (unsigned i = 0; i < count; i++) {
     unsigned D = pendinglist[i];
     if (force)
       rep.c[D].c.forceConsume(D);
@@ -439,19 +391,14 @@ Producer::consume(bool force)
   }
 }
 
-inline
-void
-Consumer::consume(unsigned D)
-{
+inline void Consumer::consume(unsigned D) {
   /**
    * This is the equivalent of do_send(must_send = 1)
    */
   m_force_send = 1;
 
-  do
-  {
-    if (trylock(&m_send_lock) != 0)
-    {
+  do {
+    if (trylock(&m_send_lock) != 0) {
       /* Other thread will send for us as we set m_force_send. */
       return;
     }
@@ -472,16 +419,14 @@ Consumer::consume(unsigned D)
     /**
      * This is the equivalent of link_thread_send_buffers
      */
-    for (unsigned i = 0; i < cnt_threads; i++)
-    {
+    for (unsigned i = 0; i < cnt_threads; i++) {
       val[i] = rep.t[i].t.p.val[D];
     }
 
     /**
      * Do a syscall...which could have affect on barriers...etc
      */
-    if (DO_SYSCALL)
-    {
+    if (DO_SYSCALL) {
       NdbTick_getCurrentTicks();
     }
 
@@ -491,20 +436,15 @@ Consumer::consume(unsigned D)
 #else
     mb();
 #endif
-  }
-  while (m_force_send != 0);
+  } while (m_force_send != 0);
 }
 
-inline
-void
-Consumer::forceConsume(unsigned D)
-{
+inline void Consumer::forceConsume(unsigned D) {
   /**
    * This is the equivalent of forceSend()
    */
 
-  do
-  {
+  do {
     /**
      * NOTE: since we unconditionally lock m_send_lock
      *   we don't need a mb() after the clearing of m_force_send here.
@@ -516,16 +456,14 @@ Consumer::forceConsume(unsigned D)
     /**
      * This is the equivalent of link_thread_send_buffers
      */
-    for (unsigned i = 0; i < cnt_threads; i++)
-    {
+    for (unsigned i = 0; i < cnt_threads; i++) {
       val[i] = rep.t[i].t.p.val[D];
     }
 
     /**
      * Do a syscall...which could have affect on barriers...etc
      */
-    if (DO_SYSCALL)
-    {
+    if (DO_SYSCALL) {
       NdbTick_getCurrentTicks();
     }
 
@@ -535,59 +473,40 @@ Consumer::forceConsume(unsigned D)
 #else
     mb();
 #endif
-  }
-  while (m_force_send != 0);
+  } while (m_force_send != 0);
 }
 
-void
-Test::wait_started()
-{
+void Test::wait_started() {
   NdbMutex_Lock(mutex);
-  if (waiting_start + 1 == cnt_threads)
-  {
+  if (waiting_start + 1 == cnt_threads) {
     waiting_stop = 0;
   }
   waiting_start++;
   assert(waiting_start <= cnt_threads);
-  while (waiting_start < cnt_threads)
-    NdbCondition_Wait(cond, mutex);
+  while (waiting_start < cnt_threads) NdbCondition_Wait(cond, mutex);
 
   NdbCondition_Broadcast(cond);
   NdbMutex_Unlock(mutex);
 }
 
-void
-Test::wait_completed()
-{
+void Test::wait_completed() {
   NdbMutex_Lock(mutex);
-  if (waiting_stop + 1 == cnt_threads)
-  {
+  if (waiting_stop + 1 == cnt_threads) {
     rep.validate();
     waiting_start = 0;
   }
   waiting_stop++;
   assert(waiting_stop <= cnt_threads);
-  while (waiting_stop < cnt_threads)
-    NdbCondition_Wait(cond, mutex);
+  while (waiting_stop < cnt_threads) NdbCondition_Wait(cond, mutex);
 
   NdbCondition_Broadcast(cond);
   NdbMutex_Unlock(mutex);
 }
 
-static
-void
-register_lock(const void * ptr, const char * name)
-{
-  return;
-}
+static void register_lock(const void *ptr, const char *name) { return; }
 
 #if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
-static
-mt_lock_stat *
-lookup_lock(const void * ptr)
-{
-  return 0;
-}
+static mt_lock_stat *lookup_lock(const void *ptr) { return 0; }
 #endif
 
 #endif

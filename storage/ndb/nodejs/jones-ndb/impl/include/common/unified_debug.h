@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2012, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -28,28 +28,28 @@
 #include <assert.h>
 #include "adapter_global.h"
 
-/* Unified debugging library for C++ and JavaScript. 
-   JavaScript code can control debugging output. 
+/* Unified debugging library for C++ and JavaScript.
+   JavaScript code can control debugging output.
    C++ and JavaScript can both create messages.
-   Debugging can be enabled or disabled for individual source files. 
+   Debugging can be enabled or disabled for individual source files.
    (The implementation takes a hash of the filename and looks up a single
     bit in a bitmask indexes.  Hash collisions are possible.)
 */
 
 enum {
-  UDEB_OFF      = 0,
-  UDEB_URGENT   = 1,
-  UDEB_NOTICE   = 2,
-  UDEB_INFO     = 3,
-  UDEB_DEBUG    = 4,
-  UDEB_DETAIL   = 5
+  UDEB_OFF = 0,
+  UDEB_URGENT = 1,
+  UDEB_NOTICE = 2,
+  UDEB_INFO = 3,
+  UDEB_DEBUG = 4,
+  UDEB_DETAIL = 5
 };
 
 #define UDEB_SOURCE_FILE_BITMASK_BYTES 2048
 #define UDEB_SOURCE_FILE_BITMASK_BITS (8 * 2048)
 
 #ifdef __cplusplus
-#define DECLARE_FUNCTIONS_WITH_C_LINKAGE extern "C" { 
+#define DECLARE_FUNCTIONS_WITH_C_LINKAGE extern "C" {
 #define END_FUNCTIONS_WITH_C_LINKAGE }
 #else
 #define DECLARE_FUNCTIONS_WITH_C_LINKAGE
@@ -57,7 +57,6 @@ enum {
 #endif
 
 DECLARE_FUNCTIONS_WITH_C_LINKAGE
-
 
 /* Macros in the Public API:
  *
@@ -67,8 +66,7 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
  * DEBUG_LEAVE()                : leave a function (DEBUG level)
  * DEBUG_MARKER()               : automatic enter & leave for C++ code
  *
-*/
-
+ */
 
 void udeb_print(const char *, int level, const char *fmt, ...)
 #ifdef __GNUC__
@@ -86,39 +84,45 @@ inline void udeb_leave(int level, const char *src_path, const char *function) {
 
 void udeb_enter(int, const char *, const char *, int);
 
-
 END_FUNCTIONS_WITH_C_LINKAGE
-
 
 /* The C-style API uses macros. DEBUG_ENTER(), DEBUG_PRINT(), DEBUG_TRACE().
    There is also a macro wrapper for the C++ marker.
-*/   
+*/
 #ifdef UNIFIED_DEBUG
 extern int uni_debug;
 
-#define DEBUG_ENTER()    if(uni_debug) udeb_enter(UDEB_DEBUG, __FILE__, __func__, __LINE__)
-#define DEBUG_PRINT(...) if(uni_debug) udeb_print(__FILE__, UDEB_DEBUG, __VA_ARGS__)
-#define DEBUG_PRINT_DETAIL(...) if(uni_debug) udeb_print(__FILE__, UDEB_DETAIL, __VA_ARGS__)
-#define DEBUG_PRINT_INFO(...) if(uni_debug) udeb_print(__FILE__, UDEB_INFO, __VA_ARGS__)
-#define DEBUG_TRACE()    if(uni_debug) udeb_trace(__FILE__, __LINE__)
-#define DEBUG_LEAVE()    if(uni_debug) udeb_leave(UDEB_DEBUG, __FILE__, __func__)
-#define DEBUG_MARKER(lvl)  u_DebugMarker _dm( __FILE__, __func__, __LINE__, lvl)
+#define DEBUG_ENTER() \
+  if (uni_debug) udeb_enter(UDEB_DEBUG, __FILE__, __func__, __LINE__)
+#define DEBUG_PRINT(...) \
+  if (uni_debug) udeb_print(__FILE__, UDEB_DEBUG, __VA_ARGS__)
+#define DEBUG_PRINT_DETAIL(...) \
+  if (uni_debug) udeb_print(__FILE__, UDEB_DETAIL, __VA_ARGS__)
+#define DEBUG_PRINT_INFO(...) \
+  if (uni_debug) udeb_print(__FILE__, UDEB_INFO, __VA_ARGS__)
+#define DEBUG_TRACE() \
+  if (uni_debug) udeb_trace(__FILE__, __LINE__)
+#define DEBUG_LEAVE() \
+  if (uni_debug) udeb_leave(UDEB_DEBUG, __FILE__, __func__)
+#define DEBUG_MARKER(lvl) u_DebugMarker _dm(__FILE__, __func__, __LINE__, lvl)
 #define DEBUG_ASSERT(x) assert(x)
 
 /* For a C++ API, you can declare a DEBUG_MARKER() on the stack in any scope.
-   Its constructor will write a message when the scope is entered, 
+   Its constructor will write a message when the scope is entered,
    and its destructor will write a message when the scope is exited.
 */
 #ifdef __cplusplus
 class u_DebugMarker {
-public:
+ public:
   const char *sfile, *sfunc;
   int level;
-  u_DebugMarker(const char *sfl, const char * sfn, int ln, int l=UDEB_DEBUG) : 
-    sfile(sfl), sfunc(sfn), level(l)  { 
-      if(uni_debug) udeb_enter(level, sfile, sfunc, ln); 
-    }
-  ~u_DebugMarker()          { if(uni_debug) udeb_leave(level, sfile, sfunc); }
+  u_DebugMarker(const char *sfl, const char *sfn, int ln, int l = UDEB_DEBUG)
+      : sfile(sfl), sfunc(sfn), level(l) {
+    if (uni_debug) udeb_enter(level, sfile, sfunc, ln);
+  }
+  ~u_DebugMarker() {
+    if (uni_debug) udeb_leave(level, sfile, sfunc);
+  }
 };
 #endif
 
@@ -139,5 +143,3 @@ public:
 #define UDEB_MSG_BUF 8000
 
 #endif
-
-

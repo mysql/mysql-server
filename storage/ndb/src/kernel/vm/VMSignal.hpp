@@ -25,36 +25,34 @@
 #ifndef VMSignal_H
 #define VMSignal_H
 
+#include <kernel_types.h>
 #include <ndb_global.h>
 #include <ndb_limits.h>
-#include <kernel_types.h>
 
 #include <ErrorReporter.hpp>
 #include <NodeBitmask.hpp>
 
 #include <RefConvert.hpp>
-#include <TransporterDefinitions.hpp>
 #include <SignalCounter.hpp>
+#include <TransporterDefinitions.hpp>
 
 #define JAM_FILE_ID 314
 
-
 extern void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 
-struct SectionHandle
-{
-  SectionHandle (class SimulatedBlock*);
-  SectionHandle (class SimulatedBlock*, Uint32 ptrI);
-  SectionHandle (class SimulatedBlock*, class Signal*);
-  ~SectionHandle ();
+struct SectionHandle {
+  SectionHandle(class SimulatedBlock *);
+  SectionHandle(class SimulatedBlock *, Uint32 ptrI);
+  SectionHandle(class SimulatedBlock *, class Signal *);
+  ~SectionHandle();
 
   Uint32 m_cnt;
   SegmentedSectionPtr m_ptr[3];
 
-  [[nodiscard]] bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
-  void clear() { m_cnt = 0;}
+  [[nodiscard]] bool getSection(SegmentedSectionPtr &ptr, Uint32 sectionNo);
+  void clear() { m_cnt = 0; }
 
-  SimulatedBlock* m_block;
+  SimulatedBlock *m_block;
 };
 
 /**
@@ -66,15 +64,15 @@ struct NodeReceiverGroup {
   NodeReceiverGroup(Uint32 blockNo, const NodeBitmask &);
   NodeReceiverGroup(Uint32 blockNo, const NdbNodeBitmask &);
   NodeReceiverGroup(Uint32 blockNo, const class SignalCounter &);
-  
-  NodeReceiverGroup& operator=(BlockReference ref);
-  
+
+  NodeReceiverGroup &operator=(BlockReference ref);
+
   Uint32 m_block;
   NodeBitmask m_nodes;
 };
 
-template <unsigned T> struct SignalT
-{
+template <unsigned T>
+struct SignalT {
   Uint32 m_sectionPtrI[3];
   SignalHeader header;
   union {
@@ -84,7 +82,7 @@ template <unsigned T> struct SignalT
 
   Uint32 getLength() const { return header.theLength; }
   Uint32 getTrace() const { return header.theTrace; }
-  Uint32* getDataPtrSend() { return &theData[0]; }
+  Uint32 *getDataPtrSend() { return &theData[0]; }
   Uint32 getNoOfSections() const { return header.m_noOfSections; }
 };
 
@@ -97,17 +95,18 @@ class Signal {
   friend class SimulatedBlock;
   friend class APZJobBuffer;
   friend class FastScheduler;
-public:
+
+ public:
   Signal();
-  
+
   Uint32 getLength() const;
   Uint32 getTrace() const;
   Uint32 getSendersBlockRef() const;
   Uint32 getSignalId() const;
 
-  const Uint32* getDataPtr() const ;
-  Uint32* getDataPtrSend() ;
-  
+  const Uint32 *getDataPtr() const;
+  Uint32 *getDataPtrSend();
+
   void setTrace(Uint32);
 
   Uint32 getNoOfSections() const;
@@ -115,173 +114,113 @@ public:
   /**
    * Old deprecated methods...
    */
-  Uint32 length() const { return getLength();}
-  BlockReference senderBlockRef() const { return getSendersBlockRef();}
+  Uint32 length() const { return getLength(); }
+  BlockReference senderBlockRef() const { return getSendersBlockRef(); }
 
   void setLength(Uint32);
-  
-public:
 
+ public:
   Uint32 m_sectionPtrI[3];
-  SignalHeader header; // 28 bytes
+  SignalHeader header;  // 28 bytes
   union {
     Uint32 theData[8192];  // 8192 32-bit words -> 32K Bytes
     Uint64 dummyAlign;
   };
   /**
-   * A counter used to count extra signals executed as direct signals to ensure we use
-   * proper means for how often to send and flush.
+   * A counter used to count extra signals executed as direct signals to ensure
+   * we use proper means for how often to send and flush.
    */
   Uint32 m_extra_signals;
   void garbage_register();
 };
 
-template<Uint32 len>
-class SaveSignal 
-{
+template <Uint32 len>
+class SaveSignal {
   Uint32 m_copy[len];
-  Signal * m_signal;
+  Signal *m_signal;
 
-public:
-  SaveSignal(Signal* signal) {
-    save(signal);
-  }
+ public:
+  SaveSignal(Signal *signal) { save(signal); }
 
-  void save(Signal* signal) {
+  void save(Signal *signal) {
     m_signal = signal;
-    for (Uint32 i = 0; i<len; i++)
-      m_copy[i] = m_signal->theData[i];
+    for (Uint32 i = 0; i < len; i++) m_copy[i] = m_signal->theData[i];
   }
 
-  void clear() { m_signal = 0;}
+  void clear() { m_signal = 0; }
 
   void restore() {
-    for (Uint32 i = 0; i<len; i++)
-      m_signal->theData[i] = m_copy[i];
+    for (Uint32 i = 0; i < len; i++) m_signal->theData[i] = m_copy[i];
   }
 
   ~SaveSignal() {
-    if (m_signal)
-      restore();
+    if (m_signal) restore();
     clear();
   }
 };
 
-inline
-Uint32
-Signal::getLength() const {
-  return header.theLength;
-}
+inline Uint32 Signal::getLength() const { return header.theLength; }
 
-inline
-Uint32
-Signal::getSignalId() const
-{
-  return header.theSignalId;
-}
+inline Uint32 Signal::getSignalId() const { return header.theSignalId; }
 
-inline
-Uint32
-Signal::getTrace() const {
-  return header.theTrace;
-}
+inline Uint32 Signal::getTrace() const { return header.theTrace; }
 
-inline
-Uint32
-Signal::getSendersBlockRef() const {
+inline Uint32 Signal::getSendersBlockRef() const {
   return header.theSendersBlockRef;
 }
 
-inline
-const Uint32* 
-Signal::getDataPtr() const { 
-  return &theData[0];
-}
+inline const Uint32 *Signal::getDataPtr() const { return &theData[0]; }
 
-inline
-Uint32* 
-Signal::getDataPtrSend() { 
-  return &theData[0];
-}
+inline Uint32 *Signal::getDataPtrSend() { return &theData[0]; }
 
-inline
-void
-Signal::setLength(Uint32 len){
-  header.theLength = len;
-}
+inline void Signal::setLength(Uint32 len) { header.theLength = len; }
 
-inline
-void
-Signal::setTrace(Uint32 t){
-  header.theTrace = t;
-}
+inline void Signal::setTrace(Uint32 t) { header.theTrace = t; }
 
-inline
-Uint32 
-Signal::getNoOfSections() const {
-  return header.m_noOfSections;
-}
+inline Uint32 Signal::getNoOfSections() const { return header.m_noOfSections; }
 
-inline
-NodeReceiverGroup::NodeReceiverGroup() : m_block(0){
-  m_nodes.clear();
-}
+inline NodeReceiverGroup::NodeReceiverGroup() : m_block(0) { m_nodes.clear(); }
 
-inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockRef){
+inline NodeReceiverGroup::NodeReceiverGroup(Uint32 blockRef) {
   m_nodes.clear();
   m_block = refToBlock(blockRef);
   m_nodes.set(refToNode(blockRef));
 }
 
-inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
-				     const NodeBitmask & nodes)
-{
+inline NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo,
+                                            const NodeBitmask &nodes) {
   m_block = blockNo;
   m_nodes = nodes;
 }
 
-inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
-				     const NdbNodeBitmask & nodes)
-{
+inline NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo,
+                                            const NdbNodeBitmask &nodes) {
   m_block = blockNo;
   m_nodes = nodes;
 }
 
-inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
-				     const SignalCounter & nodes){
+inline NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo,
+                                            const SignalCounter &nodes) {
   m_block = blockNo;
   m_nodes = nodes.m_nodes;
 }
 
-inline
-NodeReceiverGroup& 
-NodeReceiverGroup::operator=(BlockReference blockRef){
+inline NodeReceiverGroup &NodeReceiverGroup::operator=(
+    BlockReference blockRef) {
   m_nodes.clear();
   m_block = refToBlock(blockRef);
   m_nodes.set(refToNode(blockRef));
-  return * this;
+  return *this;
 }
 
-inline
-SectionHandle::SectionHandle(SimulatedBlock* b)
-  : m_cnt(0), 
-    m_block(b)
-{
-}
+inline SectionHandle::SectionHandle(SimulatedBlock *b) : m_cnt(0), m_block(b) {}
 
-inline
-SectionHandle::SectionHandle(SimulatedBlock* b, Signal* s)
-  : m_cnt(s->header.m_noOfSections),
-    m_block(b)
-{
-  Uint32 * ptr = s->m_sectionPtrI;
-  Uint32 ptr0 = * ptr++;
-  Uint32 ptr1 = * ptr++;
-  Uint32 ptr2 = * ptr++;
+inline SectionHandle::SectionHandle(SimulatedBlock *b, Signal *s)
+    : m_cnt(s->header.m_noOfSections), m_block(b) {
+  Uint32 *ptr = s->m_sectionPtrI;
+  Uint32 ptr0 = *ptr++;
+  Uint32 ptr1 = *ptr++;
+  Uint32 ptr2 = *ptr++;
 
   m_ptr[0].i = ptr0;
   m_ptr[1].i = ptr1;
@@ -292,21 +231,14 @@ SectionHandle::SectionHandle(SimulatedBlock* b, Signal* s)
   s->header.m_noOfSections = 0;
 }
 
-inline
-SectionHandle::SectionHandle(SimulatedBlock* b, Uint32 ptr)
-  : m_cnt(1),
-    m_block(b)
-{
+inline SectionHandle::SectionHandle(SimulatedBlock *b, Uint32 ptr)
+    : m_cnt(1), m_block(b) {
   m_ptr[0].i = ptr;
   getSections(1, m_ptr);
 }
 
-inline
-bool
-SectionHandle::getSection(SegmentedSectionPtr& ptr, Uint32 no)
-{
-  if (likely(no < m_cnt))
-  {
+inline bool SectionHandle::getSection(SegmentedSectionPtr &ptr, Uint32 no) {
+  if (likely(no < m_cnt)) {
     ptr = m_ptr[no];
     return true;
   }
@@ -314,17 +246,12 @@ SectionHandle::getSection(SegmentedSectionPtr& ptr, Uint32 no)
   return false;
 }
 
-inline
-SectionHandle::~SectionHandle()
-{
-  if (unlikely(m_cnt))
-  {
+inline SectionHandle::~SectionHandle() {
+  if (unlikely(m_cnt)) {
     ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
-                               "Unhandled sections(handle) after execute",
-                               "");
+                               "Unhandled sections(handle) after execute", "");
   }
 }
-
 
 #undef JAM_FILE_ID
 

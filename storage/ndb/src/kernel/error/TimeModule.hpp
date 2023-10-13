@@ -27,24 +27,23 @@
 
 #define JAM_FILE_ID 486
 
-
 class TimeModule {
-public:
+ public:
   TimeModule();
   ~TimeModule();
-  
-  void setTimeStamp();
-  
-  int getYear()              const;
-  int getMonthNumber()       const;
-  int getDayOfMonth()        const;
-  const char* getMonthName() const;
-  const char* getDayName()   const;
-  const char* getHour()      const;
-  const char* getMinute()    const;
-  const char* getSecond()    const;
 
-private:
+  void setTimeStamp();
+
+  int getYear() const;
+  int getMonthNumber() const;
+  int getDayOfMonth() const;
+  const char *getMonthName() const;
+  const char *getDayName() const;
+  const char *getHour() const;
+  const char *getMinute() const;
+  const char *getSecond() const;
+
+ private:
   int iYear;
   int iMonth;
   int iMonthDay;
@@ -53,7 +52,6 @@ private:
   int iMinute;
   int iSecond;
 };
-
 
 #undef JAM_FILE_ID
 

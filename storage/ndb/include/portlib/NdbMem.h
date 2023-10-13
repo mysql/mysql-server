@@ -27,7 +27,7 @@
 
 #include <ndb_global.h>
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -46,9 +46,9 @@ int NdbMem_MemUnlockAll(void);
 /**
  * Memlock region
  */
-int NdbMem_MemLock(const void * ptr, size_t len);
+int NdbMem_MemLock(const void *ptr, size_t len);
 
-int NdbMem_PopulateSpace(void* ptr, size_t len);
+int NdbMem_PopulateSpace(void *ptr, size_t len);
 
 #ifdef VM_TRACE
 
@@ -57,19 +57,19 @@ int NdbMem_PopulateSpace(void* ptr, size_t len);
  * memory nor on disk.
  */
 
-int NdbMem_ReserveSpace(void** ptr, size_t len);
-int NdbMem_FreeSpace(void* ptr, size_t len);
+int NdbMem_ReserveSpace(void **ptr, size_t len);
+int NdbMem_FreeSpace(void *ptr, size_t len);
 
 #endif
 
-void* NdbMem_AlignedAlloc(size_t alignment, size_t size);
-void NdbMem_AlignedFree(void* p);
+void *NdbMem_AlignedAlloc(size_t alignment, size_t size);
+void NdbMem_AlignedFree(void *p);
 
 size_t NdbMem_GetSystemPageSize();
 
-void NdbMem_SecureClear(void* ptr, size_t len);
+void NdbMem_SecureClear(void *ptr, size_t len);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

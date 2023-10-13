@@ -23,24 +23,24 @@
 */
 
 #include "restore.hpp"
-#include <signaldata/FsRef.hpp>
-#include <signaldata/FsConf.hpp>
-#include <signaldata/FsOpenReq.hpp>
-#include <signaldata/FsCloseReq.hpp>
-#include <signaldata/FsReadWriteReq.hpp>
-#include <signaldata/FsRemoveReq.hpp>
-#include <signaldata/RestoreImpl.hpp>
-#include <signaldata/DictTabInfo.hpp>
-#include <signaldata/KeyInfo.hpp>
-#include <signaldata/AttrInfo.hpp>
-#include <signaldata/LqhKey.hpp>
 #include <AttributeHeader.hpp>
-#include <md5_hash.hpp>
+#include <KeyDescriptor.hpp>
 #include <backup/Backup.hpp>
 #include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
-#include <KeyDescriptor.hpp>
+#include <md5_hash.hpp>
+#include <signaldata/AttrInfo.hpp>
+#include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/FsCloseReq.hpp>
+#include <signaldata/FsConf.hpp>
+#include <signaldata/FsOpenReq.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsRef.hpp>
+#include <signaldata/FsRemoveReq.hpp>
+#include <signaldata/KeyInfo.hpp>
+#include <signaldata/LqhKey.hpp>
+#include <signaldata/RestoreImpl.hpp>
 
 #include <NdbTick.h>
 #include <EventLogger.hpp>
@@ -59,51 +59,91 @@
 #endif
 
 #ifdef DEBUG_START_RES
-#define DEB_START_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_START_RES(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_START_RES(arglist) do { } while (0)
+#define DEB_START_RES(arglist) \
+  do {                         \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES
-#define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES(arglist)         \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_RES(arglist) do { } while (0)
+#define DEB_RES(arglist) \
+  do {                   \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES_OPEN
-#define DEB_RES_OPEN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES_OPEN(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_RES_OPEN(arglist) do { } while (0)
+#define DEB_RES_OPEN(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES_PARTS
-#define DEB_RES_PARTS(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES_PARTS(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_RES_PARTS(arglist) do { } while (0)
+#define DEB_RES_PARTS(arglist) \
+  do {                         \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES_STAT
-#define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES_STAT(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_RES_STAT(arglist) do { } while (0)
+#define DEB_RES_STAT(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES_STAT_EXTRA
-#define DEB_RES_STAT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES_STAT_EXTRA(arglist) \
+  do {                              \
+    g_eventLogger->info arglist;    \
+  } while (0)
 #else
-#define DEB_RES_STAT_EXTRA(arglist) do { } while (0)
+#define DEB_RES_STAT_EXTRA(arglist) \
+  do {                              \
+  } while (0)
 #endif
 
 #ifdef DEBUG_RES_DEL
-#define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_RES_DEL(arglist)     \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_RES_DEL(arglist) do { } while (0)
+#define DEB_RES_DEL(arglist) \
+  do {                       \
+  } while (0)
 #endif
 
 #ifdef DEBUG_HIGH_RES
-#define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEB_HIGH_RES(arglist)    \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
-#define DEB_HIGH_RES(arglist) do { } while (0)
+#define DEB_HIGH_RES(arglist) \
+  do {                        \
+  } while (0)
 #endif
 
 /**
@@ -115,26 +155,22 @@
 
 #define PAGES LCP_RESTORE_BUFFER
 
-Restore::Restore(Block_context& ctx,
-                 Uint32 instanceNumber,
-                 Uint32 blockNo) :
-  SimulatedBlock(blockNo, ctx, instanceNumber),
-  m_file_list(m_file_pool),
-  m_file_hash(m_file_pool),
-  m_rows_restored(0),
-  m_millis_spent(0),
-  m_frags_restored(0)
-{
+Restore::Restore(Block_context &ctx, Uint32 instanceNumber, Uint32 blockNo)
+    : SimulatedBlock(blockNo, ctx, instanceNumber),
+      m_file_list(m_file_pool),
+      m_file_hash(m_file_pool),
+      m_rows_restored(0),
+      m_millis_spent(0),
+      m_frags_restored(0) {
   BLOCK_CONSTRUCTOR(Restore);
-  
+
   // Add received signals
-  if (blockNo == RESTORE)
-  {
+  if (blockNo == RESTORE) {
     addRecSignal(GSN_STTOR, &Restore::execSTTOR);
     addRecSignal(GSN_DUMP_STATE_ORD, &Restore::execDUMP_STATE_ORD);
     addRecSignal(GSN_CONTINUEB, &Restore::execCONTINUEB);
     addRecSignal(GSN_READ_CONFIG_REQ, &Restore::execREAD_CONFIG_REQ, true);
-  
+
     addRecSignal(GSN_RESTORE_LCP_REQ, &Restore::execRESTORE_LCP_REQ);
 
     addRecSignal(GSN_FSOPENREF, &Restore::execFSOPENREF, true);
@@ -151,9 +187,7 @@ Restore::Restore(Block_context& ctx,
     addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
     m_is_query_block = false;
     m_lqh_block = DBLQH;
-  }
-  else
-  {
+  } else {
     ndbrequire(blockNo == QRESTORE);
     m_is_query_block = true;
     m_lqh_block = DBQLQH;
@@ -161,7 +195,7 @@ Restore::Restore(Block_context& ctx,
     addRecSignal(GSN_DUMP_STATE_ORD, &Restore::execDUMP_STATE_ORD);
     addRecSignal(GSN_CONTINUEB, &Restore::execCONTINUEB);
     addRecSignal(GSN_READ_CONFIG_REQ, &Restore::execREAD_CONFIG_REQ, true);
- 
+
     addRecSignal(GSN_RESTORE_LCP_REQ, &Restore::execRESTORE_LCP_REQ);
     addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
     addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
@@ -178,60 +212,49 @@ Restore::Restore(Block_context& ctx,
   }
   ndbrequire(sizeof(Column) == 8);
 }
-  
-Restore::~Restore()
-{
-}
+
+Restore::~Restore() {}
 
 BLOCK_FUNCTIONS(Restore)
 
-void
-Restore::execSTTOR(Signal* signal) 
-{
-  jamEntry();                            
+void Restore::execSTTOR(Signal *signal) {
+  jamEntry();
 
-  if (m_is_query_block)
-  {
-    c_lqh = (Dblqh*)globalData.getBlock(DBQLQH, instance());
-    c_tup = (Dbtup*)globalData.getBlock(DBQTUP, instance());
-    c_backup = (Backup*)globalData.getBlock(QBACKUP, instance());
-    ndbrequire(c_lqh != 0 &&
-               c_tup != 0 &&
-               c_backup != 0);
-  }
-  else
-  {
-    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
-    c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
+  if (m_is_query_block) {
+    c_lqh = (Dblqh *)globalData.getBlock(DBQLQH, instance());
+    c_tup = (Dbtup *)globalData.getBlock(DBQTUP, instance());
+    c_backup = (Backup *)globalData.getBlock(QBACKUP, instance());
+    ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
+  } else {
+    c_lqh = (Dblqh *)globalData.getBlock(DBLQH, instance());
+    c_tup = (Dbtup *)globalData.getBlock(DBTUP, instance());
+    c_backup = (Backup *)globalData.getBlock(BACKUP, instance());
     ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
   }
   sendSTTORRY(signal);
   return;
-}//Restore::execNDB_STTOR()
+}  // Restore::execNDB_STTOR()
 
-void
-Restore::execREAD_CONFIG_REQ(Signal* signal)
-{
+void Restore::execREAD_CONFIG_REQ(Signal *signal) {
   jamEntry();
-  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
   Uint32 ref = req->senderRef;
   Uint32 senderData = req->senderData;
   ndbrequire(req->noOfParameters == 0);
 
-  const ndb_mgm_configuration_iterator * p = 
-    m_ctx.m_config.getOwnConfigIterator();
+  const ndb_mgm_configuration_iterator *p =
+      m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 encrypted_filesystem = 0;
-  ndb_mgm_get_int_parameter(
-      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM,
+                            &encrypted_filesystem);
   c_encrypted_filesystem = encrypted_filesystem;
 
   m_file_pool.setSize(1);
-  Uint32 cnt = 2*MAX_ATTRIBUTES_IN_TABLE;
+  Uint32 cnt = 2 * MAX_ATTRIBUTES_IN_TABLE;
   cnt += PAGES;
-  cnt += List::getSegmentSize()-1;
+  cnt += List::getSegmentSize() - 1;
   cnt /= List::getSegmentSize();
   cnt += 2;
   m_databuffer_pool.setSize(cnt);
@@ -245,85 +268,72 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
   bat[0].WA = &m_lcp_ctl_file_data[0][0];
   bat[0].nrr = 2 * (4 * BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS);
 
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  ReadConfigConf *conf = (ReadConfigConf *)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
-	     ReadConfigConf::SignalLength, JBB);
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, ReadConfigConf::SignalLength,
+             JBB);
 }
 
-void
-Restore::sendSTTORRY(Signal* signal){
+void Restore::sendSTTORRY(Signal *signal) {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 255; // No more start phases from missra
-  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF :
-                           m_is_query_block ? QRESTORE_REF : RESTORE_REF;
+  signal->theData[4] = 255;  // No more start phases from missra
+  BlockReference cntrRef = !isNdbMtLqh()
+                               ? NDBCNTR_REF
+                               : m_is_query_block ? QRESTORE_REF : RESTORE_REF;
   sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
 }
 
-void
-Restore::execCONTINUEB(Signal* signal){
+void Restore::execCONTINUEB(Signal *signal) {
   jamEntry();
 
-  switch(signal->theData[0]){
-  case RestoreContinueB::RESTORE_NEXT:
-  {
-    FilePtr file_ptr;
-    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
-    restore_next(signal, file_ptr);
-    return;
-  }
-  case RestoreContinueB::READ_FILE:
-  {
-    FilePtr file_ptr;
-    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
-    read_data_file(signal, file_ptr);
-    return;
-  }
-  case RestoreContinueB::CHECK_EXPAND_SHRINK:
-  {
-    FilePtr file_ptr;
-    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
-    restore_lcp_conf(signal, file_ptr);
-    return;
-  }
-  default:
-    ndbabort();
+  switch (signal->theData[0]) {
+    case RestoreContinueB::RESTORE_NEXT: {
+      FilePtr file_ptr;
+      ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
+      restore_next(signal, file_ptr);
+      return;
+    }
+    case RestoreContinueB::READ_FILE: {
+      FilePtr file_ptr;
+      ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
+      read_data_file(signal, file_ptr);
+      return;
+    }
+    case RestoreContinueB::CHECK_EXPAND_SHRINK: {
+      FilePtr file_ptr;
+      ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
+      restore_lcp_conf(signal, file_ptr);
+      return;
+    }
+    default:
+      ndbabort();
   }
 }
 
-void
-Restore::execDUMP_STATE_ORD(Signal* signal){
+void Restore::execDUMP_STATE_ORD(Signal *signal) {
   jamEntry();
 
-  if (signal->theData[0] == DumpStateOrd::RestoreRates)
-  {
+  if (signal->theData[0] == DumpStateOrd::RestoreRates) {
     jam();
-    Uint64 rate = m_rows_restored * 1000 /
-      (m_millis_spent == 0? 1: m_millis_spent);
+    Uint64 rate =
+        m_rows_restored * 1000 / (m_millis_spent == 0 ? 1 : m_millis_spent);
     const char *thread_type = "LDM";
-    if (m_is_query_block)
-    {
+    if (m_is_query_block) {
       thread_type = "Recover";
     }
 
-    g_eventLogger->info("%s instance %u: Restored LCP : %u fragments,"
-                        " %llu rows, " 
-                        "%llu millis, %llu rows/s",
-                        thread_type,
-                        instance(),
-                        m_frags_restored, 
-                        m_rows_restored,
-                        m_millis_spent,
-                        rate);
-    infoEvent("LDM instance %u: Restored LCP : %u fragments, %llu rows, " 
-              "%llu millis, %llu rows/s",
-              instance(),
-              m_frags_restored, 
-              m_rows_restored,
-              m_millis_spent,
-              rate);
+    g_eventLogger->info(
+        "%s instance %u: Restored LCP : %u fragments,"
+        " %llu rows, "
+        "%llu millis, %llu rows/s",
+        thread_type, instance(), m_frags_restored, m_rows_restored,
+        m_millis_spent, rate);
+    infoEvent(
+        "LDM instance %u: Restored LCP : %u fragments, %llu rows, "
+        "%llu millis, %llu rows/s",
+        instance(), m_frags_restored, m_rows_restored, m_millis_spent, rate);
   }
 }
 
@@ -347,7 +357,7 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  *    This case is perfectly normal but unusual. It happens when
  *    we had a crash before completing the removal of the old
  *    LCP control file.
- * 
+ *
  *    In this case we can either have two valid
  *    LCP control files or one valid and one invalid.
  *
@@ -417,11 +427,11 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  * if no LCP files were found. If LCP files were found we move to
  * REMOVE_LCP_DATA_FILE if data files to delete was present, next we
  * move to REMOVE_LCP_CTL_FILE if necessary to remove a CTL file.
- * 
+ *
  * Finally we move to restore using one or more data files. We restore
  * one file at a time using the state variables described above for
  * handling the data file.
- * 
+ *
  * m_outstanding_reads:
  * --------------------
  * Used during read of data file to keep track of number of outstanding
@@ -685,7 +695,7 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  *    invalid LCP control file here after the first LCP have been
  *    completed.
  *    This is Case 1) and 2) above.
- * 
+ *
  * 4) Two valid control files. In this case all the data files present
  *    in any of the control files can be present. There could however
  *    be ones missing since we could be in the process of deleting an
@@ -750,49 +760,41 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  * that are restorable. So this LCP isn't usable in a system restart. It will
  * still be usable in a node restart however.
  */
-void
-Restore::execFSREMOVEREF(Signal *signal)
-{
+void Restore::execFSREMOVEREF(Signal *signal) {
   jamEntry();
-  FsRef * ref = (FsRef*)signal->getDataPtr();
+  FsRef *ref = (FsRef *)signal->getDataPtr();
   const Uint32 ptrI = ref->userPointer;
-  FsConf * conf = (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   conf->userPointer = ptrI;
   execFSREMOVECONF(signal);
 }
 
-void
-Restore::execFSREMOVECONF(Signal *signal)
-{
+void Restore::execFSREMOVECONF(Signal *signal) {
   jamEntry();
-  FsConf * conf = (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   FilePtr file_ptr;
   ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_remove_old_file_done(signal, file_ptr);
 }
 
-void
-Restore::execFSWRITECONF(Signal *signal)
-{
+void Restore::execFSWRITECONF(Signal *signal) {
   jamEntry();
-  FsConf *conf = (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   FilePtr file_ptr;
   ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_create_ctl_done_write(signal, file_ptr);
 }
 
-void
-Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr) {
   file_ptr.p->m_ctl_file_no = 0;
   file_ptr.p->m_status = File::CREATE_CTL_FILE;
 
-  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  FsOpenReq *req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_CREATE;
 
   req->userPointer = file_ptr.i;
-  
+
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
   FsOpenReq::v5_setLcpNo(req->fileNumber, 0);
@@ -807,11 +809,9 @@ Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
-void
-Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr) {
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
-    (struct BackupFormat::LCPCtlFile*)&m_lcp_ctl_file_data[0][0];
+      (struct BackupFormat::LCPCtlFile *)&m_lcp_ctl_file_data[0][0];
 
   memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
 
@@ -846,8 +846,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
    *    and according to the non-presence of correct CTL files.
    */
   if (file_ptr.p->m_dih_lcp_no == ZNIL ||
-      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-  {
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
     /**
      * We have no checkpointed data file yet, so we will write an initial
      * LCP control file. This could be either upgrade case or not.
@@ -860,9 +859,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
     lcpCtlFilePtr->LcpId = 0;
     lcpCtlFilePtr->LocalLcpId = 0;
     lcpCtlFilePtr->MaxPageCount = 0;
-  }
-  else
-  {
+  } else {
     jam();
     /**
      * We have the upgrade case where DIH knows about a data file that there
@@ -871,8 +868,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
      * This is Case 4) above
      */
     ndbrequire(file_ptr.p->m_upgrade_case);
-    ndbrequire(file_ptr.p->m_dih_lcp_no == 0 ||
-               file_ptr.p->m_dih_lcp_no == 1);
+    ndbrequire(file_ptr.p->m_dih_lcp_no == 0 || file_ptr.p->m_dih_lcp_no == 1);
     lcpCtlFilePtr->ValidFlag = 1;
     lcpCtlFilePtr->CreateGci = file_ptr.p->m_create_gci;
     lcpCtlFilePtr->MaxGciWritten = file_ptr.p->m_restored_gcp_id;
@@ -892,9 +888,9 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
    * Since the LCP control file will only contain 1 part we are
    * certain that we will fit in the small LCP control file size.
    */
-  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr,
-                              BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL);
-  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  c_backup->convert_ctl_page_to_network(
+      (Uint32 *)lcpCtlFilePtr, BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL);
+  FsReadWriteReq *req = (FsReadWriteReq *)signal->getDataPtrSend();
 
   req->userPointer = file_ptr.i;
   req->filePointer = file_ptr.p->m_fd;
@@ -912,22 +908,17 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
   req->data.memoryAddress.fileOffset = 0;
   req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL;
 
-  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
-             FsReadWriteReq::FixedLength + 3, JBA);
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, FsReadWriteReq::FixedLength + 3,
+             JBA);
 }
 
-void
-Restore::lcp_create_ctl_done_write(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_create_ctl_done_write(Signal *signal, FilePtr file_ptr) {
   close_file(signal, file_ptr);
 }
 
-void
-Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr) {
   if (file_ptr.p->m_dih_lcp_no == ZNIL ||
-      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-  {
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
     /**
      * We have created an LCP control file, DIH knew not about any
      * recoverable LCP for this fragment. We have already removed
@@ -951,10 +942,7 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
     file_ptr.p->m_restored_local_lcp_id = 0;
     restore_lcp_conf(signal, file_ptr);
     return;
-  }
-  else if (file_ptr.p->m_dih_lcp_no == 0 ||
-           file_ptr.p->m_dih_lcp_no == 1)
-  {
+  } else if (file_ptr.p->m_dih_lcp_no == 0 || file_ptr.p->m_dih_lcp_no == 1) {
     /**
      * Case 4) Upgrade case
      * --------------------
@@ -965,71 +953,50 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
     jam();
     ndbrequire(file_ptr.p->m_upgrade_case);
     file_ptr.p->m_status = File::CREATE_CTL_FILE;
-    lcp_remove_old_file(signal,
-                        file_ptr,
-                        file_ptr.p->m_dih_lcp_no == 0 ? 1 : 0,
+    lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_dih_lcp_no == 0 ? 1 : 0,
                         false);
     return;
-  }
-  else
-  {
+  } else {
     ndbabort();
   }
 }
 
-void
-Restore::lcp_remove_old_file(Signal *signal,
-                                  FilePtr file_ptr,
-                                  Uint32 file_number,
-                                  bool is_ctl_file)
-{
+void Restore::lcp_remove_old_file(Signal *signal, FilePtr file_ptr,
+                                  Uint32 file_number, bool is_ctl_file) {
   file_ptr.p->m_outstanding_operations++;
-  FsRemoveReq * req = (FsRemoveReq*)signal->getDataPtrSend();
+  FsRemoveReq *req = (FsRemoveReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer = file_ptr.i;
   req->directory = 0;
   req->ownDirectory = 0;
   FsOpenReq::setVersion(req->fileNumber, 5);
-  if (is_ctl_file)
-  {
+  if (is_ctl_file) {
     jam();
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
-    DEB_RES(("(%u)tab(%u,%u) Delete control file number: %u",
-             instance(),
-             file_ptr.p->m_table_id,
-             file_ptr.p->m_fragment_id,
-             file_number));
-  }
-  else
-  {
+    DEB_RES(("(%u)tab(%u,%u) Delete control file number: %u", instance(),
+             file_ptr.p->m_table_id, file_ptr.p->m_fragment_id, file_number));
+  } else {
     jam();
-    DEB_RES(("tab(%u,%u) Delete data file number: %u",
-             file_ptr.p->m_table_id,
-             file_ptr.p->m_fragment_id,
-             file_number));
+    DEB_RES(("tab(%u,%u) Delete data file number: %u", file_ptr.p->m_table_id,
+             file_ptr.p->m_fragment_id, file_number));
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   }
   FsOpenReq::v5_setLcpNo(req->fileNumber, file_number);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
-  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal,
-             FsRemoveReq::SignalLength, JBA);
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, FsRemoveReq::SignalLength,
+             JBA);
 }
 
-void
-Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr) {
   ndbrequire(file_ptr.p->m_outstanding_operations > 0);
   file_ptr.p->m_outstanding_operations--;
-  if (file_ptr.p->m_outstanding_operations > 0)
-  {
+  if (file_ptr.p->m_outstanding_operations > 0) {
     jam();
     return;
   }
-  switch (file_ptr.p->m_status)
-  {
-    case File::CREATE_CTL_FILE:
-    {
+  switch (file_ptr.p->m_status) {
+    case File::CREATE_CTL_FILE: {
       /**
        * END of UPGRADE PATH
        * -------------------
@@ -1049,8 +1016,7 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
       start_restore_lcp_upgrade(signal, file_ptr);
       return;
     }
-    case File::REMOVE_LCP_DATA_FILE:
-    {
+    case File::REMOVE_LCP_DATA_FILE: {
       jam();
       /**
        * Case 3) completed data file removal
@@ -1063,38 +1029,27 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
       DEB_RES(("(%u)Case 3 discovered after remove", instance()));
       ndbrequire(file_ptr.p->m_num_remove_data_files > 0);
       file_ptr.p->m_num_remove_data_files--;
-      if (file_ptr.p->m_num_remove_data_files > 0)
-      {
+      if (file_ptr.p->m_num_remove_data_files > 0) {
         jam();
         if (file_ptr.p->m_remove_data_file_no ==
-            (file_ptr.p->m_old_max_files - 1))
-        {
+            (file_ptr.p->m_old_max_files - 1)) {
           jam();
           file_ptr.p->m_remove_data_file_no = 0;
-        }
-        else
-        {
+        } else {
           jam();
           file_ptr.p->m_remove_data_file_no++;
         }
-        lcp_remove_old_file(signal,
-                            file_ptr,
-                            file_ptr.p->m_remove_data_file_no,
+        lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_data_file_no,
                             false);
-      }
-      else
-      {
+      } else {
         jam();
         file_ptr.p->m_status = File::REMOVE_LCP_CTL_FILE;
-        lcp_remove_old_file(signal,
-                            file_ptr,
-                            file_ptr.p->m_remove_ctl_file_no,
+        lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_ctl_file_no,
                             true);
       }
       return;
     }
-    case File::REMOVE_LCP_CTL_FILE:
-    {
+    case File::REMOVE_LCP_CTL_FILE: {
       jam();
       /**
        * Case 3) is completed or Case 4 or Case 5) completed file removal
@@ -1105,8 +1060,7 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
        * 0 first.
        */
       DEB_RES(("(%u)start_restore_lcp", instance()));
-      if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-      {
+      if (file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
         jam();
         lcp_create_ctl_open(signal, file_ptr);
         return;
@@ -1114,25 +1068,22 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
       start_restore_lcp(signal, file_ptr);
       return;
     }
-    default:
-    {
+    default: {
       ndbabort();
       return;
     }
   }
 }
 
-void
-Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no)
-{
+void Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no) {
   /* Keep track of which ctl file we're currently dealing with. */
   file_ptr.p->m_ctl_file_no = lcp_no;
 
-  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  FsOpenReq *req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->fileFlags = FsOpenReq::OM_READONLY;
   req->userPointer = file_ptr.i;
-  
+
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcp_no);
@@ -1147,13 +1098,9 @@ Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
-void
-Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
-{
-  if (file_ptr.p->m_ctl_file_no == 1)
-  {
-    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-    {
+void Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr) {
+  if (file_ptr.p->m_ctl_file_no == 1) {
+    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
       jam();
       /**
        * Case 4) discovered
@@ -1177,29 +1124,23 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
        * a case where DIH thinks we have completed an LCP but we haven't
        * actually done so yet.
        */
-      if (file_ptr.p->m_upgrade_case)
-      {
+      if (file_ptr.p->m_upgrade_case) {
         jam();
         DEB_RES(("(%u)Case 4 with upgrade discovered", instance()));
         lcp_create_ctl_open(signal, file_ptr);
-      }
-      else
-      {
+      } else {
         jam();
         DEB_RES(("(%u)Case 4 without upgrade discovered", instance()));
         file_ptr.p->m_remove_ctl_file_no = 0;
         file_ptr.p->m_remove_data_file_no = 0;
-        file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
+        file_ptr.p->m_num_remove_data_files =
+            BackupFormat::NDB_MAX_FILES_PER_LCP;
         file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
-        lcp_remove_old_file(signal,
-                            file_ptr,
-                            file_ptr.p->m_remove_data_file_no,
+        lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_data_file_no,
                             false);
       }
       return;
-    }
-    else
-    {
+    } else {
       /**
        * Case 1) discovered
        * ------------------
@@ -1215,21 +1156,17 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
        */
       jam();
       DEB_RES(("(%u)Case 1 discovered", instance()));
-      DEB_RES(("(%u)Use ctl file: 0, 1 not exist, Lcp(%u,%u), GCI_C: %u,"
-               " GCI_W: %u, MPC: %u",
-                instance(),
-                file_ptr.p->m_restored_lcp_id,
-                file_ptr.p->m_restored_local_lcp_id,
-                file_ptr.p->m_max_gci_completed,
-                file_ptr.p->m_max_gci_written,
-                file_ptr.p->m_max_page_cnt));
+      DEB_RES(
+          ("(%u)Use ctl file: 0, 1 not exist, Lcp(%u,%u), GCI_C: %u,"
+           " GCI_W: %u, MPC: %u",
+           instance(), file_ptr.p->m_restored_lcp_id,
+           file_ptr.p->m_restored_local_lcp_id, file_ptr.p->m_max_gci_completed,
+           file_ptr.p->m_max_gci_written, file_ptr.p->m_max_page_cnt));
       ndbrequire(!file_ptr.p->m_found_not_restorable);
       start_restore_lcp(signal, file_ptr);
       return;
     }
-  }
-  else
-  {
+  } else {
     jam();
     ndbrequire(file_ptr.p->m_ctl_file_no == 0);
     /**
@@ -1242,17 +1179,15 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
   }
 }
 
-void
-Restore::calculate_remove_new_data_files(FilePtr file_ptr)
-{
+void Restore::calculate_remove_new_data_files(FilePtr file_ptr) {
   Uint32 new_ctl_no = file_ptr.p->m_remove_ctl_file_no;
   Uint32 old_ctl_no = new_ctl_no == 0 ? 1 : 0;
 
   ndbrequire(new_ctl_no < 2);
-  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[old_ctl_no][0];
-  BackupFormat::LCPCtlFile *newLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[new_ctl_no][0];
+  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile *)&m_lcp_ctl_file_data[old_ctl_no][0];
+  BackupFormat::LCPCtlFile *newLcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile *)&m_lcp_ctl_file_data[new_ctl_no][0];
 
   Uint32 old_last_file = oldLcpCtlFilePtr->LastDataFileNumber;
   Uint32 new_last_file = newLcpCtlFilePtr->LastDataFileNumber;
@@ -1268,8 +1203,7 @@ Restore::calculate_remove_new_data_files(FilePtr file_ptr)
    */
   Uint32 first_remove_file = new_last_file;
   Uint32 num_remove_files = 0;
-  if (new_last_file == old_last_file)
-  {
+  if (new_last_file == old_last_file) {
     /**
      * We could end up here after a number of unsuccessful restarts.
      * The LCP to remove was possibly changing the GCP written, but it
@@ -1279,22 +1213,17 @@ Restore::calculate_remove_new_data_files(FilePtr file_ptr)
     jam();
     return;
   }
-  while (1)
-  {
+  while (1) {
     Uint32 next_remove_file = first_remove_file;
     num_remove_files++;
-    if (next_remove_file == 0)
-    {
+    if (next_remove_file == 0) {
       jam();
       next_remove_file = old_max_files - 1;
-    }
-    else
-    {
+    } else {
       jam();
       next_remove_file--;
     }
-    if (next_remove_file == old_last_file)
-    {
+    if (next_remove_file == old_last_file) {
       jam();
       break;
     }
@@ -1306,17 +1235,15 @@ Restore::calculate_remove_new_data_files(FilePtr file_ptr)
   file_ptr.p->m_old_max_files = old_max_files;
 }
 
-void
-Restore::calculate_remove_old_data_files(FilePtr file_ptr)
-{
+void Restore::calculate_remove_old_data_files(FilePtr file_ptr) {
   Uint32 old_ctl_no = file_ptr.p->m_remove_ctl_file_no;
   Uint32 new_ctl_no = old_ctl_no == 0 ? 1 : 0;
 
   ndbrequire(old_ctl_no < 2);
-  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[old_ctl_no][0];
-  BackupFormat::LCPCtlFile *newLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[new_ctl_no][0];
+  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile *)&m_lcp_ctl_file_data[old_ctl_no][0];
+  BackupFormat::LCPCtlFile *newLcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile *)&m_lcp_ctl_file_data[new_ctl_no][0];
 
   Uint32 new_parts = newLcpCtlFilePtr->NumPartPairs;
   Uint32 old_parts = oldLcpCtlFilePtr->NumPartPairs;
@@ -1342,16 +1269,12 @@ Restore::calculate_remove_old_data_files(FilePtr file_ptr)
    */
   Uint32 new_files = 0;
   Uint32 loop_file = new_last_file;
-  while (loop_file != old_last_file)
-  {
+  while (loop_file != old_last_file) {
     new_files++;
-    if (loop_file == 0)
-    {
+    if (loop_file == 0) {
       jam();
       loop_file = old_max_files - 1;
-    }
-    else
-    {
+    } else {
       jam();
       loop_file--;
     }
@@ -1361,8 +1284,7 @@ Restore::calculate_remove_old_data_files(FilePtr file_ptr)
   Uint32 remove_parts = (old_parts + new_files) - new_parts;
   file_ptr.p->m_num_remove_data_files = remove_parts;
 
-  if (remove_parts == 0)
-  {
+  if (remove_parts == 0) {
     jam();
     return;
   }
@@ -1371,15 +1293,11 @@ Restore::calculate_remove_old_data_files(FilePtr file_ptr)
    * Calculate first file to remove.
    */
   Uint32 first_remove_file = old_last_file;
-  for (Uint32 i = 0; i < (old_parts - 1); i++)
-  {
-    if (first_remove_file == 0)
-    {
+  for (Uint32 i = 0; i < (old_parts - 1); i++) {
+    if (first_remove_file == 0) {
       jam();
       first_remove_file = old_max_files - 1;
-    }
-    else
-    {
+    } else {
       jam();
       first_remove_file--;
     }
@@ -1388,12 +1306,10 @@ Restore::calculate_remove_old_data_files(FilePtr file_ptr)
   file_ptr.p->m_old_max_files = old_max_files;
 }
 
-void
-Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
-{
+void Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr) {
   file_ptr.p->m_upgrade_case = false;
 
-  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  FsReadWriteReq *req = (FsReadWriteReq *)signal->getDataPtrSend();
   req->userPointer = file_ptr.i;
   req->filePointer = file_ptr.p->m_fd;
   req->userReference = reference();
@@ -1407,18 +1323,17 @@ Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
   /**
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset =
-    file_ptr.p->m_ctl_file_no *
+      file_ptr.p->m_ctl_file_no *
       (BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS * 4);
   req->data.memoryAddress.fileOffset = 0;
   req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
-  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
-             FsReadWriteReq::FixedLength + 3, JBA);
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, FsReadWriteReq::FixedLength + 3,
+             JBA);
 }
 
-void
-Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
-{
+void Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr,
+                                 Uint32 bytesRead) {
   /**
    * We read the LCP control file, we really want at this point to know
    * the following things.
@@ -1445,12 +1360,12 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
    * the m_lcp_ctl_file_data variable.
    */
   ndbrequire(file_ptr.p->m_ctl_file_no < 2);
-  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile
+           *)&m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
 
   if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
-      bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG)
-  {
+      bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG) {
     /**
      * Invalid file, probably still no data written. We will remove it
      * as we close it.
@@ -1461,8 +1376,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     close_file(signal, file_ptr, true);
     return;
   }
-  if (!c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
-  {
+  if (!c_backup->convert_ctl_page_to_host(lcpCtlFilePtr)) {
     /* Invalid file data */
     jam();
     ndbassert(false);
@@ -1471,20 +1385,17 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     return;
   }
   if (lcpCtlFilePtr->MaxGciWritten == 0 &&
-      lcpCtlFilePtr->MaxGciCompleted == 0 &&
-      lcpCtlFilePtr->ValidFlag == 0 &&
-      lcpCtlFilePtr->LcpId == 0 &&
-      lcpCtlFilePtr->LocalLcpId == 0 &&
+      lcpCtlFilePtr->MaxGciCompleted == 0 && lcpCtlFilePtr->ValidFlag == 0 &&
+      lcpCtlFilePtr->LcpId == 0 && lcpCtlFilePtr->LocalLcpId == 0 &&
       lcpCtlFilePtr->LastDataFileNumber == 0 &&
-      lcpCtlFilePtr->MaxPageCount == 0)
-  {
+      lcpCtlFilePtr->MaxPageCount == 0) {
     jam();
-    g_eventLogger->debug("Found empty LCP control file, "
-                         "must have been created by earlier restart,"
-                         " tab(%u,%u), CTL file: %u",
-                         file_ptr.p->m_table_id,
-                         file_ptr.p->m_fragment_id,
-                         file_ptr.p->m_ctl_file_no);
+    g_eventLogger->debug(
+        "Found empty LCP control file, "
+        "must have been created by earlier restart,"
+        " tab(%u,%u), CTL file: %u",
+        file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_ctl_file_no);
 
     /**
      * An empty initialised LCP control file was found, this must have
@@ -1504,14 +1415,13 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
       (lcpCtlFilePtr->fileHeader.SectionLength != (sz - 3)) ||
       (lcpCtlFilePtr->fileHeader.FileType != BackupFormat::LCP_CTL_FILE) ||
       (lcpCtlFilePtr->TableId != file_ptr.p->m_table_id) ||
-      (lcpCtlFilePtr->FragmentId != file_ptr.p->m_fragment_id))
-  {
+      (lcpCtlFilePtr->FragmentId != file_ptr.p->m_fragment_id)) {
     jam();
-    g_eventLogger->debug("LCP Control file inconsistency, tab(%u,%u)"
-                         ", CTL file: %u",
-                         file_ptr.p->m_table_id,
-                         file_ptr.p->m_fragment_id,
-                         file_ptr.p->m_ctl_file_no);
+    g_eventLogger->debug(
+        "LCP Control file inconsistency, tab(%u,%u)"
+        ", CTL file: %u",
+        file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_ctl_file_no);
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     close_file(signal, file_ptr, true);
     return;
@@ -1533,8 +1443,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   Uint64 rowCount = Uint64(lcpCtlFilePtr->RowCountLow) +
                     (Uint64(lcpCtlFilePtr->RowCountHigh) << 32);
 
-  if (createTableVersion == 0)
-  {
+  if (createTableVersion == 0) {
     jam();
     /**
      * LCP control file was created during table drop, simply set the valid flag
@@ -1545,23 +1454,18 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   }
 
   if (createTableVersion !=
-      c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id))
-  {
+      c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id)) {
     jam();
-    g_eventLogger->debug("(%u)Found LCP control file from old table"
-                         ", drop table haven't cleaned up properly"
-                         ", tab(%u,%u).%u (now %u), createGci:%u,"
-                         " maxGciCompleted: %u"
-                         ", maxGciWritten: %u, restored createGci: %u",
-                         instance(),
-                         file_ptr.p->m_table_id,
-                         file_ptr.p->m_fragment_id,
-                         createTableVersion,
-                         c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id),
-                         createGci,
-                         maxGciCompleted,
-                         maxGciWritten,
-                         file_ptr.p->m_create_gci);
+    g_eventLogger->debug(
+        "(%u)Found LCP control file from old table"
+        ", drop table haven't cleaned up properly"
+        ", tab(%u,%u).%u (now %u), createGci:%u,"
+        " maxGciCompleted: %u"
+        ", maxGciWritten: %u, restored createGci: %u",
+        instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        createTableVersion,
+        c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id), createGci,
+        maxGciCompleted, maxGciWritten, file_ptr.p->m_create_gci);
     file_ptr.p->m_status = File::DROP_OLD_FILES;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no == 0 ? 1 : 0;
     file_ptr.p->m_remove_data_file_no = 0;
@@ -1569,11 +1473,9 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     ndbrequire(file_ptr.p->m_used_ctl_file_no == ~Uint32(0));
     close_file(signal, file_ptr, true);
     return;
-  }
-  else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
-           maxGciCompleted > file_ptr.p->m_restored_gcp_id ||
-           validFlag == 0)
-  {
+  } else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
+             maxGciCompleted > file_ptr.p->m_restored_gcp_id ||
+             validFlag == 0) {
     jam();
     /**
      * This is a fairly normal case, but we will still log it to make sure we
@@ -1596,31 +1498,25 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * but not yet had time to sync the LSN for the LCP. This is flagged
      * by the validFlag not being set in the LCP control file.
      */
-    g_eventLogger->debug("(%u)LCP Control file ok, but not recoverable,"
-                         " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
-                         ", CTL file: %u, validFlag: %u",
-                         instance(),
-                         file_ptr.p->m_table_id,
-                         file_ptr.p->m_fragment_id,
-                         maxGciWritten,
-                         file_ptr.p->m_restored_gcp_id,
-                         file_ptr.p->m_ctl_file_no,
-                         validFlag);
+    g_eventLogger->debug(
+        "(%u)LCP Control file ok, but not recoverable,"
+        " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
+        ", CTL file: %u, validFlag: %u",
+        instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        maxGciWritten, file_ptr.p->m_restored_gcp_id, file_ptr.p->m_ctl_file_no,
+        validFlag);
     ndbrequire((file_ptr.p->m_ctl_file_no == 0 ||
-               file_ptr.p->m_used_ctl_file_no != Uint32(~0)) ||
+                file_ptr.p->m_used_ctl_file_no != Uint32(~0)) ||
                validFlag == 0);
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     file_ptr.p->m_found_not_restorable = true;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
     if (file_ptr.p->m_ctl_file_no == 1 &&
-        file_ptr.p->m_used_ctl_file_no != Uint32(~0))
-    {
+        file_ptr.p->m_used_ctl_file_no != Uint32(~0)) {
       jam();
       calculate_remove_new_data_files(file_ptr);
     }
-  }
-  else if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-  {
+  } else if (file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
     jam();
     /**
      * First LCP control file that we read, we simply set things up for
@@ -1635,26 +1531,20 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
     file_ptr.p->m_lcp_ctl_version = lcpCtlVersion;
     file_ptr.p->m_rows_in_lcp = rowCount;
-    if (file_ptr.p->m_ctl_file_no == 1)
-    {
+    if (file_ptr.p->m_ctl_file_no == 1) {
       jam();
-      DEB_RES(("(%u)Use ctl file: 1, 0 not exist, Lcp(%u,%u), GCI_C: %u,"
-               " GCI_W: %u, MPC: %u",
-                instance(),
-                file_ptr.p->m_restored_lcp_id,
-                file_ptr.p->m_restored_local_lcp_id,
-                file_ptr.p->m_max_gci_completed,
-                file_ptr.p->m_max_gci_written,
-                file_ptr.p->m_max_page_cnt));
+      DEB_RES(
+          ("(%u)Use ctl file: 1, 0 not exist, Lcp(%u,%u), GCI_C: %u,"
+           " GCI_W: %u, MPC: %u",
+           instance(), file_ptr.p->m_restored_lcp_id,
+           file_ptr.p->m_restored_local_lcp_id, file_ptr.p->m_max_gci_completed,
+           file_ptr.p->m_max_gci_written, file_ptr.p->m_max_page_cnt));
     }
-    if (file_ptr.p->m_found_not_restorable)
-    {
+    if (file_ptr.p->m_found_not_restorable) {
       jam();
       calculate_remove_new_data_files(file_ptr);
     }
-  }
-  else if (file_ptr.p->m_restored_lcp_id > lcpId)
-  {
+  } else if (file_ptr.p->m_restored_lcp_id > lcpId) {
     /**
      * This file is older than the previous one. We will use the previous
      * one.
@@ -1664,28 +1554,21 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_double_lcps_found = true;
     file_ptr.p->m_remove_ctl_file_no = 1;
     calculate_remove_old_data_files(file_ptr);
-    DEB_RES(("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
-             " GCI_W: %u, MPC: %u",
-              instance(),
-              file_ptr.p->m_restored_lcp_id,
-              file_ptr.p->m_restored_local_lcp_id,
-              file_ptr.p->m_max_gci_completed,
-              file_ptr.p->m_max_gci_written,
-              file_ptr.p->m_max_page_cnt));
-  }
-  else if (file_ptr.p->m_restored_lcp_id < lcpId ||
-           (file_ptr.p->m_restored_lcp_id == lcpId &&
-            file_ptr.p->m_restored_local_lcp_id < localLcpId))
-  {
+    DEB_RES(
+        ("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
+         " GCI_W: %u, MPC: %u",
+         instance(), file_ptr.p->m_restored_lcp_id,
+         file_ptr.p->m_restored_local_lcp_id, file_ptr.p->m_max_gci_completed,
+         file_ptr.p->m_max_gci_written, file_ptr.p->m_max_page_cnt));
+  } else if (file_ptr.p->m_restored_lcp_id < lcpId ||
+             (file_ptr.p->m_restored_lcp_id == lcpId &&
+              file_ptr.p->m_restored_local_lcp_id < localLcpId)) {
     jam();
-    DEB_RES(("(%u)Use ctl file: 1, 0 older, Lcp(%u,%u), GCI_C: %u,"
-             " GCI_W: %u, MPC: %u",
-              instance(),
-              lcpId,
-              localLcpId,
-              maxGciCompleted,
-              maxGciWritten,
-              maxPageCnt));
+    DEB_RES(
+        ("(%u)Use ctl file: 1, 0 older, Lcp(%u,%u), GCI_C: %u,"
+         " GCI_W: %u, MPC: %u",
+         instance(), lcpId, localLcpId, maxGciCompleted, maxGciWritten,
+         maxPageCnt));
     ndbrequire(file_ptr.p->m_ctl_file_no == 1);
     ndbrequire(file_ptr.p->m_max_gci_completed <= maxGciCompleted);
     file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
@@ -1699,9 +1582,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_lcp_ctl_version = lcpCtlVersion;
     file_ptr.p->m_rows_in_lcp = rowCount;
     calculate_remove_old_data_files(file_ptr);
-  }
-  else
-  {
+  } else {
     /**
      * The LCP id of both LCPs were the same, this can happen when the
      * node previously crashed in the middle of an LCP and DIH haven't
@@ -1710,14 +1591,12 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * know which is the most recent one.
      * So here we come when CTL file 0 is newer.
      */
-    DEB_RES(("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
-             " GCI_W: %u, MPC: %u",
-              instance(),
-              file_ptr.p->m_restored_lcp_id,
-              file_ptr.p->m_restored_local_lcp_id,
-              file_ptr.p->m_max_gci_completed,
-              file_ptr.p->m_max_gci_written,
-              file_ptr.p->m_max_page_cnt));
+    DEB_RES(
+        ("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
+         " GCI_W: %u, MPC: %u",
+         instance(), file_ptr.p->m_restored_lcp_id,
+         file_ptr.p->m_restored_local_lcp_id, file_ptr.p->m_max_gci_completed,
+         file_ptr.p->m_max_gci_written, file_ptr.p->m_max_page_cnt));
     ndbrequire(file_ptr.p->m_ctl_file_no == 1);
     ndbrequire(file_ptr.p->m_max_gci_completed >= maxGciCompleted);
     file_ptr.p->m_used_ctl_file_no = 0;
@@ -1728,21 +1607,14 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   close_file(signal, file_ptr);
 }
 
-void
-Restore::lcp_drop_old_files(Signal *signal, FilePtr file_ptr)
-{
+void Restore::lcp_drop_old_files(Signal *signal, FilePtr file_ptr) {
   file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
-  lcp_remove_old_file(signal,
-                      file_ptr,
-                      file_ptr.p->m_remove_data_file_no,
+  lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_data_file_no,
                       false);
 }
 
-void
-Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
-{
-  if (file_ptr.p->m_ctl_file_no == 0)
-  {
+void Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr) {
+  if (file_ptr.p->m_ctl_file_no == 0) {
     /**
      * We are done with LCP control file 0, continue with LCP control
      * file 1 in the same manner.
@@ -1750,13 +1622,10 @@ Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
     jam();
     open_ctl_file(signal, file_ptr, 1);
     return;
-  }
-  else
-  {
+  } else {
     ndbrequire(file_ptr.p->m_ctl_file_no == 1);
     jam();
-    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
-    {
+    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0)) {
       /**
        * Case 5) discovered
        * No valid LCP file was found. We create an LCP control file 0
@@ -1769,15 +1638,11 @@ Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
       file_ptr.p->m_remove_data_file_no = 0;
       file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
       file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
-      lcp_remove_old_file(signal,
-                          file_ptr,
-                          file_ptr.p->m_remove_data_file_no,
+      lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_data_file_no,
                           false);
       return;
     }
-    if (file_ptr.p->m_double_lcps_found ||
-        file_ptr.p->m_found_not_restorable)
-    {
+    if (file_ptr.p->m_double_lcps_found || file_ptr.p->m_found_not_restorable) {
       jam();
       /**
        * Case 3) discovered
@@ -1785,27 +1650,18 @@ Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
        * We start by removing potential data and CTL files still there.
        */
       DEB_RES(("(%u)Case 3 discovered after close", instance()));
-      if (file_ptr.p->m_num_remove_data_files > 0)
-      {
+      if (file_ptr.p->m_num_remove_data_files > 0) {
         jam();
         file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
-        lcp_remove_old_file(signal,
-                            file_ptr,
-                            file_ptr.p->m_remove_data_file_no,
+        lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_data_file_no,
                             false);
-      }
-      else
-      {
+      } else {
         file_ptr.p->m_status = File::REMOVE_LCP_CTL_FILE;
-        lcp_remove_old_file(signal,
-                            file_ptr,
-                            file_ptr.p->m_remove_ctl_file_no,
+        lcp_remove_old_file(signal, file_ptr, file_ptr.p->m_remove_ctl_file_no,
                             true);
       }
       return;
-    }
-    else
-    {
+    } else {
       jam();
       /**
        * Case 2) discovered
@@ -1813,25 +1669,21 @@ Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
        * LCP control file 1 existed alone, we are ready to execute the restore
        * now.
        */
-      DEB_RES(("(%u)Case 2 discovered, start_restore_lcp",
-              instance()));
+      DEB_RES(("(%u)Case 2 discovered, start_restore_lcp", instance()));
       start_restore_lcp(signal, file_ptr);
       return;
     }
   }
 }
 
-void
-Restore::execRESTORE_LCP_REQ(Signal* signal)
-{
+void Restore::execRESTORE_LCP_REQ(Signal *signal) {
   jamEntry();
 
-  Uint32 err= 0;
-  RestoreLcpReq* req= (RestoreLcpReq*)signal->getDataPtr();
-  Uint32 senderRef= req->senderRef;
-  Uint32 senderData= req->senderData;
-  if (m_is_query_block)
-  {
+  Uint32 err = 0;
+  RestoreLcpReq *req = (RestoreLcpReq *)signal->getDataPtr();
+  Uint32 senderRef = req->senderRef;
+  Uint32 senderData = req->senderData;
+  if (m_is_query_block) {
     jam();
     /**
      * Redirect our reference to LQH for the restore of this fragment.
@@ -1846,18 +1698,15 @@ Restore::execRESTORE_LCP_REQ(Signal* signal)
     Uint32 instance = refToInstance(senderRef);
     c_lqh->setup_query_thread_for_restore_access(instance, req->cnewestGci);
   }
-  do
-  {
+  do {
     FilePtr file_ptr;
-    if (!m_file_list.seizeFirst(file_ptr))
-    {
+    if (!m_file_list.seizeFirst(file_ptr)) {
       jam();
-      err= RestoreLcpRef::NoFileRecord;
+      err = RestoreLcpRef::NoFileRecord;
       break;
     }
 
-    if((err= init_file(req, file_ptr)))
-    {
+    if ((err = init_file(req, file_ptr))) {
       break;
     }
 
@@ -1868,21 +1717,19 @@ Restore::execRESTORE_LCP_REQ(Signal* signal)
 
     open_ctl_file(signal, file_ptr, 0);
     return;
-  } while(0);
+  } while (0);
 
   c_lqh->reset_restore_thread_access();
   DEB_RES(("(%u)RESTORE_LCP_REF", instance()));
-  RestoreLcpRef* ref= (RestoreLcpRef*)signal->getDataPtrSend();
-  ref->senderData= senderData;
-  ref->senderRef= reference();
+  RestoreLcpRef *ref = (RestoreLcpRef *)signal->getDataPtrSend();
+  ref->senderData = senderData;
+  ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_RESTORE_LCP_REF, signal, 
-	     RestoreLcpRef::SignalLength, JBB);
+  sendSignal(senderRef, GSN_RESTORE_LCP_REF, signal,
+             RestoreLcpRef::SignalLength, JBB);
 }
 
-Uint32
-Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
-{
+Uint32 Restore::init_file(const RestoreLcpReq *req, FilePtr file_ptr) {
   new (file_ptr.p) File();
   file_ptr.p->m_sender_ref = req->senderRef;
   file_ptr.p->m_sender_data = req->senderData;
@@ -1908,19 +1755,15 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_restored_local_lcp_id = 0;
   file_ptr.p->m_max_gci_completed = req->maxGciCompleted;
   file_ptr.p->m_create_gci = req->createGci;
-  DEB_START_RES(("(%u)RESTORE_LCP_REQ tab(%u,%u),"
-                 " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
-                 instance(),
-                 req->tableId,
-                 req->fragmentId,
-                 req->restoreGcpId,
-                 req->lcpId,
-                 req->lcpNo,
-                 req->createGci));
+  DEB_START_RES(
+      ("(%u)RESTORE_LCP_REQ tab(%u,%u),"
+       " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
+       instance(), req->tableId, req->fragmentId, req->restoreGcpId, req->lcpId,
+       req->lcpNo, req->createGci));
 
-  file_ptr.p->m_bytes_left = 0; // Bytes read from FS
+  file_ptr.p->m_bytes_left = 0;  // Bytes read from FS
   file_ptr.p->m_current_page_ptr_i = RNIL;
-  file_ptr.p->m_current_page_pos = 0; 
+  file_ptr.p->m_current_page_pos = 0;
   file_ptr.p->m_current_page_index = 0;
   file_ptr.p->m_current_file_page = 0;
   file_ptr.p->m_outstanding_reads = 0;
@@ -1948,154 +1791,119 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   return err;
 }
 
-Uint32
-Restore::seize_file(FilePtr file_ptr)
-{
+Uint32 Restore::seize_file(FilePtr file_ptr) {
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 
   ndbassert(pages.isEmpty());
   pages.release();
-  
-  Uint32 buf_size= PAGES*GLOBAL_PAGE_SIZE;
-  Uint32 page_count= (buf_size+GLOBAL_PAGE_SIZE-1)/GLOBAL_PAGE_SIZE;
-  if(!pages.seize(page_count))
-  {
+
+  Uint32 buf_size = PAGES * GLOBAL_PAGE_SIZE;
+  Uint32 page_count = (buf_size + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+  if (!pages.seize(page_count)) {
     jam();
     return RestoreLcpRef::OutOfDataBuffer;
   }
 
   List::Iterator it;
-  for(pages.first(it); !it.isNull(); pages.next(it))
-  {
-    * it.data = RNIL;
+  for (pages.first(it); !it.isNull(); pages.next(it)) {
+    *it.data = RNIL;
   }
 
-  Uint32 err= 0;
-  for(pages.first(it); !it.isNull(); pages.next(it))
-  {
+  Uint32 err = 0;
+  for (pages.first(it); !it.isNull(); pages.next(it)) {
     Ptr<GlobalPage> page_ptr;
-    if(!m_global_page_pool.seize(page_ptr))
-    {
+    if (!m_global_page_pool.seize(page_ptr)) {
       jam();
-      err= RestoreLcpRef::OutOfReadBufferPages;
+      err = RestoreLcpRef::OutOfReadBufferPages;
       break;
     }
-    * it.data = page_ptr.i;
+    *it.data = page_ptr.i;
   }
-  
-  if(err)
-  {
-    for(pages.first(it); !it.isNull(); pages.next(it))
-    {
-      if(* it.data == RNIL)
-	break;
-      m_global_page_pool.release(* it.data);
+
+  if (err) {
+    for (pages.first(it); !it.isNull(); pages.next(it)) {
+      if (*it.data == RNIL) break;
+      m_global_page_pool.release(*it.data);
     }
-  }
-  else
-  {
+  } else {
     pages.first(it);
     file_ptr.p->m_current_page_ptr_i = *it.data;
   }
   return err;
 }
 
-void
-Restore::release_file(FilePtr file_ptr, bool statistics)
-{
+void Restore::release_file(FilePtr file_ptr, bool statistics) {
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 
   List::Iterator it;
-  for (pages.first(it); !it.isNull(); pages.next(it))
-  {
-    if (* it.data == RNIL)
-    {
+  for (pages.first(it); !it.isNull(); pages.next(it)) {
+    if (*it.data == RNIL) {
       jam();
       continue;
     }
-    m_global_page_pool.release(* it.data);
+    m_global_page_pool.release(*it.data);
   }
 
-  if (statistics)
-  {
-    Uint64 millis = NdbTick_CurrentMillisecond() -
-                   file_ptr.p->m_restore_start_time;
-    if (millis == 0)
-      millis = 1;
-    Uint64 rows_per_sec = (file_ptr.p->m_row_operations *
-                           Uint64(1000)) / millis;
+  if (statistics) {
+    Uint64 millis =
+        NdbTick_CurrentMillisecond() - file_ptr.p->m_restore_start_time;
+    if (millis == 0) millis = 1;
+    Uint64 rows_per_sec =
+        (file_ptr.p->m_row_operations * Uint64(1000)) / millis;
 
+    g_eventLogger->info(
+        "LDM instance %u: Restored T%dF%u LCP %llu rows, "
+        "%llu row operations, "
+        "%llu millis, %llu row operations/sec)",
+        instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_rows_restored, file_ptr.p->m_row_operations, millis,
+        rows_per_sec);
 
-    g_eventLogger->info("LDM instance %u: Restored T%dF%u LCP %llu rows, "
-                        "%llu row operations, "
-                        "%llu millis, %llu row operations/sec)", 
-                        instance(),
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        file_ptr.p->m_rows_restored,
-                        file_ptr.p->m_row_operations,
-                        millis,
-                        rows_per_sec);
-
-
-    m_millis_spent+= millis;
-    m_rows_restored+= file_ptr.p->m_rows_restored;
+    m_millis_spent += millis;
+    m_rows_restored += file_ptr.p->m_rows_restored;
     m_frags_restored++;
 
-    DEB_RES_STAT(("(%u)Restore tab(%u,%u): file_index: %u"
-                  ", inserts: %llu, writes: %llu"
-                  ", deletes: %llu, delete_pages: %llu"
-                  ", delete_failed: %llu"
-                  ", ignored rows: %llu",
-                  instance(),
-                  file_ptr.p->m_table_id,
-                  file_ptr.p->m_fragment_id,
-                  file_ptr.p->m_current_file_index - 1,
-                  file_ptr.p->m_rows_restored_insert,
-                  file_ptr.p->m_rows_restored_write,
-                  file_ptr.p->m_rows_restored_delete,
-                  file_ptr.p->m_rows_restored_delete_page,
-                  file_ptr.p->m_rows_restored_delete_failed,
-                  file_ptr.p->m_ignored_rows));
-  }
-  else
-  {
+    DEB_RES_STAT((
+        "(%u)Restore tab(%u,%u): file_index: %u"
+        ", inserts: %llu, writes: %llu"
+        ", deletes: %llu, delete_pages: %llu"
+        ", delete_failed: %llu"
+        ", ignored rows: %llu",
+        instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_current_file_index - 1,
+        file_ptr.p->m_rows_restored_insert, file_ptr.p->m_rows_restored_write,
+        file_ptr.p->m_rows_restored_delete,
+        file_ptr.p->m_rows_restored_delete_page,
+        file_ptr.p->m_rows_restored_delete_failed, file_ptr.p->m_ignored_rows));
+  } else {
     DEB_RES_STAT_EXTRA((
-                  "(%u)Restore tab(%u,%u): file_index: %u"
-                  ", inserts: %llu, writes: %llu"
-                  ", deletes: %llu, delete_pages: %llu"
-                  ", delete_failed: %llu"
-                  ", ignored rows: %llu",
-                  instance(),
-                  file_ptr.p->m_table_id,
-                  file_ptr.p->m_fragment_id,
-                  file_ptr.p->m_current_file_index - 1,
-                  file_ptr.p->m_rows_restored_insert,
-                  file_ptr.p->m_rows_restored_write,
-                  file_ptr.p->m_rows_restored_delete,
-                  file_ptr.p->m_rows_restored_delete_page,
-                  file_ptr.p->m_rows_restored_delete_failed,
-                  file_ptr.p->m_ignored_rows));
+        "(%u)Restore tab(%u,%u): file_index: %u"
+        ", inserts: %llu, writes: %llu"
+        ", deletes: %llu, delete_pages: %llu"
+        ", delete_failed: %llu"
+        ", ignored rows: %llu",
+        instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_current_file_index - 1,
+        file_ptr.p->m_rows_restored_insert, file_ptr.p->m_rows_restored_write,
+        file_ptr.p->m_rows_restored_delete,
+        file_ptr.p->m_rows_restored_delete_page,
+        file_ptr.p->m_rows_restored_delete_failed, file_ptr.p->m_ignored_rows));
   }
 
   pages.release();
-  if (statistics)
-  {
+  if (statistics) {
     jam();
     m_file_list.release(file_ptr);
   }
 }
 
-void
-Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
-{
+void Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr) {
   ndbrequire(file_ptr.p->m_used_ctl_file_no < 2);
-  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile
+           *)&m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
 
-  if (file_ptr.p->m_max_parts == 1 &&
-      file_ptr.p->m_num_files == 1)
-  {
+  if (file_ptr.p->m_max_parts == 1 && file_ptr.p->m_num_files == 1) {
     /**
      * UPGRADE CASE, everything is in one file.
      */
@@ -2118,62 +1926,45 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
    * We ensure that we have consistent data by ensuring that we don't have
    * any files set to PART_IGNORED that was in the array to receive all rows.
    */
-  for (Uint32 i = 0; i < file_ptr.p->m_max_parts; i++)
-  {
+  for (Uint32 i = 0; i < file_ptr.p->m_max_parts; i++) {
     file_ptr.p->m_part_state[i] = File::PART_ALL_CHANGES;
   }
 
   {
     struct BackupFormat::PartPair partPair =
-      lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
+        lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
 
-    DEB_RES_PARTS((
-             "(%u)Prepare ALL parts[%u] = (%u,%u)",
-             instance(),
-             file_ptr.p->m_current_file_index,
-             partPair.startPart,
-             partPair.numParts));
+    DEB_RES_PARTS(("(%u)Prepare ALL parts[%u] = (%u,%u)", instance(),
+                   file_ptr.p->m_current_file_index, partPair.startPart,
+                   partPair.numParts));
 
     Uint32 part_id = partPair.startPart;
-    for (Uint32 i = 0; i < partPair.numParts; i++)
-    {
+    for (Uint32 i = 0; i < partPair.numParts; i++) {
       file_ptr.p->m_part_state[part_id] = File::PART_ALL_ROWS;
       part_id++;
-      if (part_id == file_ptr.p->m_max_parts)
-        part_id = 0;
+      if (part_id == file_ptr.p->m_max_parts) part_id = 0;
     }
   }
 
   for (Uint32 i = file_ptr.p->m_current_file_index + 1;
-       i < lcpCtlFilePtr->NumPartPairs;
-       i++)
-  {
+       i < lcpCtlFilePtr->NumPartPairs; i++) {
     jam();
-    struct BackupFormat::PartPair partPair =
-      lcpCtlFilePtr->partPairs[i];
+    struct BackupFormat::PartPair partPair = lcpCtlFilePtr->partPairs[i];
 
-    DEB_RES_PARTS((
-             "(%u)Prepare IGNORE parts[%u] = (%u,%u)",
-             instance(),
-             i,
-             partPair.startPart,
-             partPair.numParts));
+    DEB_RES_PARTS(("(%u)Prepare IGNORE parts[%u] = (%u,%u)", instance(), i,
+                   partPair.startPart, partPair.numParts));
 
     Uint32 part_id = partPair.startPart;
-    for (Uint32 j = 0; j < partPair.numParts; j++)
-    {
+    for (Uint32 j = 0; j < partPair.numParts; j++) {
       ndbrequire(file_ptr.p->m_part_state[part_id] == File::PART_ALL_CHANGES);
       file_ptr.p->m_part_state[part_id] = File::PART_IGNORED;
       part_id++;
-      if (part_id == file_ptr.p->m_max_parts)
-        part_id = 0;
+      if (part_id == file_ptr.p->m_max_parts) part_id = 0;
     }
   }
 }
 
-void
-Restore::start_restore_lcp_upgrade(Signal *signal, FilePtr file_ptr)
-{
+void Restore::start_restore_lcp_upgrade(Signal *signal, FilePtr file_ptr) {
   /**
    * In this an LCP existed, but no valid LCP control file, this can
    * only occur if the LCP was written by older versions of MySQL
@@ -2187,41 +1978,31 @@ Restore::start_restore_lcp_upgrade(Signal *signal, FilePtr file_ptr)
   open_data_file(signal, file_ptr);
 }
 
-void
-Restore::step_file_number_back(FilePtr file_ptr, Uint32 steps)
-{
-  for (Uint32 i = 0; i < steps; i++)
-  {
-    if (file_ptr.p->m_file_id == 0)
-    {
+void Restore::step_file_number_back(FilePtr file_ptr, Uint32 steps) {
+  for (Uint32 i = 0; i < steps; i++) {
+    if (file_ptr.p->m_file_id == 0) {
       jam();
       file_ptr.p->m_file_id = file_ptr.p->m_max_files - 1;
-    }
-    else
-    {
+    } else {
       jam();
       file_ptr.p->m_file_id--;
     }
   }
 }
 
-void
-Restore::step_file_number_forward(FilePtr file_ptr)
-{
+void Restore::step_file_number_forward(FilePtr file_ptr) {
   file_ptr.p->m_file_id++;
-  if (file_ptr.p->m_file_id == file_ptr.p->m_max_files)
-  {
+  if (file_ptr.p->m_file_id == file_ptr.p->m_max_files) {
     jam();
     file_ptr.p->m_file_id = 0;
   }
 }
 
-void
-Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
-{
+void Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr) {
   ndbrequire(file_ptr.p->m_used_ctl_file_no < 2);
-  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
-    &m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+      (BackupFormat::LCPCtlFile
+           *)&m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
 
   /**
    * Initialise a few variables before starting the first data file
@@ -2233,12 +2014,9 @@ Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
   file_ptr.p->m_max_files = lcpCtlFilePtr->MaxNumberDataFiles;
   file_ptr.p->m_file_id = lcpCtlFilePtr->LastDataFileNumber;
   file_ptr.p->m_table_version = lcpCtlFilePtr->CreateTableVersion;
-  DEB_RES_OPEN(("(%u) tab(%u,%u), num_files: %u, last_file: %u",
-                instance(),
-                file_ptr.p->m_table_id,
-                file_ptr.p->m_fragment_id,
-                file_ptr.p->m_num_files,
-                file_ptr.p->m_file_id));
+  DEB_RES_OPEN(("(%u) tab(%u,%u), num_files: %u, last_file: %u", instance(),
+                file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+                file_ptr.p->m_num_files, file_ptr.p->m_file_id));
   ndbrequire(file_ptr.p->m_num_files > 0);
   ndbrequire(file_ptr.p->m_num_files <= BackupFormat::NDB_MAX_LCP_PARTS);
   ndbrequire(file_ptr.p->m_file_id <= BackupFormat::NDB_MAX_LCP_FILES);
@@ -2246,28 +2024,23 @@ Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
   open_data_file(signal, file_ptr);
 }
 
-void
-Restore::open_data_file(Signal* signal, FilePtr file_ptr)
-{
+void Restore::open_data_file(Signal *signal, FilePtr file_ptr) {
   prepare_parts_for_execution(signal, file_ptr);
   file_ptr.p->m_status = File::FIRST_READ;
 
-  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  FsOpenReq *req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
-  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_READ_FORWARD |
-      FsOpenReq::OM_GZ;
+  req->fileFlags =
+      FsOpenReq::OM_READONLY | FsOpenReq::OM_READ_FORWARD | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
 
-  if (c_encrypted_filesystem)
-  {
+  if (c_encrypted_filesystem) {
     jam();
     req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
   }
 
   DEB_RES_OPEN(("(%u)tab(%u,%u) open_data_file data file number = %u",
-                instance(),
-                file_ptr.p->m_table_id,
-                file_ptr.p->m_fragment_id,
+                instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
                 file_ptr.p->m_file_id));
 
   FsOpenReq::setVersion(req->fileNumber, 5);
@@ -2281,8 +2054,7 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   req->file_size_lo = UINT32_MAX;
   req->auto_sync_size = 0;
 
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
-  {
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) {
     LinearSectionPtr lsptr[3];
 
     // Use a dummy file name
@@ -2296,69 +2068,56 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
     nmk.length = globalData.nodeMasterKeyLength;
     memcpy(&nmk.data, globalData.nodeMasterKey, globalData.nodeMasterKeyLength);
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32 *)&nmk;
-    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
-        nmk.get_needed_words();
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz = nmk.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
                lsptr, 2);
-  }
-  else
-  {
+  } else {
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
   }
 }
 
-void
-Restore::execFSOPENREF(Signal* signal)
-{
-  FsRef* ref= (FsRef*)signal->getDataPtr();
+void Restore::execFSOPENREF(Signal *signal) {
+  FsRef *ref = (FsRef *)signal->getDataPtr();
   FilePtr file_ptr;
   jamEntry();
   ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
 
-  if (file_ptr.p->m_status == File::READ_CTL_FILES)
-  {
+  if (file_ptr.p->m_status == File::READ_CTL_FILES) {
     jam();
     open_ctl_file_done_ref(signal, file_ptr);
     return;
-  }
-  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
-  {
+  } else if (file_ptr.p->m_status == File::CREATE_CTL_FILE) {
     ndbabort();
   }
   ndbrequire(file_ptr.p->m_status == File::FIRST_READ);
 
-  Uint32 errCode= ref->errorCode;
-  Uint32 osError= ref->osErrorCode;
+  Uint32 errCode = ref->errorCode;
+  Uint32 osError = ref->osErrorCode;
 
   c_lqh->reset_restore_thread_access();
-  RestoreLcpRef* rep= (RestoreLcpRef*)signal->getDataPtrSend();
-  rep->senderData= file_ptr.p->m_sender_data;
+  RestoreLcpRef *rep = (RestoreLcpRef *)signal->getDataPtrSend();
+  rep->senderData = file_ptr.p->m_sender_data;
   rep->errorCode = errCode;
   rep->extra[0] = osError;
   sendSignal(file_ptr.p->m_sender_ref, GSN_RESTORE_LCP_REF, signal,
-             RestoreLcpRef::SignalLength+1, JBB);
+             RestoreLcpRef::SignalLength + 1, JBB);
   release_file(file_ptr, true);
 }
 
-void
-Restore::execFSOPENCONF(Signal* signal)
-{
+void Restore::execFSOPENCONF(Signal *signal) {
   jamEntry();
   FilePtr file_ptr;
-  FsConf* conf= (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
-  
+
   file_ptr.p->m_fd = conf->filePointer;
 
-  if (file_ptr.p->m_status == File::READ_CTL_FILES)
-  {
+  if (file_ptr.p->m_status == File::READ_CTL_FILES) {
     jam();
     open_ctl_file_done_conf(signal, file_ptr);
     return;
-  }
-  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
-  {
+  } else if (file_ptr.p->m_status == File::CREATE_CTL_FILE) {
     jam();
     lcp_create_ctl_done_open(signal, file_ptr);
     return;
@@ -2374,132 +2133,115 @@ Restore::execFSOPENCONF(Signal* signal)
   file_ptr.p->m_status |= File::FILE_THREAD_RUNNING;
   signal->theData[0] = RestoreContinueB::READ_FILE;
   signal->theData[1] = file_ptr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);  
-  
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+
   file_ptr.p->m_status |= File::RESTORE_THREAD_RUNNING;
   signal->theData[0] = RestoreContinueB::RESTORE_NEXT;
   signal->theData[1] = file_ptr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);  
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
-void
-Restore::restore_next(Signal* signal, FilePtr file_ptr)
-{
-  Uint32 *data, len= 0;
+void Restore::restore_next(Signal *signal, FilePtr file_ptr) {
+  Uint32 *data, len = 0;
   Uint32 status = file_ptr.p->m_status;
   Uint32 page_count = file_ptr.p->m_pages.getSize();
   BackupFormat::RecordType header_type = BackupFormat::INSERT_TYPE;
-  do 
-  {
-    Uint32 left= file_ptr.p->m_bytes_left;
-    if (left < 8)
-    {
+  do {
+    Uint32 left = file_ptr.p->m_bytes_left;
+    if (left < 8) {
       jam();
       /**
        * Not enough bytes to read header
        */
       break;
     }
-    Ptr<GlobalPage> page_ptr(0,0), next_page_ptr(0,0);
-    ndbrequire(m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i));
+    Ptr<GlobalPage> page_ptr(0, 0), next_page_ptr(0, 0);
+    ndbrequire(
+        m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i));
     List::Iterator it;
-    
-    Uint32 pos= file_ptr.p->m_current_page_pos;
-    if(status & File::READING_RECORDS)
-    {
+
+    Uint32 pos = file_ptr.p->m_current_page_pos;
+    if (status & File::READING_RECORDS) {
       jam();
       /**
        * We are reading records
        */
-      len= ntohl(* (page_ptr.p->data + pos)) + 1;
+      len = ntohl(*(page_ptr.p->data + pos)) + 1;
       Uint32 type = len >> 16;
       len &= 0xFFFF;
       ndbrequire(len < GLOBAL_PAGE_SIZE_WORDS);
       ndbrequire(header_type < BackupFormat::END_TYPE);
       header_type = (BackupFormat::RecordType)type;
-    }
-    else
-    {
+    } else {
       jam();
       /**
        * Section length is in 2 word
        */
-      if(pos + 1 == GLOBAL_PAGE_SIZE_WORDS)
-      {
+      if (pos + 1 == GLOBAL_PAGE_SIZE_WORDS) {
         jam();
-	/**
-	 * But that's stored on next page...
-	 *   and since we have at least 8 bytes left in buffer
-	 *   we can be sure that that's in buffer
-	 */
-	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
-	pages.position(it, next_page % page_count);
-        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
-	len= ntohl(* next_page_ptr.p->data);
-      }
-      else
-      {
+        /**
+         * But that's stored on next page...
+         *   and since we have at least 8 bytes left in buffer
+         *   we can be sure that that's in buffer
+         */
+        LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+        Uint32 next_page = file_ptr.p->m_current_page_index + 1;
+        pages.position(it, next_page % page_count);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, *it.data));
+        len = ntohl(*next_page_ptr.p->data);
+      } else {
         jam();
-	len= ntohl(* (page_ptr.p->data + pos + 1));
+        len = ntohl(*(page_ptr.p->data + pos + 1));
       }
     }
 
-    if (file_ptr.p->m_status & File::FIRST_READ)
-    {
+    if (file_ptr.p->m_status & File::FIRST_READ) {
       jam();
-      len= 3;
+      len = 3;
       file_ptr.p->m_status &= ~(Uint32)File::FIRST_READ;
     }
-    
-    if (4 * len > left)
-    {
+
+    if (4 * len > left) {
       jam();
 
       /**
        * Not enough bytes to read "record"
        */
-      if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
-      {
+      if (unlikely((status & File::FILE_THREAD_RUNNING) == 0)) {
         crash_during_restore(file_ptr, __LINE__, 0);
       }
-      len= 0;
+      len = 0;
       break;
     }
-    
+
     /**
      * Entire record is in buffer
      */
 
-    if(pos + len >= GLOBAL_PAGE_SIZE_WORDS)
-    {
+    if (pos + len >= GLOBAL_PAGE_SIZE_WORDS) {
       jam();
       /**
        * But it's split over pages
        */
-      if(next_page_ptr.p == 0)
-      {
-	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
-	pages.position(it, next_page % page_count);
-        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
+      if (next_page_ptr.p == 0) {
+        LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
+        Uint32 next_page = file_ptr.p->m_current_page_index + 1;
+        pages.position(it, next_page % page_count);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, *it.data));
       }
       file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
       file_ptr.p->m_current_page_pos = (pos + len) - GLOBAL_PAGE_SIZE_WORDS;
-      file_ptr.p->m_current_page_index = 
-	(file_ptr.p->m_current_page_index + 1) % page_count;
+      file_ptr.p->m_current_page_index =
+          (file_ptr.p->m_current_page_index + 1) % page_count;
 
-      if (len <= GLOBAL_PAGE_SIZE_WORDS)
-      {
+      if (len <= GLOBAL_PAGE_SIZE_WORDS) {
         jam();
         Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
         // wl4391_todo removing valgrind overlap warning for now
-        memmove(page_ptr.p, page_ptr.p->data+pos, 4 * first);
-        memcpy(page_ptr.p->data+first, next_page_ptr.p, 4 * (len - first));
-        data= page_ptr.p->data;
-      }
-      else
-      {
+        memmove(page_ptr.p, page_ptr.p->data + pos, 4 * first);
+        memcpy(page_ptr.p->data + first, next_page_ptr.p, 4 * (len - first));
+        data = page_ptr.p->data;
+      } else {
         jam();
         /**
          * A table definition can be larger than one page...
@@ -2511,21 +2253,20 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
          */
         Uint32 save = len;
         assert(len <= NDB_ARRAY_SIZE(m_table_buf));
-        Uint32 * dst = m_table_buf;
+        Uint32 *dst = m_table_buf;
 
         /**
          * First
          */
         Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
-        memcpy(dst, page_ptr.p->data+pos, 4 * first);
+        memcpy(dst, page_ptr.p->data + pos, 4 * first);
         len -= first;
         dst += first;
 
         /**
          * Middle
          */
-        while (len > GLOBAL_PAGE_SIZE_WORDS)
-        {
+        while (len > GLOBAL_PAGE_SIZE_WORDS) {
           jam();
           memcpy(dst, next_page_ptr.p, 4 * GLOBAL_PAGE_SIZE_WORDS);
           len -= GLOBAL_PAGE_SIZE_WORDS;
@@ -2533,9 +2274,10 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 
           {
             LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-            Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
+            Uint32 next_page =
+                (file_ptr.p->m_current_page_index + 1) % page_count;
             pages.position(it, next_page % page_count);
-            ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
+            ndbrequire(m_global_page_pool.getPtr(next_page_ptr, *it.data));
 
             file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
             file_ptr.p->m_current_page_index = next_page;
@@ -2554,66 +2296,56 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
         len = save;
         data = m_table_buf;
       }
-    }
-    else
-    {
+    } else {
       file_ptr.p->m_current_page_pos = pos + len;
-      data= page_ptr.p->data+pos;
+      data = page_ptr.p->data + pos;
     }
-    
-    file_ptr.p->m_bytes_left -= 4*len;
-    
-    if(status & File::READING_RECORDS)
-    {
-      if(len == 1)
-      {
-	file_ptr.p->m_status = status & ~(Uint32)File::READING_RECORDS;
+
+    file_ptr.p->m_bytes_left -= 4 * len;
+
+    if (status & File::READING_RECORDS) {
+      if (len == 1) {
+        file_ptr.p->m_status = status & ~(Uint32)File::READING_RECORDS;
+      } else {
+        parse_record(signal, file_ptr, data, len, header_type);
       }
-      else
-      {
-	parse_record(signal, file_ptr, data, len, header_type);
-      }
-    }
-    else
-    {
-      switch(ntohl(* data)){
-      case BackupFormat::FILE_HEADER:
-	parse_file_header(signal, file_ptr, data-3, len+3);
-	break;
-      case BackupFormat::FRAGMENT_HEADER:
-	file_ptr.p->m_status = status | File::READING_RECORDS;
-	parse_fragment_header(signal, file_ptr, data, len);
-	break;
-      case BackupFormat::FRAGMENT_FOOTER:
-	parse_fragment_footer(signal, file_ptr, data, len);
-	break;
-      case BackupFormat::TABLE_LIST:
-	parse_table_list(signal, file_ptr, data, len);
-	break;
-      case BackupFormat::TABLE_DESCRIPTION:
-	parse_table_description(signal, file_ptr, data, len);
-	break;
-      case BackupFormat::GCP_ENTRY:
-	parse_gcp_entry(signal, file_ptr, data, len);
-	break;
-      case BackupFormat::EMPTY_ENTRY:
-        // skip
-        break;
-      case 0x4e444242: // 'NDBB'
-	if (check_file_version(signal, ntohl(* (data+2))) == 0)
-	{
-	  break;
-	}
-        // Fall through - on bad version
-        [[fallthrough]];
-      default:
-	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
+    } else {
+      switch (ntohl(*data)) {
+        case BackupFormat::FILE_HEADER:
+          parse_file_header(signal, file_ptr, data - 3, len + 3);
+          break;
+        case BackupFormat::FRAGMENT_HEADER:
+          file_ptr.p->m_status = status | File::READING_RECORDS;
+          parse_fragment_header(signal, file_ptr, data, len);
+          break;
+        case BackupFormat::FRAGMENT_FOOTER:
+          parse_fragment_footer(signal, file_ptr, data, len);
+          break;
+        case BackupFormat::TABLE_LIST:
+          parse_table_list(signal, file_ptr, data, len);
+          break;
+        case BackupFormat::TABLE_DESCRIPTION:
+          parse_table_description(signal, file_ptr, data, len);
+          break;
+        case BackupFormat::GCP_ENTRY:
+          parse_gcp_entry(signal, file_ptr, data, len);
+          break;
+        case BackupFormat::EMPTY_ENTRY:
+          // skip
+          break;
+        case 0x4e444242:  // 'NDBB'
+          if (check_file_version(signal, ntohl(*(data + 2))) == 0) {
+            break;
+          }
+          // Fall through - on bad version
+          [[fallthrough]];
+        default:
+          parse_error(signal, file_ptr, __LINE__, ntohl(*data));
       }
     }
-  } while(0);
-  
-  if(file_ptr.p->m_bytes_left == 0 && status & File::FILE_EOF)
-  {
+  } while (0);
+
+  if (file_ptr.p->m_bytes_left == 0 && status & File::FILE_EOF) {
     file_ptr.p->m_status &= ~(Uint32)File::RESTORE_THREAD_RUNNING;
     /**
      * File is finished...
@@ -2621,7 +2353,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
     close_file(signal, file_ptr);
     return;
   }
-  
+
   /**
    * We send an immediate signal to continue the restore, at times this
    * could lead to burning some extra CPU since we might still wait for
@@ -2634,70 +2366,60 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
-void
-Restore::read_data_file(Signal* signal, FilePtr file_ptr)
-{
-  Uint32 left= file_ptr.p->m_bytes_left;
+void Restore::read_data_file(Signal *signal, FilePtr file_ptr) {
+  Uint32 left = file_ptr.p->m_bytes_left;
   Uint32 page_count = file_ptr.p->m_pages.getSize();
-  Uint32 free= GLOBAL_PAGE_SIZE * page_count - left;
-  Uint32 read_count= free/GLOBAL_PAGE_SIZE;
+  Uint32 free = GLOBAL_PAGE_SIZE * page_count - left;
+  Uint32 read_count = free / GLOBAL_PAGE_SIZE;
 
-  if(read_count <= file_ptr.p->m_outstanding_reads)
-  {
+  if (read_count <= file_ptr.p->m_outstanding_reads) {
     signal->theData[0] = RestoreContinueB::READ_FILE;
     signal->theData[1] = file_ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);  
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
     return;
   }
 
   read_count -= file_ptr.p->m_outstanding_reads;
-  Uint32 curr_page= file_ptr.p->m_current_page_index;
+  Uint32 curr_page = file_ptr.p->m_current_page_index;
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-  
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
+
+  FsReadWriteReq *req = (FsReadWriteReq *)signal->getDataPtrSend();
   req->filePointer = file_ptr.p->m_fd;
   req->userReference = reference();
   req->userPointer = file_ptr.i;
   req->numberOfPages = 1;
   req->operationFlag = 0;
-  FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				FsReadWriteReq::fsFormatGlobalPage);
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatGlobalPage);
   FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
 
-  Uint32 start= (curr_page + page_count - read_count) % page_count;
-  
+  Uint32 start = (curr_page + page_count - read_count) % page_count;
+
   List::Iterator it;
   pages.position(it, start);
-  do
-  {
+  do {
     file_ptr.p->m_outstanding_reads++;
     req->varIndex = file_ptr.p->m_current_file_page++;
     req->data.globalPage.pageNumber = *it.data;
-    sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
-	       FsReadWriteReq::FixedLength + 1, JBA);
-    
+    sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+               FsReadWriteReq::FixedLength + 1, JBA);
+
     start++;
-    if(start == page_count)
-    {
-      start= 0;
+    if (start == page_count) {
+      start = 0;
       pages.position(it, start);
-    }
-    else
-    {
+    } else {
       pages.next(it);
     }
-  } while(start != curr_page);
+  } while (start != curr_page);
 }
 
-void
-Restore::execFSREADREF(Signal * signal)
-{
+void Restore::execFSREADREF(Signal *signal) {
   jamEntry();
   FilePtr file_ptr;
-  FsRef* ref= (FsRef*)signal->getDataPtr();
+  FsRef *ref = (FsRef *)signal->getDataPtr();
   ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
-  if (file_ptr.p->m_status == File::READ_CTL_FILES)
-  {
+  if (file_ptr.p->m_status == File::READ_CTL_FILES) {
     jam();
     read_ctl_file_done(signal, file_ptr, 0);
     return;
@@ -2706,35 +2428,28 @@ Restore::execFSREADREF(Signal * signal)
   ndbabort();
 }
 
-void
-Restore::execFSREADCONF(Signal * signal)
-{
+void Restore::execFSREADCONF(Signal *signal) {
   jamEntry();
   FilePtr file_ptr;
-  FsConf* conf= (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
-  if (file_ptr.p->m_status == File::READ_CTL_FILES)
-  {
+  if (file_ptr.p->m_status == File::READ_CTL_FILES) {
     jam();
     read_ctl_file_done(signal, file_ptr, conf->bytes_read);
     return;
   }
   file_ptr.p->m_bytes_left += conf->bytes_read;
-  
+
   ndbassert(file_ptr.p->m_outstanding_reads);
   file_ptr.p->m_outstanding_reads--;
 
-  if (file_ptr.p->m_outstanding_reads == 0)
-  {
+  if (file_ptr.p->m_outstanding_reads == 0) {
     ndbassert(conf->bytes_read <= GLOBAL_PAGE_SIZE);
-    if(conf->bytes_read == GLOBAL_PAGE_SIZE)
-    {
+    if (conf->bytes_read == GLOBAL_PAGE_SIZE) {
       jam();
       read_data_file(signal, file_ptr);
-    }
-    else 
-    {
+    } else {
       jam();
       file_ptr.p->m_status |= File::FILE_EOF;
       file_ptr.p->m_status &= ~(Uint32)File::FILE_THREAD_RUNNING;
@@ -2742,173 +2457,139 @@ Restore::execFSREADCONF(Signal * signal)
   }
 }
 
-void
-Restore::close_file(Signal* signal, FilePtr file_ptr, bool remove_flag)
-{
-  FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
+void Restore::close_file(Signal *signal, FilePtr file_ptr, bool remove_flag) {
+  FsCloseReq *req = (FsCloseReq *)signal->getDataPtrSend();
   req->filePointer = file_ptr.p->m_fd;
   req->userPointer = file_ptr.i;
   req->userReference = reference();
   req->fileFlag = 0;
-  if (remove_flag)
-  {
+  if (remove_flag) {
     jam();
     FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
   }
   sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }
 
-void
-Restore::execFSCLOSEREF(Signal * signal)
-{
+void Restore::execFSCLOSEREF(Signal *signal) {
   jamEntry();
   SimulatedBlock::execFSCLOSEREF(signal);
   ndbabort();
 }
 
-void
-Restore::execFSCLOSECONF(Signal * signal)
-{
+void Restore::execFSCLOSECONF(Signal *signal) {
   jamEntry();
   FilePtr file_ptr;
-  FsConf* conf= (FsConf*)signal->getDataPtr();
+  FsConf *conf = (FsConf *)signal->getDataPtr();
   ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
   file_ptr.p->m_fd = RNIL;
 
-  if (file_ptr.p->m_status == File::READ_CTL_FILES)
-  {
+  if (file_ptr.p->m_status == File::READ_CTL_FILES) {
     jam();
     close_ctl_file_done(signal, file_ptr);
     return;
-  }
-  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
-  {
+  } else if (file_ptr.p->m_status == File::CREATE_CTL_FILE) {
     jam();
     lcp_create_ctl_done_close(signal, file_ptr);
     return;
-  }
-  else if (file_ptr.p->m_status == File::DROP_OLD_FILES)
-  {
+  } else if (file_ptr.p->m_status == File::DROP_OLD_FILES) {
     jam();
     lcp_drop_old_files(signal, file_ptr);
     return;
   }
 
-  if(file_ptr.p->m_outstanding_operations == 0)
-  {
+  if (file_ptr.p->m_outstanding_operations == 0) {
     jam();
     restore_lcp_conf_after_execute(signal, file_ptr);
     return;
   }
 }
 
-void
-Restore::parse_file_header(Signal* signal, 
-			   FilePtr file_ptr, 
-			   const Uint32* data, Uint32 len)
-{
-  const BackupFormat::FileHeader* fh= (BackupFormat::FileHeader*)data;
+void Restore::parse_file_header(Signal *signal, FilePtr file_ptr,
+                                const Uint32 *data, Uint32 len) {
+  const BackupFormat::FileHeader *fh = (BackupFormat::FileHeader *)data;
 
-  if(memcmp(fh->Magic, "NDBBCKUP", 8) != 0)
-  {
+  if (memcmp(fh->Magic, "NDBBCKUP", 8) != 0) {
     parse_error(signal, file_ptr, __LINE__, *data);
     return;
   }
-  
+
   file_ptr.p->m_lcp_version = ntohl(fh->BackupVersion);
-  if (check_file_version(signal, ntohl(fh->BackupVersion)))
-  {
+  if (check_file_version(signal, ntohl(fh->BackupVersion))) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->NdbVersion));
     return;
   }
   ndbassert(ntohl(fh->SectionType) == BackupFormat::FILE_HEADER);
-  
-  if(ntohl(fh->SectionLength) != len-3)
-  {
+
+  if (ntohl(fh->SectionLength) != len - 3) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
-  }  
-  
-  if(ntohl(fh->FileType) != BackupFormat::LCP_FILE)
-  {
+  }
+
+  if (ntohl(fh->FileType) != BackupFormat::LCP_FILE) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->FileType));
     return;
-  }  
-  
-  if(fh->ByteOrder != 0x12345678)
-  {
+  }
+
+  if (fh->ByteOrder != 0x12345678) {
     parse_error(signal, file_ptr, __LINE__, fh->ByteOrder);
     return;
   }
 }
 
-void
-Restore::parse_table_list(Signal* signal, FilePtr file_ptr, 
-			  const Uint32 *data, Uint32 len)
-{
-  const BackupFormat::CtlFile::TableList* fh= 
-    (BackupFormat::CtlFile::TableList*)data;
-  
-  if(ntohl(fh->TableIds[0]) != file_ptr.p->m_table_id)
-  {
+void Restore::parse_table_list(Signal *signal, FilePtr file_ptr,
+                               const Uint32 *data, Uint32 len) {
+  const BackupFormat::CtlFile::TableList *fh =
+      (BackupFormat::CtlFile::TableList *)data;
+
+  if (ntohl(fh->TableIds[0]) != file_ptr.p->m_table_id) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->TableIds[0]));
     return;
-  } 
+  }
 }
 
-void
-Restore::parse_table_description(Signal* signal, FilePtr file_ptr, 
-				 const Uint32 *data, Uint32 len)
-{
-  const BackupFormat::CtlFile::TableDescription* fh= 
-    (BackupFormat::CtlFile::TableDescription*)data;
-  
+void Restore::parse_table_description(Signal *signal, FilePtr file_ptr,
+                                      const Uint32 *data, Uint32 len) {
+  const BackupFormat::CtlFile::TableDescription *fh =
+      (BackupFormat::CtlFile::TableDescription *)data;
+
   SimplePropertiesLinearReader it(fh->DictTabInfo, len);
   it.first();
-  
-  DictTabInfo::Table tmpTab; tmpTab.init();
+
+  DictTabInfo::Table tmpTab;
+  tmpTab.init();
   SimpleProperties::UnpackStatus stat;
-  stat = SimpleProperties::unpack(it, &tmpTab, 
-				  DictTabInfo::TableMapping, 
-				  DictTabInfo::TableMappingSize);
+  stat = SimpleProperties::unpack(it, &tmpTab, DictTabInfo::TableMapping,
+                                  DictTabInfo::TableMappingSize);
   ndbrequire(stat == SimpleProperties::Break);
-  
-  if(tmpTab.TableId != file_ptr.p->m_table_id)
-  {
+
+  if (tmpTab.TableId != file_ptr.p->m_table_id) {
     parse_error(signal, file_ptr, __LINE__, tmpTab.TableId);
     return;
   }
-  
+
   file_ptr.p->m_table_version = tmpTab.TableVersion;
 }
 
-void
-Restore::parse_fragment_header(Signal* signal, FilePtr file_ptr, 
-			       const Uint32 *data, Uint32 len)
-{
-  const BackupFormat::DataFile::FragmentHeader* fh= 
-    (BackupFormat::DataFile::FragmentHeader*)data;
-  if(ntohl(fh->TableId) != file_ptr.p->m_table_id)
-  {
+void Restore::parse_fragment_header(Signal *signal, FilePtr file_ptr,
+                                    const Uint32 *data, Uint32 len) {
+  const BackupFormat::DataFile::FragmentHeader *fh =
+      (BackupFormat::DataFile::FragmentHeader *)data;
+  if (ntohl(fh->TableId) != file_ptr.p->m_table_id) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->TableId));
     return;
-  } 
-  
-  if (ntohl(fh->ChecksumType) != 0)
-  {
+  }
+
+  if (ntohl(fh->ChecksumType) != 0) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
   }
-  
+
   file_ptr.p->m_fragment_id = ntohl(fh->FragmentNo);
 }
 
-const char*
-Restore::get_state_string(Uint32 part_state)
-{
-  switch (part_state)
-  {
+const char *Restore::get_state_string(Uint32 part_state) {
+  switch (part_state) {
     case File::PART_IGNORED:
       return "IGNORED";
     case File::PART_ALL_ROWS:
@@ -2921,11 +2602,8 @@ Restore::get_state_string(Uint32 part_state)
   return NULL;
 }
 
-const char*
-Restore::get_header_string(Uint32 header_type)
-{
-  switch (header_type)
-  {
+const char *Restore::get_header_string(Uint32 header_type) {
+  switch (header_type) {
     case BackupFormat::INSERT_TYPE:
       return "INSERT_TYPE";
     case BackupFormat::WRITE_TYPE:
@@ -2940,19 +2618,13 @@ Restore::get_header_string(Uint32 header_type)
   }
 }
 
-void
-Restore::parse_record(Signal* signal,
-                      FilePtr file_ptr,
-                      const Uint32 *data,
-                      Uint32 len,
-                      BackupFormat::RecordType header_type)
-{
+void Restore::parse_record(Signal *signal, FilePtr file_ptr, const Uint32 *data,
+                           Uint32 len, BackupFormat::RecordType header_type) {
   Uint32 page_no = data[1];
   data += 1;
   file_ptr.p->m_error_code = 0;
   ndbrequire(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP);
-  if (page_no >= file_ptr.p->m_max_page_cnt)
-  {
+  if (page_no >= file_ptr.p->m_max_page_cnt) {
     /**
      * Page ignored since it is not part of this LCP.
      * Can happen with multiple files used to restore coming
@@ -2972,10 +2644,8 @@ Restore::parse_record(Signal* signal,
                 get_state_string(Uint32(file_ptr.p->m_part_state[part_id])),
                 get_header_string(Uint32(header_type))));
   */
-  switch (file_ptr.p->m_part_state[part_id])
-  {
-    case File::PART_IGNORED:
-    {
+  switch (file_ptr.p->m_part_state[part_id]) {
+    case File::PART_IGNORED: {
       jam();
       /**
        * The row is a perfectly ok row, but we will ignore since
@@ -2984,8 +2654,7 @@ Restore::parse_record(Signal* signal,
       file_ptr.p->m_ignored_rows++;
       return;
     }
-    case File::PART_ALL_ROWS:
-    {
+    case File::PART_ALL_ROWS: {
       jam();
       /**
        * The data file contains all rows for this part, it contains no
@@ -2995,8 +2664,7 @@ Restore::parse_record(Signal* signal,
       ndbrequire(header_type == BackupFormat::INSERT_TYPE);
       break;
     }
-    case File::PART_ALL_CHANGES:
-    {
+    case File::PART_ALL_CHANGES: {
       jam();
       /**
        * This is a row that changed during the LCP this data file records.
@@ -3008,66 +2676,44 @@ Restore::parse_record(Signal* signal,
       ndbrequire(header_type != BackupFormat::INSERT_TYPE);
       break;
     }
-    default:
-    {
+    default: {
       jam();
       ndbabort();
       return; /* Silence compiler warnings */
     }
   }
   Uint32 outstanding = file_ptr.p->m_outstanding_operations;
-  if (header_type == BackupFormat::INSERT_TYPE)
-  {
+  if (header_type == BackupFormat::INSERT_TYPE) {
     /**
      * This is a normal INSERT as part of our restore process.
      * We install using a binary image saved in LCP file.
      */
-    Uint32 * const key_start = signal->getDataPtrSend()+24;
-    Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+    Uint32 *const key_start = signal->getDataPtrSend() + 24;
+    Uint32 *const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
     Local_key rowid_val;
     jam();
     rowid_val.m_page_no = data[0];
     rowid_val.m_page_idx = data[1];
     file_ptr.p->m_rowid_page_no = rowid_val.m_page_no;
     file_ptr.p->m_rowid_page_idx = rowid_val.m_page_idx;
-    Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
-                                         data+2,
-                                         len - 3,
-                                         key_start);
-    AttributeHeader::init(attr_start,
-                          AttributeHeader::READ_LCP, 4*(len - 3));
+    Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id, data + 2,
+                                         len - 3, key_start);
+    AttributeHeader::init(attr_start, AttributeHeader::READ_LCP, 4 * (len - 3));
     Uint32 attrLen = 1 + len - 3;
     file_ptr.p->m_rows_restored_insert++;
-    memcpy(attr_start + 1, data+2, 4 * (len - 3));
-    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), row(%u,%u),"
-                  " keyLen: %u, key[0]: %x",
-                  instance(),
-                  file_ptr.p->m_table_id,
-                  file_ptr.p->m_fragment_id,
-                  rowid_val.m_page_no,
-                  rowid_val.m_page_idx,
-                  keyLen,
-                  key_start[0]));
+    memcpy(attr_start + 1, data + 2, 4 * (len - 3));
+    DEB_HIGH_RES(
+        ("(%u)INSERT_TYPE tab(%u,%u), row(%u,%u),"
+         " keyLen: %u, key[0]: %x",
+         instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+         rowid_val.m_page_no, rowid_val.m_page_idx, keyLen, key_start[0]));
 
-    execute_operation(signal,
-                      file_ptr,
-                      keyLen,
-                      attrLen,
-                      ZINSERT,
-                      0,
-                      Uint32(BackupFormat::INSERT_TYPE),
-                      &rowid_val);
-    handle_return_execute_operation(signal,
-                                    file_ptr,
-                                    data,
-                                    len,
-                                    outstanding);
-  }
-  else
-  {
+    execute_operation(signal, file_ptr, keyLen, attrLen, ZINSERT, 0,
+                      Uint32(BackupFormat::INSERT_TYPE), &rowid_val);
+    handle_return_execute_operation(signal, file_ptr, data, len, outstanding);
+  } else {
     if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE ||
-        header_type == BackupFormat::WRITE_TYPE)
-    {
+        header_type == BackupFormat::WRITE_TYPE) {
       Local_key rowid_val;
       rowid_val.m_page_no = data[0];
       rowid_val.m_page_idx = data[1];
@@ -3076,11 +2722,9 @@ Restore::parse_record(Signal* signal,
       jam();
       Uint32 gci_id = 0;
       Uint32 sent_header_type;
-      if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
-      {
+      if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE) {
         gci_id = data[2];
-        if (gci_id == 0)
-        {
+        if (gci_id == 0) {
           jam();
           /**
            * We didn't have access to the GCI at LCP time, row
@@ -3104,38 +2748,23 @@ Restore::parse_record(Signal* signal,
         }
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
         file_ptr.p->m_rows_restored_delete++;
-        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
-                      " gci=%u",
-                       instance(),
-                       file_ptr.p->m_table_id,
-                       file_ptr.p->m_fragment_id,
-                       rowid_val.m_page_no,
-                       rowid_val.m_page_idx,
-                       gci_id));
-      }
-      else
-      {
+        DEB_HIGH_RES(
+            ("(%u)1:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
+             " gci=%u",
+             instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+             rowid_val.m_page_no, rowid_val.m_page_idx, gci_id));
+      } else {
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_WRITE_TYPE;
         file_ptr.p->m_rows_restored_write++;
-        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
-                      " gci=%u",
-                       instance(),
-                       file_ptr.p->m_table_id,
-                       file_ptr.p->m_fragment_id,
-                       rowid_val.m_page_no,
-                       rowid_val.m_page_idx,
-                       gci_id));
+        DEB_HIGH_RES(
+            ("(%u)2:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
+             " gci=%u",
+             instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+             rowid_val.m_page_no, rowid_val.m_page_idx, gci_id));
       }
-      execute_operation(signal,
-                        file_ptr,
-                        0,
-                        0,
-                        ZDELETE,
-                        gci_id,
-                        sent_header_type,
-                        &rowid_val);
-      if (header_type == BackupFormat::WRITE_TYPE)
-      {
+      execute_operation(signal, file_ptr, 0, 0, ZDELETE, gci_id,
+                        sent_header_type, &rowid_val);
+      if (header_type == BackupFormat::WRITE_TYPE) {
         /**
          * We found a CHANGE record. This is written into the LCP file
          * as part of an LCP where the part only records changes. In
@@ -3149,38 +2778,22 @@ Restore::parse_record(Signal* signal,
          * very high.
          */
         DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), row(%u,%u), gci=%u",
-                       instance(),
-                       file_ptr.p->m_table_id,
-                       file_ptr.p->m_fragment_id,
-                       rowid_val.m_page_no,
-                       rowid_val.m_page_idx,
-                       gci_id));
-        Uint32 * const key_start = signal->getDataPtrSend()+24;
-        Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
-        Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
-                                             data+2,
-                                             len - 3,
-                                             key_start);
-        AttributeHeader::init(attr_start,
-                              AttributeHeader::READ_LCP, 4*(len - 3));
+                      instance(), file_ptr.p->m_table_id,
+                      file_ptr.p->m_fragment_id, rowid_val.m_page_no,
+                      rowid_val.m_page_idx, gci_id));
+        Uint32 *const key_start = signal->getDataPtrSend() + 24;
+        Uint32 *const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+        Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id, data + 2,
+                                             len - 3, key_start);
+        AttributeHeader::init(attr_start, AttributeHeader::READ_LCP,
+                              4 * (len - 3));
         Uint32 attrLen = 1 + len - 3;
-        memcpy(attr_start + 1, data+2, 4 * (len - 3));
-        execute_operation(signal,
-                          file_ptr,
-                          keyLen,
-                          attrLen,
-                          ZINSERT,
-                          gci_id,
-                          header_type,
-                          &rowid_val);
-        handle_return_execute_operation(signal,
-                                        file_ptr,
-                                        data,
-                                        len,
+        memcpy(attr_start + 1, data + 2, 4 * (len - 3));
+        execute_operation(signal, file_ptr, keyLen, attrLen, ZINSERT, gci_id,
+                          header_type, &rowid_val);
+        handle_return_execute_operation(signal, file_ptr, data, len,
                                         outstanding);
-      }
-      else
-      {
+      } else {
         /**
          * We found a DELETE BY ROWID, this deletes the row in the rowid
          * position, This can happen in parts where we record changes, we might
@@ -3192,26 +2805,18 @@ Restore::parse_record(Signal* signal,
          * set.
          */
         DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), row(%u,%u), gci=%u",
-                       instance(),
-                       file_ptr.p->m_table_id,
-                       file_ptr.p->m_fragment_id,
-                       rowid_val.m_page_no,
-                       rowid_val.m_page_idx,
-                       gci_id));
+                      instance(), file_ptr.p->m_table_id,
+                      file_ptr.p->m_fragment_id, rowid_val.m_page_no,
+                      rowid_val.m_page_idx, gci_id));
         ndbrequire(len == (3 + 1));
         ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
       }
-    }
-    else
-    {
+    } else {
       jam();
       Local_key rowid_val;
       DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID tab(%u,%u), page=%u, record_size=%u",
-                     instance(),
-                     file_ptr.p->m_table_id,
-                     file_ptr.p->m_fragment_id,
-                     data[0],
-                     data[1]));
+                    instance(), file_ptr.p->m_table_id,
+                    file_ptr.p->m_fragment_id, data[0], data[1]));
       ndbrequire(header_type == BackupFormat::DELETE_BY_PAGEID_TYPE);
       ndbrequire(len == (2 + 1));
       /* DELETE by PAGEID, a loop of DELETE by ROWID */
@@ -3221,16 +2826,9 @@ Restore::parse_record(Signal* signal,
       file_ptr.p->m_outstanding_operations++;
       file_ptr.p->m_rows_restored_delete_page++;
       while ((rowid_val.m_page_idx + record_size) <=
-             Tup_fixsize_page::DATA_WORDS)
-      {
+             Tup_fixsize_page::DATA_WORDS) {
         jam();
-        execute_operation(signal,
-                          file_ptr,
-                          0,
-                          0,
-                          ZDELETE,
-                          0,
-                          header_type,
+        execute_operation(signal, file_ptr, 0, 0, ZDELETE, 0, header_type,
                           &rowid_val);
         rowid_val.m_page_idx += record_size;
       }
@@ -3242,26 +2840,20 @@ Restore::parse_record(Signal* signal,
   }
 }
 
-void
-Restore::handle_return_execute_operation(Signal *signal,
-                                         FilePtr file_ptr,
-                                         const Uint32 *data,
-                                         Uint32 len,
-                                         Uint32 outstanding)
-{
+void Restore::handle_return_execute_operation(Signal *signal, FilePtr file_ptr,
+                                              const Uint32 *data, Uint32 len,
+                                              Uint32 outstanding) {
   ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
-  if (file_ptr.p->m_error_code == 0)
-  {
+  if (file_ptr.p->m_error_code == 0) {
     return; /* Normal path, return */
   }
-  Uint32 * const key_start = signal->getDataPtrSend()+24;
-  Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+  Uint32 *const key_start = signal->getDataPtrSend() + 24;
+  Uint32 *const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
   Local_key rowid_val;
   Uint32 keyLen;
   Uint32 attrLen = 1 + len - 3;
 
-  if (file_ptr.p->m_error_code != 630 ||
-      file_ptr.p->m_num_files == 1 ||
+  if (file_ptr.p->m_error_code != 630 || file_ptr.p->m_num_files == 1 ||
       file_ptr.p->m_current_file_index == 0)
     goto error;
 
@@ -3291,103 +2883,70 @@ Restore::handle_return_execute_operation(Signal *signal,
    * the first LCP file.
    */
 
-  DEB_RES(("(%u)tab(%u,%u) row(%u,%u) key already existed,"
-           " num_files: %u, current_file: %u",
-           instance(),
-           file_ptr.p->m_table_id,
-           file_ptr.p->m_fragment_id,
-           file_ptr.p->m_rowid_page_no,
-           file_ptr.p->m_rowid_page_idx,
-           file_ptr.p->m_num_files,
-           file_ptr.p->m_current_file_index));
+  DEB_RES(
+      ("(%u)tab(%u,%u) row(%u,%u) key already existed,"
+       " num_files: %u, current_file: %u",
+       instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+       file_ptr.p->m_rowid_page_no, file_ptr.p->m_rowid_page_idx,
+       file_ptr.p->m_num_files, file_ptr.p->m_current_file_index));
 
-  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
-                                data+2,
-                                len - 3,
+  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id, data + 2, len - 3,
                                 key_start);
-  execute_operation(signal,
-                    file_ptr,
-                    keyLen,
-                    0,
-                    ZDELETE,
-                    0,
-                    BackupFormat::NORMAL_DELETE_TYPE,
-                    NULL);
+  execute_operation(signal, file_ptr, keyLen, 0, ZDELETE, 0,
+                    BackupFormat::NORMAL_DELETE_TYPE, NULL);
 
   ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
-  if (file_ptr.p->m_error_code != 0)
-    goto error;
+  if (file_ptr.p->m_error_code != 0) goto error;
 
   /**
    * Setup key data and attribute data again, since the signal
    * object cannot be regarded as safe, we need to reinitialise
    * this data.
    */
-  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
-                                data+2,
-                                len - 3,
+  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id, data + 2, len - 3,
                                 key_start);
-  AttributeHeader::init(attr_start,
-                        AttributeHeader::READ_LCP, 4*(len - 3));
-  memcpy(attr_start + 1, data+2, 4 * (len - 3));
+  AttributeHeader::init(attr_start, AttributeHeader::READ_LCP, 4 * (len - 3));
+  memcpy(attr_start + 1, data + 2, 4 * (len - 3));
   rowid_val.m_page_no = data[0];
   rowid_val.m_page_idx = data[1];
-  execute_operation(signal,
-                    file_ptr,
-                    keyLen,
-                    attrLen,
-                    ZINSERT,
-                    0,
-                    Uint32(BackupFormat::INSERT_TYPE),
-                    &rowid_val);
+  execute_operation(signal, file_ptr, keyLen, attrLen, ZINSERT, 0,
+                    Uint32(BackupFormat::INSERT_TYPE), &rowid_val);
   ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
   ndbrequire(file_ptr.p->m_error_code == 0);
   return;
 
 error:
-  g_eventLogger->info("(%u)tab(%u,%u),row(%u,%u) crash, error: %u",
-                      instance(),
-                      file_ptr.p->m_table_id,
-                      file_ptr.p->m_fragment_id,
-                      file_ptr.p->m_rowid_page_no,
-                      file_ptr.p->m_rowid_page_idx,
+  g_eventLogger->info("(%u)tab(%u,%u),row(%u,%u) crash, error: %u", instance(),
+                      file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+                      file_ptr.p->m_rowid_page_no, file_ptr.p->m_rowid_page_idx,
                       file_ptr.p->m_error_code);
   ndbrequire(file_ptr.p->m_error_code == 0);
 }
 
-void
-Restore::execute_operation(Signal *signal,
-                           FilePtr file_ptr,
-                           Uint32 keyLen,
-                           Uint32 attrLen,
-                           Uint32 op_type,
-                           Uint32 gci_id,
-                           Uint32 header_type,
-                           Local_key *rowid_val)
-{
-  LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
+void Restore::execute_operation(Signal *signal, FilePtr file_ptr, Uint32 keyLen,
+                                Uint32 attrLen, Uint32 op_type, Uint32 gci_id,
+                                Uint32 header_type, Local_key *rowid_val) {
+  LqhKeyReq *req = (LqhKeyReq *)signal->getDataPtrSend();
   /**
    * attrLen is not used for long lqhkeyreq, and should be zero for short
    * lqhkeyreq.
    */
   req->attrLen = 0;
 
-  Uint32 tmp= 0;
+  Uint32 tmp = 0;
   const bool short_lqhkeyreq = (keyLen == 0);
   /**
    * With partital LCP also other operations like delete by rowid will be used.
    * In these cases no data is passed, and receiver will interpret signal as a
    * short signal, but no KEYINFO or ATTRINFO will be sent or expected.
    */
-  Uint32 * const key_start = signal->getDataPtrSend()+24;
-  if (short_lqhkeyreq)
-  {
+  Uint32 *const key_start = signal->getDataPtrSend() + 24;
+  if (short_lqhkeyreq) {
     ndbrequire(attrLen == 0);
     ndbassert(keyLen == 0);
     LqhKeyReq::setKeyLen(tmp, keyLen);
   }
-  if (!short_lqhkeyreq)
-  {
+  if (!short_lqhkeyreq) {
     LqhKeyReq::setDisableFkConstraints(tmp, 0);
     LqhKeyReq::setNoTriggersFlag(tmp, 0);
     LqhKeyReq::setUtilFlag(tmp, 0);
@@ -3401,24 +2960,18 @@ Restore::execute_operation(Signal *signal,
   LqhKeyReq::setSimpleFlag(tmp, 1);
   LqhKeyReq::setOperation(tmp, op_type);
   LqhKeyReq::setSameClientAndTcFlag(tmp, 0);
-  if (short_lqhkeyreq)
-  {
+  if (short_lqhkeyreq) {
     LqhKeyReq::setAIInLqhKeyReq(tmp, 0);
     req->hashValue = 0;
-  }
-  else
-  {
+  } else {
     Uint32 tableId = file_ptr.p->m_table_id;
     LqhKeyReq::setCorrFactorFlag(tmp, 0);
     LqhKeyReq::setNormalProtocolFlag(tmp, 0);
     LqhKeyReq::setDeferredConstraints(tmp, 0);
 
-    if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
-    {
+    if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr) {
       req->hashValue = calculate_hash(tableId, key_start);
-    }
-    else
-    {
+    } else {
       req->hashValue = md5_hash(key_start, keyLen);
     }
   }
@@ -3427,15 +2980,14 @@ Restore::execute_operation(Signal *signal,
   req->clientConnectPtr = (file_ptr.i + (header_type << 28));
   req->tcBlockref = reference();
   req->savePointId = 0;
-  req->tableSchemaVersion = file_ptr.p->m_table_id + 
-    (file_ptr.p->m_table_version << 16);
+  req->tableSchemaVersion =
+      file_ptr.p->m_table_id + (file_ptr.p->m_table_version << 16);
   req->fragmentData = file_ptr.p->m_fragment_id;
   req->transId1 = 0;
   req->transId2 = 0;
   req->scanInfo = 0;
   Uint32 pos = 0;
-  if (op_type != ZDELETE)
-  {
+  if (op_type != ZDELETE) {
     /**
      * Need not set GCI flag here since we restore also the header part of
      * the row in this case.
@@ -3443,15 +2995,12 @@ Restore::execute_operation(Signal *signal,
     req->variableData[pos++] = rowid_val->m_page_no;
     req->variableData[pos++] = rowid_val->m_page_idx;
     LqhKeyReq::setGCIFlag(tmp, 0);
-  }
-  else
-  {
+  } else {
     /**
      * We reuse the Node Restart Copy handling to perform
      * DELETE by ROWID. In this case we need to set the GCI of the record.
      */
-    if (rowid_val)
-    {
+    if (rowid_val) {
       req->variableData[pos++] = rowid_val->m_page_no;
       req->variableData[pos++] = rowid_val->m_page_idx;
       LqhKeyReq::setGCIFlag(tmp, 1);
@@ -3460,40 +3009,32 @@ Restore::execute_operation(Signal *signal,
     }
   }
   req->requestInfo = tmp;
-  if (short_lqhkeyreq)
-  {
+  if (short_lqhkeyreq) {
     file_ptr.p->m_outstanding_operations++;
     EXECUTE_DIRECT(getDBLQH(), GSN_LQHKEYREQ, signal,
                    LqhKeyReq::FixedSignalLength + pos);
-  }
-  else
-  {
+  } else {
     bool ok = true;
     SectionHandle sections(this);
     sections.clear();
 
     sections.m_ptr[LqhKeyReq::KeyInfoSectionNum].i = RNIL;
-    ok= appendToSection(sections.m_ptr[LqhKeyReq::KeyInfoSectionNum].i,
-                        key_start,
-                        keyLen);
-    if (unlikely(!ok))
-    {
+    ok = appendToSection(sections.m_ptr[LqhKeyReq::KeyInfoSectionNum].i,
+                         key_start, keyLen);
+    if (unlikely(!ok)) {
       jam();
       crash_during_restore(file_ptr, __LINE__, ZGET_DATAREC_ERROR);
       ndbabort();
     }
     sections.m_cnt++;
 
-    if (attrLen > 0)
-    {
-      Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+    if (attrLen > 0) {
+      Uint32 *const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
       sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i = RNIL;
-      ok= appendToSection(sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i,
-                          attr_start,
-                          attrLen);
+      ok = appendToSection(sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i,
+                           attr_start, attrLen);
 
-      if (unlikely(!ok))
-      {
+      if (unlikely(!ok)) {
         jam();
         crash_during_restore(file_ptr, __LINE__, ZGET_ATTRINBUF_ERROR);
         ndbabort();
@@ -3502,59 +3043,48 @@ Restore::execute_operation(Signal *signal,
     }
     file_ptr.p->m_outstanding_operations++;
     EXECUTE_DIRECT_WITH_SECTIONS(getDBLQH(), GSN_LQHKEYREQ, signal,
-                                 LqhKeyReq::FixedSignalLength+pos,
-                                 &sections);
+                                 LqhKeyReq::FixedSignalLength + pos, &sections);
   }
 }
 
-Uint32
-Restore::calculate_hash(Uint32 tableId, const Uint32 *src)
-{
+Uint32 Restore::calculate_hash(Uint32 tableId, const Uint32 *src) {
   jam();
-  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key_hash(tableId, src,
-				tmp, sizeof(tmp) >> 2,
-			        keyPartLen);
+  Uint32 keyLen =
+      xfrm_key_hash(tableId, src, tmp, sizeof(tmp) >> 2, keyPartLen);
   ndbrequire(keyLen);
-  
+
   return md5_hash(tmp, keyLen);
 }
 
-void
-Restore::execLQHKEYREF(Signal* signal)
-{
+void Restore::execLQHKEYREF(Signal *signal) {
   FilePtr file_ptr;
-  LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
+  LqhKeyRef *ref = (LqhKeyRef *)signal->getDataPtr();
   BackupFormat::RecordType header_type =
-    (BackupFormat::RecordType)(ref->connectPtr >> 28);
+      (BackupFormat::RecordType)(ref->connectPtr >> 28);
   ndbrequire(m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF)));
-  
+
   ndbrequire(file_ptr.p->m_outstanding_operations > 0);
   file_ptr.p->m_outstanding_operations--;
   file_ptr.p->m_error_code = 0;
-  switch (header_type)
-  {
-    case BackupFormat::DELETE_BY_ROWID_TYPE:
-    {
+  switch (header_type) {
+    case BackupFormat::DELETE_BY_ROWID_TYPE: {
       jam();
       break;
     }
-    case BackupFormat::DELETE_BY_PAGEID_TYPE:
-    {
+    case BackupFormat::DELETE_BY_PAGEID_TYPE: {
       jam();
       break;
     }
-    case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE:
-    {
+    case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE: {
       jam();
       break;
     }
     case BackupFormat::INSERT_TYPE:
     case BackupFormat::WRITE_TYPE:
     case BackupFormat::NORMAL_DELETE_TYPE:
-    default:
-    {
+    default: {
       jam();
       file_ptr.p->m_error_code = ref->errorCode;
       return;
@@ -3565,69 +3095,52 @@ Restore::execLQHKEYREF(Signal* signal)
   check_restore_ready(signal, file_ptr);
 }
 
-void
-Restore::crash_during_restore(FilePtr file_ptr, Uint32 line, Uint32 errCode)
-{
+void Restore::crash_during_restore(FilePtr file_ptr, Uint32 line,
+                                   Uint32 errCode) {
   char buf[255], name[100];
-  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
-		       file_ptr.p->m_file_id,
-		       file_ptr.p->m_table_id,
-		       file_ptr.p->m_fragment_id);
-  
-  if (errCode)
-  {
+  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d", file_ptr.p->m_file_id,
+                       file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+
+  if (errCode) {
     BaseString::snprintf(buf, sizeof(buf),
-                         "Error %d (line: %u) during restore of  %s",
-                         errCode, line, name);
-  }
-  else
-  {
-    BaseString::snprintf(buf, sizeof(buf),
-                         "Error (line %u) during restore of  %s",
+                         "Error %d (line: %u) during restore of  %s", errCode,
                          line, name);
+  } else {
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Error (line %u) during restore of  %s", line, name);
   }
-  progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
+  progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);
 }
 
-void
-Restore::delete_by_rowid_fail(Uint32 op_ptr)
-{
+void Restore::delete_by_rowid_fail(Uint32 op_ptr) {
   FilePtr file_ptr;
   ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
-  DEB_RES_DEL(("(%u)DELETE fail:tab(%u,%u), m_rows_restored = %llu",
-               instance(),
-               file_ptr.p->m_table_id,
-               file_ptr.p->m_fragment_id,
+  DEB_RES_DEL(("(%u)DELETE fail:tab(%u,%u), m_rows_restored = %llu", instance(),
+               file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
                file_ptr.p->m_rows_restored));
 }
 
-void
-Restore::delete_by_rowid_succ(Uint32 op_ptr)
-{
+void Restore::delete_by_rowid_succ(Uint32 op_ptr) {
   FilePtr file_ptr;
   ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
   ndbrequire(file_ptr.p->m_rows_restored > 0);
   file_ptr.p->m_rows_restored--;
   DEB_RES_DEL(("(%u)DELETE success:tab(%u,%u), m_rows_restored = %llu",
-               instance(),
-               file_ptr.p->m_table_id,
-               file_ptr.p->m_fragment_id,
+               instance(), file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
                file_ptr.p->m_rows_restored));
 }
 
-void
-Restore::execLQHKEYCONF(Signal* signal)
-{
+void Restore::execLQHKEYCONF(Signal *signal) {
   FilePtr file_ptr;
-  LqhKeyConf * conf = (LqhKeyConf *)signal->getDataPtr();
-  BackupFormat::RecordType header_type = (BackupFormat::RecordType)(conf->opPtr >> 28);
+  LqhKeyConf *conf = (LqhKeyConf *)signal->getDataPtr();
+  BackupFormat::RecordType header_type =
+      (BackupFormat::RecordType)(conf->opPtr >> 28);
   ndbrequire(m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF)));
-  
+
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;
   file_ptr.p->m_error_code = 0;
-  switch (header_type)
-  {
+  switch (header_type) {
     case BackupFormat::INSERT_TYPE:
       jam();
       file_ptr.p->m_rows_restored++;
@@ -3655,23 +3168,17 @@ Restore::execLQHKEYCONF(Signal* signal)
   check_restore_ready(signal, file_ptr);
 }
 
-void
-Restore::check_restore_ready(Signal *signal, FilePtr file_ptr)
-{
-  if (file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL)
-  {
+void Restore::check_restore_ready(Signal *signal, FilePtr file_ptr) {
+  if (file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL) {
     jam();
     restore_lcp_conf_after_execute(signal, file_ptr);
     return;
   }
 }
 
-void
-Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
-{
+void Restore::restore_lcp_conf_after_execute(Signal *signal, FilePtr file_ptr) {
   file_ptr.p->m_current_file_index++;
-  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files)
-  {
+  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files) {
     /**
      * There are still more data files to apply before restore is complete.
      * Handle next file now.
@@ -3679,7 +3186,7 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
     jam();
     DEB_RES(("(%u)Step forward to next data file", instance()));
     step_file_number_forward(file_ptr);
-    file_ptr.p->m_current_page_pos = 0; 
+    file_ptr.p->m_current_page_pos = 0;
     file_ptr.p->m_current_page_index = 0;
     file_ptr.p->m_current_file_page = 0;
     ndbrequire(file_ptr.p->m_outstanding_reads == 0);
@@ -3693,9 +3200,7 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
   restore_lcp_conf(signal, file_ptr);
 }
 
-void
-Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
-{
+void Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr) {
   /**
    * All LCP data files that are part of restore have been applied
    * successfully, this fragment has completed its restore and we're
@@ -3709,12 +3214,10 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    * the LDM thread once the restore is done.
    */
 
-  if (m_is_query_block)
-  {
+  if (m_is_query_block) {
     jam();
     if (c_lqh->check_expand_shrink_ongoing(file_ptr.p->m_table_id,
-                                           file_ptr.p->m_fragment_id))
-    {
+                                           file_ptr.p->m_fragment_id)) {
       jam();
       /* Expand is ongoing still, we need to wait until it is done */
       signal->theData[0] = RestoreContinueB::CHECK_EXPAND_SHRINK;
@@ -3732,52 +3235,44 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    */
   DEB_RES(("(%u)Complete restore", instance()));
 
-  if (file_ptr.p->m_lcp_ctl_version == NDBD_USE_PARTIAL_LCP_v2)
-  {
+  if (file_ptr.p->m_lcp_ctl_version == NDBD_USE_PARTIAL_LCP_v2) {
     /**
      * Important to verify that number of rows is what we expect.
      * Otherwise we could go on with inconsistent database without
      * knowing it. So better to crash and specify error.
      */
-    if (file_ptr.p->m_rows_in_lcp != file_ptr.p->m_rows_restored)
-    {
+    if (file_ptr.p->m_rows_in_lcp != file_ptr.p->m_rows_restored) {
       char buf[512];
       BaseString::snprintf(buf, sizeof(buf),
                            "Inconsistency in restoring T%uF%u, restored"
                            " %llu rows, expected to restore %llu rows"
                            "\nInitial node restart is required to recover",
-                           file_ptr.p->m_table_id,
-                           file_ptr.p->m_fragment_id,
+                           file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
                            file_ptr.p->m_rows_restored,
                            file_ptr.p->m_rows_in_lcp);
-      progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
+      progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);
     }
   }
   if (c_tup->get_restore_row_count(file_ptr.p->m_table_id,
                                    file_ptr.p->m_fragment_id) !=
-      file_ptr.p->m_rows_restored)
-  {
+      file_ptr.p->m_rows_restored) {
     char buf[512];
-    BaseString::snprintf(buf, sizeof(buf),
-                         "Inconsistency in restoring T%uF%u, restored"
-                         " %llu rows, TUP claims %llu rows"
-                         "\nInitial node restart is required to recover",
-                         file_ptr.p->m_table_id,
-                         file_ptr.p->m_fragment_id,
-                         file_ptr.p->m_rows_restored,
-                         c_tup->get_restore_row_count(file_ptr.p->m_table_id,
-                                             file_ptr.p->m_fragment_id));
-    progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
+    BaseString::snprintf(
+        buf, sizeof(buf),
+        "Inconsistency in restoring T%uF%u, restored"
+        " %llu rows, TUP claims %llu rows"
+        "\nInitial node restart is required to recover",
+        file_ptr.p->m_table_id, file_ptr.p->m_fragment_id,
+        file_ptr.p->m_rows_restored,
+        c_tup->get_restore_row_count(file_ptr.p->m_table_id,
+                                     file_ptr.p->m_fragment_id));
+    progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);
   }
-  c_tup->complete_restore_fragment(signal,
-                                   file_ptr.p->m_sender_ref,
-                                   file_ptr.p->m_sender_data,
-                                   file_ptr.p->m_restored_lcp_id,
-                                   file_ptr.p->m_restored_local_lcp_id,
-                                   file_ptr.p->m_max_gci_completed,
-                                   file_ptr.p->m_max_gci_written,
-                                   file_ptr.p->m_table_id,
-                                   file_ptr.p->m_fragment_id);
+  c_tup->complete_restore_fragment(
+      signal, file_ptr.p->m_sender_ref, file_ptr.p->m_sender_data,
+      file_ptr.p->m_restored_lcp_id, file_ptr.p->m_restored_local_lcp_id,
+      file_ptr.p->m_max_gci_completed, file_ptr.p->m_max_gci_written,
+      file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
   jamEntry();
   signal->theData[0] = NDB_LE_ReadLCPComplete;
   signal->theData[1] = file_ptr.p->m_table_id;
@@ -3789,79 +3284,59 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
   release_file(file_ptr, true);
 }
 
-void
-Restore::parse_fragment_footer(Signal* signal, FilePtr file_ptr, 
-			       const Uint32 *data, Uint32 len)
-{
-  const BackupFormat::DataFile::FragmentFooter* fh= 
-    (BackupFormat::DataFile::FragmentFooter*)data;
-  if(ntohl(fh->TableId) != file_ptr.p->m_table_id)
-  {
+void Restore::parse_fragment_footer(Signal *signal, FilePtr file_ptr,
+                                    const Uint32 *data, Uint32 len) {
+  const BackupFormat::DataFile::FragmentFooter *fh =
+      (BackupFormat::DataFile::FragmentFooter *)data;
+  if (ntohl(fh->TableId) != file_ptr.p->m_table_id) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->TableId));
     return;
-  } 
-  
-  if(ntohl(fh->Checksum) != 0)
-  {
+  }
+
+  if (ntohl(fh->Checksum) != 0) {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
   }
 }
 
-void
-Restore::parse_gcp_entry(Signal* signal, FilePtr file_ptr, 
-			 const Uint32 *data, Uint32 len)
-{
-  
-}
+void Restore::parse_gcp_entry(Signal *signal, FilePtr file_ptr,
+                              const Uint32 *data, Uint32 len) {}
 
-void
-Restore::parse_error(Signal* signal,
-		     FilePtr file_ptr, Uint32 line, Uint32 extra)
-{
+void Restore::parse_error(Signal *signal, FilePtr file_ptr, Uint32 line,
+                          Uint32 extra) {
   char buf[255], name[100];
-  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
-		       file_ptr.p->m_file_id,
-		       file_ptr.p->m_table_id,
-		       file_ptr.p->m_fragment_id);
-  
-  BaseString::snprintf(buf, sizeof(buf),
-		       "Parse error in file: %s, extra: %d",
-		       name, extra);
-  
-  progError(line, NDBD_EXIT_INVALID_LCP_FILE, buf);  
+  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d", file_ptr.p->m_file_id,
+                       file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+
+  BaseString::snprintf(buf, sizeof(buf), "Parse error in file: %s, extra: %d",
+                       name, extra);
+
+  progError(line, NDBD_EXIT_INVALID_LCP_FILE, buf);
   ndbabort();
 }
 
-NdbOut& 
-operator << (NdbOut& ndbout, const Restore::Column& col)
-{
-  ndbout << "[ Col: id: " << col.m_id 
-	 << " size: " << col.m_size 
-	 << " key: " << (Uint32)(col.m_flags & Restore::Column::COL_KEY)
-	 << " variable: " << (Uint32)(col.m_flags & Restore::Column::COL_VAR)
-	 << " null: " << (Uint32)(col.m_flags & Restore::Column::COL_NULL)
-	 << " disk: " << (Uint32)(col.m_flags & Restore::Column::COL_DISK) 
-	 << "]";
+NdbOut &operator<<(NdbOut &ndbout, const Restore::Column &col) {
+  ndbout << "[ Col: id: " << col.m_id << " size: " << col.m_size
+         << " key: " << (Uint32)(col.m_flags & Restore::Column::COL_KEY)
+         << " variable: " << (Uint32)(col.m_flags & Restore::Column::COL_VAR)
+         << " null: " << (Uint32)(col.m_flags & Restore::Column::COL_NULL)
+         << " disk: " << (Uint32)(col.m_flags & Restore::Column::COL_DISK)
+         << "]";
 
   return ndbout;
 }
 
-int
-Restore::check_file_version(Signal* signal, Uint32 file_version)
-{
-  if (file_version < MAKE_VERSION(5,1,6))
-  {
+int Restore::check_file_version(Signal *signal, Uint32 file_version) {
+  if (file_version < MAKE_VERSION(5, 1, 6)) {
     char buf[255];
     char verbuf[255];
     ndbGetVersionString(file_version, 0, 0, verbuf, sizeof(verbuf));
     BaseString::snprintf(buf, sizeof(buf),
-			 "Unsupported version of LCP files found on disk, "
-			 " found: %s", verbuf);
-    
-    progError(__LINE__, 
-	      NDBD_EXIT_SR_RESTARTCONFLICT,
-	      buf);
+                         "Unsupported version of LCP files found on disk, "
+                         " found: %s",
+                         verbuf);
+
+    progError(__LINE__, NDBD_EXIT_SR_RESTARTCONFLICT, buf);
     return -1;
   }
   return 0;

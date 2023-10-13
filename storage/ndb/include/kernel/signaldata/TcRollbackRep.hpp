@@ -29,14 +29,13 @@
 
 #define JAM_FILE_ID 132
 
-
 class TcRollbackRep {
   /**
    * Sender(s)
    */
   friend class NdbTransaction;
   friend class DbUtil;
-  
+
   /**
    * Receiver(s)
    */
@@ -46,19 +45,18 @@ class TcRollbackRep {
    * Sender(s) / Receiver(s)
    */
   friend class Dbtc;
-  
+
   friend bool printTCROLBACKREP(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 5;
 
-private:
+ private:
   Uint32 connectPtr;
   Uint32 transId[2];
   Uint32 returnCode;
   Uint32 errorData;
 };
-
 
 #undef JAM_FILE_ID
 

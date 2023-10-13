@@ -27,68 +27,39 @@
 #include <version.h>
 #include <NdbOut.hpp>
 
-extern "C"
-Uint32 ndbGetMajor(Uint32 version) {
-  return (version >> 16) & 0xFF;
-}
+extern "C" Uint32 ndbGetMajor(Uint32 version) { return (version >> 16) & 0xFF; }
 
-extern "C"
-Uint32 ndbGetMinor(Uint32 version) {
-  return (version >> 8) & 0xFF;
-}
+extern "C" Uint32 ndbGetMinor(Uint32 version) { return (version >> 8) & 0xFF; }
 
-extern "C"
-Uint32 ndbGetBuild(Uint32 version) {
-  return (version >> 0) & 0xFF;
-}
+extern "C" Uint32 ndbGetBuild(Uint32 version) { return (version >> 0) & 0xFF; }
 
-extern "C"
-Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
+extern "C" Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
   return NDB_MAKE_VERSION(major, minor, build);
 }
 
-extern "C"
-const char * ndbGetOwnVersionString()
-{
+extern "C" const char *ndbGetOwnVersionString() {
   static char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-  return ndbGetVersionString(NDB_VERSION, NDB_MYSQL_VERSION_D, NDB_VERSION_STATUS,
-                             ndb_version_string_buf,
+  return ndbGetVersionString(NDB_VERSION, NDB_MYSQL_VERSION_D,
+                             NDB_VERSION_STATUS, ndb_version_string_buf,
                              sizeof(ndb_version_string_buf));
 }
 
-extern "C"
-const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
-                                 const char * status,
-                                 char *buf, unsigned sz)
-{
-  const char * tmp = (status == nullptr) ? "" : status;
-  if (mysql_version)
-  {
-    snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
-             getMajor(mysql_version),
-             getMinor(mysql_version),
-             getBuild(mysql_version),
-             getMajor(version),
-             getMinor(version),
-             getBuild(version),
-             tmp);
-  }
-  else
-  {
-    snprintf(buf, sz, "ndb-%d.%d.%d%s",
-             getMajor(version),
-             getMinor(version),
-             getBuild(version),
-             tmp);
+extern "C" const char *ndbGetVersionString(Uint32 version, Uint32 mysql_version,
+                                           const char *status, char *buf,
+                                           unsigned sz) {
+  const char *tmp = (status == nullptr) ? "" : status;
+  if (mysql_version) {
+    snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s", getMajor(mysql_version),
+             getMinor(mysql_version), getBuild(mysql_version),
+             getMajor(version), getMinor(version), getBuild(version), tmp);
+  } else {
+    snprintf(buf, sz, "ndb-%d.%d.%d%s", getMajor(version), getMinor(version),
+             getBuild(version), tmp);
   }
   return buf;
 }
 
-typedef enum {
-  UG_Null,
-  UG_Range,
-  UG_Exact
-} UG_MatchType;
+typedef enum { UG_Null, UG_Range, UG_Exact } UG_MatchType;
 
 struct NdbUpGradeCompatible {
   Uint32 ownVersion;
@@ -97,234 +68,185 @@ struct NdbUpGradeCompatible {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
-  { MAKE_VERSION(8,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 8.0 */
-  { MAKE_VERSION(7,6,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.6 */
-  { MAKE_VERSION(7,5,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.5 */
-  { MAKE_VERSION(7,4,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range }, /* 7.0 <-> 7.4 */
+    {MAKE_VERSION(8, 0, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 8.0 */
+    {MAKE_VERSION(7, 6, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 7.6 */
+    {MAKE_VERSION(7, 5, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 7.5 */
+    {MAKE_VERSION(7, 4, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 7.4 */
 
-  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,3,0), UG_Range },
-  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,2,0), UG_Range },
-  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },
-  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
+    {MAKE_VERSION(7, 3, NDB_VERSION_BUILD), MAKE_VERSION(7, 3, 0), UG_Range},
+    {MAKE_VERSION(7, 3, NDB_VERSION_BUILD), MAKE_VERSION(7, 2, 0), UG_Range},
+    {MAKE_VERSION(7, 3, NDB_VERSION_BUILD), MAKE_VERSION(7, 1, 0), UG_Range},
+    {MAKE_VERSION(7, 3, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0), UG_Range},
 
-  { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,2,0), UG_Range },
-  { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },
-  { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
+    {MAKE_VERSION(7, 2, NDB_VERSION_BUILD), MAKE_VERSION(7, 2, 0), UG_Range},
+    {MAKE_VERSION(7, 2, NDB_VERSION_BUILD), MAKE_VERSION(7, 1, 0), UG_Range},
+    {MAKE_VERSION(7, 2, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0), UG_Range},
 
-  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },        /* From 7.1+ */
-  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },        /* From 7.0+ */
-  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },        /* From 6.4+ */
-  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K, UG_Range },  /* From 6.3.X + */
-  { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
-  { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },
-  /* Can only upgrade to 6.4.X+ from versions >= 6.3.17 due to change
-   * in Transporter maximum sent message size
-   */
-  { MAKE_VERSION(7,0,NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K, UG_Range },
-  { MAKE_VERSION(6,3,NDB_VERSION_BUILD), MAKE_VERSION(6,2,1), UG_Range },
+    {MAKE_VERSION(7, 1, NDB_VERSION_BUILD), MAKE_VERSION(7, 1, 0),
+     UG_Range}, /* From 7.1+ */
+    {MAKE_VERSION(7, 1, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* From 7.0+ */
+    {MAKE_VERSION(7, 1, NDB_VERSION_BUILD), MAKE_VERSION(6, 4, 0),
+     UG_Range}, /* From 6.4+ */
+    {MAKE_VERSION(7, 1, NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K,
+     UG_Range}, /* From 6.3.X + */
+    {MAKE_VERSION(7, 0, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0), UG_Range},
+    {MAKE_VERSION(7, 0, NDB_VERSION_BUILD), MAKE_VERSION(6, 4, 0), UG_Range},
+    /* Can only upgrade to 6.4.X+ from versions >= 6.3.17 due to change
+     * in Transporter maximum sent message size
+     */
+    {MAKE_VERSION(7, 0, NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K,
+     UG_Range},
+    {MAKE_VERSION(6, 3, NDB_VERSION_BUILD), MAKE_VERSION(6, 2, 1), UG_Range},
 
-  { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,2,1), UG_Range },
-  { MAKE_VERSION(6,2,0), MAKE_VERSION(6,2,0), UG_Range},
+    {MAKE_VERSION(6, 2, NDB_VERSION_BUILD), MAKE_VERSION(6, 2, 1), UG_Range},
+    {MAKE_VERSION(6, 2, 0), MAKE_VERSION(6, 2, 0), UG_Range},
 
-  { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,1,19), UG_Range },
-  { MAKE_VERSION(6,1,NDB_VERSION_BUILD), MAKE_VERSION(6,1,6), UG_Range},
-  /* var page reference 32bit->64bit making 6.1.6 not backwards compatible */
-  /* ndb_apply_status table changed, and no compatibility code written */
-  { MAKE_VERSION(6,1,4), MAKE_VERSION(6,1,2), UG_Range},
-  { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,0), UG_Range},
+    {MAKE_VERSION(6, 2, NDB_VERSION_BUILD), MAKE_VERSION(6, 1, 19), UG_Range},
+    {MAKE_VERSION(6, 1, NDB_VERSION_BUILD), MAKE_VERSION(6, 1, 6), UG_Range},
+    /* var page reference 32bit->64bit making 6.1.6 not backwards compatible */
+    /* ndb_apply_status table changed, and no compatibility code written */
+    {MAKE_VERSION(6, 1, 4), MAKE_VERSION(6, 1, 2), UG_Range},
+    {MAKE_VERSION(5, 1, NDB_VERSION_BUILD), MAKE_VERSION(5, 1, 0), UG_Range},
 
-  { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,18), UG_Range},
-  { MAKE_VERSION(5,1,17), MAKE_VERSION(5,1,0), UG_Range},
+    {MAKE_VERSION(5, 1, NDB_VERSION_BUILD), MAKE_VERSION(5, 1, 18), UG_Range},
+    {MAKE_VERSION(5, 1, 17), MAKE_VERSION(5, 1, 0), UG_Range},
 
-  { MAKE_VERSION(5,0,NDB_VERSION_BUILD), MAKE_VERSION(5,0,12), UG_Range},
-  { MAKE_VERSION(5,0,11), MAKE_VERSION(5,0,2), UG_Range},
-  { MAKE_VERSION(4,1,NDB_VERSION_BUILD), MAKE_VERSION(4,1,15), UG_Range },
-  { MAKE_VERSION(4,1,14), MAKE_VERSION(4,1,10), UG_Range },
-  { MAKE_VERSION(4,1,10), MAKE_VERSION(4,1,9), UG_Exact },
-  { MAKE_VERSION(4,1,9), MAKE_VERSION(4,1,8), UG_Exact },
-  { MAKE_VERSION(3,5,2), MAKE_VERSION(3,5,1), UG_Exact },
-  { 0, 0, UG_Null }
-};
+    {MAKE_VERSION(5, 0, NDB_VERSION_BUILD), MAKE_VERSION(5, 0, 12), UG_Range},
+    {MAKE_VERSION(5, 0, 11), MAKE_VERSION(5, 0, 2), UG_Range},
+    {MAKE_VERSION(4, 1, NDB_VERSION_BUILD), MAKE_VERSION(4, 1, 15), UG_Range},
+    {MAKE_VERSION(4, 1, 14), MAKE_VERSION(4, 1, 10), UG_Range},
+    {MAKE_VERSION(4, 1, 10), MAKE_VERSION(4, 1, 9), UG_Exact},
+    {MAKE_VERSION(4, 1, 9), MAKE_VERSION(4, 1, 8), UG_Exact},
+    {MAKE_VERSION(3, 5, 2), MAKE_VERSION(3, 5, 1), UG_Exact},
+    {0, 0, UG_Null}};
 
 struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
-  { MAKE_VERSION(5,0,12), MAKE_VERSION(5,0,11), UG_Exact },
-  { MAKE_VERSION(5,0,2), MAKE_VERSION(4,1,8), UG_Exact },
-  { MAKE_VERSION(4,1,15), MAKE_VERSION(4,1,14), UG_Exact },
-  { MAKE_VERSION(3,5,4), MAKE_VERSION(3,5,3), UG_Exact },
-  { 0, 0, UG_Null }
-};
+    {MAKE_VERSION(5, 0, 12), MAKE_VERSION(5, 0, 11), UG_Exact},
+    {MAKE_VERSION(5, 0, 2), MAKE_VERSION(4, 1, 8), UG_Exact},
+    {MAKE_VERSION(4, 1, 15), MAKE_VERSION(4, 1, 14), UG_Exact},
+    {MAKE_VERSION(3, 5, 4), MAKE_VERSION(3, 5, 3), UG_Exact},
+    {0, 0, UG_Null}};
 
-extern "C"
-void ndbPrintVersion()
-{
-  printf("Version: %u.%u.%u\n",
-	 getMajor(ndbGetOwnVersion()),
-	 getMinor(ndbGetOwnVersion()),
-	 getBuild(ndbGetOwnVersion()));
+extern "C" void ndbPrintVersion() {
+  printf("Version: %u.%u.%u\n", getMajor(ndbGetOwnVersion()),
+         getMinor(ndbGetOwnVersion()), getBuild(ndbGetOwnVersion()));
 }
 
-extern "C"
-Uint32
-ndbGetOwnVersion()
-{
-  return NDB_VERSION_D;
-}
+extern "C" Uint32 ndbGetOwnVersion() { return NDB_VERSION_D; }
 
-static
-int
-ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
-				struct NdbUpGradeCompatible table[])
-{
+static int ndbSearchUpgradeCompatibleTable(
+    Uint32 ownVersion, Uint32 otherVersion,
+    struct NdbUpGradeCompatible table[]) {
   int i;
   for (i = 0; table[i].ownVersion != 0 && table[i].otherVersion != 0; i++) {
     if (table[i].ownVersion == ownVersion ||
-	table[i].ownVersion == (Uint32) ~0) {
+        table[i].ownVersion == (Uint32)~0) {
       switch (table[i].matchType) {
-      case UG_Range:
-	if (otherVersion >= table[i].otherVersion){
-	  return 1;
-	}
-	break;
-      case UG_Exact:
-	if (otherVersion == table[i].otherVersion){
-	  return 1;
-	}
-	break;
-      default:
-	break;
+        case UG_Range:
+          if (otherVersion >= table[i].otherVersion) {
+            return 1;
+          }
+          break;
+        case UG_Exact:
+          if (otherVersion == table[i].otherVersion) {
+            return 1;
+          }
+          break;
+        default:
+          break;
       }
     }
   }
   return 0;
 }
 
-static
-int
-ndbCompatible(Uint32 ownVersion, Uint32 otherVersion, struct NdbUpGradeCompatible table[])
-{
+static int ndbCompatible(Uint32 ownVersion, Uint32 otherVersion,
+                         struct NdbUpGradeCompatible table[]) {
   if (otherVersion >= ownVersion) {
     return 1;
   }
   return ndbSearchUpgradeCompatibleTable(ownVersion, otherVersion, table);
 }
 
-static
-int
-ndbCompatible_full(Uint32 ownVersion, Uint32 otherVersion)
-{
+static int ndbCompatible_full(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_full);
 }
 
-static
-int
-ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion)
-{
-  if (ndbCompatible_full(ownVersion, otherVersion))
-    return 1;
+static int ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion) {
+  if (ndbCompatible_full(ownVersion, otherVersion)) return 1;
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_upgrade);
 }
 
-extern "C"
-int
-ndbCompatible_mgmt_ndb(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_mgmt_ndb(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_mgmt_api(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_mgmt_api(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_ndb_mgmt(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_ndb_mgmt(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_api_mgmt(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_api_mgmt(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_api_ndb(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_api_ndb(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_ndb_api(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_ndb_api(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-extern "C"
-int
-ndbCompatible_ndb_ndb(Uint32 ownVersion, Uint32 otherVersion)
-{
+extern "C" int ndbCompatible_ndb_ndb(Uint32 ownVersion, Uint32 otherVersion) {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-static
-void
-ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[])
-{
+static void ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[]) {
   int i;
   printf("ownVersion, matchType, otherVersion\n");
   for (i = 0; table[i].ownVersion != 0 && table[i].otherVersion != 0; i++) {
-
-    printf("%u.%u.%u, ",
-           getMajor(table[i].ownVersion),
-           getMinor(table[i].ownVersion),
-           getBuild(table[i].ownVersion));
+    printf("%u.%u.%u, ", getMajor(table[i].ownVersion),
+           getMinor(table[i].ownVersion), getBuild(table[i].ownVersion));
     switch (table[i].matchType) {
-    case UG_Range:
-      printf("Range");
-      break;
-    case UG_Exact:
-      printf("Exact");
-      break;
-    default:
-      break;
+      case UG_Range:
+        printf("Range");
+        break;
+      case UG_Exact:
+        printf("Exact");
+        break;
+      default:
+        break;
     }
-    printf(", %u.%u.%u\n",
-           getMajor(table[i].otherVersion),
-           getMinor(table[i].otherVersion),
-           getBuild(table[i].otherVersion));
-
+    printf(", %u.%u.%u\n", getMajor(table[i].otherVersion),
+           getMinor(table[i].otherVersion), getBuild(table[i].otherVersion));
   }
   printf("\n");
 }
 
-
-void
-ndbPrintFullyCompatibleTable(void){
+void ndbPrintFullyCompatibleTable(void) {
   printf("ndbCompatibleTable_full\n");
   ndbPrintCompatibleTable(ndbCompatibleTable_full);
 }
 
-
-void
-ndbPrintUpgradeCompatibleTable(void){
+void ndbPrintUpgradeCompatibleTable(void) {
   printf("ndbCompatibleTable_upgrade\n");
   ndbPrintCompatibleTable(ndbCompatibleTable_upgrade);
 }
-
 
 #ifdef TEST_NDB_VERSION
 
 #include <NdbTap.hpp>
 
-TAPTEST(ndb_version)
-{
+TAPTEST(ndb_version) {
   printf("Checking NDB version defines and functions...\n\n");
 
   printf(" version string: '%s'\n", MYSQL_SERVER_VERSION);
@@ -343,9 +265,9 @@ TAPTEST(ndb_version)
     Parse the VERSION string as X.X.X-status */
   unsigned mysql_major, mysql_minor, mysql_build;
   char mysql_status[100];
-  const int matches_version = sscanf(MYSQL_SERVER_VERSION, "%u.%u.%u-%s",
-                                     &mysql_major, &mysql_minor,
-                                     &mysql_build, mysql_status);
+  const int matches_version =
+      sscanf(MYSQL_SERVER_VERSION, "%u.%u.%u-%s", &mysql_major, &mysql_minor,
+             &mysql_build, mysql_status);
   OK(matches_version == 3 || matches_version == 4);
 
   /*
@@ -356,21 +278,17 @@ TAPTEST(ndb_version)
      NDB_MYSQL_VERSION_MINOR == mysql_minor ||
      NDB_MYSQL_VERSION_BUILD == mysql_build);
 
-  if (matches_version == 4 &&
-      strncmp(mysql_status, "ndb", 3) == 0)
-  {
+  if (matches_version == 4 && strncmp(mysql_status, "ndb", 3) == 0) {
     /* This is a MySQL Cluster build */
     unsigned ndb_major, ndb_minor, ndb_build;
     char ndb_status[100];
-    int matches_ndb = sscanf(mysql_status, "ndb-%u.%u.%u%s",
-                             &ndb_major, &ndb_minor,
-                             &ndb_build, ndb_status);
+    int matches_ndb = sscanf(mysql_status, "ndb-%u.%u.%u%s", &ndb_major,
+                             &ndb_minor, &ndb_build, ndb_status);
 
     printf("This is a MySQL Cluster build!\n");
-    printf(" MySQL Server version(X.X.X): %u.%u.%u\n",
-           mysql_major, mysql_minor, mysql_build);
-    printf(" NDB version(Y.Y.Y): %u.%u.%u\n",
-           ndb_major, ndb_minor, ndb_build);
+    printf(" MySQL Server version(X.X.X): %u.%u.%u\n", mysql_major, mysql_minor,
+           mysql_build);
+    printf(" NDB version(Y.Y.Y): %u.%u.%u\n", ndb_major, ndb_minor, ndb_build);
 
     OK(matches_ndb == 3 || matches_ndb == 4);
 
@@ -378,19 +296,16 @@ TAPTEST(ndb_version)
       Check that defined NDB version numbers Y.Y.Y match
       those parsed from the version string
     */
-    OK(NDB_VERSION_MAJOR == ndb_major ||
-       NDB_VERSION_MINOR == ndb_minor ||
+    OK(NDB_VERSION_MAJOR == ndb_major || NDB_VERSION_MINOR == ndb_minor ||
        NDB_VERSION_BUILD == ndb_build);
 
-  }
-  else
-  {
+  } else {
     /* This is a MySQL Server with NDB build */
     printf("This is a MySQL Server with NDB build!\n");
-    printf(" MySQL Server version(X.X.X): %u.%u.%u\n",
-           mysql_major, mysql_minor, mysql_build);
-    printf(" NDB version(Y.Y.Y): %u.%u.%u\n",
-           NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD);
+    printf(" MySQL Server version(X.X.X): %u.%u.%u\n", mysql_major, mysql_minor,
+           mysql_build);
+    printf(" NDB version(Y.Y.Y): %u.%u.%u\n", NDB_VERSION_MAJOR,
+           NDB_VERSION_MINOR, NDB_VERSION_BUILD);
   }
 
   /* ndbPrintVersion */
@@ -410,18 +325,16 @@ TAPTEST(ndb_version)
   /* ndbGetVersionString */
   char buf[64];
   printf("ndbGetVersionString(0x00010203, 0x00030201): '%s'\n",
-         ndbGetVersionString(version, 0x00030201, "-status",
-                             buf, sizeof(buf)));
+         ndbGetVersionString(version, 0x00030201, "-status", buf, sizeof(buf)));
 
   /* ndbGetOwnVersionString */
-  printf("ndbGetOwnVersionString: '%s'\n",
-         ndbGetOwnVersionString());
-  OK(strcmp(NDB_VERSION_STRING, ndbGetOwnVersionString()) == 0); // should match
+  printf("ndbGetOwnVersionString: '%s'\n", ndbGetOwnVersionString());
+  OK(strcmp(NDB_VERSION_STRING, ndbGetOwnVersionString()) ==
+     0);  // should match
 
   /* ndbGetOwnVersion */
-  OK(ndbGetOwnVersion() == ndbMakeVersion(NDB_VERSION_MAJOR,
-                                          NDB_VERSION_MINOR,
-                                          NDB_VERSION_BUILD));
+  OK(ndbGetOwnVersion() ==
+     ndbMakeVersion(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD));
   OK(ndbGetOwnVersion() == NDB_VERSION_D);
   OK(ndbGetOwnVersion() == NDB_VERSION);
 
@@ -431,27 +344,25 @@ TAPTEST(ndb_version)
                                            NDB_MYSQL_VERSION_BUILD));
 
   /* Check sanity of version defines(we don't own a time machine yet...) */
-  OK(ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR,
-                    NDB_MYSQL_VERSION_MINOR,
-                    NDB_MYSQL_VERSION_BUILD) >= 0x0005012F); // 5.1.47
-  OK(ndbMakeVersion(NDB_VERSION_MAJOR,
-                    NDB_VERSION_MINOR,
-                    NDB_VERSION_BUILD) >= 0x00070011); // 7.0.17
+  OK(ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR, NDB_MYSQL_VERSION_MINOR,
+                    NDB_MYSQL_VERSION_BUILD) >= 0x0005012F);  // 5.1.47
+  OK(ndbMakeVersion(NDB_VERSION_MAJOR, NDB_VERSION_MINOR,
+                    NDB_VERSION_BUILD) >= 0x00070011);  // 7.0.17
 
   /* Check MYSQL_VERSION_ID matches NDB_MYSQL_VERSION_XX variables */
-  OK(MYSQL_VERSION_ID == (NDB_MYSQL_VERSION_MAJOR * 10000 +
-                          NDB_MYSQL_VERSION_MINOR * 100 +
-                          NDB_MYSQL_VERSION_BUILD));
+  OK(MYSQL_VERSION_ID ==
+     (NDB_MYSQL_VERSION_MAJOR * 10000 + NDB_MYSQL_VERSION_MINOR * 100 +
+      NDB_MYSQL_VERSION_BUILD));
 
   /* Check that this node is compatible with 8.0.13 API and data nodes */
   printf("Testing compatibility\n");
-  Uint32 ver8013 = ndbMakeVersion(8,0,13);
+  Uint32 ver8013 = ndbMakeVersion(8, 0, 13);
   int c1 = ndbCompatible_ndb_api(NDB_VERSION, ver8013);
   int c2 = ndbCompatible_api_ndb(NDB_VERSION, ver8013);
   OK(c1 == 1);
   OK(c2 == 1);
 
-  return 1; // OK
+  return 1;  // OK
 }
 
 #endif

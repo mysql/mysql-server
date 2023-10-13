@@ -28,56 +28,58 @@
 #include "Driver.hpp"
 
 class TwsDriver : public Driver {
-protected:
+ protected:
+  // benchmark settings
+  enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
+  static const char *toStr(LockMode mode);
+  enum XMode { BULK, EACH, INDY };
+  static const char *toStr(XMode mode);
+  bool renewConnection;
+  bool renewOperations;
+  bool logSumOfOps;
+  LockMode lockMode;
+  int nOpsStart;
+  int nOpsEnd;
+  int nOpsScale;
+  bool doInsert;
+  bool doLookup;
+  bool doUpdate;
+  bool doDelete;
+  bool doBulk;
+  bool doEach;
+  bool doIndy;
+  bool doVerify;
 
-    // benchmark settings
-    enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
-    static const char* toStr(LockMode mode);
-    enum XMode { BULK, EACH, INDY };
-    static const char* toStr(XMode mode);
-    bool renewConnection;
-    bool renewOperations;
-    bool logSumOfOps;
-    LockMode lockMode;
-    int nOpsStart;
-    int nOpsEnd;
-    int nOpsScale;
-    bool doInsert;
-    bool doLookup;
-    bool doUpdate;
-    bool doDelete;
-    bool doBulk;
-    bool doEach;
-    bool doIndy;
-    bool doVerify;
+  // benchmark initializers/finalizers
+  virtual void initProperties();
+  virtual void printProperties();
 
-    // benchmark initializers/finalizers
-    virtual void initProperties();
-    virtual void printProperties();
+  // benchmark operations
+  virtual void initOperations() = 0;
+  virtual void closeOperations() = 0;
+  virtual void runTests();
+  virtual void runLoads(int nOps);
+  virtual void runOperations(int nOps);
+  virtual void runInserts(XMode mode, int nOps) = 0;
+  virtual void runLookups(XMode mode, int nOps) = 0;
+  virtual void runUpdates(XMode mode, int nOps) = 0;
+  virtual void runDeletes(XMode mode, int nOps) = 0;
+  void verify(int exp, int act);
+  void verify(long exp, long act);
+  void verify(long long exp, long long act);
+  void verify(const char *exp, const char *act);
 
-    // benchmark operations
-    virtual void initOperations() = 0;
-    virtual void closeOperations() = 0;
-    virtual void runTests();
-    virtual void runLoads(int nOps);
-    virtual void runOperations(int nOps);
-    virtual void runInserts(XMode mode, int nOps) = 0;
-    virtual void runLookups(XMode mode, int nOps) = 0;
-    virtual void runUpdates(XMode mode, int nOps) = 0;
-    virtual void runDeletes(XMode mode, int nOps) = 0;
-    void verify(int exp, int act);
-    void verify(long exp, long act);
-    void verify(long long exp, long long act);
-    void verify(const char* exp, const char* act);
+  // datastore operations
+  virtual void initConnection() = 0;
+  virtual void closeConnection() = 0;
+  virtual void clearData() = 0;
 
-    // datastore operations
-    virtual void initConnection() = 0;
-    virtual void closeConnection() = 0;
-    virtual void clearData() = 0;
-
-    // XXX temp compile fixes
-    virtual bool createLoad(const std::string&) { assert(0); return false; }
-    virtual void runLoad(Load&) { assert(0); }
+  // XXX temp compile fixes
+  virtual bool createLoad(const std::string &) {
+    assert(0);
+    return false;
+  }
+  virtual void runLoad(Load &) { assert(0); }
 };
 
-#endif // TwsDriver_hpp
+#endif  // TwsDriver_hpp

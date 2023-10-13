@@ -29,8 +29,6 @@
 
 #define JAM_FILE_ID 213
 
-
-
 /*
  * NodePingReq/Conf is sent between QMGR nodes to help determine the
  * available connectivity in a cluster experiencing heartbeat problems
@@ -64,7 +62,8 @@ class NodePingReq {
    * Sender(s) / Receiver(s)
    */
   friend class Qmgr;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
@@ -76,13 +75,13 @@ class NodePingConf {
    * Sender(s) / Receiver(s)
    */
   friend class Qmgr;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;
 };
-
 
 #undef JAM_FILE_ID
 

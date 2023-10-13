@@ -28,26 +28,25 @@
 #include <BaseString.hpp>
 #include <NdbTap.hpp>
 
-struct NodePair { Uint32 node1; Uint32 node2; };
+struct NodePair {
+  Uint32 node1;
+  Uint32 node2;
+};
 
-TAPTEST(HashMap)
-{
-
-  OK(my_init() == 0); // Init mysys
+TAPTEST(HashMap) {
+  OK(my_init() == 0);  // Init mysys
 
   printf("int -> int\n");
   {
     HashMap<int, int> hash1;
-    for (int i= 0; i < 100; i++)
-      OK(hash1.insert(i, i*34));
+    for (int i = 0; i < 100; i++) OK(hash1.insert(i, i * 34));
 
     int int_val;
-    for (int i= 0; i < 100; i++)
-    {
+    for (int i = 0; i < 100; i++) {
       OK(hash1.search(i, int_val));
-      OK(int_val == i*34);
+      OK(int_val == i * 34);
 
-      OK(!hash1.search(i+100, int_val));
+      OK(!hash1.search(i + 100, int_val));
     }
 
     // Duplicate key insert disallowed
@@ -55,7 +54,7 @@ TAPTEST(HashMap)
 
     // Value should not have changed
     OK(hash1.search(32, int_val));
-    OK(int_val == 32*34);
+    OK(int_val == 32 * 34);
 
     // Duplicate key insert with replace flag
     OK(hash1.insert(32, 37, true));
@@ -63,7 +62,6 @@ TAPTEST(HashMap)
     // Value should now have changed
     OK(hash1.search(32, int_val));
     OK(int_val == 37);
-
   }
 
   printf("int -> BaseString\n");
@@ -82,20 +80,19 @@ TAPTEST(HashMap)
     // no value with key 33 inserted
     OK(!hash2.search(33, str2));
 
-    for (int i= 100; i < 200; i++){
+    for (int i = 100; i < 200; i++) {
       BaseString str;
       str.assfmt("magnus%d", i);
       OK(hash2.insert(i, str));
     }
 
-    for (int i= 100; i < 200; i++){
+    for (int i = 100; i < 200; i++) {
       BaseString str;
       OK(hash2.search(i, str));
     }
 
     // Delete every second entry
-    for (int i= 100; i < 200; i+=2)
-      OK(hash2.remove(i));
+    for (int i = 100; i < 200; i += 2) OK(hash2.remove(i));
 
     BaseString str3;
     OK(!hash2.search(102, str3));
@@ -120,7 +117,7 @@ TAPTEST(HashMap)
 
   printf("BaseString -> int\n");
   {
-    HashMap<BaseString, int, BaseString_get_key > string_hash;
+    HashMap<BaseString, int, BaseString_get_key> string_hash;
     OK(string_hash.insert("magnus", 1));
     OK(string_hash.insert("mas", 2));
     int value;
@@ -138,9 +135,9 @@ TAPTEST(HashMap)
     OK(string_hash.entries() == 1);
   }
 
-  my_end(0); // Bye mysys
+  my_end(0);  // Bye mysys
 
-  return 1; // OK
+  return 1;  // OK
 }
 
 #endif

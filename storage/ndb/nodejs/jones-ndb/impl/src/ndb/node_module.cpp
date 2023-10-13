@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2012, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,10 +24,10 @@
 
 #include <node.h>
 
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
 #include "JsConverter.h"
 #include "JsValueAccess.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 typedef void LOADER_FUNCTION(Local<Object>);
 
@@ -57,7 +57,6 @@ void init_ndbapi(Local<Object> target) {
   NdbScanFilter_initOnLoad(target);
 }
 
-
 void init_impl(Local<Object> target) {
   DBDictionaryImpl_initOnLoad(target);
   DBOperationHelper_initOnLoad(target);
@@ -70,21 +69,20 @@ void init_impl(Local<Object> target) {
   QueryOperation_initOnLoad(target);
 }
 
-
 void initModule(Local<Object> target, Local<Value>, void *) {
   EscapableHandleScope scope(v8::Isolate::GetCurrent());
-  Local<Object> ndb_obj    = Object::New(target->GetIsolate());
+  Local<Object> ndb_obj = Object::New(target->GetIsolate());
   Local<Object> ndbapi_obj = Object::New(target->GetIsolate());
-  Local<Object> impl_obj   = Object::New(target->GetIsolate());
-  Local<Object> util_obj   = Object::New(target->GetIsolate());
-  Local<Object> debug_obj  = Object::New(target->GetIsolate());
-  
+  Local<Object> impl_obj = Object::New(target->GetIsolate());
+  Local<Object> util_obj = Object::New(target->GetIsolate());
+  Local<Object> debug_obj = Object::New(target->GetIsolate());
+
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);
   Ndb_util_initOnLoad(util_obj);
   NdbTypeEncoders_initOnLoad(impl_obj);
   udebug_initOnLoad(debug_obj);
-  
+
   SetProp(target, "debug", debug_obj);
   SetProp(target, "ndb", ndb_obj);
   SetProp(ndb_obj, "ndbapi", ndbapi_obj);
@@ -93,4 +91,3 @@ void initModule(Local<Object> target, Local<Value>, void *) {
 }
 
 NODE_MODULE(ndb_adapter, initModule)
-

@@ -25,4 +25,3 @@
 #include "TransporterCallback.cpp"
 
 #define JAM_FILE_ID 243
-

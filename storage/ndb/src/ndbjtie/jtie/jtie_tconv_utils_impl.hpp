@@ -37,57 +37,49 @@
 // ---------------------------------------------------------------------------
 
 // provides some (meta) predicates on types
-template< typename C >
+template <typename C>
 struct TypeInfo {
-    // indicates whether a type is const
-    static bool isMutable() {
-        return true;
-    }
+  // indicates whether a type is const
+  static bool isMutable() { return true; }
 };
 
 // partial specialization for const types
-template< typename C >
-struct TypeInfo< const C > {
-    static bool isMutable() {
-        return false;
-    }
+template <typename C>
+struct TypeInfo<const C> {
+  static bool isMutable() { return false; }
 };
 
 // registers an exception with JNI for this thread
-inline void
-registerException(JNIEnv * env, const char * jvmClassName, const char * msg) 
-{
-    jclass ec = env->FindClass(jvmClassName);
-    if (ec == NULL) {
-        // exception pending
-    } else {
-        env->ThrowNew(ec, msg);
-        env->DeleteLocalRef(ec);
-        // exception pending
-    }
+inline void registerException(JNIEnv *env, const char *jvmClassName,
+                              const char *msg) {
+  jclass ec = env->FindClass(jvmClassName);
+  if (ec == NULL) {
+    // exception pending
+  } else {
+    env->ThrowNew(ec, msg);
+    env->DeleteLocalRef(ec);
+    // exception pending
+  }
 }
 
 // returns a value in big endian format
-template<typename C>
-C
-big_endian(C c)
-{
-    // test if big or little endian
-    C r = 1;
-    if(*(char *)&r == 0) {
-        // big endian, ok
-        return c;
-    }
+template <typename C>
+C big_endian(C c) {
+  // test if big or little endian
+  C r = 1;
+  if (*(char *)&r == 0) {
+    // big endian, ok
+    return c;
+  }
 
-    // little-endian, reverse byte order (better: use optimized swap macros)
-    const size_t n = sizeof(C);
-    char * s = (char *)&c;
-    char * t = (char *)&r;
-    for (int i = n-1, j = 0; i >= 0; i--, j++)
-        t[j] = s[i];
-    return r;
+  // little-endian, reverse byte order (better: use optimized swap macros)
+  const size_t n = sizeof(C);
+  char *s = (char *)&c;
+  char *t = (char *)&r;
+  for (int i = n - 1, j = 0; i >= 0; i--, j++) t[j] = s[i];
+  return r;
 }
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_utils_impl_hpp
+#endif  // jtie_tconv_utils_impl_hpp

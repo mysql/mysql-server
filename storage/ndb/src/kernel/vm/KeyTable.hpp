@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 221
 
-
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
@@ -39,16 +38,14 @@
  */
 template <typename P, typename TT = typename P::Type>
 class KeyTable : public DLHashTable<P, TT> {
-public:
-  KeyTable(P & pool) :
-    DLHashTable<P, TT>(pool) {
-  }
+ public:
+  KeyTable(P &pool) : DLHashTable<P, TT>(pool) {}
 
-  bool find(Ptr<TT>& ptr, const TT& rec) const {
+  bool find(Ptr<TT> &ptr, const TT &rec) const {
     return DLHashTable<P, TT>::find(ptr, rec);
   }
 
-  bool find(Ptr<TT>& ptr, Uint32 key) const {
+  bool find(Ptr<TT> &ptr, Uint32 key) const {
     TT rec;
     rec.key = key;
     return DLHashTable<P, TT>::find(ptr, rec);

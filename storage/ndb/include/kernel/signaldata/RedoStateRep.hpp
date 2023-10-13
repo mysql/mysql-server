@@ -29,8 +29,7 @@
 
 #define JAM_FILE_ID 500
 
-class RedoStateRep
-{
+class RedoStateRep {
   /**
    * Sender(s)
    * Receiver(s)
@@ -39,26 +38,25 @@ class RedoStateRep
   friend class Dbdih;
   friend class Ndbcntr;
 
-  friend bool printREDO_STATE_REP(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printREDO_STATE_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-  enum ReceiverInfo
-  {
+  enum ReceiverInfo {
     ToNdbcntr = 0,
     ToLocalDih = 1,
     ToAllDih = 2,
     ToBackup = 3
   };
-  enum RedoAlertState
-  {
+  enum RedoAlertState {
     NO_REDO_ALERT = 0,
     REDO_ALERT_LOW = 1,
     REDO_ALERT_HIGH = 2,
     REDO_ALERT_CRITICAL = 3
   };
-private:
+
+ private:
   Uint32 receiverInfo;
   Uint32 redoState;
 };

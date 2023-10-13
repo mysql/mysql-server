@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,32 +28,29 @@
 
 #define JAM_FILE_ID 454
 
-
-class Dbinfo : public SimulatedBlock
-{
-public:
-  Dbinfo(Block_context& ctx);
+class Dbinfo : public SimulatedBlock {
+ public:
+  Dbinfo(Block_context &ctx);
   ~Dbinfo() override;
   BLOCK_DEFINES(Dbinfo);
 
-protected:
-  void execSTTOR(Signal* signal);
-  void sendSTTORRY(Signal*);
-  void execREAD_CONFIG_REQ(Signal*);
-  void execDUMP_STATE_ORD(Signal* signal);
+ protected:
+  void execSTTOR(Signal *signal);
+  void sendSTTORRY(Signal *);
+  void execREAD_CONFIG_REQ(Signal *);
+  void execDUMP_STATE_ORD(Signal *signal);
 
   Uint32 find_next_block(Uint32 block) const;
-  bool find_next(Ndbinfo::ScanCursor* cursor) const;
+  bool find_next(Ndbinfo::ScanCursor *cursor) const;
   void execDBINFO_SCANREQ(Signal *signal);
   void execDBINFO_SCANCONF(Signal *signal);
 
-  void execINCL_NODEREQ(Signal* signal);
-  void execNODE_FAILREP(Signal* signal);
+  void execINCL_NODEREQ(Signal *signal);
+  void execNODE_FAILREP(Signal *signal);
 
  private:
-   Ndbinfo::Counts counts;
+  Ndbinfo::Counts counts;
 };
-
 
 #undef JAM_FILE_ID
 

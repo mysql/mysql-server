@@ -25,17 +25,13 @@
 #ifndef SETVARREQ_H
 #define SETVARREQ_H
 
-#include "SignalData.hpp"
 #include "ConfigParamId.hpp"
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 183
 
-
 class SetVarReq {
-
-public:
-
-
+ public:
   static UintR size();
 
   void mgmtSrvrBlockRef(UintR mgmtSrvrBlockRef);
@@ -47,20 +43,13 @@ public:
   void value(UintR value);
   UintR value(void) const;
 
-
-private:
-
+ private:
   UintR _mgmtSrvrBlockRef;
   UintR _variable;
   UintR _value;
 };
 
-
-
-inline UintR SetVarReq::size(void) {
-  return 3;
-}
-
+inline UintR SetVarReq::size(void) { return 3; }
 
 inline void SetVarReq::mgmtSrvrBlockRef(UintR mgmtSrvrBlockRef) {
   _mgmtSrvrBlockRef = mgmtSrvrBlockRef;
@@ -70,29 +59,18 @@ inline UintR SetVarReq::mgmtSrvrBlockRef(void) const {
   return _mgmtSrvrBlockRef;
 }
 
-
 inline void SetVarReq::variable(ConfigParamId variable) {
   _variable = variable;
 }
-
 
 inline ConfigParamId SetVarReq::variable(void) const {
   return static_cast<ConfigParamId>(_variable);
 }
 
+inline void SetVarReq::value(UintR value) { _value = value; }
 
-inline void SetVarReq::value(UintR value) {
-  _value = value;
-}
-
-inline UintR SetVarReq::value(void) const {
-  return _value;
-}
-
-
-
+inline UintR SetVarReq::value(void) const { return _value; }
 
 #undef JAM_FILE_ID
 
-#endif // SETVARREQ_H
-
+#endif  // SETVARREQ_H

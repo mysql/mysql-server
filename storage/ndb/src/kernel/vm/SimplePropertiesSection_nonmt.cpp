@@ -24,4 +24,3 @@
 #include "SimplePropertiesSection.cpp"
 
 #define JAM_FILE_ID 232
-

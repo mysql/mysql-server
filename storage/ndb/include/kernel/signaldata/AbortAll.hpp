@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 141
 
-
 class AbortAllReq {
-
   /**
    * Reciver(s)
    */
@@ -42,61 +40,57 @@ class AbortAllReq {
    */
   friend class Ndbcntr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
-public:
-  
+
+ public:
   Uint32 senderRef;
   Uint32 senderData;
 };
 
 class AbortAllConf {
-  
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
-  
+
   /**
    * Sender
    */
   friend class Dbtc;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 1;
-  
-public:
+
+ public:
   Uint32 senderData;
 };
 
 class AbortAllRef {
-  
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
-  
+
   /**
    * Sender
    */
   friend class Dbtc;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
-  
+
   enum ErrorCode {
     InvalidState = 1,
     AbortAlreadyInProgress = 2,
     FunctionNotImplemented = 3
   };
-public:
+
+ public:
   Uint32 senderData;
   Uint32 errorCode;
 };
 
-
 #undef JAM_FILE_ID
 
 #endif
-

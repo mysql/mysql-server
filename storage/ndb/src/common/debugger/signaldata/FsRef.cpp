@@ -25,13 +25,9 @@
 
 #include <signaldata/FsRef.hpp>
 
-bool printFSREF(FILE *output,
-                const Uint32 *theData,
-                Uint32 len,
-                Uint16 /*receiverBlockNo*/)
-{
-  if (len < FsRef::SignalLength)
-  {
+bool printFSREF(FILE *output, const Uint32 *theData, Uint32 len,
+                Uint16 /*receiverBlockNo*/) {
+  if (len < FsRef::SignalLength) {
     assert(false);
     return false;
   }
@@ -40,18 +36,18 @@ bool printFSREF(FILE *output,
 
   const FsRef *const sig = (const FsRef *)theData;
 
-  fprintf(output, " UserPointer: %d\n", 
-	  sig->userPointer);
+  fprintf(output, " UserPointer: %d\n", sig->userPointer);
 
   fprintf(output, " ErrorCode: %d, ", sig->errorCode);
   ndbd_exit_classification cl;
-  switch (sig->getErrorCode(sig->errorCode)){
-  case FsRef::fsErrNone:
-    fprintf(output, "No error");
-    break;
-  default:
-    fprintf(output, "%s", ndbd_exit_message(sig->getErrorCode(sig->errorCode), &cl));
-    break;
+  switch (sig->getErrorCode(sig->errorCode)) {
+    case FsRef::fsErrNone:
+      fprintf(output, "No error");
+      break;
+    default:
+      fprintf(output, "%s",
+              ndbd_exit_message(sig->getErrorCode(sig->errorCode), &cl));
+      break;
   }
   fprintf(output, "\n");
   fprintf(output, " OS ErrorCode: %d \n", sig->osErrorCode);

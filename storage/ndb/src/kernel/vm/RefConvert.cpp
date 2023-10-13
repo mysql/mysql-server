@@ -21,65 +21,52 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <RefConvert.hpp>
-#include <stdio.h>
 #include <ndb_limits.h>
+#include <stdio.h>
+#include <RefConvert.hpp>
 
 #include <NdbTap.hpp>
-static int
-test_numberToBlock()
-{
-  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++)
-  {
-    for (Uint32 j = 0; j < 128; j++)
-    {
+static int test_numberToBlock() {
+  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++) {
+    for (Uint32 j = 0; j < 128; j++) {
       Uint32 block = i;
       Uint32 instance = j;
       BlockNumber bn = numberToBlock(block, instance);
       BlockNumber bn_old = numberToBlock_old(block, instance);
-      if (bn != bn_old)
-      {
+      if (bn != bn_old) {
         return 1;
       }
       BlockNumber main = blockToMain(bn);
       BlockInstance inst = blockToInstance(bn);
       BlockNumber main_old = blockToMain(bn_old);
       BlockNumber inst_old = blockToInstance(bn_old);
-      if (main != main_old)
-      {
+      if (main != main_old) {
         return 1;
       }
-      if (inst != inst_old)
-      {
+      if (inst != inst_old) {
         return 1;
       }
     }
   }
-  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 64); i++)
-  {
+  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 64); i++) {
     Uint32 block = i;
     BlockReference short_ref = numberToRef(block, 0);
     BlockReference long_ref = numberToRef(block, 0, 0);
-    if (short_ref != long_ref)
-    {
+    if (short_ref != long_ref) {
       return 1;
     }
   }
-  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++)
-  {
-    for (Uint32 j = 0; j < NDBMT_MAX_INSTANCES; j++)
-    {
+  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++) {
+    for (Uint32 j = 0; j < NDBMT_MAX_INSTANCES; j++) {
       Uint32 block = i;
       Uint32 instance = j;
       BlockNumber bn = numberToBlock(block, instance);
       BlockNumber main = blockToMain(bn);
       BlockInstance inst = blockToInstance(bn);
-      if (main != block)
-      {
+      if (main != block) {
         return 1;
       }
-      if (inst != instance)
-      {
+      if (inst != instance) {
         return 1;
       }
     }
@@ -87,8 +74,7 @@ test_numberToBlock()
   return 0;
 }
 
-TAPTEST(RefConvert)
-{
+TAPTEST(RefConvert) {
   printf("Start RefConvert test\n");
   OK(test_numberToBlock() == 0);
   return 1;

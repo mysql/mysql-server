@@ -25,41 +25,31 @@
 #ifndef SHM_Transporter_H
 #define SHM_Transporter_H
 
-#include "Transporter.hpp"
 #include "SHM_Buffer.hpp"
+#include "Transporter.hpp"
 
 #ifdef _WIN32
 typedef Uint32 key_t;
 #endif
 
-/** 
+/**
  * class SHMTransporter
  * @brief - main class for the SHM transporter.
  */
 
 class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
-public:
-  SHM_Transporter(TransporterRegistry &,
-                  TrpId transporterIndex,
-		  const char *lHostName,
-		  const char *rHostName, 
-		  int r_port,
-		  bool isMgmConnection,
-		  NodeId lNodeId,
-		  NodeId rNodeId,
-		  NodeId serverNodeId,
-		  bool checksum, 
-		  bool signalId,
-		  key_t shmKey,
-		  Uint32 shmSize,
-		  bool preSendChecksum,
-                  Uint32 spintime,
-                  Uint32 send_buffer_size);
 
-  SHM_Transporter(TransporterRegistry &,
-                  const SHM_Transporter*);
- 
+ public:
+  SHM_Transporter(TransporterRegistry &, TrpId transporterIndex,
+                  const char *lHostName, const char *rHostName, int r_port,
+                  bool isMgmConnection, NodeId lNodeId, NodeId rNodeId,
+                  NodeId serverNodeId, bool checksum, bool signalId,
+                  key_t shmKey, Uint32 shmSize, bool preSendChecksum,
+                  Uint32 spintime, Uint32 send_buffer_size);
+
+  SHM_Transporter(TransporterRegistry &, const SHM_Transporter *);
+
   /**
    * SHM destructor
    */
@@ -71,23 +61,20 @@ public:
    */
   void resetBuffers() override;
 
-  bool configure_derived(const TransporterConfiguration* conf) override;
+  bool configure_derived(const TransporterConfiguration *conf) override;
 
   /**
    * Do initialization
    */
   bool initTransporter() override;
-  
-  void getReceivePtr(Uint32 ** ptr,
-                     Uint32 ** eod,
-                     Uint32 ** end)
-  {
-    reader->getReadPtr(* ptr, * eod, * end);
+
+  void getReceivePtr(Uint32 **ptr, Uint32 **eod, Uint32 **end) {
+    reader->getReadPtr(*ptr, *eod, *end);
   }
-  
-  void updateReceivePtr(TransporterReceiveHandle&, Uint32 * ptr);
-  
-protected:
+
+  void updateReceivePtr(TransporterReceiveHandle &, Uint32 *ptr);
+
+ protected:
   /**
    * Release resources used by SHM after disconnect
    * -# deletes the shm buffer associated with a segment
@@ -106,7 +93,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connect_server_impl(NdbSocket&&) override;
+  bool connect_server_impl(NdbSocket &&) override;
 
   /**
    * Blocking
@@ -119,7 +106,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connect_client_impl(NdbSocket&&) override;
+  bool connect_client_impl(NdbSocket &&) override;
 
   bool connect_common();
 
@@ -127,7 +114,7 @@ protected:
   bool ndb_shm_get();
   bool ndb_shm_attach();
   void ndb_shm_destroy();
-  void set_socket(NdbSocket&&);
+  void set_socket(NdbSocket &&);
 
   /**
    * Check if there are two processes attached to the segment (a connection)
@@ -135,9 +122,8 @@ protected:
    */
   bool checkConnected();
 
-  
   /**
-   * Initialises the SHM_Reader and SHM_Writer on the segment 
+   * Initialises the SHM_Reader and SHM_Writer on the segment
    */
   bool setupBuffers();
 
@@ -169,13 +155,13 @@ protected:
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
-private:
+ private:
   bool _shmSegCreated;
   bool _attached;
-  
+
   key_t shmKey;
-  volatile Uint32 * serverStatusFlag;
-  volatile Uint32 * clientStatusFlag;
+  volatile Uint32 *serverStatusFlag;
+  volatile Uint32 *clientStatusFlag;
 
   bool m_server_locked;
   bool m_client_locked;
@@ -190,15 +176,15 @@ private:
   NdbMutex *clientMutex;
 
   bool setupBuffersDone;
-  
+
 #ifdef _WIN32
   HANDLE hFileMapping;
 #else
   int shmId{0};
 #endif
-  
+
   int shmSize;
-  char * shmBuf;
+  char *shmBuf;
 
   SHM_Reader *reader;
   SHM_Writer *writer;
@@ -209,14 +195,11 @@ private:
   /**
    * @return - True if the reader has data to read on its segment.
    */
-  bool hasDataToRead() const {
-    return reader->empty() == false;
-  }
+  bool hasDataToRead() const { return reader->empty() == false; }
 
   void make_error_info(char info[], int sz);
 
-  bool send_limit_reached(int bufsize) override
-  {
+  bool send_limit_reached(int bufsize) override {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
   bool send_is_possible(int timeout_millisec) const override;

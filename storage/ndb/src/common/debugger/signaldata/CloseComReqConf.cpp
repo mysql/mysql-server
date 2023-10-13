@@ -22,35 +22,25 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <kernel_types.h>
 #include <BlockNumbers.h>
+#include <kernel_types.h>
 #include <signaldata/CloseComReqConf.hpp>
 
-bool printCLOSECOMREQCONF(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
-  const CloseComReqConf* cc = (const CloseComReqConf*)theData;
+bool printCLOSECOMREQCONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
+  const CloseComReqConf *cc = (const CloseComReqConf *)theData;
 
-  if (len == 1)
-  {
-    fprintf(output, " xxxBlockRef = (%d, %d)\n",
-            refToBlock(cc->xxxBlockRef),
+  if (len == 1) {
+    fprintf(output, " xxxBlockRef = (%d, %d)\n", refToBlock(cc->xxxBlockRef),
             refToNode(cc->xxxBlockRef));
-  }
-  else
-  {
+  } else {
     fprintf(output, " xxxBlockRef = (%d, %d) failNo = %d noOfNodes = %d\n",
-            refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
-            cc->failNo, cc->noOfNodes);
+            refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef), cc->failNo,
+            cc->noOfNodes);
 
-    if (cc->failedNodeId == 0)
-    {
+    if (cc->failedNodeId == 0) {
       fprintf(output, " Nodes in bitmask\n");
-    }
-    else
-    {
+    } else {
       fprintf(output, " Node: %d\n", cc->failedNodeId);
     }
   }

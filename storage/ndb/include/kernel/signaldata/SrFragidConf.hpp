@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 128
 
-
 class SrFragidConf {
   /**
    * Sender(s)
@@ -40,10 +39,11 @@ class SrFragidConf {
    * Receiver(s)
    */
   friend class Dblqh;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 10;
 
-private:
+ private:
   Uint32 lcpPtr;
   Uint32 accPtr;
   Uint32 noLocFrag;

@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 97
 
-
 /**
  * GetConfig - Get the node's current configuration
  *
@@ -46,7 +45,7 @@ class GetConfigReq {
 
   static constexpr Uint32 SignalLength = 2;
 
-  Uint32 nodeId; // Node id of the receiver node
+  Uint32 nodeId;  // Node id of the receiver node
   Uint32 senderRef;
 };
 
@@ -62,11 +61,7 @@ class GetConfigRef {
 
   Uint32 error;
 
-  enum ErrorCode {
-    WrongSender = 1,
-    WrongNodeId = 2,
-    NoConfig = 3
-  };
+  enum ErrorCode { WrongSender = 1, WrongNodeId = 2, NoConfig = 3 };
 };
 
 class GetConfigConf {
@@ -80,7 +75,7 @@ class GetConfigConf {
 
   static constexpr Uint32 SignalLength = 1;
 
-  Uint32 configLength; // config blob size
+  Uint32 configLength;  // config blob size
 };
 
 #undef JAM_FILE_ID

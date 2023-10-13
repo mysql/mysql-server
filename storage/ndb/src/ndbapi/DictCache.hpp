@@ -25,27 +25,27 @@
 #ifndef DictCache_H
 #define DictCache_H
 
-#include <ndb_types.h>
-#include <NdbError.hpp>
-#include <BaseString.hpp>
-#include <Vector.hpp>
-#include <UtilBuffer.hpp>
-#include <NdbDictionary.hpp>
-#include <Ndb.hpp>
 #include <NdbCondition.h>
+#include <ndb_types.h>
+#include <BaseString.hpp>
+#include <Ndb.hpp>
+#include <NdbDictionary.hpp>
+#include <NdbError.hpp>
+#include <UtilBuffer.hpp>
+#include <Vector.hpp>
 #include "NdbLinHash.hpp"
 
 class Ndb_local_table_info {
-public:
-  static Ndb_local_table_info *create(NdbTableImpl *table_impl, Uint32 sz=0);
+ public:
+  static Ndb_local_table_info *create(NdbTableImpl *table_impl, Uint32 sz = 0);
   static void destroy(Ndb_local_table_info *);
   NdbTableImpl *m_table_impl;
 
   // range of cached tuple ids per thread
   Ndb::TupleIdRange m_tuple_id_range;
 
-  Uint64 m_local_data[1]; // Must be last member. Used to access extra space.
-private:
+  Uint64 m_local_data[1];  // Must be last member. Used to access extra space.
+ private:
   Ndb_local_table_info(NdbTableImpl *table_impl);
   ~Ndb_local_table_info();
 };
@@ -54,69 +54,63 @@ private:
  * A non thread safe dict cache
  */
 class LocalDictCache {
-public:
+ public:
   LocalDictCache();
   ~LocalDictCache();
-  
-  Ndb_local_table_info * get(const BaseString& name);
-  
-  void put(const BaseString& name, Ndb_local_table_info *);
-  void drop(const BaseString& name);
-  
-  NdbLinHash<Ndb_local_table_info> m_tableHash; // On name
+
+  Ndb_local_table_info *get(const BaseString &name);
+
+  void put(const BaseString &name, Ndb_local_table_info *);
+  void drop(const BaseString &name);
+
+  NdbLinHash<Ndb_local_table_info> m_tableHash;  // On name
 };
 
 /**
  * A thread safe dict cache
  */
 class GlobalDictCache : public NdbLockable {
-public:
+ public:
   GlobalDictCache();
   ~GlobalDictCache();
-  
-  NdbTableImpl * get(const BaseString& name, int *error);
-  
-  NdbTableImpl* put(const BaseString& name, NdbTableImpl *);
+
+  NdbTableImpl *get(const BaseString &name, int *error);
+
+  NdbTableImpl *put(const BaseString &name, NdbTableImpl *);
   void release(const NdbTableImpl *, int invalidate = 0);
 
-  void alter_table_rep(const BaseString& name,
-		       Uint32 tableId, Uint32 tableVersion, bool altered);
+  void alter_table_rep(const BaseString &name, Uint32 tableId,
+                       Uint32 tableVersion, bool altered);
 
   unsigned get_size();
   void invalidate_all();
 
   // update reference count by +1 or -1
-  int inc_ref_count(const NdbTableImpl * impl) {
+  int inc_ref_count(const NdbTableImpl *impl) {
     return chg_ref_count(impl, +1);
   }
-  int dec_ref_count(const NdbTableImpl * impl) {
+  int dec_ref_count(const NdbTableImpl *impl) {
     return chg_ref_count(impl, -1);
   }
 
-  void invalidateDb(const char * name, size_t len);
+  void invalidateDb(const char *name, size_t len);
 
-public:
-  enum Status {
-    OK = 0,
-    DROPPED = 1,
-    RETREIVING = 2
-  };
-  
-private:
+ public:
+  enum Status { OK = 0, DROPPED = 1, RETREIVING = 2 };
+
+ private:
   void printCache();
   int chg_ref_count(const NdbTableImpl *, int value);
 
   struct TableVersion {
     Uint32 m_version;
     Uint32 m_refCount;
-    NdbTableImpl * m_impl;
+    NdbTableImpl *m_impl;
     Status m_status;
   };
-  
-  NdbLinHash<Vector<TableVersion> > m_tableHash;
-  NdbCondition * m_waitForTableCondition;
+
+  NdbLinHash<Vector<TableVersion>> m_tableHash;
+  NdbCondition *m_waitForTableCondition;
 };
 
 #endif
-
-

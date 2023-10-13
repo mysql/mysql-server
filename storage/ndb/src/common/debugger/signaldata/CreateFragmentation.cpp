@@ -24,13 +24,9 @@
 
 #include <signaldata/CreateFragmentation.hpp>
 
-bool printCREATE_FRAGMENTATION_REQ(FILE *output,
-                                   const Uint32 *theData,
-                                   Uint32 len,
-                                   Uint16 /*receiverBlockNo*/)
-{
-  if (len < CreateFragmentationRef::SignalLength)
-  {
+bool printCREATE_FRAGMENTATION_REQ(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16 /*receiverBlockNo*/) {
+  if (len < CreateFragmentationRef::SignalLength) {
     assert(false);
     return false;
   }
@@ -50,13 +46,9 @@ bool printCREATE_FRAGMENTATION_REQ(FILE *output,
   return true;
 }
 
-bool printCREATE_FRAGMENTATION_REF(FILE *output,
-                                   const Uint32 *theData,
-                                   Uint32 len,
-                                   Uint16 /*receiverBlockNo*/)
-{
-  if (len < CreateFragmentationRef::SignalLength)
-  {
+bool printCREATE_FRAGMENTATION_REF(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16 /*receiverBlockNo*/) {
+  if (len < CreateFragmentationRef::SignalLength) {
     assert(false);
     return false;
   }
@@ -69,13 +61,9 @@ bool printCREATE_FRAGMENTATION_REF(FILE *output,
   return true;
 }
 
-bool printCREATE_FRAGMENTATION_CONF(FILE *output,
-                                    const Uint32 *theData,
-                                    Uint32 len,
-                                    Uint16 /*receiverBlockNo*/)
-{
-  if (len < CreateFragmentationConf::SignalLength)
-  {
+bool printCREATE_FRAGMENTATION_CONF(FILE *output, const Uint32 *theData,
+                                    Uint32 len, Uint16 /*receiverBlockNo*/) {
+  if (len < CreateFragmentationConf::SignalLength) {
     assert(false);
     return false;
   }

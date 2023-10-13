@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 38
 
-
 struct LqhTransReq {
   static constexpr Uint32 SignalLength = 4;
   static constexpr Uint32 OldSignalLength = 3;
@@ -36,7 +35,6 @@ struct LqhTransReq {
   Uint32 failedNodeId;
   Uint32 instanceId;
 };
-
 
 #undef JAM_FILE_ID
 

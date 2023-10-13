@@ -30,12 +30,12 @@
 /* I N C L U D E D   F I L E S                                 */
 /***************************************************************/
 
-#include "testDefinitions.h"
 #include "testData.h"
+#include "testDefinitions.h"
 
 /***************************************************************
-* M A C R O S                                                  *
-***************************************************************/
+ * M A C R O S                                                  *
+ ***************************************************************/
 
 /***************************************************************/
 /* C O N S T A N T S                                           */
@@ -47,44 +47,40 @@
 #define DEFAULTDB "TestDbClient"
 
 /***************************************************************
-* D A T A   S T R U C T U R E S                                *
-***************************************************************/
+ * D A T A   S T R U C T U R E S                                *
+ ***************************************************************/
 
 /***************************************************************
-* P U B L I C    F U N C T I O N S                             *
-***************************************************************/
+ * P U B L I C    F U N C T I O N S                             *
+ ***************************************************************/
 
 class Ndb;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-  extern void showTime();
-  extern double userGetTime(void);
-  extern Ndb   *asyncDbConnect(int parallellism);
-  extern void    asyncDbDisconnect(Ndb* pNDB);
+extern void showTime();
+extern double userGetTime(void);
+extern Ndb *asyncDbConnect(int parallellism);
+extern void asyncDbDisconnect(Ndb *pNDB);
 
-  extern void getRandomSubscriberNumber(SubscriberNumber number);
+extern void getRandomSubscriberNumber(SubscriberNumber number);
 
-  extern void start_T1(Ndb * uh, ThreadData * data, int async);
-  extern void start_T2(Ndb * uh, ThreadData * data, int async);
-  extern void start_T3(Ndb * uh, ThreadData * data, int async);
-  extern void start_T4(Ndb * uh, ThreadData * data, int async);
-  extern void start_T5(Ndb * uh, ThreadData * data, int async);
-  
-  extern void complete_T1(ThreadData * data);
-  extern void complete_T2(ThreadData * data);
-  extern void complete_T3(ThreadData * data);
-  extern void complete_T4(ThreadData * data);
-  extern void complete_T5(ThreadData * data);
+extern void start_T1(Ndb *uh, ThreadData *data, int async);
+extern void start_T2(Ndb *uh, ThreadData *data, int async);
+extern void start_T3(Ndb *uh, ThreadData *data, int async);
+extern void start_T4(Ndb *uh, ThreadData *data, int async);
+extern void start_T5(Ndb *uh, ThreadData *data, int async);
 
-
+extern void complete_T1(ThreadData *data);
+extern void complete_T2(ThreadData *data);
+extern void complete_T3(ThreadData *data);
+extern void complete_T4(ThreadData *data);
+extern void complete_T5(ThreadData *data);
 
 #ifdef __cplusplus
 }
 #endif
-
-
 
 /***************************************************************/
 /* I N C L U D E D   F I L E S                                 */
@@ -93,8 +89,8 @@ extern "C" {
 #include "testDefinitions.h"
 
 /***************************************************************
-* M A C R O S                                                  *
-***************************************************************/
+ * M A C R O S                                                  *
+ ***************************************************************/
 
 /***************************************************************/
 /* C O N S T A N T S                                           */
@@ -106,18 +102,18 @@ extern "C" {
 #define DEFAULTDB "TestDbClient"
 
 /***************************************************************
-* D A T A   S T R U C T U R E S                                *
-***************************************************************/
+ * D A T A   S T R U C T U R E S                                *
+ ***************************************************************/
 
 typedef struct {
-  class Ndb_cluster_connection* pNCC;
-  class Ndb           * pNDB;
-  class NdbTransaction * pCurrTrans;
+  class Ndb_cluster_connection *pNCC;
+  class Ndb *pNDB;
+  class NdbTransaction *pCurrTrans;
 } UserHandle;
 
 /***************************************************************
-* P U B L I C    F U N C T I O N S                             *
-***************************************************************/
+ * P U B L I C    F U N C T I O N S                             *
+ ***************************************************************/
 
 #ifdef __cplusplus
 extern "C" {
@@ -128,35 +124,27 @@ extern double userGetTimeSync(void);
 extern void userCheckpoint(UserHandle *uh);
 
 extern UserHandle *userDbConnect(uint32 createDb, const char *dbName);
-extern void        userDbDisconnect(UserHandle *uh);
+extern void userDbDisconnect(UserHandle *uh);
 
-extern int userDbInsertServer(UserHandle      *uh,
-                              ServerId         serverId,
-	                      SubscriberSuffix suffix,
-	                      ServerName       name);
+extern int userDbInsertServer(UserHandle *uh, ServerId serverId,
+                              SubscriberSuffix suffix, ServerName name);
 
-extern int userDbInsertSubscriber(UserHandle      *uh,
-	                          SubscriberNumber number,
-                                  uint32           groupId,
-	                          SubscriberName   name);
+extern int userDbInsertSubscriber(UserHandle *uh, SubscriberNumber number,
+                                  uint32 groupId, SubscriberName name);
 
-extern int userDbInsertGroup(UserHandle *uh,
-		             GroupId     groupId, 
-		             GroupName   name,
-		             Permission  allowRead,
-		             Permission  allowInsert,
-		             Permission  allowDelete);
-  
-  extern int userDbCommit(UserHandle *uh);
-  extern int userDbRollback(UserHandle *uh);
-  
+extern int userDbInsertGroup(UserHandle *uh, GroupId groupId, GroupName name,
+                             Permission allowRead, Permission allowInsert,
+                             Permission allowDelete);
+
+extern int userDbCommit(UserHandle *uh);
+extern int userDbRollback(UserHandle *uh);
+
 #ifdef __cplusplus
 }
 #endif
 
 /***************************************************************
-* E X T E R N A L   D A T A                                    *
-***************************************************************/
+ * E X T E R N A L   D A T A                                    *
+ ***************************************************************/
 
 #endif /* DBINTERFACE_H */
-

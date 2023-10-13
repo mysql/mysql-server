@@ -33,13 +33,13 @@
 
 class TestExecutionResources {
  public:
-  const char* const NDB_MGMD = "ndb_mgmd";
-  const char* const NDBD = "ndbd";
-  const char* const NDBMTD = "ndbmtd";
-  const char* const MYSQLD = "mysqld";
-  const char* const MYSQL_INSTALL_DB = "mysql_install_db";
-  const char* const LIBMYSQLCLIENT_DYLIB = "libmysqlclient.dylib";
-  const char* const LIBMYSQLCLIENT_SO = "libmysqlclient.so";
+  const char *const NDB_MGMD = "ndb_mgmd";
+  const char *const NDBD = "ndbd";
+  const char *const NDBMTD = "ndbmtd";
+  const char *const MYSQLD = "mysqld";
+  const char *const MYSQL_INSTALL_DB = "mysql_install_db";
+  const char *const LIBMYSQLCLIENT_DYLIB = "libmysqlclient.dylib";
+  const char *const LIBMYSQLCLIENT_SO = "libmysqlclient.so";
 
   bool registerExecutable(std::string exe, bool isRequired = true);
 
@@ -69,7 +69,7 @@ class TestExecutionResources {
 
  private:
   std::array<const char *, 6> m_search_path = {
-    {"bin", "libexec", "sbin", "scripts", "lib", "lib/mysql"}};
+      {"bin", "libexec", "sbin", "scripts", "lib", "lib/mysql"}};
 
   std::array<const char *, 2> m_prefixes;
 

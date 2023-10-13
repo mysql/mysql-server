@@ -43,7 +43,7 @@ class NdbIndexStatImpl;
  */
 
 class NdbIndexStat {
-public:
+ public:
   NdbIndexStat();
   ~NdbIndexStat();
 
@@ -52,11 +52,11 @@ public:
    * includes some extras.
    */
   struct Error : public NdbError {
-    int line;  // source code line number
-    int extra; // extra error code
+    int line;   // source code line number
+    int extra;  // extra error code
     Error();
   };
-  const Error& getNdbError() const;
+  const Error &getNdbError() const;
 
   /*
    * Estimate how many records exist in given range.  Does a single
@@ -71,14 +71,13 @@ public:
    * This is basically a static method.  The class instance is used only
    * to return errors.
    */
-  int records_in_range(const NdbDictionary::Index* index,
-                       NdbTransaction* trans,
-                       const NdbRecord* key_record,
-                       const NdbRecord* result_record,
-                       const NdbIndexScanOperation::IndexBound* ib,
-                       Uint64 table_rows, // not used
-                       Uint64* count,
-                       int flags); // not used
+  int records_in_range(const NdbDictionary::Index *index, NdbTransaction *trans,
+                       const NdbRecord *key_record,
+                       const NdbRecord *result_record,
+                       const NdbIndexScanOperation::IndexBound *ib,
+                       Uint64 table_rows,  // not used
+                       Uint64 *count,
+                       int flags);  // not used
 
   /*
    * Methods for stored stats.
@@ -96,15 +95,15 @@ public:
    */
 
   enum {
-    InvalidKeySize = 911, // index has an unsupported key size
-    NoSysTables = 4714,   // all sys tables missing
-    NoIndexStats = 4715,  // given index has no stored stats
-    UsageError = 4716,    // wrong state, invalid input
+    InvalidKeySize = 911,  // index has an unsupported key size
+    NoSysTables = 4714,    // all sys tables missing
+    NoIndexStats = 4715,   // given index has no stored stats
+    UsageError = 4716,     // wrong state, invalid input
     NoMemError = 4717,
     InvalidCache = 4718,
     InternalError = 4719,
-    BadSysTables = 4720,  // sys tables partly missing or invalid
-    HaveSysTables = 4244, // create error if all sys tables exist
+    BadSysTables = 4720,   // sys tables partly missing or invalid
+    HaveSysTables = 4244,  // create error if all sys tables exist
     NoSysEvents = 4710,
     BadSysEvents = BadSysTables,
     HaveSysEvents = 746,
@@ -112,11 +111,11 @@ public:
      * Following are for mysqld.  Most are consumed by mysqld itself
      * and should therefore not be seen by clients.
      */
-    MyNotAllow = 4721,    // stats thread not open for requests
-    MyNotFound = 4722,    // stats entry unexpectedly not found
-    MyHasError = 4723,    // request ignored due to recent error
-    MyAbortReq = 4724,    // request aborted by stats thread
-    AlienUpdate = 4725    // somebody else messed with stats
+    MyNotAllow = 4721,  // stats thread not open for requests
+    MyNotFound = 4722,  // stats entry unexpectedly not found
+    MyHasError = 4723,  // request ignored due to recent error
+    MyAbortReq = 4724,  // request aborted by stats thread
+    AlienUpdate = 4725  // somebody else messed with stats
   };
 
   /*
@@ -133,16 +132,16 @@ public:
    * Database of the Ndb object is used and must be "mysql" for kernel
    * to see the tables.
    */
-  int create_systables(Ndb* ndb);
-  int drop_systables(Ndb* ndb);
-  int check_systables(Ndb* ndb);
+  int create_systables(Ndb *ndb);
+  int drop_systables(Ndb *ndb);
+  int check_systables(Ndb *ndb);
 
   /*
    * Set index operated on.  Allocates internal structs.  Makes no
    * database access and keeps no references to the objects.
    */
-  int set_index(const NdbDictionary::Index& index,
-                const NdbDictionary::Table& table);
+  int set_index(const NdbDictionary::Index &index,
+                const NdbDictionary::Table &table);
 
   /*
    * Release index.  Required only if re-used for another index.
@@ -152,20 +151,20 @@ public:
   /*
    * Trivial invocation of NdbDictionary::Dictionary::updateIndexStat.
    */
-  int update_stat(Ndb* ndb);
+  int update_stat(Ndb *ndb);
 
   /*
    * Trivial invocation of NdbDictionary::Dictionary::deleteIndexStat.
    */
-  int delete_stat(Ndb* ndb);
+  int delete_stat(Ndb *ndb);
 
   /*
    * Cache types.
    */
   enum CacheType {
-    CacheBuild = 1,     // new cache under construction
-    CacheQuery = 2,     // cache used to answer queries
-    CacheClean = 3      // old caches waiting to be deleted
+    CacheBuild = 1,  // new cache under construction
+    CacheQuery = 2,  // cache used to answer queries
+    CacheClean = 3   // old caches waiting to be deleted
   };
 
   /*
@@ -186,20 +185,20 @@ public:
    * for them are summed up.
    */
   struct CacheInfo {
-    Uint32 m_count;       // number of instances
-    Uint32 m_valid;       // should be except for incomplete CacheBuild
-    Uint32 m_sampleCount; // number of samples
-    Uint32 m_totalBytes;  // total bytes memory used
-    Uint64 m_save_time;   // microseconds to read stats into cache
-    Uint64 m_sort_time;   // microseconds to sort the cache
-    Uint32 m_ref_count;   // in use by query_stat
+    Uint32 m_count;        // number of instances
+    Uint32 m_valid;        // should be except for incomplete CacheBuild
+    Uint32 m_sampleCount;  // number of samples
+    Uint32 m_totalBytes;   // total bytes memory used
+    Uint64 m_save_time;    // microseconds to read stats into cache
+    Uint64 m_sort_time;    // microseconds to sort the cache
+    Uint32 m_ref_count;    // in use by query_stat
     // end v4 fields
   };
 
   /*
    * Get info about a cache type.
    */
-  void get_cache_info(CacheInfo& info, CacheType type) const;
+  void get_cache_info(CacheInfo &info, CacheType type) const;
 
   /*
    * Saved head record retrieved with get_head().  The database fields
@@ -207,8 +206,8 @@ public:
    * sampleVersion is not zero.
    */
   struct Head {
-    Int32 m_found;        // -1 no read done, 0 = no record, 1 = exists
-    Int32 m_eventType;    // if polling, NdbDictionary::Event::TE_INSERT etc
+    Int32 m_found;      // -1 no read done, 0 = no record, 1 = exists
+    Int32 m_eventType;  // if polling, NdbDictionary::Event::TE_INSERT etc
     Uint32 m_indexId;
     Uint32 m_indexVersion;
     Uint32 m_tableId;
@@ -224,20 +223,20 @@ public:
   /*
    * Get latest saved head record.  Makes no database access.
    */
-  void get_head(Head& head) const;
+  void get_head(Head &head) const;
 
   /*
    * Read stats head record for the index.  Returns error and sets code
    * to NoIndexStats if head record does not exist or sample version is
    * zero.  Use get_head() to retrieve the results.
    */
-  int read_head(Ndb* ndb);
+  int read_head(Ndb *ndb);
 
   /*
    * Read current version of stats into CacheBuild.  A move_cache() is
    * required before it is available for queries.
    */
-  int read_stat(Ndb* ndb);
+  int read_stat(Ndb *ndb);
 
   /*
    * Reader provides bounds for cache query.  The struct must be
@@ -247,60 +246,59 @@ public:
    */
   enum { BoundBufferBytes = 8192 };
   struct Bound {
-    Bound(const NdbIndexStat* is, void* buffer);
-    void* m_impl;
+    Bound(const NdbIndexStat *is, void *buffer);
+    void *m_impl;
   };
 
   /*
    * Add non-NULL attribute value to the bound.  May return error for
    * invalid data.
    */
-  int add_bound(Bound& bound, const void* value);
+  int add_bound(Bound &bound, const void *value);
 
   /*
    * Add NULL attribute value to the bound.
    */
-  int add_bound_null(Bound& bound);
+  int add_bound_null(Bound &bound);
 
   /*
    * A non-empty bound must be set strict (true) or non-strict (false).
    * For empty bound this must remain unset (-1).
    */
-  void set_bound_strict(Bound& bound, int strict);
+  void set_bound_strict(Bound &bound, int strict);
 
   /*
    * To re-use same bound instance, a reset is required.
    */
-  void reset_bound(Bound& bound);
+  void reset_bound(Bound &bound);
 
   /*
    * Queries take a range consisting of low and high bound (start key
    * and end key in mysql).
    */
   struct Range {
-    Range(Bound& bound1, Bound& bound2);
-    Bound& m_bound1;
-    Bound& m_bound2;
+    Range(Bound &bound1, Bound &bound2);
+    Bound &m_bound1;
+    Bound &m_bound2;
   };
 
   /*
    * After defining bounds, the range must be finalized.  This updates
    * internal info.  Usage error is possible.
    */
-  int finalize_range(Range& range);
+  int finalize_range(Range &range);
 
   /*
    * Reset the bounds.
    */
-  void reset_range(Range& range);
+  void reset_range(Range &range);
 
   /*
    * Convert NdbRecord index bound to Range.  Invokes reset and finalize
    * and cannot be mixed with the other methods.
    */
-  int convert_range(Range& range,
-                    const NdbRecord* key_record,
-                    const NdbIndexScanOperation::IndexBound* ib);
+  int convert_range(Range &range, const NdbRecord *key_record,
+                    const NdbIndexScanOperation::IndexBound *ib);
 
   /*
    * Reader provides storage for stats values.  The struct must be
@@ -308,8 +306,8 @@ public:
    */
   enum { StatBufferBytes = 2048 };
   struct Stat {
-    Stat(void* buffer);
-    void* m_impl;
+    Stat(void *buffer);
+    void *m_impl;
   };
 
   /*
@@ -317,60 +315,56 @@ public:
    * if there is no valid query cache.  The Stat is used to get
    * stats values without further reference to the Range.
    */
-  int query_stat(const Range& range, Stat& stat);
+  int query_stat(const Range &range, Stat &stat);
 
   /*
    * Check if range is empty i.e. bound1 >= bound2 (for bounds this
    * means empty) or the query cache is empty.  The RIR and RPK return
    * 1.0 if range is empty.
    */
-  static void get_empty(const Stat& stat, bool* empty);
+  static void get_empty(const Stat &stat, bool *empty);
 
   /*
    * Get number of rows the statistcs is sampled over.
    * Could be used as a metric for the quality of the statistic.
    */
-  static void get_numrows(const Stat& stat, Uint32* rows);
+  static void get_numrows(const Stat &stat, Uint32 *rows);
 
   /*
    * Get estimated RIR (records in range).  Value is always >= 1.0 since
    * no exact 0 rows can be returned.
    */
-  static void get_rir(const Stat& stat, double* rir);
+  static void get_rir(const Stat &stat, double *rir);
 
   /*
    * Get estimated RPK (records per key) at given level k (from 0 to
    * NK-1 where NK = number of index keys).  Value is >= 1.0.
    */
-  static void get_rpk(const Stat& stat,
-                      Uint32 k,
-                      double* rpk);
+  static void get_rpk(const Stat &stat, Uint32 k, double *rpk);
   /*
    * Similar as above, with the range being 'pruned' to a single
    * fragment due the entire partitioned key being specified.
    */
-  static void get_rpk_pruned(const Stat& stat,
-                             Uint32 k,
-                             double* rpk);
+  static void get_rpk_pruned(const Stat &stat, Uint32 k, double *rpk);
 
   /*
    * Get a short string summarizing the rules used.
    */
   enum { RuleBufferBytes = 80 };
-  static void get_rule(const Stat& stat, char* buffer);
+  static void get_rule(const Stat &stat, char *buffer);
 
   /*
    * Events (there is 1) for polling.  These are dictionary objects.
    * Correct sys tables must exist.  Drop ignores non-existing events.
    */
-  int create_sysevents(Ndb* ndb);
-  int drop_sysevents(Ndb* ndb);
-  int check_sysevents(Ndb* ndb);
+  int create_sysevents(Ndb *ndb);
+  int drop_sysevents(Ndb *ndb);
+  int check_sysevents(Ndb *ndb);
 
   /*
    * Create listener for stats updates.  Only 1 is allowed.
    */
-  int create_listener(Ndb* ndb);
+  int create_listener(Ndb *ndb);
 
   /*
    * Check if the listener has been created.
@@ -380,25 +374,25 @@ public:
   /*
    * Start listening for events (call NdbEventOperation::execute).
    */
-  int execute_listener(Ndb* ndb);
+  int execute_listener(Ndb *ndb);
 
   /*
    * Poll the listener (call Ndb::pollEvents).  Returns 1 if there are
    * events available and 0 otherwise, or -1 on failure as usual.
    */
-  int poll_listener(Ndb* ndb, int max_wait_ms);
+  int poll_listener(Ndb *ndb, int max_wait_ms);
 
   /*
    * Get next available event.  Returns 1 if a new event was returned
    * and 0 otherwise, or -1 on failure as usual.  Use get_heed() to
    * retrieve event type and data.
    */
-  int next_listener(Ndb* ndb);
+  int next_listener(Ndb *ndb);
 
   /*
    * Drop the listener if it exists.  Always succeeds.
    */
-  int drop_listener(Ndb* ndb);
+  int drop_listener(Ndb *ndb);
 
   /*
    * Memory allocator for stats cache data (key and value byte arrays).
@@ -408,34 +402,31 @@ public:
   struct Mem {
     Mem();
     virtual ~Mem();
-    virtual void* mem_alloc(UintPtr size) = 0;
-    virtual void mem_free(void* ptr) = 0;
+    virtual void *mem_alloc(UintPtr size) = 0;
+    virtual void mem_free(void *ptr) = 0;
   };
 
   /*
    * Set a non-default memory allocator.
    */
-  void set_mem_handler(Mem* mem);
+  void set_mem_handler(Mem *mem);
 
   // get impl class for use in NDB API programs
-  NdbIndexStatImpl& getImpl();
+  NdbIndexStatImpl &getImpl();
 
-private:
-  int addKeyPartInfo(const NdbRecord* record,
-                     const char* keyRecordData,
+ private:
+  int addKeyPartInfo(const NdbRecord *record, const char *keyRecordData,
                      Uint32 keyPartNum,
                      const NdbIndexScanOperation::BoundType boundType,
-                     Uint32* keyStatData,
-                     Uint32& keyLength);
+                     Uint32 *keyStatData, Uint32 &keyLength);
 
   // stored stats
 
   friend class NdbIndexStatImpl;
-  NdbIndexStat(NdbIndexStatImpl& impl);
-  NdbIndexStatImpl& m_impl;
+  NdbIndexStat(NdbIndexStatImpl &impl);
+  NdbIndexStatImpl &m_impl;
 };
 
-class NdbOut&
-operator<<(class NdbOut& out, const NdbIndexStat::Error&);
+class NdbOut &operator<<(class NdbOut &out, const NdbIndexStat::Error &);
 
 #endif

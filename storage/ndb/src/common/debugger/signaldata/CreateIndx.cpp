@@ -25,18 +25,14 @@
 
 #include <signaldata/CreateIndx.hpp>
 
-bool printCREATE_INDX_REQ(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16)
-{
-  if (len < CreateIndxReq::SignalLength)
-  {
+bool printCREATE_INDX_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16) {
+  if (len < CreateIndxReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxReq* sig = (const CreateIndxReq*)theData;
+  const CreateIndxReq *sig = (const CreateIndxReq *)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");
@@ -52,16 +48,14 @@ bool printCREATE_INDX_REQ(FILE* output,
   return true;
 }
 
-bool
-printCREATE_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < CreateIndxConf::SignalLength)
-  {
+bool printCREATE_INDX_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                           Uint16) {
+  if (len < CreateIndxConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxConf* sig = (const CreateIndxConf*)theData;
+  const CreateIndxConf *sig = (const CreateIndxConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
@@ -72,18 +66,14 @@ printCREATE_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool printCREATE_INDX_REF(FILE* output,
-                          const Uint32* theData,
-                          Uint32 len,
-                          Uint16)
-{
-  if (len < CreateIndxRef::SignalLength)
-  {
+bool printCREATE_INDX_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16) {
+  if (len < CreateIndxRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const CreateIndxRef* sig = (const CreateIndxRef*)theData;
+  const CreateIndxRef *sig = (const CreateIndxRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

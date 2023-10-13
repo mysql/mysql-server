@@ -24,8 +24,8 @@
 #ifndef NdbQueryBuilder_H
 #define NdbQueryBuilder_H
 
-#include <stdlib.h>
 #include <ndb_types.h>
+#include <stdlib.h>
 
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
@@ -40,7 +40,6 @@ class NdbQueryBuilderImpl;
 class NdbQueryOptionsImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
-
 
 /**
  * This is the API interface for building a (composite) query definition,
@@ -60,69 +59,64 @@ class NdbQueryOperationDefImpl;
  */
 
 /**
- * NdbQueryOperand, a construct for specifying values which are used 
+ * NdbQueryOperand, a construct for specifying values which are used
  * to specify lookup keys, bounds or filters in the query tree.
  */
 class NdbQueryOperand  // A base class specifying a single value
 {
-public:
+ public:
   // Column which this operand relates to
-  const NdbDictionary::Column* getColumn() const;
-  NdbQueryOperandImpl& getImpl() const;
+  const NdbDictionary::Column *getColumn() const;
+  NdbQueryOperandImpl &getImpl() const;
 
-protected:
-  // Enforce object creation through NdbQueryBuilder factory 
-  explicit NdbQueryOperand(NdbQueryOperandImpl& impl);
+ protected:
+  // Enforce object creation through NdbQueryBuilder factory
+  explicit NdbQueryOperand(NdbQueryOperandImpl &impl);
   ~NdbQueryOperand();
 
-private:
+ private:
   // Copying disallowed:
-  NdbQueryOperand(const NdbQueryOperand& other);
-  NdbQueryOperand& operator = (const NdbQueryOperand& other);
+  NdbQueryOperand(const NdbQueryOperand &other);
+  NdbQueryOperand &operator=(const NdbQueryOperand &other);
 
-  NdbQueryOperandImpl& m_impl;
+  NdbQueryOperandImpl &m_impl;
 };
 
 // A NdbQueryOperand is either of these:
-class NdbConstOperand : public NdbQueryOperand
-{
-private:
+class NdbConstOperand : public NdbQueryOperand {
+ private:
   friend class NdbConstOperandImpl;
-  explicit NdbConstOperand(NdbQueryOperandImpl& impl);
+  explicit NdbConstOperand(NdbQueryOperandImpl &impl);
   ~NdbConstOperand();
 };
 
-class NdbLinkedOperand : public NdbQueryOperand
-{
-private:
+class NdbLinkedOperand : public NdbQueryOperand {
+ private:
   friend class NdbLinkedOperandImpl;
-  explicit NdbLinkedOperand(NdbQueryOperandImpl& impl);
+  explicit NdbLinkedOperand(NdbQueryOperandImpl &impl);
   ~NdbLinkedOperand();
 };
 
-class NdbParamOperand  : public NdbQueryOperand {
-public:
-  const char* getName() const;
+class NdbParamOperand : public NdbQueryOperand {
+ public:
+  const char *getName() const;
   Uint32 getEnum() const;
 
-private:
+ private:
   friend class NdbParamOperandImpl;
-  explicit NdbParamOperand(NdbQueryOperandImpl& impl);
+  explicit NdbParamOperand(NdbQueryOperandImpl &impl);
   ~NdbParamOperand();
 };
-
 
 /**
  *  NdbQueryOptions used to pass options when building a NdbQueryOperationDef.
  *
  *  It will normally be constructed on the stack, the required options specified
- *  with the set'ers methods, and then supplied as an argument when creating the 
+ *  with the set'ers methods, and then supplied as an argument when creating the
  *  NdbQueryOperationDef.
  */
-class NdbQueryOptions
-{
-public:
-
+class NdbQueryOptions {
+ public:
   /**
    * Different match criteria may be specified for an operation.
    * These controls when rows are considered equal, and a result row
@@ -133,10 +127,10 @@ public:
    * and produce more rows than specified by the MatchType.
    * However, no more rows than specified by 'MatchAll' should be produced.
    * As additional rows should be expected, the receiver should be prepared to
-   * filter away unwanted rows if another MatchType than 'MatchAll' was specified.
+   * filter away unwanted rows if another MatchType than 'MatchAll' was
+   * specified.
    */
-  enum MatchType
-  {
+  enum MatchType {
     // DEFAULT: Output all matches, including duplicates.
     // Append a single NULL-extended row for non-matching children.
     MatchAll = 0x00,
@@ -157,12 +151,11 @@ public:
   };
 
   /** Ordering of scan results when scanning ordered indexes.*/
-  enum ScanOrdering
-  {
+  enum ScanOrdering {
     /** Undefined (not yet set). */
-    ScanOrdering_void, 
+    ScanOrdering_void,
     /** Results will not be ordered.*/
-    ScanOrdering_unordered, 
+    ScanOrdering_unordered,
     ScanOrdering_ascending,
     ScanOrdering_descending
   };
@@ -170,24 +163,25 @@ public:
   explicit NdbQueryOptions();
   ~NdbQueryOptions();
 
-  /** Define result ordering. Alternatively, ordering may be set when the 
-   * query definition has been instantiated, using 
+  /** Define result ordering. Alternatively, ordering may be set when the
+   * query definition has been instantiated, using
    * NdbQueryOperation::setOrdering().
    * @param ordering The desired ordering of results.
    */
   int setOrdering(ScanOrdering ordering);
 
-  /** Define how NULL values and duplicates should be handled when equal tuples are matched.
+  /** Define how NULL values and duplicates should be handled when equal tuples
+   * are matched.
    */
   int setMatchType(MatchType matchType);
 
   /**
    * Define an (additional) parent dependency on the specified parent operation.
-   * If linkedValues are also defined for the operation which setParent() applies to,
-   * all implicit parents specified as part of the 'linkedValues' should be
-   * grandparents of 'parent'.
+   * If linkedValues are also defined for the operation which setParent()
+   * applies to, all implicit parents specified as part of the 'linkedValues'
+   * should be grandparents of 'parent'.
    */
-  int setParent(const class NdbQueryOperationDef* parent);
+  int setParent(const class NdbQueryOperationDef *parent);
 
   /**
    * Set the 'first_inner' operation of the join_nest this operation is a
@@ -201,7 +195,7 @@ public:
    * QueryTree -> This Op has no linkedValue dependencies on other Ops
    * in the nest starting with firstInner.
    */
-  int setFirstInnerJoin(const class NdbQueryOperationDef* firstInner);
+  int setFirstInnerJoin(const class NdbQueryOperationDef *firstInner);
 
   /**
    * Specifies the nesting of the join nest:
@@ -209,13 +203,14 @@ public:
    * However, there might be nest constructs like 't1 lj (t2 lj (t3))',
    * where t3 has a join dependency directly on t1 (Which becomes the parent).
    * Thus the query tree will have t3 as direct child of t1, which 'hides'
-   * the nest dependency on t2. In such cases t3 will need to t3.setUpperJoin(t1).
+   * the nest dependency on t2. In such cases t3 will need to
+   * t3.setUpperJoin(t1).
    */
-  int setUpperJoin(const class NdbQueryOperationDef* firstUpper);
+  int setUpperJoin(const class NdbQueryOperationDef *firstUpper);
 
   /**
-   * Set the NdbInterpretedCode needed for defining a conditional filter 
-   * (aka: predicate) for this operation. Might be used both on scan 
+   * Set the NdbInterpretedCode needed for defining a conditional filter
+   * (aka: predicate) for this operation. Might be used both on scan
    * and lookup operations.
    *
    * Typically, one would create NdbScanFilter and NdbInterpretedCode objects
@@ -227,44 +222,42 @@ public:
    *   filter.end();
    *   queryOp->setInterpretedCode(code);
    *
-   * @param code The interpreted code. This object is copied internally, 
+   * @param code The interpreted code. This object is copied internally,
    * meaning that 'code' may be destroyed as soon as this method returns.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int setInterpretedCode(const class NdbInterpretedCode& code);
+  int setInterpretedCode(const class NdbInterpretedCode &code);
 
-  int setParameters(const NdbQueryOperand* const parameters[]);
+  int setParameters(const NdbQueryOperand *const parameters[]);
 
-  const NdbQueryOptionsImpl& getImpl() const;
+  const NdbQueryOptionsImpl &getImpl() const;
 
-private:
+ private:
   // Copying disallowed:
-  NdbQueryOptions(const NdbQueryOptions& other);
-  NdbQueryOptions& operator = (const NdbQueryOptions& other);
+  NdbQueryOptions(const NdbQueryOptions &other);
+  NdbQueryOptions &operator=(const NdbQueryOptions &other);
 
-  NdbQueryOptionsImpl* m_pimpl;
+  NdbQueryOptionsImpl *m_pimpl;
 
-}; // class NdbQueryOptions
-
+};  // class NdbQueryOptions
 
 /**
  * NdbQueryOperationDef defines an operation on a single NDB table
  */
-class NdbQueryOperationDef // Base class for all operation definitions
+class NdbQueryOperationDef  // Base class for all operation definitions
 {
-public:
-
+ public:
   /**
    * Different access / query operation types
    */
   enum Type {
-    PrimaryKeyAccess,     ///< Read using pk
-    UniqueIndexAccess,    ///< Read using unique index
-    TableScan,            ///< Full table scan
-    OrderedIndexScan      ///< Ordered index scan, optionally w/ bounds
+    PrimaryKeyAccess,   ///< Read using pk
+    UniqueIndexAccess,  ///< Read using unique index
+    TableScan,          ///< Full table scan
+    OrderedIndexScan    ///< Ordered index scan, optionally w/ bounds
   };
 
-  static const char* getTypeName(Type type);
+  static const char *getTypeName(Type type);
 
   /**
    * Get the ordinal position of this operation within the QueryDef.
@@ -272,158 +265,156 @@ public:
   Uint32 getOpNo() const;
 
   Uint32 getNoOfParentOperations() const;
-  const NdbQueryOperationDef* getParentOperation(Uint32 i) const;
+  const NdbQueryOperationDef *getParentOperation(Uint32 i) const;
 
   Uint32 getNoOfChildOperations() const;
-  const NdbQueryOperationDef* getChildOperation(Uint32 i) const;
+  const NdbQueryOperationDef *getChildOperation(Uint32 i) const;
 
   Type getType() const;
 
   /**
    * Get table object for this operation
    */
-  const NdbDictionary::Table* getTable() const;
+  const NdbDictionary::Table *getTable() const;
 
   /**
    * Get index object for this operation if relevant,
    * return NULL else.
    */
-  const NdbDictionary::Index* getIndex() const;
+  const NdbDictionary::Index *getIndex() const;
 
-  NdbQueryOperationDefImpl& getImpl() const;
+  NdbQueryOperationDefImpl &getImpl() const;
 
-protected:
-  // Enforce object creation through NdbQueryBuilder factory 
-  explicit NdbQueryOperationDef(NdbQueryOperationDefImpl& impl);
+ protected:
+  // Enforce object creation through NdbQueryBuilder factory
+  explicit NdbQueryOperationDef(NdbQueryOperationDefImpl &impl);
   ~NdbQueryOperationDef();
 
-private:
+ private:
   // Copying disallowed:
-  NdbQueryOperationDef(const NdbQueryOperationDef& other);
-  NdbQueryOperationDef& operator = (const NdbQueryOperationDef& other);
+  NdbQueryOperationDef(const NdbQueryOperationDef &other);
+  NdbQueryOperationDef &operator=(const NdbQueryOperationDef &other);
 
-  NdbQueryOperationDefImpl& m_impl;
-}; // class NdbQueryOperationDef
+  NdbQueryOperationDefImpl &m_impl;
+};  // class NdbQueryOperationDef
 
-
-class NdbQueryLookupOperationDef : public NdbQueryOperationDef
-{
-public:
-
-private:
+class NdbQueryLookupOperationDef : public NdbQueryOperationDef {
+ public:
+ private:
   // Enforce object creation through NdbQueryBuilder factory
   friend class NdbQueryLookupOperationDefImpl;
-  explicit NdbQueryLookupOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryLookupOperationDef(NdbQueryOperationDefImpl &impl);
   ~NdbQueryLookupOperationDef();
-}; // class NdbQueryLookupOperationDef
+};  // class NdbQueryLookupOperationDef
 
-class NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for scans
+class NdbQueryScanOperationDef
+    : public NdbQueryOperationDef  // Base class for scans
 {
-protected:
-  // Enforce object creation through NdbQueryBuilder factory 
-  explicit NdbQueryScanOperationDef(NdbQueryOperationDefImpl& impl);
+ protected:
+  // Enforce object creation through NdbQueryBuilder factory
+  explicit NdbQueryScanOperationDef(NdbQueryOperationDefImpl &impl);
   ~NdbQueryScanOperationDef();
-}; // class NdbQueryScanOperationDef
+};  // class NdbQueryScanOperationDef
 
-class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
-{
-private:
-  // Enforce object creation through NdbQueryBuilder factory 
+class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef {
+ private:
+  // Enforce object creation through NdbQueryBuilder factory
   friend class NdbQueryTableScanOperationDefImpl;
-  explicit NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl &impl);
   ~NdbQueryTableScanOperationDef();
-}; // class NdbQueryTableScanOperationDef
+};  // class NdbQueryTableScanOperationDef
 
-class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
-{
-public:
-
-private:
-  // Enforce object creation through NdbQueryBuilder factory 
+class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef {
+ public:
+ private:
+  // Enforce object creation through NdbQueryBuilder factory
   friend class NdbQueryIndexScanOperationDefImpl;
-  explicit NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl &impl);
   ~NdbQueryIndexScanOperationDef();
-}; // class NdbQueryIndexScanOperationDef
-
+};  // class NdbQueryIndexScanOperationDef
 
 /**
  * class NdbQueryIndexBound is an argument container for defining
  * a NdbQueryIndexScanOperationDef.
  * The contents of this object is copied into the
- * NdbQueryIndexScanOperationDef and does not have to be 
+ * NdbQueryIndexScanOperationDef and does not have to be
  * persistent after the NdbQueryBuilder::scanIndex() call
  */
-class NdbQueryIndexBound
-{
-public:
+class NdbQueryIndexBound {
+ public:
   // C'tor for an equal bound:
-  NdbQueryIndexBound(const NdbQueryOperand* const *eqKey)
-   : m_low(eqKey), m_lowInclusive(true), m_high(eqKey), m_highInclusive(true)
-  {}
+  NdbQueryIndexBound(const NdbQueryOperand *const *eqKey)
+      : m_low(eqKey),
+        m_lowInclusive(true),
+        m_high(eqKey),
+        m_highInclusive(true) {}
 
   // C'tor for a normal range including low & high limit:
-  NdbQueryIndexBound(const NdbQueryOperand* const *low,
-                     const NdbQueryOperand* const *high)
-   : m_low(low), m_lowInclusive(true), m_high(high), m_highInclusive(true)
-  {}
+  NdbQueryIndexBound(const NdbQueryOperand *const *low,
+                     const NdbQueryOperand *const *high)
+      : m_low(low), m_lowInclusive(true), m_high(high), m_highInclusive(true) {}
 
   // Complete C'tor where limits might be excluded:
-  NdbQueryIndexBound(const NdbQueryOperand* const *low,  bool lowIncl,
-                     const NdbQueryOperand* const *high, bool highIncl)
-   : m_low(low), m_lowInclusive(lowIncl), m_high(high), m_highInclusive(highIncl)
-  {}
+  NdbQueryIndexBound(const NdbQueryOperand *const *low, bool lowIncl,
+                     const NdbQueryOperand *const *high, bool highIncl)
+      : m_low(low),
+        m_lowInclusive(lowIncl),
+        m_high(high),
+        m_highInclusive(highIncl) {}
 
-private:
+ private:
   friend class NdbQueryBuilder;
   friend class NdbQueryIndexScanOperationDefImpl;
-  const NdbQueryOperand* const *m_low;  // 'Pointer to array of pointers', NULL terminated
+  const NdbQueryOperand *const
+      *m_low;  // 'Pointer to array of pointers', NULL terminated
   const bool m_lowInclusive;
-  const NdbQueryOperand* const *m_high; // 'Pointer to array of pointers', NULL terminated
+  const NdbQueryOperand *const
+      *m_high;  // 'Pointer to array of pointers', NULL terminated
   const bool m_highInclusive;
 };
-
 
 /**
  *
  * The Query builder constructs a NdbQueryDef which is a collection of
  * (possibly linked) NdbQueryOperationDefs
- * Each NdbQueryOperationDef may use NdbQueryOperands to specify keys and bounds.
+ * Each NdbQueryOperationDef may use NdbQueryOperands to specify keys and
+ bounds.
  *
  * LIFETIME:
- * - All NdbQueryOperand and NdbQueryOperationDef objects created in the 
+ * - All NdbQueryOperand and NdbQueryOperationDef objects created in the
  *   context of a NdbQueryBuilder has a lifetime restricted by:
  *    1. The NdbQueryDef created by the ::prepare() method.
  *    2. The NdbQueryBuilder *if* the builder is destructed before the
  *       query was prepared.
 
- *   A single NdbQueryOperand or NdbQueryOperationDef object may be 
+ *   A single NdbQueryOperand or NdbQueryOperationDef object may be
  *   used/referrer multiple times during the build process whenever
- *   we need a reference to the same value/node during the 
+ *   we need a reference to the same value/node during the
  *   build phase.
  *
- * - The NdbQueryDef produced by the ::prepare() method has a lifetime 
+ * - The NdbQueryDef produced by the ::prepare() method has a lifetime
  *   until it is explicit released by NdbQueryDef::release()
  *
  */
-class NdbQueryBuilder 
-{
+class NdbQueryBuilder {
   friend class NdbQueryBuilderImpl;
-private:
+
+ private:
   // Constructor is private, since application should use 'create()'.
-  explicit NdbQueryBuilder(NdbQueryBuilderImpl& impl);
+  explicit NdbQueryBuilder(NdbQueryBuilderImpl &impl);
   // Destructor is private, since application should use 'destroy()'
- ~NdbQueryBuilder();
+  ~NdbQueryBuilder();
 
   // No copying of NdbQueryBuilder objects.
-  NdbQueryBuilder(const NdbQueryBuilder&);
-  NdbQueryBuilder& operator=(const NdbQueryBuilder&);
+  NdbQueryBuilder(const NdbQueryBuilder &);
+  NdbQueryBuilder &operator=(const NdbQueryBuilder &);
 
-public:
+ public:
   /**
    * Allocate an instance.
    * @return New instance, or NULL if allocation failed.
    */
-  static NdbQueryBuilder* create();
+  static NdbQueryBuilder *create();
 
   /**
    * Release this object and any resources held by it.
@@ -435,12 +426,12 @@ public:
   /**
    * Complete building a queryTree from 'this' NdbQueryBuilder
    */
-  const NdbQueryDef* prepare(const Ndb *ndb);
+  const NdbQueryDef *prepare(const Ndb *ndb);
 
   /**
    * Compatible older version of prepare(); not recommended
    */
-  const NdbQueryDef* prepare();
+  const NdbQueryDef *prepare();
 
   // NdbQueryOperand builders:
   //
@@ -448,67 +439,65 @@ public:
   // Typechecking is provided  and will reject constValues/() which is
   // incompatible with the type of the column it is used against.
   // Some very basic typeconversion is available to match destination column
-  // with different numeric precision and spacepad character strings to defined length.
-  NdbConstOperand* constValue(Int32  value); 
-  NdbConstOperand* constValue(Uint32 value); 
-  NdbConstOperand* constValue(Int64  value); 
-  NdbConstOperand* constValue(Uint64 value); 
-  NdbConstOperand* constValue(double value); 
-  NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar C-type string
+  // with different numeric precision and spacepad character strings to defined
+  // length.
+  NdbConstOperand *constValue(Int32 value);
+  NdbConstOperand *constValue(Uint32 value);
+  NdbConstOperand *constValue(Int64 value);
+  NdbConstOperand *constValue(Uint64 value);
+  NdbConstOperand *constValue(double value);
+  NdbConstOperand *constValue(
+      const char *value);  // Null terminated char/varchar C-type string
 
-  // Raw constValue data with specified length - No typeconversion performed to match destination format.
-  // Fixed sized datatypes requires 'len' to exactly match the destination column.
-  // Fixed sized character values should be spacepadded to required length.
-  // Variable sized datatypes requires 'len <= max(len)'.
-  NdbConstOperand* constValue(const void* value, Uint32 len);
+  // Raw constValue data with specified length - No typeconversion performed to
+  // match destination format. Fixed sized datatypes requires 'len' to exactly
+  // match the destination column. Fixed sized character values should be
+  // spacepadded to required length. Variable sized datatypes requires 'len <=
+  // max(len)'.
+  NdbConstOperand *constValue(const void *value, Uint32 len);
 
   // ::paramValue() is a placeholder for a parameter value to be specified when
   // a query instance is created for execution.
-  NdbParamOperand* paramValue(const char* name = nullptr);  // Parameterized
+  NdbParamOperand *paramValue(const char *name = nullptr);  // Parameterized
 
-  // ::linkedValue() defines a value available from execution of a previously defined
-  // NdbQueryOperationDef. This NdbQueryOperationDef will become the 'parent' of the
-  // NdbQueryOperationDef which uses this linkedValue() in any expression.
-  NdbLinkedOperand* linkedValue(const NdbQueryOperationDef*, const char* attr); // Linked value
-
+  // ::linkedValue() defines a value available from execution of a previously
+  // defined NdbQueryOperationDef. This NdbQueryOperationDef will become the
+  // 'parent' of the NdbQueryOperationDef which uses this linkedValue() in any
+  // expression.
+  NdbLinkedOperand *linkedValue(const NdbQueryOperationDef *,
+                                const char *attr);  // Linked value
 
   // NdbQueryOperationDef builders:
   //
   // Common (optional) arguments:
   //
   //    - 'ident' may be used to identify each NdbQueryOperationDef with a name.
-  //       This may later be used to find the corresponding NdbQueryOperation instance when
-  //       the NdbQueryDef is executed. 
-  //       Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
-  //       as an alternative way of locating the NdbQueryOperation.
-  
-  const NdbQueryLookupOperationDef* readTuple(
-                                const NdbDictionary::Table*,          // Primary key lookup
-                                const NdbQueryOperand* const keys[],  // Terminated by NULL element
-                                const NdbQueryOptions* options = nullptr,
-                                const char* ident = nullptr);
+  //       This may later be used to find the corresponding NdbQueryOperation
+  //       instance when the NdbQueryDef is executed. Each NdbQueryOperationDef
+  //       will also be assigned an numeric ident (starting from 0) as an
+  //       alternative way of locating the NdbQueryOperation.
 
-  const NdbQueryLookupOperationDef* readTuple(
-                                const NdbDictionary::Index*,          // Unique key lookup w/ index
-			        const NdbDictionary::Table*,
-                                const NdbQueryOperand* const keys[],  // Terminated by NULL element
-                                const NdbQueryOptions* options = nullptr,
-                                const char* ident = nullptr);
+  const NdbQueryLookupOperationDef *readTuple(
+      const NdbDictionary::Table *,         // Primary key lookup
+      const NdbQueryOperand *const keys[],  // Terminated by NULL element
+      const NdbQueryOptions *options = nullptr, const char *ident = nullptr);
 
-  const NdbQueryTableScanOperationDef* scanTable(
-                                const NdbDictionary::Table*,
-                                const NdbQueryOptions* options = nullptr,
-                                const char* ident = nullptr);
+  const NdbQueryLookupOperationDef *readTuple(
+      const NdbDictionary::Index *,  // Unique key lookup w/ index
+      const NdbDictionary::Table *,
+      const NdbQueryOperand *const keys[],  // Terminated by NULL element
+      const NdbQueryOptions *options = nullptr, const char *ident = nullptr);
 
-  const NdbQueryIndexScanOperationDef* scanIndex(
-                                const NdbDictionary::Index*, 
-	                        const NdbDictionary::Table*,
-                                const NdbQueryIndexBound* bound = nullptr,
-                                const NdbQueryOptions* options = nullptr,
-                                const char* ident = nullptr);
+  const NdbQueryTableScanOperationDef *scanTable(
+      const NdbDictionary::Table *, const NdbQueryOptions *options = nullptr,
+      const char *ident = nullptr);
 
+  const NdbQueryIndexScanOperationDef *scanIndex(
+      const NdbDictionary::Index *, const NdbDictionary::Table *,
+      const NdbQueryIndexBound *bound = nullptr,
+      const NdbQueryOptions *options = nullptr, const char *ident = nullptr);
 
-  /** 
+  /**
    * @name Error Handling
    * @{
    */
@@ -518,14 +507,14 @@ public:
    *
    * @return An error object with information about the latest error.
    */
-  const NdbError& getNdbError() const;
+  const NdbError &getNdbError() const;
 
-  NdbQueryBuilderImpl& getImpl() const;
+  NdbQueryBuilderImpl &getImpl() const;
 
-private:
-  NdbQueryBuilderImpl& m_impl;
+ private:
+  NdbQueryBuilderImpl &m_impl;
 
-}; // class NdbQueryBuilder
+};  // class NdbQueryBuilder
 
 /**
  * NdbQueryDef represents a ::prepare()'d object from NdbQueryBuilder.
@@ -537,32 +526,31 @@ private:
  * which executing a query based on this NdbQueryDef has called
  * NdbQuery::close().
  *
- * A NdbQueryDef is scheduled for execution by appending it to an open 
- * transaction - optionally together with a set of parameters specifying 
+ * A NdbQueryDef is scheduled for execution by appending it to an open
+ * transaction - optionally together with a set of parameters specifying
  * the actual values required by ::execute() (ie. Look up and bind keys).
  *
  */
-class NdbQueryDef
-{
+class NdbQueryDef {
   friend class NdbQueryDefImpl;
 
-public:
-
+ public:
   /**
    * The different types of query types supported
    */
   enum QueryType {
-    LookupQuery,     ///< All operations are PrimaryKey- or UniqueIndexAccess
-    SingleScanQuery, ///< Root is Table- or OrderedIndexScan, children are 'lookup'
-    MultiScanQuery   ///< Root, and some children are scans
+    LookupQuery,      ///< All operations are PrimaryKey- or UniqueIndexAccess
+    SingleScanQuery,  ///< Root is Table- or OrderedIndexScan, children are
+                      ///< 'lookup'
+    MultiScanQuery    ///< Root, and some children are scans
   };
 
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperationDef by ident specified
   // when the NdbQueryOperationDef was created.
-  const NdbQueryOperationDef* getQueryOperation(const char* ident) const;
-  const NdbQueryOperationDef* getQueryOperation(Uint32 index) const;
+  const NdbQueryOperationDef *getQueryOperation(const char *ident) const;
+  const NdbQueryOperationDef *getQueryOperation(Uint32 index) const;
 
   // A scan query may return multiple rows, and may be ::close'ed when
   // the client has completed access to it.
@@ -574,23 +562,23 @@ public:
   // Remove this NdbQueryDef including operation and operands it contains
   void destroy() const;
 
-  NdbQueryDefImpl& getImpl() const;
+  NdbQueryDefImpl &getImpl() const;
 
   /**
    * Print the query in a semi human readable form
    */
   void print() const;
-private:
-  NdbQueryDefImpl& m_impl;
 
-  explicit NdbQueryDef(NdbQueryDefImpl& impl);
+ private:
+  NdbQueryDefImpl &m_impl;
+
+  explicit NdbQueryDef(NdbQueryDefImpl &impl);
   ~NdbQueryDef();
 
   /** Private and undefined. */
-  NdbQueryDef(const NdbQueryDef& other);
+  NdbQueryDef(const NdbQueryDef &other);
   /** Private and undefined.*/
-  NdbQueryDef& operator = (const NdbQueryDef& other);
+  NdbQueryDef &operator=(const NdbQueryDef &other);
 };
-
 
 #endif

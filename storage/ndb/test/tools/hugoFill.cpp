@@ -24,68 +24,66 @@
 
 #include <ndb_global.h>
 
-#include <NdbOut.hpp>
-#include <NdbApi.hpp>
 #include <NdbSleep.h>
-#include <NDBT.hpp>
-#include <HugoTransactions.hpp>
 #include <getarg.h>
+#include <HugoTransactions.hpp>
+#include <NDBT.hpp>
+#include <NdbApi.hpp>
+#include <NdbOut.hpp>
 
-
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
 
-  const char* _tabname = NULL;
+  const char *_tabname = NULL;
   int _help = 0;
   int _batch = 512;
-  const char* db = "TEST_DB";
-  
+  const char *db = "TEST_DB";
+
   struct getargs args[] = {
-    { "batch", 'b', arg_integer, &_batch, "Number of operations in each transaction", "batch" },
-    { "database", 'd', arg_string, &db, "Database", "" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
+      {"batch", 'b', arg_integer, &_batch,
+       "Number of operations in each transaction", "batch"},
+      {"database", 'd', arg_string, &db, "Database", ""},
+      {"usage", '?', arg_flag, &_help, "Print help", ""}};
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
-    "tabname\n"\
-    "This program will load one table in Ndb with calculated data \n"\
-    "until the database is full. \n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) ||
-     argv[optind] == NULL  || _help) {
+  char desc[] =
+      "tabname\n"
+      "This program will load one table in Ndb with calculated data \n"
+      "until the database is full. \n";
+
+  if (getarg(args, num_args, argc, argv, &optind) || argv[optind] == NULL ||
+      _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _tabname = argv[optind];
-  
+
   // Connect to Ndb
   Ndb_cluster_connection con;
-  if(con.connect(12, 5, 1) != 0)
-  {
+  if (con.connect(12, 5, 1) != 0) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   Ndb MyNdb(&con, db);
 
-  if(MyNdb.init() != 0){
+  if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   // Connect to Ndb and wait for it to become ready
-  while(MyNdb.waitUntilReady() != 0)
+  while (MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
-  const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
-  if(pTab == NULL){
+  const NdbDictionary::Table *pTab =
+      NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
+  if (pTab == NULL) {
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
   HugoTransactions hugoTrans(*pTab);
-  if (hugoTrans.fillTable(&MyNdb, 
-			  _batch) != 0){
+  if (hugoTrans.fillTable(&MyNdb, _batch) != 0) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 

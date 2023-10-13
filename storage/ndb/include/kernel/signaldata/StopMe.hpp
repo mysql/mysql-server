@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 51
 
-
 /**
  * This signal is sent by ndbcntr to local DIH
  *
@@ -37,46 +36,40 @@
  * @see StartMeReq
  * @see StartPermReq
  */
-struct StopMeReq
-{
-  
+struct StopMeReq {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
   friend class Suma;
-  
+
   /**
    * Sender
    */
   friend class Ndbcntr;
 
   static constexpr Uint32 SignalLength = 2;
-  
+
   Uint32 senderRef;
   Uint32 senderData;
 };
 
-struct StopMeConf
-{
-
+struct StopMeConf {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  
+
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
 
   static constexpr Uint32 SignalLength = 2;
-  
+
   Uint32 senderRef;
   Uint32 senderData;
 };
-
-
 
 #undef JAM_FILE_ID
 

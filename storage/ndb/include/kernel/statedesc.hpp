@@ -27,18 +27,15 @@
 
 #define JAM_FILE_ID 216
 
-
-struct ndbkernel_state_desc
-{
+struct ndbkernel_state_desc {
   unsigned value;
-  const char * name;
-  const char * friendly_name;
-  const char * description;
+  const char *name;
+  const char *friendly_name;
+  const char *description;
 };
 
 extern struct ndbkernel_state_desc g_dbtc_apiconnect_state_desc[];
 extern struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[];
-
 
 #undef JAM_FILE_ID
 

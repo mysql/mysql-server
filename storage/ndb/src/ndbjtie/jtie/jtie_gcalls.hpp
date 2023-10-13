@@ -28,10 +28,10 @@
 #ifndef jtie_gcalls_hpp
 #define jtie_gcalls_hpp
 
+#include "helpers.hpp"
 #include "jtie_stdint.h"
 #include "jtie_tconv_impl.hpp"
 #include "jtie_tconv_object_impl.hpp"
-#include "helpers.hpp"
 
 // ---------------------------------------------------------------------------
 // generic wrapper function definitions
@@ -156,16 +156,16 @@
 //    BSL1(MY_MACRO)  -->  a1
 //    BSL2(MY_MACRO)  -->  a1 a2
 #define BSL0(m)
-#define BSL1(m)           LE(m(1))
-#define BSL2(m)  BSL1(m)  LE(m(2))
-#define BSL3(m)  BSL2(m)  LE(m(3))
-#define BSL4(m)  BSL3(m)  LE(m(4))
-#define BSL5(m)  BSL4(m)  LE(m(5))
-#define BSL6(m)  BSL5(m)  LE(m(6))
-#define BSL7(m)  BSL6(m)  LE(m(7))
-#define BSL8(m)  BSL7(m)  LE(m(8))
-#define BSL9(m)  BSL8(m)  LE(m(9))
-#define BSL10(m) BSL9(m)  LE(m(10))
+#define BSL1(m) LE(m(1))
+#define BSL2(m) BSL1(m) LE(m(2))
+#define BSL3(m) BSL2(m) LE(m(3))
+#define BSL4(m) BSL3(m) LE(m(4))
+#define BSL5(m) BSL4(m) LE(m(5))
+#define BSL6(m) BSL5(m) LE(m(6))
+#define BSL7(m) BSL6(m) LE(m(7))
+#define BSL8(m) BSL7(m) LE(m(8))
+#define BSL9(m) BSL8(m) LE(m(9))
+#define BSL10(m) BSL9(m) LE(m(10))
 #define BSL11(m) BSL10(m) LE(m(11))
 #define BSL12(m) BSL11(m) LE(m(12))
 #define BSL13(m) BSL12(m) LE(m(13))
@@ -184,15 +184,15 @@
 //    RBSL1(MY_MACRO)  -->  a1
 //    RBSL2(MY_MACRO)  -->  a2 a1
 #define RBSL0(m)
-#define RBSL1(m)  LE(m(1))         
-#define RBSL2(m)  LE(m(2))  RBSL1(m)
-#define RBSL3(m)  LE(m(3))  RBSL2(m)
-#define RBSL4(m)  LE(m(4))  RBSL3(m)
-#define RBSL5(m)  LE(m(5))  RBSL4(m)
-#define RBSL6(m)  LE(m(6))  RBSL5(m)
-#define RBSL7(m)  LE(m(7))  RBSL6(m)
-#define RBSL8(m)  LE(m(8))  RBSL7(m)
-#define RBSL9(m)  LE(m(9))  RBSL8(m)
+#define RBSL1(m) LE(m(1))
+#define RBSL2(m) LE(m(2)) RBSL1(m)
+#define RBSL3(m) LE(m(3)) RBSL2(m)
+#define RBSL4(m) LE(m(4)) RBSL3(m)
+#define RBSL5(m) LE(m(5)) RBSL4(m)
+#define RBSL6(m) LE(m(6)) RBSL5(m)
+#define RBSL7(m) LE(m(7)) RBSL6(m)
+#define RBSL8(m) LE(m(8)) RBSL7(m)
+#define RBSL9(m) LE(m(9)) RBSL8(m)
 #define RBSL10(m) LE(m(10)) RBSL9(m)
 #define RBSL11(m) LE(m(11)) RBSL10(m)
 #define RBSL12(m) LE(m(12)) RBSL11(m)
@@ -212,16 +212,16 @@
 //    CSL1(MY_MACRO)  -->  a1
 //    CSL2(MY_MACRO)  -->  a1, a2
 #define CSL0(m)
-#define CSL1(m)            LE(m(1))
-#define CSL2(m)  CSL1(m),  LE(m(2))
-#define CSL3(m)  CSL2(m),  LE(m(3))
-#define CSL4(m)  CSL3(m),  LE(m(4))
-#define CSL5(m)  CSL4(m),  LE(m(5))
-#define CSL6(m)  CSL5(m),  LE(m(6))
-#define CSL7(m)  CSL6(m),  LE(m(7))
-#define CSL8(m)  CSL7(m),  LE(m(8))
-#define CSL9(m)  CSL8(m),  LE(m(9))
-#define CSL10(m) CSL9(m),  LE(m(10))
+#define CSL1(m) LE(m(1))
+#define CSL2(m) CSL1(m), LE(m(2))
+#define CSL3(m) CSL2(m), LE(m(3))
+#define CSL4(m) CSL3(m), LE(m(4))
+#define CSL5(m) CSL4(m), LE(m(5))
+#define CSL6(m) CSL5(m), LE(m(6))
+#define CSL7(m) CSL6(m), LE(m(7))
+#define CSL8(m) CSL7(m), LE(m(8))
+#define CSL9(m) CSL8(m), LE(m(9))
+#define CSL10(m) CSL9(m), LE(m(10))
 #define CSL11(m) CSL10(m), LE(m(11))
 #define CSL12(m) CSL11(m), LE(m(12))
 #define CSL13(m) CSL12(m), LE(m(13))
@@ -240,25 +240,25 @@
 //    CPL1(MY_MACRO)  -->  ,a1
 //    CPL2(MY_MACRO)  -->  ,a1 ,a2
 #define CPL0(m)
-#define CPL1(m)           ,LE(m(1))
-#define CPL2(m)  CPL1(m)  ,LE(m(2))
-#define CPL3(m)  CPL2(m)  ,LE(m(3))
-#define CPL4(m)  CPL3(m)  ,LE(m(4))
-#define CPL5(m)  CPL4(m)  ,LE(m(5))
-#define CPL6(m)  CPL5(m)  ,LE(m(6))
-#define CPL7(m)  CPL6(m)  ,LE(m(7))
-#define CPL8(m)  CPL7(m)  ,LE(m(8))
-#define CPL9(m)  CPL8(m)  ,LE(m(9))
-#define CPL10(m) CPL9(m)  ,LE(m(10))
-#define CPL11(m) CPL10(m) ,LE(m(11))
-#define CPL12(m) CPL11(m) ,LE(m(12))
-#define CPL13(m) CPL12(m) ,LE(m(13))
-#define CPL14(m) CPL13(m) ,LE(m(14))
-#define CPL15(m) CPL14(m) ,LE(m(15))
-#define CPL16(m) CPL15(m) ,LE(m(16))
-#define CPL17(m) CPL16(m) ,LE(m(17))
-#define CPL18(m) CPL17(m) ,LE(m(18))
-#define CPL19(m) CPL18(m) ,LE(m(19))
+#define CPL1(m) , LE(m(1))
+#define CPL2(m) CPL1(m), LE(m(2))
+#define CPL3(m) CPL2(m), LE(m(3))
+#define CPL4(m) CPL3(m), LE(m(4))
+#define CPL5(m) CPL4(m), LE(m(5))
+#define CPL6(m) CPL5(m), LE(m(6))
+#define CPL7(m) CPL6(m), LE(m(7))
+#define CPL8(m) CPL7(m), LE(m(8))
+#define CPL9(m) CPL8(m), LE(m(9))
+#define CPL10(m) CPL9(m), LE(m(10))
+#define CPL11(m) CPL10(m), LE(m(11))
+#define CPL12(m) CPL11(m), LE(m(12))
+#define CPL13(m) CPL12(m), LE(m(13))
+#define CPL14(m) CPL13(m), LE(m(14))
+#define CPL15(m) CPL14(m), LE(m(15))
+#define CPL16(m) CPL15(m), LE(m(16))
+#define CPL17(m) CPL16(m), LE(m(17))
+#define CPL18(m) CPL17(m), LE(m(18))
+#define CPL19(m) CPL18(m), LE(m(19))
 
 // a macro generating a comma-terminated list
 //
@@ -268,16 +268,16 @@
 //    CTL1(MY_MACRO)  -->  a1,
 //    CTL2(MY_MACRO)  -->  a1, a2,
 #define CTL0(m)
-#define CTL1(m)           LE(m(1)),
-#define CTL2(m)  CTL1(m)  LE(m(2)),
-#define CTL3(m)  CTL2(m)  LE(m(3)),
-#define CTL4(m)  CTL3(m)  LE(m(4)),
-#define CTL5(m)  CTL4(m)  LE(m(5)),
-#define CTL6(m)  CTL5(m)  LE(m(6)),
-#define CTL7(m)  CTL6(m)  LE(m(7)),
-#define CTL8(m)  CTL7(m)  LE(m(8)),
-#define CTL9(m)  CTL8(m)  LE(m(9)),
-#define CTL10(m) CTL9(m)  LE(m(10)),
+#define CTL1(m) LE(m(1)),
+#define CTL2(m) CTL1(m) LE(m(2)),
+#define CTL3(m) CTL2(m) LE(m(3)),
+#define CTL4(m) CTL3(m) LE(m(4)),
+#define CTL5(m) CTL4(m) LE(m(5)),
+#define CTL6(m) CTL5(m) LE(m(6)),
+#define CTL7(m) CTL6(m) LE(m(7)),
+#define CTL8(m) CTL7(m) LE(m(8)),
+#define CTL9(m) CTL8(m) LE(m(9)),
+#define CTL10(m) CTL9(m) LE(m(10)),
 #define CTL11(m) CTL10(m) LE(m(11)),
 #define CTL12(m) CTL11(m) LE(m(12)),
 #define CTL13(m) CTL12(m) LE(m(13)),
@@ -325,16 +325,16 @@
 //    SCSL2(MY_MACRO)  -->  "a1" ", " "a2"
 //    ...
 #define SCSL0(m)
-#define SCSL1(m)                 STRING(m(1))
-#define SCSL2(m)  SCSL1(m)  ", " STRING(m(2))
-#define SCSL3(m)  SCSL2(m)  ", " STRING(m(3))
-#define SCSL4(m)  SCSL3(m)  ", " STRING(m(4))
-#define SCSL5(m)  SCSL4(m)  ", " STRING(m(5))
-#define SCSL6(m)  SCSL5(m)  ", " STRING(m(6))
-#define SCSL7(m)  SCSL6(m)  ", " STRING(m(7))
-#define SCSL8(m)  SCSL7(m)  ", " STRING(m(8))
-#define SCSL9(m)  SCSL8(m)  ", " STRING(m(9))
-#define SCSL10(m) SCSL9(m)  ", " STRING(m(10))
+#define SCSL1(m) STRING(m(1))
+#define SCSL2(m) SCSL1(m) ", " STRING(m(2))
+#define SCSL3(m) SCSL2(m) ", " STRING(m(3))
+#define SCSL4(m) SCSL3(m) ", " STRING(m(4))
+#define SCSL5(m) SCSL4(m) ", " STRING(m(5))
+#define SCSL6(m) SCSL5(m) ", " STRING(m(6))
+#define SCSL7(m) SCSL6(m) ", " STRING(m(7))
+#define SCSL8(m) SCSL7(m) ", " STRING(m(8))
+#define SCSL9(m) SCSL8(m) ", " STRING(m(9))
+#define SCSL10(m) SCSL9(m) ", " STRING(m(10))
 #define SCSL11(m) SCSL10(m) ", " STRING(m(11))
 #define SCSL12(m) SCSL11(m) ", " STRING(m(12))
 #define SCSL13(m) SCSL12(m) ", " STRING(m(13))
@@ -354,16 +354,16 @@
 //    SCPL2(MY_MACRO)  -->  ", " "a1" ", " "a2"
 //    ...
 #define SCPL0(m)
-#define SCPL1(m)            ", " STRING(m(1))
-#define SCPL2(m)  SCPL1(m)  ", " STRING(m(2))
-#define SCPL3(m)  SCPL2(m)  ", " STRING(m(3))
-#define SCPL4(m)  SCPL3(m)  ", " STRING(m(4))
-#define SCPL5(m)  SCPL4(m)  ", " STRING(m(5))
-#define SCPL6(m)  SCPL5(m)  ", " STRING(m(6))
-#define SCPL7(m)  SCPL6(m)  ", " STRING(m(7))
-#define SCPL8(m)  SCPL7(m)  ", " STRING(m(8))
-#define SCPL9(m)  SCPL8(m)  ", " STRING(m(9))
-#define SCPL10(m) SCPL9(m)  ", " STRING(m(10))
+#define SCPL1(m) ", " STRING(m(1))
+#define SCPL2(m) SCPL1(m) ", " STRING(m(2))
+#define SCPL3(m) SCPL2(m) ", " STRING(m(3))
+#define SCPL4(m) SCPL3(m) ", " STRING(m(4))
+#define SCPL5(m) SCPL4(m) ", " STRING(m(5))
+#define SCPL6(m) SCPL5(m) ", " STRING(m(6))
+#define SCPL7(m) SCPL6(m) ", " STRING(m(7))
+#define SCPL8(m) SCPL7(m) ", " STRING(m(8))
+#define SCPL9(m) SCPL8(m) ", " STRING(m(9))
+#define SCPL10(m) SCPL9(m) ", " STRING(m(10))
 #define SCPL11(m) SCPL10(m) ", " STRING(m(11))
 #define SCPL12(m) SCPL11(m) ", " STRING(m(12))
 #define SCPL13(m) SCPL12(m) ", " STRING(m(13))
@@ -379,7 +379,7 @@
 // ---------------------------------------------------------------------------
 
 // JNI environment parameter declaration
-#define JEPD JNIEnv * env
+#define JEPD JNIEnv *env
 
 // Stringified JNI environment type
 #define SJET "JNIEnv *"
@@ -473,97 +473,83 @@
 // ---------------------------------------------------------------------------
 
 // status flag declaration
-#define SFD int s = 1; (void)s;
+#define SFD  \
+  int s = 1; \
+  (void)s;
 
-#define PARAM_CONV_BEGIN(n)                                              \
-    JAPT(n) jap##n = cast< JAPT(n), JFPT(n) >(jfp##n);                   \
-    CAPT(n) cap##n = Param< JAPT(n), CAPT(n) >::convert(s, jap##n, env); \
-    if (s == 0) {
+#define PARAM_CONV_BEGIN(n)                                          \
+  JAPT(n) jap##n = cast<JAPT(n), JFPT(n)>(jfp##n);                   \
+  CAPT(n) cap##n = Param<JAPT(n), CAPT(n)>::convert(s, jap##n, env); \
+  if (s == 0) {
+#define PARAM_CONV_END(n)                                \
+  Param<JAPT(n), CAPT(n)>::release(cap##n, jap##n, env); \
+  }
 
-#define PARAM_CONV_END(n)                                    \
-    Param< JAPT(n), CAPT(n) >::release(cap##n, jap##n, env); \
-    }
+#define TARGET_CONV_BEGIN                               \
+  JAOT jao = cast<JAOT, TFOT::JF_t>(jfo);               \
+  CAOT &cao = Target<JAOT, CAOT>::convert(s, jao, env); \
+  if (s == 0) {
+#define TARGET_CONV_END                       \
+  Target<JAOT, CAOT>::release(cao, jao, env); \
+  }
 
-#define TARGET_CONV_BEGIN                                    \
-    JAOT jao = cast< JAOT, TFOT::JF_t >(jfo);                \
-    CAOT & cao = Target< JAOT, CAOT >::convert(s, jao, env); \
-    if (s == 0) {
+#define RESULT_CONV jar = Result<JART, CART>::convert(car, env);
 
-#define TARGET_CONV_END                             \
-    Target< JAOT, CAOT >::release(cao, jao, env);   \
-    }
-
-#define RESULT_CONV                                     \
-    jar = Result< JART, CART >::convert(car, env);
-
-#define RESULT_CAST                             \
-    cast< JFRT, JART >(jar);
+#define RESULT_CAST cast<JFRT, JART>(jar);
 
 // ---------------------------------------------------------------------------
 // Data Member Access
 // ---------------------------------------------------------------------------
 
 // non-member field or static field read access
-template< TFRTD,
-          CFRT & D >
-inline
-JFRT
-gget(JEPD, JCPD)
-{
-    TRACE(SJFRT " gget(" SJET ", " SJCT ")");
-    (void)cls;
-    JARD;
-    CARD = D;
-    RESULT_CONV;
-    return RESULT_CAST;
+template <TFRTD, CFRT &D>
+inline JFRT gget(JEPD, JCPD) {
+  TRACE(SJFRT " gget(" SJET ", " SJCT ")");
+  (void)cls;
+  JARD;
+  CARD = D;
+  RESULT_CONV;
+  return RESULT_CAST;
 }
 
 // member field read access
-template< TFOT,
-          TFRTD,
-          CFRT SCFOT::*D >
-inline JFRT
-gget(JEPD, JFOPD)
-{
-    TRACE(SJFRT " gget(" SJET ", " SJFOT ")");
-    JARD;
-    SFD;
-    TARGET_CONV_BEGIN;
-    CARD = (cao).*D;
-    RESULT_CONV;
-    TARGET_CONV_END;
-    return RESULT_CAST;
+template <TFOT, TFRTD, CFRT SCFOT::*D>
+inline JFRT gget(JEPD, JFOPD) {
+  TRACE(SJFRT " gget(" SJET ", " SJFOT ")");
+  JARD;
+  SFD;
+  TARGET_CONV_BEGIN;
+  CARD = (cao).*D;
+  RESULT_CONV;
+  TARGET_CONV_END;
+  return RESULT_CAST;
 }
 
 // non-member field or static field write access
-template< TFPTD(1),
-          CFPT(1) & D >
-inline
-void
-gset(JEPD, JCPD, JFPD(1))
-{
-    TRACE("void" " gset(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
-    (void)cls;
-    SFD;
-    PARAM_CONV_BEGIN(1);
-    D = CAP(1);
-    PARAM_CONV_END(1);
+template <TFPTD(1), CFPT(1) & D>
+inline void gset(JEPD, JCPD, JFPD(1)) {
+  TRACE(
+      "void"
+      " gset(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+  (void)cls;
+  SFD;
+  PARAM_CONV_BEGIN(1);
+  D = CAP(1);
+  PARAM_CONV_END(1);
 }
 
 // member field write access
-template< TFOT,
-          TFPTD(1),
-          CFPT(1) SCFOT::*D >
-inline void
-gset(JEPD, JFOPD CPL1(JFPD))
-{
-    TRACE("void" " gset(" SJET ", " SJFOT ", " STRING(SJFPT(1)) ")");
-    SFD;
-    TARGET_CONV_BEGIN;
-    PARAM_CONV_BEGIN(1);
-    (cao).*D = CAP(1);
-    PARAM_CONV_END(1);
-    TARGET_CONV_END;
+template <TFOT, TFPTD(1), CFPT(1) SCFOT::*D>
+inline void gset(JEPD, JFOPD CPL1(JFPD)) {
+  TRACE(
+      "void"
+      " gset(" SJET ", " SJFOT ", " STRING(SJFPT(1)) ")");
+  SFD;
+  TARGET_CONV_BEGIN;
+  PARAM_CONV_BEGIN(1);
+  (cao).*D = CAP(1);
+  PARAM_CONV_END(1);
+  TARGET_CONV_END;
 }
 
 // ---------------------------------------------------------------------------
@@ -571,19 +557,19 @@ gset(JEPD, JFOPD CPL1(JFPD))
 // ---------------------------------------------------------------------------
 
 // parameters: n = n-ary function
-#define TFD_F(n)                                                        \
-    template< CTL##n(TFPTD)                                             \
-              void F(CSL##n(CFPT)) >                                    \
-    inline void                                                         \
-    gcall_fv(JEPD, JCPD CPL##n(JFPD))                                   \
-    {                                                                   \
-        TRACE("void" " gcall_fv(" SJET ", " SJCT SCPL##n(SJFPT) ")");   \
-        (void)env; (void)cls;                                           \
-        SFD;                                                            \
-        BSL##n(PARAM_CONV_BEGIN);                                       \
-        F( CSL##n(CAP) );                                               \
-        RBSL##n(PARAM_CONV_END);                                        \
-    }
+#define TFD_F(n)                                         \
+  template <CTL##n(TFPTD) void F(CSL##n(CFPT))>          \
+  inline void gcall_fv(JEPD, JCPD CPL##n(JFPD)) {        \
+    TRACE(                                               \
+        "void"                                           \
+        " gcall_fv(" SJET ", " SJCT SCPL##n(SJFPT) ")"); \
+    (void)env;                                           \
+    (void)cls;                                           \
+    SFD;                                                 \
+    BSL##n(PARAM_CONV_BEGIN);                            \
+    F(CSL##n(CAP));                                      \
+    RBSL##n(PARAM_CONV_END);                             \
+  }
 
 // generate the function templates (separate lines for proper error messages)
 TFD_F(0)
@@ -612,23 +598,19 @@ TFD_F(19)
 // ---------------------------------------------------------------------------
 
 // parameters: n = n-ary function
-#define TFD_FR(n)                                                       \
-    template< TFRTD,                                                    \
-              CTL##n(TFPTD)                                             \
-              CFRT F(CSL##n(CFPT)) >                                    \
-    inline JFRT                                                         \
-    gcall_fr(JEPD, JCPD CPL##n(JFPD))                                   \
-    {                                                                   \
-        TRACE(SJFRT " gcall_fr(" SJET ", " SJCT SCPL##n(SJFPT) ")");    \
-        (void)cls;                                                      \
-        JARD;                                                           \
-        SFD;                                                            \
-        BSL##n(PARAM_CONV_BEGIN);                                       \
-        CARD = F( CSL##n(CAP) );                                        \
-        RESULT_CONV;                                                    \
-        RBSL##n(PARAM_CONV_END);                                        \
-        return RESULT_CAST;                                             \
-    }
+#define TFD_FR(n)                                                \
+  template <TFRTD, CTL##n(TFPTD) CFRT F(CSL##n(CFPT))>           \
+  inline JFRT gcall_fr(JEPD, JCPD CPL##n(JFPD)) {                \
+    TRACE(SJFRT " gcall_fr(" SJET ", " SJCT SCPL##n(SJFPT) ")"); \
+    (void)cls;                                                   \
+    JARD;                                                        \
+    SFD;                                                         \
+    BSL##n(PARAM_CONV_BEGIN);                                    \
+    CARD = F(CSL##n(CAP));                                       \
+    RESULT_CONV;                                                 \
+    RBSL##n(PARAM_CONV_END);                                     \
+    return RESULT_CAST;                                          \
+  }
 
 // generate the function templates (separate lines help error messages)
 TFD_FR(0)
@@ -666,21 +648,19 @@ TFD_FR(19)
 // - leads to template ambiguities with const member function ptr type
 // - empty macro arguments are undefined in ISO C90 and ISO C++98
 //
-#define TFD_MF(n)                                                       \
-    template< TFOT,                                                     \
-              CTL##n(TFPTD)                                             \
-              void (SCFOT::*F)(CSL##n(CFPT)) >                          \
-    inline void                                                         \
-    gcall_mfv(JEPD, JFOPD CPL##n(JFPD))                                 \
-    {                                                                   \
-        TRACE("void" " gcall_mfv(" SJET ", " SJFOT SCPL##n(SJFPT) ")"); \
-        SFD;                                                            \
-        TARGET_CONV_BEGIN;                                              \
-        BSL##n(PARAM_CONV_BEGIN);                                       \
-        ((cao).*F)( CSL##n(CAP) );                                      \
-        RBSL##n(PARAM_CONV_END);                                        \
-        TARGET_CONV_END;                                                \
-    }
+#define TFD_MF(n)                                               \
+  template <TFOT, CTL##n(TFPTD) void (SCFOT::*F)(CSL##n(CFPT))> \
+  inline void gcall_mfv(JEPD, JFOPD CPL##n(JFPD)) {             \
+    TRACE(                                                      \
+        "void"                                                  \
+        " gcall_mfv(" SJET ", " SJFOT SCPL##n(SJFPT) ")");      \
+    SFD;                                                        \
+    TARGET_CONV_BEGIN;                                          \
+    BSL##n(PARAM_CONV_BEGIN);                                   \
+    ((cao).*F)(CSL##n(CAP));                                    \
+    RBSL##n(PARAM_CONV_END);                                    \
+    TARGET_CONV_END;                                            \
+  }
 
 // generate the function templates (separate lines help error messages)
 TFD_MF(0)
@@ -718,25 +698,20 @@ TFD_MF(19)
 // - leads to template ambiguities with const member function ptr type
 // - empty macro arguments are undefined in ISO C90 and ISO C++98
 //
-#define TFD_MFR(n)                                                      \
-    template< TFOT,                                                     \
-              TFRTD,                                                    \
-              CTL##n(TFPTD)                                             \
-              CFRT (SCFOT::*F)(CSL##n(CFPT)) >                          \
-    inline JFRT                                                         \
-    gcall_mfr(JEPD, JFOPD CPL##n(JFPD))                                 \
-    {                                                                   \
-        TRACE(SJFRT " gcall_mfr(" SJET ", " SJFOT SCPL##n(SJFPT) ")");  \
-        JARD;                                                           \
-        SFD;                                                            \
-        TARGET_CONV_BEGIN;                                              \
-        BSL##n(PARAM_CONV_BEGIN);                                       \
-        CARD = ((cao).*F)( CSL##n(CAP) );                               \
-        RESULT_CONV;                                                    \
-        RBSL##n(PARAM_CONV_END);                                        \
-        TARGET_CONV_END;                                                \
-        return RESULT_CAST;                                             \
-    }
+#define TFD_MFR(n)                                                     \
+  template <TFOT, TFRTD, CTL##n(TFPTD) CFRT (SCFOT::*F)(CSL##n(CFPT))> \
+  inline JFRT gcall_mfr(JEPD, JFOPD CPL##n(JFPD)) {                    \
+    TRACE(SJFRT " gcall_mfr(" SJET ", " SJFOT SCPL##n(SJFPT) ")");     \
+    JARD;                                                              \
+    SFD;                                                               \
+    TARGET_CONV_BEGIN;                                                 \
+    BSL##n(PARAM_CONV_BEGIN);                                          \
+    CARD = ((cao).*F)(CSL##n(CAP));                                    \
+    RESULT_CONV;                                                       \
+    RBSL##n(PARAM_CONV_END);                                           \
+    TARGET_CONV_END;                                                   \
+    return RESULT_CAST;                                                \
+  }
 
 // generate the function templates (separate lines help error messages)
 TFD_MFR(0)
@@ -767,78 +742,70 @@ TFD_MFR(19)
 // parameters: n = n-ary
 
 // class template calling the array destructor
-template< typename C > struct ArrayHelper;
+template <typename C>
+struct ArrayHelper;
 
-template< typename C >
-struct ArrayHelper< C * > {
-    static void
-    cdelete(C * p0) {
-        TRACE("void ArrayHelper::cdelete(C *)");
-        delete[] p0;
-    }
+template <typename C>
+struct ArrayHelper<C *> {
+  static void cdelete(C *p0) {
+    TRACE("void ArrayHelper::cdelete(C *)");
+    delete[] p0;
+  }
 
-    static C *
-    ccreate(int32_t p0) {
-        TRACE("C * ArrayHelper::ccreate(int32_t)");
-        if (p0 < 0) throw std::bad_array_new_length();
-        if constexpr (INT32_MAX > SIZE_MAX / sizeof(C))
-        {
-            if (uint32(p0) > SIZE_MAX / sizeof(C))
-                throw std::bad_array_new_length();
-        }
-        // ISO C++: 'new' throws std::bad_alloc if unsuccessful
-        return new C[p0];
+  static C *ccreate(int32_t p0) {
+    TRACE("C * ArrayHelper::ccreate(int32_t)");
+    if (p0 < 0) throw std::bad_array_new_length();
+    if constexpr (INT32_MAX > SIZE_MAX / sizeof(C)) {
+      if (uint32(p0) > SIZE_MAX / sizeof(C)) throw std::bad_array_new_length();
     }
+    // ISO C++: 'new' throws std::bad_alloc if unsuccessful
+    return new C[p0];
+  }
 
-    static C *
-    cat(C * p0, int32_t i) {
-        TRACE("C * ArrayHelper::cat(C *)");
-        return (p0 + i);
-    }
+  static C *cat(C *p0, int32_t i) {
+    TRACE("C * ArrayHelper::cat(C *)");
+    return (p0 + i);
+  }
 };
 
-template< typename C >
-struct ArrayHelper< C & > {
-    static void
-    cdelete(C & p0) {
-        TRACE("void ArrayHelper::cdelete(C &)");
-        ArrayHelper< C * >::cdelete(&p0);
-    }
+template <typename C>
+struct ArrayHelper<C &> {
+  static void cdelete(C &p0) {
+    TRACE("void ArrayHelper::cdelete(C &)");
+    ArrayHelper<C *>::cdelete(&p0);
+  }
 
-    static C &
-    ccreate(int32_t p0) {
-        TRACE("C & ArrayHelper::ccreate(int32_t)");
-        return *ArrayHelper< C * >::ccreate(p0);
-    }
+  static C &ccreate(int32_t p0) {
+    TRACE("C & ArrayHelper::ccreate(int32_t)");
+    return *ArrayHelper<C *>::ccreate(p0);
+  }
 
-    static C &
-    cat(C & p0, int32_t i) {
-        TRACE("C & ArrayHelper::cat(C &)");
-        return *ArrayHelper< C * >::cat(&p0, i);
-    }
+  static C &cat(C &p0, int32_t i) {
+    TRACE("C & ArrayHelper::cat(C &)");
+    return *ArrayHelper<C *>::cat(&p0, i);
+  }
 };
 
 // ---------------------------------------------------------------------------
 
 // class template calling the destructor
-template< typename C > struct Destructor;
+template <typename C>
+struct Destructor;
 
-template< typename C >
-struct Destructor< C * > {
-    static void
-    cdelete(C * p0) {
-        TRACE("void Destructor::cdelete(C *)");
-        delete p0;
-    }
+template <typename C>
+struct Destructor<C *> {
+  static void cdelete(C *p0) {
+    TRACE("void Destructor::cdelete(C *)");
+    delete p0;
+  }
 };
 
-template< typename C >
-struct Destructor< C & > {
-    static void
-    cdelete(C & p0) {
-        TRACE("void Destructor::cdelete(C &)");
-        Destructor< C * >::cdelete(&p0);
-    }
+template <typename C>
+struct Destructor<C &> {
+  static void cdelete(C &p0) {
+    TRACE("void Destructor::cdelete(C &)");
+    Destructor<C *>::cdelete(&p0);
+  }
 };
 
 // Template formal parameter type (redefine)
@@ -857,27 +824,25 @@ struct Destructor< C & > {
 #define CC_CFPD(n) CC_CFPT(n) CC_CFP(n)
 
 // n-ary class templates calling constructors
-#define TFD_CC(n)                                                       \
-    template< typename C CPL##n(CC_TFPTD) > struct Constructor##n;      \
-                                                                        \
-    template< typename C CPL##n(CC_TFPTD) >                             \
-    struct Constructor##n< C * CPL##n(CC_TFPT) > {                      \
-        static C *                                                      \
-        ccreate(CSL##n(CC_CFPD)) {                                      \
-            TRACE("C * ccreate(" SCSL##n(CC_TFPT) ")");                 \
-            return new C(CSL##n(CC_CFP));                               \
-        }                                                               \
-    };                                                                  \
-                                                                        \
-    template< typename C CPL##n(CC_TFPTD) >                             \
-    struct Constructor##n< C & CPL##n(CC_TFPT) > {                      \
-        static C &                                                      \
-        ccreate(CSL##n(CC_CFPD)) {                                      \
-            TRACE("C & ccreate(" SCSL##n(CC_TFPT) ")");                 \
-            return *Constructor##n< C * CPL##n(CC_TFPT) >               \
-                ::ccreate(CSL##n(CC_CFP));                              \
-        }                                                               \
-    };
+#define TFD_CC(n)                                                           \
+  template <typename C CPL##n(CC_TFPTD)>                                    \
+  struct Constructor##n;                                                    \
+                                                                            \
+  template <typename C CPL##n(CC_TFPTD)>                                    \
+  struct Constructor##n<C * CPL##n(CC_TFPT)> {                              \
+    static C *ccreate(CSL##n(CC_CFPD)) {                                    \
+      TRACE("C * ccreate(" SCSL##n(CC_TFPT) ")");                           \
+      return new C(CSL##n(CC_CFP));                                         \
+    }                                                                       \
+  };                                                                        \
+                                                                            \
+  template <typename C CPL##n(CC_TFPTD)>                                    \
+  struct Constructor##n<C & CPL##n(CC_TFPT)> {                              \
+    static C &ccreate(CSL##n(CC_CFPD)) {                                    \
+      TRACE("C & ccreate(" SCSL##n(CC_TFPT) ")");                           \
+      return *Constructor##n<C * CPL##n(CC_TFPT)>::ccreate(CSL##n(CC_CFP)); \
+    }                                                                       \
+  };
 
 // generate the class templates (separate lines help error messages)
 TFD_CC(0)
@@ -906,78 +871,62 @@ TFD_CC(19)
 // ---------------------------------------------------------------------------
 
 // array delete template function definition
-template< TFPTD(1) >
-inline
-void
-gdeleteArray(JEPD, JCPD, JFPD(1))
-{
-    TRACE("void gdeleteArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
-    (void)cls;
-    // not using gcall_fv<...>(...) due to call to detachWrapper()
-    SFD;
-    PARAM_CONV_BEGIN(1);
+template <TFPTD(1)>
+inline void gdeleteArray(JEPD, JCPD, JFPD(1)) {
+  TRACE("void gdeleteArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+  (void)cls;
+  // not using gcall_fv<...>(...) due to call to detachWrapper()
+  SFD;
+  PARAM_CONV_BEGIN(1);
 #ifdef JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-    detachWrapper(jap1, env);
-#endif // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-    ArrayHelper< CFPT(1) >::cdelete(CAP(1));
-    PARAM_CONV_END(1);
+  detachWrapper(jap1, env);
+#endif  // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
+  ArrayHelper<CFPT(1)>::cdelete(CAP(1));
+  PARAM_CONV_END(1);
 }
 
 // array create template function definition
-template< TFRTD, TFPTD(1) >
-inline
-JFRT
-gcreateArray(JEPD, JCPD, JFPD(1))
-{
-    TRACE(SJFRT " gcreateArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
-    return gcall_fr< RT, TFPT(1),
-        &ArrayHelper< CFRT >::ccreate
-        >(env, cls, JFP(1));
+template <TFRTD, TFPTD(1)>
+inline JFRT gcreateArray(JEPD, JCPD, JFPD(1)) {
+  TRACE(SJFRT " gcreateArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+  return gcall_fr<RT, TFPT(1), &ArrayHelper<CFRT>::ccreate>(env, cls, JFP(1));
 }
 
 // array index access template function definition
-template< TFRTD, TFPTD(1), TFPTD(2) >
-inline
-JFRT
-gat(JEPD, JCPD, JFPD(1), JFPD(2))
-{
-    TRACE(SJFRT " gat(" SJET ", " SJCT ", " STRING(SJFPT(1)) ", " STRING(SJFPT(2)) ")");
-    return gcall_fr< RT, TFPT(1), TFPT(2),
-        &ArrayHelper< CFRT >::cat
-        >(env, cls, JFP(1), JFP(2));
+template <TFRTD, TFPTD(1), TFPTD(2)>
+inline JFRT gat(JEPD, JCPD, JFPD(1), JFPD(2)) {
+  TRACE(SJFRT " gat(" SJET ", " SJCT
+              ", " STRING(SJFPT(1)) ", " STRING(SJFPT(2)) ")");
+  return gcall_fr<RT, TFPT(1), TFPT(2), &ArrayHelper<CFRT>::cat>(
+      env, cls, JFP(1), JFP(2));
 }
 
 // ---------------------------------------------------------------------------
 
 // destructor template function definition
-template< TFPTD(1) >
-inline
-void
-gdelete(JEPD, JCPD, JFPD(1))
-{
-    TRACE("void gdelete(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
-    (void)cls;
-    // not using gcall_fv<...>(...) due to call to detachWrapper()
-    SFD;
-    PARAM_CONV_BEGIN(1);
+template <TFPTD(1)>
+inline void gdelete(JEPD, JCPD, JFPD(1)) {
+  TRACE("void gdelete(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+  (void)cls;
+  // not using gcall_fv<...>(...) due to call to detachWrapper()
+  SFD;
+  PARAM_CONV_BEGIN(1);
 #ifdef JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-    detachWrapper(jap1, env);
-#endif // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-    Destructor< CFPT(1) >::cdelete(CAP(1));
-    PARAM_CONV_END(1);
+  detachWrapper(jap1, env);
+#endif  // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
+  Destructor<CFPT(1)>::cdelete(CAP(1));
+  PARAM_CONV_END(1);
 }
 
 // n-ary constructor template function definition
-#define TFD_C(n)                                                        \
-    template< TFRTD CPL##n(TFPTD) >                                     \
-    inline JFRT                                                         \
-    gcreate(JEPD, JCPD CPL##n(JFPD))                                    \
-    {                                                                   \
-        TRACE(SJFRT " gcreate(" SJET ", " SJCT SCSL##n(SJFPT) ")");     \
-        return gcall_fr< RT, CTL##n(TFPT)                               \
-            &Constructor##n< CFRT CPL##n(CFPT) >::ccreate               \
-            >(env, cls CPL##n(JFP));                                    \
-    }
+#define TFD_C(n)                                                         \
+  template <TFRTD CPL##n(TFPTD)>                                         \
+  inline JFRT gcreate(JEPD, JCPD CPL##n(JFPD)) {                         \
+    TRACE(SJFRT " gcreate(" SJET ", " SJCT SCSL##n(SJFPT) ")");          \
+    return gcall_fr<RT, CTL##n(TFPT) &                                   \
+                            Constructor##n<CFRT CPL##n(CFPT)>::ccreate>( \
+        env, cls CPL##n(JFP));                                           \
+  }
 
 // generate the function templates (separate lines help error messages)
 TFD_C(0)
@@ -1003,4 +952,4 @@ TFD_C(19)
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_gcalls_hpp
+#endif  // jtie_gcalls_hpp

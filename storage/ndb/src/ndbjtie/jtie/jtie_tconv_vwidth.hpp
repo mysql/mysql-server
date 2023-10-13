@@ -39,10 +39,10 @@
 
 // No definitions are given here for [[un]signed] char types; instead
 // char is treated as an exact-width type of 8 bits.
-#if 0 // use a static_assert() when made available in upcoming C++0x
-#include <limits.h> // not using namespaces yet
+#if 0  // use a static_assert() when made available in upcoming C++0x
+#include <limits.h>  // not using namespaces yet
 static_assert(CHAR_BIT == 8);
-#endif // use a static_assert() when made available in upcoming C++0x
+#endif  // use a static_assert() when made available in upcoming C++0x
 
 /*
  * If defined, provides a default Java type mapping for the variable-width
@@ -70,7 +70,8 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONG_T, unsigned long, ulong)
 #endif
 #ifdef JTIE_JNI_LONGLONG_T
 JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, signed long long, longlong)
-JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, unsigned long long, ulonglong)
+JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGLONG_T, unsigned long long,
+                               ulonglong)
 #endif
 #ifdef JTIE_JNI_LONGDOUBLE_T
 JTIE_DEFINE_BASIC_TYPE_MAPPING(JTIE_JNI_LONGDOUBLE_T, long double, longdouble)
@@ -129,4 +130,4 @@ JTIE_DEFINE_BYTEBUFFER_PTR_LENGTH1_TYPE_MAPPING(long double, longdouble)
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_vwidth_hpp
+#endif  // jtie_tconv_vwidth_hpp

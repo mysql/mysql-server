@@ -25,7 +25,6 @@
 
 #define JAM_FILE_ID 20
 
-
 struct TabCommitReq {
   enum { SignalLength = 3 };
   Uint32 senderData;
@@ -48,7 +47,6 @@ struct TabCommitRef {
   Uint32 errorCode;
   Uint32 tableStatus;
 };
-
 
 #undef JAM_FILE_ID
 

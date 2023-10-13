@@ -27,46 +27,45 @@
 
 #include <time.h>
 
-#include "LogHandler.hpp"
 #include <NdbOut.hpp>
+#include "LogHandler.hpp"
 
 /**
  * Logs messages to the console/stdout.
  *
  * @see LogHandler
- * @version #@ $Id: ConsoleLogHandler.hpp,v 1.2 2003/09/01 10:15:53 innpeno Exp $
+ * @version #@ $Id: ConsoleLogHandler.hpp,v 1.2 2003/09/01 10:15:53 innpeno Exp
+ * $
  */
-class ConsoleLogHandler : public LogHandler
-{
-public:
+class ConsoleLogHandler : public LogHandler {
+ public:
   /**
    * Default constructor.
    */
-  ConsoleLogHandler(NdbOut &out= ndbout);
+  ConsoleLogHandler(NdbOut &out = ndbout);
   /**
    * Destructor.
    */
   ~ConsoleLogHandler() override;
-  
+
   bool open() override;
   bool close() override;
 
   bool is_open() override;
 
   bool setParam(const BaseString &param, const BaseString &value) override;
-  
-protected:	
-  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+
+ protected:
+  void writeHeader(const char *pCategory, Logger::LoggerLevel level,
                    time_t now) override;
-  void writeMessage(const char* pMsg) override;
+  void writeMessage(const char *pMsg) override;
   void writeFooter() override;
-  NdbOut& _out;
+  NdbOut &_out;
 
-private:
+ private:
   /** Prohibit*/
-  ConsoleLogHandler(const ConsoleLogHandler&);
-  ConsoleLogHandler operator = (const ConsoleLogHandler&);
-  bool operator == (const ConsoleLogHandler&);
-
+  ConsoleLogHandler(const ConsoleLogHandler &);
+  ConsoleLogHandler operator=(const ConsoleLogHandler &);
+  bool operator==(const ConsoleLogHandler &);
 };
 #endif

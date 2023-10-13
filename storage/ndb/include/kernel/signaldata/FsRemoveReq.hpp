@@ -25,23 +25,22 @@
 #ifndef FS_REMOVE_REQ_H
 #define FS_REMOVE_REQ_H
 
-#include "SignalData.hpp"
 #include "FsOpenReq.hpp"
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 62
 
-
 /**
- * 
- * SENDER:  
+ *
+ * SENDER:
  * RECIVER: Ndbfs
  */
 class FsRemoveReq {
   /**
    * Reciver(s)
    */
-  friend class Ndbfs;         // Reciver
-  friend class AsyncFile;     // Uses FsOpenReq to decode file open flags
+  friend class Ndbfs;      // Reciver
+  friend class AsyncFile;  // Uses FsOpenReq to decode file open flags
   friend class Filename;
   friend class VoidFs;
   friend class Restore;
@@ -53,23 +52,22 @@ class FsRemoveReq {
   friend class Dbdict;
   friend class Dbacc;
   friend class Dbtup;
-  friend class Ndbcntr;       // For initial start...
+  friend class Ndbcntr;  // For initial start...
 
-public:
+ public:
   /**
    * Length of signal
    */
   static constexpr Uint32 SignalLength = 8;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
 
-  UintR userReference;        // DATA 0
-  UintR userPointer;          // DATA 1
-  UintR fileNumber[4];        // DATA 2 - 5 // See FsOpen for interpretation
+  UintR userReference;  // DATA 0
+  UintR userPointer;    // DATA 1
+  UintR fileNumber[4];  // DATA 2 - 5 // See FsOpen for interpretation
 
   /**
    * 0 = File -> rm file
@@ -91,4 +89,3 @@ DECLARE_SIGNAL_SCOPE(GSN_FSREMOVEREQ, Local);
 #undef JAM_FILE_ID
 
 #endif
-

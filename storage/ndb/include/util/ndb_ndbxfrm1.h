@@ -25,8 +25,8 @@
 
 #include <stdio.h>
 
-#include "ndb_version.h" // NDB_VERSION_D
 #include "ndb_types.h"
+#include "ndb_version.h"  // NDB_VERSION_D
 #include "ndbxfrm_iterator.h"
 
 /** @class ndb_ndbxfrm1
@@ -86,8 +86,7 @@
  * will break reader unless the all-zero-bits value is used.
  */
 
-struct ndb_ndbxfrm1
-{
+struct ndb_ndbxfrm1 {
   using byte = unsigned char;
 
   class header;
@@ -97,9 +96,9 @@ struct ndb_ndbxfrm1
   static constexpr Uint64 native_endian_marker = 0xFEDCBA9876543210;
   static constexpr Uint64 reverse_endian_marker = 0x1032547698BADCFE;
 
-  static void toggle_endian32(Uint32* x, size_t n = 1);
-  static void toggle_endian64(Uint64* x, size_t n = 1);
-  static bool is_all_zeros(const void* buf, size_t len);
+  static void toggle_endian32(Uint32 *x, size_t n = 1);
+  static void toggle_endian64(Uint64 *x, size_t n = 1);
+  static bool is_all_zeros(const void *buf, size_t len);
 
   static constexpr Uint32 compression_deflate = 1;
   static constexpr Uint32 cipher_cbc = 1;
@@ -112,17 +111,14 @@ struct ndb_ndbxfrm1
   static constexpr Uint32 key_selection_mode_mix_pair = 2;
 };
 
-class ndb_ndbxfrm1::header
-{
-public:
+class ndb_ndbxfrm1::header {
+ public:
   header();
 
-  static constexpr size_t get_legacy_max_keying_material_size()
-  {
+  static constexpr size_t get_legacy_max_keying_material_size() {
     return LEGACY_MAX_OCTETS_SIZE;
   }
-  static constexpr size_t get_max_keying_material_size()
-  {
+  static constexpr size_t get_max_keying_material_size() {
     return MAX_OCTETS_SIZE;
   }
   int set_file_block_size(size_t file_block_size);
@@ -132,52 +128,55 @@ public:
   int set_encryption_padding(Uint32 padding);
   int set_encryption_krm(Uint32 krm);
   int set_encryption_krm_kdf_iter_count(Uint32 count);
-  int set_encryption_key_selection_mode(Uint32 key_selection_mode, Uint32 key_data_unit_size);
-  int set_encryption_keying_material(const byte* keying_material,
+  int set_encryption_key_selection_mode(Uint32 key_selection_mode,
+                                        Uint32 key_data_unit_size);
+  int set_encryption_keying_material(const byte *keying_material,
                                      size_t keying_material_size,
                                      size_t keying_material_count);
 
   int prepare_for_write(Uint32 header_size = 0);
-  size_t get_size() const; // output size needed by write_header()
-  int write_header(ndbxfrm_output_iterator* out) const;
+  size_t get_size() const;  // output size needed by write_header()
+  int write_header(ndbxfrm_output_iterator *out) const;
 
-  static int detect_header(const ndbxfrm_input_iterator* in, size_t* header_size);
-  int read_header(ndbxfrm_input_iterator* in);
-  int get_file_block_size(size_t* file_block_size);
-  int get_trailer_max_size(size_t* trailer_max_size);
+  static int detect_header(const ndbxfrm_input_iterator *in,
+                           size_t *header_size);
+  int read_header(ndbxfrm_input_iterator *in);
+  int get_file_block_size(size_t *file_block_size);
+  int get_trailer_max_size(size_t *trailer_max_size);
   int get_compression_method() const;
   int get_compression_padding() const;
-  int get_encryption_cipher(Uint32* cipher) const;
-  int get_encryption_padding(Uint32* padding) const;
-  int get_encryption_krm(Uint32* krm) const;
-  int get_encryption_krm_kdf_iter_count(Uint32* count) const;
-  int get_encryption_key_selection_mode(Uint32* key_selection_mode, Uint32* key_data_unit_size) const;
-  int get_encryption_keying_material(byte* keying_material,
+  int get_encryption_cipher(Uint32 *cipher) const;
+  int get_encryption_padding(Uint32 *padding) const;
+  int get_encryption_krm(Uint32 *krm) const;
+  int get_encryption_krm_kdf_iter_count(Uint32 *count) const;
+  int get_encryption_key_selection_mode(Uint32 *key_selection_mode,
+                                        Uint32 *key_data_unit_size) const;
+  int get_encryption_keying_material(byte *keying_material,
                                      size_t keying_material_space,
-                                     size_t* keying_material_size,
-                                     size_t* keying_material_count) const;
+                                     size_t *keying_material_size,
+                                     size_t *keying_material_count) const;
 
-  void printf(FILE* out) const;
-private:
+  void printf(FILE *out) const;
+
+ private:
   int validate_header() const;
   int prepare_header_for_write();
 
-  struct transform_version // 16 bytes align as Uint64 at least
+  struct transform_version  // 16 bytes align as Uint64 at least
   {
-    static constexpr Uint32 flag_product_mask       = 0x000000FF;
+    static constexpr Uint32 flag_product_mask = 0x000000FF;
     // type_char: "1.2.11"
-    static constexpr Uint32 flag_product_zlib       = 0x00000001;
+    static constexpr Uint32 flag_product_zlib = 0x00000001;
     // type_uint32: 0x1010107fL "1.1.1g release"
-    static constexpr Uint32 flag_product_OpenSSL    = 0x00000002;
-    static constexpr Uint32 flag_version_type_mask  = 0x00000F00;
-    static constexpr Uint32 flag_version_type_char  = 0x00000100;
+    static constexpr Uint32 flag_product_OpenSSL = 0x00000002;
+    static constexpr Uint32 flag_version_type_mask = 0x00000F00;
+    static constexpr Uint32 flag_version_type_char = 0x00000100;
     static constexpr Uint32 flag_version_type_int32 = 0x00000200;
-    static constexpr Uint32 flag_size_mask          = 0x0000F000;
-    static constexpr Uint32 flag_extended           = 0x80000000;
-    static constexpr Uint32 flag_zeros              = 0xFFFF0000;
+    static constexpr Uint32 flag_size_mask = 0x0000F000;
+    static constexpr Uint32 flag_extended = 0x80000000;
+    static constexpr Uint32 flag_zeros = 0xFFFF0000;
     Uint32 m_flags;
-    union
-    {
+    union {
       char m_char[12];
       Uint32 m_int32[3];
     };
@@ -185,11 +184,9 @@ private:
     int toggle_endian();
     int validate() const;
   };
-  struct fixed_header
-  {
+  struct fixed_header {
     // Magic part - 32 bytes
-    struct magic
-    {
+    struct magic {
       // magic NDBXFRM1 - always same byte order, N first.
       char m_magic[8];
       // endian 0xFEDCBA9876543210
@@ -205,43 +202,43 @@ private:
 
     // Common part#1
 
-    static constexpr Uint64 flag_extended    = 0x8000000000000000;
+    static constexpr Uint64 flag_extended = 0x8000000000000000;
     static constexpr Uint64 flag_zeros = 0xFFFFFFFFECECCECC;
 
-    static constexpr Uint64 flag_file_checksum_mask      = 0x0000000F;
+    static constexpr Uint64 flag_file_checksum_mask = 0x0000000F;
     static constexpr Uint64 flag_file_checksum_in_header = 0x00000001;
-    static constexpr Uint64 flag_file_checksum_crc32     = 0x00000002;
-    static constexpr Uint64 flag_data_checksum_mask      = 0x000000F0;
+    static constexpr Uint64 flag_file_checksum_crc32 = 0x00000002;
+    static constexpr Uint64 flag_data_checksum_mask = 0x000000F0;
     static constexpr Uint64 flag_data_checksum_in_header = 0x00000010;
-    static constexpr Uint64 flag_data_checksum_crc32     = 0x00000020;
+    static constexpr Uint64 flag_data_checksum_crc32 = 0x00000020;
 
-    static constexpr Uint64 flag_compress_method_mask    = 0x00000F00;
+    static constexpr Uint64 flag_compress_method_mask = 0x00000F00;
     // RFC1951 DEFLATE Compressed Data Format Specification version 1.3
     static constexpr Uint64 flag_compress_method_deflate = 0x00000100;
-    static constexpr Uint64 flag_compress_padding_mask   = 0xF0000000;
-    static constexpr Uint64 flag_compress_padding_none   = 0x00000000;
-    static constexpr Uint64 flag_compress_padding_pkcs   = 0x10000000;
+    static constexpr Uint64 flag_compress_padding_mask = 0xF0000000;
+    static constexpr Uint64 flag_compress_padding_none = 0x00000000;
+    static constexpr Uint64 flag_compress_padding_pkcs = 0x10000000;
     // If all bits in flag_compress_mask is zero, no compression is used
-    static constexpr Uint64 flag_compress_mask           = 0xF0000F00;
+    static constexpr Uint64 flag_compress_mask = 0xF0000F00;
 
-    static constexpr Uint64 flag_encrypt_cipher_mask         = 0x0000F000;
-    static constexpr Uint64 flag_encrypt_cipher_aes_256_cbc  = 0x00001000;
-    static constexpr Uint64 flag_encrypt_cipher_aes_256_xts  = 0x00002000;
+    static constexpr Uint64 flag_encrypt_cipher_mask = 0x0000F000;
+    static constexpr Uint64 flag_encrypt_cipher_aes_256_cbc = 0x00001000;
+    static constexpr Uint64 flag_encrypt_cipher_aes_256_xts = 0x00002000;
     static constexpr Uint64 flag_encrypt_krm_mask = 0x000F0000;
     // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
     static constexpr Uint64 flag_encrypt_krm_pbkdf2_sha256 = 0x00010000;
     // RFC3394 Advanced Encryption Standard (AES) Key Wrap Algorithm
     static constexpr Uint64 flag_encrypt_krm_aeskw_256 = 0x00020000;
-    static constexpr Uint64 flag_encrypt_padding_mask        = 0x00F00000;
-    static constexpr Uint64 flag_encrypt_padding_none        = 0x00000000;
+    static constexpr Uint64 flag_encrypt_padding_mask = 0x00F00000;
+    static constexpr Uint64 flag_encrypt_padding_none = 0x00000000;
     // PKCS#7 also RFC5652 Cryptographic Message Syntax (CMS)
-    static constexpr Uint64 flag_encrypt_padding_pkcs        = 0x00100000;
-    static constexpr Uint64 flag_encrypt_key_selection_mode_mask      = 0x0F000000;
+    static constexpr Uint64 flag_encrypt_padding_pkcs = 0x00100000;
+    static constexpr Uint64 flag_encrypt_key_selection_mode_mask = 0x0F000000;
     /*
      * flag_encrypt_key_selection_mode_same - use same key/iv pair for all data
      * units.
      */
-    static constexpr Uint64 flag_encrypt_key_selection_mode_same      = 0x00000000;
+    static constexpr Uint64 flag_encrypt_key_selection_mode_same = 0x00000000;
     /*
      * flag_encrypt_key_selection_mode_pair - pair key#n with iv#n and use that
      * for data unit#n.
@@ -251,7 +248,7 @@ private:
      * key(data_unit#n) = key#(n%N)
      * iv(data_unit#n) = iv#(n%N)
      */
-    static constexpr Uint64 flag_encrypt_key_selection_mode_pair      = 0x01000000;
+    static constexpr Uint64 flag_encrypt_key_selection_mode_pair = 0x01000000;
     /*
      * flag_encrypt_key_selection_mode_mix_pair - For first data units use
      * first key and first iv, for next data unit use next iv and so forth.
@@ -261,13 +258,14 @@ private:
      * key(data_unit#n) = key#((n/N)%N)
      * iv(data_unit#n) = iv#(n%N)
      */
-    static constexpr Uint64 flag_encrypt_key_selection_mode_mix_pair  = 0x02000000;
+    static constexpr Uint64 flag_encrypt_key_selection_mode_mix_pair =
+        0x02000000;
     // If all bits in flag_encrypt_mask is zero, no encryption is used
-    static constexpr Uint64 flag_encrypt_mask                = 0x0FFFF000;
-    
+    static constexpr Uint64 flag_encrypt_mask = 0x0FFFF000;
+
     // payload start:Uint32
     Uint64 m_flags;
-    Uint32 m_dbg_writer_ndb_version; // = NDB_VERSION_D
+    Uint32 m_dbg_writer_ndb_version;  // = NDB_VERSION_D
     Uint32 m_octets_size;
     /*
      * If m_file_block_size is not zero it indicates that the file size is a
@@ -299,8 +297,8 @@ private:
     /* Compress
      * zlib : ZLIB_VERSION "1.2.11" compare with zlibVersion()
      */
-    transform_version m_compress_dbg_writer_header_version; // compiled for
-    transform_version m_compress_dbg_writer_library_version; // linked with
+    transform_version m_compress_dbg_writer_header_version;   // compiled for
+    transform_version m_compress_dbg_writer_library_version;  // linked with
 
     /* Encrypt
      * OpenSSL : OPENSSL_VERSION_NUM 0x1010107fL
@@ -316,9 +314,9 @@ private:
      * an unit.
      *
      * If there are several keys and ivs one can choose how to form key and iv
-     * pairs for each encrypted data unit by flag_encrypt_key_selection_mode_xxx.
-     * This is used with XTS-mode for example using the pages size, 32768 bytes,
-     * as data unit size.
+     * pairs for each encrypted data unit by
+     * flag_encrypt_key_selection_mode_xxx. This is used with XTS-mode for
+     * example using the pages size, 32768 bytes, as data unit size.
      *
      * If m_encrypt_key_data_unit_size is zero, all data it encrypted in
      * sequence with one key and iv.  This is used with CBC-mode.
@@ -340,7 +338,6 @@ private:
 
     int toggle_endian();
     int validate() const;
-
   };
 
   static constexpr size_t MIN_HEADER_SIZE = 8;
@@ -352,17 +349,15 @@ private:
 
   static constexpr size_t MAX_BUFFER_SIZE = MAX_HEADER_SIZE + MAX_OCTETS_SIZE;
 
-  struct
-  {
+  struct {
     struct fixed_header m_header;
     byte m_octets[MAX_OCTETS_SIZE];
   } m_buffer;
   size_t m_zero_pad_size;
 };
 
-class ndb_ndbxfrm1::trailer
-{
-public:
+class ndb_ndbxfrm1::trailer {
+ public:
   trailer();
 
   int set_data_size(Uint64 size);
@@ -371,33 +366,33 @@ public:
   int set_file_block_size(size_t file_block_size);
   int prepare_for_write(Uint32 trailer_size = 0);
   size_t get_size() const;
-  int write_trailer(ndbxfrm_output_iterator* out,
-                    ndbxfrm_output_iterator* extra = nullptr) const;
+  int write_trailer(ndbxfrm_output_iterator *out,
+                    ndbxfrm_output_iterator *extra = nullptr) const;
 
-  int read_trailer(ndbxfrm_input_reverse_iterator* in);
-  int get_data_size(Uint64* size) const;
-  int get_data_crc32(Uint32* crc32) const;
-  int get_trailer_size(size_t* size) const;
+  int read_trailer(ndbxfrm_input_reverse_iterator *in);
+  int get_data_size(Uint64 *size) const;
+  int get_data_crc32(Uint32 *crc32) const;
+  int get_trailer_size(size_t *size) const;
 
-  void printf(FILE* out) const;
-private:
+  void printf(FILE *out) const;
+
+ private:
   int prepare_trailer_for_write();
 
-  int write_ndbxfrm1_trailer(byte* buf, size_t* len, ndb_off_t file_pos,
+  int write_ndbxfrm1_trailer(byte *buf, size_t *len, ndb_off_t file_pos,
                              size_t file_block_size);
-  int read_ndbxfrm1_trailer(const byte* buf, size_t len, ndb_off_t file_pos);
+  int read_ndbxfrm1_trailer(const byte *buf, size_t len, ndb_off_t file_pos);
   int validate_trailer() const;
 
-  struct fixed_trailer
-  {
-    static constexpr Uint64 flag_extended   = 0x8000000000000000;
-    static constexpr Uint64 flag_zeros      = 0xFFFFFFFFFFFFFFCC;
-    static constexpr Uint64 flag_file_checksum_mask       = 0x0000000F;
+  struct fixed_trailer {
+    static constexpr Uint64 flag_extended = 0x8000000000000000;
+    static constexpr Uint64 flag_zeros = 0xFFFFFFFFFFFFFFCC;
+    static constexpr Uint64 flag_file_checksum_mask = 0x0000000F;
     static constexpr Uint64 flag_file_checksum_in_trailer = 0x00000001;
-    static constexpr Uint64 flag_file_checksum_crc32      = 0x00000002;
-    static constexpr Uint64 flag_data_checksum_mask       = 0x000000F0;
+    static constexpr Uint64 flag_file_checksum_crc32 = 0x00000002;
+    static constexpr Uint64 flag_data_checksum_mask = 0x000000F0;
     static constexpr Uint64 flag_data_checksum_in_trailer = 0x00000010;
-    static constexpr Uint64 flag_data_checksum_crc32      = 0x00000020;
+    static constexpr Uint64 flag_data_checksum_crc32 = 0x00000020;
     Uint64 m_flags;
     /*
      * m_data_size - the size of the untransformed data
@@ -413,13 +408,12 @@ private:
      * Writer can have used a bigger or smaller trailer, growing and
      * shrinking in the "middle".
      */
-    struct magic
-    {
+    struct magic {
       Uint32 m_zeros[2];
-      Uint32 m_fixed_trailer_size; // including magic, and, zero padding
-      Uint32 m_trailer_size; // including magic, and, zero padding
-      Uint64 m_endian; // 0xFEDCBA9876543210
-      char m_magic[8]; // NDBXFRM1
+      Uint32 m_fixed_trailer_size;  // including magic, and, zero padding
+      Uint32 m_trailer_size;        // including magic, and, zero padding
+      Uint64 m_endian;              // 0xFEDCBA9876543210
+      char m_magic[8];              // NDBXFRM1
 
       int validate() const;
       int toggle_endian();
@@ -430,8 +424,7 @@ private:
   };
   static_assert(sizeof(fixed_trailer) % 8 == 0);
 
-  struct
-  {
+  struct {
     struct fixed_trailer m_trailer;
   } m_buffer;
 
@@ -440,13 +433,10 @@ private:
   size_t m_zero_pad_size;
 };
 
-inline
-void ndb_ndbxfrm1::toggle_endian32(Uint32* x, size_t n)
-{
+inline void ndb_ndbxfrm1::toggle_endian32(Uint32 *x, size_t n) {
   using std::swap;
-  byte* p = reinterpret_cast<byte*>(x);
-  while (n > 0)
-  {
+  byte *p = reinterpret_cast<byte *>(x);
+  while (n > 0) {
     swap(p[0], p[3]);
     swap(p[1], p[2]);
     p += 4;
@@ -454,13 +444,10 @@ void ndb_ndbxfrm1::toggle_endian32(Uint32* x, size_t n)
   }
 }
 
-inline
-void ndb_ndbxfrm1::toggle_endian64(Uint64* x, size_t n)
-{
+inline void ndb_ndbxfrm1::toggle_endian64(Uint64 *x, size_t n) {
   using std::swap;
-  byte* p = reinterpret_cast<byte*>(x);
-  while (n > 0)
-  {
+  byte *p = reinterpret_cast<byte *>(x);
+  while (n > 0) {
     swap(p[0], p[7]);
     swap(p[1], p[6]);
     swap(p[2], p[5]);
@@ -470,9 +457,7 @@ void ndb_ndbxfrm1::toggle_endian64(Uint64* x, size_t n)
   }
 }
 
-inline
-int ndb_ndbxfrm1::trailer::get_trailer_size(size_t* size) const
-{
+inline int ndb_ndbxfrm1::trailer::get_trailer_size(size_t *size) const {
   *size = m_buffer.m_trailer.m_magic.m_trailer_size;
   return 0;
 }

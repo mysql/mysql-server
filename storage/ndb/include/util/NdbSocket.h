@@ -25,30 +25,29 @@
 #ifndef NDB_UTIL_SECURE_SOCKET_H
 #define NDB_UTIL_SECURE_SOCKET_H
 
-#include <utility> // std::swap
+#include <utility>  // std::swap
+#include "portlib/NdbMutex.h"
 #include "portlib/ndb_socket.h"
 #include "portlib/ndb_socket_poller.h"
-#include "portlib/NdbMutex.h"
 
 static constexpr int TLS_BUSY_TRY_AGAIN = -2;
 
 class NdbSocket {
-public:
+ public:
   NdbSocket() = default;
-  NdbSocket(NdbSocket&& oth);
-  NdbSocket(ndb_socket_t ndbsocket): s(ndbsocket) { }
+  NdbSocket(NdbSocket &&oth);
+  NdbSocket(ndb_socket_t ndbsocket) : s(ndbsocket) {}
   ~NdbSocket() {
     assert(ssl == nullptr);
     assert(!ndb_socket_valid(s));
-    if (mutex != nullptr)
-      NdbMutex_Destroy(mutex);
+    if (mutex != nullptr) NdbMutex_Destroy(mutex);
   }
-  NdbSocket& operator=(NdbSocket &&);
+  NdbSocket &operator=(NdbSocket &&);
 
-  int is_valid() const               { return ndb_socket_valid(s); }
-  bool has_tls() const               { return ssl; }
-  ndb_socket_t ndb_socket() const    { return s; }
-  socket_t native_socket() const     { return ndb_socket_get_native(s); }
+  int is_valid() const { return ndb_socket_valid(s); }
+  bool has_tls() const { return ssl; }
+  ndb_socket_t ndb_socket() const { return s; }
+  socket_t native_socket() const { return ndb_socket_get_native(s); }
   socket_t release_native_socket();
   std::string to_string() const;
 
@@ -57,14 +56,14 @@ public:
    * or if the OpenSSL version is not supported for NDB TLS.
    * When ready to switch over, call associate().
    */
-  static struct ssl_st * get_client_ssl(struct ssl_ctx_st *);
+  static struct ssl_st *get_client_ssl(struct ssl_ctx_st *);
 
   /* Get an SSL for for server-side TLS.
    * Returns pointer to SSL. Returns null if CTX is null, or SSL_new() fails,
    * or if the OpenSSL version is not supported for NDB TLS.
    * When ready to switch over, call associate().
    */
-  static struct ssl_st * get_server_ssl(struct ssl_ctx_st *);
+  static struct ssl_st *get_server_ssl(struct ssl_ctx_st *);
 
   /* Free an SSL returned by get_client_ssl() or get_server_ssl(), in the case
    * when an error has prevented it from being associated with a socket.
@@ -88,13 +87,13 @@ public:
    *    false on failure; the socket has been invalidated and closed.
    *    false if socket is non-blocking (based on SSL mode flags)
    */
-  bool do_tls_handshake()            { return ssl ? ssl_handshake() : true; }
+  bool do_tls_handshake() { return ssl ? ssl_handshake() : true; }
 
   /* Update keys (TLS 1.3).
    * If request_peer_update is set to true, request the peer to also update.
    * Returns true on success. If TLS 1.3 is not in use, returns false.
    */
-  bool update_keys(bool request_peer_update=false) const;
+  bool update_keys(bool request_peer_update = false) const;
 
   /* Renegotiate (TLS 1.2)
    * Like handshake, renegotiation is supported only as a synchronous action
@@ -114,7 +113,7 @@ public:
    *
    * Returns nullptr if socket does not have TLS enabled.
    */
-  struct x509_st * peer_certificate() const;
+  struct x509_st *peer_certificate() const;
 
   /* Set socket behavior to blocking or non-blocking.
      For SSL sockets, this should be done after associate().
@@ -128,8 +127,8 @@ public:
   int set_nonblocking(int on) const;
 
   /* ndb_socket.h */
-  ssize_t recv(char * buf, size_t len, int peek = 0) const;
-  ssize_t send(const char * buf, size_t len) const;
+  ssize_t recv(char *buf, size_t len, int peek = 0) const;
+  ssize_t send(const char *buf, size_t len) const;
   ssize_t writev(const struct iovec *vec, int nvec) const;
 
   /* socket_io.h */
@@ -145,7 +144,7 @@ public:
   */
   int read(int timeout, char *buf, int len) const;
   int readln(int timeout, int *time, char *buf, int len, NdbMutex *) const;
-  int write(int timeout, int *, const char * buf, int len) const;
+  int write(int timeout, int *, const char *buf, int len) const;
 
   int shutdown() const;
   int close();
@@ -158,17 +157,17 @@ public:
   int poll_writable(int timeout_msec) const;
   bool check_hup() const;
 
-private:
+ private:
   void invalidate_socket_handle();
 
-  ssize_t ssl_recv(char * buf, size_t len) const;
-  ssize_t ssl_peek(char * buf, size_t len) const;
-  ssize_t ssl_send(const char * buf, size_t len) const;
+  ssize_t ssl_recv(char *buf, size_t len) const;
+  ssize_t ssl_peek(char *buf, size_t len) const;
+  ssize_t ssl_send(const char *buf, size_t len) const;
   ssize_t ssl_writev(const struct iovec *vec, int nvec) const;
 
   int ssl_read(int timeout, char *buf, int len) const;
-  int ssl_readln(int timeout, int *, char * buf, int len, NdbMutex *) const;
-  int ssl_write(int timeout, int *, const char * buf, int len) const;
+  int ssl_readln(int timeout, int *, char *buf, int len, NdbMutex *) const;
+  int ssl_write(int timeout, int *, const char *buf, int len) const;
 
   bool ssl_handshake();
   int ssl_shutdown() const;
@@ -176,7 +175,7 @@ private:
 
   friend class TlsLineReader;
 
-private:
+ private:
   /**
    * SSL functions required a mutex as its libraries are not multithread safe.
    * The mutex is created by associate(), when a ssl object is assigned to the
@@ -184,8 +183,8 @@ private:
    * it is only released by the destructor, or the move c'tors when we
    * move into an NdbSocket already having a mutex assigned.
    */
-  NdbMutex * mutex{nullptr};  // Protects ssl
-  struct ssl_st * ssl{nullptr};
+  NdbMutex *mutex{nullptr};  // Protects ssl
+  struct ssl_st *ssl{nullptr};
   ndb_socket_t s{INVALID_SOCKET};
 };
 
@@ -193,8 +192,7 @@ private:
  * There must not be any concurrent operations on the source object (oth) while
  * calling the move constructor.
  */
-inline
-NdbSocket::NdbSocket(NdbSocket && oth) {
+inline NdbSocket::NdbSocket(NdbSocket &&oth) {
   assert(ssl == nullptr);
   assert(!ndb_socket_valid(s));
 
@@ -210,8 +208,7 @@ NdbSocket::NdbSocket(NdbSocket && oth) {
  * There must not be any concurrent operations on either the source object
  * (oth) or destination object (this) while calling the move assignment.
  */
-inline
-NdbSocket& NdbSocket::operator=(NdbSocket && oth) {
+inline NdbSocket &NdbSocket::operator=(NdbSocket &&oth) {
   // Only allow move assignment to default NdbSocket object
   assert(ssl == nullptr);
   assert(!ndb_socket_valid(s));
@@ -224,107 +221,92 @@ NdbSocket& NdbSocket::operator=(NdbSocket && oth) {
   return *this;
 }
 
-inline
-void NdbSocket::invalidate_socket_handle() {
+inline void NdbSocket::invalidate_socket_handle() {
   // call close() before invalidate_socket_handle()
   assert(ssl == nullptr);
   ndb_socket_invalidate(&s);
 }
 
-inline
-socket_t NdbSocket::release_native_socket() {
+inline socket_t NdbSocket::release_native_socket() {
   assert(ssl == nullptr);
   socket_t sock = s.s;
   invalidate_socket_handle();
   return sock;
 }
 
-inline
-std::string NdbSocket::to_string() const {
+inline std::string NdbSocket::to_string() const {
   std::string str = ndb_socket_to_string(s);
-  if(ssl) str += " [ssl]";
+  if (ssl) str += " [ssl]";
   return str;
 }
 
 /* ndb_socket.h */
-inline
-ssize_t NdbSocket::recv(char * buf, size_t len, int peek) const {
-  if(ssl) {
+inline ssize_t NdbSocket::recv(char *buf, size_t len, int peek) const {
+  if (ssl) {
     assert(!peek);  // could be supported but is not expected
     return ssl_recv(buf, len);
   }
   return ndb_recv(s, buf, len, peek);
 }
 
-inline
-ssize_t NdbSocket::send(const char * buf, size_t len) const {
-  if(ssl) return ssl_send(buf, len);
+inline ssize_t NdbSocket::send(const char *buf, size_t len) const {
+  if (ssl) return ssl_send(buf, len);
   return ndb_send(s, buf, len, 0);
 }
 
-inline
-ssize_t NdbSocket::writev(const struct iovec *vec, int nvec) const {
-  if(ssl) return ssl_writev(vec, nvec);
+inline ssize_t NdbSocket::writev(const struct iovec *vec, int nvec) const {
+  if (ssl) return ssl_writev(vec, nvec);
   return ndb_socket_writev(s, vec, nvec);
 }
 
-inline
-int NdbSocket::shutdown() const {
+inline int NdbSocket::shutdown() const {
   if (ssl) ssl_shutdown();
   int r = ndb_socket_shutdown_both(s);
   return r;
 }
 
-inline
-int NdbSocket::close() {
-  if(ssl) ssl_close();
+inline int NdbSocket::close() {
+  if (ssl) ssl_close();
   int r = ndb_socket_close(s);
   invalidate_socket_handle();
   return r;
 }
 
-inline
-void NdbSocket::close_with_reset() {
-  if(ssl) ssl_close();
+inline void NdbSocket::close_with_reset() {
+  if (ssl) ssl_close();
   constexpr bool with_reset = true;
   ndb_socket_close_with_reset(s, with_reset);
   invalidate_socket_handle();
 }
 
 /* ndb_socket_poller.h */
-inline
-uint NdbSocket::add_readable(ndb_socket_poller * poller) const {
+inline uint NdbSocket::add_readable(ndb_socket_poller *poller) const {
   return poller->add_readable(s, ssl);
 }
 
-inline
-uint NdbSocket::add_writable(ndb_socket_poller * poller) const {
+inline uint NdbSocket::add_writable(ndb_socket_poller *poller) const {
   return poller->add_writable(s);
 }
 
-inline
-int NdbSocket::poll_readable(int timeout) const {
+inline int NdbSocket::poll_readable(int timeout) const {
   if (!is_valid()) return -1;
   ndb_socket_poller poller;
   poller.add_readable(s, ssl);
   return poller.poll(timeout);
 }
 
-inline
-int NdbSocket::poll_writable(int timeout) const {
+inline int NdbSocket::poll_writable(int timeout) const {
   if (!is_valid()) return -1;
   ndb_socket_poller poller;
   poller.add_writable(s);
   return poller.poll(timeout);
 }
 
-inline
-bool NdbSocket::check_hup() const {
+inline bool NdbSocket::check_hup() const {
   if (!is_valid()) return true;
   ndb_socket_poller poller;
   poller.add_readable(s);
-  if(poller.poll_unsafe(0) > 0 && poller.has_hup(0))
-    return true;
+  if (poller.poll_unsafe(0) > 0 && poller.has_hup(0)) return true;
   return false;
 }
 

@@ -25,16 +25,14 @@
 
 #include <signaldata/AlterTab.hpp>
 
-bool
-printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterTabReq::SignalLength)
-  {
+bool printALTER_TAB_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < AlterTabReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const AlterTabReq* sig = (const AlterTabReq*)theData;
+  const AlterTabReq *sig = (const AlterTabReq *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " requestType: %u", sig->requestType);
@@ -53,16 +51,14 @@ printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterTabConf::SignalLength)
-  {
+bool printALTER_TAB_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16) {
+  if (len < AlterTabConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const AlterTabConf* sig = (const AlterTabConf*)theData;
+  const AlterTabConf *sig = (const AlterTabConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " connectPtr: %u", sig->connectPtr);
@@ -70,21 +66,19 @@ printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printALTER_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < AlterTabRef::SignalLength)
-  {
+bool printALTER_TAB_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16) {
+  if (len < AlterTabRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const AlterTabRef* sig = (const AlterTabRef*)theData;
+  const AlterTabRef *sig = (const AlterTabRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   fprintf(output, " errorCode: %u", sig->errorCode);
-  fprintf(output, " errorLine: %u", sig-> errorLine);
+  fprintf(output, " errorLine: %u", sig->errorLine);
   fprintf(output, " errorKey: %u", sig->errorKey);
   fprintf(output, " errorStatus: %u", sig->errorStatus);
   fprintf(output, "\n");

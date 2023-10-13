@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
 
 #include "API.hpp"
@@ -35,7 +34,7 @@
 /***************************************************************************
  * int  receiveSCAN_TABREF(NdbApiSignal* aSignal)
  *
- *  This means the scan could not be started, set status(s) to indicate 
+ *  This means the scan could not be started, set status(s) to indicate
  *  the failure. Note that scan requests are asynchronous, i.e. we do not
  *  wait for the CONF or REF to be returned. Which also imples that a REF-error
  *  could be received into a scan operation while the client is in the midts
@@ -48,16 +47,15 @@
  *  propogated to the transaction level.
  *
  ****************************************************************************/
-int			
-NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
-  const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
-  
+int NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal *aSignal) {
+  const ScanTabRef *ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
+
   if (checkState_TransId(&ref->transId1)) {
     if (theScanningOp) {
       theScanningOp->execCLOSE_SCAN_REP();
       // Do not ::setErrorCode() yet! - See comment in header
       theScanningOp->theError.code = ref->errorCode;
-      if(!ref->closeNeeded){
+      if (!ref->closeNeeded) {
         return 0;
       }
 
@@ -70,9 +68,9 @@ NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
       theScanningOp->m_conf_receivers[0]->m_tcPtrI = ~0;
 
     } else {
-      assert (m_scanningQuery);
+      assert(m_scanningQuery);
       m_scanningQuery->execCLOSE_SCAN_REP(ref->errorCode, ref->closeNeeded);
-      if(!ref->closeNeeded){
+      if (!ref->closeNeeded) {
         return 0;
       }
     }
@@ -90,23 +88,20 @@ NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
  * int  receiveSCAN_TABCONF(NdbApiSignal* aSignal)
  *
  * Receive SCAN_TABCONF
- * If scanStatus == 0 there is more records to read. Since signals may be 
- * received in any order we have to go through the lists with saved signals 
- * and check if all expected signals are there so that we can start to 
+ * If scanStatus == 0 there is more records to read. Since signals may be
+ * received in any order we have to go through the lists with saved signals
+ * and check if all expected signals are there so that we can start to
  * execute them.
  *
- * If scanStatus > 0 this indicates that the scan is finished and there are 
+ * If scanStatus > 0 this indicates that the scan is finished and there are
  * no more data to be read.
- * 
+ *
  *****************************************************************************/
-int			
-NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
-                                    const Uint32 * ops, Uint32 len)
-{
-  const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
+int NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal *aSignal,
+                                        const Uint32 *ops, Uint32 len) {
+  const ScanTabConf *conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
 
   if (checkState_TransId(&conf->transId1)) {
-    
     /**
      * If EndOfData is set, close the scan.
      */
@@ -114,65 +109,63 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
       if (theScanningOp) {
         theScanningOp->execCLOSE_SCAN_REP();
       } else {
-        assert (m_scanningQuery);
+        assert(m_scanningQuery);
         m_scanningQuery->execCLOSE_SCAN_REP(0, false);
       }
-      return 1; // -> Finished
+      return 1;  // -> Finished
     }
 
     int retVal = -1;
     const Uint32 *const opsEnd = ops + len;
-    while (ops < opsEnd)
-    {
+    while (ops < opsEnd) {
       const Uint32 ptrI = *ops++;
       const Uint32 tcPtrI = *ops++;
-      void * tPtr = theNdb->theImpl->int2void(ptrI);
-      assert(tPtr); // For now
-      NdbReceiver* tOp = NdbImpl::void2rec(tPtr);
-      if (likely(tOp && tOp->checkMagicNumber()))
-      {
+      void *tPtr = theNdb->theImpl->int2void(ptrI);
+      assert(tPtr);  // For now
+      NdbReceiver *tOp = NdbImpl::void2rec(tPtr);
+      if (likely(tOp && tOp->checkMagicNumber())) {
         // Check if this is a linked operation.
-        if (tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)  //A SPJ reply
+        if (tOp->getType() == NdbReceiver::NDB_QUERY_OPERATION)  // A SPJ reply
         {
           const Uint32 rowCount = *ops++;
           const Uint32 moreMask = *ops++;
 
-          // A 5'th 'activeMask' word was added as part of wl#7636 (SPJ outer join).
-          // Version of connected TC node decide whether a 4/5 word conf is returned.
+          // A 5'th 'activeMask' word was added as part of wl#7636 (SPJ outer
+          // join). Version of connected TC node decide whether a 4/5 word conf
+          // is returned.
           const Uint32 tcNodeId = getConnectedNodeId();
-          const Uint32 nodeVersion = theNdb->theImpl->getNodeNdbVersion(tcNodeId);
+          const Uint32 nodeVersion =
+              theNdb->theImpl->getNodeNdbVersion(tcNodeId);
           assert(nodeVersion != 0);
-          const Uint32 activeMask = ndbd_send_active_bitmask(nodeVersion) ? *ops++ : 0;
+          const Uint32 activeMask =
+              ndbd_send_active_bitmask(nodeVersion) ? *ops++ : 0;
 
-          NdbQueryOperationImpl* queryOp = (NdbQueryOperationImpl*)tOp->m_owner;
-          assert (&queryOp->getQuery() == m_scanningQuery);
-          if (queryOp->execSCAN_TABCONF(tcPtrI, rowCount, moreMask, activeMask, tOp))
-            retVal = 0; // We have result data, wakeup receiver
-        }
-        else
-        {
+          NdbQueryOperationImpl *queryOp =
+              (NdbQueryOperationImpl *)tOp->m_owner;
+          assert(&queryOp->getQuery() == m_scanningQuery);
+          if (queryOp->execSCAN_TABCONF(tcPtrI, rowCount, moreMask, activeMask,
+                                        tOp))
+            retVal = 0;  // We have result data, wakeup receiver
+        } else {
           const Uint32 info = *ops++;
-          const Uint32 opCount  = ScanTabConf::getRows(info);
+          const Uint32 opCount = ScanTabConf::getRows(info);
           const Uint32 totalLen = ScanTabConf::getLength(info);
-          if (tcPtrI == RNIL && opCount == 0)
-          {
+          if (tcPtrI == RNIL && opCount == 0) {
             theScanningOp->receiver_completed(tOp);
             retVal = 0;
-          }
-          else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
-          {
+          } else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount)) {
             theScanningOp->receiver_delivered(tOp);
             retVal = 0;
           }
         }
       }
-    } //while
+    }  // while
     return retVal;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();
 #endif
   }
-  
+
   return -1;
 }

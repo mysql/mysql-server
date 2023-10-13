@@ -31,20 +31,19 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include "atrt.hpp"
-#include "test_execution_resources.hpp"
 #include "process_management.hpp"
+#include "test_execution_resources.hpp"
 
-#include <util/File.hpp>
 #include <FileLogHandler.hpp>
 #include <SysLogHandler.hpp>
+#include <util/File.hpp>
 
 #include <NdbSleep.h>
-#include "my_alloc.h"  // MEM_ROOT
-#include "my_sys.h" // my_realpath()
-#include "my_io.h" // FN_REFLEN
 #include <ndb_version.h>
 #include <vector>
-#include <ndb_version.h>
+#include "my_alloc.h"  // MEM_ROOT
+#include "my_io.h"     // FN_REFLEN
+#include "my_sys.h"    // my_realpath()
 #include "template_utils.h"
 #include "typelib.h"
 
@@ -97,9 +96,9 @@ TYPELIB behaviour_typelib = {array_elements(default_behaviour_on_failure) - 1,
                              default_behaviour_on_failure, nullptr};
 
 RestartMode g_default_force_cluster_restart = None;
-const char *force_cluster_restart_mode[] = {"none", "before", "after",
-                                            "both", nullptr};
-TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) -1,
+const char *force_cluster_restart_mode[] = {"none", "before", "after", "both",
+                                            nullptr};
+TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) - 1,
                            "force_cluster_restart_mode",
                            force_cluster_restart_mode, nullptr};
 
@@ -130,7 +129,6 @@ const char *g_dummy;
 char *g_env_path = 0;
 const char *g_mysqld_host = 0;
 
-
 TestExecutionResources g_resources;
 
 static BaseString get_atrt_path(const char *arg);
@@ -140,29 +138,24 @@ const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
 static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
-TestResult run_test_case(ProcessManagement& processManagement,
-                         const atrt_testcase& testcase,
-                         bool is_last_testcase,
+TestResult run_test_case(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase, bool is_last_testcase,
                          RestartMode next_testcase_forces_restart,
-                         atrt_coverage_config& coverage_config);
+                         atrt_coverage_config &coverage_config);
 int test_case_init(ProcessManagement &, const atrt_testcase &);
 int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
 void test_case_results(TestResult *, const atrt_testcase &);
 
-void test_case_coverage_results(TestResult *,
-                                atrt_config &,
-                                atrt_coverage_config &,
-                                int);
-bool gather_coverage_results(atrt_config &,
-                             atrt_coverage_config &,
+void test_case_coverage_results(TestResult *, atrt_config &,
+                                atrt_coverage_config &, int);
+bool gather_coverage_results(atrt_config &, atrt_coverage_config &,
                              int test_case = 0);
 int compute_path_level(const char *);
 int compute_test_coverage(atrt_coverage_config &, const char *);
 
-bool do_command(ProcessManagement& processManagement,
-                atrt_config& config);
-bool setup_test_case(ProcessManagement& processManagement,
-                     atrt_config&, const atrt_testcase&);
+bool do_command(ProcessManagement &processManagement, atrt_config &config);
+bool setup_test_case(ProcessManagement &processManagement, atrt_config &,
+                     const atrt_testcase &);
 /**
  * check configuration if any changes has been
  *   done for the duration of the latest running test
@@ -170,99 +163,92 @@ bool setup_test_case(ProcessManagement& processManagement,
  *   (true, indicates that a restart is needed to actually
  *    reset the running processes)
  */
-bool reset_config(ProcessManagement &processManagement, atrt_config&);
+bool reset_config(ProcessManagement &processManagement, atrt_config &);
 
 static struct my_option g_options[] = {
-    {"help", '?', "Display this help and exit.", &g_help,
-     &g_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", &g_help, &g_help, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"site", 256, "Site", &g_site, &g_site, 0, GET_STR,
+    {"site", 256, "Site", &g_site, &g_site, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     0, 0, 0},
+    {"clusters", 256, "Cluster", &g_clusters, &g_clusters, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"clusters", 256, "Cluster", &g_clusters, &g_clusters,
+    {"config-type", 256, "cnf (default) or ini", &g_config_type, &g_config_type,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"config-type", 256, "cnf (default) or ini", &g_config_type,
-     &g_config_type, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"mysqld", 256, "atrt mysqld", &g_mysqld_host,
-     &g_mysqld_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"replicate", 1024, "replicate", &g_dummy, &g_dummy, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"log-file", 256, "log-file", &g_log_filename,
-     &g_log_filename, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"mysqld", 256, "atrt mysqld", &g_mysqld_host, &g_mysqld_host, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"replicate", 1024, "replicate", &g_dummy, &g_dummy, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"log-file", 256, "log-file", &g_log_filename, &g_log_filename, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"testcase-file", 'f', "testcase-file", &g_test_case_filename,
-     &g_test_case_filename, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     &g_test_case_filename, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"report-file", 'r', "report-file", &g_report_filename, &g_report_filename,
+     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"basedir", 256, "Base path", &g_basedir, &g_basedir, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"baseport", 256, "Base port", &g_baseport, &g_baseport, 0, GET_INT,
+     REQUIRED_ARG, g_baseport, 0, 0, 0, 0, 0},
+    {"prefix", 256, "atrt install dir", &g_prefix, &g_prefix, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"prefix0", 256, "mysql install dir", &g_prefix0, &g_prefix0, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"prefix1", 256, "mysql install dir 1", &g_prefix1, &g_prefix1, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"verbose", 'v', "Verbosity", &g_verbosity, &g_verbosity, 0, GET_INT,
+     REQUIRED_ARG, g_verbosity, 0, 0, 0, 0, 0},
+    {"configure", 256, "configure", &g_do_setup, &g_do_setup, 0, GET_INT,
+     REQUIRED_ARG, g_do_setup, 0, 0, 0, 0, 0},
+    {"deploy", 256, "deploy", &g_do_deploy, &g_do_deploy, 0, GET_INT,
+     REQUIRED_ARG, g_do_deploy, 0, 0, 0, 0, 0},
+    {"sshx", 256, "sshx", &g_do_sshx, &g_do_sshx, 0, GET_INT, REQUIRED_ARG,
+     g_do_sshx, 0, 0, 0, 0, 0},
+    {"start", 256, "start", &g_do_start, &g_do_start, 0, GET_INT, REQUIRED_ARG,
+     g_do_start, 0, 0, 0, 0, 0},
+    {"fqpn", 256, "Fully qualified path-names ", &g_fqpn, &g_fqpn, 0, GET_INT,
+     REQUIRED_ARG, g_fqpn, 0, 0, 0, 0, 0},
+    {"fix-nodeid", 256, "Fix nodeid for each started process ", &g_fix_nodeid,
+     &g_fix_nodeid, 0, GET_INT, REQUIRED_ARG, g_fqpn, 0, 0, 0, 0, 0},
+    {"default-ports", 256, "Use default ports when possible", &g_default_ports,
+     &g_default_ports, 0, GET_INT, REQUIRED_ARG, g_default_ports, 0, 0, 0, 0,
      0},
-    {"report-file", 'r', "report-file", &g_report_filename,
-     &g_report_filename, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"basedir", 256, "Base path", &g_basedir, &g_basedir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"baseport", 256, "Base port", &g_baseport, &g_baseport,
-     0, GET_INT, REQUIRED_ARG, g_baseport, 0, 0, 0, 0, 0},
-    {"prefix", 256, "atrt install dir", &g_prefix,
-     &g_prefix, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"prefix0", 256, "mysql install dir", &g_prefix0,
-     &g_prefix0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"prefix1", 256, "mysql install dir 1", &g_prefix1,
-     &g_prefix1, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"verbose", 'v', "Verbosity", &g_verbosity,
-     &g_verbosity, 0, GET_INT, REQUIRED_ARG, g_verbosity, 0, 0, 0, 0,
-     0},
-    {"configure", 256, "configure", &g_do_setup,
-     &g_do_setup, 0, GET_INT, REQUIRED_ARG, g_do_setup, 0, 0, 0, 0,
-     0},
-    {"deploy", 256, "deploy", &g_do_deploy, &g_do_deploy, 0,
-     GET_INT, REQUIRED_ARG, g_do_deploy, 0, 0, 0, 0, 0},
-    {"sshx", 256, "sshx", &g_do_sshx, &g_do_sshx, 0,
-     GET_INT, REQUIRED_ARG, g_do_sshx, 0, 0, 0, 0, 0},
-    {"start", 256, "start", &g_do_start, &g_do_start, 0,
-     GET_INT, REQUIRED_ARG, g_do_start, 0, 0, 0, 0, 0},
-    {"fqpn", 256, "Fully qualified path-names ", &g_fqpn,
-     &g_fqpn, 0, GET_INT, REQUIRED_ARG, g_fqpn, 0, 0, 0, 0, 0},
-    {"fix-nodeid", 256, "Fix nodeid for each started process ",
-     &g_fix_nodeid, &g_fix_nodeid, 0, GET_INT, REQUIRED_ARG,
-     g_fqpn, 0, 0, 0, 0, 0},
-    {"default-ports", 256, "Use default ports when possible",
-     &g_default_ports, &g_default_ports, 0, GET_INT,
-     REQUIRED_ARG, g_default_ports, 0, 0, 0, 0, 0},
-    {"mode", 256, "Mode 0=interactive 1=regression 2=bench", &g_mode,
-     &g_mode, 0, GET_INT, REQUIRED_ARG, g_mode, 0, 0, 0, 0, 0},
-    {"quit", 256, "Quit before starting tests", &g_do_quit,
-     &g_do_quit, 0, GET_BOOL, NO_ARG, g_do_quit, 0, 0, 0, 0, 0},
-    {"mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)",
-     &g_mt, &g_mt, 0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0,
-     0, 0},
+    {"mode", 256, "Mode 0=interactive 1=regression 2=bench", &g_mode, &g_mode,
+     0, GET_INT, REQUIRED_ARG, g_mode, 0, 0, 0, 0, 0},
+    {"quit", 256, "Quit before starting tests", &g_do_quit, &g_do_quit, 0,
+     GET_BOOL, NO_ARG, g_do_quit, 0, 0, 0, 0, 0},
+    {"mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)", &g_mt,
+     &g_mt, 0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0, 0, 0},
     {"default-max-retries", 256,
      "default number of retries after a test case fails (can be overwritten in "
      "the test suite file)",
-     &g_default_max_retries, &g_default_max_retries, 0,
-     GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
+     &g_default_max_retries, &g_default_max_retries, 0, GET_INT, REQUIRED_ARG,
+     g_default_max_retries, 0, 0, 0, 0, 0},
     {"default-force-cluster-restart", 256,
      "Force cluster to restart for each testrun (can be overwritten in test "
      "suite file)",
-     &g_default_force_cluster_restart,
-     &g_default_force_cluster_restart, &restart_typelib, GET_ENUM,
-     REQUIRED_ARG, g_default_force_cluster_restart, 0, 0, 0, 0, 0},
+     &g_default_force_cluster_restart, &g_default_force_cluster_restart,
+     &restart_typelib, GET_ENUM, REQUIRED_ARG, g_default_force_cluster_restart,
+     0, 0, 0, 0, 0},
     {"default-behaviour-on-failure", 256, "default to do when a test fails",
-     &g_default_behaviour_on_failure,
-     &g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
-     REQUIRED_ARG, g_default_behaviour_on_failure, 0, 0, 0, 0, 0},
+     &g_default_behaviour_on_failure, &g_default_behaviour_on_failure,
+     &behaviour_typelib, GET_ENUM, REQUIRED_ARG, g_default_behaviour_on_failure,
+     0, 0, 0, 0, 0},
     {"clean-shutdown", 0,
      "Enables clean cluster shutdown when passed as a command line argument",
-     &g_clean_shutdown, &g_clean_shutdown, 0, GET_BOOL,
-     NO_ARG, g_clean_shutdown, 0, 0, 0, 0, 0},
+     &g_clean_shutdown, &g_clean_shutdown, 0, GET_BOOL, NO_ARG,
+     g_clean_shutdown, 0, 0, 0, 0, 0},
     {"coverage", 256,
      "Enables coverage and specifies if coverage is computed, "
      "per 'testcase' (default) or  per 'testsuite'.",
-     &g_coverage, &g_coverage,
-     &coverage_typelib, GET_ENUM, OPT_ARG, g_coverage, 0, 0, 0, 0, 0},
+     &g_coverage, &g_coverage, &coverage_typelib, GET_ENUM, OPT_ARG, g_coverage,
+     0, 0, 0, 0, 0},
     {"build-dir", 256, "Full path to build directory which contains gcno files",
-     &g_build_dir, &g_build_dir, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &g_build_dir, &g_build_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"coverage-tool", 256,
      "Specifies if coverage is computed using 'lcov'(default) or 'fastcov'",
-     &g_coverage_tool, &g_coverage_tool,
-     &coverage_tools_typelib, GET_ENUM, REQUIRED_ARG, g_coverage_tool, 0, 0, 0,
-     0, 0},
+     &g_coverage_tool, &g_coverage_tool, &coverage_tools_typelib, GET_ENUM,
+     REQUIRED_ARG, g_coverage_tool, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static int check_testcase_file_main(int argc, char **argv);
@@ -449,16 +435,16 @@ int main(int argc, char **argv) {
     return atrt_exit(ATRT_FAILURE);
   }
 
-  switch(coverage_config.m_analysis) {
-     case coverage::Coverage::Testcase:
-       g_logger.info("Running coverage analysis per test case");
-       break;
-     case coverage::Coverage::Testsuite:
-       g_logger.info("Running coverage analysis per test suite");
-       break;
-     case coverage::Coverage::None:
-       break;
-   }
+  switch (coverage_config.m_analysis) {
+    case coverage::Coverage::Testcase:
+      g_logger.info("Running coverage analysis per test case");
+      break;
+    case coverage::Coverage::Testsuite:
+      g_logger.info("Running coverage analysis per test suite");
+      break;
+    case coverage::Coverage::None:
+      break;
+  }
 
   if (coverage_config.m_analysis != coverage::Coverage::None) {
     const char *coverage_tool =
@@ -484,12 +470,11 @@ int main(int argc, char **argv) {
     } else {
       RestartMode next_testcase_forces_restart = None;
       if (!is_last_testcase) {
-        next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
+        next_testcase_forces_restart = testcases[i + 1].m_force_cluster_restart;
       }
-      test_result = run_test_case(processManagement, testcase,
-                                  is_last_testcase,
-                                  next_testcase_forces_restart,
-                                  coverage_config);
+      test_result =
+          run_test_case(processManagement, testcase, is_last_testcase,
+                        next_testcase_forces_restart, coverage_config);
       if (test_result.result != ErrorCodes::ERR_OK) {
         current_failure_mode = testcase.m_behaviour_on_failure;
       }
@@ -732,8 +717,8 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
     }
     if (g_do_setup == 0) g_do_setup = 2;
 
-    if (g_do_start == 0) g_do_start =
-      ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
+    if (g_do_start == 0)
+      g_do_start = ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
 
     if (g_mode == 0) g_mode = 1;
 
@@ -790,14 +775,14 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   }
 
   /* Read username from environment, default to sakila */
-  const char * logname = getenv("LOGNAME");
+  const char *logname = getenv("LOGNAME");
   if ((logname != nullptr) && (strlen(logname) > 0)) {
     g_user = strdup(logname);
   } else {
     g_user = "sakila";
     g_logger.info(
-      "No default user specified, will use 'sakila'. "
-      "Please set LOGNAME environment variable for other username");
+        "No default user specified, will use 'sakila'. "
+        "Please set LOGNAME environment variable for other username");
   }
 
   return true;
@@ -832,8 +817,8 @@ bool connect_hosts(atrt_config &config) {
 bool is_client_running(atrt_config &config) {
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    if ((ProcessManagement::P_CLIENTS & proc.m_type) != 0
-      && proc.m_proc.m_status == "running") {
+    if ((ProcessManagement::P_CLIENTS & proc.m_type) != 0 &&
+        proc.m_proc.m_status == "running") {
       return true;
     }
   }
@@ -916,9 +901,10 @@ TestResult run_test_case(ProcessManagement &processManagement,
     test_case_results(&test_result, testcase);
 
     bool configuration_reset = reset_config(processManagement, g_config);
-    bool restart_on_error = test_result.result != ERR_TEST_SKIPPED &&
-                      test_result.result != ERR_OK &&
-                      testcase.m_behaviour_on_failure == FailureMode::Restart;
+    bool restart_on_error =
+        test_result.result != ERR_TEST_SKIPPED &&
+        test_result.result != ERR_OK &&
+        testcase.m_behaviour_on_failure == FailureMode::Restart;
 
     bool current_testcase_requires_restart =
         testcase.m_force_cluster_restart == RestartMode::After ||
@@ -956,12 +942,12 @@ TestResult run_test_case(ProcessManagement &processManagement,
 }
 
 int test_case_init(ProcessManagement &processManagement,
-                         const atrt_testcase &testcase) {
+                   const atrt_testcase &testcase) {
   g_logger.debug("Starting test case initialization");
 
   if (!processManagement.startAllProcesses()) {
-      g_logger.critical("Cluster could not be started");
-      return ERR_CRITICAL;
+    g_logger.critical("Cluster could not be started");
+    return ERR_CRITICAL;
   }
 
   g_logger.info("All servers are running and ready");
@@ -1144,11 +1130,10 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
 
     if (tmp.length() == 0) {
       if (elements == 0) {
-        continue;   // Blank line before test case definition
+        continue;  // Blank line before test case definition
       }
-      break;        // End of test case definition
+      break;  // End of test case definition
     }
-
 
     if (insert(tmp.c_str(), p) != 0) {
       // Element line had no : or =
@@ -1234,7 +1219,7 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   }
 
   tc.m_force_cluster_restart = g_default_force_cluster_restart;
-    if (p.get("force-cluster-restart", &str)) {
+  if (p.get("force-cluster-restart", &str)) {
     std::map<std::string, RestartMode> restart_mode_values = {
         {"after", RestartMode::After},
         {"before", RestartMode::Before},
@@ -1477,7 +1462,7 @@ bool gather_coverage_results(atrt_config &config,
   g_logger.debug("system(%s)", analyze_coverage_cmd.c_str());
   const int r2 = sh(analyze_coverage_cmd.c_str());
 
-  if (r2 != 0 ) {
+  if (r2 != 0) {
     g_logger.critical("Failed to analyse coverage files!");
     return false;
   }
@@ -1664,7 +1649,7 @@ BaseString get_atrt_path(const char *arg) {
   return path;
 }
 
-template class Vector<Vector<SimpleCpcClient::Process> >;
+template class Vector<Vector<SimpleCpcClient::Process>>;
 template class Vector<atrt_host *>;
 template class Vector<atrt_cluster *>;
 template class Vector<atrt_process *>;

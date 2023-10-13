@@ -27,41 +27,43 @@
 
 #define JAM_FILE_ID 68
 
-
 // see comments in Dbdict.hpp
 
 class DictTakeoverReq {
   friend class Dbdict;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 1;
   static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_REQ;
-private:
+
+ private:
   Uint32 senderRef;
 };
 
 class DictTakeoverConf {
   friend class Dbdict;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 10;
   static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_CONF;
-private:
+
+ private:
   Uint32 senderRef;
   Uint32 clientRef;
   Uint32 trans_key;
   Uint32 trans_state;
   Uint32 op_count;
-  union
-  {
-    Uint32 rollforward_op; // Preferred starting point for rollforward
-    Uint32 lowest_op;      // Next operation to be ended (removed)
+  union {
+    Uint32 rollforward_op;  // Preferred starting point for rollforward
+    Uint32 lowest_op;       // Next operation to be ended (removed)
   };
   union {
     Uint32 rollforward_op_state;
     Uint32 lowest_op_state;
   };
   union {
-    Uint32 rollback_op; // Preferred starting point for rollback
-    Uint32 highest_op;  // Last parsed operation
+    Uint32 rollback_op;  // Preferred starting point for rollback
+    Uint32 highest_op;   // Last parsed operation
   };
   union {
     Uint32 rollback_op_state;
@@ -79,17 +81,12 @@ struct DictTakeoverRef {
   static constexpr Uint32 GSN = GSN_DICT_TAKEOVER_REF;
 
   Uint32 senderRef;
-  union { Uint32 masterRef, senderData; };
-  Uint32 errorCode;
-  enum ErrorCode 
-  {
-    NoError = 0,
-    NoTransaction = 1,
-    NF_FakeErrorREF = 2
+  union {
+    Uint32 masterRef, senderData;
   };
+  Uint32 errorCode;
+  enum ErrorCode { NoError = 0, NoTransaction = 1, NF_FakeErrorREF = 2 };
 };
-
-
 
 #undef JAM_FILE_ID
 

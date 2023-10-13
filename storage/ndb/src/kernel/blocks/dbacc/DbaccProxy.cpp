@@ -25,19 +25,11 @@
 
 #define JAM_FILE_ID 341
 
+DbaccProxy::DbaccProxy(Block_context &ctx) : LocalProxy(DBACC, ctx) {}
 
-DbaccProxy::DbaccProxy(Block_context& ctx) :
-  LocalProxy(DBACC, ctx)
-{
-}
+DbaccProxy::~DbaccProxy() {}
 
-DbaccProxy::~DbaccProxy()
-{
-}
-
-SimulatedBlock*
-DbaccProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbaccProxy::newWorker(Uint32 instanceNo) {
   return new Dbacc(m_ctx, instanceNo);
 }
 

@@ -22,19 +22,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef CLUSTER_CONNECTION_HPP
 #define CLUSTER_CONNECTION_HPP
 #include <ndb_types.h>
 
-class Ndb_cluster_connection_node_iter
-{
+class Ndb_cluster_connection_node_iter {
   friend class Ndb_cluster_connection_impl;
-public:
-  Ndb_cluster_connection_node_iter() : scan_state(~0),
-				       init_pos(0),
-				       cur_pos(0) {}
-private:
+
+ public:
+  Ndb_cluster_connection_node_iter()
+      : scan_state(~0), init_pos(0), cur_pos(0) {}
+
+ private:
   unsigned char scan_state;
   unsigned char init_pos;
   unsigned char cur_pos;
@@ -55,14 +54,14 @@ class NdbWaitGroup;
  * for the connection to reach one or more storage nodes.
  */
 class Ndb_cluster_connection {
-public:
+ public:
   /**
    * Create a connection to a cluster of storage nodes
    *
    * @param connectstring The connectstring for where to find the
    *                      management server
    */
-  Ndb_cluster_connection(const char * connectstring = 0);
+  Ndb_cluster_connection(const char *connectstring = 0);
 
   /**
    * Create a connection to a cluster of storage nodes
@@ -73,12 +72,12 @@ public:
    *                       override any nodeid=<nodeid> specified in
    *                       connectstring
    */
-  Ndb_cluster_connection(const char * connectstring, int force_api_nodeid);
+  Ndb_cluster_connection(const char *connectstring, int force_api_nodeid);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  Ndb_cluster_connection(const char * connectstring,
+  Ndb_cluster_connection(const char *connectstring,
                          Ndb_cluster_connection *main_connection);
-  Ndb_cluster_connection(const char * connectstring,
+  Ndb_cluster_connection(const char *connectstring,
                          Ndb_cluster_connection *main_connection,
                          int force_api_nodeid);
 #endif
@@ -139,8 +138,8 @@ public:
    *
    * @return 0 on success, 1 on syntax error in scheme or path component
    */
-  int set_service_uri(const char * scheme, const char * host, int port,
-                      const char * path);
+  int set_service_uri(const char *scheme, const char *host, int port,
+                      const char *path);
 
   /**
    * Set timeout
@@ -164,27 +163,30 @@ public:
    * Connect to a cluster management server
    *
    * @param no_retries specifies the number of retries to attempt
-   *        in the event of connection failure; a negative value 
-   *        will result in the attempt to connect being repeated 
+   *        in the event of connection failure; a negative value
+   *        will result in the attempt to connect being repeated
    *        indefinitely
    *
    * @param retry_delay_in_seconds specifies how often retries should
    *        be performed
    *
-   * @param verbose specifies if the method should print a report of its progress
+   * @param verbose specifies if the method should print a report of its
+   * progress
    *
-   * @return 0 = success, 
+   * @return 0 = success,
    *         1 = recoverable error,
    *        -1 = non-recoverable error
    */
-  int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
+  int connect(int no_retries = 30, int retry_delay_in_seconds = 1,
+              int verbose = 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  int start_connect_thread(int (*connect_callback)(void)= 0);
+  int start_connect_thread(int (*connect_callback)(void) = 0);
 #endif
 
   /**
-   * Wait until the requested connection with one or more storage nodes is successful
+   * Wait until the requested connection with one or more storage nodes is
+   * successful
    *
    * @param timeout_for_first_alive   Number of seconds to wait until
    *                                  first live node is detected
@@ -196,7 +198,7 @@ public:
    *         < 0 error
    */
   int wait_until_ready(int timeout_for_first_alive,
-		       int timeout_after_first_alive);
+                       int timeout_after_first_alive);
 
   /**
    * Lock creation of ndb-objects
@@ -216,8 +218,8 @@ public:
    * @note lock_ndb_objects should be used before using this function
    *       and unlock_ndb_objects should be used after
    */
-  const Ndb* get_next_ndb_object(const Ndb* p);
-  
+  const Ndb *get_next_ndb_object(const Ndb *p);
+
   int get_latest_error() const;
   const char *get_latest_error_msg() const;
 
@@ -231,7 +233,7 @@ public:
   /**
    *  Get system.name from cluster configuration
    */
-  const char * get_system_name() const;
+  const char *get_system_name() const;
 
   /**
    * Collect client statistics for all Ndb objects in this connection
@@ -244,15 +246,15 @@ public:
    * @param sz         Size of array
    * @return Number of stats array values written
    */
-  Uint32 collect_client_stats(Uint64* statsArr, Uint32 sz);
+  Uint32 collect_client_stats(Uint64 *statsArr, Uint32 sz);
 
- /**
-  * Get/set the minimum time in milliseconds that can lapse until the adaptive 
-  * send mechanism forces all pending signals to be sent. 
-  * The default value is 10, and the allowed range is from 1 to 10.
-  */
- void set_max_adaptive_send_time(Uint32 milliseconds);
- Uint32 get_max_adaptive_send_time();
+  /**
+   * Get/set the minimum time in milliseconds that can lapse until the adaptive
+   * send mechanism forces all pending signals to be sent.
+   * The default value is 10, and the allowed range is from 1 to 10.
+   */
+  void set_max_adaptive_send_time(Uint32 milliseconds);
+  Uint32 get_max_adaptive_send_time();
 
   /**
    * Configuration handling of the receiver thread(s).
@@ -272,7 +274,7 @@ public:
    *
    * By default we have one receiver thread, this thread is not locked to
    * any specific CPU and the level is 8.
-   * 
+   *
    * The number of receive threads can only be set at a time before the
    * connect call is made to connect to the other nodes in the cluster.
    * The other methods can be called at any time.
@@ -284,13 +286,11 @@ public:
   int set_num_recv_threads(Uint32 num_recv_threads);
   int get_num_recv_threads() const;
   int unset_recv_thread_cpu(Uint32 recv_thread_id);
-  int set_recv_thread_cpu(Uint16 cpuid)
-  {
+  int set_recv_thread_cpu(Uint16 cpuid) {
     Uint16 cpuid2 = cpuid;
     return set_recv_thread_cpu(&cpuid2, 1U);
   }
-  int set_recv_thread_cpu(Uint16 *cpuid_array,
-                          Uint32 array_len,
+  int set_recv_thread_cpu(Uint16 *cpuid_array, Uint32 array_len,
                           Uint32 recv_thread_id = 0);
   int set_recv_thread_activation_threshold(Uint32 threshold);
   int get_recv_thread_activation_threshold() const;
@@ -320,28 +320,28 @@ public:
   unsigned get_active_ndb_objects() const;
 
   Uint64 *get_latest_trans_gci();
-  NdbWaitGroup * create_ndb_wait_group(int size);
+  NdbWaitGroup *create_ndb_wait_group(int size);
   bool release_ndb_wait_group(NdbWaitGroup *);
 
   /**
    * wait for nodes in list to get connected...
    * @return #nodes connected, or -1 on error
    */
-  int wait_until_ready(const int * nodes, int cnt, int timeout);
+  int wait_until_ready(const int *nodes, int cnt, int timeout);
 #endif
 
-private:
+ private:
   friend class Ndb;
   friend class NdbImpl;
   friend class Ndb_cluster_connection_impl;
   friend class SignalSender;
   friend class NdbWaitGroup;
   friend class NDBT_Context;
-  class Ndb_cluster_connection_impl & m_impl;
-  Ndb_cluster_connection(Ndb_cluster_connection_impl&);
+  class Ndb_cluster_connection_impl &m_impl;
+  Ndb_cluster_connection(Ndb_cluster_connection_impl &);
 
-  Ndb_cluster_connection(const Ndb_cluster_connection&); // Not impl.
-  Ndb_cluster_connection& operator=(const Ndb_cluster_connection&);
+  Ndb_cluster_connection(const Ndb_cluster_connection &);  // Not impl.
+  Ndb_cluster_connection &operator=(const Ndb_cluster_connection &);
 };
 
 #endif

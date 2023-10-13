@@ -23,7 +23,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -33,22 +32,20 @@
 /**
  * operators
  */
-NdbOut &
-operator<<(NdbOut & out, const NdbError & error){
-  if(error.message != nullptr)
+NdbOut &operator<<(NdbOut &out, const NdbError &error) {
+  if (error.message != nullptr)
     out << error.code << ": " << error.message;
   else
     out << error.code << ": ";
   return out;
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Status & status){
+NdbOut &operator<<(NdbOut &out, const NdbError::Status &status) {
   return out << ndberror_status_message((ndberror_status)status);
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Classification & classification){
-  return out << ndberror_classification_message((ndberror_classification)classification);
+NdbOut &operator<<(NdbOut &out,
+                   const NdbError::Classification &classification) {
+  return out << ndberror_classification_message(
+             (ndberror_classification)classification);
 }
-

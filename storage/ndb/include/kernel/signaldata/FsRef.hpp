@@ -30,22 +30,20 @@
 
 #define JAM_FILE_ID 194
 
-
 /**
  * FsRef - Common signal class for all REF signals sent from Ndbfs
  * GSN_FSCLOSEREF, GSN_FSOPENREF, GSN_FSWRITEREF, GSN_FSREADREF,
  * GSN_FSSYNCREF
  */
 
-
 /**
- * 
+ *
  * SENDER:  Ndbfs
- * RECIVER: 
+ * RECIVER:
  */
 struct FsRef {
-
-  friend bool printFSREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printFSREF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 receiverBlockNo);
 
   /**
    * Enum type for errorCode
@@ -53,19 +51,19 @@ struct FsRef {
   static constexpr Uint32 FS_ERR_BIT = 0x8000;
 
   enum NdbfsErrorCodeType {
-    fsErrNone=0,
-    fsErrEnvironmentError=NDBD_EXIT_AFS_ENVIRONMENT,
-    fsErrTemporaryNotAccessible=NDBD_EXIT_AFS_TEMP_NO_ACCESS,
-    fsErrNoSpaceLeftOnDevice=NDBD_EXIT_AFS_DISK_FULL,
-    fsErrPermissionDenied=NDBD_EXIT_AFS_PERMISSION_DENIED,
-    fsErrInvalidParameters=NDBD_EXIT_AFS_INVALID_PARAM,
-    fsErrUnknown=NDBD_EXIT_AFS_UNKNOWN,
-    fsErrNoMoreResources=NDBD_EXIT_AFS_NO_MORE_RESOURCES,
-    fsErrFileDoesNotExist=NDBD_EXIT_AFS_NO_SUCH_FILE,
+    fsErrNone = 0,
+    fsErrEnvironmentError = NDBD_EXIT_AFS_ENVIRONMENT,
+    fsErrTemporaryNotAccessible = NDBD_EXIT_AFS_TEMP_NO_ACCESS,
+    fsErrNoSpaceLeftOnDevice = NDBD_EXIT_AFS_DISK_FULL,
+    fsErrPermissionDenied = NDBD_EXIT_AFS_PERMISSION_DENIED,
+    fsErrInvalidParameters = NDBD_EXIT_AFS_INVALID_PARAM,
+    fsErrUnknown = NDBD_EXIT_AFS_UNKNOWN,
+    fsErrNoMoreResources = NDBD_EXIT_AFS_NO_MORE_RESOURCES,
+    fsErrFileDoesNotExist = NDBD_EXIT_AFS_NO_SUCH_FILE,
     fsErrReadUnderflow = NDBD_EXIT_AFS_READ_UNDERFLOW,
-    fsErrFileExists = FS_ERR_BIT |  12,
-    fsErrInvalidFileSize = FS_ERR_BIT |  13,
-    fsErrOutOfMemory = FS_ERR_BIT |  14,
+    fsErrFileExists = FS_ERR_BIT | 12,
+    fsErrInvalidFileSize = FS_ERR_BIT | 13,
+    fsErrOutOfMemory = FS_ERR_BIT | 14,
     fsErrSync = FS_ERR_BIT | 15,
     fsErrMax
   };
@@ -77,15 +75,14 @@ struct FsRef {
   /**
    * DATA VARIABLES
    */
-  UintR userPointer;          // DATA 0
-  UintR errorCode;            // DATA 1
-  UintR osErrorCode;          // DATA 2
+  UintR userPointer;  // DATA 0
+  UintR errorCode;    // DATA 1
+  UintR osErrorCode;  // DATA 2
   UintR senderData;
 
-  static NdbfsErrorCodeType getErrorCode(const UintR & errorcode);
-  static void setErrorCode(UintR & errorcode, NdbfsErrorCodeType errorcodetype);
-  static void setErrorCode(UintR & errorcode, UintR errorcodetype);
-
+  static NdbfsErrorCodeType getErrorCode(const UintR &errorcode);
+  static void setErrorCode(UintR &errorcode, NdbfsErrorCodeType errorcodetype);
+  static void setErrorCode(UintR &errorcode, UintR errorcodetype);
 };
 
 DECLARE_SIGNAL_SCOPE(GSN_FSOPENREF, Local);
@@ -96,26 +93,20 @@ DECLARE_SIGNAL_SCOPE(GSN_FSSYNCREF, Local);
 DECLARE_SIGNAL_SCOPE(GSN_FSREMOVEREF, Local);
 DECLARE_SIGNAL_SCOPE(GSN_FSAPPENDREF, Local);
 
-inline
-FsRef::NdbfsErrorCodeType 
-FsRef::getErrorCode(const UintR & errorcode){
+inline FsRef::NdbfsErrorCodeType FsRef::getErrorCode(const UintR &errorcode) {
   return (NdbfsErrorCodeType)errorcode;
 }
 
-inline
-void
-FsRef::setErrorCode(UintR & errorcode, NdbfsErrorCodeType errorcodetype){
+inline void FsRef::setErrorCode(UintR &errorcode,
+                                NdbfsErrorCodeType errorcodetype) {
   ASSERT_MAX(errorcodetype, fsErrMax, "FsRef::setErrorCode");
   errorcode = (UintR)errorcodetype;
 }
 
-inline
-void
-FsRef::setErrorCode(UintR & errorcode, UintR errorcodetype){
+inline void FsRef::setErrorCode(UintR &errorcode, UintR errorcodetype) {
   ASSERT_MAX(errorcodetype, fsErrMax, "FsRef::setErrorCode");
   errorcode = errorcodetype;
 }
-
 
 #undef JAM_FILE_ID
 

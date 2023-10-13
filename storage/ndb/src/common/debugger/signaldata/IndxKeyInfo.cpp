@@ -25,17 +25,13 @@
 
 #include <signaldata/IndxKeyInfo.hpp>
 
-bool printINDXKEYINFO(FILE* output,
-                      const Uint32* theData,
-                      Uint32 len,
-                      Uint16 /*receiverBlockNo*/)
-{
+bool printINDXKEYINFO(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*receiverBlockNo*/) {
   //  const IndxKeyInfo * const sig = (const IndxKeyInfo *) theData;
 
   Uint32 i = 0;
-  while (i < len)
-    fprintf(output, " H\'%.8x", theData[i++]);
-  fprintf(output,"\n");
+  while (i < len) fprintf(output, " H\'%.8x", theData[i++]);
+  fprintf(output, "\n");
 
   return true;
 }

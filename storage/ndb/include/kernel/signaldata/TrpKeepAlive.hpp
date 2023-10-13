@@ -40,11 +40,12 @@ class TrpKeepAlive {
   /**
    * For printing
    */
-  friend bool printTRP_KEEP_ALIVE(FILE*, const Uint32*, Uint32, Uint16);
-public:
-  static constexpr Uint32 SignalLength = 2;
-private:
+  friend bool printTRP_KEEP_ALIVE(FILE *, const Uint32 *, Uint32, Uint16);
 
+ public:
+  static constexpr Uint32 SignalLength = 2;
+
+ private:
   Uint32 senderRef;
   Uint32 keepalive_seqnum;
 };

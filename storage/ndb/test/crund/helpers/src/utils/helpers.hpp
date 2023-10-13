@@ -30,10 +30,10 @@
 
 //#include <cstdio>
 #include <cstdlib>
-#include <iostream>
 #include <cstring>
+#include <iostream>
 
-//using namespace std;
+// using namespace std;
 using std::cout;
 using std::endl;
 using std::flush;
@@ -44,50 +44,49 @@ using std::flush;
 
 // JNI crashes with gcc & operator<<(ostream &, long/int)
 // so, we use C99's __func__ and also convert to string using sprintf()
-#define ABORT_ERROR(message)                                            \
-    do {                                                                \
-        char l[1024];                                                   \
-        sprintf(l, "%d", __LINE__);                                     \
-        cout << "!!! error, file: " << (__FILE__)                       \
-             << ", function: " << (__func__)                            \
-             << ", line: " << l                                         \
-             << ", msg: " << message << "." << endl;                    \
-        exit(-1);                                                       \
-    } while (0)
+#define ABORT_ERROR(message)                                                  \
+  do {                                                                        \
+    char l[1024];                                                             \
+    sprintf(l, "%d", __LINE__);                                               \
+    cout << "!!! error, file: " << (__FILE__) << ", function: " << (__func__) \
+         << ", line: " << l << ", msg: " << message << "." << endl;           \
+    exit(-1);                                                                 \
+  } while (0)
 
 // an output stream for debug messages
 #if DEBUG
-#define CDBG if (0); else cout
+#define CDBG \
+  if (0)     \
+    ;        \
+  else       \
+    cout
 #else
-#define CDBG if (1); else cout
+#define CDBG \
+  if (1)     \
+    ;        \
+  else       \
+    cout
 #endif
 
 // some macros for tracing
-#define ENTER(name)                             \
-    CDBG << "--> " << name << endl;
+#define ENTER(name) CDBG << "--> " << name << endl;
 
-#define LEAVE(name)                             \
-    CDBG << "<-- " << name << endl;
+#define LEAVE(name) CDBG << "<-- " << name << endl;
 
-#define TRACE(name)                             \
-    Tracer _tracer_(name);
+#define TRACE(name) Tracer _tracer_(name);
 
 // use as:
 // myfunction() {
 //   TRACE("myfunction()");
 //   ...
 // }
-class Tracer
-{
-    const char* const name;
-public:
-    Tracer(const char* name) : name(name) {
-        ENTER(name);
-    }
+class Tracer {
+  const char *const name;
 
-    ~Tracer() {
-        LEAVE(name);
-    }
+ public:
+  Tracer(const char *name) : name(name) { ENTER(name); }
+
+  ~Tracer() { LEAVE(name); }
 };
 
-#endif // helpers_hpp
+#endif  // helpers_hpp

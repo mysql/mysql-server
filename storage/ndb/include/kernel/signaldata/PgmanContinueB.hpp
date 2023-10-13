@@ -29,13 +29,13 @@
 
 #define JAM_FILE_ID 179
 
-
 class PgmanContinueB {
   /**
    * Sender(s)/Reciver(s)
    */
   friend class Pgman;
-private:
+
+ private:
   enum {
     STATS_LOOP = 0,
     BUSY_LOOP = 1,
@@ -45,7 +45,6 @@ private:
     TRACK_LCP_SPEED_LOOP = 5
   };
 };
-
 
 #undef JAM_FILE_ID
 

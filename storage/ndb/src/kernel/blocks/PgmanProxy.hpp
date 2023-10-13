@@ -31,15 +31,14 @@
 
 #define JAM_FILE_ID 434
 
-
 class PgmanProxy : public LocalProxy {
-public:
-  PgmanProxy(Block_context& ctx);
+ public:
+  PgmanProxy(Block_context &ctx);
   ~PgmanProxy() override;
   BLOCK_DEFINES(PgmanProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 
   // GSN_END_LCPREQ
   struct Ss_END_LCPREQ : SsParallel {
@@ -47,7 +46,7 @@ protected:
      * Sent once from LQH proxy (at LCP) and LGMAN (at SR).
      * Each pgman instance runs LCP before we send a CONF.
      */
-    static const char* name() { return "END_LCPREQ"; }
+    static const char *name() { return "END_LCPREQ"; }
     EndLcpReq m_req;
     bool m_extraLast;
     Ss_END_LCPREQ() {
@@ -57,59 +56,52 @@ protected:
       m_extraLast = false;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_END_LCPREQ>& pool(LocalProxy* proxy) {
-      return ((PgmanProxy*)proxy)->c_ss_END_LCPREQ;
+    static SsPool<Ss_END_LCPREQ> &pool(LocalProxy *proxy) {
+      return ((PgmanProxy *)proxy)->c_ss_END_LCPREQ;
     }
   };
   SsPool<Ss_END_LCPREQ> c_ss_END_LCPREQ;
-  static Uint32 getSsId(const EndLcpReq* req) {
+  static Uint32 getSsId(const EndLcpReq *req) {
     return SsIdBase | (req->backupId & 0xFFFF);
   }
-  static Uint32 getSsId(const EndLcpConf* conf) {
+  static Uint32 getSsId(const EndLcpConf *conf) { return conf->senderData; }
+  static Uint32 getSsId(const ReleasePagesConf *conf) {
     return conf->senderData;
   }
-  static Uint32 getSsId(const ReleasePagesConf* conf) {
-    return conf->senderData;
-  }
-  void execSYNC_EXTENT_PAGES_REQ(Signal*);
-  void execEND_LCPREQ(Signal*);
-  void sendEND_LCPREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execEND_LCPCONF(Signal*);
-  void sendEND_LCPCONF(Signal*, Uint32 ssId);
-  void execRELEASE_PAGES_CONF(Signal*);
+  void execSYNC_EXTENT_PAGES_REQ(Signal *);
+  void execEND_LCPREQ(Signal *);
+  void sendEND_LCPREQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execEND_LCPCONF(Signal *);
+  void sendEND_LCPCONF(Signal *, Uint32 ssId);
+  void execRELEASE_PAGES_CONF(Signal *);
 
   // client methods
   friend class Page_cache_client;
 
-  int get_page(Page_cache_client& caller,
-               Signal*, Page_cache_client::Request& req, Uint32 flags);
+  int get_page(Page_cache_client &caller, Signal *,
+               Page_cache_client::Request &req, Uint32 flags);
 
-  void get_extent_page(Page_cache_client& caller,
-                       Signal*,
-                       Page_cache_client::Request& req,
-                       Uint32 flags);
+  void get_extent_page(Page_cache_client &caller, Signal *,
+                       Page_cache_client::Request &req, Uint32 flags);
 
-  void set_lsn(Page_cache_client& caller, Local_key key, Uint64 lsn);
-  void update_lsn(Signal *signal,
-                  Page_cache_client& caller,
-                  Local_key key, Uint64 lsn);
+  void set_lsn(Page_cache_client &caller, Local_key key, Uint64 lsn);
+  void update_lsn(Signal *signal, Page_cache_client &caller, Local_key key,
+                  Uint64 lsn);
 
-  int drop_page(Page_cache_client& caller,
-                Local_key key, Uint32 page_id);
+  int drop_page(Page_cache_client &caller, Local_key key, Uint32 page_id);
 
-  Uint32 create_data_file(Signal*, Uint32 version);
+  Uint32 create_data_file(Signal *, Uint32 version);
 
-  Uint32 alloc_data_file(Signal*, Uint32 file_no, Uint32 version);
+  Uint32 alloc_data_file(Signal *, Uint32 file_no, Uint32 version);
 
-  void map_file_no(Signal*, Uint32 file_no, Uint32 fd);
+  void map_file_no(Signal *, Uint32 file_no, Uint32 fd);
 
-  void free_data_file(Signal*, Uint32 file_no, Uint32 fd);
+  void free_data_file(Signal *, Uint32 file_no, Uint32 fd);
 
-  void send_data_file_ord(Signal*, Uint32 i, Uint32 ret, Uint32 version,
+  void send_data_file_ord(Signal *, Uint32 i, Uint32 ret, Uint32 version,
                           Uint32 cmd, Uint32 file_no = RNIL, Uint32 fd = RNIL);
-  bool extent_pages_available(Uint32 pages_needed, Page_cache_client& caller);
+  bool extent_pages_available(Uint32 pages_needed, Page_cache_client &caller);
 };
-
 
 #undef JAM_FILE_ID
 

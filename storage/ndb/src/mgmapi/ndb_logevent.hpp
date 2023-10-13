@@ -29,15 +29,14 @@
 #include <ndb_logevent.h>
 
 struct Ndb_logevent_body_row {
-  enum Ndb_logevent_type type;     // type
-  const char            *token;    // token to use for text transfer
-  int                    index;                // index into theData array
-  int                    (*index_fn)(int); // conversion function on the data array[index]
-  int                    offset;   // offset into struct ndb_logevent
-  int                    size;     // offset into struct ndb_logevent
+  enum Ndb_logevent_type type;  // type
+  const char *token;            // token to use for text transfer
+  int index;                    // index into theData array
+  int (*index_fn)(int);         // conversion function on the data array[index]
+  int offset;                   // offset into struct ndb_logevent
+  int size;                     // offset into struct ndb_logevent
 };
 
-extern
-struct Ndb_logevent_body_row ndb_logevent_body[];
+extern struct Ndb_logevent_body_row ndb_logevent_body[];
 
 #endif

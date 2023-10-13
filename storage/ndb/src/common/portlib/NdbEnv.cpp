@@ -28,15 +28,12 @@
 
 #include <NdbEnv.h>
 
-const char* NdbEnv_GetEnv(const char* name, char * buf, int buflen)
-{
-  char* p = nullptr;
+const char *NdbEnv_GetEnv(const char *name, char *buf, int buflen) {
+  char *p = nullptr;
   p = getenv(name);
 
-  if (p != nullptr && buf != nullptr){
+  if (p != nullptr && buf != nullptr) {
     snprintf(buf, buflen, "%s", p);
   }
   return p;
-
 }
-

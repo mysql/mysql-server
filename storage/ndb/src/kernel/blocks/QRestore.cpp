@@ -29,12 +29,7 @@
 
 #define JAM_FILE_ID 538
 
-QRestore::QRestore(Block_context& ctx,
-                   Uint32 instanceNumber):
-  Restore(ctx, instanceNumber, QRESTORE)
-{
-}
+QRestore::QRestore(Block_context &ctx, Uint32 instanceNumber)
+    : Restore(ctx, instanceNumber, QRESTORE) {}
 
-QRestore::~QRestore()
-{
-}
+QRestore::~QRestore() {}

@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,27 +22,27 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <NdbApi.hpp>
 #include <node.h>
+#include <NdbApi.hpp>
 
 using v8::Local;
-using v8::Value;
 using v8::Object;
 using v8::String;
+using v8::Value;
 
-typedef Local<Value> EncoderReader(const NdbDictionary::Column *,
+typedef Local<Value> EncoderReader(const NdbDictionary::Column *, char *,
+                                   uint32_t);
+
+typedef Local<Value> EncoderWriter(const NdbDictionary::Column *, Local<Value>,
                                    char *, uint32_t);
 
-typedef Local<Value> EncoderWriter(const NdbDictionary::Column *,
-                                   Local<Value>, char *, uint32_t);
-
 typedef struct {
-  EncoderReader * read;
-  EncoderWriter * write;
+  EncoderReader *read;
+  EncoderWriter *write;
   unsigned int flags;
 } NdbTypeEncoder;
 
-const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *);
+const NdbTypeEncoder *getEncoderForColumn(const NdbDictionary::Column *);
 
 Local<Object> getBufferForText(const NdbDictionary::Column *, Local<String>);
 Local<String> getTextFromBuffer(const NdbDictionary::Column *, Local<Object>);

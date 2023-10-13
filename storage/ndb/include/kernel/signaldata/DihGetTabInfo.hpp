@@ -29,54 +29,47 @@
 
 #define JAM_FILE_ID 83
 
-
 /**
  * DihGetTabInfo - Get table info from DIH
  */
-struct DihGetTabInfoReq
-{
+struct DihGetTabInfoReq {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
-public:
+
+ public:
   Uint32 senderData;
   Uint32 senderRef;
-  Uint32 requestInfo; // Bitmask of DihGetTabInfoReq::RequestType
+  Uint32 requestInfo;  // Bitmask of DihGetTabInfoReq::RequestType
   Uint32 tableId;
 
-  enum RequestInfoBits
-  {
-  };
+  enum RequestInfoBits {};
 };
 
-struct DihGetTabInfoRef
-{
+struct DihGetTabInfoRef {
   static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
 
-  enum ErrorCode
-  {
+  enum ErrorCode {
     OutOfConnectionRecords = 350,
     TableBusy = 351,
     TableNotDefined = 352
   };
 };
 
-struct DihGetTabInfoConf
-{
+struct DihGetTabInfoConf {
   static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;
 };
-
 
 #undef JAM_FILE_ID
 

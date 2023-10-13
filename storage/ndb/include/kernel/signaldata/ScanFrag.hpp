@@ -30,7 +30,6 @@
 
 #define JAM_FILE_ID 134
 
-
 class ScanFragReq {
   /**
    * Sender(s)
@@ -44,26 +43,28 @@ class ScanFragReq {
    */
   friend class Dblqh;
   friend class Dbspj;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 12;
 
-  static constexpr Uint32 AttrInfoSectionNum = 0; //Mandatory part
-  static constexpr Uint32 KeyInfoSectionNum = 1;  //Optional
-  
-  friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
-  friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
-  
-public:
-  enum ReorgFlag
-  {
-    REORG_ALL = 0
-    ,REORG_NOT_MOVED = 1  // Only return not moved rows
-    ,REORG_MOVED = 2      // Only return moved rows
-    ,REORG_MOVED_COPY = 3 // Used in LQHKEYREQ - REORG_MOVED from copy scan 
+  static constexpr Uint32 AttrInfoSectionNum = 0;  // Mandatory part
+  static constexpr Uint32 KeyInfoSectionNum = 1;   // Optional
+
+  friend bool printSCAN_FRAGREQ(FILE *, const Uint32 *, Uint32, Uint16);
+  friend bool printSCAN_FRAGCONF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
+  enum ReorgFlag {
+    REORG_ALL = 0,
+    REORG_NOT_MOVED = 1  // Only return not moved rows
+    ,
+    REORG_MOVED = 2  // Only return moved rows
+    ,
+    REORG_MOVED_COPY = 3  // Used in LQHKEYREQ - REORG_MOVED from copy scan
   };
 
   Uint32 senderData;
-  Uint32 resultRef;       // Where to send the result
+  Uint32 resultRef;  // Where to send the result
   Uint32 savePointId;
   Uint32 requestInfo;
   Uint32 tableId;
@@ -78,20 +79,20 @@ public:
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
   Uint32 variableData[1];
-  
-  static Uint32 getLockMode(const Uint32 & requestInfo);
-  static Uint32 getHoldLockFlag(const Uint32 & requestInfo);
-  static Uint32 getKeyinfoFlag(const Uint32 & requestInfo);
-  static Uint32 getReadCommittedFlag(const Uint32 & requestInfo);
-  static Uint32 getRangeScanFlag(const Uint32 & requestInfo);
-  static Uint32 getDescendingFlag(const Uint32 & requestInfo);
-  static Uint32 getTupScanFlag(const Uint32 & requestInfo);
-  static Uint32 getAttrLen(const Uint32 & requestInfo);
-  static Uint32 getScanPrio(const Uint32 & requestInfo);
-  static Uint32 getNoDiskFlag(const Uint32 & requestInfo);
-  static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
-  static Uint32 getStatScanFlag(const Uint32 & requestInfo);
-  static Uint32 getPrioAFlag(const Uint32 & requestInfo);
+
+  static Uint32 getLockMode(const Uint32 &requestInfo);
+  static Uint32 getHoldLockFlag(const Uint32 &requestInfo);
+  static Uint32 getKeyinfoFlag(const Uint32 &requestInfo);
+  static Uint32 getReadCommittedFlag(const Uint32 &requestInfo);
+  static Uint32 getRangeScanFlag(const Uint32 &requestInfo);
+  static Uint32 getDescendingFlag(const Uint32 &requestInfo);
+  static Uint32 getTupScanFlag(const Uint32 &requestInfo);
+  static Uint32 getAttrLen(const Uint32 &requestInfo);
+  static Uint32 getScanPrio(const Uint32 &requestInfo);
+  static Uint32 getNoDiskFlag(const Uint32 &requestInfo);
+  static Uint32 getLcpScanFlag(const Uint32 &requestInfo);
+  static Uint32 getStatScanFlag(const Uint32 &requestInfo);
+  static Uint32 getPrioAFlag(const Uint32 &requestInfo);
   /**
    * To ensure backwards compatibility we set the flag when NOT using
    * interpreted mode, previously scans always used interpreted mode. Now
@@ -100,40 +101,40 @@ public:
    * interact nicely with old code that always set this flag to 0 and want
    * to use interpreted execution based on that.
    */
-  static Uint32 getNotInterpretedFlag(const Uint32 & requestInfo);
+  static Uint32 getNotInterpretedFlag(const Uint32 &requestInfo);
 
-  static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
-  static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
-  static void setKeyinfoFlag(Uint32 & requestInfo, Uint32 keyinfo);
-  static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
-  static void setRangeScanFlag(Uint32 & requestInfo, Uint32 rangeScan);
-  static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
-  static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
-  static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
-  static void clearAttrLen(Uint32 & requestInfo);
-  static void setScanPrio(Uint32& requestInfo, Uint32 prio);
-  static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
-  static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
-  static void setStatScanFlag(Uint32 & requestInfo, Uint32 val);
-  static void setPrioAFlag(Uint32 & requestInfo, Uint32 val);
-  static void setNotInterpretedFlag(Uint32 & requestInfo, Uint32 val);
+  static void setLockMode(Uint32 &requestInfo, Uint32 lockMode);
+  static void setHoldLockFlag(Uint32 &requestInfo, Uint32 holdLock);
+  static void setKeyinfoFlag(Uint32 &requestInfo, Uint32 keyinfo);
+  static void setReadCommittedFlag(Uint32 &requestInfo, Uint32 readCommitted);
+  static void setRangeScanFlag(Uint32 &requestInfo, Uint32 rangeScan);
+  static void setDescendingFlag(Uint32 &requestInfo, Uint32 descending);
+  static void setTupScanFlag(Uint32 &requestInfo, Uint32 tupScan);
+  static void setAttrLen(Uint32 &requestInfo, Uint32 attrLen);
+  static void clearAttrLen(Uint32 &requestInfo);
+  static void setScanPrio(Uint32 &requestInfo, Uint32 prio);
+  static void setNoDiskFlag(Uint32 &requestInfo, Uint32 val);
+  static void setLcpScanFlag(Uint32 &requestInfo, Uint32 val);
+  static void setStatScanFlag(Uint32 &requestInfo, Uint32 val);
+  static void setPrioAFlag(Uint32 &requestInfo, Uint32 val);
+  static void setNotInterpretedFlag(Uint32 &requestInfo, Uint32 val);
 
-  static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
-  static Uint32 getReorgFlag(const Uint32 & requestInfo);
+  static void setReorgFlag(Uint32 &requestInfo, Uint32 val);
+  static Uint32 getReorgFlag(const Uint32 &requestInfo);
 
-  static void setCorrFactorFlag(Uint32 & requestInfo, Uint32 val);
-  static Uint32 getCorrFactorFlag(const Uint32 & requestInfo);
+  static void setCorrFactorFlag(Uint32 &requestInfo, Uint32 val);
+  static Uint32 getCorrFactorFlag(const Uint32 &requestInfo);
 
   // Multiple fragment list is sent as last section if MultiFragFlag
   // is set. Encoded as a list of fragId's, where first fragId
   // is the same as 'fragmentNoKeyLen'.
-  static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
-  static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
+  static void setMultiFragFlag(Uint32 &requestInfo, Uint32 val);
+  static Uint32 getMultiFragFlag(const Uint32 &requestInfo);
 
-  static void setFirstMatchFlag(Uint32 & requestInfo, Uint32 val);
+  static void setFirstMatchFlag(Uint32 &requestInfo, Uint32 val);
   static Uint32 getFirstMatchFlag(const Uint32 requestInfo);
 
-  static void setQueryThreadFlag(Uint32 & requestInfo, Uint32 val);
+  static void setQueryThreadFlag(Uint32 &requestInfo, Uint32 val);
   static Uint32 getQueryThreadFlag(const Uint32 requestInfo);
 };
 
@@ -161,16 +162,16 @@ class KeyInfo20 {
   friend class Backup;
   friend class NdbOperation;
   friend class NdbScanReceiver;
-public:
+
+ public:
   static constexpr Uint32 HeaderLength = 5;
   static constexpr Uint32 DataLength = 20;
 
-  
   static Uint32 setScanInfo(Uint32 noOfOps, Uint32 scanNo);
   static Uint32 getScanNo(Uint32 scanInfo);
   static Uint32 getScanOp(Uint32 scanInfo);
-  
-public:
+
+ public:
   Uint32 clientOpPtr;
   Uint32 keyLen;
   /*
@@ -204,12 +205,13 @@ class ScanFragConf {
   friend class Dbtc;
   friend class Backup;
   friend class Suma;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 6;
   static constexpr Uint32 SignalLength_ext = 7;
   static constexpr Uint32 SignalLength_query = 8;
-  
-public:
+
+ public:
   Uint32 senderData;
   Uint32 completedOps;
   Uint32 fragmentCompleted;
@@ -243,10 +245,12 @@ class ScanFragRef {
   friend class Dbtc;
   friend class Backup;
   friend class Suma;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 4;
   static constexpr Uint32 SignalLength_query = 5;
-public:
+
+ public:
   enum ErrorCode {
     ZNO_FREE_TC_CONREC_ERROR = 484,
     ZTOO_FEW_CONCURRENT_OPERATIONS = 485,
@@ -261,7 +265,7 @@ public:
     NO_TC_CONNECT_ERROR = 1217,
     ZSCAN_BOOK_ACC_OP_ERROR = 1219
   };
-  
+
   Uint32 senderData;
   Uint32 transId1;
   Uint32 transId2;
@@ -281,18 +285,19 @@ class ScanFragNextReq {
   friend class Dbtc;
   friend class Backup;
   friend class Suma;
-  
+
   /**
    * Reciver(s)
    */
   friend class Dblqh;
 
-  friend bool printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, 
-				   Uint32 len, Uint16 receiverBlockNo);
-public:
+  friend bool printSCANFRAGNEXTREQ(FILE *output, const Uint32 *theData,
+                                   Uint32 len, Uint16 receiverBlockNo);
+
+ public:
   static constexpr Uint32 SignalLength = 6;
 
-public:
+ public:
   Uint32 senderData;
   Uint32 requestInfo;
   Uint32 transId1;
@@ -301,14 +306,14 @@ public:
   Uint32 batch_size_bytes;
   Uint32 variableData[1];
 
-  static Uint32 getCloseFlag(const Uint32&);
-  static void setCloseFlag(Uint32&, Uint32);
+  static Uint32 getCloseFlag(const Uint32 &);
+  static void setCloseFlag(Uint32 &, Uint32);
 
-  static Uint32 getPrioAFlag(const Uint32&);
-  static void setPrioAFlag(Uint32&, Uint32);
+  static Uint32 getPrioAFlag(const Uint32 &);
+  static void setPrioAFlag(Uint32 &, Uint32);
 
-  static Uint32 getCorrFactorFlag(const Uint32&);
-  static void setCorrFactorFlag(Uint32&);
+  static Uint32 getCorrFactorFlag(const Uint32 &);
+  static void setCorrFactorFlag(Uint32 &);
 };
 
 /**
@@ -339,311 +344,222 @@ public:
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
  *  rrcdlxhkrztppppCsaim              Long variant (6.4.0 +)
  */
-#define SF_LOCK_MODE_SHIFT   (5)
-#define SF_LOCK_MODE_MASK    (1)
+#define SF_LOCK_MODE_SHIFT (5)
+#define SF_LOCK_MODE_MASK (1)
 
-#define SF_NO_DISK_SHIFT     (4)
-#define SF_HOLD_LOCK_SHIFT   (7)
-#define SF_KEYINFO_SHIFT     (8)
-#define SF_READ_COMMITTED_SHIFT  (9)
+#define SF_NO_DISK_SHIFT (4)
+#define SF_HOLD_LOCK_SHIFT (7)
+#define SF_KEYINFO_SHIFT (8)
+#define SF_READ_COMMITTED_SHIFT (9)
 #define SF_RANGE_SCAN_SHIFT (6)
 #define SF_DESCENDING_SHIFT (10)
-#define SF_TUP_SCAN_SHIFT   (11)
-#define SF_LCP_SCAN_SHIFT   (3)
+#define SF_TUP_SCAN_SHIFT (11)
+#define SF_LCP_SCAN_SHIFT (3)
 
-#define SF_ATTR_LEN_SHIFT    (16)
-#define SF_ATTR_LEN_MASK     (65535)
+#define SF_ATTR_LEN_SHIFT (16)
+#define SF_ATTR_LEN_MASK (65535)
 
 #define SF_PRIO_SHIFT 12
 #define SF_PRIO_MASK 15
 
-#define SF_REORG_SHIFT      (1)
-#define SF_REORG_MASK       (3)
+#define SF_REORG_SHIFT (1)
+#define SF_REORG_MASK (3)
 
-#define SF_CORR_FACTOR_SHIFT  (16)
+#define SF_CORR_FACTOR_SHIFT (16)
 
-#define SF_STAT_SCAN_SHIFT  (17)
-#define SF_PRIO_A_SHIFT     (18)
+#define SF_STAT_SCAN_SHIFT (17)
+#define SF_PRIO_A_SHIFT (18)
 #define SF_NOT_INTERPRETED_SHIFT (19)
-#define SF_MULTI_FRAG_SHIFT  (20)
+#define SF_MULTI_FRAG_SHIFT (20)
 #define SF_FIRST_MATCH_SHIFT (21)
-#define SF_QUERY_THREAD_SHIFT  (22)
+#define SF_QUERY_THREAD_SHIFT (22)
 
-inline 
-Uint32
-ScanFragReq::getLockMode(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getLockMode(const Uint32 &requestInfo) {
   return (requestInfo >> SF_LOCK_MODE_SHIFT) & SF_LOCK_MODE_MASK;
 }
 
-inline
-Uint32
-ScanFragReq::getHoldLockFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getHoldLockFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_HOLD_LOCK_SHIFT) & 1;
 }
 
-inline
-Uint32
-ScanFragReq::getKeyinfoFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getKeyinfoFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_KEYINFO_SHIFT) & 1;
 }
 
-inline
-Uint32
-ScanFragReq::getRangeScanFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getRangeScanFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_RANGE_SCAN_SHIFT) & 1;
 }
 
-inline
-Uint32
-ScanFragReq::getDescendingFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getDescendingFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_DESCENDING_SHIFT) & 1;
 }
 
-inline
-Uint32
-ScanFragReq::getTupScanFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getTupScanFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_TUP_SCAN_SHIFT) & 1;
 }
 
-inline
-Uint32
-ScanFragReq::getReadCommittedFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getReadCommittedFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_READ_COMMITTED_SHIFT) & 1;
 }
 
-inline 
-Uint32
-ScanFragReq::getAttrLen(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getAttrLen(const Uint32 &requestInfo) {
   return (requestInfo >> SF_ATTR_LEN_SHIFT) & SF_ATTR_LEN_MASK;
 }
 
-inline
-Uint32
-ScanFragReq::getScanPrio(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getScanPrio(const Uint32 &requestInfo) {
   return (requestInfo >> SF_PRIO_SHIFT) & SF_PRIO_MASK;
 }
 
-inline
-void
-ScanFragReq::setScanPrio(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setScanPrio(UintR &requestInfo, UintR val) {
   ASSERT_MAX(val, SF_PRIO_MASK, "ScanFragReq::setScanPrio");
   requestInfo |= (val << SF_PRIO_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setLockMode(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setLockMode(UintR &requestInfo, UintR val) {
   ASSERT_MAX(val, SF_LOCK_MODE_MASK, "ScanFragReq::setLockMode");
   requestInfo |= (val << SF_LOCK_MODE_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setHoldLockFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setHoldLockFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setHoldLockFlag");
   requestInfo |= (val << SF_HOLD_LOCK_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setKeyinfoFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setKeyinfoFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setKeyinfoFlag");
   requestInfo |= (val << SF_KEYINFO_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setReadCommittedFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setReadCommittedFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setReadCommittedFlag");
   requestInfo |= (val << SF_READ_COMMITTED_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setRangeScanFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setRangeScanFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setRangeScanFlag");
   requestInfo |= (val << SF_RANGE_SCAN_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setDescendingFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setDescendingFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setDescendingFlag");
   requestInfo |= (val << SF_DESCENDING_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setTupScanFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setTupScanFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setTupScanFlag");
   requestInfo |= (val << SF_TUP_SCAN_SHIFT);
 }
 
-inline
-void
-ScanFragReq::setAttrLen(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setAttrLen(UintR &requestInfo, UintR val) {
   ASSERT_MAX(val, SF_ATTR_LEN_MASK, "ScanFragReq::setAttrLen");
   requestInfo |= (val << SF_ATTR_LEN_SHIFT);
 }
 
-inline
-void
-ScanFragReq::clearAttrLen(Uint32 & requestInfo)
-{
+inline void ScanFragReq::clearAttrLen(Uint32 &requestInfo) {
   requestInfo &= ~((Uint32)SF_ATTR_LEN_MASK << SF_ATTR_LEN_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getNoDiskFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getNoDiskFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_NO_DISK_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setNoDiskFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setNoDiskFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setNoDiskFlag");
   requestInfo |= (val << SF_NO_DISK_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getLcpScanFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getLcpScanFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_LCP_SCAN_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setLcpScanFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setLcpScanFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setLcpScanFlag");
   requestInfo |= (val << SF_LCP_SCAN_SHIFT);
 }
 
-inline
-Uint32
-KeyInfo20::setScanInfo(Uint32 opNo, Uint32 scanNo){
+inline Uint32 KeyInfo20::setScanInfo(Uint32 opNo, Uint32 scanNo) {
   ASSERT_MAX(opNo, 1023, "KeyInfo20::setScanInfo");
   ASSERT_MAX(scanNo, 255, "KeyInfo20::setScanInfo");
   return (opNo << 8) + scanNo;
 }
 
-inline
-Uint32
-KeyInfo20::getScanNo(Uint32 scanInfo){
-  return scanInfo & 0xFF;
-}
+inline Uint32 KeyInfo20::getScanNo(Uint32 scanInfo) { return scanInfo & 0xFF; }
 
-inline
-Uint32
-KeyInfo20::getScanOp(Uint32 scanInfo){
+inline Uint32 KeyInfo20::getScanOp(Uint32 scanInfo) {
   return (scanInfo >> 8) & 0x3FF;
 }
 
-inline
-Uint32
-ScanFragReq::getReorgFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getReorgFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_REORG_SHIFT) & SF_REORG_MASK;
 }
 
-inline
-void
-ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setReorgFlag(UintR &requestInfo, UintR val) {
   ASSERT_MAX(val, SF_REORG_MASK, "ScanFragReq::setLcpScanFlag");
   requestInfo |= (val << SF_REORG_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getCorrFactorFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getCorrFactorFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_CORR_FACTOR_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setCorrFactorFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
   requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getMultiFragFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getMultiFragFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_MULTI_FRAG_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setMultiFragFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setMultiFragFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setMultiFragFlag");
-  requestInfo= (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
-               (val << SF_MULTI_FRAG_SHIFT);
+  requestInfo = (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
+                (val << SF_MULTI_FRAG_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getFirstMatchFlag(const Uint32 requestInfo){
+inline Uint32 ScanFragReq::getFirstMatchFlag(const Uint32 requestInfo) {
   return (requestInfo >> SF_FIRST_MATCH_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setFirstMatchFlag(Uint32 & requestInfo, UintR val){
+inline void ScanFragReq::setFirstMatchFlag(Uint32 &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setFirstMatchFlag");
-  requestInfo= (requestInfo & ~(1 << SF_FIRST_MATCH_SHIFT)) |
-               (val << SF_FIRST_MATCH_SHIFT);
+  requestInfo = (requestInfo & ~(1 << SF_FIRST_MATCH_SHIFT)) |
+                (val << SF_FIRST_MATCH_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getQueryThreadFlag(const Uint32 requestInfo){
+inline Uint32 ScanFragReq::getQueryThreadFlag(const Uint32 requestInfo) {
   return (requestInfo >> SF_QUERY_THREAD_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setQueryThreadFlag(Uint32 & requestInfo, UintR val){
+inline void ScanFragReq::setQueryThreadFlag(Uint32 &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setQueryThreadFlag");
-  requestInfo= (requestInfo & ~(1 << SF_QUERY_THREAD_SHIFT)) |
-               (val << SF_QUERY_THREAD_SHIFT);
+  requestInfo = (requestInfo & ~(1 << SF_QUERY_THREAD_SHIFT)) |
+                (val << SF_QUERY_THREAD_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getStatScanFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getStatScanFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_STAT_SCAN_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setStatScanFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setStatScanFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setStatScanFlag");
   requestInfo |= (val << SF_STAT_SCAN_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getPrioAFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragReq::getPrioAFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_PRIO_A_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setPrioAFlag(UintR & requestInfo, UintR val){
+inline void ScanFragReq::setPrioAFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setPrioAFlag");
   requestInfo |= (val << SF_PRIO_A_SHIFT);
 }
 
-inline
-Uint32
-ScanFragReq::getNotInterpretedFlag(const Uint32 & requestInfo)
-{
+inline Uint32 ScanFragReq::getNotInterpretedFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SF_NOT_INTERPRETED_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragReq::setNotInterpretedFlag(UintR & requestInfo, UintR val)
-{
+inline void ScanFragReq::setNotInterpretedFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setStatScanFlag");
   requestInfo |= (val << SF_NOT_INTERPRETED_SHIFT);
 }
@@ -659,45 +575,31 @@ ScanFragReq::setNotInterpretedFlag(UintR & requestInfo, UintR val)
  * cC
  */
 #define SFN_CLOSE_SHIFT 0
-#define SFN_CORR_SHIFT  1
+#define SFN_CORR_SHIFT 1
 #define SFN_PRIO_A_SHIFT 2
 
-inline
-Uint32
-ScanFragNextReq::getCorrFactorFlag(const Uint32 & ri)
-{
+inline Uint32 ScanFragNextReq::getCorrFactorFlag(const Uint32 &ri) {
   return (ri >> SFN_CORR_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragNextReq::setCorrFactorFlag(Uint32 & ri)
-{
+inline void ScanFragNextReq::setCorrFactorFlag(Uint32 &ri) {
   ri |= (1 << SFN_CORR_SHIFT);
 }
 
-inline
-Uint32
-ScanFragNextReq::getCloseFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragNextReq::getCloseFlag(const Uint32 &requestInfo) {
   return requestInfo & 1;
 }
 
-inline
-void
-ScanFragNextReq::setCloseFlag(UintR & requestInfo, UintR val){
+inline void ScanFragNextReq::setCloseFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setCloseFlag");
   requestInfo |= val;
 }
 
-inline
-Uint32
-ScanFragNextReq::getPrioAFlag(const Uint32 & requestInfo){
+inline Uint32 ScanFragNextReq::getPrioAFlag(const Uint32 &requestInfo) {
   return (requestInfo >> SFN_PRIO_A_SHIFT) & 1;
 }
 
-inline
-void
-ScanFragNextReq::setPrioAFlag(UintR & requestInfo, UintR val){
+inline void ScanFragNextReq::setPrioAFlag(UintR &requestInfo, UintR val) {
   ASSERT_BOOL(val, "ScanFragReq::setPrioAFlag");
   requestInfo |= (val << SFN_PRIO_A_SHIFT);
 }

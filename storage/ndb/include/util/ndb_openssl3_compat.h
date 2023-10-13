@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /* Enable NDB code to use OpenSSL 3 APIs unconditionally
    with any OpenSSL version starting from 1.0.2
 */
@@ -31,17 +30,16 @@
 #define NDB_PORTLIB_OPENSSL_COMPAT_H
 #include <openssl/ssl.h>
 
-
 #if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
 
-EVP_PKEY * EVP_RSA_gen(unsigned int bits);
+EVP_PKEY *EVP_RSA_gen(unsigned int bits);
 int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
-EVP_PKEY * EVP_EC_generate(const char * curve);
+EVP_PKEY *EVP_EC_generate(const char *curve);
 
 #else
 
-#define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr,nullptr,"EC",curve)
+#define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", curve)
 
-#endif  /* OPENSSL_VERSION_NUMBER */
+#endif /* OPENSSL_VERSION_NUMBER */
 
-#endif  /* NDB_PORTLIB_OPENSSL_COMPAT_H */
+#endif /* NDB_PORTLIB_OPENSSL_COMPAT_H */

@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -24,35 +24,34 @@
 
 'use strict';
 
-var jones          = require("database-jones"),
-    ndb_bin_path   = require("jones-ndb").config.binary,
-    ndb_adapter    = require(ndb_bin_path),
-    os             = require('os'),
-    udebug         = unified_debug.getLogger('jscrund_null.js');
+var jones = require("database-jones"),
+    ndb_bin_path = require("jones-ndb").config.binary,
+    ndb_adapter = require(ndb_bin_path), os = require('os'),
+    udebug = unified_debug.getLogger('jscrund_null.js');
 
 function implementation() {
   var b = new Buffer(4);
-  this.inBatchMode   = false;
-  this.batch         = null;
-  this.buffers       = null;
-  this.properties    = null;
-  this.debug_msg     = "debug message ";
-  this.bounds_helper = [ b,1,true,b,1,false,0 ]; // Index Bounds Helper Spec
+  this.inBatchMode = false;
+  this.batch = null;
+  this.buffers = null;
+  this.properties = null;
+  this.debug_msg = "debug message ";
+  this.bounds_helper =
+      [b, 1, true, b, 1, false, 0];  // Index Bounds Helper Spec
 };
 
-implementation.prototype = {
-};
+implementation.prototype = {};
 
 implementation.prototype.getConnectionProperties = function() {
   return {
-    mysql_user           : "root",  // For CREATE TABLE
-    database             : "test",
-    debug_messages       : 0,       // log_debug messages per operation
-    debug_message_length : 20,      // length of debug messages
-    ndbapi_calls         : 0,       // NDB API calls per operation
-    system_calls         : 0,       // System calls per operation
-    new_buffers          : 0,       // Allocate node Buffers per operation
-    new_buffer_size      : 32,      // Size of allocation
+    mysql_user: "root",  // For CREATE TABLE
+    database: "test",
+    debug_messages: 0,         // log_debug messages per operation
+    debug_message_length: 20,  // length of debug messages
+    ndbapi_calls: 0,           // NDB API calls per operation
+    system_calls: 0,           // System calls per operation
+    new_buffers: 0,            // Allocate node Buffers per operation
+    new_buffer_size: 32,       // Size of allocation
   };
 };
 
@@ -62,9 +61,9 @@ implementation.prototype.close = function(callback) {
 
 implementation.prototype.initialize = function(options, callback) {
   var n;
-  jones.getDBServiceProvider("ndb");   // To call ndb_init()
+  jones.getDBServiceProvider("ndb");  // To call ndb_init()
   this.properties = options.properties;
-  while(this.debug_msg.length < this.properties.debug_message_length) {
+  while (this.debug_msg.length < this.properties.debug_message_length) {
     this.debug_msg += "x";
   }
   callback(null);
@@ -74,34 +73,33 @@ implementation.prototype.execOneOperation = function(callback, value) {
   var b, n;
 
   /* Debug Messages */
-  for(n = 0 ; n < this.properties.debug_messages ; n++) {
+  for (n = 0; n < this.properties.debug_messages; n++) {
     udebug.log(this.debug_msg);
   }
 
   /* NDBAPI calls */
   /* Marshal/Unmarshal arguments and call into native code */
-  for(n = 0 ; n < this.properties.ndbapi_calls ; n++) {
+  for (n = 0; n < this.properties.ndbapi_calls; n++) {
     ndb_adapter.impl.IndexBound.create(this.bounds_helper);
   }
 
   /* System calls */
-  for(n = 0 ; n < this.properties.system_calls ; n++) {
-    os.loadavg();          // calls sysctl() or sysinfo()
+  for (n = 0; n < this.properties.system_calls; n++) {
+    os.loadavg();  // calls sysctl() or sysinfo()
   }
 
   /* Buffers */
-  for(n = 0 ; n < this.properties.new_buffers ; n++) {
+  for (n = 0; n < this.properties.new_buffers; n++) {
     b = new Buffer(this.properties.new_buffer_size);
-    if(this.inBatchMode) {
+    if (this.inBatchMode) {
       this.buffers.push(b);
     }
   }
 
   /* Run operation or add it to batch */
-  if(this.inBatchMode) {
-    this.batch.push({ 'cb': callback, 'val': value });
-  }
-  else {
+  if (this.inBatchMode) {
+    this.batch.push({'cb': callback, 'val': value});
+  } else {
     setImmediate(callback, null, value);
   }
 };
@@ -112,13 +110,12 @@ implementation.prototype.persist = function(parameters, callback) {
 
 implementation.prototype.find = function(parameters, callback) {
   var object = {
-    id :      parameters.key.id,
-    cint:     parameters.key.id,
-    clong:    parameters.key.id,
-    cfloat:   parameters.key.id,
-    cdouble:  parameters.key.id
-  }
-  this.execOneOperation(callback, object);
+    id: parameters.key.id,
+    cint: parameters.key.id,
+    clong: parameters.key.id,
+    cfloat: parameters.key.id,
+    cdouble: parameters.key.id
+  } this.execOneOperation(callback, object);
 };
 
 implementation.prototype.remove = function(parameters, callback) {
@@ -137,7 +134,7 @@ implementation.prototype.executeBatch = function(callback) {
 
   function runOperations() {
     var item;
-    while((item = batch.pop())) {
+    while ((item = batch.pop())) {
       item.cb(null, item.val);
     }
     callback(null);

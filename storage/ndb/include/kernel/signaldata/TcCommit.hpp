@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 163
 
-
 /**
  * This is signal is sent from TC to API
  * It means that the transaction was committed
@@ -39,7 +38,7 @@ class TcCommitConf {
    * Sender(s)
    */
   friend class Dbtc;
-  
+
   /**
    *  Reciver(s)
    */
@@ -49,18 +48,18 @@ class TcCommitConf {
 
   friend class TransporterFacade;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
-private:
 
+ private:
   /**
    * apiConnectPtr
    *
-   * Bit 0 (lowest) is used as indicator 
+   * Bit 0 (lowest) is used as indicator
    *                if == 1 then tc expects a commit ack
    */
   Uint32 apiConnectPtr;
-  
+
   Uint32 transId1;
   Uint32 transId2;
   Uint32 gci_hi;
@@ -72,22 +71,21 @@ class TcCommitRef {
    * Sender(s)
    */
   friend class Dbtc;
-  
+
   /**
    *  Reciver(s)
    */
   friend class NdbTransaction;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 4;
-private:
-  
+
+ private:
   Uint32 apiConnectPtr;
   Uint32 transId1;
   Uint32 transId2;
   Uint32 errorCode;
 };
-
 
 #undef JAM_FILE_ID
 

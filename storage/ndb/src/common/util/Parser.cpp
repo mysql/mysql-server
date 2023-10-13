@@ -27,7 +27,7 @@
 #include <Properties.hpp>
 #include "Parser.hpp"
 
-void ParserImpl::check_parser_rows(const DummyRow* rows) const {
+void ParserImpl::check_parser_rows(const DummyRow *rows) const {
   // Simple validation of rows definitions
   while (rows->name) {
     assert(rows->type < rows->End);
@@ -38,7 +38,7 @@ void ParserImpl::check_parser_rows(const DummyRow* rows) const {
   assert(rows->type == rows->End);
 }
 
-ParserImpl::ParserImpl(const DummyRow* rows, InputStream& in)
+ParserImpl::ParserImpl(const DummyRow *rows, InputStream &in)
     : m_rows(rows), input(in) {
 #ifndef NDEBUG
   check_parser_rows(rows);
@@ -47,7 +47,7 @@ ParserImpl::ParserImpl(const DummyRow* rows, InputStream& in)
 
 ParserImpl::~ParserImpl() {}
 
-static bool Empty(const char* str) {
+static bool Empty(const char *str) {
   if (str == nullptr) return true;
   const int len = (int)strlen(str);
   if (len == 0) return false;
@@ -56,9 +56,9 @@ static bool Empty(const char* str) {
   return true;
 }
 
-static bool Eof(const char* str) { return str == nullptr; }
+static bool Eof(const char *str) { return str == nullptr; }
 
-static void trim(char* str) {
+static void trim(char *str) {
   if (str == nullptr) return;
   int len = (int)strlen(str);
   for (len--; str[len] == '\n' || str[len] == ' ' || str[len] == '\t'; len--)
@@ -76,7 +76,7 @@ static void trim(char* str) {
   memmove(str, &str[pos], len - pos + 2);
 }
 
-static bool split(char* buf, char** name, char** value) {
+static bool split(char *buf, char **name, char **value) {
   for (*value = buf; **value; (*value)++) {
     if (**value == ':' || **value == '=') {
       break;
@@ -96,8 +96,8 @@ static bool split(char* buf, char** name, char** value) {
   return true;
 }
 
-bool ParserImpl::run(Context* ctx, const class Properties** pDst,
-                     volatile bool* stop) const {
+bool ParserImpl::run(Context *ctx, const class Properties **pDst,
+                     volatile bool *stop) const {
   input.set_mutex(ctx->m_mutex);
 
   *pDst = nullptr;
@@ -134,7 +134,7 @@ bool ParserImpl::run(Context* ctx, const class Properties** pDst,
     return false;
   }
 
-  Properties* p = new Properties();
+  Properties *p = new Properties();
 
   bool invalidArgument = false;
   ctx->m_currentToken = input.gets(ctx->m_tokenBuffer, sz);
@@ -172,7 +172,7 @@ bool ParserImpl::run(Context* ctx, const class Properties** pDst,
    * Add alias to properties
    */
   for (unsigned i = 0; i < ctx->m_aliasUsed.size(); i++) {
-    const ParserRow<Dummy>* alias = ctx->m_aliasUsed[i];
+    const ParserRow<Dummy> *alias = ctx->m_aliasUsed[i];
     Properties tmp;
     tmp.put("name", alias->name);
     tmp.put("realName", alias->realName);
@@ -185,11 +185,11 @@ bool ParserImpl::run(Context* ctx, const class Properties** pDst,
   return true;
 }
 
-const ParserImpl::DummyRow* ParserImpl::matchCommand(Context* ctx,
-                                                     const char* buf,
+const ParserImpl::DummyRow *ParserImpl::matchCommand(Context *ctx,
+                                                     const char *buf,
                                                      const DummyRow rows[]) {
-  const char* name = buf;
-  const DummyRow* tmp = &rows[0];
+  const char *name = buf;
+  const DummyRow *tmp = &rows[0];
   while (tmp->name != nullptr && name != nullptr) {
     if (strcmp(tmp->name, name) == 0) {
       if (tmp->type == DummyRow::Cmd) return tmp;
@@ -205,10 +205,10 @@ const ParserImpl::DummyRow* ParserImpl::matchCommand(Context* ctx,
   return nullptr;
 }
 
-const ParserImpl::DummyRow* ParserImpl::matchArg(Context* ctx, const char* buf,
+const ParserImpl::DummyRow *ParserImpl::matchArg(Context *ctx, const char *buf,
                                                  const DummyRow rows[]) {
-  const char* name = buf;
-  const DummyRow* tmp = &rows[0];
+  const char *name = buf;
+  const DummyRow *tmp = &rows[0];
   while (tmp->name != nullptr) {
     const DummyRow::Type t = tmp->type;
     if (t != DummyRow::Arg && t != DummyRow::ArgAlias &&
@@ -232,10 +232,10 @@ const ParserImpl::DummyRow* ParserImpl::matchArg(Context* ctx, const char* buf,
   return nullptr;
 }
 
-bool ParserImpl::parseArg(Context* ctx, char* buf, const DummyRow* rows,
-                          Properties* p) {
-  char* name;
-  char* value;
+bool ParserImpl::parseArg(Context *ctx, char *buf, const DummyRow *rows,
+                          Properties *p) {
+  char *name;
+  char *value;
   if (!split(buf, &name, &value)) {
     ctx->m_status = Parser<Dummy>::InvalidArgumentFormat;
     return false;
@@ -245,7 +245,7 @@ bool ParserImpl::parseArg(Context* ctx, char* buf, const DummyRow* rows,
     // skip passed the plus sign
     name++;
   }
-  const DummyRow* arg = matchArg(ctx, name, rows);
+  const DummyRow *arg = matchArg(ctx, name, rows);
   if (arg == nullptr) {
     ctx->m_status = Parser<Dummy>::UnknownArgument;
     return false;
@@ -297,8 +297,8 @@ bool ParserImpl::parseArg(Context* ctx, char* buf, const DummyRow* rows,
   return false;
 }
 
-bool ParserImpl::checkMandatory(Context* ctx, const Properties* props) {
-  const DummyRow* tmp = &ctx->m_currentCmd[1];
+bool ParserImpl::checkMandatory(Context *ctx, const Properties *props) {
+  const DummyRow *tmp = &ctx->m_currentCmd[1];
   while (tmp->name != nullptr && tmp->type == DummyRow::Arg) {
     if (tmp->argRequired == ParserRow<Dummy>::Mandatory &&
         !props->contains(tmp->name)) {
@@ -311,7 +311,7 @@ bool ParserImpl::checkMandatory(Context* ctx, const Properties* props) {
   return true;
 }
 
-template class Vector<const ParserRow<ParserImpl::Dummy>*>;
+template class Vector<const ParserRow<ParserImpl::Dummy> *>;
 
 #ifdef TEST_PARSER
 #include <NdbTap.hpp>

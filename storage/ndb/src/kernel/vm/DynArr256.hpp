@@ -25,35 +25,33 @@
 #ifndef DYNARR256_HPP
 #define DYNARR256_HPP
 
-#include "util/require.h"
-#include "Pool.hpp"
 #include <NdbMutex.h>
+#include "Pool.hpp"
+#include "util/require.h"
 
 #ifdef ERROR_INSERT
-#include "SimulatedBlock.hpp" // For cerrorInsert
+#include "SimulatedBlock.hpp"  // For cerrorInsert
 #endif
 
 #define JAM_FILE_ID 299
 
-
 class DynArr256;
 struct DA256Page;
 
-class DynArr256Pool
-{
+class DynArr256Pool {
   friend class DynArr256;
   friend class Dbtup;
-public:
+
+ public:
   DynArr256Pool();
-  
-  void init(Uint32 type_id, const Pool_context& pc);
-  void init(NdbMutex*, Uint32 type_id, const Pool_context& pc);
+
+  void init(Uint32 type_id, const Pool_context &pc);
+  void init(NdbMutex *, Uint32 type_id, const Pool_context &pc);
 
   /**
     Memory usage data, used for populating Ndbinfo::pool_entry structures.
    */
-  struct Info
-  {
+  struct Info {
     // Number of pages (DA256Page) allocated.
     Uint32 pg_count;
     // Size of each page in bytes.
@@ -65,27 +63,27 @@ public:
     // Number of nodes that fit in a page.
     Uint32 nodes_per_page;
   };
-    
-  const Info getInfo() const;
-               
-  Uint32 getUsed()   { return m_used; }  // # entries currently seized
-  Uint32 getUsedHi() { return m_usedHi;} // high water mark for getUsed()
 
-protected:
+  const Info getInfo() const;
+
+  Uint32 getUsed() { return m_used; }      // # entries currently seized
+  Uint32 getUsedHi() { return m_usedHi; }  // high water mark for getUsed()
+
+ protected:
   Uint32 m_type_id;
   Uint32 m_first_free;
   Uint32 m_last_free;
   Pool_context m_ctx;
-  struct DA256Page* m_memroot;
-  NdbMutex * m_mutex;
+  struct DA256Page *m_memroot;
+  NdbMutex *m_mutex;
   // Number of nodes (DA256Node) in use.
   Uint64 m_inuse_nodes;
   // Number of pages (DA256Page) allocated.
-  Uint32 m_pg_count;  
+  Uint32 m_pg_count;
   Uint32 m_used;
   Uint32 m_usedHi;
 
-private:
+ private:
   Uint32 seize();
   void release(Uint32);
 #ifdef ERROR_INSERT
@@ -93,30 +91,37 @@ private:
 #endif
 };
 
-class DynArr256
-{
-public:
-  class Head
-  {
+class DynArr256 {
+ public:
+  class Head {
     friend class DynArr256;
-  public:
+
+   public:
 #if defined VM_TRACE || defined ERROR_INSERT
-    Head() { m_ptr_i = RNIL; m_sz = 0; m_no_of_nodes = 0; m_high_pos = 0; }
+    Head() {
+      m_ptr_i = RNIL;
+      m_sz = 0;
+      m_no_of_nodes = 0;
+      m_high_pos = 0;
+    }
 #else
-    Head() { m_ptr_i = RNIL; m_sz = 0; m_no_of_nodes = 0; }
+    Head() {
+      m_ptr_i = RNIL;
+      m_sz = 0;
+      m_no_of_nodes = 0;
+    }
 #endif
-    ~Head()
-    {
+    ~Head() {
       assert(m_sz == 0);
       assert(m_no_of_nodes == 0);
     }
 
-    bool isEmpty() const { return m_sz == 0;}
-    
+    bool isEmpty() const { return m_sz == 0; }
+
     // Get allocated array size in bytes.
     Uint32 getByteSize() const;
 
-  private:
+   private:
     Uint32 m_ptr_i;
     Uint32 m_sz;
     // Number of DA256Nodes allocated.
@@ -125,58 +130,51 @@ public:
     Uint32 m_high_pos;
 #endif
   };
-  
-  DynArr256(DynArr256Pool * pool, Head& head) : 
-    m_head(head), m_pool(pool){}
-  
-  Uint32* set(Uint32 pos);
-  Uint32* get(Uint32 pos) const ;
-  Uint32* get_dirty(Uint32 pos) const ;
 
-  struct ReleaseIterator
-  {
+  DynArr256(DynArr256Pool *pool, Head &head) : m_head(head), m_pool(pool) {}
+
+  Uint32 *set(Uint32 pos);
+  Uint32 *get(Uint32 pos) const;
+  Uint32 *get_dirty(Uint32 pos) const;
+
+  struct ReleaseIterator {
     Uint32 m_sz;
     Uint32 m_pos;
     Uint32 m_ptr_i[5];
   };
-  
-  void init(ReleaseIterator&);
+
+  void init(ReleaseIterator &);
   /**
    * return 0 - done
    *        1 - data (in retptr)
    *        2 - nodata
    */
-  Uint32 release(ReleaseIterator&, Uint32* retptr);
-  Uint32 trim(Uint32 trim_pos, ReleaseIterator&);
-  Uint32 truncate(Uint32 trunc_pos, ReleaseIterator&, Uint32* retptr);
-protected:
-  Head & m_head;
-  DynArr256Pool * m_pool;
-  
+  Uint32 release(ReleaseIterator &, Uint32 *retptr);
+  Uint32 trim(Uint32 trim_pos, ReleaseIterator &);
+  Uint32 truncate(Uint32 trunc_pos, ReleaseIterator &, Uint32 *retptr);
+
+ protected:
+  Head &m_head;
+  DynArr256Pool *m_pool;
+
   bool expand(Uint32 pos);
   void handle_invalid_ptr(Uint32 pos, Uint32 ptrI, Uint32 p0);
 
-private:
+ private:
 #ifdef ERROR_INSERT
   Uint32 get_ERROR_INSERT_VALUE() const;
 #endif
 };
 
-inline
-Uint32 DynArr256::release(ReleaseIterator& iter, Uint32* retptr)
-{
+inline Uint32 DynArr256::release(ReleaseIterator &iter, Uint32 *retptr) {
   return truncate(0, iter, retptr);
 }
 
-inline
-Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator& iter)
-{
+inline Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator &iter) {
   return truncate(pos, iter, NULL);
 }
 
-inline
-Uint32 * DynArr256::get(Uint32 pos) const
-{
+inline Uint32 *DynArr256::get(Uint32 pos) const {
 #if defined VM_TRACE || defined ERROR_INSERT
   // In debug this function will abort if used
   // with pos not already mapped by call to set.
@@ -187,15 +185,11 @@ Uint32 * DynArr256::get(Uint32 pos) const
 }
 
 #ifdef ERROR_INSERT
-inline
-Uint32 DynArr256Pool::get_ERROR_INSERT_VALUE() const
-{
+inline Uint32 DynArr256Pool::get_ERROR_INSERT_VALUE() const {
   return m_ctx.m_block->cerrorInsert;
 }
 
-inline
-Uint32 DynArr256::get_ERROR_INSERT_VALUE() const
-{
+inline Uint32 DynArr256::get_ERROR_INSERT_VALUE() const {
   return m_pool->get_ERROR_INSERT_VALUE();
 }
 #endif

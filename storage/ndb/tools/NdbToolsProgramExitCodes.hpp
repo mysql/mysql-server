@@ -25,9 +25,8 @@
 #ifndef NDB_TOOLS_PROGRAM_EXIT_CODES_HPP
 #define NDB_TOOLS_PROGRAM_EXIT_CODES_HPP
 
-namespace NdbToolsProgramExitCode
-{
-  enum {OK = 0, FAILED = 1, WRONG_ARGS = 2};
+namespace NdbToolsProgramExitCode {
+enum { OK = 0, FAILED = 1, WRONG_ARGS = 2 };
 }
 
 #endif  // NDB_TOOLS_PROGRAM_EXIT_CODES_HPP

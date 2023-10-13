@@ -24,20 +24,18 @@
 #ifndef NDBT_CONFIG_HPP
 #define NDBT_CONFIG_HPP
 
-#include <ndb_types.h>
 #include <mgmapi.h>
-#include <Vector.hpp>
-#include <NdbRestarter.hpp>
 #include <mgmapi_config_parameters.h>
+#include <ndb_types.h>
+#include <NdbRestarter.hpp>
+#include <Vector.hpp>
 
 class NdbConfig : public NdbRestarter {
-public:
-  NdbConfig(const char* address = 0)
-    : NdbRestarter(address)
-  {}
+ public:
+  NdbConfig(const char *address = 0) : NdbRestarter(address) {}
 
-  bool getProperty(unsigned nodeid, unsigned type, unsigned key, Uint32 * val);
-  bool getHostName(unsigned int node_id, const char ** hostname);
+  bool getProperty(unsigned nodeid, unsigned type, unsigned key, Uint32 *val);
+  bool getHostName(unsigned int node_id, const char **hostname);
 };
 
 #endif

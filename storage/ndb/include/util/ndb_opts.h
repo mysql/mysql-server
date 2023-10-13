@@ -27,29 +27,29 @@
 
 #include <ndb_global.h>
 
-#include "my_alloc.h" // MEM_ROOT
-#include "my_sys.h"   // loglevel needed by my_getopt.h
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_getopt.h"
+#include "my_sys.h"  // loglevel needed by my_getopt.h
 #include "util/BaseString.hpp"
 #include "util/require.h"
 
 #ifdef OPTEXPORT
-#define OPT_EXTERN(T,V,I) T V I
+#define OPT_EXTERN(T, V, I) T V I
 #else
-#define OPT_EXTERN(T,V,I) extern T V
+#define OPT_EXTERN(T, V, I) extern T V
 #endif
 
 #define NONE
-OPT_EXTERN(int,opt_ndb_nodeid,NONE);
-OPT_EXTERN(bool,opt_ndb_endinfo,=0);
-OPT_EXTERN(bool,opt_ndb_optimized_node_selection,NONE);
-OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
-OPT_EXTERN(int, opt_connect_retry_delay,NONE);
-OPT_EXTERN(int, opt_connect_retries,NONE);
-OPT_EXTERN(const char *,opt_charsets_dir,=0);
+OPT_EXTERN(int, opt_ndb_nodeid, NONE);
+OPT_EXTERN(bool, opt_ndb_endinfo, = 0);
+OPT_EXTERN(bool, opt_ndb_optimized_node_selection, NONE);
+OPT_EXTERN(const char *, opt_ndb_connectstring, = 0);
+OPT_EXTERN(int, opt_connect_retry_delay, NONE);
+OPT_EXTERN(int, opt_connect_retries, NONE);
+OPT_EXTERN(const char *, opt_charsets_dir, = 0);
 
 #ifndef NDEBUG
-OPT_EXTERN(const char *,opt_debug,= 0);
+OPT_EXTERN(const char *, opt_debug, = 0);
 #endif
 
 enum ndb_std_options {
@@ -64,116 +64,201 @@ enum ndb_std_options {
   */
   NDB_OPT_NOSHORT = 256,
 
- /*
-   should always be last in this enum and will be used as the
-   start value by programs which use 'ndb_std_get_one_option' and
-   need to define their own arguments with special processing
- */
+  /*
+    should always be last in this enum and will be used as the
+    start value by programs which use 'ndb_std_get_one_option' and
+    need to define their own arguments with special processing
+  */
   NDB_STD_OPTIONS_LAST
 };
 
-
 namespace NdbStdOpt {
 
-static constexpr struct my_option usage =
-  { "usage", '?', "Display this help and exit.",
-    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option usage = {
+    "usage",    '?',     "Display this help and exit.",
+    nullptr,    nullptr, nullptr,
+    GET_NO_ARG, NO_ARG,  0,
+    0,          0,       nullptr,
+    0,          nullptr};
 
-static constexpr struct my_option help =
-  { "help", '?', "Display this help and exit.",
-    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option help = {
+    "help",     '?',     "Display this help and exit.",
+    nullptr,    nullptr, nullptr,
+    GET_NO_ARG, NO_ARG,  0,
+    0,          0,       nullptr,
+    0,          nullptr};
 
-static constexpr struct my_option version =
-  { "version", 'V', "Output version information and exit.",
-    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option version = {
+    "version",  'V',     "Output version information and exit.",
+    nullptr,    nullptr, nullptr,
+    GET_NO_ARG, NO_ARG,  0,
+    0,          0,       nullptr,
+    0,          nullptr};
 
-static constexpr struct my_option ndb_connectstring =
-  { "ndb-connectstring", OPT_NDB_CONNECTSTRING,
+static constexpr struct my_option ndb_connectstring = {
+    "ndb-connectstring",
+    OPT_NDB_CONNECTSTRING,
     "Set connect string for connecting to ndb_mgmd. "
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". "
     "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf",
-    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+    &opt_ndb_connectstring,
+    nullptr,
+    nullptr,
+    GET_STR,
+    REQUIRED_ARG,
+    0,
+    0,
+    0,
+    nullptr,
+    0,
+    nullptr};
 
-static constexpr struct my_option mgmd_host =
-  { "ndb-mgmd-host", NDB_OPT_NOSHORT, "",
-    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option mgmd_host = {"ndb-mgmd-host",
+                                               NDB_OPT_NOSHORT,
+                                               "",
+                                               &opt_ndb_connectstring,
+                                               nullptr,
+                                               nullptr,
+                                               GET_STR,
+                                               REQUIRED_ARG,
+                                               0,
+                                               0,
+                                               0,
+                                               nullptr,
+                                               0,
+                                               nullptr};
 
-static constexpr struct my_option connectstring =
-  { "connect-string", NDB_OPT_NOSHORT, "",
-    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option connectstring = {"connect-string",
+                                                   NDB_OPT_NOSHORT,
+                                                   "",
+                                                   &opt_ndb_connectstring,
+                                                   nullptr,
+                                                   nullptr,
+                                                   GET_STR,
+                                                   REQUIRED_ARG,
+                                                   0,
+                                                   0,
+                                                   0,
+                                                   nullptr,
+                                                   0,
+                                                   nullptr};
 
-static constexpr struct my_option ndb_nodeid =
-  { "ndb-nodeid", NDB_OPT_NOSHORT,
+static constexpr struct my_option ndb_nodeid = {
+    "ndb-nodeid",
+    NDB_OPT_NOSHORT,
     "Set node id for this node. Overrides node id specified "
     "in --ndb-connectstring.",
-    &opt_ndb_nodeid, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+    &opt_ndb_nodeid,
+    nullptr,
+    nullptr,
+    GET_INT,
+    REQUIRED_ARG,
+    0,
+    0,
+    0,
+    nullptr,
+    0,
+    nullptr};
 
-static constexpr struct my_option optimized_node_selection =
-  { "ndb-optimized-node-selection", NDB_OPT_NOSHORT,
+static constexpr struct my_option optimized_node_selection = {
+    "ndb-optimized-node-selection",
+    NDB_OPT_NOSHORT,
     "Select nodes for transactions in a more optimal way",
-    &opt_ndb_optimized_node_selection, nullptr, nullptr, GET_BOOL, OPT_ARG,
-    1, 0, 0, nullptr, 0, nullptr};
+    &opt_ndb_optimized_node_selection,
+    nullptr,
+    nullptr,
+    GET_BOOL,
+    OPT_ARG,
+    1,
+    0,
+    0,
+    nullptr,
+    0,
+    nullptr};
 
-static constexpr struct my_option charsets_dir =
-  { "character-sets-dir", NDB_OPT_NOSHORT, "Directory where character sets are.",
-    & opt_charsets_dir, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr};
+static constexpr struct my_option charsets_dir = {
+    "character-sets-dir",
+    NDB_OPT_NOSHORT,
+    "Directory where character sets are.",
+    &opt_charsets_dir,
+    nullptr,
+    nullptr,
+    GET_STR,
+    REQUIRED_ARG,
+    0,
+    0,
+    0,
+    nullptr,
+    0,
+    nullptr};
 
-static constexpr struct my_option connect_retry_delay =
-  { "connect-retry-delay", NDB_OPT_NOSHORT,
+static constexpr struct my_option connect_retry_delay = {
+    "connect-retry-delay",
+    NDB_OPT_NOSHORT,
     "Set connection time out."
     " This is the number of seconds after which the tool tries"
     " reconnecting to the cluster.",
-    &opt_connect_retry_delay, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    5, 1, INT_MAX, nullptr, 0, nullptr};
+    &opt_connect_retry_delay,
+    nullptr,
+    nullptr,
+    GET_INT,
+    REQUIRED_ARG,
+    5,
+    1,
+    INT_MAX,
+    nullptr,
+    0,
+    nullptr};
 
-static constexpr struct my_option connect_retries =
-  { "connect-retries", NDB_OPT_NOSHORT, "Set connection retries."
+static constexpr struct my_option connect_retries = {
+    "connect-retries",
+    NDB_OPT_NOSHORT,
+    "Set connection retries."
     " This is the number of times the tool tries connecting"
     " to the cluster. -1 for eternal retries",
-    &opt_connect_retries, nullptr, nullptr, GET_INT, REQUIRED_ARG,
-    12, -1, INT_MAX, nullptr, 0, nullptr};
+    &opt_connect_retries,
+    nullptr,
+    nullptr,
+    GET_INT,
+    REQUIRED_ARG,
+    12,
+    -1,
+    INT_MAX,
+    nullptr,
+    0,
+    nullptr};
 
 #ifndef NDEBUG
-static constexpr struct my_option debug =
-  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    &opt_debug, nullptr, nullptr, GET_STR, OPT_ARG,
-    0, 0, 0, nullptr, 0, nullptr };
+static constexpr struct my_option debug = {
+    "debug",    '#',     "Output debug log. Often this is 'd:t:o,filename'.",
+    &opt_debug, nullptr, nullptr,
+    GET_STR,    OPT_ARG, 0,
+    0,          0,       nullptr,
+    0,          nullptr};
 #endif
 
-static constexpr struct my_option end_of_options =
-  { nullptr, 0, nullptr,
-    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
-    0, 0, 0, nullptr, 0, nullptr};
+static constexpr struct my_option end_of_options = {
+    nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG,
+    NO_ARG,  0, 0,       0,       nullptr, 0,       nullptr};
 
-} // namespace
+}  // namespace NdbStdOpt
 
 #ifdef NDEBUG
 #define NDB_STD_OPT_DEBUG
 #else
-#define NDB_STD_OPT_DEBUG NdbStdOpt::debug ,
+#define NDB_STD_OPT_DEBUG NdbStdOpt::debug,
 #endif
 
 void ndb_std_print_version();
 
-void ndb_opt_set_usage_funcs(void (*short_usage)(void),
-                             void (*usage)(void));
-bool
-ndb_std_get_one_option(int optid,
-		       const struct my_option *opt [[maybe_unused]],
-                       char *argument);
+void ndb_opt_set_usage_funcs(void (*short_usage)(void), void (*usage)(void));
+bool ndb_std_get_one_option(int optid,
+                            const struct my_option *opt [[maybe_unused]],
+                            char *argument);
 
-void ndb_short_usage_sub(const char* extra);
+void ndb_short_usage_sub(const char *extra);
 
-bool ndb_is_load_default_arg_separator(const char* arg);
-
+bool ndb_is_load_default_arg_separator(const char *arg);
 
 /*
  * ndb_option
@@ -193,7 +278,8 @@ bool ndb_is_load_default_arg_separator(const char* arg);
  * option after all options have been parsed.
  *
  * If any option need post processing the application must call
- * ndb_option::post_process_options() after the call do Ndb_opts::handle_options().
+ * ndb_option::post_process_options() after the call do
+ * Ndb_opts::handle_options().
  *
  * If an option need post processing, the get_option() function must register
  * option in a list by calling ndb_option::push_back().
@@ -216,29 +302,30 @@ bool ndb_is_load_default_arg_separator(const char* arg);
  * See also ndb_password_option and ndb_password_option_from_stdin below.
  */
 
-class ndb_option
-{
-public:
+class ndb_option {
+ public:
   ndb_option();
   static bool get_one_option(int optid, const my_option *opt, char *arg);
   static bool post_process_options();
   static void reset_options();
   virtual ~ndb_option() {}
-protected:
+
+ protected:
   virtual bool get_option(int optid, const my_option *opt, char *arg) = 0;
   virtual bool post_process() = 0;
   virtual void reset() = 0;
   void push_back();
   void erase();
-private:
+
+ private:
   /*
    * Intrusive double linked list keeping option order for post processing.
    * --skip-XXX removes option from list.
    */
-  static ndb_option* m_first;
-  static ndb_option* m_last;
-  ndb_option* m_prev;
-  ndb_option* m_next;
+  static ndb_option *m_first;
+  static ndb_option *m_last;
+  ndb_option *m_prev;
+  ndb_option *m_next;
 };
 
 /*
@@ -288,16 +375,15 @@ private:
  * Enter encrypt password:
  */
 
-class ndb_password_state
-{
-public:
+class ndb_password_state {
+ public:
   using byte = unsigned char;
 
   ndb_password_state(const char prefix[], const char prompt[])
       : ndb_password_state(prefix, prompt, PASSWORD) {}
-  const byte* get_key() const;
+  const byte *get_key() const;
   size_t get_key_length() const;
-  const char* get_password() const { return m_password; }
+  const char *get_password() const { return m_password; }
   size_t get_password_length() { return m_password_length; }
   bool have_password_option() const { return (m_option_count > 0); }
   BaseString get_error_message() const;
@@ -305,17 +391,16 @@ public:
   bool is_key() const { return (m_kind == KEY); }
   void reset();
 
-protected:
+ protected:
   enum kind_t { PASSWORD = 0, KEY = 1 };
   ndb_password_state(const char prefix[], const char prompt[], kind_t kind);
 
-private:
+ private:
   friend class ndb_password_option;
   friend class ndb_password_from_stdin_option;
-  enum status
-  {
+  enum status {
     NO_PASSWORD = 0,
-    HAVE_PASSWORD = 1, // m_password points to valid password
+    HAVE_PASSWORD = 1,  // m_password points to valid password
     /*
      * PENDING_PASSWORD - m_password_buffer contains a valid password, not yet
      * committed to m_password.
@@ -341,27 +426,33 @@ private:
   // PWD_BUF_SIZE need also to count terminating new line or null character.
   static_assert(MAX_PWD_LEN + 1 <= PWD_BUF_SIZE);
 
-  const char* get_prefix() const { return m_prefix.c_str(); }
+  const char *get_prefix() const { return m_prefix.c_str(); }
   size_t get_prefix_length() const { return m_prefix.length(); }
   int get_from_tty();
   int get_from_stdin();
-  const char* kind_str() const { return kind_name[m_kind]; }
+  const char *kind_str() const { return kind_name[m_kind]; }
   int set_key(const char src[], size_t len);
   int set_password(const char src[], size_t len);
   void clear_password();
   void add_option_usage() { m_option_count++; }
   void remove_option_usage();
   bool is_in_error() const { return m_status < 0; }
-  void set_error(enum status err) { require(int{err} < 0); m_status = err; }
-  void set_status(enum status s) { require(int{s} >= 0); m_status = s; }
+  void set_error(enum status err) {
+    require(int{err} < 0);
+    m_status = err;
+  }
+  void set_status(enum status s) {
+    require(int{s} >= 0);
+    m_status = s;
+  }
   void commit_password();
   bool verify_option_name(const char opt_name[],
                           const char extra[] = nullptr) const;
 
-private:
-  static constexpr const char* kind_name[2] = {"password", "key"};
+ private:
+  static constexpr const char *kind_name[2] = {"password", "key"};
   BaseString m_prompt;
-  char* m_password;
+  char *m_password;
   const kind_t m_kind;
   enum status m_status;
   int m_option_count;  // How many options that is about to set password
@@ -370,64 +461,60 @@ private:
   BaseString m_prefix;
 };
 
-class ndb_key_state : public ndb_password_state
-{
-public:
+class ndb_key_state : public ndb_password_state {
+ public:
   ndb_key_state(const char prefix[], const char prompt[])
       : ndb_password_state(prefix, prompt, ndb_password_state::KEY) {}
 };
 
-class ndb_password_option: ndb_option
-{
-public:
-  ndb_password_option(ndb_password_state& pwd_buf);
+class ndb_password_option : ndb_option {
+ public:
+  ndb_password_option(ndb_password_state &pwd_buf);
   bool get_option(int optid, const my_option *opt, char *arg) override;
   bool post_process() override;
   void reset() override;
-private:
-  ndb_password_state& m_password_state;
+
+ private:
+  ndb_password_state &m_password_state;
   // One of PS_NONE, PS_ARG, PS_TTY
   ndb_password_state::password_source m_password_source;
 };
 
-class ndb_key_option : public ndb_password_option
-{
-public:
-  ndb_key_option(ndb_key_state& pwd_buf) : ndb_password_option(pwd_buf) {}
+class ndb_key_option : public ndb_password_option {
+ public:
+  ndb_key_option(ndb_key_state &pwd_buf) : ndb_password_option(pwd_buf) {}
 };
 
-class ndb_password_from_stdin_option: ndb_option
-{
-public:
-  ndb_password_from_stdin_option(ndb_password_state& pwd_buf);
+class ndb_password_from_stdin_option : ndb_option {
+ public:
+  ndb_password_from_stdin_option(ndb_password_state &pwd_buf);
   bool get_option(int optid, const my_option *opt, char *arg) override;
   bool post_process() override;
   void reset() override;
 
   bool opt_value;
-private:
-  ndb_password_state& m_password_state;
+
+ private:
+  ndb_password_state &m_password_state;
   // One of PS_NONE, PS_STDIN
   ndb_password_state::password_source m_password_source;
 };
 
-class ndb_key_from_stdin_option : public ndb_password_from_stdin_option
-{
-public:
-  ndb_key_from_stdin_option(ndb_key_state& pwd_buf)
+class ndb_key_from_stdin_option : public ndb_password_from_stdin_option {
+ public:
+  ndb_key_from_stdin_option(ndb_key_state &pwd_buf)
       : ndb_password_from_stdin_option(pwd_buf) {}
 };
 
 class Ndb_opts {
-public:
-  Ndb_opts(int & argc_ref, char** & argv_ref,
-           struct my_option * long_options,
-           const char * default_groups[] = nullptr);
+ public:
+  Ndb_opts(int &argc_ref, char **&argv_ref, struct my_option *long_options,
+           const char *default_groups[] = nullptr);
 
   ~Ndb_opts();
 
-  void set_usage_funcs(void(*short_usage_fn)(void),
-                       void(* long_usage_fn)(void) = nullptr);
+  void set_usage_funcs(void (*short_usage_fn)(void),
+                       void (*long_usage_fn)(void) = nullptr);
 
   int handle_options(bool (*get_opt_fn)(int, const struct my_option *,
                                         char *) = ndb_std_get_one_option) const;
@@ -436,16 +523,16 @@ public:
   static void registerUsage(Ndb_opts *);
   static void release();
 
-  const char* get_defaults_extra_file() const;
-  const char* get_defaults_file() const;
-  const char* get_defaults_group_suffix() const;
+  const char *get_defaults_extra_file() const;
+  const char *get_defaults_file() const;
+  const char *get_defaults_group_suffix() const;
 
-private:
+ private:
   struct MEM_ROOT opts_mem_root;
-  int * main_argc_ptr;
-  char *** main_argv_ptr;
-  const char ** mycnf_default_groups;
-  struct my_option * options;
+  int *main_argc_ptr;
+  char ***main_argv_ptr;
+  const char **mycnf_default_groups;
+  struct my_option *options;
   void (*short_usage_fn)(void), (*long_usage_extra_fn)(void);
 };
 

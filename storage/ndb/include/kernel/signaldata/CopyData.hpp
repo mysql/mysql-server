@@ -27,10 +27,7 @@
 
 #define JAM_FILE_ID 201
 
-
-struct CopyDataReq
-{
-
+struct CopyDataReq {
   static constexpr Uint32 SignalLength = 9;
 
   enum RequestType {
@@ -39,10 +36,7 @@ struct CopyDataReq
     // AlterTableCopy
   };
 
-  enum Flags {
-    TupOrder = 1,
-    NoScanTakeOver = 2
-  };
+  enum Flags { TupOrder = 1, NoScanTakeOver = 2 };
 
   union {
     Uint32 clientRef;
@@ -58,12 +52,10 @@ struct CopyDataReq
   Uint32 requestInfo;
   Uint32 srcTableId;
   Uint32 dstTableId;
-  Uint32 srcFragments; // Only used for ReorgDelete
+  Uint32 srcFragments;  // Only used for ReorgDelete
 };
 
-struct CopyDataConf
-{
-
+struct CopyDataConf {
   static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
@@ -74,8 +66,7 @@ struct CopyDataConf
   Uint32 transId;
 };
 
-struct CopyDataRef
-{
+struct CopyDataRef {
   static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
@@ -92,7 +83,6 @@ struct CopyDataRef
 typedef CopyDataReq CopyDataImplReq;
 typedef CopyDataRef CopyDataImplRef;
 typedef CopyDataConf CopyDataImplConf;
-
 
 #undef JAM_FILE_ID
 

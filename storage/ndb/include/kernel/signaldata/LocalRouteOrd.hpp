@@ -29,9 +29,7 @@
 
 #define JAM_FILE_ID 50
 
-
-struct LocalRouteOrd
-{
+struct LocalRouteOrd {
   static constexpr Uint32 StaticLen = 3;
   /**
    * Paths (2 words each) and destinations (1 word each) must
@@ -44,12 +42,11 @@ struct LocalRouteOrd
   static constexpr Uint32 MaxDstCount = (25 - (StaticLen + 2));
   static constexpr Uint32 MaxPathLen = ((25 - (StaticLen + 1)) / 2);
 
-  Uint32 cnt; // 16-bit path, 16-bit destination
-  Uint32 gsn; // Final gsn
-  Uint32 prio;// Final prio
+  Uint32 cnt;   // 16-bit path, 16-bit destination
+  Uint32 gsn;   // Final gsn
+  Uint32 prio;  // Final prio
   Uint32 path[1];
 };
-
 
 #undef JAM_FILE_ID
 

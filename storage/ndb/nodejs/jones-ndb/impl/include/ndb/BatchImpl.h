@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -25,65 +25,66 @@
 #ifndef nodejs_adapter_BatchImpl_h
 #define nodejs_adapter_BatchImpl_h
 
+#include "BlobHandler.h"
 #include "KeyOperation.h"
 #include "TransactionImpl.h"
-#include "BlobHandler.h"
 
 class BatchImpl {
-friend class TransactionImpl;
-public:
+  friend class TransactionImpl;
+
+ public:
   BatchImpl(TransactionImpl *, int size);
   ~BatchImpl();
-  const NdbError * getError(int n);
-  KeyOperation * getKeyOperation(int n);
+  const NdbError *getError(int n);
+  KeyOperation *getKeyOperation(int n);
   bool tryImmediateStartTransaction();
   int execute(int execType, int abortOption, int forceSend);
   int executeAsynch(int execType, int abortOption, int forceSend,
                     v8::Local<v8::Function> execCompleteCallback);
-  const NdbError & getNdbError();   // get NdbError from TransactionImpl
+  const NdbError &getNdbError();  // get NdbError from TransactionImpl
   void registerClosedTransaction();
 
-protected:
+ protected:
   void prepare(NdbTransaction *);
   void saveNdbErrors();
-  BlobHandler * getBlobHandler(int);
+  BlobHandler *getBlobHandler(int);
   bool hasBlobReadOperations();
   void setOperationNdbError(int, const NdbError &);
   void transactionIsClosed();
 
-private:
-  KeyOperation * keyOperations;
-  const NdbOperation ** const ops;
-  NdbError * const errors;
+ private:
+  KeyOperation *keyOperations;
+  const NdbOperation **const ops;
+  NdbError *const errors;
   int size;
   bool doesReadBlobs;
   TransactionImpl *transactionImpl;
-  NdbError * transactionNdbError;
+  NdbError *transactionNdbError;
 };
 
-inline KeyOperation * BatchImpl::getKeyOperation(int n) {
-  return & keyOperations[n];
+inline KeyOperation *BatchImpl::getKeyOperation(int n) {
+  return &keyOperations[n];
 }
 
 inline int BatchImpl::execute(int execType, int abortOption, int forceSend) {
   return transactionImpl->execute(this, execType, abortOption, forceSend);
 }
 
-inline int BatchImpl::executeAsynch(int execType, int abortOption, int forceSend,
-                                   v8::Local<v8::Function> callback) {
-  return transactionImpl->executeAsynch(this, execType, abortOption, forceSend, callback);
+inline int BatchImpl::executeAsynch(int execType, int abortOption,
+                                    int forceSend,
+                                    v8::Local<v8::Function> callback) {
+  return transactionImpl->executeAsynch(this, execType, abortOption, forceSend,
+                                        callback);
 }
 
 inline void BatchImpl::registerClosedTransaction() {
   transactionImpl->registerClose();
 }
 
-inline BlobHandler * BatchImpl::getBlobHandler(int n) {
+inline BlobHandler *BatchImpl::getBlobHandler(int n) {
   return keyOperations[n].blobHandler;
 }
 
-inline bool BatchImpl::hasBlobReadOperations() {
-  return doesReadBlobs;
-}
+inline bool BatchImpl::hasBlobReadOperations() { return doesReadBlobs; }
 
 #endif

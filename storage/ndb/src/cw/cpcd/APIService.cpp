@@ -126,9 +126,11 @@ const ParserRow<CPCDAPISession> commands[] = {
     CPCD_ARG("version", Int, Mandatory, "Protocol version to use"),
 
     CPCD_END()};
-CPCDAPISession::CPCDAPISession(NdbSocket&& sock, CPCD &cpcd)
-    : SocketServer::Session(m_secure_socket), m_cpcd(cpcd),
-    m_secure_socket(std::move(sock)), m_protocol_version(1) {
+CPCDAPISession::CPCDAPISession(NdbSocket &&sock, CPCD &cpcd)
+    : SocketServer::Session(m_secure_socket),
+      m_cpcd(cpcd),
+      m_secure_socket(std::move(sock)),
+      m_protocol_version(1) {
   m_input = new SocketInputStream(m_secure_socket, 7 * 24 * 60 * 60000);
   m_output = new SocketOutputStream(m_secure_socket);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input);
@@ -395,8 +397,7 @@ void CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
 }
 
 void CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
-                                 const class Properties & /*args*/)
-{
+                                 const class Properties & /*args*/) {
   CPCD::RequestStatus rs;
 
   m_output->println("show version");

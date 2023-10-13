@@ -30,14 +30,9 @@
 
 #define JAM_FILE_ID 215
 
-
 class Interpreter {
-public:
-
-  inline static Uint32 mod4(Uint32 len){
-    return len + ((4 - (len & 3)) & 3);
-  }
-  
+ public:
+  inline static Uint32 mod4(Uint32 len) { return len + ((4 - (len & 3)) & 3); }
 
   /**
    * General Mnemonic format
@@ -90,11 +85,11 @@ public:
    */
   static Uint32 Read(Uint32 AttrId, Uint32 Register);
   static Uint32 Write(Uint32 AttrId, Uint32 Register);
-  
+
   static Uint32 LoadNull(Uint32 Register);
   static Uint32 LoadConst16(Uint32 Register, Uint32 Value);
-  static Uint32 LoadConst32(Uint32 Register); // Value in next word
-  static Uint32 LoadConst64(Uint32 Register); // Value in next 2 words
+  static Uint32 LoadConst32(Uint32 Register);  // Value in next word
+  static Uint32 LoadConst64(Uint32 Register);  // Value in next 2 words
   static Uint32 Add(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
   static Uint32 Sub(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
   static Uint32 Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2);
@@ -151,10 +146,7 @@ public:
    * aaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAA
    */
 
-  enum UnaryCondition {
-    IS_NULL = 0,
-    IS_NOT_NULL = 1
-  };
+  enum UnaryCondition { IS_NULL = 0, IS_NOT_NULL = 1 };
 
   enum BinaryCondition {
     EQ = 0,
@@ -172,9 +164,9 @@ public:
   };
 
   enum NullSemantics {
-    NULL_CMP_EQUAL = 0x0,    // Old cmp mode; 'NULL == NULL' and 'NULL < x'
-    IF_NULL_BREAK_OUT = 0x2, // Jump to branch destination IF NULL
-    IF_NULL_CONTINUE = 0x3   // Ignore IF NULL, continue with next OP
+    NULL_CMP_EQUAL = 0x0,     // Old cmp mode; 'NULL == NULL' and 'NULL < x'
+    IF_NULL_BREAK_OUT = 0x2,  // Jump to branch destination IF NULL
+    IF_NULL_CONTINUE = 0x3    // Ignore IF NULL, continue with next OP
   };
 
   // Compare Attr with literal
@@ -196,7 +188,7 @@ public:
   static Uint32 getBranchCol_AttrId2(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
   static Uint32 getBranchCol_ParamNo(Uint32 op2);
-  
+
   /**
    * Macros for decoding code
    */
@@ -209,281 +201,191 @@ public:
   /**
    * Instruction pre-processing required.
    */
-  enum InstructionPreProcessing
-  {
+  enum InstructionPreProcessing {
     NONE,
     LABEL_ADDRESS_REPLACEMENT,
     SUB_ADDRESS_REPLACEMENT
   };
 
-  /* This method is used to determine what sort of 
+  /* This method is used to determine what sort of
    * instruction processing is required, and the address
    * of the next instruction in the stream
    */
-  static Uint32 *getInstructionPreProcessingInfo(Uint32 *op,
-                                                 InstructionPreProcessing& processing);
+  static Uint32 *getInstructionPreProcessingInfo(
+      Uint32 *op, InstructionPreProcessing &processing);
 };
 
-inline
-Uint32
-Interpreter::Read(Uint32 AttrId, Uint32 Register){
+inline Uint32 Interpreter::Read(Uint32 AttrId, Uint32 Register) {
   return (AttrId << 16) + (Register << 6) + READ_ATTR_INTO_REG;
 }
 
-inline
-Uint32
-Interpreter::Write(Uint32 AttrId, Uint32 Register){
+inline Uint32 Interpreter::Write(Uint32 AttrId, Uint32 Register) {
   return (AttrId << 16) + (Register << 6) + WRITE_ATTR_FROM_REG;
 }
 
-inline
-Uint32
-Interpreter::LoadNull(Uint32 Register){
+inline Uint32 Interpreter::LoadNull(Uint32 Register) {
   return (Register << 6) + LOAD_CONST_NULL;
 }
 
-inline
-Uint32
-Interpreter::LoadConst16(Uint32 Register, Uint32 Value){
+inline Uint32 Interpreter::LoadConst16(Uint32 Register, Uint32 Value) {
   return (Value << 16) + (Register << 6) + LOAD_CONST16;
 }
 
-inline
-Uint32
-Interpreter::LoadConst32(Uint32 Register){
+inline Uint32 Interpreter::LoadConst32(Uint32 Register) {
   return (Register << 6) + LOAD_CONST32;
 }
 
-inline
-Uint32
-Interpreter::LoadConst64(Uint32 Register){
+inline Uint32 Interpreter::LoadConst64(Uint32 Register) {
   return (Register << 6) + LOAD_CONST64;
 }
 
-inline
-Uint32
-Interpreter::Add(Uint32 Dcoleg, Uint32 SrcReg1, Uint32 SrcReg2){
+inline Uint32 Interpreter::Add(Uint32 Dcoleg, Uint32 SrcReg1, Uint32 SrcReg2) {
   return (SrcReg1 << 6) + (SrcReg2 << 9) + (Dcoleg << 16) + ADD_REG_REG;
 }
 
-inline
-Uint32
-Interpreter::Sub(Uint32 Dcoleg, Uint32 SrcReg1, Uint32 SrcReg2){
+inline Uint32 Interpreter::Sub(Uint32 Dcoleg, Uint32 SrcReg1, Uint32 SrcReg2) {
   return (SrcReg1 << 6) + (SrcReg2 << 9) + (Dcoleg << 16) + SUB_REG_REG;
 }
 
-inline
-Uint32
-Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2){
+inline Uint32 Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2) {
   return (Reg1 << 9) + (Reg2 << 6) + Inst;
 }
 
-inline
-Uint32
-Interpreter::BranchColAttrId(BinaryCondition cond, NullSemantics nulls) {
-  return
-    BRANCH_ATTR_OP_ATTR +     // Compare two ATTRs
-    (nulls << 6) +
-    (cond << 12);
+inline Uint32 Interpreter::BranchColAttrId(BinaryCondition cond,
+                                           NullSemantics nulls) {
+  return BRANCH_ATTR_OP_ATTR +  // Compare two ATTRs
+         (nulls << 6) + (cond << 12);
 }
 
-inline
-Uint32
-Interpreter::BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2) {
+inline Uint32 Interpreter::BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2) {
   return (AttrId1 << 16) + AttrId2;
 }
 
-inline
-Uint32
-Interpreter::BranchCol(BinaryCondition cond, NullSemantics nulls){
-  return 
-    BRANCH_ATTR_OP_ARG +
-    (nulls << 6) +
-    (cond << 12);
+inline Uint32 Interpreter::BranchCol(BinaryCondition cond,
+                                     NullSemantics nulls) {
+  return BRANCH_ATTR_OP_ARG + (nulls << 6) + (cond << 12);
 }
 
-inline
-Uint32
-Interpreter::BranchColParameter(BinaryCondition cond, NullSemantics nulls)
-{
-  return
-    BRANCH_ATTR_OP_PARAM +
-    (nulls << 6) +
-    (cond << 12);
+inline Uint32 Interpreter::BranchColParameter(BinaryCondition cond,
+                                              NullSemantics nulls) {
+  return BRANCH_ATTR_OP_PARAM + (nulls << 6) + (cond << 12);
 }
 
-inline
-Uint32
-Interpreter::BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo){
+inline Uint32 Interpreter::BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo) {
   return (AttrId << 16) + ParamNo;
 }
 
-inline
-Uint32 
-Interpreter::BranchCol_2(Uint32 AttrId, Uint32 Len){
+inline Uint32 Interpreter::BranchCol_2(Uint32 AttrId, Uint32 Len) {
   return (AttrId << 16) + Len;
 }
 
-inline
-Uint32 
-Interpreter::BranchCol_2(Uint32 AttrId){
-  return (AttrId << 16);
-}
+inline Uint32 Interpreter::BranchCol_2(Uint32 AttrId) { return (AttrId << 16); }
 
-inline
-Uint32
-Interpreter::getNullSemantics(Uint32 op){
+inline Uint32 Interpreter::getNullSemantics(Uint32 op) {
   return ((op >> 6) & 0x3);
 }
 
-inline
-Uint32
-Interpreter::getBinaryCondition(Uint32 op){
+inline Uint32 Interpreter::getBinaryCondition(Uint32 op) {
   return (op >> 12) & 0xf;
 }
 
-inline
-Uint32
-Interpreter::getBranchCol_AttrId(Uint32 op){
+inline Uint32 Interpreter::getBranchCol_AttrId(Uint32 op) {
   return (op >> 16) & 0xFFFF;
 }
 
-inline
-Uint32
-Interpreter::getBranchCol_AttrId2(Uint32 op){
+inline Uint32 Interpreter::getBranchCol_AttrId2(Uint32 op) {
   return op & 0xFFFF;
 }
 
-inline
-Uint32
-Interpreter::getBranchCol_Len(Uint32 op){
+inline Uint32 Interpreter::getBranchCol_Len(Uint32 op) { return op & 0xFFFF; }
+
+inline Uint32 Interpreter::getBranchCol_ParamNo(Uint32 op) {
   return op & 0xFFFF;
 }
 
-inline
-Uint32
-Interpreter::getBranchCol_ParamNo(Uint32 op){
-  return op & 0xFFFF;
-}
+inline Uint32 Interpreter::ExitOK() { return EXIT_OK; }
 
-inline
-Uint32
-Interpreter::ExitOK(){
-  return EXIT_OK;
-}
+inline Uint32 Interpreter::ExitLastOK() { return EXIT_OK_LAST; }
 
-inline
-Uint32
-Interpreter::ExitLastOK(){
-  return EXIT_OK_LAST;
-}
+inline Uint32 Interpreter::getOpCode(Uint32 op) { return op & 0x3f; }
 
-inline
-Uint32
-Interpreter::getOpCode(Uint32 op){
-  return op & 0x3f;
-}
+inline Uint32 Interpreter::getReg1(Uint32 op) { return (op >> 6) & 0x7; }
 
-inline
-Uint32
-Interpreter::getReg1(Uint32 op){
-  return (op >> 6) & 0x7;
-}
+inline Uint32 Interpreter::getReg2(Uint32 op) { return (op >> 9) & 0x7; }
 
-inline
-Uint32
-Interpreter::getReg2(Uint32 op){
-  return (op >> 9) & 0x7;
-}
+inline Uint32 Interpreter::getReg3(Uint32 op) { return (op >> 16) & 0x7; }
 
-inline
-Uint32
-Interpreter::getReg3(Uint32 op){
-  return (op >> 16) & 0x7;
-}
+inline Uint32 Interpreter::getLabel(Uint32 op) { return (op >> 16) & 0xffff; }
 
-inline
-Uint32
-Interpreter::getLabel(Uint32 op){
-  return (op >> 16) & 0xffff;
-}
-
-inline
-Uint32*
-Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
-                                             InstructionPreProcessing& processing )
-{
-  /* Given an instruction, get a pointer to the 
+inline Uint32 *Interpreter::getInstructionPreProcessingInfo(
+    Uint32 *op, InstructionPreProcessing &processing) {
+  /* Given an instruction, get a pointer to the
    * next instruction in the stream.
    * Returns NULL on error.
    */
-  processing= NONE;
-  Uint32 opCode= getOpCode(*op);
-  
-  switch( opCode )
-  {
-  case READ_ATTR_INTO_REG:
-  case WRITE_ATTR_FROM_REG:
-  case LOAD_CONST_NULL:
-  case LOAD_CONST16:
-    return op + 1;
-  case LOAD_CONST32:
-    return op + 2;
-  case LOAD_CONST64:
-    return op + 3;
-  case ADD_REG_REG:
-  case SUB_REG_REG:
-    return op + 1;
-  case BRANCH:
-  case BRANCH_REG_EQ_NULL:
-  case BRANCH_REG_NE_NULL:
-  case BRANCH_EQ_REG_REG:
-  case BRANCH_NE_REG_REG:
-  case BRANCH_LT_REG_REG:
-  case BRANCH_LE_REG_REG:
-  case BRANCH_GT_REG_REG:
-  case BRANCH_GE_REG_REG:
-    processing= LABEL_ADDRESS_REPLACEMENT;
-    return op + 1;
-  case BRANCH_ATTR_OP_ARG:
-  {
-    /* We need to take the length from the second word of the
-     * branch instruction so we can skip over the inline const
-     * comparison data.
-     */
-    processing= LABEL_ADDRESS_REPLACEMENT;
-    Uint32 byteLength= getBranchCol_Len(*(op+1));
-    Uint32 wordLength= (byteLength + 3) >> 2;
-    return op + 2 + wordLength;
-  }
-  case BRANCH_ATTR_OP_PARAM:
-  case BRANCH_ATTR_OP_ATTR:
-  {
-    /* Second word of the branch instruction refer either paramNo
-     * or attrId to be compared -> fixed length.
-     */
-    processing= LABEL_ADDRESS_REPLACEMENT;
-    return op + 2;
-  }
-  case BRANCH_ATTR_EQ_NULL:
-  case BRANCH_ATTR_NE_NULL:
-    processing= LABEL_ADDRESS_REPLACEMENT;
-    return op + 2;
-  case EXIT_OK:
-  case EXIT_OK_LAST:
-  case EXIT_REFUSE:
-    return op + 1;
-  case CALL:
-    processing= SUB_ADDRESS_REPLACEMENT;
-    return op + 1;
-  case RETURN:
-    return op + 1;
+  processing = NONE;
+  Uint32 opCode = getOpCode(*op);
 
-  default:
-    return nullptr;
+  switch (opCode) {
+    case READ_ATTR_INTO_REG:
+    case WRITE_ATTR_FROM_REG:
+    case LOAD_CONST_NULL:
+    case LOAD_CONST16:
+      return op + 1;
+    case LOAD_CONST32:
+      return op + 2;
+    case LOAD_CONST64:
+      return op + 3;
+    case ADD_REG_REG:
+    case SUB_REG_REG:
+      return op + 1;
+    case BRANCH:
+    case BRANCH_REG_EQ_NULL:
+    case BRANCH_REG_NE_NULL:
+    case BRANCH_EQ_REG_REG:
+    case BRANCH_NE_REG_REG:
+    case BRANCH_LT_REG_REG:
+    case BRANCH_LE_REG_REG:
+    case BRANCH_GT_REG_REG:
+    case BRANCH_GE_REG_REG:
+      processing = LABEL_ADDRESS_REPLACEMENT;
+      return op + 1;
+    case BRANCH_ATTR_OP_ARG: {
+      /* We need to take the length from the second word of the
+       * branch instruction so we can skip over the inline const
+       * comparison data.
+       */
+      processing = LABEL_ADDRESS_REPLACEMENT;
+      Uint32 byteLength = getBranchCol_Len(*(op + 1));
+      Uint32 wordLength = (byteLength + 3) >> 2;
+      return op + 2 + wordLength;
+    }
+    case BRANCH_ATTR_OP_PARAM:
+    case BRANCH_ATTR_OP_ATTR: {
+      /* Second word of the branch instruction refer either paramNo
+       * or attrId to be compared -> fixed length.
+       */
+      processing = LABEL_ADDRESS_REPLACEMENT;
+      return op + 2;
+    }
+    case BRANCH_ATTR_EQ_NULL:
+    case BRANCH_ATTR_NE_NULL:
+      processing = LABEL_ADDRESS_REPLACEMENT;
+      return op + 2;
+    case EXIT_OK:
+    case EXIT_OK_LAST:
+    case EXIT_REFUSE:
+      return op + 1;
+    case CALL:
+      processing = SUB_ADDRESS_REPLACEMENT;
+      return op + 1;
+    case RETURN:
+      return op + 1;
+
+    default:
+      return nullptr;
   }
 }
-
 
 #undef JAM_FILE_ID
 

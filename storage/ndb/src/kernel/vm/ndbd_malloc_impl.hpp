@@ -25,23 +25,23 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include <algorithm>
 #include "my_config.h"
 #include "util/require.h"
-#include <algorithm>
 #ifdef VM_TRACE
 #ifndef NDBD_RANDOM_START_PAGE
 #define NDBD_RANDOM_START_PAGE
 #endif
 #endif
 
-#include <cstdint>
+#include <assert.h>
 #include <kernel_types.h>
 #include <Bitmask.hpp>
-#include <assert.h>
+#include <EventLogger.hpp>
+#include <Vector.hpp>
+#include <cstdint>
 #include "NdbSeqLock.hpp"
 #include "Pool.hpp"
-#include <Vector.hpp>
-#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 291
 
@@ -91,21 +91,17 @@ extern Uint32 g_random_start_page_id;
 #endif
 #endif
 
-
-struct Alloc_page 
-{
+struct Alloc_page {
   Uint32 m_data[BITMAP_WORDS];
 };
 
-struct InitChunk
-{
+struct InitChunk {
   Uint32 m_cnt;
   Uint32 m_start;
-  Alloc_page* m_ptr;
+  Alloc_page *m_ptr;
 };
 
-struct Free_page_data 
-{
+struct Free_page_data {
   Uint32 m_list;
   Uint32 m_next;
   Uint32 m_prev;
@@ -119,8 +115,7 @@ struct Free_page_data
 /**
   Information of restriction and current usage of shared global page memory.
 */
-class Resource_limits
-{
+class Resource_limits {
   /**
     Number of pages dedicated for different resource group but currently not
     in use.
@@ -220,10 +215,11 @@ class Resource_limits
   void inc_resource_in_use(Uint32 id, Uint32 cnt);
   void inc_resource_spare(Uint32 id, Uint32 cnt);
   void inc_spare(Uint32 cnt);
-public:
+
+ public:
   Resource_limits();
 
-  void get_resource_limit(Uint32 id, Resource_limit& rl) const;
+  void get_resource_limit(Uint32 id, Resource_limit &rl) const;
   void init_resource_limit(Uint32 id, Uint32 min, Uint32 max);
   void init_resource_spare(Uint32 id, Uint32 pct);
 
@@ -269,15 +265,15 @@ public:
   void dump() const;
 };
 
-class Ndbd_mem_manager 
-{
+class Ndbd_mem_manager {
   friend class Test_mem_manager;
-public:
+
+ public:
   Ndbd_mem_manager();
-  
-  void set_resource_limit(const Resource_limit& rl);
-  bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
-  bool get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const;
+
+  void set_resource_limit(const Resource_limit &rl);
+  bool get_resource_limit(Uint32 id, Resource_limit &rl) const;
+  bool get_resource_limit_nolock(Uint32 id, Resource_limit &rl) const;
 
   Uint32 get_allocated() const;
   Uint32 get_reserved() const;
@@ -289,39 +285,32 @@ public:
   Uint32 get_reserved_in_use() const;
   Uint32 get_shared_in_use() const;
 
-  bool init(Uint32 *watchCounter, Uint32 pages, bool allow_alloc_less_than_requested = true);
-  void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
+  bool init(Uint32 *watchCounter, Uint32 pages,
+            bool allow_alloc_less_than_requested = true);
+  void map(Uint32 *watchCounter, bool memlock = false, Uint32 resources[] = 0);
   void init_resource_spare(Uint32 id, Uint32 pct);
-  void* get_memroot() const;
-  
-  void dump(bool locked) const ;
+  void *get_memroot() const;
+
+  void dump(bool locked) const;
   void dump_on_alloc_fail(bool on);
 
-  enum AllocZone
-  {
-    NDB_ZONE_LE_19 = 0, // Only allocate with page_id < (1 << 19)
+  enum AllocZone {
+    NDB_ZONE_LE_19 = 0,  // Only allocate with page_id < (1 << 19)
     NDB_ZONE_LE_27 = 1,
     NDB_ZONE_LE_30 = 2,
     NDB_ZONE_LE_32 = 3,
   };
 
-  void* get_page(Uint32 i) const; /* Note, no checks, i must be valid. */
-  void* get_valid_page(Uint32 i) const; /* DO NOT USE see why at definition */
+  void *get_page(Uint32 i) const;       /* Note, no checks, i must be valid. */
+  void *get_valid_page(Uint32 i) const; /* DO NOT USE see why at definition */
 
-  void* alloc_page(Uint32 type,
-                   Uint32* i,
-                   enum AllocZone,
-                   bool locked = false,
+  void *alloc_page(Uint32 type, Uint32 *i, enum AllocZone, bool locked = false,
                    bool use_max_part = true);
-  void* alloc_spare_page(Uint32 type, Uint32* i, enum AllocZone);
+  void *alloc_spare_page(Uint32 type, Uint32 *i, enum AllocZone);
   void release_page(Uint32 type, Uint32 i, bool locked = false);
-  
-  void alloc_pages(Uint32 type,
-                   Uint32* i,
-                   Uint32 *cnt,
-                   Uint32 min = 1,
-                   AllocZone zone = NDB_ZONE_LE_32,
-                   bool locked = false);
+
+  void alloc_pages(Uint32 type, Uint32 *i, Uint32 *cnt, Uint32 min = 1,
+                   AllocZone zone = NDB_ZONE_LE_32, bool locked = false);
   void release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked = false);
 
   bool give_up_pages(Uint32 type, Uint32 cnt);
@@ -331,13 +320,13 @@ public:
   void unlock();
 
   /**
-   * Compute 2log of size 
+   * Compute 2log of size
    * @note size = 0     -> 0
    * @note size > 65536 -> 16
    */
   static Uint32 ndb_log2(Uint32 size);
 
-private:
+ private:
   enum { ZONE_19 = 0, ZONE_27 = 1, ZONE_30 = 2, ZONE_32 = 3, ZONE_COUNT = 4 };
   enum : Uint32 {
     ZONE_19_BOUND = (1U << 19U),
@@ -346,32 +335,28 @@ private:
     ZONE_32_BOUND = (RNIL)
   };
 
-  struct PageInterval
-  {
-    PageInterval(Uint32 start = 0, Uint32 end = 0)
-    : start(start), end(end) {}
-    static int compare(const void* x, const void* y);
+  struct PageInterval {
+    PageInterval(Uint32 start = 0, Uint32 end = 0) : start(start), end(end) {}
+    static int compare(const void *x, const void *y);
 
     Uint32 start; /* inclusive */
-    Uint32 end; /* exclusive */
+    Uint32 end;   /* exclusive */
   };
 
   static const Uint32 zone_bound[ZONE_COUNT];
   void grow(Uint32 start, Uint32 cnt);
-  bool do_virtual_alloc(Uint32 pages,
-                        InitChunk chunks[ZONE_COUNT],
-                        Uint32* watchCounter,
-                        Alloc_page** base_address);
+  bool do_virtual_alloc(Uint32 pages, InitChunk chunks[ZONE_COUNT],
+                        Uint32 *watchCounter, Alloc_page **base_address);
 
   /**
    * Return pointer to free page data on page
    */
-  static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
+  static Free_page_data *get_free_page_data(Alloc_page *, Uint32 idx);
   Vector<Uint32> m_used_bitmap_pages;
-  
+
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
-  Alloc_page * m_base_page;
+  Alloc_page *m_base_page;
 #ifdef NDBD_RANDOM_START_PAGE
   Uint32 m_random_start_page_id;
 #endif
@@ -408,7 +393,7 @@ private:
    */
   Uint32 m_mapped_pages_new_count;
 
-  void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);  
+  void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);
   void insert_free_list(Uint32 zone, Uint32 start, Uint32 cnt);
   Uint32 remove_free_list(Uint32 zone, Uint32 start, Uint32 list);
 
@@ -418,8 +403,8 @@ private:
   Uint32 check(Uint32 first, Uint32 last);
 
   static Uint32 get_page_zone(Uint32 page);
-  void alloc(AllocZone, Uint32* ret, Uint32 *pages, Uint32 min_requested);
-  void alloc_impl(Uint32 zone, Uint32* ret, Uint32 *pages, Uint32 min);
+  void alloc(AllocZone, Uint32 *ret, Uint32 *pages, Uint32 min_requested);
+  void alloc_impl(Uint32 zone, Uint32 *ret, Uint32 *pages, Uint32 min);
   void release(Uint32 start, Uint32 cnt);
 
   /**
@@ -433,32 +418,25 @@ private:
  * Resource_limits
  */
 
-inline
-void Resource_limits::reclaim_lent_pages(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::reclaim_lent_pages(Uint32 id, Uint32 cnt) {
   const Uint32 resource_lent = get_resource_lent(id);
   const Uint32 returned_lent = m_lent - (m_untaken + m_borrowed);
   const Uint32 reclaim_lent = std::min({cnt, returned_lent, resource_lent});
-  if (reclaim_lent > 0)
-  {
+  if (reclaim_lent > 0) {
     dec_resource_lent(id, reclaim_lent);
     dec_lent(reclaim_lent);
     inc_free_reserved(reclaim_lent);
   }
 }
 
-inline
-Uint32 Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
-{
-  const Uint32 inuse = get_resource_in_use(id) +
-                       get_resource_spare(id) +
-                       get_resource_lent(id);
+inline Uint32 Resource_limits::post_alloc_resource_pages(Uint32 id,
+                                                         Uint32 cnt) {
+  const Uint32 inuse =
+      get_resource_in_use(id) + get_resource_spare(id) + get_resource_lent(id);
   const Uint32 reserved = get_resource_reserved(id);
-  if (inuse < reserved)
-  {
+  if (inuse < reserved) {
     Uint32 res_cnt = reserved - inuse;
-    if (res_cnt > cnt)
-      res_cnt = cnt;
+    if (res_cnt > cnt) res_cnt = cnt;
     dec_free_reserved(res_cnt);
   }
   inc_resource_in_use(id, cnt);
@@ -467,22 +445,18 @@ Uint32 Resource_limits::post_alloc_resource_pages(Uint32 id, Uint32 cnt)
   return alloc_resource_spare(id, cnt);
 }
 
-inline
-Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
-{
-  const Resource_limit& rl = m_limit[id - 1];
+inline Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt) {
+  const Resource_limit &rl = m_limit[id - 1];
 
   Uint32 pct = rl.m_spare_pct;
-  if (pct == 0)
-  {
+  if (pct == 0) {
     return 0;
   }
 
   Uint32 inuse = rl.m_curr + rl.m_spare;
   Int64 spare_level = Int64(rl.m_spare) * 100 - Int64(inuse) * pct;
 
-  if (spare_level >= 0)
-  {
+  if (spare_level >= 0) {
     return 0;
   }
 
@@ -490,11 +464,9 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   Uint32 spare_need = (-spare_level + gain - 1) / gain;
 
   Uint32 spare_res = 0;
-  if (rl.m_min > rl.m_curr + rl.m_spare + rl.m_lent)
-  {
+  if (rl.m_min > rl.m_curr + rl.m_spare + rl.m_lent) {
     spare_res = rl.m_min - (rl.m_curr + rl.m_spare + rl.m_lent);
-    if (spare_res >= spare_need)
-    {
+    if (spare_res >= spare_need) {
       m_limit[id - 1].m_spare += spare_need;
       m_spare += spare_need;
       m_free_reserved -= spare_need;
@@ -506,8 +478,7 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   Uint32 free_shr = m_allocated - m_in_use - m_spare;
   assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res + rl.m_lent);
   Uint32 limit = rl.m_max - (rl.m_curr + rl.m_spare + spare_res + rl.m_lent);
-  if (free_shr > limit)
-  {
+  if (free_shr > limit) {
     free_shr = limit;
   }
   Uint32 spare_shr = (free_shr > spare_need) ? spare_need : free_shr;
@@ -528,77 +499,53 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   return spare_take;
 }
 
-inline
-void Resource_limits::dec_free_reserved(Uint32 cnt)
-{
+inline void Resource_limits::dec_free_reserved(Uint32 cnt) {
   assert(m_free_reserved >= cnt);
   m_free_reserved -= cnt;
 }
 
-inline
-void Resource_limits::dec_in_use(Uint32 cnt)
-{
+inline void Resource_limits::dec_in_use(Uint32 cnt) {
   assert(m_in_use >= cnt);
   m_in_use -= cnt;
 }
 
-inline
-void Resource_limits::dec_resource_in_use(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::dec_resource_in_use(Uint32 id, Uint32 cnt) {
   assert(m_limit[id - 1].m_curr >= cnt);
   m_limit[id - 1].m_curr -= cnt;
 }
 
-inline
-void Resource_limits::dec_resource_spare(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::dec_resource_spare(Uint32 id, Uint32 cnt) {
   assert(m_limit[id - 1].m_spare >= cnt);
   m_limit[id - 1].m_spare -= cnt;
 }
 
-inline
-void Resource_limits::dec_spare(Uint32 cnt)
-{
+inline void Resource_limits::dec_spare(Uint32 cnt) {
   assert(m_spare >= cnt);
   m_spare -= cnt;
 }
 
-inline
-Uint32 Resource_limits::get_allocated() const
-{
-  return m_allocated;
-}
+inline Uint32 Resource_limits::get_allocated() const { return m_allocated; }
 
-inline
-Uint32 Resource_limits::get_reserved() const
-{
+inline Uint32 Resource_limits::get_reserved() const {
   Uint32 reserved = 0;
-  for (Uint32 id = 1; id <= MM_RG_COUNT; id++)
-  {
+  for (Uint32 id = 1; id <= MM_RG_COUNT; id++) {
     reserved += get_resource_reserved(id);
   }
   return reserved;
 }
 
-inline
-Uint32 Resource_limits::get_shared() const
-{
+inline Uint32 Resource_limits::get_shared() const {
   const Uint32 reserved = get_reserved();
   const Uint32 allocated = get_allocated();
-  if (allocated < reserved)
-    return 0;
+  if (allocated < reserved) return 0;
   return allocated - reserved;
 }
 
-inline
-Uint32 Resource_limits::get_free_reserved() const
-{
+inline Uint32 Resource_limits::get_free_reserved() const {
   return m_free_reserved;
 }
 
-inline
-Uint32 Resource_limits::get_free_shared() const
-{
+inline Uint32 Resource_limits::get_free_shared() const {
   assert(m_allocated >= m_free_reserved + m_in_use + m_spare);
   const Uint32 used = m_free_reserved + m_in_use + m_spare;
   const Uint32 total = m_allocated;
@@ -606,65 +553,47 @@ Uint32 Resource_limits::get_free_shared() const
    * When called from get_free_shared_nolock ensure that total is not less
    * than used.
    */
-  if (unlikely(total < used))
-  {
+  if (unlikely(total < used)) {
     return 0;
   }
   return total - used;
 }
 
-inline
-Uint32 Resource_limits::get_in_use() const
-{
+inline Uint32 Resource_limits::get_in_use() const {
   return m_in_use + m_untaken;
 }
 
-inline
-Uint32 Resource_limits::get_reserved_in_use() const
-{
+inline Uint32 Resource_limits::get_reserved_in_use() const {
   return get_reserved() - get_free_reserved();
 }
 
-inline
-Uint32 Resource_limits::get_shared_in_use() const
-{
+inline Uint32 Resource_limits::get_shared_in_use() const {
   return get_shared() - get_free_shared();
 }
 
-inline
-Uint32 Resource_limits::get_max_page() const
-{
-  return m_max_page;
-}
+inline Uint32 Resource_limits::get_max_page() const { return m_max_page; }
 
-inline
-Uint32 Resource_limits::get_resource_free(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_free(Uint32 id) const {
   require(id <= MM_RG_COUNT);
-  const Resource_limit& rl = m_limit[id - 1];
+  const Resource_limit &rl = m_limit[id - 1];
   assert(rl.m_curr + rl.m_spare + rl.m_lent <= rl.m_max);
   return rl.m_max - (rl.m_curr + rl.m_spare + rl.m_lent);
 }
 
-inline
-Uint32 Resource_limits::get_resource_free_reserved(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_free_reserved(Uint32 id) const {
   require(id <= MM_RG_COUNT);
-  const Resource_limit& rl = m_limit[id - 1];
-  if (rl.m_min > (rl.m_curr + rl.m_spare + rl.m_lent))
-  {
-     return rl.m_min - (rl.m_curr + rl.m_spare + rl.m_lent);
+  const Resource_limit &rl = m_limit[id - 1];
+  if (rl.m_min > (rl.m_curr + rl.m_spare + rl.m_lent)) {
+    return rl.m_min - (rl.m_curr + rl.m_spare + rl.m_lent);
   }
   return 0;
 }
 
-inline
-Uint32 Resource_limits::get_resource_free_shared(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_free_shared(Uint32 id) const {
   const Uint32 free_shared = get_free_shared();
 
   require(id <= MM_RG_COUNT);
-  const Resource_limit& rl = m_limit[id - 1];
+  const Resource_limit &rl = m_limit[id - 1];
 
   if (rl.m_min > 0) /* high prio */
   {
@@ -677,89 +606,64 @@ Uint32 Resource_limits::get_resource_free_shared(Uint32 id) const
   return 0;
 }
 
-inline
-Uint32 Resource_limits::get_resource_in_use(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_in_use(Uint32 id) const {
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_curr;
 }
 
-inline
-void Resource_limits::get_resource_limit(Uint32 id, Resource_limit& rl) const
-{
+inline void Resource_limits::get_resource_limit(Uint32 id,
+                                                Resource_limit &rl) const {
   require(id <= MM_RG_COUNT);
   rl = m_limit[id - 1];
 }
 
-inline
-Uint32 Resource_limits::get_resource_reserved(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_reserved(Uint32 id) const {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_min;
 }
 
-inline
-Uint32 Resource_limits::get_resource_spare(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_spare(Uint32 id) const {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_spare;
 }
 
-inline
-Uint32 Resource_limits::get_spare() const
-{
-  return m_spare;
-}
+inline Uint32 Resource_limits::get_spare() const { return m_spare; }
 
-inline
-void Resource_limits::inc_free_reserved(Uint32 cnt)
-{
+inline void Resource_limits::inc_free_reserved(Uint32 cnt) {
   m_free_reserved += cnt;
   assert(m_free_reserved >= cnt);
 }
 
-inline
-void Resource_limits::inc_in_use(Uint32 cnt)
-{
+inline void Resource_limits::inc_in_use(Uint32 cnt) {
   m_in_use += cnt;
   assert(m_in_use >= cnt);
 }
 
-inline
-void Resource_limits::inc_resource_in_use(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::inc_resource_in_use(Uint32 id, Uint32 cnt) {
   m_limit[id - 1].m_curr += cnt;
   assert(m_limit[id - 1].m_curr >= cnt);
 }
 
-inline
-void Resource_limits::inc_resource_spare(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::inc_resource_spare(Uint32 id, Uint32 cnt) {
   m_limit[id - 1].m_spare += cnt;
   assert(m_limit[id - 1].m_spare >= cnt);
 }
 
-inline
-void Resource_limits::inc_spare(Uint32 cnt)
-{
+inline void Resource_limits::inc_spare(Uint32 cnt) {
   m_spare += cnt;
   assert(m_spare >= cnt);
 }
 
-inline
-void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
-{
-  const Uint32 inuse = get_resource_in_use(id) +
-                       get_resource_spare(id) +
-                       get_resource_lent(id);
+inline void Resource_limits::post_release_resource_pages(Uint32 id,
+                                                         Uint32 cnt) {
+  const Uint32 inuse =
+      get_resource_in_use(id) + get_resource_spare(id) + get_resource_lent(id);
   const Uint32 reserved = get_resource_reserved(id);
-  if (inuse - cnt < reserved)
-  {
+  if (inuse - cnt < reserved) {
     Uint32 res_cnt = reserved - inuse + cnt;
-    if (res_cnt > cnt)
-      res_cnt = cnt;
+    if (res_cnt > cnt) res_cnt = cnt;
     inc_free_reserved(res_cnt);
   }
   dec_resource_in_use(id, cnt);
@@ -770,8 +674,7 @@ void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
    * earlier borrowed by take_pages().
    */
   const Uint32 return_borrowed = std::min(cnt, get_resource_borrowed(id));
-  if (return_borrowed > 0)
-  {
+  if (return_borrowed > 0) {
     dec_resource_borrowed(id, return_borrowed);
     dec_borrowed(return_borrowed);
   }
@@ -779,156 +682,112 @@ void Resource_limits::post_release_resource_pages(Uint32 id, Uint32 cnt)
   release_resource_spare(id, cnt);
 }
 
-inline
-void Resource_limits::release_resource_spare(Uint32 id, Uint32 cnt)
-{
-  const Resource_limit& rl = m_limit[id - 1];
+inline void Resource_limits::release_resource_spare(Uint32 id, Uint32 cnt) {
+  const Resource_limit &rl = m_limit[id - 1];
 
   Uint32 pct = rl.m_spare_pct;
-  if (pct == 0)
-  {
+  if (pct == 0) {
     return;
   }
   Uint32 gain = 100 - pct;
   Uint32 inuse = rl.m_curr + rl.m_spare;
   Int64 spare_level = Int64(rl.m_spare) * 100 - Int64(inuse) * pct;
 
-  if (spare_level < gain)
-  {
+  if (spare_level < gain) {
     return;
   }
 
   Uint32 spare_excess = spare_level / gain;
 
-  if (inuse < rl.m_min + spare_excess)
-  {
+  if (inuse < rl.m_min + spare_excess) {
     Uint32 res_cnt = rl.m_min + spare_excess - inuse;
-    if (res_cnt > spare_excess)
-      res_cnt = spare_excess;
+    if (res_cnt > spare_excess) res_cnt = spare_excess;
     m_free_reserved += res_cnt;
   }
   m_limit[id - 1].m_spare -= spare_excess;
   m_spare -= spare_excess;
 }
 
-inline
-void Resource_limits::set_allocated(Uint32 cnt)
-{
-  m_allocated = cnt;
-}
+inline void Resource_limits::set_allocated(Uint32 cnt) { m_allocated = cnt; }
 
-inline
-void Resource_limits::update_low_prio_shared_limit()
-{
+inline void Resource_limits::update_low_prio_shared_limit() {
   Uint32 shared = get_shared();
   m_prio_free_limit = shared * HIGH_PRIO_FREE_PCT / 100 + 1;
 }
 
-inline
-void Resource_limits::set_free_reserved(Uint32 cnt)
-{
+inline void Resource_limits::set_free_reserved(Uint32 cnt) {
   m_free_reserved = cnt;
 }
 
-inline
-Uint32 Resource_limits::get_resource_lent(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_lent(Uint32 id) const {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_lent;
 }
 
-inline
-Uint32 Resource_limits::get_resource_borrowed(Uint32 id) const
-{
+inline Uint32 Resource_limits::get_resource_borrowed(Uint32 id) const {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   return m_limit[id - 1].m_borrowed;
 }
 
-inline
-void Resource_limits::dec_untaken(Uint32 cnt)
-{
+inline void Resource_limits::dec_untaken(Uint32 cnt) {
   assert(m_untaken >= cnt);
   m_untaken -= cnt;
 }
 
-inline
-void Resource_limits::dec_borrowed(Uint32 cnt)
-{
+inline void Resource_limits::dec_borrowed(Uint32 cnt) {
   assert(m_borrowed >= cnt);
   m_borrowed -= cnt;
 }
 
-inline
-void Resource_limits::dec_lent(Uint32 cnt)
-{
+inline void Resource_limits::dec_lent(Uint32 cnt) {
   assert(m_lent >= cnt);
   m_lent -= cnt;
 }
 
-inline
-void Resource_limits::inc_borrowed(Uint32 cnt)
-{
+inline void Resource_limits::inc_borrowed(Uint32 cnt) {
   m_borrowed += cnt;
   assert(m_borrowed >= cnt);
 }
 
-inline
-void Resource_limits::inc_lent(Uint32 cnt)
-{
+inline void Resource_limits::inc_lent(Uint32 cnt) {
   m_lent += cnt;
   assert(m_lent >= cnt);
 }
 
-inline
-void Resource_limits::inc_untaken(Uint32 cnt)
-{
+inline void Resource_limits::inc_untaken(Uint32 cnt) {
   m_untaken += cnt;
   assert(m_untaken >= cnt);
 }
 
-inline
-void Resource_limits::dec_resource_lent(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::dec_resource_lent(Uint32 id, Uint32 cnt) {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   m_limit[id - 1].m_lent -= cnt;
 }
 
-inline
-void Resource_limits::dec_resource_borrowed(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::dec_resource_borrowed(Uint32 id, Uint32 cnt) {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   m_limit[id - 1].m_borrowed -= cnt;
 }
 
-inline
-void Resource_limits::inc_resource_lent(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::inc_resource_lent(Uint32 id, Uint32 cnt) {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   m_limit[id - 1].m_lent += cnt;
 }
 
-inline
-void Resource_limits::inc_resource_borrowed(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::inc_resource_borrowed(Uint32 id, Uint32 cnt) {
   require(id > 0);
   require(id <= MM_RG_COUNT);
   m_limit[id - 1].m_borrowed += cnt;
 }
 
-inline
-void Resource_limits::set_max_page(Uint32 page)
-{
-  m_max_page = page;
-}
+inline void Resource_limits::set_max_page(Uint32 page) { m_max_page = page; }
 
-inline
-void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt)
-{
+inline void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt) {
   assert(get_resource_spare(id) > 0);
   dec_resource_spare(id, cnt);
   inc_resource_in_use(id, cnt);
@@ -940,14 +799,11 @@ void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt)
  * Ndbd_mem_manager
  */
 
-inline
-void*
-Ndbd_mem_manager::get_page(Uint32 page_num) const
-{
+inline void *Ndbd_mem_manager::get_page(Uint32 page_num) const {
 #ifdef NDBD_RANDOM_START_PAGE
   page_num -= m_random_start_page_id;
 #endif
-  return (void*)(m_base_page + page_num);
+  return (void *)(m_base_page + page_num);
 }
 /**
  * get_valid_page returns page pointer if requested page is handled by
@@ -970,17 +826,13 @@ Ndbd_mem_manager::get_page(Uint32 page_num) const
  *
  * In any case one should strive to remove this function!
  */
-inline
-void*
-Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
-{
+inline void *Ndbd_mem_manager::get_valid_page(Uint32 page_num) const {
 #ifdef NDBD_RANDOM_START_PAGE
   page_num -= m_random_start_page_id;
 #endif
   const Uint32 page_region_index = page_num & PAGE_REGION_MASK;
   if (unlikely(page_region_index == 0 ||
-               page_region_index == PAGE_REGION_MASK))
-  {
+               page_region_index == PAGE_REGION_MASK)) {
     /**
      * First page in region are used internally for bitmap.
      * Last page is region is reserved for no use.
@@ -1004,30 +856,23 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
   do {
     lock_value = m_mapped_pages_lock.read_lock();
 
-    Uint32 a = 0; /* inclusive lower limit */
+    Uint32 a = 0;                    /* inclusive lower limit */
     Uint32 z = m_mapped_pages_count; /* exclusive upper limit */
     page_is_mapped = false;
-    while (a < z)
-    {
+    while (a < z) {
       Uint32 i = (a + z) / 2;
-      if (page_num < m_mapped_pages[i].start)
-      {
+      if (page_num < m_mapped_pages[i].start) {
         z = i;
-      }
-      else if (page_num < m_mapped_pages[i].end)
-      {
+      } else if (page_num < m_mapped_pages[i].end) {
         page_is_mapped = true;
         break;
-      }
-      else
-      {
+      } else {
         a = i + 1;
       }
     }
   } while (!m_mapped_pages_lock.read_unlock(lock_value));
 
-  if (unlikely(!page_is_mapped))
-  {
+  if (unlikely(!page_is_mapped)) {
 #ifdef NDBD_RANDOM_START_PAGE
     g_eventLogger->info(
         "Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
@@ -1043,53 +888,40 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
     return NULL;
   }
 
-  return (void*)(m_base_page + page_num);
+  return (void *)(m_base_page + page_num);
 }
 
-inline
-Free_page_data*
-Ndbd_mem_manager::get_free_page_data(Alloc_page* ptr, Uint32 idx)
-{
+inline Free_page_data *Ndbd_mem_manager::get_free_page_data(Alloc_page *ptr,
+                                                            Uint32 idx) {
   assert(idx & ((1 << BPP_2LOG) - 1));
   assert((idx & ((1 << BPP_2LOG) - 1)) != ((1 << BPP_2LOG) - 1));
-  
-  return (Free_page_data*)
-    (ptr->m_data + ((idx & ((BITMAP_WORDS >> FPD_2LOG) - 1)) << FPD_2LOG));
+
+  return (
+      Free_page_data *)(ptr->m_data +
+                        ((idx & ((BITMAP_WORDS >> FPD_2LOG) - 1)) << FPD_2LOG));
 }
 
-inline
-Uint32 Ndbd_mem_manager::get_page_zone(Uint32 page)
-{
-  if (page < ZONE_19_BOUND)
-  {
+inline Uint32 Ndbd_mem_manager::get_page_zone(Uint32 page) {
+  if (page < ZONE_19_BOUND) {
     return ZONE_19;
-  }
-  else if (page < ZONE_27_BOUND)
-  {
+  } else if (page < ZONE_27_BOUND) {
     return ZONE_27;
-  }
-  else if (page < ZONE_30_BOUND)
-  {
+  } else if (page < ZONE_30_BOUND) {
     return ZONE_30;
-  }
-  else
-  {
+  } else {
     return ZONE_32;
   }
 }
 
-inline
-void
-Ndbd_mem_manager::set(Uint32 first, Uint32 last)
-{
+inline void Ndbd_mem_manager::set(Uint32 first, Uint32 last) {
   /**
    * First and last page in a BPP region may not be available for external use.
    * First page is the bitmap page for the region.
    * Last page is always unused.
    */
   require(first & ((1 << BPP_2LOG) - 1));
-  require((first+1) & ((1 << BPP_2LOG) - 1));
-  Alloc_page * ptr = m_base_page;
+  require((first + 1) & ((1 << BPP_2LOG) - 1));
+  Alloc_page *ptr = m_base_page;
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
@@ -1103,16 +935,13 @@ Ndbd_mem_manager::set(Uint32 first, Uint32 last)
   BitmaskImpl::set(BITMAP_WORDS, ptr->m_data, last);
 }
 
-inline
-void
-Ndbd_mem_manager::clear(Uint32 first, Uint32 last)
-{
-  Alloc_page * ptr = m_base_page;
+inline void Ndbd_mem_manager::clear(Uint32 first, Uint32 last) {
+  Alloc_page *ptr = m_base_page;
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
   assert(bmp < m_resource_limits.get_max_page());
-  
+
   first -= bmp;
   last -= bmp;
   ptr += bmp;
@@ -1121,36 +950,30 @@ Ndbd_mem_manager::clear(Uint32 first, Uint32 last)
   BitmaskImpl::clear(BITMAP_WORDS, ptr->m_data, last);
 }
 
-inline
-void
-Ndbd_mem_manager::clear_and_set(Uint32 first, Uint32 last)
-{
-  Alloc_page * ptr = m_base_page;
+inline void Ndbd_mem_manager::clear_and_set(Uint32 first, Uint32 last) {
+  Alloc_page *ptr = m_base_page;
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
   assert(bmp < m_resource_limits.get_max_page());
-  
+
   first -= bmp;
   last -= bmp;
   ptr += bmp;
 #endif
   BitmaskImpl::clear(BITMAP_WORDS, ptr->m_data, first);
   BitmaskImpl::clear(BITMAP_WORDS, ptr->m_data, last);
-  BitmaskImpl::set(BITMAP_WORDS, ptr->m_data, last+1);
+  BitmaskImpl::set(BITMAP_WORDS, ptr->m_data, last + 1);
 }
 
-inline
-Uint32
-Ndbd_mem_manager::check(Uint32 first, Uint32 last)
-{
+inline Uint32 Ndbd_mem_manager::check(Uint32 first, Uint32 last) {
   Uint32 ret = 0;
-  Alloc_page * ptr = m_base_page;
+  Alloc_page *ptr = m_base_page;
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
   assert(bmp < m_resource_limits.get_max_page());
-  
+
   first -= bmp;
   last -= bmp;
   ptr += bmp;
@@ -1162,4 +985,4 @@ Ndbd_mem_manager::check(Uint32 first, Uint32 last)
 
 #undef JAM_FILE_ID
 
-#endif 
+#endif

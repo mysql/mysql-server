@@ -29,7 +29,6 @@
 
 #include <Checksum.hpp>
 
-
 /**
  * computeXorChecksumAligned16: Compute checksum on 16-byte aligned memory.
  * Only needed when compiling with Clang:
@@ -42,9 +41,8 @@
  * We only use this aligned variant of XorChecksum for large memory blocks.
  */
 Uint32 computeXorChecksumAligned16(const Uint32 *buf, const size_t words,
-                                   const Uint32 sum)
-{
-  buf = static_cast<const Uint32*>(__builtin_assume_aligned(buf, 16));
+                                   const Uint32 sum) {
+  buf = static_cast<const Uint32 *>(__builtin_assume_aligned(buf, 16));
   return xorChecksum(buf, words, sum);
 }
 

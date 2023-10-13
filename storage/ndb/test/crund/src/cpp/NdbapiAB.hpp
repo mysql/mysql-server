@@ -37,134 +37,173 @@ using std::string;
 struct Model;
 
 class NdbapiAB : public CrundLoad {
-public:
+ public:
+  // usage
+  NdbapiAB(CrundDriver &driver)
+      : CrundLoad("ndbapi", driver),
+        mgmd(NULL),
+        ndb(NULL),
+        tx(NULL),
+        model(NULL) {}
+  virtual ~NdbapiAB() {
+    assert(mgmd == NULL);
+    assert(ndb == NULL);
+    assert(tx == NULL);
+    assert(model == NULL);
+  }
 
-    // usage
-    NdbapiAB(CrundDriver& driver)
-        : CrundLoad("ndbapi", driver),
-          mgmd(NULL), ndb(NULL), tx(NULL), model(NULL) {
-    }
-    virtual ~NdbapiAB() {
-        assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
-        assert(model == NULL);
-    }
+  // settings
+  string mgmdConnect;
+  string catalog;
+  string schema;
+  int nMaxConcTx;
+  int nConcScans;
 
-    // settings
-    string mgmdConnect;
-    string catalog;
-    string schema;
-    int nMaxConcTx;
-    int nConcScans;
+ protected:
+  // resources
+  Ndb_cluster_connection *mgmd;
+  Ndb *ndb;
+  NdbTransaction *tx;
+  NdbOperation::LockMode ndbOpLockMode;  // XXX move under settings
+  Model *model;
 
-protected:
+  // type shortcuts
+  typedef CrundDriver::XMode XMode;
 
-    // resources
-    Ndb_cluster_connection* mgmd;
-    Ndb* ndb;
-    NdbTransaction* tx;
-    NdbOperation::LockMode ndbOpLockMode; // XXX move under settings
-    Model* model;
+  // intializers/finalizers
+  virtual void initProperties();
+  virtual void printProperties();
+  virtual void init();
+  virtual void close();
 
-    // type shortcuts
-    typedef CrundDriver::XMode XMode;
+  // datastore operations
+  virtual void initConnection();
+  virtual void closeConnection();
+  virtual void clearData();
 
-    // intializers/finalizers
-    virtual void initProperties();
-    virtual void printProperties();
-    virtual void init();
-    virtual void close();
+  // benchmark operations
+  virtual void initOperations();
+  virtual void closeOperations();
+  virtual void buildOperations();
+  template <XMode::E xMode>
+  void addOperations();
 
-    // datastore operations
-    virtual void initConnection();
-    virtual void closeConnection();
-    virtual void clearData();
+  // general benchmark operation types
+  template <XMode::E xMode>
+  struct NdbapiOp;
+  template <XMode::E xMode>
+  struct WriteOp;
+  template <XMode::E xMode>
+  struct UpdateOp;
+  template <XMode::E xMode>
+  struct InsertOp;
+  template <XMode::E xMode>
+  struct DeleteOp;
+  template <XMode::E xMode>
+  struct ReadOp;
+  template <XMode::E xMode>
+  struct IndexScanOp;
+  template <XMode::E xMode, typename ElementT>
+  struct BufUpdateOp;
+  template <XMode::E xMode, typename ElementT>
+  struct BufReadOp;
+  template <XMode::E xMode, typename ElementT>
+  struct BufIndexScanOp;
+  struct TableScanDeleteOp;
 
-    // benchmark operations
-    virtual void initOperations();
-    virtual void closeOperations();
-    virtual void buildOperations();
-    template< XMode::E xMode > void addOperations();
+  // crund benchmark operation types
+  template <XMode::E xMode, bool setAttr>
+  struct AB_insAttr;
+  template <XMode::E xMode, bool setAttr>
+  struct A_insAttr;
+  template <XMode::E xMode, bool setAttr>
+  struct B_insAttr;
+  template <XMode::E xMode>
+  struct AB_setAttr;
+  template <XMode::E xMode>
+  struct A_setAttr;
+  template <XMode::E xMode>
+  struct B_setAttr;
+  template <XMode::E xMode>
+  struct AB_del;
+  template <XMode::E xMode>
+  struct A_del;
+  template <XMode::E xMode>
+  struct B_del;
+  template <XMode::E xMode, typename HolderT>
+  struct AB_getAttr;
+  template <XMode::E xMode>
+  struct A_getAttr_bb;
+  template <XMode::E xMode>
+  struct A_getAttr_ra;
+  template <XMode::E xMode>
+  struct B_getAttr_bb;
+  template <XMode::E xMode>
+  struct B_getAttr_ra;
+  template <XMode::E xMode>
+  struct B_setVarbinary;
+  template <XMode::E xMode>
+  struct B_clearVarbinary;
+  template <XMode::E xMode>
+  struct B_getVarbinary;
+  template <XMode::E xMode>
+  struct B_setVarchar;
+  template <XMode::E xMode>
+  struct B_clearVarchar;
+  template <XMode::E xMode>
+  struct B_getVarchar;
+  template <XMode::E xMode>
+  struct B_setA;
+  template <XMode::E xMode>
+  struct B_clearA;
+  template <XMode::E xMode, typename HolderT>
+  struct B_getA;
+  template <XMode::E xMode>
+  struct B_getA_bb;
+  template <XMode::E xMode>
+  struct B_getA_ra;
+  template <XMode::E xMode, typename HolderT>
+  struct A_getBs;
+  template <XMode::E xMode>
+  struct A_getBs_bb;
+  template <XMode::E xMode>
+  struct A_getBs_ra;
+  struct A_delAll;
+  struct B_delAll;
 
-    // general benchmark operation types
-    template< XMode::E xMode > struct NdbapiOp;
-    template< XMode::E xMode > struct WriteOp;
-    template< XMode::E xMode > struct UpdateOp;
-    template< XMode::E xMode > struct InsertOp;
-    template< XMode::E xMode > struct DeleteOp;
-    template< XMode::E xMode > struct ReadOp;
-    template< XMode::E xMode > struct IndexScanOp;
-    template< XMode::E xMode, typename ElementT > struct BufUpdateOp;
-    template< XMode::E xMode, typename ElementT > struct BufReadOp;
-    template< XMode::E xMode, typename ElementT > struct BufIndexScanOp;
-    struct TableScanDeleteOp;
+  // benchmark operation functions
+  struct Holder;
+  struct ValIdHolder;
+  struct ValAttrHolder;
+  struct RecIdHolder;
+  struct RecAttrHolder;
+  void setKeyAB(NdbOperation *op, int id);
+  void getKeyAB(NdbOperation *op, ValIdHolder *vh);
+  void getKeyAB(NdbOperation *op, RecIdHolder *rh);
+  void checkKeyAB(int i, ValIdHolder *vh);
+  void checkKeyAB(int i, RecIdHolder *ah);
+  void setAttrAB(NdbOperation *op, int i);
+  void getAttrAB(NdbOperation *op, ValAttrHolder *vh);
+  void getAttrAB(NdbOperation *op, RecAttrHolder *rh);
+  void checkAttrAB(int i, ValAttrHolder *vh);
+  void checkAttrAB(int i, RecAttrHolder *rh);
+  void setVarbinaryB(NdbOperation *op, char *&buf, const bytes *data);
+  void getVarbinaryB(NdbOperation *op, char *pos);
+  void checkVarbinaryB(const bytes *data, char *pos);
+  void setVarcharB(NdbOperation *op, char *&buf, const string *data);
+  void getVarcharB(NdbOperation *op, char *pos);
+  void checkVarcharB(const string *data, char *pos);
+  void setAIdB(NdbOperation *op, int aid);
+  void getAIdB(NdbOperation *op, ValIdHolder *vh);
+  void getAIdB(NdbOperation *op, RecIdHolder *rh);
+  void setBoundEqAIdB(NdbIndexScanOperation *op, int id);
 
-    // crund benchmark operation types
-    template< XMode::E xMode, bool setAttr > struct AB_insAttr;
-    template< XMode::E xMode, bool setAttr > struct A_insAttr;
-    template< XMode::E xMode, bool setAttr > struct B_insAttr;
-    template< XMode::E xMode > struct AB_setAttr;
-    template< XMode::E xMode > struct A_setAttr;
-    template< XMode::E xMode > struct B_setAttr;
-    template< XMode::E xMode > struct AB_del;
-    template< XMode::E xMode > struct A_del;
-    template< XMode::E xMode > struct B_del;
-    template< XMode::E xMode, typename HolderT > struct AB_getAttr;
-    template< XMode::E xMode > struct A_getAttr_bb;
-    template< XMode::E xMode > struct A_getAttr_ra;
-    template< XMode::E xMode > struct B_getAttr_bb;
-    template< XMode::E xMode > struct B_getAttr_ra;
-    template< XMode::E xMode > struct B_setVarbinary;
-    template< XMode::E xMode > struct B_clearVarbinary;
-    template< XMode::E xMode > struct B_getVarbinary;
-    template< XMode::E xMode > struct B_setVarchar;
-    template< XMode::E xMode > struct B_clearVarchar;
-    template< XMode::E xMode > struct B_getVarchar;
-    template< XMode::E xMode > struct B_setA;
-    template< XMode::E xMode > struct B_clearA;
-    template< XMode::E xMode, typename HolderT > struct B_getA;
-    template< XMode::E xMode > struct B_getA_bb;
-    template< XMode::E xMode > struct B_getA_ra;
-    template< XMode::E xMode, typename HolderT > struct A_getBs;
-    template< XMode::E xMode > struct A_getBs_bb;
-    template< XMode::E xMode > struct A_getBs_ra;
-    struct A_delAll;
-    struct B_delAll;
-
-    // benchmark operation functions
-    struct Holder;
-    struct ValIdHolder;
-    struct ValAttrHolder;
-    struct RecIdHolder;
-    struct RecAttrHolder;
-    void setKeyAB(NdbOperation* op, int id);
-    void getKeyAB(NdbOperation* op, ValIdHolder* vh);
-    void getKeyAB(NdbOperation* op, RecIdHolder* rh);
-    void checkKeyAB(int i, ValIdHolder* vh);
-    void checkKeyAB(int i, RecIdHolder* ah);
-    void setAttrAB(NdbOperation* op, int i);
-    void getAttrAB(NdbOperation* op, ValAttrHolder* vh);
-    void getAttrAB(NdbOperation* op, RecAttrHolder* rh);
-    void checkAttrAB(int i, ValAttrHolder* vh);
-    void checkAttrAB(int i, RecAttrHolder* rh);
-    void setVarbinaryB(NdbOperation* op,
-                     char*& buf, const bytes* data);
-    void getVarbinaryB(NdbOperation* op, char* pos);
-    void checkVarbinaryB(const bytes* data, char* pos);
-    void setVarcharB(NdbOperation* op,
-                     char*& buf, const string* data);
-    void getVarcharB(NdbOperation* op, char* pos);
-    void checkVarcharB(const string* data, char* pos);
-    void setAIdB(NdbOperation* op, int aid);
-    void getAIdB(NdbOperation* op, ValIdHolder* vh);
-    void getAIdB(NdbOperation* op, RecIdHolder* rh);
-    void setBoundEqAIdB(NdbIndexScanOperation* op, int id);
-
-    static void writeLengthPrefix(char*& to, int length, int width);
-    static int readLengthPrefix(const char*& from, int width);
-    static char* writeBytes(char*& to, const bytes& from, int width);
-    static char* writeString(char*& to, const string& from, int width);
-    static void readBytes(bytes& to, const char* from, int width);
-    static void readString(string& to, const char* from, int width);
+  static void writeLengthPrefix(char *&to, int length, int width);
+  static int readLengthPrefix(const char *&from, int width);
+  static char *writeBytes(char *&to, const bytes &from, int width);
+  static char *writeString(char *&to, const string &from, int width);
+  static void readBytes(bytes &to, const char *from, int width);
+  static void readString(string &to, const char *from, int width);
 };
 
-#endif // NdbapiAB_hpp
+#endif  // NdbapiAB_hpp

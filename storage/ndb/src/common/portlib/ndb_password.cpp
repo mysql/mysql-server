@@ -66,33 +66,27 @@
 
 static int ndb_get_password_read_line(int fd_in, char buf[], size_t size);
 
-static int ndb_get_password_read_line_from_tty(int fd_in,
-                                               int fd_out,
-                                               const char prompt[],
-                                               char buf[],
-                                               size_t size)
-{
+static int ndb_get_password_read_line_from_tty(int fd_in, int fd_out,
+                                               const char prompt[], char buf[],
+                                               size_t size) {
 #if defined(_WIN32)
   assert(_isatty(fd_in));
   HANDLE hin = (HANDLE)_get_osfhandle(fd_in);
   DWORD old_mode;
-  if (!GetConsoleMode(hin, &old_mode))
-  {
+  if (!GetConsoleMode(hin, &old_mode)) {
     return static_cast<int>(ndb_get_password_error::system_error);
   }
 
   DWORD new_mode = old_mode;
   new_mode &= ~ENABLE_ECHO_INPUT;
   new_mode |= (ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
-  if (!SetConsoleMode(hin, new_mode))
-  {
+  if (!SetConsoleMode(hin, new_mode)) {
     return static_cast<int>(ndb_get_password_error::system_error);
   }
 #else
   assert(isatty(fd_in));
   struct termios old_mode;
-  if (tcgetattr(fd_in, &old_mode) == -1)
-  {
+  if (tcgetattr(fd_in, &old_mode) == -1) {
     return static_cast<int>(ndb_get_password_error::system_error);
   }
   struct termios new_mode = old_mode;
@@ -108,25 +102,20 @@ static int ndb_get_password_read_line_from_tty(int fd_in,
 #endif
 
   int ret = 0;
-  if (fd_out != -1)
-  {
+  if (fd_out != -1) {
     if (prompt == nullptr) prompt = "Enter password: ";
-    if (write(fd_out, prompt, strlen(prompt)) == -1)
-    {
+    if (write(fd_out, prompt, strlen(prompt)) == -1) {
       ret = static_cast<int>(ndb_get_password_error::system_error);
     }
   }
 
-  if (ret == 0)
-  {
+  if (ret == 0) {
     ret = ndb_get_password_read_line(fd_in, buf, size);
   }
 
 #if defined(_WIN32)
-  if (fd_out != -1)
-  {
-    if (write(fd_out, "\n", 1) == -1 && ret >= 0)
-    {
+  if (fd_out != -1) {
+    if (write(fd_out, "\n", 1) == -1 && ret >= 0) {
       ret = static_cast<int>(ndb_get_password_error::system_error);
     }
   }
@@ -137,69 +126,58 @@ static int ndb_get_password_read_line_from_tty(int fd_in,
   return ret;
 }
 
-int ndb_get_password_read_line(int fd_in, char buf[], size_t size)
-{
+int ndb_get_password_read_line(int fd_in, char buf[], size_t size) {
   size_t len = 0;
   int ret = 0;
-  while (len < size && (ret = read(fd_in, &buf[len], 1)) == 1)
-  {
-    if (buf[len] == '\n')
-    {
+  while (len < size && (ret = read(fd_in, &buf[len], 1)) == 1) {
+    if (buf[len] == '\n') {
       break;
     }
     len++;
   }
-  if (ret == -1)
-  {
+  if (ret == -1) {
     return static_cast<int>(ndb_get_password_error::system_error);
   }
-  if (ret == 0)
-  {
+  if (ret == 0) {
     // Input ended without end of line
     return static_cast<int>(ndb_get_password_error::no_end);
   }
   assert(ret == 1);
-  if (len == size)
-  {
+  if (len == size) {
     // Too long password, read out current line and fail
     char ch;
-    while (read(fd_in, &ch, 1) == 1)
-    {
-      if (ch == '\n')
-      {
+    while (read(fd_in, &ch, 1) == 1) {
+      if (ch == '\n') {
         break;
       }
     }
     return static_cast<int>(ndb_get_password_error::too_long);
   }
-  for (size_t i = 0; i < len; i++)
-  {
-    if (buf[i] < 0x20 || buf[i] > 0x7E)
-    {
+  for (size_t i = 0; i < len; i++) {
+    if (buf[i] < 0x20 || buf[i] > 0x7E) {
       return static_cast<int>(ndb_get_password_error::bad_char);
     }
   }
-  if (len > INT_MAX)
-  {
+  if (len > INT_MAX) {
     return static_cast<int>(ndb_get_password_error::too_long);
   }
   buf[len] = 0;
   return len;
 }
 
-int ndb_get_password_from_tty(const char prompt[], char buf[], size_t size)
-{
+int ndb_get_password_from_tty(const char prompt[], char buf[], size_t size) {
 #if defined(_WIN32)
   // Open CONIN$ for both read and write to be able to turn off echoing.
-  FILE* in = fopen("CONIN$", "r+");
-  FILE* out = fopen("CONOUT$", "r+");
+  FILE *in = fopen("CONIN$", "r+");
+  FILE *out = fopen("CONOUT$", "r+");
   const int fd_in = _fileno(in);
   const int fd_out = _fileno(out);
 #else
   const int fd_in = open("/dev/tty", O_RDONLY | O_NOCTTY);
   const int fd_out = open("/dev/tty", O_WRONLY | O_NOCTTY);
 #endif
-  int ret = ndb_get_password_read_line_from_tty(fd_in, fd_out, prompt, buf, size);
+  int ret =
+      ndb_get_password_read_line_from_tty(fd_in, fd_out, prompt, buf, size);
 #if defined(_WIN32)
   fclose(in);
   fclose(out);
@@ -210,24 +188,26 @@ int ndb_get_password_from_tty(const char prompt[], char buf[], size_t size)
   return ret;
 }
 
-int ndb_get_password_from_stdin(const char prompt[], char buf[], size_t size)
-{
+int ndb_get_password_from_stdin(const char prompt[], char buf[], size_t size) {
   int fd_out = -1;
 #if defined(_WIN32)
   const int fd_in = _fileno(stdin);
-  if (_isatty(fd_in))
-  {
-    if (_isatty(_fileno(stdout))) fd_out = _fileno(stdout);
-    else if (_isatty(_fileno(stderr))) fd_out = _fileno(stderr);
+  if (_isatty(fd_in)) {
+    if (_isatty(_fileno(stdout)))
+      fd_out = _fileno(stdout);
+    else if (_isatty(_fileno(stderr)))
+      fd_out = _fileno(stderr);
 #else
   const int fd_in = fileno(stdin);
-  if (isatty(fd_in))
-  {
-    if (isatty(fileno(stdout))) fd_out = fileno(stdout);
-    else if (isatty(fileno(stderr))) fd_out = fileno(stderr);
+  if (isatty(fd_in)) {
+    if (isatty(fileno(stdout)))
+      fd_out = fileno(stdout);
+    else if (isatty(fileno(stderr)))
+      fd_out = fileno(stderr);
 #endif
     errno = 0;
-    return ndb_get_password_read_line_from_tty(fd_in, fd_out, prompt, buf, size);
+    return ndb_get_password_read_line_from_tty(fd_in, fd_out, prompt, buf,
+                                               size);
   }
   // stdin is not a tty
   return ndb_get_password_read_line(fd_in, buf, size);

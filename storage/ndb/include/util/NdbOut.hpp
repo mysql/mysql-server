@@ -25,11 +25,11 @@
 #ifndef NDBOUT_H
 #define NDBOUT_H
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 
+#include <ndb_global.h>
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
-#include <ndb_global.h>
 #include "portlib/ndb_compiler.h"
 
 /**
@@ -38,19 +38,19 @@
  * this middle layer class should be used for all output messages
  */
 
-/* 
+/*
    Example usage:
-   
+
    #include "NdbOut.hpp"
-   
+
    / *  Use ndbout as you would use cout:
-   
-        ndbout << "Hello World! "<< 1 << " Hello again" 
+
+        ndbout << "Hello World! "<< 1 << " Hello again"
                << 67 << anIntegerVar << "Hup << endl;
-   
-   
+
+
    / * Use ndbout_c as you would use printf:
-   
+
        ndbout_c("Hello World %d\n", 1);
 */
 
@@ -61,73 +61,62 @@ class NullOutputStream;
 /*  Declare a static variable of NdbOut as ndbout */
 extern NdbOut ndbout, ndberr;
 
-class NdbOut
-{
-public:
-  NdbOut& operator<<(NdbOut& (* _f)(NdbOut&));
-  NdbOut& operator<<(Int8);
-  NdbOut& operator<<(Uint8);
-  NdbOut& operator<<(Int16);
-  NdbOut& operator<<(Uint16);
-  NdbOut& operator<<(Int32);
-  NdbOut& operator<<(Uint32);
-  NdbOut& operator<<(Int64);
-  NdbOut& operator<<(Uint64);
-  NdbOut& operator<<(long unsigned int);
-  NdbOut& operator<<(const char*);
-  NdbOut& operator<<(const unsigned char*);
-  NdbOut& operator<<(BaseString &);
-  NdbOut& operator<<(const void*);
-  NdbOut& operator<<(float);
-  NdbOut& operator<<(double);
-  NdbOut& endline(void);
-  NdbOut& flushline(bool force=true);
-  NdbOut& setHexFormat(int _format);
-  NdbOut& hexdump(const Uint32 * words, size_t count);  
+class NdbOut {
+ public:
+  NdbOut &operator<<(NdbOut &(*_f)(NdbOut &));
+  NdbOut &operator<<(Int8);
+  NdbOut &operator<<(Uint8);
+  NdbOut &operator<<(Int16);
+  NdbOut &operator<<(Uint16);
+  NdbOut &operator<<(Int32);
+  NdbOut &operator<<(Uint32);
+  NdbOut &operator<<(Int64);
+  NdbOut &operator<<(Uint64);
+  NdbOut &operator<<(long unsigned int);
+  NdbOut &operator<<(const char *);
+  NdbOut &operator<<(const unsigned char *);
+  NdbOut &operator<<(BaseString &);
+  NdbOut &operator<<(const void *);
+  NdbOut &operator<<(float);
+  NdbOut &operator<<(double);
+  NdbOut &endline(void);
+  NdbOut &flushline(bool force = true);
+  NdbOut &setHexFormat(int _format);
+  NdbOut &hexdump(const Uint32 *words, size_t count);
 
   NdbOut();
   NdbOut(OutputStream &, bool autoflush = true);
   virtual ~NdbOut();
 
-  void print(const char * fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
-  void println(const char * fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void print(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 2, 3);
+  void println(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 2, 3);
 
-  NdbOut(const NdbOut&) = default;
-  NdbOut& operator=(const NdbOut&) = default;
-  OutputStream * m_out;
-private:
-  void choose(const char * fmt,...);
+  NdbOut(const NdbOut &) = default;
+  NdbOut &operator=(const NdbOut &) = default;
+  OutputStream *m_out;
+
+ private:
+  void choose(const char *fmt, ...);
   int isHex;
   bool m_autoflush;
 };
 
-inline NdbOut& NdbOut::operator<<(NdbOut& (* _f)(NdbOut&)) {
-  (* _f)(*this); 
-  return * this; 
+inline NdbOut &NdbOut::operator<<(NdbOut &(*_f)(NdbOut &)) {
+  (*_f)(*this);
+  return *this;
 }
 
-inline NdbOut&  endl(NdbOut& _NdbOut) { 
-  return _NdbOut.endline(); 
-}
+inline NdbOut &endl(NdbOut &_NdbOut) { return _NdbOut.endline(); }
 
-inline NdbOut&  flush(NdbOut& _NdbOut) { 
-  return _NdbOut.flushline(); 
-}
+inline NdbOut &flush(NdbOut &_NdbOut) { return _NdbOut.flushline(); }
 
-inline  NdbOut& hex(NdbOut& _NdbOut) {
-  return _NdbOut.setHexFormat(1);
-}
+inline NdbOut &hex(NdbOut &_NdbOut) { return _NdbOut.setHexFormat(1); }
 
-inline NdbOut& dec(NdbOut& _NdbOut) {
-  return _NdbOut.setHexFormat(0);
-}
-extern "C"
-void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+inline NdbOut &dec(NdbOut &_NdbOut) { return _NdbOut.setHexFormat(0); }
+extern "C" void ndbout_c(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 class FilteredNdbOut : public NdbOut {
-public:
+ public:
   FilteredNdbOut(OutputStream &, int threshold = 0, int level = 0);
   ~FilteredNdbOut() override;
 
@@ -136,22 +125,19 @@ public:
 
   int getLevel() const;
   int getThreshold() const;
-  
-private:
+
+ private:
   int m_threshold, m_level;
-  OutputStream * m_org;
-  NullOutputStream * m_null;
+  OutputStream *m_org;
+  NullOutputStream *m_null;
 };
 
-void
-NdbOut_ReInit(OutputStream* stdout_ostream,
-              OutputStream* stderr_ostream);
+void NdbOut_ReInit(OutputStream *stdout_ostream, OutputStream *stderr_ostream);
 
-void
-NdbOut_Init();
+void NdbOut_Init();
 
 #else
-void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void ndbout_c(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 #endif
 
 #endif

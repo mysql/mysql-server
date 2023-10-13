@@ -21,50 +21,46 @@
 #define JAM_FILE_ID 516
 
 class GetNumMultiTrpReq {
-  
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Qmgr;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
-public:
+
+ public:
   Uint32 numMultiTrps;
   Uint32 nodeId;
   Uint32 initial_set_up_multi_trp_done;
 };
 
 class GetNumMultiTrpConf {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Qmgr;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 3;
-  
-public:
+
+ public:
   Uint32 numMultiTrps;
   Uint32 nodeId;
   Uint32 initial_set_up_multi_trp_done;
 };
 
 class GetNumMultiTrpRef {
-
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Qmgr;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-  enum ErrorCode
-  {
-    NotReadyYet = 1
-  };
-public:
+  enum ErrorCode { NotReadyYet = 1 };
+
+ public:
   Uint32 nodeId;
   Uint32 errorCode;
 };

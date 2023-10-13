@@ -27,17 +27,15 @@
 
 #define JAM_FILE_ID 435
 
-
 class RestoreProxy : public LocalProxy {
-public:
-  RestoreProxy(Block_context& ctx);
+ public:
+  RestoreProxy(Block_context &ctx);
   ~RestoreProxy() override;
   BLOCK_DEFINES(RestoreProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
-
 
 #undef JAM_FILE_ID
 

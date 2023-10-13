@@ -20,11 +20,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "portlib/ndb_sockaddr.h"
-#include "portlib/ndb_socket.h"
 #include "portlib/NdbTCP.h"
+#include "portlib/ndb_socket.h"
 
-int ndb_sockaddr::probe_address_family()
-{
+int ndb_sockaddr::probe_address_family() {
   /*
    * If one can not resolve IPv6 any (::) address assume IPv4 only.
    *

@@ -28,7 +28,6 @@
 
 #include <ndb_types.h>
 
-
 class Ndb;
 class NdbImpl;
 class NdbTransaction;
@@ -37,8 +36,7 @@ class NdbRecAttr;
 class NdbQueryOperationImpl;
 class NdbReceiverBuffer;
 
-class NdbReceiver
-{
+class NdbReceiver {
   friend class Ndb;
   friend class NdbImpl;
   friend class NdbOperation;
@@ -50,47 +48,40 @@ class NdbReceiver
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
   friend class NdbWorker;
-  friend int compare_ndbrecord(const NdbReceiver *r1,
-                      const NdbReceiver *r2,
-                      const NdbRecord *key_record,
-                      const NdbRecord *result_record,
-                      const unsigned char *result_mask,
-                      bool descending,
-                      bool read_range_no);
-  friend int spjTest(int argc, char** argv);
+  friend int compare_ndbrecord(const NdbReceiver *r1, const NdbReceiver *r2,
+                               const NdbRecord *key_record,
+                               const NdbRecord *result_record,
+                               const unsigned char *result_mask,
+                               bool descending, bool read_range_no);
+  friend int spjTest(int argc, char **argv);
 
-public:
-  enum ReceiverType	{ NDB_UNINITIALIZED,
-			  NDB_OPERATION = 1,
-			  NDB_SCANRECEIVER = 2,
-			  NDB_INDEX_OPERATION = 3,
-                          NDB_QUERY_OPERATION = 4
+ public:
+  enum ReceiverType {
+    NDB_UNINITIALIZED,
+    NDB_OPERATION = 1,
+    NDB_SCANRECEIVER = 2,
+    NDB_INDEX_OPERATION = 3,
+    NDB_QUERY_OPERATION = 4
   };
 
   NdbReceiver(Ndb *aNdb);
-  int init(ReceiverType type, void* owner);
+  int init(ReceiverType type, void *owner);
   void release();
   ~NdbReceiver();
 
-  Uint32 getId() const{
-    return m_id;
-  }
+  Uint32 getId() const { return m_id; }
 
-  ReceiverType getType() const {
-    return m_type;
-  }
+  ReceiverType getType() const { return m_type; }
 
-  inline NdbTransaction * getTransaction(ReceiverType type) const;
-  void* getOwner() const {
-    return m_owner;
-  }
+  inline NdbTransaction *getTransaction(ReceiverType type) const;
+  void *getOwner() const { return m_owner; }
 
   bool checkMagicNumber() const;
   static Uint32 getMagicNumber() { return (Uint32)0x11223344; }
   Uint32 getMagicNumberFromObject() const;
 
-  inline void next(NdbReceiver* next_arg) { m_next = next_arg;}
-  inline NdbReceiver* next() { return m_next; }
+  inline void next(NdbReceiver *next_arg) { m_next = next_arg; }
+  inline NdbReceiver *next() { return m_next; }
 
   void setErrorCode(int);
 
@@ -99,11 +90,10 @@ public:
    * 'buffer' has to be allocated with size as calculated by
    * result_bufsize, and pointer should be Uint32 aligned.
    */
-  static
-  NdbReceiverBuffer* initReceiveBuffer(
-                           Uint32 *buffer,
-                           Uint32 bufSize,      // Size in Uint32 words
-                           Uint32 batchRows);
+  static NdbReceiverBuffer *initReceiveBuffer(
+      Uint32 *buffer,
+      Uint32 bufSize,  // Size in Uint32 words
+      Uint32 batchRows);
 
   /**
    * Prepare for receiving of rows into specified buffer.
@@ -113,31 +103,27 @@ public:
    */
   void prepareReceive(NdbReceiverBuffer *buf);
 
-private:
+ private:
   Uint32 theMagicNumber;
-  Ndb* const m_ndb;
+  Ndb *const m_ndb;
   Uint32 m_id;
   Uint32 m_tcPtrI;
   ReceiverType m_type;
-  void* m_owner;
-  NdbReceiver* m_next;
+  void *m_owner;
+  NdbReceiver *m_next;
 
   /**
    * At setup
    */
-  class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
-  void getValues(const NdbRecord*, char*);
+  class NdbRecAttr *getValue(const class NdbColumnImpl *, char *user_dst_ptr);
+  void getValues(const NdbRecord *, char *);
   void prepareSend();
 
-  static
-  void calculate_batch_size(const NdbImpl&,
-                            Uint32 parallelism,
-                            Uint32& batch_size,
-                            Uint32& batch_byte_size);
+  static void calculate_batch_size(const NdbImpl &, Uint32 parallelism,
+                                   Uint32 &batch_size, Uint32 &batch_byte_size);
 
-  void calculate_batch_size(Uint32 parallelism,
-                            Uint32& batch_size,
-                            Uint32& batch_byte_size) const;
+  void calculate_batch_size(Uint32 parallelism, Uint32 &batch_size,
+                            Uint32 &batch_byte_size) const;
 
   /**
    * Calculate size of result buffer which has to be
@@ -149,58 +135,46 @@ private:
    * the 'batch_bytes' size may be capped to the max possible
    * batch size if 'batch_rows' are returned.
    */
-  static
-  void result_bufsize(const NdbRecord *result_record,
-                      const Uint32* read_mask,
-                      const NdbRecAttr *first_rec_attr,
-                      Uint32 key_size,
-                      bool   read_range_no,
-                      bool   read_correlation,
-                      Uint32 parallelism,
-                      Uint32  batch_rows,    //In:     'REQ' argument to TC
-                      Uint32& batch_bytes,   //In/Out: 'REQ' Argument to TC
-                      Uint32& buffer_bytes); //Out:     ReceiveBuffer size
+  static void result_bufsize(
+      const NdbRecord *result_record, const Uint32 *read_mask,
+      const NdbRecAttr *first_rec_attr, Uint32 key_size, bool read_range_no,
+      bool read_correlation, Uint32 parallelism,
+      Uint32 batch_rows,      // In:     'REQ' argument to TC
+      Uint32 &batch_bytes,    // In/Out: 'REQ' Argument to TC
+      Uint32 &buffer_bytes);  // Out:     ReceiveBuffer size
 
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.
   */
-  void do_setup_ndbrecord(const NdbRecord *ndb_record,
-                          char *row_buffer,
+  void do_setup_ndbrecord(const NdbRecord *ndb_record, char *row_buffer,
                           bool read_range_no, bool read_key_info);
-
 
   /**
    * Calculate size required for an 'unpacked' result row
    * where the current result row is stored. A buffer of this size is used
    * as 'row_buffer' argument to do_setup_ndbrecord().
    */
-  static
-  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record,
-                           bool  read_range_no);
+  static Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record,
+                                  bool read_range_no);
 
-  int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
-  int execTRANSID_AI(const Uint32* ptr, Uint32 len);
+  int execKEYINFO20(Uint32 info, const Uint32 *ptr, Uint32 len);
+  int execTRANSID_AI(const Uint32 *ptr, Uint32 len);
   int execTCOPCONF(Uint32 len);
   int execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows);
 
   /* Assist functions to execTRANSID_AI */
-  const Uint32 * handle_extra_get_values(Uint32 & save_pos,
-                                         Uint32 * aLength,
-                                         const Uint32 *aDataPtr,
-                                         Uint32 attrSize,
-                                         bool isScan,
-                                         Uint32 attrId,
-                                         Uint32 origLength,
-                                         bool & ndbrecord_part_done);
-  const Uint32 * handle_attached_rec_attrs(Uint32 attrId,
-                                           const Uint32 *aDataPtr,
-                                           Uint32 origLength,
-                                           Uint32 attrSize,
-                                           Uint32 * aLength);
+  const Uint32 *handle_extra_get_values(Uint32 &save_pos, Uint32 *aLength,
+                                        const Uint32 *aDataPtr, Uint32 attrSize,
+                                        bool isScan, Uint32 attrId,
+                                        Uint32 origLength,
+                                        bool &ndbrecord_part_done);
+  const Uint32 *handle_attached_rec_attrs(Uint32 attrId, const Uint32 *aDataPtr,
+                                          Uint32 origLength, Uint32 attrSize,
+                                          Uint32 *aLength);
 
   /* Convert from packed transporter to NdbRecord / RecAttr format. */
-  int unpackRow(const Uint32* ptr, Uint32 len, char* row);
+  int unpackRow(const Uint32 *ptr, Uint32 len, char *row);
 
   /* NdbRecord describing row layout expected by API */
   const NdbRecord *m_ndb_record;
@@ -224,12 +198,12 @@ private:
    * These RecAttr's are owner by this NdbReceiver and
    * terminated by ::release()
    */
-  class NdbRecAttr* m_firstRecAttr;
-  class NdbRecAttr* m_lastRecAttr; // A helper for getValue()
+  class NdbRecAttr *m_firstRecAttr;
+  class NdbRecAttr *m_lastRecAttr;  // A helper for getValue()
 
   /* Savepoint for unprocessed RecAttr data from current row. */
-  const Uint32* m_rec_attr_data;
-  Uint32        m_rec_attr_len;
+  const Uint32 *m_rec_attr_data;
+  Uint32 m_rec_attr_len;
 
   /*
     When an NdbReceiver is sitting in the NdbScanOperation::m_sent_receivers
@@ -258,30 +232,24 @@ private:
    * Return the number of words read from the input stream.
    * On failure UINT32_MAX is returned.
    */
-  static
-  Uint32 unpackRecAttr(NdbRecAttr**, Uint32 bmlen,
-                       const Uint32* aDataPtr, Uint32 aLength);
+  static Uint32 unpackRecAttr(NdbRecAttr **, Uint32 bmlen,
+                              const Uint32 *aDataPtr, Uint32 aLength);
 
   /**
    * Unpack a stream of field values, whose presence and nullness
    * is indicated by a leading bitmap, into an NdbRecord row.
    * Return the number of words consumed.
    */
-  static
-  Uint32 unpackNdbRecord(const NdbRecord *record, Uint32 bmlen,
-                         const Uint32* aDataPtr,
-                         char* row);
+  static Uint32 unpackNdbRecord(const NdbRecord *record, Uint32 bmlen,
+                                const Uint32 *aDataPtr, char *row);
 
   /**
    * Handle a stream of field values, both 'READ_PACKED' and plain
    * unpacked fields, into a list of NdbRecAttr objects.
    * Return 0 on success, or -1 on error
    */
-  static
-  int handle_rec_attrs(NdbRecAttr* rec_attr_list,
-                       const Uint32* aDataPtr,
-                       Uint32 aLength);
-
+  static int handle_rec_attrs(NdbRecAttr *rec_attr_list, const Uint32 *aDataPtr,
+                              Uint32 aLength);
 
   /**
    * Unpack data for the specified 'row' previously stored into
@@ -296,7 +264,7 @@ private:
    * 'm_row_buffer' and returned. KeyInfo, Range no and RecAttr
    * values may be retrieved by specific calls below.
    */
-  const char *getRow(const NdbReceiverBuffer* buffer, Uint32 row);
+  const char *getRow(const NdbReceiverBuffer *buffer, Uint32 row);
   const char *getNextRow();
 
   /* Fetch the NdbRecord part of current row */
@@ -306,39 +274,32 @@ private:
   int get_range_no() const;
 
   /* Fetch keyinfo from KEYINFO20 signal for current row. */
-  int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
-                    const char * & data_ptr) const;
+  int get_keyinfo20(Uint32 &scaninfo, Uint32 &length,
+                    const char *&data_ptr) const;
 
   /** Fetch RecAttr values for current row. */
-  int get_AttrValues(NdbRecAttr* rec_attr_list) const;
+  int get_AttrValues(NdbRecAttr *rec_attr_list) const;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
 #include <stdlib.h>
 #endif
 
-inline
-bool
-NdbReceiver::checkMagicNumber() const {
+inline bool NdbReceiver::checkMagicNumber() const {
   bool retVal = (theMagicNumber == getMagicNumber());
 #ifdef NDB_NO_DROPPED_SIGNAL
-  if(!retVal){
+  if (!retVal) {
     abort();
   }
 #endif
   return retVal;
 }
 
-inline
-Uint32
-NdbReceiver::getMagicNumberFromObject() const
-{
+inline Uint32 NdbReceiver::getMagicNumberFromObject() const {
   return theMagicNumber;
 }
 
-inline
-int
-NdbReceiver::execTCOPCONF(Uint32 len){
+inline int NdbReceiver::execTCOPCONF(Uint32 len) {
   const Uint32 tmp = m_received_result_length;
   m_expected_result_length = len;
 #ifdef assert
@@ -347,5 +308,5 @@ NdbReceiver::execTCOPCONF(Uint32 len){
   return ((bool)len ^ (bool)tmp ? 0 : 1);
 }
 
-#endif // DOXYGEN_SHOULD_SKIP_INTERNAL
+#endif  // DOXYGEN_SHOULD_SKIP_INTERNAL
 #endif

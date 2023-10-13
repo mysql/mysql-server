@@ -22,26 +22,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "config.h" // WORDS_BIGENDIAN
-#include "util/require.h"
 #include <stdio.h>
 #include <string.h>
+#include "config.h"  // WORDS_BIGENDIAN
+#include "util/require.h"
 
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "my_getopt.h"
 #include "portlib/ndb_file.h"
-#include "util/ndb_opts.h"
-#include "util/ndbxfrm_iterator.h"
-#include "util/ndbxfrm_file.h"
-#include "util/ndb_ndbxfrm1.h" // ndb_ndbxfrm1::toggle_endian
+#include "util/ndb_ndbxfrm1.h"  // ndb_ndbxfrm1::toggle_endian
 #include "util/ndb_openssl_evp.h"
+#include "util/ndb_opts.h"
+#include "util/ndbxfrm_file.h"
+#include "util/ndbxfrm_iterator.h"
 
 using byte = unsigned char;
 
 static ndb_password_state opt_filesystem_password_state("filesystem", nullptr);
-static ndb_password_option opt_filesystem_password(opt_filesystem_password_state);
+static ndb_password_option opt_filesystem_password(
+    opt_filesystem_password_state);
 static ndb_password_from_stdin_option opt_filesystem_password_from_stdin(
-        opt_filesystem_password_state);
+    opt_filesystem_password_state);
 
 static constexpr Uint32 max_buffer_size = 512;
 
@@ -65,27 +66,22 @@ static struct my_option my_long_options[] =
 };
 // clang-format on
 
-static const char* load_defaults_groups[] = { "ndb_secretsfile_reader", nullptr };
+static const char *load_defaults_groups[] = {"ndb_secretsfile_reader", nullptr};
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
-  if (opts.handle_options())
-    return 2;
+  if (opts.handle_options()) return 2;
 
-  if (ndb_option::post_process_options())
-  {
+  if (ndb_option::post_process_options()) {
     BaseString err_msg = opt_filesystem_password_state.get_error_message();
-    if (!err_msg.empty())
-    {
+    if (!err_msg.empty()) {
       fprintf(stderr, "Error: %s\n", err_msg.c_str());
     }
     return 2;
   }
 
-  if (argc != 1)
-  {
+  if (argc != 1) {
     fprintf(stderr, "Error: Need a secrets file as argument.");
     return 1;
   }
@@ -96,43 +92,38 @@ int main(int argc, char* argv[])
   return rc;
 }
 
-int read_secrets_file(const char filename[])
-{
+int read_secrets_file(const char filename[]) {
   ndb_file src_file;
   int r;
 
   r = src_file.open(filename, FsOpenReq::OM_READONLY);
-  if (r == -1)
-  {
-    fprintf(stderr,
-            "Error: Could not open secrets file '%s' for read.\n",
+  if (r == -1) {
+    fprintf(stderr, "Error: Could not open secrets file '%s' for read.\n",
             filename);
     perror(filename);
     return 1;
   }
 
   ndbxfrm_file x_file;
-  const byte* pwd = reinterpret_cast<const byte*>
-  (opt_filesystem_password_state.get_password());
+  const byte *pwd = reinterpret_cast<const byte *>(
+      opt_filesystem_password_state.get_password());
   const size_t pwd_len = opt_filesystem_password_state.get_password_length();
   r = x_file.open(src_file, pwd, pwd_len);
-  if (r < 0)
-  {
+  if (r < 0) {
     fprintf(stderr, "Error: Failed to read secrets file.\n");
     src_file.close();
     return 1;
   }
-  if(!x_file.is_encrypted())
-  {
-    fprintf(stdout, "Warning: Trying to read unencrypted file. "
-                    "Secretsfile should be encrypted.\n");
+  if (!x_file.is_encrypted()) {
+    fprintf(stdout,
+            "Warning: Trying to read unencrypted file. "
+            "Secretsfile should be encrypted.\n");
   }
 
   byte buffer[max_buffer_size];
-  ndbxfrm_output_iterator it = { buffer, buffer  + max_buffer_size,false };
+  ndbxfrm_output_iterator it = {buffer, buffer + max_buffer_size, false};
   r = x_file.read_forward(&it);
-  if (r < 0)
-  {
+  if (r < 0) {
     fprintf(stderr, "Error: Failed to read secrets file.\n");
     x_file.close(true);
     src_file.close();
@@ -142,37 +133,37 @@ int read_secrets_file(const char filename[])
   Uint32 bytes_read = it.begin() - buffer;
   Uint32 bytes_available = bytes_read;
 
-  if(bytes_available < 8)
-  {
-    fprintf(stderr, "Error: Failed to read secrets file, "
-                    "invalid MAGIC\n");
+  if (bytes_available < 8) {
+    fprintf(stderr,
+            "Error: Failed to read secrets file, "
+            "invalid MAGIC\n");
     x_file.close(true);
     src_file.close();
     return 1;
   }
   bytes_available -= 8;
-  if (memcmp(buffer, "NDBSCRT1", 8) != 0)
-  {
-    fprintf(stderr, "Error: Failed to read secrets file using the "
-                         "provided filesystem password (wrong password?)\n");
+  if (memcmp(buffer, "NDBSCRT1", 8) != 0) {
+    fprintf(stderr,
+            "Error: Failed to read secrets file using the "
+            "provided filesystem password (wrong password?)\n");
     x_file.close(true);
     src_file.close();
     return 1;
   }
 
   r = x_file.close(false);
-  if(r!=0)
-  {
-       fprintf(stderr, "Error: Invalid secretsfile, "
-                       "checksum validation failed (wrong password?)\n");
-       src_file.close();
-       return 1;
+  if (r != 0) {
+    fprintf(stderr,
+            "Error: Invalid secretsfile, "
+            "checksum validation failed (wrong password?)\n");
+    src_file.close();
+    return 1;
   }
 
-  if(bytes_available < 4)
-  {
-    fprintf(stderr, "Error: Failed to read secrets file, "
-                    "unable to read KEY length\n");
+  if (bytes_available < 4) {
+    fprintf(stderr,
+            "Error: Failed to read secrets file, "
+            "unable to read KEY length\n");
     x_file.close(true);
     src_file.close();
     return 1;
@@ -185,16 +176,15 @@ int read_secrets_file(const char filename[])
   // key length is always stored in little endian
   ndb_ndbxfrm1::toggle_endian32(&key_len);
 #endif
-  if(bytes_available < key_len)
-  {
-    fprintf(stderr, "Error: Failed to read secrets file, "
-                    "unable to read KEY\n");
+  if (bytes_available < key_len) {
+    fprintf(stderr,
+            "Error: Failed to read secrets file, "
+            "unable to read KEY\n");
     x_file.close(true);
     src_file.close();
     return 1;
   }
-  for (Uint32 i = 12; i < key_len+12; i++)
-  {
+  for (Uint32 i = 12; i < key_len + 12; i++) {
     printf("%02x", buffer[i]);
   }
   printf("\n");

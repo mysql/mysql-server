@@ -25,8 +25,8 @@
 #ifndef ISOLATE_ORD_HPP
 #define ISOLATE_ORD_HPP
 
-#include "SignalData.hpp"
 #include "NodeBitmask.hpp"
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 494
 
@@ -34,40 +34,35 @@
  *
  */
 
-class IsolateOrd
-{
+class IsolateOrd {
   /**
    * Sender(s) & Receiver(s)
    */
   friend class Dbdih;
   friend class Dblqh;
   friend class Qmgr;
-  
+
   /**
    * For printing
    */
-  friend bool printISOLATE_ORD(FILE *, const Uint32*, Uint32, Uint16);
+  friend bool printISOLATE_ORD(FILE *, const Uint32 *, Uint32, Uint16);
 
-private:
-  static constexpr Uint32 SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size;
+ private:
+  static constexpr Uint32 SignalLengthWithBitmask48 =
+      3 + NdbNodeBitmask48::Size;
   static constexpr Uint32 SignalLength = 3;
 
-  enum IsolateStep 
-  {
-    IS_REQ = 0,
-    IS_BROADCAST = 1,
-    IS_DELAY = 2
-  };
+  enum IsolateStep { IS_REQ = 0, IS_BROADCAST = 1, IS_DELAY = 2 };
 
   Uint32 senderRef;
   Uint32 isolateStep;
-  Uint32 delayMillis;           /* 0 = immediate */
+  Uint32 delayMillis; /* 0 = immediate */
 
   // First two words may be part of signal to old nodes.
   // For new nodes bitmask is sent in section instead.
   Uint32 nodesToIsolate[NdbNodeBitmask48::Size];
 };
-  
+
 #undef JAM_FILE_ID
 
 #endif

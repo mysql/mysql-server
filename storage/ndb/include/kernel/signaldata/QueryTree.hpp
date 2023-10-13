@@ -30,100 +30,95 @@
 
 #define JAM_FILE_ID 129
 
-
 struct QueryNode  // Effectively used as a base class for QN_xxxNode
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 tableId;      // 16-bit
+  Uint32 tableId;  // 16-bit
   Uint32 tableVersion;
 
-  enum OpType
-  {
-    QN_LOOKUP        = 0x1,
-    QN_SCAN_FRAG_v1  = 0x2,  //deprecated
-    QN_SCAN_INDEX_v1 = 0x3,  //deprecated
-    QN_SCAN_FRAG     = 0x4,  //Replaces both SCAN_*_v1's above
+  enum OpType {
+    QN_LOOKUP = 0x1,
+    QN_SCAN_FRAG_v1 = 0x2,   // deprecated
+    QN_SCAN_INDEX_v1 = 0x3,  // deprecated
+    QN_SCAN_FRAG = 0x4,      // Replaces both SCAN_*_v1's above
     QN_END = 0
   };
 
-  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
-  static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
+  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF; }
+  static Uint32 getLength(Uint32 op_len) { return op_len >> 16; }
 
-  static const QueryNode* nextQueryNode(const QueryNode* node)
-  {
+  static const QueryNode *nextQueryNode(const QueryNode *node) {
     const Uint32 len = QueryNode::getLength(node->len);
     return (const QueryNode *)((const Uint32 *)node + len);
   }
 
-  static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
+  static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o; }
 
   // If possible we should change the above static methods to non-static:
-//Uint32 getOpType() const { return len & 0xFFFF;}
-//Uint32 getLength() const { return len >> 16;}
-//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
+  // Uint32 getOpType() const { return len & 0xFFFF;}
+  // Uint32 getLength() const { return len >> 16;}
+  // void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
-struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParameters
+struct QueryNodeParameters  // Effectively used as a base class for
+                            // QN_xxxParameters
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 resultData;   // Api connect ptr
+  Uint32 resultData;  // Api connect ptr
 
-  enum OpType
-  {
-    QN_LOOKUP        = 0x1,
-    QN_SCAN_FRAG_v1  = 0x2,  //deprecated
-    QN_SCAN_INDEX_v1 = 0x3,  //deprecated
-    QN_SCAN_FRAG     = 0x4,  //Replaces both SCAN_*_v1's above
+  enum OpType {
+    QN_LOOKUP = 0x1,
+    QN_SCAN_FRAG_v1 = 0x2,   // deprecated
+    QN_SCAN_INDEX_v1 = 0x3,  // deprecated
+    QN_SCAN_FRAG = 0x4,      // Replaces both SCAN_*_v1's above
     QN_END = 0
   };
 
-  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
-  static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
+  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF; }
+  static Uint32 getLength(Uint32 op_len) { return op_len >> 16; }
 
-  static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
+  static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o; }
 
   // If possible we should change the above static methods to non-static:
-//Uint32 getOpType() const { return len & 0xFFFF;}
-//Uint32 getLength() const { return len >> 16;}
-//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
+  // Uint32 getOpType() const { return len & 0xFFFF;}
+  // Uint32 getLength() const { return len >> 16;}
+  // void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
-struct DABits
-{
+struct DABits {
   /**
    * List of requestInfo bits shared for QN_LookupNode,
    * QN_ScanFragNode & QN_ScanIndexNode
    */
-  enum NodeInfoBits
-  {
-    NI_HAS_PARENT     = 0x01,
+  enum NodeInfoBits {
+    NI_HAS_PARENT = 0x01,
 
-    NI_KEY_LINKED     = 0x02,  // Does keyinfo contain linked values
-    NI_KEY_PARAMS     = 0x04,  // Does keyinfo contain parameters
-    NI_KEY_CONSTS     = 0x08,  // Does keyinfo contain const values
+    NI_KEY_LINKED = 0x02,  // Does keyinfo contain linked values
+    NI_KEY_PARAMS = 0x04,  // Does keyinfo contain parameters
+    NI_KEY_CONSTS = 0x08,  // Does keyinfo contain const values
 
-    NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by children
+    NI_LINKED_ATTR = 0x10,  // List of attributes to be used by children
 
     NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
-    //NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
-    NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
+    // NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
+    NI_ATTR_LINKED = 0x80,  // Does attrinfo contain linked values
 
     /**
      * Iff this flag is set, then this operation has a child operation with a
      * linked value that refes to a disk column of this operation. For example
      * SELECT * FROM t1, t2 WHERE t1.disk_att = t2.primary_key;
      */
-    NI_LINKED_DISK    = 0x100,
+    NI_LINKED_DISK = 0x100,
 
     /**
      * If REPEAT_SCAN_RESULT is set, multiple star-joined (or bushy, or X)
-     * scan results are handled by repeating the other scans result 
+     * scan results are handled by repeating the other scans result
      * when we advance to the next batch chunk for the current 'active'
      * result set.
-     * This removes the requirement for the API client to being able 
-     * buffer an (possible huge) amount of scan result relating to 
+     * This removes the requirement for the API client to being able
+     * buffer an (possible huge) amount of scan result relating to
      * the same parent scan.
      */
     NI_REPEAT_SCAN_RESULT = 0x200,
@@ -136,7 +131,7 @@ struct DABits
      * tuple also will effectively be eliminated. Thus, producing further
      * results having this tuple as a parent could be skipped.
      *
-     * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN 
+     * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN
      * is similar to 'LEFT OUTER JOIN' result being produced.
      */
     NI_INNER_JOIN = 0x400,
@@ -162,15 +157,14 @@ struct DABits
    * List of requestInfo bits shared for QN_LookupParameters,
    * QN_ScanFragParameters & QN_ScanIndexParameters
    */
-  enum ParamInfoBits
-  {
-    PI_ATTR_LIST   = 0x1, // "user" projection list
+  enum ParamInfoBits {
+    PI_ATTR_LIST = 0x1,  // "user" projection list
 
     /**
      * These 2 must match their resp. QueryNode-definitions
      */
-    //PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
-    PI_KEY_PARAMS  = 0x4, // key-info parameters  (NI_KEY_PARAMS)
+    // PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
+    PI_KEY_PARAMS = 0x4,  // key-info parameters  (NI_KEY_PARAMS)
 
     /**
      * The parameter object contains a program that will be interpreted
@@ -188,15 +182,14 @@ struct DABits
   };
 };
 
-
 /**
  * This node describes a pk-lookup
  */
-struct QN_LookupNode // Is a QueryNode subclass
+struct QN_LookupNode  // Is a QueryNode subclass
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 tableId;      // 16-bit
+  Uint32 tableId;  // 16-bit
   Uint32 tableVersion;
   static constexpr Uint32 NodeSize = 4;
 
@@ -205,8 +198,7 @@ struct QN_LookupNode // Is a QueryNode subclass
    */
   Uint32 optional[1];
 
-  enum LookupBits
-  {
+  enum LookupBits {
     /**
      * This is lookup on index table,
      */
@@ -215,19 +207,19 @@ struct QN_LookupNode // Is a QueryNode subclass
     L_END = 0
   };
 
-//Uint32 getLength() const { return len >> 16;}
-//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
+  // Uint32 getLength() const { return len >> 16;}
+  // void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
 /**
  * This struct describes parameters that are associated with
  *  a QN_LookupNode
  */
-struct QN_LookupParameters // Is a QueryNodeParameters subclass
+struct QN_LookupParameters  // Is a QueryNodeParameters subclass
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 resultData;   // Api connect ptr
+  Uint32 resultData;  // Api connect ptr
   static constexpr Uint32 NodeSize = 3;
 
   /**
@@ -239,11 +231,11 @@ struct QN_LookupParameters // Is a QueryNodeParameters subclass
 /**
  * This node describes a table/index-fragment scan, Deprecated
  */
-struct QN_ScanFragNode_v1 // Is a QueryNode subclass
+struct QN_ScanFragNode_v1  // Is a QueryNode subclass
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 tableId;      // 16-bit
+  Uint32 tableId;  // 16-bit
   Uint32 tableVersion;
   static constexpr Uint32 NodeSize = 4;
 
@@ -257,11 +249,11 @@ struct QN_ScanFragNode_v1 // Is a QueryNode subclass
  * This struct describes parameters that are associated with
  *  a QN_ScanFragNode. Deprecated, was used for QN_SCAN_FRAG_v1
  */
-struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
+struct QN_ScanFragParameters_v1  // Is a QueryNodeParameters subclass
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 resultData;   // Api connect ptr
+  Uint32 resultData;  // Api connect ptr
   static constexpr Uint32 NodeSize = 3;
 
   /**
@@ -273,16 +265,14 @@ struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
 /**
  * This node describes a IndexScan, Deprecated
  */
-struct QN_ScanIndexNode_v1
-{
+struct QN_ScanIndexNode_v1 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 tableId;      // 16-bit
+  Uint32 tableId;  // 16-bit
   Uint32 tableVersion;
   static constexpr Uint32 NodeSize = 4;
 
-  enum ScanIndexBits
-  {
+  enum ScanIndexBits {
     /**
      * If doing equality search that can be pruned
      *   a pattern that creates the key to hash with is stored before
@@ -293,7 +283,8 @@ struct QN_ScanIndexNode_v1
     // Do pattern contain parameters
     SI_PRUNE_PARAMS = 0x20000,
 
-    // Is prune pattern dependent on parent key (or only on parameters / constants)
+    // Is prune pattern dependent on parent key (or only on parameters /
+    // constants)
     SI_PRUNE_LINKED = 0x40000,
 
     // Should it be parallel scan (can also be set as in parameters)
@@ -312,18 +303,16 @@ struct QN_ScanIndexNode_v1
  * This struct describes parameters that are associated with
  *  a QN_ScanIndexNode. Deprecated, was used with QN_SCAN_INDEX_v1
  */
-struct QN_ScanIndexParameters_v1
-{
+struct QN_ScanIndexParameters_v1 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 batchSize;    // (bytes << 11) | (rows)
-  Uint32 resultData;   // Api connect ptr
+  Uint32 batchSize;   // (bytes << 11) | (rows)
+  Uint32 resultData;  // Api connect ptr
   static constexpr Uint32 NodeSize = 4;
   // Number of bits for representing row count in 'batchSize'.
   static constexpr Uint32 BatchRowBits = 11;
 
-  enum ScanIndexParamBits
-  {
+  enum ScanIndexParamBits {
     /**
      * Do arguments contain parameters for prune-pattern
      */
@@ -345,19 +334,18 @@ struct QN_ScanIndexParameters_v1
   Uint32 optional[1];
 };
 
-
 /**
  * This node describes a Fragment scan (QN_SCAN_FRAG)
  */
-struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
+struct QN_ScanFragNode  // Note: Same layout as old QN_ScanIndexNode_v1
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 tableId;      // 16-bit
+  Uint32 tableId;  // 16-bit
   Uint32 tableVersion;
   static constexpr Uint32 NodeSize = 4;
 
-  enum ScanFragBits    // Note: Same enum as old ScanIndexBits_v1
+  enum ScanFragBits  // Note: Same enum as old ScanIndexBits_v1
   {
     /**
      * If doing equality search that can be pruned
@@ -369,7 +357,8 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
     // Do pattern contain parameters
     SF_PRUNE_PARAMS = 0x20000,
 
-    // Is prune pattern dependent on parent key (or only on parameters / constants)
+    // Is prune pattern dependent on parent key (or only on parameters /
+    // constants)
     SF_PRUNE_LINKED = 0x40000,
 
     // Should it be parallel scan (can also be set as in parameters)
@@ -388,22 +377,20 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
  * This struct describes parameters that are associated with
  *  the new QN_ScanFragNode. (QN_SCAN_FRAG)
  */
-struct QN_ScanFragParameters
-{
+struct QN_ScanFragParameters {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 resultData;   // Api connect ptr
+  Uint32 resultData;  // Api connect ptr
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
 
-  Uint32 unused0;      // Future
+  Uint32 unused0;  // Future
   Uint32 unused1;
   Uint32 unused2;
 
   static constexpr Uint32 NodeSize = 8;
 
-  enum ScanFragParamBits
-  {
+  enum ScanFragParamBits {
     /**
      * Do arguments contain parameters for prune-pattern
      */
@@ -432,47 +419,42 @@ struct QN_ScanFragParameters
   Uint32 optional[1];
 };
 
-
 /**
  * This is the definition of a QueryTree
  */
-struct QueryTree
-{
-  Uint32 cnt_len;  // Length in words describing full tree + #nodes
-  Uint32 nodes[1]; // The nodes
+struct QueryTree {
+  Uint32 cnt_len;   // Length in words describing full tree + #nodes
+  Uint32 nodes[1];  // The nodes
 
-  static Uint32 getNodeCnt(Uint32 cnt_len) { return cnt_len & 0xFFFF;}
-  static Uint32 getLength(Uint32 cnt_len) { return cnt_len >> 16;}
-  static void setCntLen(Uint32 &d, Uint32 c, Uint32 l) { d=(l << 16) | c;}
+  static Uint32 getNodeCnt(Uint32 cnt_len) { return cnt_len & 0xFFFF; }
+  static Uint32 getLength(Uint32 cnt_len) { return cnt_len >> 16; }
+  static void setCntLen(Uint32 &d, Uint32 c, Uint32 l) { d = (l << 16) | c; }
 };
 
 /**
  * This is description of *one* entry in a QueryPattern
  *   (used by various QueryNodes)
  */
-struct QueryPattern
-{
+struct QueryPattern {
   Uint32 m_info;
-  enum
-  {
-    P_DATA   = 0x1,  // Raw data of len-words (constants)
-    P_COL    = 0x2,  // Get column value from RowRef
-    P_UNQ_PK = 0x3,  // NDB$PK column from a unique index
-    P_PARAM  = 0x4,  // User specified parameter value
-    P_PARENT = 0x5,  // Move up in tree
-    P_PARAM_HEADER = 0x6, // User specified param val including AttributeHeader
-    P_ATTRINFO = 0x7,// Get column including header from RowRef
-    P_END    = 0
+  enum {
+    P_DATA = 0x1,          // Raw data of len-words (constants)
+    P_COL = 0x2,           // Get column value from RowRef
+    P_UNQ_PK = 0x3,        // NDB$PK column from a unique index
+    P_PARAM = 0x4,         // User specified parameter value
+    P_PARENT = 0x5,        // Move up in tree
+    P_PARAM_HEADER = 0x6,  // User specified param val including AttributeHeader
+    P_ATTRINFO = 0x7,      // Get column including header from RowRef
+    P_END = 0
   };
 
-  static Uint32 getType(const Uint32 info) { return info >> 16;}
+  static Uint32 getType(const Uint32 info) { return info >> 16; }
 
   /**
    * If type == DATA, get len here
    */
-  static Uint32 getLength(Uint32 info) { return info & 0xFFFF;}
-  static Uint32 data(Uint32 length)
-  {
+  static Uint32 getLength(Uint32 info) { return info & 0xFFFF; }
+  static Uint32 data(Uint32 length) {
     assert(length <= 0xFFFF);
     return (P_DATA << 16) | length;
   }
@@ -480,18 +462,18 @@ struct QueryPattern
   /**
    * If type == COL, get col-no here (index in row)
    */
-  static Uint32 getColNo(Uint32 info) { return info & 0xFFFF;}
+  static Uint32 getColNo(Uint32 info) { return info & 0xFFFF; }
   static Uint32 col(Uint32 no) { return (P_COL << 16) | no; }
 
   /**
    * If type == P_UNQ_PK, get PK value from composite NDB$PK col.
    */
-  static Uint32 colPk(Uint32 no) {  return (P_UNQ_PK << 16) | no; }
+  static Uint32 colPk(Uint32 no) { return (P_UNQ_PK << 16) | no; }
 
   /**
    * If type == PARAM, get param-no here (index in param list)
    */
-  static Uint32 getParamNo(Uint32 info) { return info & 0xFFFF;}
+  static Uint32 getParamNo(Uint32 info) { return info & 0xFFFF; }
   static Uint32 param(Uint32 no) { return (P_PARAM << 16) | no; }
 
   static Uint32 paramHeader(Uint32 no) { return (P_PARAM_HEADER << 16) | no; }
@@ -499,15 +481,14 @@ struct QueryPattern
   /**
    * get col including header
    */
-  static Uint32 attrInfo(Uint32 no) { return (P_ATTRINFO << 16) | no;}
+  static Uint32 attrInfo(Uint32 no) { return (P_ATTRINFO << 16) | no; }
 
   /**
    * Move to grand-parent no
    * (0 == immediate parent)
    */
-  static Uint32 parent(Uint32 no) { return (P_PARENT << 16) | no;}
+  static Uint32 parent(Uint32 no) { return (P_PARENT << 16) | no; }
 };
-
 
 #undef JAM_FILE_ID
 

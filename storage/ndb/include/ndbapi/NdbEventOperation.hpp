@@ -35,15 +35,15 @@ class NdbRecAttr;
 
 /**
  * @class NdbEventOperation
- * @brief Class of operations for getting change events from database.  
+ * @brief Class of operations for getting change events from database.
  *
  * Brief description on how to work with events:
  *
- * - An event, represented by an NdbDictionary::Event, i created in the 
+ * - An event, represented by an NdbDictionary::Event, i created in the
  *   Database through
- *   NdbDictionary::Dictionary::createEvent() (note that this can be done 
+ *   NdbDictionary::Dictionary::createEvent() (note that this can be done
  *   by any application or thread and not necessarily by the "listener")
- * - To listen to events, an NdbEventOperation object is instantiated by 
+ * - To listen to events, an NdbEventOperation object is instantiated by
  *   Ndb::createEventOperation()
  * - execute() starts the event flow. Use Ndb::pollEvents() to wait
  *   for an event to occur.  Use Ndb::nextEvent() to iterate
@@ -64,7 +64,7 @@ class NdbRecAttr;
  *
  * - When several NdbEventOperation's are tied to the same event in the same
  * process they will share the circular buffer. The BufferLength will then
- * be the same for all and decided by the first NdbEventOperation 
+ * be the same for all and decided by the first NdbEventOperation
  * instantiation. Just make sure to instantiate the "largest" one first.
  * - Today all events INSERT/DELETE/UPDATE and all changed attributes are
  * sent to the API, even if only specific attributes have been specified.
@@ -92,15 +92,15 @@ class NdbRecAttr;
  * @note this is an interface to viewing events that is subject to change
  */
 class NdbEventOperation {
-public:
+ public:
   /**
    * State of the NdbEventOperation object
    */
   enum State {
-    EO_CREATED,   ///< Created but execute() not called
-    EO_EXECUTING, ///< execute() called
-    EO_DROPPED,   ///< Waiting to be deleted, Object unusable.
-    EO_ERROR      ///< An error has occurred. Object unusable.
+    EO_CREATED,    ///< Created but execute() not called
+    EO_EXECUTING,  ///< execute() called
+    EO_DROPPED,    ///< Waiting to be deleted, Object unusable.
+    EO_ERROR       ///< An error has occurred. Object unusable.
   };
   /**
    * Retrieve current state of the NdbEventOperation object
@@ -113,7 +113,7 @@ public:
 
   /**
    * Activates the NdbEventOperation to start receiving events. The
-   * changed attribute values may be retrieved after Ndb::nextEvent() 
+   * changed attribute values may be retrieved after Ndb::nextEvent()
    * has returned not NULL. The getValue() methods must be called
    * prior to execute().
    *
@@ -124,7 +124,7 @@ public:
   /**
    * Defines a retrieval operation of an attribute value.
    * The NDB API allocate memory for the NdbRecAttr object that
-   * will hold the returned attribute value. 
+   * will hold the returned attribute value.
    *
    * @note Note that it is the applications responsibility
    *       to allocate enough memory for aValue (if non-NULL).
@@ -139,22 +139,22 @@ public:
    *       getPreValue() for retrieving the current and
    *       previous value respectively.
    *
-   * @note This method does not fetch the attribute value from 
-   *       the database!  The NdbRecAttr object returned by this method 
-   *       is <em>not</em> readable/printable before the 
+   * @note This method does not fetch the attribute value from
+   *       the database!  The NdbRecAttr object returned by this method
+   *       is <em>not</em> readable/printable before the
    *       execute() has been made and
    *       Ndb::nextEvent() has returned not NULL.
-   *       If a specific attribute has not changed the corresponding 
-   *       NdbRecAttr will be in state UNDEFINED.  This is checked by 
+   *       If a specific attribute has not changed the corresponding
+   *       NdbRecAttr will be in state UNDEFINED.  This is checked by
    *       NdbRecAttr::isNULL() which then returns -1.
    *
-   * @param anAttrName  Attribute name 
-   * @param aValue      If this is non-NULL, then the attribute value 
+   * @param anAttrName  Attribute name
+   * @param aValue      If this is non-NULL, then the attribute value
    *                    will be returned in this parameter.<br>
-   *                    If NULL, then the attribute value will only 
+   *                    If NULL, then the attribute value will only
    *                    be stored in the returned NdbRecAttr object.
-   * @return            An NdbRecAttr object to hold the value of 
-   *                    the attribute, or a NULL pointer 
+   * @return            An NdbRecAttr object to hold the value of
+   *                    the attribute, or a NULL pointer
    *                    (indicating error).
    */
   NdbRecAttr *getValue(const char *anAttrName, char *aValue = 0);
@@ -168,8 +168,8 @@ public:
    * method creates a blob handle NdbBlob.  The handle supports only
    * read operations.  See NdbBlob.
    */
-  NdbBlob* getBlobHandle(const char *anAttrName);
-  NdbBlob* getPreBlobHandle(const char *anAttrName);
+  NdbBlob *getBlobHandle(const char *anAttrName);
+  NdbBlob *getPreBlobHandle(const char *anAttrName);
 
   int isOverrun() const;
 
@@ -270,8 +270,8 @@ public:
    * Get the latest error
    *
    * @return   Error object.
-   */			     
-  const struct NdbError & getNdbError() const;
+   */
+  const struct NdbError &getNdbError() const;
 
   /**
    * Set allow empty updates
@@ -303,20 +303,19 @@ public:
    */
   bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = 0);
 
-
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */
-  const NdbDictionary::Table* getTable() const;
+  const NdbDictionary::Table *getTable() const;
   const NdbDictionary::Event *getEvent() const;
   const NdbRecAttr *getFirstPkAttr() const;
   const NdbRecAttr *getFirstPkPreAttr() const;
   const NdbRecAttr *getFirstDataAttr() const;
   const NdbRecAttr *getFirstDataPreAttr() const;
 
-//  bool validateTable(NdbDictionary::Table &table) const;
+  //  bool validateTable(NdbDictionary::Table &table) const;
 
-  void setCustomData(void * data);
-  void * getCustomData() const;
+  void setCustomData(void *data);
+  void *getCustomData() const;
 
   /**
     @brief Callback for filtering any_value in all incoming row
@@ -327,7 +326,7 @@ public:
     NOTE! Since the function is invoked for every row change,
     care should be taken to avoid costly calculations in the callback.
   */
-  using AnyValueFilterFn = Uint32(*)(Uint32);
+  using AnyValueFilterFn = Uint32 (*)(Uint32);
   void setAnyValueFilter(AnyValueFilterFn);
 
   void clearError();
@@ -344,19 +343,19 @@ public:
   void print();
 #endif
 
-private:
+ private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbEventOperationImpl;
   friend class NdbEventBuffer;
 #endif
-  NdbEventOperation(Ndb *ndb, const NdbDictionary::Event* event);
+  NdbEventOperation(Ndb *ndb, const NdbDictionary::Event *event);
   ~NdbEventOperation();
   class NdbEventOperationImpl &m_impl;
-  NdbEventOperation(NdbEventOperationImpl& impl);
+  NdbEventOperation(NdbEventOperationImpl &impl);
 
-  NdbEventOperation(const NdbEventOperation&) = delete;
-  NdbEventOperation&operator=(const NdbEventOperation&) = delete;
+  NdbEventOperation(const NdbEventOperation &) = delete;
+  NdbEventOperation &operator=(const NdbEventOperation &) = delete;
 };
 
-typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
+typedef void (*NdbEventCallback)(NdbEventOperation *, Ndb *, void *);
 #endif

@@ -29,12 +29,7 @@
 
 #define JAM_FILE_ID 534
 
-QBackup::QBackup(Block_context& ctx,
-                 Uint32 instanceNumber):
-  Backup(ctx, instanceNumber, QBACKUP)
-{
-}
+QBackup::QBackup(Block_context &ctx, Uint32 instanceNumber)
+    : Backup(ctx, instanceNumber, QBACKUP) {}
 
-QBackup::~QBackup()
-{
-}
+QBackup::~QBackup() {}

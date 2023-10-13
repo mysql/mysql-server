@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 28
 
-
 struct CreateNodegroupReq {
   /**
    * Sender(s) / Reciver(s)
@@ -38,7 +37,7 @@ struct CreateNodegroupReq {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 10;
 
@@ -53,8 +52,8 @@ struct CreateNodegroupReq {
   Uint32 requestInfo;
   Uint32 transId;
   Uint32 transKey;
-  Uint32 nodegroupId; // RNIL == unspecified
-  Uint32 nodes[4]; // 0 terminated
+  Uint32 nodegroupId;  // RNIL == unspecified
+  Uint32 nodes[4];     // 0 terminated
 };
 
 struct CreateNodegroupRef {
@@ -71,7 +70,7 @@ struct CreateNodegroupRef {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
   static constexpr Uint32 SignalLength = 7;
 
@@ -114,7 +113,8 @@ struct CreateNodegroupConf {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_CONF(FILE *, const Uint32 *, Uint32,
+                                         Uint16);
 
   static constexpr Uint32 SignalLength = 4;
 
@@ -123,7 +123,6 @@ struct CreateNodegroupConf {
   Uint32 nodegroupId;
   Uint32 transId;
 };
-
 
 #undef JAM_FILE_ID
 

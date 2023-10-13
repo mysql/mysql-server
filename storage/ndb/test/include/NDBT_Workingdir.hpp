@@ -28,44 +28,33 @@
 #define NDBT_WORKINGDIR_HPP
 
 #include <stdint.h>
-#include "util/require.h"
+#include <BaseString.hpp>
 #include <NdbDir.hpp>
 #include "NdbProcess.hpp"
-#include <BaseString.hpp>
+#include "util/require.h"
 
-class NDBT_Workingdir
-{
+class NDBT_Workingdir {
   NdbDir::Temp m_temp;
   BaseString m_wd;
-public:
 
-  NDBT_Workingdir(const char* dirname)
-  {
-    const char* tmp_path = m_temp.path();
-    char* ndbt_tmp = getenv("NDBT_TMP_DIR");
-    if (ndbt_tmp)
-      tmp_path = ndbt_tmp;
+ public:
+  NDBT_Workingdir(const char *dirname) {
+    const char *tmp_path = m_temp.path();
+    char *ndbt_tmp = getenv("NDBT_TMP_DIR");
+    if (ndbt_tmp) tmp_path = ndbt_tmp;
     require(tmp_path);
 
     m_wd.assfmt("%s%s%s%d", tmp_path, DIR_SEPARATOR, dirname,
                 (int)NdbProcess::getpid());
-    if (access(m_wd.c_str(), F_OK) == 0)
-      NdbDir::remove_recursive(m_wd.c_str());
-    if (!NdbDir::create(m_wd.c_str()))
-      abort();
+    if (access(m_wd.c_str(), F_OK) == 0) NdbDir::remove_recursive(m_wd.c_str());
+    if (!NdbDir::create(m_wd.c_str())) abort();
   }
 
-  ~NDBT_Workingdir()
-  {
-    if (access(m_wd.c_str(), F_OK) == 0)
-      NdbDir::remove_recursive(m_wd.c_str());
+  ~NDBT_Workingdir() {
+    if (access(m_wd.c_str(), F_OK) == 0) NdbDir::remove_recursive(m_wd.c_str());
   }
 
-  const char* path(void) const
-  {
-    return m_wd.c_str();
-  }
-
+  const char *path(void) const { return m_wd.c_str(); }
 };
 
 #endif

@@ -22,15 +22,14 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #include <ndb_init.h>
 #include "CharsetMap.hpp"
 
 #include <node.h>
-#include "adapter_global.h"
-#include "js_wrapper_macros.h"
 #include "NativeCFunctionCall.h"
 #include "NativeMethodCall.h"
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 
 void CharsetMap_init_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
@@ -38,13 +37,11 @@ void CharsetMap_init_wrapper(const Arguments &args) {
   args.GetReturnValue().SetNull();
 }
 
-
 void CharsetMap_unload_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   CharsetMap::unload();
   args.GetReturnValue().SetNull();
 }
-
 
 void Ndb_util_initOnLoad(v8::Local<v8::Object> target) {
   v8::Local<v8::FunctionTemplate> JSCharsetMap;
@@ -52,4 +49,3 @@ void Ndb_util_initOnLoad(v8::Local<v8::Object> target) {
   DEFINE_JS_FUNCTION(target, "CharsetMap_init", CharsetMap_init_wrapper);
   DEFINE_JS_FUNCTION(target, "CharsetMap_unload", CharsetMap_unload_wrapper);
 }
-

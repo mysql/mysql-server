@@ -21,22 +21,21 @@
 
 #ifdef TEST_CSTRBUF
 
-#include "util/require.h"
-#include "unittest/mytap/tap.h"
 #include "util/cstrbuf.h"
-#include "util/span.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
+#include "unittest/mytap/tap.h"
+#include "util/require.h"
+#include "util/span.h"
 
-int main()
-{
+int main() {
   plan(37);
 
   char buf[30];
 
-  constexpr size_t ptr_size = sizeof(void*);
+  constexpr size_t ptr_size = sizeof(void *);
   static_assert(sizeof(size_t) == ptr_size);
 
   // cstrbuf with static extent

@@ -32,7 +32,7 @@ extern int debug;
 
 extern Logger logger;
 
-int runas(const char * user);
-int insert(const char * pair, class Properties & p);
+int runas(const char *user);
+int insert(const char *pair, class Properties &p);
 
 #endif /* ! __CPCD_COMMON_HPP_INCLUDED__ */

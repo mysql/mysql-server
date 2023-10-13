@@ -25,116 +25,97 @@
 #ifndef NODE_INFO_HPP
 #define NODE_INFO_HPP
 
-#include <NdbOut.hpp>
 #include <mgmapi_config_parameters.h>
 #include <ndb_version.h>
+#include <NdbOut.hpp>
 
 #define JAM_FILE_ID 0
 
-
 class NodeInfo {
-public:
+ public:
   NodeInfo()
-  : m_version(0),
-    m_mysql_version(0),
-    m_lqh_workers(0),
-    m_query_threads(0),
-    m_log_parts(0),
-    m_type(INVALID),
-    m_connectCount(0),
-    m_connected(false)
-  {}
+      : m_version(0),
+        m_mysql_version(0),
+        m_lqh_workers(0),
+        m_query_threads(0),
+        m_log_parts(0),
+        m_type(INVALID),
+        m_connectCount(0),
+        m_connected(false) {}
 
   /**
    * NodeType
    */
   enum NodeType {
-    DB  = NODE_TYPE_DB,      ///< Database node
-    API = NODE_TYPE_API,      ///< NDB API node
-    MGM = NODE_TYPE_MGM,      ///< Management node  (incl. NDB API)
-    INVALID = 255 ///< Invalid type
+    DB = NODE_TYPE_DB,    ///< Database node
+    API = NODE_TYPE_API,  ///< NDB API node
+    MGM = NODE_TYPE_MGM,  ///< Management node  (incl. NDB API)
+    INVALID = 255         ///< Invalid type
   };
   NodeType getType() const;
 
-  Uint32 m_version;       ///< Ndb version
-  Uint32 m_mysql_version; ///< MySQL version
-  Uint32 m_lqh_workers;   ///< LQH workers
-  Uint32 m_query_threads; ///< Query threads
-  Uint32 m_log_parts;     ///< REDO Log parts
-  Uint32 m_type;          ///< Node type
-  Uint32 m_connectCount;  ///< No of times connected
-  Uint32 m_connected;     ///< Node is connected
+  Uint32 m_version;        ///< Ndb version
+  Uint32 m_mysql_version;  ///< MySQL version
+  Uint32 m_lqh_workers;    ///< LQH workers
+  Uint32 m_query_threads;  ///< Query threads
+  Uint32 m_log_parts;      ///< REDO Log parts
+  Uint32 m_type;           ///< Node type
+  Uint32 m_connectCount;   ///< No of times connected
+  Uint32 m_connected;      ///< Node is connected
 
-  friend NdbOut & operator<<(NdbOut&, const NodeInfo&); 
+  friend NdbOut &operator<<(NdbOut &, const NodeInfo &);
 };
 
-
-inline
-NodeInfo::NodeType
-NodeInfo::getType() const {
-  return (NodeType)m_type;
-}
-
+inline NodeInfo::NodeType NodeInfo::getType() const { return (NodeType)m_type; }
 
 class NdbVersion {
   Uint32 m_ver;
-public:
+
+ public:
   NdbVersion(Uint32 ver) : m_ver(ver) {}
 
-  friend NdbOut& operator<<(NdbOut&, const NdbVersion&);
+  friend NdbOut &operator<<(NdbOut &, const NdbVersion &);
 };
 
-
-inline
-NdbOut&
-operator<<(NdbOut& ndbout, const NdbVersion& ver){
-  ndbout.print("%d.%d.%d",
-               ndbGetMajor(ver.m_ver),
-               ndbGetMinor(ver.m_ver),
+inline NdbOut &operator<<(NdbOut &ndbout, const NdbVersion &ver) {
+  ndbout.print("%d.%d.%d", ndbGetMajor(ver.m_ver), ndbGetMinor(ver.m_ver),
                ndbGetBuild(ver.m_ver));
   return ndbout;
 }
 
-
-inline
-NdbOut &
-operator<<(NdbOut& ndbout, const NodeInfo & info){
+inline NdbOut &operator<<(NdbOut &ndbout, const NodeInfo &info) {
   ndbout << "[NodeInfo: ";
-  switch(info.m_type){
-  case NodeInfo::DB:
-    ndbout << "DB";
-    break;
-  case NodeInfo::API:
-    ndbout << "API";
-    break;
-  case NodeInfo::MGM:
-    ndbout << "MGM";
-    break;
-  case NodeInfo::INVALID:
-    ndbout << "INVALID";
-    break;
-  default:
-    ndbout << "<Unknown: " << info.m_type << ">";
-    break;
+  switch (info.m_type) {
+    case NodeInfo::DB:
+      ndbout << "DB";
+      break;
+    case NodeInfo::API:
+      ndbout << "API";
+      break;
+    case NodeInfo::MGM:
+      ndbout << "MGM";
+      break;
+    case NodeInfo::INVALID:
+      ndbout << "INVALID";
+      break;
+    default:
+      ndbout << "<Unknown: " << info.m_type << ">";
+      break;
   }
 
   ndbout << " ndb version: " << NdbVersion(info.m_version)
-	 << " mysql version: " << NdbVersion(info.m_mysql_version)
-	 << " connect count: " << info.m_connectCount
-	 << "]";
+         << " mysql version: " << NdbVersion(info.m_mysql_version)
+         << " connect count: " << info.m_connectCount << "]";
   return ndbout;
 }
 
-struct NodeVersionInfo
-{
+struct NodeVersionInfo {
   static constexpr Uint32 DataLength = 6;
-  struct 
-  {
+  struct {
     Uint32 m_min_version;
     Uint32 m_max_version;
-  } m_type [3]; // Indexed as NodeInfo::Type 
+  } m_type[3];  // Indexed as NodeInfo::Type
 };
-
 
 #undef JAM_FILE_ID
 

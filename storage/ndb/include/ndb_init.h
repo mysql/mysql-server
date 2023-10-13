@@ -22,18 +22,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #ifndef NDB_INIT_H
 #define NDB_INIT_H
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 /* call in main() - does not return on error */
 extern int ndb_init(void);
 extern void ndb_end(int);
-#define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
-#ifdef  __cplusplus
+#define NDB_INIT(prog_name)    \
+  {                            \
+    my_progname = (prog_name); \
+    ndb_init();                \
+  }
+#ifdef __cplusplus
 }
 #endif
 

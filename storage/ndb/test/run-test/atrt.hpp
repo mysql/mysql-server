@@ -25,8 +25,8 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
-#include "util/require.h"
 #include <time.h>
+#include "util/require.h"
 
 #include <NDBT_ReturnCodes.h>
 #include <mgmapi.h>
@@ -44,7 +44,6 @@
 #include <Vector.hpp>
 #include <string>
 #include "test_execution_resources.hpp"
-
 
 enum ErrorCodes {
   ERR_OK = 0,
@@ -72,12 +71,7 @@ struct TestResult {
   int result;
 };
 
-enum FailureMode : long {
-  Restart,
-  Abort,
-  Skip,
-  Continue
-};
+enum FailureMode : long { Restart, Abort, Skip, Continue };
 
 enum RestartMode : long {
   None,
@@ -97,8 +91,8 @@ struct atrt_host {
   BaseString m_user;
   BaseString m_basedir;
   BaseString m_hostname;
-  SimpleCpcClient* m_cpcd;
-  Vector<struct atrt_process*> m_processes;
+  SimpleCpcClient *m_cpcd;
+  Vector<struct atrt_process *> m_processes;
 };
 
 struct atrt_options {
@@ -114,8 +108,8 @@ struct atrt_process {
   BaseString m_name;
   unsigned int m_procno;
 
-  struct atrt_host* m_host;
-  struct atrt_cluster* m_cluster;
+  struct atrt_host *m_host;
+  struct atrt_cluster *m_cluster;
 
   enum Type {
     AP_ALL = 255,
@@ -131,11 +125,11 @@ struct atrt_process {
   SimpleCpcClient::Process m_proc;
   bool m_atrt_stopped;
 
-  NdbMgmHandle m_ndb_mgm_handle;    // if type == ndb_mgm
-  atrt_process* m_mysqld;           // if type == client
-  atrt_process* m_rep_src;          // if type == mysqld
-  Vector<atrt_process*> m_rep_dst;  // if type == mysqld
-  MYSQL m_mysql;                    // if type == mysqld
+  NdbMgmHandle m_ndb_mgm_handle;     // if type == ndb_mgm
+  atrt_process *m_mysqld;            // if type == client
+  atrt_process *m_rep_src;           // if type == mysqld
+  Vector<atrt_process *> m_rep_dst;  // if type == mysqld
+  MYSQL m_mysql;                     // if type == mysqld
   atrt_options m_options;
   uint m_nodeid;  // if m_fix_nodeid
 
@@ -148,7 +142,7 @@ struct atrt_process {
 struct atrt_cluster {
   BaseString m_name;
   BaseString m_dir;
-  Vector<atrt_process*> m_processes;
+  Vector<atrt_process *> m_processes;
   atrt_options m_options;
   uint m_next_nodeid;  // if m_fix_nodeid
 };
@@ -159,9 +153,9 @@ struct atrt_config {
   BaseString m_key;
   BaseString m_replication;
   BaseString m_site;
-  Vector<atrt_host*> m_hosts;
-  Vector<atrt_cluster*> m_clusters;
-  Vector<atrt_process*> m_processes;
+  Vector<atrt_host *> m_hosts;
+  Vector<atrt_cluster *> m_clusters;
+  Vector<atrt_process *> m_processes;
 };
 
 struct atrt_coverage_config {
@@ -190,44 +184,44 @@ struct atrt_testcase {
 
 extern Logger g_logger;
 
-bool parse_args(int argc, char** argv, MEM_ROOT* alloc);
-bool setup_config(atrt_config&, atrt_coverage_config&, const char* mysqld,
+bool parse_args(int argc, char **argv, MEM_ROOT *alloc);
+bool setup_config(atrt_config &, atrt_coverage_config &, const char *mysqld,
                   bool);
-void setup_coverage_config(atrt_coverage_config&);
-void get_coverage_parameters(atrt_coverage_config&);
-bool load_deployment_options(atrt_config&);
-bool configure(atrt_config&, int setup);
-bool setup_directories(atrt_config&, int setup);
-bool setup_files(atrt_config&, int setup, int sshx);
+void setup_coverage_config(atrt_coverage_config &);
+void get_coverage_parameters(atrt_coverage_config &);
+bool load_deployment_options(atrt_config &);
+bool configure(atrt_config &, int setup);
+bool setup_directories(atrt_config &, int setup);
+bool setup_files(atrt_config &, int setup, int sshx);
 
-bool deploy(int, atrt_config&);
-bool sshx(atrt_config&, unsigned procmask);
+bool deploy(int, atrt_config &);
+bool sshx(atrt_config &, unsigned procmask);
 
-bool remove_dir(const char*, bool incl = true);
-bool exists_file(const char* path);
-bool connect_hosts(atrt_config&);
-const char* get_test_status(int result);
+bool remove_dir(const char *, bool incl = true);
+bool exists_file(const char *path);
+bool connect_hosts(atrt_config &);
+const char *get_test_status(int result);
 int atrt_exit(int return_code);
-void update_atrt_result_code(const TestResult& test_result,
-                             AtrtExitCodes* return_code);
+void update_atrt_result_code(const TestResult &test_result,
+                             AtrtExitCodes *return_code);
 
-bool is_client_running(atrt_config&);
-bool gather_result(atrt_config&, int* result);
+bool is_client_running(atrt_config &);
+bool gather_result(atrt_config &, int *result);
 
-int read_test_case(FILE*, int& line, atrt_testcase&);
-bool read_test_cases(FILE*, std::vector<atrt_testcase>*);
+int read_test_case(FILE *, int &line, atrt_testcase &);
+bool read_test_cases(FILE *, std::vector<atrt_testcase> *);
 
-bool setup_hosts(atrt_config&);
+bool setup_hosts(atrt_config &);
 
-bool connect_mysqld(atrt_process& proc);
-bool disconnect_mysqld(atrt_process& proc);
+bool connect_mysqld(atrt_process &proc);
+bool disconnect_mysqld(atrt_process &proc);
 
-NdbOut& operator<<(NdbOut& out, const atrt_process& proc);
+NdbOut &operator<<(NdbOut &out, const atrt_process &proc);
 
 /**
  * SQL
  */
-bool setup_db(atrt_config&);
+bool setup_db(atrt_config &);
 
 std::string getAtrtVersion();
 
@@ -236,35 +230,35 @@ std::string getAtrtVersion();
  */
 extern Logger g_logger;
 
-extern const char* g_cwd;
-extern const char* g_my_cnf;
-extern const char* g_user;
-extern const char* g_basedir;
-extern const char* g_prefix;
-extern const char* g_prefix0;
-extern const char* g_prefix1;
+extern const char *g_cwd;
+extern const char *g_my_cnf;
+extern const char *g_user;
+extern const char *g_basedir;
+extern const char *g_prefix;
+extern const char *g_prefix0;
+extern const char *g_prefix1;
 extern int g_baseport;
 extern int g_fqpn;
 extern int g_fix_nodeid;
 extern int g_default_ports;
 extern int g_restart;
 
-extern const char* g_site;
-extern const char* g_clusters;
+extern const char *g_site;
+extern const char *g_clusters;
 
 /**
  * Since binaries move location between 5.1 and 5.5
  *   we keep full path to them here
  */
-char* find_bin_path(const char* basename);
-char* find_bin_path(const char* prefix, const char* basename);
-extern const char* g_search_path[];
+char *find_bin_path(const char *basename);
+char *find_bin_path(const char *prefix, const char *basename);
+extern const char *g_search_path[];
 extern TestExecutionResources g_resources;
 
 #ifdef _WIN32
 #include <direct.h>
 
-inline int lstat(const char* name, struct stat* buf) { return stat(name, buf); }
+inline int lstat(const char *name, struct stat *buf) { return stat(name, buf); }
 
 inline int S_ISREG(int x) { return x & _S_IFREG; }
 
@@ -273,7 +267,7 @@ inline int S_ISDIR(int x) { return x & _S_IFDIR; }
 #endif
 
 /* in-place replace */
-static inline char* replace_chars(char* str, char from, char to) {
+static inline char *replace_chars(char *str, char from, char to) {
   int i;
 
   for (i = 0; str[i]; i++) {
@@ -284,26 +278,26 @@ static inline char* replace_chars(char* str, char from, char to) {
   return str;
 }
 
-static inline BaseString& replace_chars(BaseString& bs, char from, char to) {
-  replace_chars((char*)bs.c_str(), from, to);
+static inline BaseString &replace_chars(BaseString &bs, char from, char to) {
+  replace_chars((char *)bs.c_str(), from, to);
   return bs;
 }
-static inline BaseString& to_native(BaseString& bs) {
+static inline BaseString &to_native(BaseString &bs) {
   return replace_chars(bs, DIR_SEPARATOR[0] == '/' ? '\\' : '/',
                        DIR_SEPARATOR[0]);
 }
-static inline BaseString& to_fwd_slashes(BaseString& bs) {
+static inline BaseString &to_fwd_slashes(BaseString &bs) {
   return replace_chars(bs, '\\', '/');
 }
-static inline char* to_fwd_slashes(char* bs) {
+static inline char *to_fwd_slashes(char *bs) {
   return replace_chars(bs, '\\', '/');
 }
 
 // you must free() the result
-static inline char* replace_drive_letters(const char* path) {
+static inline char *replace_drive_letters(const char *path) {
   int i, j;
   int count;     // number of ':'s in path
-  char* retval;  // return value
+  char *retval;  // return value
   const char cygdrive[] = "/cygdrive";
   size_t cyglen = strlen(cygdrive), retval_len;
 
@@ -311,7 +305,7 @@ static inline char* replace_drive_letters(const char* path) {
     count += path[i] == ':';
   }
   retval_len = strlen(path) + count * cyglen + 1;
-  retval = (char*)malloc(retval_len);
+  retval = (char *)malloc(retval_len);
 
   for (i = j = 0; path[i]; i++) {
     if (path[i] && path[i + 1]) {
@@ -331,7 +325,7 @@ static inline char* replace_drive_letters(const char* path) {
   return retval;
 }
 
-static inline int sh(const char* script) {
+static inline int sh(const char *script) {
 #ifdef _WIN32
   g_logger.debug("sh('%s')", script);
 
@@ -353,7 +347,7 @@ static inline int sh(const char* script) {
     return -1;
   }
 
-  FILE* fp = fopen(tmp_file, "w");
+  FILE *fp = fopen(tmp_file, "w");
   if (fp == NULL) {
     g_logger.error("Cannot open file '%s', error: %d", tmp_file, errno);
     return -1;
@@ -361,7 +355,7 @@ static inline int sh(const char* script) {
 
   // cygwin'ify the script and write it to temp file
   {
-    char* cygwin_script = replace_drive_letters(script);
+    char *cygwin_script = replace_drive_letters(script);
     g_logger.debug(" - cygwin_script: '%s' ", cygwin_script);
     fprintf(fp, "%s", cygwin_script);
     free(cygwin_script);

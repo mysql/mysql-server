@@ -28,9 +28,9 @@
 #include "my_compiler.h"
 
 #if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
+#define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
 #else
-# define ATTRIBUTE_FORMAT(style, m, n)
+#define ATTRIBUTE_FORMAT(style, m, n)
 #endif
 
 #define ATTRIBUTE_NOINLINE NO_INLINE

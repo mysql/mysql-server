@@ -25,42 +25,38 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <NdbOut.hpp>
-#include <NdbApi.hpp>
 #include <NDBT.hpp>
+#include <NdbApi.hpp>
+#include <NdbOut.hpp>
 
 #include "my_alloc.h"
 
-static const char* _dbname = "TEST_DB";
+static const char *_dbname = "TEST_DB";
 
-static struct my_option my_long_options[] =
-{
-  NdbStdOpt::usage,
-  NdbStdOpt::help,
-  NdbStdOpt::version,
-  NdbStdOpt::ndb_connectstring,
-  NdbStdOpt::mgmd_host,
-  NdbStdOpt::connectstring,
-  NdbStdOpt::ndb_nodeid,
-  NdbStdOpt::connect_retry_delay,
-  NdbStdOpt::connect_retries,
-  NDB_STD_OPT_DEBUG
-  { "database", 'd', "Name of database table is in",
-    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
-    0, 0, 0, nullptr, 0, nullptr },
-  NdbStdOpt::end_of_options
-};
+static struct my_option my_long_options[] = {
+    NdbStdOpt::usage,
+    NdbStdOpt::help,
+    NdbStdOpt::version,
+    NdbStdOpt::ndb_connectstring,
+    NdbStdOpt::mgmd_host,
+    NdbStdOpt::connectstring,
+    NdbStdOpt::ndb_nodeid,
+    NdbStdOpt::connect_retry_delay,
+    NdbStdOpt::connect_retries,
+    NDB_STD_OPT_DEBUG{"database", 'd', "Name of database table is in", &_dbname,
+                      nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+                      0, nullptr},
+    NdbStdOpt::end_of_options};
 
 static void short_usage_sub() {
   ndb_short_usage_sub("<table name>[, <table name>[, ...]]");
 }
 
-int main(int argc, char** argv){
+int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub);
-  if (opts.handle_options())
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (opts.handle_options()) return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc < 1) {
     opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -68,38 +64,36 @@ int main(int argc, char** argv){
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_drop_table");
-  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
-  {
+  if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0) {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  if (con.wait_until_ready(30,3) < 0)
-  {
+  if (con.wait_until_ready(30, 3) < 0) {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Ndb MyNdb(&con, _dbname );
-  if(MyNdb.init() != 0){
+  Ndb MyNdb(&con, _dbname);
+  if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   int res = 0;
-  for(int i = 0; i<argc; i++){
-    ndbout << "Dropping table " <<  argv[i] << "...";
+  for (int i = 0; i < argc; i++) {
+    ndbout << "Dropping table " << argv[i] << "...";
     int tmp;
-    if((tmp = MyNdb.getDictionary()->dropTable(argv[i])) != 0){
+    if ((tmp = MyNdb.getDictionary()->dropTable(argv[i])) != 0) {
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       res = tmp;
     } else {
       ndbout << "OK" << endl;
     }
   }
-  
-  if(res != 0){
+
+  if (res != 0) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   return NDBT_ProgramExit(NDBT_OK);
 }

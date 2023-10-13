@@ -23,7 +23,7 @@
 #ifndef NDB_DAEMON_H
 #define NDB_DAEMON_H
 
-typedef int (*ndb_daemon_run_t)(int, char**);
+typedef int (*ndb_daemon_run_t)(int, char **);
 typedef void (*ndb_daemon_stop_t)(void);
 
 /*
@@ -35,9 +35,9 @@ typedef void (*ndb_daemon_stop_t)(void);
   with argc/argv
 
 */
-int ndb_daemon_init(int argc, char** argv,
-                    ndb_daemon_run_t run, ndb_daemon_stop_t stop,
-                    const char* name, const char* display_name);
+int ndb_daemon_init(int argc, char **argv, ndb_daemon_run_t run,
+                    ndb_daemon_stop_t stop, const char *name,
+                    const char *display_name);
 
 /*
   To be called at the point where an application needs to daemonize
@@ -48,8 +48,7 @@ int ndb_daemon_init(int argc, char** argv,
 
   On windows, only create pidfile and redirect.
 */
-int ndb_daemonize(const char* pidfile_name, const char *logfile_name);
-
+int ndb_daemonize(const char *pidfile_name, const char *logfile_name);
 
 /*
   To be called when application should exit.
@@ -68,7 +67,7 @@ extern char ndb_daemon_error[];
 /*
   Print the additional arguments available for service
 */
-void ndb_service_print_options(const char* name);
+void ndb_service_print_options(const char *name);
 
 /*
   Utility function to make the program wait for debugger at

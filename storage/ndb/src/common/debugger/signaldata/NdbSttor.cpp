@@ -25,11 +25,8 @@
 
 #include <signaldata/NdbSttor.hpp>
 
-bool printNDB_STTOR(FILE *output,
-                    const Uint32 *theData,
-                    Uint32 len,
-                    Uint16 /*receiverBlockNo*/)
-{
+bool printNDB_STTOR(FILE *output, const Uint32 *theData, Uint32 len,
+                    Uint16 /*receiverBlockNo*/) {
   const NdbSttor *const sig = (const NdbSttor *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " nodeId: %x\n", sig->nodeId);
@@ -38,12 +35,12 @@ bool printNDB_STTOR(FILE *output,
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
 
   int left = len - NdbSttor::SignalLength;
-  if(left > 0){
+  if (left > 0) {
     fprintf(output, " config: ");
-    for(int i = 0; i<left; i++){
+    for (int i = 0; i < left; i++) {
       fprintf(output, "%x ", sig->config[i]);
-      if(((i + 1) % 7) == 0 && (i+1) < left){
-	fprintf(output, "\n config: ");
+      if (((i + 1) % 7) == 0 && (i + 1) < left) {
+        fprintf(output, "\n config: ");
       }
     }
     fprintf(output, "\n");
@@ -51,13 +48,9 @@ bool printNDB_STTOR(FILE *output,
   return true;
 }
 
-bool printNDB_STTORRY(FILE *output,
-                      const Uint32 *theData,
-                      Uint32 len,
-                      Uint16 /*receiverBlockNo*/)
-{
-  if (len < NdbSttorry::SignalLength)
-  {
+bool printNDB_STTORRY(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*receiverBlockNo*/) {
+  if (len < NdbSttorry::SignalLength) {
     assert(false);
     return false;
   }

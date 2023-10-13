@@ -23,91 +23,66 @@
 */
 
 #include <RefConvert.hpp>
-#include <signaldata/StartRec.hpp>
 #include <signaldata/StartFragReq.hpp>
+#include <signaldata/StartRec.hpp>
 
-bool printSTART_REC_REQ(FILE *output,
-                        const Uint32 *theData,
-                        Uint32 len,
-                        Uint16 /*recBlockNo*/)
-{
+bool printSTART_REC_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                        Uint16 /*recBlockNo*/) {
   const StartRecReq *sig = (const StartRecReq *)theData;
 
-  if (len != StartRecReq::SignalLength)
-    return false;
+  if (len != StartRecReq::SignalLength) return false;
 
   fprintf(output, " receivingNodeId: %d senderRef: (%d, %d)\n",
-	  sig->receivingNodeId, 
-	  refToNode(sig->senderRef),
-	  refToBlock(sig->senderRef));
-  
-  fprintf(output, 
-          " keepGci: %d lastCompletedGci: %d newestGci: %d senderData: %x\n",
-	  sig->keepGci, 
-	  sig->lastCompletedGci,
-	  sig->newestGci,
-          sig->senderData);
+          sig->receivingNodeId, refToNode(sig->senderRef),
+          refToBlock(sig->senderRef));
 
-  if (len == sig->SignalLength_v1)
-  {
+  fprintf(output,
+          " keepGci: %d lastCompletedGci: %d newestGci: %d senderData: %x\n",
+          sig->keepGci, sig->lastCompletedGci, sig->newestGci, sig->senderData);
+
+  if (len == sig->SignalLength_v1) {
     NdbNodeBitmask48 mask;
     mask.assign(NdbNodeBitmask48::Size, sig->sr_nodes);
 
     char buf[NdbNodeBitmask48::TextLength + 1];
-    fprintf(output,
-          " sr_nodes: %s\n", mask.getText(buf));
-  }
-  else
-  {
-    fprintf(output , "sr_nodes in signal section\n");
+    fprintf(output, " sr_nodes: %s\n", mask.getText(buf));
+  } else {
+    fprintf(output, "sr_nodes in signal section\n");
   }
   return true;
 }
 
-bool printSTART_REC_CONF(FILE *output,
-                         const Uint32 *theData,
-                         Uint32 len,
-                         Uint16 /*recBlockNo*/)
-{
+bool printSTART_REC_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*recBlockNo*/) {
   const StartRecConf *sig = (const StartRecConf *)theData;
 
-  if (len != StartRecConf::SignalLength)
-    return false;
+  if (len != StartRecConf::SignalLength) return false;
 
-  fprintf(output, " startingNodeId: %d senderData: %u\n",
-	  sig->startingNodeId,
+  fprintf(output, " startingNodeId: %d senderData: %u\n", sig->startingNodeId,
           sig->senderData);
-  
+
   return true;
 }
 
-bool printSTART_FRAG_REQ(FILE *output,
-                         const Uint32 *theData,
-                         Uint32 len,
-                         Uint16 /*recBlockNo*/)
-{
+bool printSTART_FRAG_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint16 /*recBlockNo*/) {
   const StartFragReq *sig = (const StartFragReq *)theData;
 
-  fprintf(output, " table: %d frag: %d lcpId: %d lcpNo: %d #nodes: %d"
-                  ", reqinfo: %x \n",
-	  sig->tableId, sig->fragId, sig->lcpId, sig->lcpNo, 
-	  sig->noOfLogNodes,sig->requestInfo);
+  fprintf(output,
+          " table: %d frag: %d lcpId: %d lcpNo: %d #nodes: %d"
+          ", reqinfo: %x \n",
+          sig->tableId, sig->fragId, sig->lcpId, sig->lcpNo, sig->noOfLogNodes,
+          sig->requestInfo);
 
-  for(Uint32 i = 0; i<sig->noOfLogNodes; i++)
-  {
-    fprintf(output, " (node: %d startGci: %d lastGci: %d)",
-	    sig->lqhLogNode[i],
-	    sig->startGci[i],
-	    sig->lastGci[i]);
+  for (Uint32 i = 0; i < sig->noOfLogNodes; i++) {
+    fprintf(output, " (node: %d startGci: %d lastGci: %d)", sig->lqhLogNode[i],
+            sig->startGci[i], sig->lastGci[i]);
   }
-  if (len == StartFragReq::SignalLength)
-  {
+  if (len == StartFragReq::SignalLength) {
     fprintf(output, "\nnodeRestorableGci: %u", sig->nodeRestorableGci);
-  }
-  else
-  {
+  } else {
     fprintf(output, "\nnodeRestorableGci: 0 (from older version)");
   }
   fprintf(output, "\n");
-  return true; 
+  return true;
 }

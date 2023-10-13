@@ -45,7 +45,7 @@ class SimpleCpcClient {
     int m_id;
     BaseString m_name;
 
-    //To indicate whether the process is in a state in which it was started
+    // To indicate whether the process is in a state in which it was started
     bool m_changed = false;
     BaseString m_owner;
     BaseString m_group;
@@ -70,7 +70,7 @@ class SimpleCpcClient {
  private:
   class ParserDummy : SocketServer::Session {
    public:
-    ParserDummy(const NdbSocket& sock);
+    ParserDummy(const NdbSocket &sock);
   };
 
   typedef Parser<ParserDummy> Parser_t;

@@ -26,20 +26,12 @@
 class Ndb;
 class NdbPool;
 
-bool
-create_instance(Ndb_cluster_connection* cc,
-                Uint32 max_ndb_objects,
-                Uint32 no_conn_obj,
-                Uint32 init_no_ndb_objects);
+bool create_instance(Ndb_cluster_connection *cc, Uint32 max_ndb_objects,
+                     Uint32 no_conn_obj, Uint32 init_no_ndb_objects);
 
-void
-drop_instance();
+void drop_instance();
 
-Ndb*
-get_ndb_object(Uint32 &hint_id,
-               const char* a_catalog_name,
-               const char* a_schema_name);
+Ndb *get_ndb_object(Uint32 &hint_id, const char *a_catalog_name,
+                    const char *a_schema_name);
 
-void
-return_ndb_object(Ndb* returned_object, Uint32 id);
-
+void return_ndb_object(Ndb *returned_object, Uint32 id);

@@ -32,10 +32,9 @@
 
 #define JAM_FILE_ID 513
 
-static constexpr Uint32 NDB_MAX_BLOCK_THREADS = NDBMT_MAIN_THREADS +
-                                                MAX_NDBMT_TC_THREADS +
-                                                MAX_NDBMT_RECEIVE_THREADS +
-                                                MAX_NDBMT_LQH_THREADS;
+static constexpr Uint32 NDB_MAX_BLOCK_THREADS =
+    NDBMT_MAIN_THREADS + MAX_NDBMT_TC_THREADS + MAX_NDBMT_RECEIVE_THREADS +
+    MAX_NDBMT_LQH_THREADS;
 
 static constexpr Uint32 NDB_BLOCK_THREAD_BITMASK_SIZE =
     ndb_ceil_div(NDB_MAX_BLOCK_THREADS, 32U);

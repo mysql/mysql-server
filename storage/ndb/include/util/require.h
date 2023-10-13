@@ -25,26 +25,25 @@
 #ifndef NDB_UTIL_REQUIRE_H
 #define NDB_UTIL_REQUIRE_H
 
-#include "my_compiler.h" // likely
+#include "my_compiler.h"  // likely
 
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
-[[noreturn]] void require_failed(int exitcode,
-                                 const char* expr,
-                                 const char* file,
-                                 int line);
+[[noreturn]] void require_failed(int exitcode, const char *expr,
+                                 const char *file, int line);
 /*
  *  this allows for an exit() call if exitcode is not zero
-*/
-#define require_exit_or_core(v, exitcode) \
-  do { if (likely(!(!(v)))) break; \
-       require_failed((exitcode), #v, __FILE__, __LINE__); \
+ */
+#define require_exit_or_core(v, exitcode)               \
+  do {                                                  \
+    if (likely(!(!(v)))) break;                         \
+    require_failed((exitcode), #v, __FILE__, __LINE__); \
   } while (0)
 
 /*
  * this require is like a normal assert.  (only it's always on)
-*/
+ */
 #define require(v) require_exit_or_core((v), 0)
 
 #endif

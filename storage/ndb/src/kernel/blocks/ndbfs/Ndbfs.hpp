@@ -25,12 +25,12 @@
 #ifndef SIMBLOCKASYNCFILESYSTEM_H
 #define SIMBLOCKASYNCFILESYSTEM_H
 
-#include <pc.hpp>
 #include <SimulatedBlock.hpp>
-#include "Pool.hpp"
+#include <pc.hpp>
+#include <signaldata/FsOpenReq.hpp>
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
-#include <signaldata/FsOpenReq.hpp>
+#include "Pool.hpp"
 
 #define JAM_FILE_ID 385
 
@@ -43,51 +43,53 @@ struct FsRef;
 // of all out standing request and when all are finished the result
 // must be reported to the sending block.
 
-class Ndbfs : public SimulatedBlock
-{
+class Ndbfs : public SimulatedBlock {
   friend class AsyncIoThread;
-public:
-  Ndbfs(Block_context&);
+
+ public:
+  Ndbfs(Block_context &);
   ~Ndbfs() override;
-  const char* get_filename(Uint32 fd) const override;
+  const char *get_filename(Uint32 fd) const override;
 
   static Uint32 translateErrno(int aErrno);
 
-  void callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const;
-protected:
+  void callFSWRITEREQ(BlockReference ref, FsReadWriteReq *req) const;
+
+ protected:
   BLOCK_DEFINES(Ndbfs);
 
   // The signal processing functions
-  void execREAD_CONFIG_REQ(Signal* signal);
-  void execDUMP_STATE_ORD(Signal* signal);
-  void execFSOPENREQ(Signal* signal);
-  void execFSCLOSEREQ(Signal* signal);
-  void execFSWRITEREQ(Signal* signal);
-  void execFSREADREQ(Signal* signal);
-  void execFSSYNCREQ(Signal* signal);
-  void execFSAPPENDREQ(Signal* signal);
-  void execFSREMOVEREQ(Signal* signal);
-  void execSTTOR(Signal* signal);
-  void execCONTINUEB(Signal* signal);
-  void execALLOC_MEM_REQ(Signal* signal);
-  void execSEND_PACKED(Signal*);
-  void execBUILD_INDX_IMPL_REQ(Signal* signal);
-  void execFSSUSPENDORD(Signal*);
+  void execREAD_CONFIG_REQ(Signal *signal);
+  void execDUMP_STATE_ORD(Signal *signal);
+  void execFSOPENREQ(Signal *signal);
+  void execFSCLOSEREQ(Signal *signal);
+  void execFSWRITEREQ(Signal *signal);
+  void execFSREADREQ(Signal *signal);
+  void execFSSYNCREQ(Signal *signal);
+  void execFSAPPENDREQ(Signal *signal);
+  void execFSREMOVEREQ(Signal *signal);
+  void execSTTOR(Signal *signal);
+  void execCONTINUEB(Signal *signal);
+  void execALLOC_MEM_REQ(Signal *signal);
+  void execSEND_PACKED(Signal *);
+  void execBUILD_INDX_IMPL_REQ(Signal *signal);
+  void execFSSUSPENDORD(Signal *);
 
   Uint16 newId();
 
-private:
-  int forward(AsyncFile *file, Request* Request);
-  void report(Request* request, Signal* signal);
-protected:
-  bool scanIPC(Signal* signal);
+ private:
+  int forward(AsyncFile *file, Request *Request);
+  void report(Request *request, Signal *signal);
+
+ protected:
+  bool scanIPC(Signal *signal);
   bool scanningInProgress;
 
-private:
+ private:
   // Declared but not defined
-  Ndbfs(Ndbfs & );
-  void operator = (Ndbfs &);
-  
+  Ndbfs(Ndbfs &);
+  void operator=(Ndbfs &);
+
   // Used for unique number generation
   Uint16 theLastId;
 
@@ -96,34 +98,35 @@ private:
   MemoryChannel<Request> theToBoundThreads;
   MemoryChannel<Request> theToUnboundThreads;
 
-  Pool<Request>* theRequestPool;
+  Pool<Request> *theRequestPool;
 
-  AsyncIoThread* createIoThread(bool bound);
-  AsyncFile* createAsyncFile();
-  AsyncFile* getIdleFile(bool bound);
-  void pushIdleFile(AsyncFile*);
-  void log_file_error(GlobalSignalNumber gsn, AsyncFile* file,
-                      Request* request, FsRef* fsRef);
+  AsyncIoThread *createIoThread(bool bound);
+  AsyncFile *createAsyncFile();
+  AsyncFile *getIdleFile(bool bound);
+  void pushIdleFile(AsyncFile *);
+  void log_file_error(GlobalSignalNumber gsn, AsyncFile *file, Request *request,
+                      FsRef *fsRef);
 
-  Vector<AsyncIoThread*> theThreads;// List of all created threads
-  Vector<AsyncFile*> theFiles;      // List all created AsyncFiles
-  Vector<AsyncFile*> theIdleFiles;  // List of idle AsyncFiles
-  OpenFiles theOpenFiles;           // List of open AsyncFiles
+  Vector<AsyncIoThread *> theThreads;  // List of all created threads
+  Vector<AsyncFile *> theFiles;        // List all created AsyncFiles
+  Vector<AsyncFile *> theIdleFiles;    // List of idle AsyncFiles
+  OpenFiles theOpenFiles;              // List of open AsyncFiles
 
   BaseString m_base_path[FsOpenReq::BP_MAX];
-  
+
   // Statistics variables
   Uint32 m_maxOpenedFiles;
-  
+
   // Limit for max number of AsyncFiles created
   Uint32 m_maxFiles;
 
-// Temporary work-around for Bug #18055285 LOTS OF TESTS FAILS IN CLUB MADNESS WITH NEW GCC 4.8.2 -O3
-// disabling optimization for readWriteRequest() from gcc 4.8 and up
+// Temporary work-around for Bug #18055285 LOTS OF TESTS FAILS IN CLUB MADNESS
+// WITH NEW GCC 4.8.2 -O3 disabling optimization for readWriteRequest() from
+// gcc 4.8 and up
 #if (__GNUC__ * 1000 + __GNUC_MINOR__) >= 4008
-  void readWriteRequest(  int action, Signal * signal ) MY_ATTRIBUTE((optimize(0)));
+  void readWriteRequest(int action, Signal *signal) MY_ATTRIBUTE((optimize(0)));
 #else
-  void readWriteRequest(  int action, Signal * signal );
+  void readWriteRequest(int action, Signal *signal);
 #endif
 
   Uint32 m_bound_threads_cnt;
@@ -145,46 +148,42 @@ private:
    */
   Uint32 m_active_bound_threads_cnt;
 
-public:
-  const BaseString& get_base_path(Uint32 no) const;
+ public:
+  const BaseString &get_base_path(Uint32 no) const;
 };
 
-class VoidFs : public Ndbfs
-{
-public:
-  VoidFs(Block_context&);
+class VoidFs : public Ndbfs {
+ public:
+  VoidFs(Block_context &);
   ~VoidFs() override;
 
-protected:
+ protected:
   BLOCK_DEFINES(VoidFs);
 
   // The signal processing functions
-  void execREAD_CONFIG_REQ(Signal* signal);
-  void execDUMP_STATE_ORD(Signal* signal);
-  void execFSOPENREQ(Signal* signal);
-  void execFSCLOSEREQ(Signal* signal);
-  void execFSWRITEREQ(Signal* signal);
-  void execFSREADREQ(Signal* signal);
-  void execFSSYNCREQ(Signal* signal);
-  void execFSAPPENDREQ(Signal* signal);
-  void execFSREMOVEREQ(Signal* signal);
-  void execSTTOR(Signal* signal);
-  void execALLOC_MEM_REQ(Signal*);
-  void execSEND_PACKED(Signal*);
-  void execFSSUSPENDORD(Signal*);
+  void execREAD_CONFIG_REQ(Signal *signal);
+  void execDUMP_STATE_ORD(Signal *signal);
+  void execFSOPENREQ(Signal *signal);
+  void execFSCLOSEREQ(Signal *signal);
+  void execFSWRITEREQ(Signal *signal);
+  void execFSREADREQ(Signal *signal);
+  void execFSSYNCREQ(Signal *signal);
+  void execFSAPPENDREQ(Signal *signal);
+  void execFSREMOVEREQ(Signal *signal);
+  void execSTTOR(Signal *signal);
+  void execALLOC_MEM_REQ(Signal *);
+  void execSEND_PACKED(Signal *);
+  void execFSSUSPENDORD(Signal *);
 
-private:
+ private:
   // Declared but not defined
-  VoidFs(VoidFs & );
-  void operator = (VoidFs &);
-  
+  VoidFs(VoidFs &);
+  void operator=(VoidFs &);
+
   // Used for unique number generation
   Uint32 c_maxFileNo;
 };
 
-
 #undef JAM_FILE_ID
 
 #endif
-
-

@@ -32,8 +32,8 @@
 #include "string_helpers.hpp"
 
 using std::cout;
-using std::flush;
 using std::endl;
+using std::flush;
 using std::ios_base;
 using std::string;
 using std::vector;
@@ -47,228 +47,210 @@ using utils::toString;
 // Helper Macros & Functions
 // ---------------------------------------------------------------------------
 
-#define ABORT_GETTIMEOFDAY_ERROR()                                      \
-    do { cout << "!!! error in " << __FILE__ << ", line: " << __LINE__  \
-              << ", gettimeofday() returned an error code." << endl;    \
-        exit(-1);                                                       \
-    } while (0)
+#define ABORT_GETTIMEOFDAY_ERROR()                                \
+  do {                                                            \
+    cout << "!!! error in " << __FILE__ << ", line: " << __LINE__ \
+         << ", gettimeofday() returned an error code." << endl;   \
+    exit(-1);                                                     \
+  } while (0)
 
 // ---------------------------------------------------------------------------
 // Driver Implementation
 // ---------------------------------------------------------------------------
 
-vector< string > Driver::propFileNames;
+vector<string> Driver::propFileNames;
 string Driver::logFileName;
 
-void
-Driver::exitUsage()
-{
-    cout << "usage: [options]" << endl
-         << "    [-p <file name>]...    properties file name" << endl
-         << "    [-l <file name>]       log file name for data output" << endl
-         << "    [-h|--help]            print usage message and exit" << endl
-         << endl;
-    exit(1); // return an error code
+void Driver::exitUsage() {
+  cout << "usage: [options]" << endl
+       << "    [-p <file name>]...    properties file name" << endl
+       << "    [-l <file name>]       log file name for data output" << endl
+       << "    [-h|--help]            print usage message and exit" << endl
+       << endl;
+  exit(1);  // return an error code
 }
 
-void
-Driver::parseArguments(int argc, const char* argv[])
-{
-    for (int i = 1; i < argc; i++) {
-        const string arg = argv[i];
-        if (arg.compare("-p") == 0) {
-            if (i >= argc) {
-                exitUsage();
-            }
-            propFileNames.push_back(argv[++i]);
-        } else if (arg.compare("-l") == 0) {
-            if (i >= argc) {
-                exitUsage();
-            }
-            logFileName = argv[++i];
-        } else if (arg.compare("-h") == 0 || arg.compare("--help") == 0) {
-            exitUsage();
-        } else {
-            cout << "unknown option: " << arg << endl;
-            exitUsage();
-        }
+void Driver::parseArguments(int argc, const char *argv[]) {
+  for (int i = 1; i < argc; i++) {
+    const string arg = argv[i];
+    if (arg.compare("-p") == 0) {
+      if (i >= argc) {
+        exitUsage();
+      }
+      propFileNames.push_back(argv[++i]);
+    } else if (arg.compare("-l") == 0) {
+      if (i >= argc) {
+        exitUsage();
+      }
+      logFileName = argv[++i];
+    } else if (arg.compare("-h") == 0 || arg.compare("--help") == 0) {
+      exitUsage();
+    } else {
+      cout << "unknown option: " << arg << endl;
+      exitUsage();
     }
+  }
 
-    if (propFileNames.size() == 0) {
-        propFileNames.push_back("run.properties");
-    }
+  if (propFileNames.size() == 0) {
+    propFileNames.push_back("run.properties");
+  }
 
-    if (logFileName.empty()) {
-        logFileName = "log_";
+  if (logFileName.empty()) {
+    logFileName = "log_";
 
-        // format, destination strings (static size)
-        const char format[] = "%Y%m%d_%H%M%S";
-        const int size = sizeof("yyyymmdd_HHMMSS");
-        char dest[size];
+    // format, destination strings (static size)
+    const char format[] = "%Y%m%d_%H%M%S";
+    const int size = sizeof("yyyymmdd_HHMMSS");
+    char dest[size];
 
-        // get time, convert to timeinfo (statically allocated) then to string
-        const time_t now = time(0);
-        const int nchars = strftime(dest, size, format, localtime(&now));
-        assert(nchars == size-1);
-        (void)nchars;
+    // get time, convert to timeinfo (statically allocated) then to string
+    const time_t now = time(0);
+    const int nchars = strftime(dest, size, format, localtime(&now));
+    assert(nchars == size - 1);
+    (void)nchars;
 
-        logFileName += dest;
-        logFileName += ".txt";
-    }
-    //cout << "logFileName='" << logFileName << "'" << endl;
+    logFileName += dest;
+    logFileName += ".txt";
+  }
+  // cout << "logFileName='" << logFileName << "'" << endl;
 }
 
 // ----------------------------------------------------------------------
 
-void
-Driver::run() {
-    init();
+void Driver::run() {
+  init();
 
-    if (warmupRuns > 0) {
-        cout << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-             << "warmup runs ..." << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+  if (warmupRuns > 0) {
+    cout << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl
+         << "warmup runs ..." << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl;
 
-        for (int i = 0; i < warmupRuns; i++) {
-            runTests();
-        }
-
-        // truncate log file, reset log buffers
-        closeLogFile();
-        openLogFile();
-        clearLogBuffers();
+    for (int i = 0; i < warmupRuns; i++) {
+      runTests();
     }
 
-    cout << endl
-         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-         << "hot runs ..." << endl
-         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-    runTests();
-
-    cout << endl
-         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-    close();
-}
-
-void
-Driver::init() {
-    loadProperties();
-    initProperties();
-    printProperties();
+    // truncate log file, reset log buffers
+    closeLogFile();
     openLogFile();
     clearLogBuffers();
+  }
+
+  cout << endl
+       << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
+       << "hot runs ..." << endl
+       << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+       << endl;
+  runTests();
+
+  cout << endl
+       << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+       << endl;
+  close();
 }
 
-void
-Driver::close() {
-    clearLogBuffers();
-    closeLogFile();
+void Driver::init() {
+  loadProperties();
+  initProperties();
+  printProperties();
+  openLogFile();
+  clearLogBuffers();
 }
 
-void
-Driver::loadProperties() {
-    cout << endl;
-    for (vector<string>::const_iterator i = propFileNames.begin();
-         i != propFileNames.end(); ++i) {
-        cout << "reading properties file:        " << *i << endl;
-        props.load(i->c_str());
-        //cout << "props = {" << endl << props << "}" << endl;
-    }
+void Driver::close() {
+  clearLogBuffers();
+  closeLogFile();
 }
 
-void
-Driver::initProperties() {
-    cout << "setting driver properties ..." << flush;
-
-    ostringstream msg;
-
-    warmupRuns = toInt(props[L"warmupRuns"], 0, -1);
-    if (warmupRuns < 0) {
-        msg << "[ignored] warmupRuns:        '"
-            << toString(props[L"warmupRuns"]) << "'" << endl;
-        warmupRuns = 0;
-    }
-
-    //if (msg.tellp() == 0) // netbeans reports amibuities
-    if (msg.str().empty()) {
-        cout << "   [ok]" << endl;
-    } else {
-        cout << endl << msg.str() << endl;
-    }
+void Driver::loadProperties() {
+  cout << endl;
+  for (vector<string>::const_iterator i = propFileNames.begin();
+       i != propFileNames.end(); ++i) {
+    cout << "reading properties file:        " << *i << endl;
+    props.load(i->c_str());
+    // cout << "props = {" << endl << props << "}" << endl;
+  }
 }
 
-void
-Driver::printProperties() {
-    const ios_base::fmtflags f = cout.flags();
-    // no effect calling manipulator function, not sure why
-    //cout << ios_base::boolalpha;
-    cout.flags(ios_base::boolalpha);
+void Driver::initProperties() {
+  cout << "setting driver properties ..." << flush;
 
-    cout << endl << "driver settings ..." << endl;
-    cout << "warmupRuns:                     " << warmupRuns << endl;
+  ostringstream msg;
 
-    cout.flags(f);
+  warmupRuns = toInt(props[L"warmupRuns"], 0, -1);
+  if (warmupRuns < 0) {
+    msg << "[ignored] warmupRuns:        '" << toString(props[L"warmupRuns"])
+        << "'" << endl;
+    warmupRuns = 0;
+  }
+
+  // if (msg.tellp() == 0) // netbeans reports amibuities
+  if (msg.str().empty()) {
+    cout << "   [ok]" << endl;
+  } else {
+    cout << endl << msg.str() << endl;
+  }
 }
 
-void
-Driver::openLogFile() {
-    cout << endl
-         << "opening results file:" << flush;
-    log.open(logFileName.c_str(), ios_base::out | ios_base::trunc);
-    assert(log.good());
-    cout << "           [ok: " << logFileName << "]" << endl;
+void Driver::printProperties() {
+  const ios_base::fmtflags f = cout.flags();
+  // no effect calling manipulator function, not sure why
+  // cout << ios_base::boolalpha;
+  cout.flags(ios_base::boolalpha);
+
+  cout << endl << "driver settings ..." << endl;
+  cout << "warmupRuns:                     " << warmupRuns << endl;
+
+  cout.flags(f);
 }
 
-void
-Driver::closeLogFile() {
-    cout << endl
-         << "closing results file:" << flush;
-    log.close();
-    cout << "           [ok: " << logFileName << "]" << endl;
+void Driver::openLogFile() {
+  cout << endl << "opening results file:" << flush;
+  log.open(logFileName.c_str(), ios_base::out | ios_base::trunc);
+  assert(log.good());
+  cout << "           [ok: " << logFileName << "]" << endl;
+}
+
+void Driver::closeLogFile() {
+  cout << endl << "closing results file:" << flush;
+  log.close();
+  cout << "           [ok: " << logFileName << "]" << endl;
 }
 
 // ---------------------------------------------------------------------------
 
-void
-Driver::clearLogBuffers() {
-    logHeader = true;
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
+void Driver::clearLogBuffers() {
+  logHeader = true;
+  header.rdbuf()->str("");
+  rtimes.rdbuf()->str("");
 }
 
-void
-Driver::writeLogBuffers() {
-    log << descr << ", rtime[ms]"
-        << header.rdbuf()->str() << endl
-        << rtimes.rdbuf()->str() << endl;
+void Driver::writeLogBuffers() {
+  log << descr << ", rtime[ms]" << header.rdbuf()->str() << endl
+      << rtimes.rdbuf()->str() << endl;
 }
 
-void
-Driver::begin(const string& name) {
-    cout << endl;
-    cout << name << endl;
+void Driver::begin(const string &name) {
+  cout << endl;
+  cout << name << endl;
 
-    if (gettimeofday(&t0, NULL) != 0)
-        ABORT_GETTIMEOFDAY_ERROR();
+  if (gettimeofday(&t0, NULL) != 0) ABORT_GETTIMEOFDAY_ERROR();
 }
 
-void
-Driver::finish(const string& name) {
-    if (gettimeofday(&t1, NULL) != 0)
-        ABORT_GETTIMEOFDAY_ERROR();
+void Driver::finish(const string &name) {
+  if (gettimeofday(&t1, NULL) != 0) ABORT_GETTIMEOFDAY_ERROR();
 
-    const long r_usec = (((t1.tv_sec - t0.tv_sec) * 1000000)
-                         + (t1.tv_usec - t0.tv_usec));
-    const long r_msec = r_usec / 1000;
+  const long r_usec =
+      (((t1.tv_sec - t0.tv_sec) * 1000000) + (t1.tv_usec - t0.tv_usec));
+  const long r_msec = r_usec / 1000;
 
-    cout << "tx real time:                   " << r_msec
-         << "\tms" << endl;
-    rtimes << "\t" << r_msec;
-    rta += r_msec;
+  cout << "tx real time:                   " << r_msec << "\tms" << endl;
+  rtimes << "\t" << r_msec;
+  rta += r_msec;
 
-    if (logHeader)
-        header << "\t" << name;
+  if (logHeader) header << "\t" << name;
 }
 
 //---------------------------------------------------------------------------

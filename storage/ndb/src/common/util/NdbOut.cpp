@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "portlib/ndb_compiler.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
@@ -32,105 +32,114 @@
 NdbOut ndbout;
 NdbOut ndberr;
 
-static const char * fms[] = {
-  "%d", "0x%02x",      // Int8
-  "%u", "0x%02x",      // Uint8
-  "%d", "0x%04x",      // Int16
-  "%u", "0x%04x",      // Uint16
-  "%d", "0x%08x",      // Int32
-  "%u", "0x%08x",      // Uint32
-  "%lld", "0x%016llx", // Int64
-  "%llu", "0x%016llx", // Uint64
-  "%llu", "0x%016llx"  // UintPtr
+static const char *fms[] = {
+    "%d",   "0x%02x",     // Int8
+    "%u",   "0x%02x",     // Uint8
+    "%d",   "0x%04x",     // Int16
+    "%u",   "0x%04x",     // Uint16
+    "%d",   "0x%08x",     // Int32
+    "%u",   "0x%08x",     // Uint32
+    "%lld", "0x%016llx",  // Int64
+    "%llu", "0x%016llx",  // Uint64
+    "%llu", "0x%016llx"   // UintPtr
 };
 
-NdbOut& 
-NdbOut::operator<<(Int8 v)   { m_out->print(fms[0+isHex],(int)v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Uint8 v)  { m_out->print(fms[2+isHex],(int)v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Int16 v)  { m_out->print(fms[4+isHex],(int)v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Uint16 v) { m_out->print(fms[6+isHex],(int)v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Int32 v)  { m_out->print(fms[8+isHex], v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Uint32 v) { m_out->print(fms[10+isHex], v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Int64 v)  { m_out->print(fms[12+isHex], v); return *this;}
-NdbOut& 
-NdbOut::operator<<(Uint64 v) { m_out->print(fms[14+isHex], v); return *this;}
-NdbOut& 
-NdbOut::operator<<(unsigned long int v) { return *this << (Uint64) v; }
+NdbOut &NdbOut::operator<<(Int8 v) {
+  m_out->print(fms[0 + isHex], (int)v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Uint8 v) {
+  m_out->print(fms[2 + isHex], (int)v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Int16 v) {
+  m_out->print(fms[4 + isHex], (int)v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Uint16 v) {
+  m_out->print(fms[6 + isHex], (int)v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Int32 v) {
+  m_out->print(fms[8 + isHex], v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Uint32 v) {
+  m_out->print(fms[10 + isHex], v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Int64 v) {
+  m_out->print(fms[12 + isHex], v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(Uint64 v) {
+  m_out->print(fms[14 + isHex], v);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(unsigned long int v) { return *this << (Uint64)v; }
 
-NdbOut& 
-NdbOut::operator<<(const char* val){ m_out->print("%s", val ? val : "(null)"); return * this; }
-NdbOut& 
-NdbOut::operator<<(const void* val){ m_out->print("%p", val); return * this; }
-NdbOut&
-NdbOut::operator<<(BaseString &val){ return *this << val.c_str(); }
+NdbOut &NdbOut::operator<<(const char *val) {
+  m_out->print("%s", val ? val : "(null)");
+  return *this;
+}
+NdbOut &NdbOut::operator<<(const void *val) {
+  m_out->print("%p", val);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(BaseString &val) { return *this << val.c_str(); }
 
-NdbOut& 
-NdbOut::operator<<(float val){ m_out->print("%f", (double)val); return * this;}
-NdbOut& 
-NdbOut::operator<<(double val){ m_out->print("%f", val); return * this; }
+NdbOut &NdbOut::operator<<(float val) {
+  m_out->print("%f", (double)val);
+  return *this;
+}
+NdbOut &NdbOut::operator<<(double val) {
+  m_out->print("%f", val);
+  return *this;
+}
 
-NdbOut& NdbOut::endline()
-{
-  isHex = 0; // Reset hex to normal, if user forgot this
+NdbOut &NdbOut::endline() {
+  isHex = 0;  // Reset hex to normal, if user forgot this
   m_out->println("%s", "");
   return flushline(false);
 }
 
-NdbOut& NdbOut::flushline(bool force)
-{
-  if (force || m_autoflush)
-  {
+NdbOut &NdbOut::flushline(bool force) {
+  if (force || m_autoflush) {
     m_out->flush();
   }
   return *this;
 }
 
-NdbOut& NdbOut::setHexFormat(int _format)
-{
+NdbOut &NdbOut::setHexFormat(int _format) {
   isHex = (_format == 0 ? 0 : 1);
   return *this;
 }
 
-NdbOut& NdbOut::hexdump(const Uint32* words, size_t count)
-{
+NdbOut &NdbOut::hexdump(const Uint32 *words, size_t count) {
   char buf[90 * 11 + 4 + 1];
   size_t offset = BaseString::hexdump(buf, sizeof(buf), words, count);
-  m_out->write(buf, offset);  
+  m_out->write(buf, offset);
   return *this;
 }
 
-NdbOut::NdbOut(OutputStream & out, bool autoflush)
-  : m_out(& out), isHex(0), m_autoflush(autoflush)
-{
+NdbOut::NdbOut(OutputStream &out, bool autoflush)
+    : m_out(&out), isHex(0), m_autoflush(autoflush) {}
+
+NdbOut::NdbOut() : m_out(nullptr), isHex(0) {
+  /**
+   * m_out set to NULL!
+   */
 }
 
-NdbOut::NdbOut()
-  : m_out(nullptr), isHex(0)
-{
-   /**
-    * m_out set to NULL!
-    */
+NdbOut::~NdbOut() {
+  /**
+   *  don't delete m_out, as it's a reference given to us.
+   *  i.e we don't "own" it
+   */
 }
 
-NdbOut::~NdbOut()
-{
-   /**
-    *  don't delete m_out, as it's a reference given to us.
-    *  i.e we don't "own" it
-    */
-}
-
-void
-NdbOut::print(const char * fmt, ...)
-{
-  if (fmt == nullptr)
-  {
+void NdbOut::print(const char *fmt, ...) {
+  if (fmt == nullptr) {
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing nothing
@@ -144,18 +153,15 @@ NdbOut::print(const char * fmt, ...)
 
   va_list ap;
   char buf[1000];
-  
+
   va_start(ap, fmt);
-  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  BaseString::vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
   *this << buf;
   va_end(ap);
 }
 
-void
-NdbOut::println(const char * fmt, ...)
-{
-  if (fmt == nullptr)
-  {
+void NdbOut::println(const char *fmt, ...) {
+  if (fmt == nullptr) {
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing nothing
@@ -170,9 +176,9 @@ NdbOut::println(const char * fmt, ...)
 
   va_list ap;
   char buf[1000];
-  
+
   va_start(ap, fmt);
-  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
   if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
   memcpy(&buf[len], "\n", 2);
   *this << buf;
@@ -180,16 +186,11 @@ NdbOut::println(const char * fmt, ...)
   va_end(ap);
 }
 
-static
-void
-vndbout_c(const char * fmt, va_list ap) ATTRIBUTE_FORMAT(printf, 1, 0);
+static void vndbout_c(const char *fmt, va_list ap)
+    ATTRIBUTE_FORMAT(printf, 1, 0);
 
-static
-void
-vndbout_c(const char * fmt, va_list ap)
-{
-  if (fmt == nullptr)
-  {
+static void vndbout_c(const char *fmt, va_list ap) {
+  if (fmt == nullptr) {
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing an empty newline
@@ -198,21 +199,19 @@ vndbout_c(const char * fmt, va_list ap)
      Catch problem with an assert in debug compile.
     */
     assert(false);
-    ndbout << endl; // Empty newline
+    ndbout << endl;  // Empty newline
     return;
   }
 
   char buf[1000];
-  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
   if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
   memcpy(&buf[len], "\n", 2);
   ndbout << buf;
   ndbout.flushline(false);
 }
 
-extern "C"
-void
-ndbout_c(const char * fmt, ...){
+extern "C" void ndbout_c(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -220,9 +219,8 @@ ndbout_c(const char * fmt, ...){
   va_end(ap);
 }
 
-FilteredNdbOut::FilteredNdbOut(OutputStream & out, 
-			       int threshold, int level)
-  : NdbOut(out) {
+FilteredNdbOut::FilteredNdbOut(OutputStream &out, int threshold, int level)
+    : NdbOut(out) {
   m_level = level;
   m_threshold = threshold;
   m_org = &out;
@@ -230,41 +228,29 @@ FilteredNdbOut::FilteredNdbOut(OutputStream & out,
   setLevel(level);
 }
 
-FilteredNdbOut::~FilteredNdbOut(){
-  delete m_null;
-}
+FilteredNdbOut::~FilteredNdbOut() { delete m_null; }
 
-void
-FilteredNdbOut::setLevel(int i){
+void FilteredNdbOut::setLevel(int i) {
   m_level = i;
-  if(m_level >= m_threshold){
+  if (m_level >= m_threshold) {
     m_out = m_org;
   } else {
     m_out = m_null;
   }
 }
 
-void
-FilteredNdbOut::setThreshold(int i){
+void FilteredNdbOut::setThreshold(int i) {
   m_threshold = i;
   setLevel(m_level);
 }
 
-int
-FilteredNdbOut::getLevel() const {
-  return m_level;
-}
-int
-FilteredNdbOut::getThreshold() const {
-  return m_threshold;
-}
+int FilteredNdbOut::getLevel() const { return m_level; }
+int FilteredNdbOut::getThreshold() const { return m_threshold; }
 
 static FileOutputStream ndbouts_fileoutputstream(nullptr);
 static FileOutputStream ndberrs_fileoutputstream(nullptr);
 
-void
-NdbOut_Init()
-{
+void NdbOut_Init() {
   new (&ndbouts_fileoutputstream) FileOutputStream(stdout);
   new (&ndbout) NdbOut(ndbouts_fileoutputstream);
 
@@ -272,10 +258,7 @@ NdbOut_Init()
   new (&ndberr) NdbOut(ndberrs_fileoutputstream);
 }
 
-void
-NdbOut_ReInit(OutputStream* stdout_ostream,
-              OutputStream* stderr_ostream)
-{
+void NdbOut_ReInit(OutputStream *stdout_ostream, OutputStream *stderr_ostream) {
   /**
    * Re-initialise ndbout and ndberr globals with different OutputStreams
    * Not thread safe, should be done at process start
@@ -285,9 +268,9 @@ NdbOut_ReInit(OutputStream* stdout_ostream,
    * Following probably can be removed as destructors(same file) are empty,
    * but are present to handle any future changes
    */
-    ndbout.~NdbOut();
-    //ndberr.~NdbErr();
+  ndbout.~NdbOut();
+  // ndberr.~NdbErr();
 
-   new (&ndbout) NdbOut(*stdout_ostream);
-   new (&ndberr) NdbOut(*stderr_ostream);
+  new (&ndbout) NdbOut(*stdout_ostream);
+  new (&ndberr) NdbOut(*stderr_ostream);
 }

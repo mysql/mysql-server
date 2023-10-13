@@ -23,65 +23,42 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /************************************************************************************************
 Name:		NdbUtil.C
-Include:	
-Link:		
+Include:
+Link:
 Author:		UABRONM Mikael Ronström UAB/B/SD
 Date:		991029
 Version:	0.4
 Description:	Utility classes for NDB API
 Documentation:
 Adjust:		991029  UABRONM   First version.
-Comment:	
+Comment:
 ************************************************************************************************/
 
 #include "NdbUtil.hpp"
 
-NdbLabel::NdbLabel(Ndb*)
-{
-}
+NdbLabel::NdbLabel(Ndb *) {}
 
-NdbLabel::~NdbLabel()
-{
-}
+NdbLabel::~NdbLabel() {}
 
-NdbSubroutine::NdbSubroutine(Ndb*)
-{
-}
+NdbSubroutine::NdbSubroutine(Ndb *) {}
 
-NdbSubroutine::~NdbSubroutine()
-{
-}
+NdbSubroutine::~NdbSubroutine() {}
 
-NdbBranch::NdbBranch(Ndb*) :
-  theSignal(nullptr)
-{
-}
+NdbBranch::NdbBranch(Ndb *) : theSignal(nullptr) {}
 
-NdbBranch::~NdbBranch()
-{
-}
+NdbBranch::~NdbBranch() {}
 
-NdbCall::NdbCall(Ndb*) :
-  theSignal(nullptr)
-{
-}
+NdbCall::NdbCall(Ndb *) : theSignal(nullptr) {}
 
-NdbCall::~NdbCall()
-{
-}
+NdbCall::~NdbCall() {}
 
-NdbLockHandle::NdbLockHandle(Ndb*) {}
+NdbLockHandle::NdbLockHandle(Ndb *) {}
 
-NdbLockHandle::~NdbLockHandle()
-{
-}
+NdbLockHandle::~NdbLockHandle() {}
 
-void
-NdbLockHandle::init()
-{
+void NdbLockHandle::init() {
   m_state = ALLOCATED;
   m_table = nullptr;
   m_lockRef[0] = 0;
@@ -89,4 +66,4 @@ NdbLockHandle::init()
   thePrev = nullptr;
 }
 
-void NdbLockHandle::release(Ndb*) { m_state = FREE; }
+void NdbLockHandle::release(Ndb *) { m_state = FREE; }

@@ -22,17 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "API.hpp"
 #include <AttributeHeader.hpp>
+#include <signaldata/IndxAttrInfo.hpp>
+#include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TcKeyReq.hpp>
-#include <signaldata/IndxKeyInfo.hpp>
-#include <signaldata/IndxAttrInfo.hpp>
+#include "API.hpp"
 
-NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
-  NdbOperation(aNdb, NdbOperation::UniqueIndexAccess),
-  m_theIndex(nullptr)
-{
+NdbIndexOperation::NdbIndexOperation(Ndb *aNdb)
+    : NdbOperation(aNdb, NdbOperation::UniqueIndexAccess), m_theIndex(nullptr) {
   m_tcReqGSN = GSN_TCINDXREQ;
   m_attrInfoGSN = GSN_INDXATTRINFO;
   m_keyInfoGSN = GSN_INDXKEYINFO;
@@ -43,34 +41,30 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this);
 }
 
-NdbIndexOperation::~NdbIndexOperation()
-{
-}
+NdbIndexOperation::~NdbIndexOperation() {}
 
 /*****************************************************************************
  * int indxInit();
  *
  * Return Value:  Return 0 : init was successful.
- *                Return -1: In all other case.  
+ *                Return -1: In all other case.
  * Remark:        Initiates operation record after allocation.
  *****************************************************************************/
-int
-NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
-			    const NdbTableImpl * aTable, 
-			    NdbTransaction* myConnection)
-{
+int NdbIndexOperation::indxInit(const NdbIndexImpl *anIndex,
+                                const NdbTableImpl *aTable,
+                                NdbTransaction *myConnection) {
   NdbOperation::init(aTable, myConnection);
 
   switch ((NdbDictionary::Index::Type)anIndex->m_type) {
-  case(NdbDictionary::Index::UniqueHashIndex):
-    break;
-  case(NdbDictionary::Index::Undefined):
-  case(NdbDictionary::Index::OrderedIndex):
-    setErrorCodeAbort(4003);
-    return -1;
-  default:
-    assert(0);
-    break;
+    case (NdbDictionary::Index::UniqueHashIndex):
+      break;
+    case (NdbDictionary::Index::Undefined):
+    case (NdbDictionary::Index::OrderedIndex):
+      setErrorCodeAbort(4003);
+      return -1;
+    default:
+      assert(0);
+      break;
   }
   m_theIndex = anIndex;
   m_accessTable = anIndex->m_table;
@@ -78,111 +72,96 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   return 0;
 }
 
-int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
-{ 
-  switch(lm) {
-  case LM_Read:
-    return readTuple();
-    break;
-  case LM_Exclusive:
-    return readTupleExclusive();
-    break;
-  case LM_CommittedRead:
-    return readTuple();
-    break;
-  case LM_SimpleRead:
-    return readTuple();
-    break;
-  default:
-    return -1;
+int NdbIndexOperation::readTuple(NdbOperation::LockMode lm) {
+  switch (lm) {
+    case LM_Read:
+      return readTuple();
+      break;
+    case LM_Exclusive:
+      return readTupleExclusive();
+      break;
+    case LM_CommittedRead:
+      return readTuple();
+      break;
+    case LM_SimpleRead:
+      return readTuple();
+      break;
+    default:
+      return -1;
   };
 }
 
-int NdbIndexOperation::insertTuple()
-{
+int NdbIndexOperation::insertTuple() {
   setErrorCode(4200);
   return -1;
 }
 
-int NdbIndexOperation::readTuple()
-{
+int NdbIndexOperation::readTuple() {
   // First check that index is unique
 
   return NdbOperation::readTuple();
 }
 
-int NdbIndexOperation::readTupleExclusive()
-{
+int NdbIndexOperation::readTupleExclusive() {
   // First check that index is unique
 
   return NdbOperation::readTupleExclusive();
 }
 
-int NdbIndexOperation::simpleRead()
-{
+int NdbIndexOperation::simpleRead() {
   // First check that index is unique
 
   return NdbOperation::readTuple();
 }
 
-int NdbIndexOperation::dirtyRead()
-{
+int NdbIndexOperation::dirtyRead() {
   // First check that index is unique
 
   return NdbOperation::readTuple();
 }
 
-int NdbIndexOperation::committedRead()
-{
+int NdbIndexOperation::committedRead() {
   // First check that index is unique
 
   return NdbOperation::readTuple();
 }
 
-int NdbIndexOperation::updateTuple()
-{
+int NdbIndexOperation::updateTuple() {
   // First check that index is unique
 
   return NdbOperation::updateTuple();
 }
 
-int NdbIndexOperation::deleteTuple()
-{
+int NdbIndexOperation::deleteTuple() {
   // First check that index is unique
 
   return NdbOperation::deleteTuple();
 }
 
-int NdbIndexOperation::dirtyUpdate()
-{
+int NdbIndexOperation::dirtyUpdate() {
   // First check that index is unique
 
   return NdbOperation::dirtyUpdate();
 }
 
-int NdbIndexOperation::interpretedWriteTuple()
-{
+int NdbIndexOperation::interpretedWriteTuple() {
   setErrorCode(4200);
   return -1;
 }
 
-int NdbIndexOperation::interpretedUpdateTuple()
-{
+int NdbIndexOperation::interpretedUpdateTuple() {
   // First check that index is unique
 
   return NdbOperation::interpretedUpdateTuple();
 }
 
-int NdbIndexOperation::interpretedDeleteTuple()
-{
+int NdbIndexOperation::interpretedDeleteTuple() {
   // First check that index is unique
 
   return NdbOperation::interpretedDeleteTuple();
 }
 
-const NdbDictionary::Index*
-NdbIndexOperation::getIndex() const
-{
+const NdbDictionary::Index *NdbIndexOperation::getIndex() const {
   return m_theIndex;
 }
 
@@ -190,12 +169,10 @@ NdbIndexOperation::getIndex() const
 int receiveTCINDXREF( NdbApiSignal* aSignal)
 
 Return Value:   Return 0 : send was successful.
-                Return -1: In all other case.   
-Parameters:     aSignal: the signal object that contains the TCINDXREF signal from TC.
-Remark:         Handles the reception of the TCKEYREF signal.
+                Return -1: In all other case.
+Parameters:     aSignal: the signal object that contains the TCINDXREF signal
+from TC. Remark:         Handles the reception of the TCKEYREF signal.
 ***************************************************************************/
-int
-NdbIndexOperation::receiveTCINDXREF(const NdbApiSignal* aSignal)
-{
+int NdbIndexOperation::receiveTCINDXREF(const NdbApiSignal *aSignal) {
   return receiveTCKEYREF(aSignal);
-}//NdbIndexOperation::receiveTCINDXREF()
+}  // NdbIndexOperation::receiveTCINDXREF()

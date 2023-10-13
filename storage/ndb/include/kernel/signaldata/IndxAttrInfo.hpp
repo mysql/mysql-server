@@ -29,36 +29,35 @@
 
 #define JAM_FILE_ID 168
 
-
 class IndxAttrInfo {
   /**
    * Sender(s)
    */
   friend class NdbIndexOperation;
-  
+
   /**
    * Receiver(s)
    */
   friend class Dbtc;
-  
+
   friend bool printINDXATTRINFO(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
+
+ public:
   static constexpr Uint32 HeaderLength = 3;
   static constexpr Uint32 DataLength = 22;
   static constexpr Uint32 MaxSignalLength = HeaderLength + DataLength;
 
   // Public methods
-public:
- const Uint32* getData() const;
+ public:
+  const Uint32 *getData() const;
 
-private:
+ private:
   Uint32 connectPtr;
   Uint32 transId[2];
   Uint32 attrData[DataLength];
 };
 
-inline const Uint32* IndxAttrInfo::getData() const { return attrData; }
+inline const Uint32 *IndxAttrInfo::getData() const { return attrData; }
 
 #undef JAM_FILE_ID
 

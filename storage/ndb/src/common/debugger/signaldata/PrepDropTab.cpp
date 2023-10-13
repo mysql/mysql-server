@@ -25,61 +25,46 @@
 
 #include <signaldata/PrepDropTab.hpp>
 
-bool printPREP_DROP_TAB_REQ(FILE *output,
-                            const Uint32 *theData,
-                            Uint32 len,
-                            Uint16 /*receiverBlockNo*/)
-{
-  if (len < PrepDropTabReq::SignalLength)
-  {
+bool printPREP_DROP_TAB_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                            Uint16 /*receiverBlockNo*/) {
+  if (len < PrepDropTabReq::SignalLength) {
     assert(false);
     return false;
   }
 
   const PrepDropTabReq *const sig = (const PrepDropTabReq *)theData;
 
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId);
+  fprintf(output, " senderRef: %x senderData: %d TableId: %d\n", sig->senderRef,
+          sig->senderData, sig->tableId);
   return true;
 }
 
-bool printPREP_DROP_TAB_CONF(FILE *output,
-                             const Uint32 *theData,
-                             Uint32 len,
-                             Uint16 /*receiverBlockNo*/)
-{
-  if (len < PrepDropTabConf::SignalLength)
-  {
+bool printPREP_DROP_TAB_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16 /*receiverBlockNo*/) {
+  if (len < PrepDropTabConf::SignalLength) {
     assert(false);
     return false;
   }
 
   const PrepDropTabConf *const sig = (const PrepDropTabConf *)theData;
 
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId);
-  
+  fprintf(output, " senderRef: %x senderData: %d TableId: %d\n", sig->senderRef,
+          sig->senderData, sig->tableId);
+
   return true;
 }
 
-bool printPREP_DROP_TAB_REF(FILE *output,
-                            const Uint32 *theData,
-                            Uint32 len,
-                            Uint16 /*receiverBlockNo*/)
-{
-  if (len < PrepDropTabReq::SignalLength)
-  {
+bool printPREP_DROP_TAB_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                            Uint16 /*receiverBlockNo*/) {
+  if (len < PrepDropTabReq::SignalLength) {
     assert(false);
     return false;
   }
 
   const PrepDropTabRef *const sig = (const PrepDropTabRef *)theData;
 
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d errorCode: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId, sig->errorCode);
-  
+  fprintf(output, " senderRef: %x senderData: %d TableId: %d errorCode: %d\n",
+          sig->senderRef, sig->senderData, sig->tableId, sig->errorCode);
+
   return true;
 }

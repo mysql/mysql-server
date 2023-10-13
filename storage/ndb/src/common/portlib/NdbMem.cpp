@@ -22,28 +22,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "my_config.h"
 #include "ndb_config.h"
+#include "util/require.h"
 
 #ifdef _WIN32
-#include <malloc.h> // _aligned_alloc
 #include <Windows.h>
+#include <malloc.h>  // _aligned_alloc
 #else
 #include <errno.h>
-#include <stdlib.h> // aligned_alloc or posix_memalign
+#include <stdlib.h>  // aligned_alloc or posix_memalign
 #define __STDC_WANT_LIB_EXT1__ 1
-#include <string.h> // explict_bzero or memset_s
+#include <string.h>  // explict_bzero or memset_s
 #include <sys/mman.h>
-#include <unistd.h> // sysconf
+#include <unistd.h>  // sysconf
 #endif
 
 #include <NdbMem.h>
 
-int NdbMem_MemLockAll(int i){
-  if (i == 1)
-  {
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && defined (MCL_FUTURE)
+int NdbMem_MemLockAll(int i) {
+  if (i == 1) {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && defined(MCL_FUTURE)
     return mlockall(MCL_CURRENT | MCL_FUTURE);
 #else
     return -1;
@@ -56,7 +55,7 @@ int NdbMem_MemLockAll(int i){
 #endif
 }
 
-int NdbMem_MemUnlockAll(){
+int NdbMem_MemUnlockAll() {
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   return munlockall();
 #else
@@ -64,9 +63,8 @@ int NdbMem_MemUnlockAll(){
 #endif
 }
 
-int NdbMem_MemLock(const void * ptr [[maybe_unused]],
-                   size_t len [[maybe_unused]])
-{
+int NdbMem_MemLock(const void *ptr [[maybe_unused]],
+                   size_t len [[maybe_unused]]) {
 #if defined(HAVE_MLOCK)
   return mlock(ptr, len);
 #else
@@ -100,11 +98,9 @@ int NdbMem_MemLock(const void * ptr [[maybe_unused]],
  * Also if lock all memory is configured, there should be no memory
  * locked to the reserved address space.
  */
-int NdbMem_ReserveSpace(void** ptr, size_t len)
-{
-  void * p;
-  if (ptr == nullptr)
-  {
+int NdbMem_ReserveSpace(void **ptr, size_t len) {
+  void *p;
+  if (ptr == nullptr) {
     return -1;
   }
 #ifdef _WIN32
@@ -131,20 +127,14 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
    * MAP_NORESERVE to have an early error (for badly configured systems) rather
    * than have some undefined behaviour in later calls to NdbMem_PopulateSpace.
    */
-  p = mmap(*ptr,
-           len,
-           PROT_NONE,
-           MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
-           -1,
-           0);
-  if (p == MAP_FAILED)
-  {
+  p = mmap(*ptr, len, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
+           -1, 0);
+  if (p == MAP_FAILED) {
     *ptr = nullptr;
     return -1;
   }
 #if defined(MADV_DONTDUMP)
-  if (-1 == madvise(p, len, MADV_DONTDUMP))
-  {
+  if (-1 == madvise(p, len, MADV_DONTDUMP)) {
     require(0 == munmap(p, len));
     *ptr = nullptr;
     return -1;
@@ -153,11 +143,7 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
   *ptr = p;
   return 0;
 #elif defined(MAP_GUARD) /* FreeBSD */
-  p = mmap(*ptr,
-           len,
-           PROT_NONE,
-           MAP_ANONYMOUS | MAP_PRIVATE | MAP_GUARD,
-           -1,
+  p = mmap(*ptr, len, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_GUARD, -1,
            0);
   *ptr = p;
   return 0;
@@ -181,42 +167,32 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
  *
  * Range must also be aligned to page boundaries.
  */
-int NdbMem_PopulateSpace(void* ptr, size_t len)
-{
+int NdbMem_PopulateSpace(void *ptr, size_t len) {
 #ifdef _WIN32
-  void* p = VirtualAlloc(ptr, len, MEM_COMMIT, PAGE_READWRITE);
+  void *p = VirtualAlloc(ptr, len, MEM_COMMIT, PAGE_READWRITE);
   return (p == NULL) ? -1 : 0;
 #elif defined(MAP_GUARD) /* FreeBSD */
-  void* p = mmap(ptr,
-                 len,
-                 PROT_READ | PROT_WRITE,
-                 MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
-                 -1,
-                 0);
-  if (p == MAP_FAILED)
-  {
+  void *p = mmap(ptr, len, PROT_READ | PROT_WRITE,
+                 MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  if (p == MAP_FAILED) {
     return -1;
   }
   require(p == ptr);
   return 0;
-#else /* Linux, Solaris */
+#else                    /* Linux, Solaris */
   int ret = mprotect(ptr, len, PROT_READ | PROT_WRITE);
-  if (ret == 0)
-  {
-    char* p = (char*)ptr;
+  if (ret == 0) {
+    char *p = (char *)ptr;
     size_t i;
     // Assume page size is a multiple of 4096 bytes
-    for(i=0; i < len; i += 4096)
-    {
-      p[i]=0;
+    for (i = 0; i < len; i += 4096) {
+      p[i] = 0;
     }
 #ifdef MADV_DODUMP
     ret = madvise(ptr, len, MADV_DODUMP);
-    if (ret == -1)
-    {
+    if (ret == -1) {
 #ifdef __sun
-      if (errno == EINVAL)
-      {
+      if (errno == EINVAL) {
         /*
          * Assume reservation of space was done without MADV_DONTDUMP too.
          * Probably not using NdbMem_ReserveSpace but by calling mmap in some
@@ -232,7 +208,7 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
       }
 #endif
       /* Unexpected failure, make memory unaccessible again. */
-      (void) mprotect(ptr, len, PROT_NONE);
+      (void)mprotect(ptr, len, PROT_NONE);
     }
 #endif
   }
@@ -253,8 +229,7 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
  * Any memory reserved with NdbMem_PopulateMemory will be released without
  * further action.
  */
-int NdbMem_FreeSpace(void* ptr, size_t len)
-{
+int NdbMem_FreeSpace(void *ptr, size_t len) {
 #ifdef _WIN32
   const BOOL ok = VirtualFree(ptr, 0, MEM_RELEASE);
   (void)len;
@@ -266,9 +241,8 @@ int NdbMem_FreeSpace(void* ptr, size_t len)
 
 #endif
 
-void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
-{
-  void* p = nullptr;
+void *NdbMem_AlignedAlloc(size_t alignment, size_t size) {
+  void *p = nullptr;
 #if defined(_ISOC11_SOURCE)
   p = aligned_alloc(alignment, size);
 #elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
@@ -277,15 +251,13 @@ void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
 #elif defined(_WIN32)
   p = _aligned_malloc(size, alignment);
 #else
-  if (alignment < sizeof(void*))
-  {
-    alignment = sizeof(void*);
+  if (alignment < sizeof(void *)) {
+    alignment = sizeof(void *);
   }
-  char*charp = (char*) malloc(size + alignment);
-  if (charp != nullptr)
-  {
-    void* q = (void*)(charp + (alignment - ((uintptr_t)charp % alignment)));
-    void** qp = (void**)q;
+  char *charp = (char *)malloc(size + alignment);
+  if (charp != nullptr) {
+    void *q = (void *)(charp + (alignment - ((uintptr_t)charp % alignment)));
+    void **qp = (void **)q;
     qp[-1] = p;
     p = q;
   }
@@ -293,24 +265,22 @@ void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
   return p;
 }
 
-void NdbMem_AlignedFree(void* p)
-{
+void NdbMem_AlignedFree(void *p) {
 #if defined(_ISOC11_SOURCE) || \
     (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
   free(p);
 #elif defined(_WIN32)
   _aligned_free(p);
 #else
-  void** qp = (void**)p;
+  void **qp = (void **)p;
   p = qp[-1];
   free(p);
 #endif
 }
 
-size_t NdbMem_GetSystemPageSize()
-{
+size_t NdbMem_GetSystemPageSize() {
 #ifndef _WIN32
-  return (size_t) sysconf(_SC_PAGESIZE);
+  return (size_t)sysconf(_SC_PAGESIZE);
 #else
   SYSTEM_INFO si;
   GetSystemInfo(&si);
@@ -318,8 +288,7 @@ size_t NdbMem_GetSystemPageSize()
 #endif
 }
 
-void NdbMem_SecureClear(void* ptr, size_t len)
-{
+void NdbMem_SecureClear(void *ptr, size_t len) {
 #if defined(_WIN32)
   SecureZeroMemory(ptr, len);
 #elif defined(HAVE_MEMSET_S)

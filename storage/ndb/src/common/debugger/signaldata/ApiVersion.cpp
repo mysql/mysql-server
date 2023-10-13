@@ -24,13 +24,9 @@
 #include "RefConvert.hpp"
 #include "portlib/NdbTCP.h"
 
-bool printAPI_VERSION_REQ(FILE *output,
-                          const Uint32 *theData,
-                          Uint32 len,
-                          Uint16 /*recBlockNo*/)
-{
-  if (len < ApiVersionReq::SignalLength)
-  {
+bool printAPI_VERSION_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*recBlockNo*/) {
+  if (len < ApiVersionReq::SignalLength) {
     assert(false);
     return false;
   }
@@ -38,42 +34,35 @@ bool printAPI_VERSION_REQ(FILE *output,
   const ApiVersionReq *sig = (const ApiVersionReq *)&theData[0];
 
   fprintf(output,
-          " senderRef: (node: %d, block: %d), nodeId: %d\n" \
+          " senderRef: (node: %d, block: %d), nodeId: %d\n"
           " version: %d, mysql_version: %d\n",
-	  refToNode(sig->senderRef), refToBlock(sig->senderRef),
-	  sig->nodeId, sig->version, sig->mysql_version);
+          refToNode(sig->senderRef), refToBlock(sig->senderRef), sig->nodeId,
+          sig->version, sig->mysql_version);
   return true;
 }
 
-bool printAPI_VERSION_CONF(FILE *output,
-                           const Uint32 *theData,
-                           Uint32 len,
-                           Uint16 /*recBlockNo*/)
-{
+bool printAPI_VERSION_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                           Uint16 /*recBlockNo*/) {
   const ApiVersionConf *sig = (const ApiVersionConf *)&theData[0];
 
-  if (len <= ApiVersionConf::SignalLengthIPv4)
-  {
-  fprintf(output,
-          " senderRef: (node: %d, block: %d), nodeId: %d\n" \
-          " version: %d, mysql_version: %d, inet_addr: %d\n" \
-          " isSingleUser: %d",
-	  refToNode(sig->senderRef), refToBlock(sig->senderRef),
-          sig->nodeId, sig->version, sig->mysql_version, sig->m_inet_addr,
-          sig->isSingleUser);
-  }
-  else
-  {
-    ndb_sockaddr in((const in6_addr*)sig->m_inet6_addr, 0);
-    char addr_buf[INET6_ADDRSTRLEN];
-    char* address= Ndb_inet_ntop(&in, addr_buf, INET6_ADDRSTRLEN);
+  if (len <= ApiVersionConf::SignalLengthIPv4) {
     fprintf(output,
-            " senderRef: (node: %d, block: %d), nodeId: %d\n" \
-            " version: %d, mysql_version: %d, inet6_addr: %s\n" \
+            " senderRef: (node: %d, block: %d), nodeId: %d\n"
+            " version: %d, mysql_version: %d, inet_addr: %d\n"
             " isSingleUser: %d",
-      refToNode(sig->senderRef), refToBlock(sig->senderRef),
-            sig->nodeId, sig->version, sig->mysql_version, address,
+            refToNode(sig->senderRef), refToBlock(sig->senderRef), sig->nodeId,
+            sig->version, sig->mysql_version, sig->m_inet_addr,
             sig->isSingleUser);
+  } else {
+    ndb_sockaddr in((const in6_addr *)sig->m_inet6_addr, 0);
+    char addr_buf[INET6_ADDRSTRLEN];
+    char *address = Ndb_inet_ntop(&in, addr_buf, INET6_ADDRSTRLEN);
+    fprintf(output,
+            " senderRef: (node: %d, block: %d), nodeId: %d\n"
+            " version: %d, mysql_version: %d, inet6_addr: %s\n"
+            " isSingleUser: %d",
+            refToNode(sig->senderRef), refToBlock(sig->senderRef), sig->nodeId,
+            sig->version, sig->mysql_version, address, sig->isSingleUser);
   }
   return true;
 }

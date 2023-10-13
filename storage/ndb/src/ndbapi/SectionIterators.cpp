@@ -25,7 +25,6 @@
 #include <SectionIterators.hpp>
 #include "NdbApiSignal.hpp"
 
-
 /**
  * LinearSectionIterator
  *
@@ -35,36 +34,28 @@
  * send time to obtain all of the relevant words for the
  * signal section
  */
-LinearSectionIterator::LinearSectionIterator(const Uint32* _data, Uint32 _len)
-{
-  data= (_len == 0)? nullptr:_data;
-  len= _len;
-  read= false;
+LinearSectionIterator::LinearSectionIterator(const Uint32 *_data, Uint32 _len) {
+  data = (_len == 0) ? nullptr : _data;
+  len = _len;
+  read = false;
 }
 
-LinearSectionIterator::~LinearSectionIterator()
-{}
+LinearSectionIterator::~LinearSectionIterator() {}
 
-void
-LinearSectionIterator::reset()
-{
+void LinearSectionIterator::reset() {
   /* Reset iterator */
-  read= false;
+  read = false;
 }
 
-const Uint32*
-LinearSectionIterator::getNextWords(Uint32& sz)
-{
-  if (likely(!read))
-  {
-    read= true;
-    sz= len;
+const Uint32 *LinearSectionIterator::getNextWords(Uint32 &sz) {
+  if (likely(!read)) {
+    read = true;
+    sz = len;
     return data;
   }
-  sz= 0;
+  sz = 0;
   return nullptr;
 }
-
 
 /**
  * SignalSectionIterator
@@ -76,35 +67,27 @@ LinearSectionIterator::getNextWords(Uint32& sz)
  * send time to obtain all of the relevant words for the
  * signal section
  */
-SignalSectionIterator::SignalSectionIterator(NdbApiSignal* signal)
-{
-  firstSignal= currentSignal= signal;
+SignalSectionIterator::SignalSectionIterator(NdbApiSignal *signal) {
+  firstSignal = currentSignal = signal;
 }
 
-SignalSectionIterator::~SignalSectionIterator()
-{}
+SignalSectionIterator::~SignalSectionIterator() {}
 
-void
-SignalSectionIterator::reset()
-{
+void SignalSectionIterator::reset() {
   /* Reset iterator */
-  currentSignal= firstSignal;
+  currentSignal = firstSignal;
 }
 
-const Uint32*
-SignalSectionIterator::getNextWords(Uint32& sz)
-{
-  if (likely(currentSignal != nullptr))
-  {
-    NdbApiSignal* signal= currentSignal;
-    currentSignal= currentSignal->next();
-    sz= signal->getLength();
+const Uint32 *SignalSectionIterator::getNextWords(Uint32 &sz) {
+  if (likely(currentSignal != nullptr)) {
+    NdbApiSignal *signal = currentSignal;
+    currentSignal = currentSignal->next();
+    sz = signal->getLength();
     return signal->getDataPtrSend();
   }
-  sz= 0;
+  sz = 0;
   return nullptr;
 }
-
 
 /**
  * FragmentedSectionIterator
@@ -118,49 +101,44 @@ SignalSectionIterator::getNextWords(Uint32& sz)
  * the contained words for each signal fragment.
  */
 
-FragmentedSectionIterator::FragmentedSectionIterator(GenericSectionPtr ptr)
-{
-  realIterator= ptr.sectionIter;
-  realIterWords= ptr.sz;
-  realCurrPos= 0;
-  rangeStart= 0;
-  rangeLen= rangeRemain= realIterWords;
-  lastReadPtr= nullptr;
-  lastReadTotal= 0;
-  lastReadAvail= 0;
+FragmentedSectionIterator::FragmentedSectionIterator(GenericSectionPtr ptr) {
+  realIterator = ptr.sectionIter;
+  realIterWords = ptr.sz;
+  realCurrPos = 0;
+  rangeStart = 0;
+  rangeLen = rangeRemain = realIterWords;
+  lastReadPtr = nullptr;
+  lastReadTotal = 0;
+  lastReadAvail = 0;
   moveToPos(0);
 
   assert(checkInvariants());
 }
 
-bool
-FragmentedSectionIterator::checkInvariants()
-{
-  assert( (realIterator != nullptr) || (realIterWords == 0) );
-  assert( realCurrPos <= realIterWords );
-  assert( rangeStart <= realIterWords );
-  assert( (rangeStart+rangeLen) <= realIterWords);
-  assert( rangeRemain <= rangeLen );
+bool FragmentedSectionIterator::checkInvariants() {
+  assert((realIterator != nullptr) || (realIterWords == 0));
+  assert(realCurrPos <= realIterWords);
+  assert(rangeStart <= realIterWords);
+  assert((rangeStart + rangeLen) <= realIterWords);
+  assert(rangeRemain <= rangeLen);
 
   /* Can only have a null readptr if nothing is left */
-  assert( (lastReadPtr != nullptr) || (lastReadAvail == 0));
-  assert( (lastReadPtr != nullptr) || (rangeRemain == 0));
+  assert((lastReadPtr != nullptr) || (lastReadAvail == 0));
+  assert((lastReadPtr != nullptr) || (rangeRemain == 0));
 
   /* If we have a non-null readptr and some remaining
    * words the readptr must have some words
    */
-  assert( (lastReadPtr == nullptr) ||
-          ((rangeRemain == 0) || (lastReadTotal != 0)));
+  assert((lastReadPtr == nullptr) ||
+         ((rangeRemain == 0) || (lastReadTotal != 0)));
 
-  assert (lastReadTotal >= lastReadAvail);
+  assert(lastReadTotal >= lastReadAvail);
   return true;
 }
 
-void FragmentedSectionIterator::moveToPos(Uint32 pos)
-{
+void FragmentedSectionIterator::moveToPos(Uint32 pos) {
   assert(pos <= realIterWords);
-  if (realIterWords == 0)
-  {
+  if (realIterWords == 0) {
     /**
      * Iterator is empty, 'realIterator' could even be nullptr.
      * We are allowed to position at the end only. (With nothing available)
@@ -170,24 +148,21 @@ void FragmentedSectionIterator::moveToPos(Uint32 pos)
     assert(realCurrPos == 0);
     return;
   }
-  if (pos < realCurrPos)
-  {
+  if (pos < realCurrPos) {
     /* Need to reset, and advance from the start */
     realIterator->reset();
-    realCurrPos= 0;
-    lastReadPtr= nullptr;
-    lastReadTotal= 0;
-    lastReadAvail= 0;
+    realCurrPos = 0;
+    lastReadPtr = nullptr;
+    lastReadTotal = 0;
+    lastReadAvail = 0;
   }
 
   /* Advance until we get a chunk which contains the pos */
-  while (pos >= realCurrPos + lastReadTotal)
-  {
-    realCurrPos+= lastReadTotal;
-    lastReadPtr= realIterator->getNextWords(lastReadTotal);
+  while (pos >= realCurrPos + lastReadTotal) {
+    realCurrPos += lastReadTotal;
+    lastReadPtr = realIterator->getNextWords(lastReadTotal);
     lastReadAvail = lastReadTotal;
-    if (lastReadPtr == nullptr)
-    {
+    if (lastReadPtr == nullptr) {
       // Advanced past the end
       assert(pos == realIterWords && realCurrPos == realIterWords);
       assert(lastReadAvail == 0);
@@ -195,73 +170,58 @@ void FragmentedSectionIterator::moveToPos(Uint32 pos)
     }
   }
 
-  const Uint32 chunkOffset= pos - realCurrPos;
+  const Uint32 chunkOffset = pos - realCurrPos;
   lastReadAvail = lastReadTotal - chunkOffset;
 }
 
-bool
-FragmentedSectionIterator::setRange(Uint32 start, Uint32 len)
-{
+bool FragmentedSectionIterator::setRange(Uint32 start, Uint32 len) {
   assert(checkInvariants());
-  if (start+len > realIterWords)
-    return false;
+  if (start + len > realIterWords) return false;
   moveToPos(start);
 
-  rangeStart= start;
-  rangeLen= rangeRemain= len;
+  rangeStart = start;
+  rangeLen = rangeRemain = len;
 
   assert(checkInvariants());
   return true;
 }
 
-
-void
-FragmentedSectionIterator::reset()
-{
+void FragmentedSectionIterator::reset() {
   /* Reset iterator to last specified range */
   assert(checkInvariants());
   moveToPos(rangeStart);
-  rangeRemain= rangeLen;
+  rangeRemain = rangeLen;
   assert(checkInvariants());
 }
 
-const Uint32*
-FragmentedSectionIterator::getNextWords(Uint32& sz)
-{
+const Uint32 *FragmentedSectionIterator::getNextWords(Uint32 &sz) {
   assert(checkInvariants());
-  const Uint32* currPtr= nullptr;
+  const Uint32 *currPtr = nullptr;
   sz = 0;
 
-  if (rangeRemain)
-  {
+  if (rangeRemain) {
     assert(lastReadPtr != nullptr);
     assert(lastReadTotal != 0);
 
-    if (lastReadAvail > 0)
-    {
+    if (lastReadAvail > 0) {
       /* Return remaining unconsumed data in current chunk */
       const Uint32 skip = lastReadTotal - lastReadAvail;
-      currPtr = lastReadPtr+skip;
+      currPtr = lastReadPtr + skip;
       sz = lastReadAvail;
-    }
-    else
-    {
+    } else {
       /* Read a new chunk, return it as consumed */
-      realCurrPos+= lastReadTotal;
+      realCurrPos += lastReadTotal;
       currPtr = lastReadPtr = realIterator->getNextWords(lastReadTotal);
       sz = lastReadAvail = lastReadTotal;
     }
 
-    if (sz > rangeRemain)
-    {
+    if (sz > rangeRemain) {
       /* What we return may be limited by end-of-range */
       sz = rangeRemain;
     }
     rangeRemain -= sz;
-  }
-  else
-  {
-    sz= 0;
+  } else {
+    sz = 0;
   }
 
   // Assume all returned is consumed, until optional moveToPos()
@@ -269,9 +229,6 @@ FragmentedSectionIterator::getNextWords(Uint32& sz)
   assert(checkInvariants());
   return currPtr;
 }
-
-
-
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -281,32 +238,32 @@ FragmentedSectionIterator::getNextWords(Uint32& sz)
 
 #ifdef TEST_SECTIONITERATORS
 
+#include <random.h>
 #include <util/NdbTap.hpp>
 #include "NdbApiSignal.hpp"
-#include <random.h>
 
-
-#define VERIFY(x) if ((x) == 0) { printf("VERIFY failed at Line %u : %s\n",__LINE__, #x);  return -1; }
+#define VERIFY(x)                                            \
+  if ((x) == 0) {                                            \
+    printf("VERIFY failed at Line %u : %s\n", __LINE__, #x); \
+    return -1;                                               \
+  }
 
 /* Verify that word[n] == bias + n */
-int
-verifyIteratorContents(GenericSectionIterator& gsi, int dataWords, int bias)
-{
-  int pos= 0;
+int verifyIteratorContents(GenericSectionIterator &gsi, int dataWords,
+                           int bias) {
+  int pos = 0;
 
-  while (pos < dataWords)
-  {
-    const Uint32* readPtr=NULL;
-    Uint32 len= 0;
+  while (pos < dataWords) {
+    const Uint32 *readPtr = NULL;
+    Uint32 len = 0;
 
-    readPtr= gsi.getNextWords(len);
+    readPtr = gsi.getNextWords(len);
 
     VERIFY(readPtr != NULL);
     VERIFY(len != 0);
-    VERIFY(len <= (Uint32) (dataWords - pos));
+    VERIFY(len <= (Uint32)(dataWords - pos));
 
-    for (int j=0; j < (int) len; j++)
-      VERIFY(readPtr[j] == (Uint32) (bias ++));
+    for (int j = 0; j < (int)len; j++) VERIFY(readPtr[j] == (Uint32)(bias++));
 
     pos += len;
   }
@@ -314,9 +271,8 @@ verifyIteratorContents(GenericSectionIterator& gsi, int dataWords, int bias)
   return 0;
 }
 
-int
-checkGenericSectionIterator(GenericSectionIterator& iter, int size, int bias)
-{
+int checkGenericSectionIterator(GenericSectionIterator &iter, int size,
+                                int bias) {
   /* Verify contents */
   VERIFY(verifyIteratorContents(iter, size, bias) == 0);
 
@@ -341,15 +297,9 @@ checkGenericSectionIterator(GenericSectionIterator& iter, int size, int bias)
   return 0;
 }
 
-Uint32
-randRange(Uint32 range)
-{
-  return ((Uint32) rand()) % range;
-}
+Uint32 randRange(Uint32 range) { return ((Uint32)rand()) % range; }
 
-int
-checkIterator(GenericSectionIterator& iter, int size, int bias)
-{
+int checkIterator(GenericSectionIterator &iter, int size, int bias) {
   /* Test iterator itself, and then FragmentedSectionIterator
    * adaptation
    */
@@ -358,23 +308,20 @@ checkIterator(GenericSectionIterator& iter, int size, int bias)
   /* Now we'll test the FragmentedSectionIterator on the iterator
    * we were passed
    */
-  const int subranges= 20;
+  const int subranges = 20;
 
   iter.reset();
   GenericSectionPtr ptr;
-  ptr.sz= size;
-  ptr.sectionIter= &iter;
+  ptr.sz = size;
+  ptr.sectionIter = &iter;
   FragmentedSectionIterator fsi(ptr);
 
-  for (int s=0; s< subranges; s++)
-  {
-    Uint32 start= 0;
-    Uint32 len= 0;
-    if (size > 0)
-    {
-      start= randRange(size);
-      if (0 != (size-start)) 
-        len= randRange(size-start);
+  for (int s = 0; s < subranges; s++) {
+    Uint32 start = 0;
+    Uint32 len = 0;
+    if (size > 0) {
+      start = randRange(size);
+      if (0 != (size - start)) len = randRange(size - start);
     }
 
     /*
@@ -388,21 +335,17 @@ checkIterator(GenericSectionIterator& iter, int size, int bias)
   return 0;
 }
 
-int
-testLinearSectionIterator()
-{
+int testLinearSectionIterator() {
   /* Test Linear section iterator of various
    * lengths with section[n] == bias + n
    */
-  const int totalSize= 200000;
-  const int bias= 13;
+  const int totalSize = 200000;
+  const int bias = 13;
 
   Uint32 data[totalSize];
-  for (int i=0; i<totalSize; i++)
-    data[i]= bias + i;
+  for (int i = 0; i < totalSize; i++) data[i] = bias + i;
 
-  for (int len= 0; len < 1000; len++)
-  {
+  for (int len = 0; len < 1000; len++) {
     LinearSectionIterator something(data, len);
 
     VERIFY(checkIterator(something, len, bias) == 0);
@@ -411,154 +354,127 @@ testLinearSectionIterator()
   return 0;
 }
 
-NdbApiSignal*
-createSignalChain(NdbApiSignal*& poolHead, int length, int bias)
-{
+NdbApiSignal *createSignalChain(NdbApiSignal *&poolHead, int length, int bias) {
   /* Create signal chain, with word[n] == bias+n */
-  NdbApiSignal* chainHead= NULL;
-  NdbApiSignal* chainTail= NULL;
-  int pos= 0;
+  NdbApiSignal *chainHead = NULL;
+  NdbApiSignal *chainTail = NULL;
+  int pos = 0;
 
-  while (pos < length)
-  {
-    int offset= pos % NdbApiSignal::MaxSignalWords;
+  while (pos < length) {
+    int offset = pos % NdbApiSignal::MaxSignalWords;
 
-    if (offset == 0)
-    {
-      if (poolHead == NULL)
-        return 0;
+    if (offset == 0) {
+      if (poolHead == NULL) return 0;
 
-      NdbApiSignal* newSig= poolHead;
-      poolHead= poolHead->next();
+      NdbApiSignal *newSig = poolHead;
+      poolHead = poolHead->next();
 
       newSig->next(NULL);
 
-      if (chainHead == NULL)
-      {
-        chainHead= chainTail= newSig;
-      }
-      else
-      {
+      if (chainHead == NULL) {
+        chainHead = chainTail = newSig;
+      } else {
         chainTail->next(newSig);
-        chainTail= newSig;
+        chainTail = newSig;
       }
     }
 
-    chainTail->getDataPtrSend()[offset]= (bias + pos);
+    chainTail->getDataPtrSend()[offset] = (bias + pos);
     chainTail->setLength(offset + 1);
-    pos ++;
+    pos++;
   }
 
   return chainHead;
 }
 
-int
-testSignalSectionIterator()
-{
+int testSignalSectionIterator() {
   /* Create a pool of signals, build
    * signal chains from it, test
    * the iterator against the signal chains
    */
-  const int totalNumSignals= 100;
-  NdbApiSignal* poolHead= NULL;
+  const int totalNumSignals = 100;
+  NdbApiSignal *poolHead = NULL;
 
   /* Allocate some signals */
-  for (int i=0; i < totalNumSignals; i++)
-  {
-    NdbApiSignal* sig= new NdbApiSignal((BlockReference) 0);
+  for (int i = 0; i < totalNumSignals; i++) {
+    NdbApiSignal *sig = new NdbApiSignal((BlockReference)0);
 
-    if (poolHead == NULL)
-    {
-      poolHead= sig;
+    if (poolHead == NULL) {
+      poolHead = sig;
       sig->next(NULL);
-    }
-    else
-    {
+    } else {
       sig->next(poolHead);
-      poolHead= sig;
+      poolHead = sig;
     }
   }
 
-  const int bias= 7;
-  for (int dataWords= 1;
-       dataWords <= (int)(totalNumSignals *
-                          NdbApiSignal::MaxSignalWords);
-       dataWords ++)
-  {
-    NdbApiSignal* signalChain= NULL;
+  const int bias = 7;
+  for (int dataWords = 1;
+       dataWords <= (int)(totalNumSignals * NdbApiSignal::MaxSignalWords);
+       dataWords++) {
+    NdbApiSignal *signalChain = NULL;
 
-    VERIFY((signalChain= createSignalChain(poolHead, dataWords, bias)) != NULL );
+    VERIFY((signalChain = createSignalChain(poolHead, dataWords, bias)) !=
+           NULL);
 
     SignalSectionIterator ssi(signalChain);
 
     VERIFY(checkIterator(ssi, dataWords, bias) == 0);
 
     /* Now return the signals to the pool */
-    while (signalChain != NULL)
-    {
-      NdbApiSignal* sig= signalChain;
-      signalChain= signalChain->next();
+    while (signalChain != NULL) {
+      NdbApiSignal *sig = signalChain;
+      signalChain = signalChain->next();
 
       sig->next(poolHead);
-      poolHead= sig;
+      poolHead = sig;
     }
   }
 
   /* Free signals from pool */
-  while (poolHead != NULL)
-  {
-    NdbApiSignal* sig= poolHead;
-    poolHead= sig->next();
-    delete(sig);
+  while (poolHead != NULL) {
+    NdbApiSignal *sig = poolHead;
+    poolHead = sig->next();
+    delete (sig);
   }
 
   return 0;
 }
 
-
 /**
  * Iterator view of a generator
  */
-class BufferedGeneratingIterator: public GenericSectionIterator
-{
-private :
-  Uint32* buffer;
+class BufferedGeneratingIterator : public GenericSectionIterator {
+ private:
+  Uint32 *buffer;
   Uint32 buffWords;
   Uint32 len;
   Uint32 pos;
   Uint32 bias;
 
-public :
-  BufferedGeneratingIterator(Uint32 _size, Uint32 _bias, Uint32 _buffWords)
-  {
+ public:
+  BufferedGeneratingIterator(Uint32 _size, Uint32 _bias, Uint32 _buffWords) {
     buffWords = _buffWords;
-    buffer = (Uint32*) malloc(_buffWords * sizeof(Uint32));
+    buffer = (Uint32 *)malloc(_buffWords * sizeof(Uint32));
     len = _size;
     bias = _bias;
     pos = 0;
   }
 
-  ~BufferedGeneratingIterator() override
-  {
-    free(buffer);
-  }
+  ~BufferedGeneratingIterator() override { free(buffer); }
 
-  void reset() override
-  {
+  void reset() override {
     /* Reset iterator */
     pos = 0;
   }
 
-  const Uint32* getNextWords(Uint32& sz) override
-  {
+  const Uint32 *getNextWords(Uint32 &sz) override {
     const Uint32 remain = len - pos;
     const Uint32 chunkSize = MIN(remain, buffWords);
 
-    if (chunkSize)
-    {
+    if (chunkSize) {
       /* Generate data in buffer */
-      for (Uint32 i = 0; i < chunkSize; i++)
-      {
+      for (Uint32 i = 0; i < chunkSize; i++) {
         buffer[i] = bias + pos + i;
       }
 
@@ -566,19 +482,16 @@ public :
       sz = chunkSize;
       return buffer;
     }
-    sz= 0;
+    sz = 0;
     return nullptr;
   }
 };
 
-int
-testBufferedGeneratingIterator()
-{
-  const int totalSize= 50000;
-  const int bias= 19;
+int testBufferedGeneratingIterator() {
+  const int totalSize = 50000;
+  const int bias = 19;
 
-  for (int buffSize=1; buffSize < 100; buffSize++)
-  {
+  for (int buffSize = 1; buffSize < 100; buffSize++) {
     BufferedGeneratingIterator bgi(totalSize, bias, buffSize);
 
     VERIFY(checkIterator(bgi, totalSize, bias) == 0);
@@ -587,9 +500,7 @@ testBufferedGeneratingIterator()
   return 0;
 }
 
-
-int main()
-{
+int main() {
   /* Unit test Section Iterators
    * ----------------------
    * To run this code :
@@ -601,7 +512,7 @@ int main()
    * Will print "OK" in success case
    */
 
-  plan(3); // Number of tests
+  plan(3);  // Number of tests
 
   ok1(testLinearSectionIterator() == 0);
   ok1(testSignalSectionIterator() == 0);
@@ -609,6 +520,5 @@ int main()
 
   return exit_status();
 }
-
 
 #endif

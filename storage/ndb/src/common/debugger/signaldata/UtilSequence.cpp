@@ -25,78 +25,60 @@
 
 #include <signaldata/UtilSequence.hpp>
 
-inline
-const char *
-type2string(UtilSequenceReq::RequestType type){
-  switch(type){
-  case UtilSequenceReq::NextVal:
-    return "NextVal";
-  case UtilSequenceReq::CurrVal:
-    return "CurrVal";
-  case UtilSequenceReq::Create:
-    return "Create";
-  case UtilSequenceReq::SetVal:
-    return "SetVal";
-  default:
-    return "Unknown";
+inline const char *type2string(UtilSequenceReq::RequestType type) {
+  switch (type) {
+    case UtilSequenceReq::NextVal:
+      return "NextVal";
+    case UtilSequenceReq::CurrVal:
+      return "CurrVal";
+    case UtilSequenceReq::Create:
+      return "Create";
+    case UtilSequenceReq::SetVal:
+      return "SetVal";
+    default:
+      return "Unknown";
   }
 }
 
-bool printUTIL_SEQUENCE_REQ(FILE* out,
-                            const Uint32* data,
-                            Uint32 l,
-                            Uint16 /*b*/)
-{
-  if (l < UtilSequenceReq::SignalLength)
-  {
+bool printUTIL_SEQUENCE_REQ(FILE *out, const Uint32 *data, Uint32 l,
+                            Uint16 /*b*/) {
+  if (l < UtilSequenceReq::SignalLength) {
     assert(false);
     return false;
   }
-  const UtilSequenceReq* sig = (const UtilSequenceReq*)data;
+  const UtilSequenceReq *sig = (const UtilSequenceReq *)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
-	  sig->senderData,
-	  sig->sequenceId,
-	  type2string((UtilSequenceReq::RequestType)sig->requestType));
+          sig->senderData, sig->sequenceId,
+          type2string((UtilSequenceReq::RequestType)sig->requestType));
   return true;
 }
 
-bool printUTIL_SEQUENCE_CONF(FILE* out,
-                             const Uint32* data,
-                             Uint32 l,
-                             Uint16 /*b*/)
-{
-  if (l < UtilSequenceConf::SignalLength)
-  {
+bool printUTIL_SEQUENCE_CONF(FILE *out, const Uint32 *data, Uint32 l,
+                             Uint16 /*b*/) {
+  if (l < UtilSequenceConf::SignalLength) {
     assert(false);
     return false;
   }
-  const UtilSequenceConf* sig = (const UtilSequenceConf*)data;
+  const UtilSequenceConf *sig = (const UtilSequenceConf *)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
-	  sig->senderData,
-	  sig->sequenceId,
-	  type2string((UtilSequenceReq::RequestType)sig->requestType));
-  fprintf(out, " val: [ %d %d ]\n", 
-	  sig->sequenceValue[0],
-	  sig->sequenceValue[1]);
+          sig->senderData, sig->sequenceId,
+          type2string((UtilSequenceReq::RequestType)sig->requestType));
+  fprintf(out, " val: [ %d %d ]\n", sig->sequenceValue[0],
+          sig->sequenceValue[1]);
   return true;
 }
 
-bool printUTIL_SEQUENCE_REF(FILE* out,
-                            const Uint32* data,
-                            Uint32 l,
-                            Uint16 /*b*/)
-{
-  if (l < UtilSequenceRef::SignalLength)
-  {
+bool printUTIL_SEQUENCE_REF(FILE *out, const Uint32 *data, Uint32 l,
+                            Uint16 /*b*/) {
+  if (l < UtilSequenceRef::SignalLength) {
     assert(false);
     return false;
   }
-  const UtilSequenceRef* sig = (const UtilSequenceRef*)data;
+  const UtilSequenceRef *sig = (const UtilSequenceRef *)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
-	  sig->senderData,
-	  sig->sequenceId,
-	  type2string((UtilSequenceReq::RequestType)sig->requestType));
-  fprintf(out, " errorCode: %d, TCErrorCode: %d\n",
-	  sig->errorCode, sig->TCErrorCode);
+          sig->senderData, sig->sequenceId,
+          type2string((UtilSequenceReq::RequestType)sig->requestType));
+  fprintf(out, " errorCode: %d, TCErrorCode: %d\n", sig->errorCode,
+          sig->TCErrorCode);
   return true;
 }

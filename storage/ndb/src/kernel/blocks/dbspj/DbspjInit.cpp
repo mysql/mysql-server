@@ -24,28 +24,26 @@
 
 #include <pc.hpp>
 #define DBSPJ_C
-#include "Dbspj.hpp"
 #include <ndb_limits.h>
+#include "Dbspj.hpp"
 
 #define JAM_FILE_ID 482
 
+#define DEBUG(x) \
+  { ndbout << "SPJ::" << x << endl; }
 
-#define DEBUG(x) { ndbout << "SPJ::" << x << endl; }
-
-
-Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
-  SimulatedBlock(DBSPJ, ctx, instanceNumber),
-  m_scan_request_hash(m_request_pool),
-  m_lookup_request_hash(m_request_pool),
-  m_treenode_hash(m_treenode_pool),
-  m_scanfraghandle_hash(m_scanfraghandle_pool),
-  m_tableRecord(NULL),
-  c_tabrecFilesize(0),
-  m_allocedPages(0),
-  m_maxUsedPages(0),
-  m_usedPagesStat(5),  // Sample over 5 observations
-  m_load_balancer_location(0)
-{
+Dbspj::Dbspj(Block_context &ctx, Uint32 instanceNumber)
+    : SimulatedBlock(DBSPJ, ctx, instanceNumber),
+      m_scan_request_hash(m_request_pool),
+      m_lookup_request_hash(m_request_pool),
+      m_treenode_hash(m_treenode_pool),
+      m_scanfraghandle_hash(m_scanfraghandle_pool),
+      m_tableRecord(NULL),
+      c_tabrecFilesize(0),
+      m_allocedPages(0),
+      m_maxUsedPages(0),
+      m_usedPagesStat(5),  // Sample over 5 observations
+      m_load_balancer_location(0) {
   BLOCK_CONSTRUCTOR(Dbspj);
 
   addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dbspj::execSIGNAL_DROPPED_REP, true);
@@ -88,18 +86,13 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_TRANSID_AI, &Dbspj::execTRANSID_AI);
   addRecSignal(GSN_SCAN_HBREP, &Dbspj::execSCAN_HBREP);
 
-}//Dbspj::Dbspj()
+}  // Dbspj::Dbspj()
 
-Dbspj::~Dbspj()
-{
+Dbspj::~Dbspj() {
   m_page_pool.clear();
 
-  deallocRecord((void**)&m_tableRecord,
-		"TableRecord",
-		sizeof(TableRecord), 
-		c_tabrecFilesize);
-}//Dbspj::~Dbspj()
-
+  deallocRecord((void **)&m_tableRecord, "TableRecord", sizeof(TableRecord),
+                c_tabrecFilesize);
+}  // Dbspj::~Dbspj()
 
 BLOCK_FUNCTIONS(Dbspj)
-

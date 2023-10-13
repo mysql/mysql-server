@@ -25,13 +25,12 @@
 #ifndef NODE_BITMASK_HPP
 #define NODE_BITMASK_HPP
 
-#include "ndb_limits.h"
-#include "kernel_types.h"
 #include <Bitmask.hpp>
 #include "../transporter/TransporterDefinitions.hpp"
+#include "kernel_types.h"
+#include "ndb_limits.h"
 
 #define JAM_FILE_ID 2
-
 
 /**
  * No. of 32 bits words needed to store a node bitmask
@@ -79,14 +78,14 @@
  */
 #define _NDB_NODE_BITMASK_SIZE_48_NODES 2
 
-#define _NDB_NBM_DIFF_BYTES (_NDB_NODE_BITMASK_SIZE - _NDB_NODE_BITMASK_SIZE_48_NODES)\
-  * sizeof(Uint32)
-#define _NBM_DIFF_BYTES (_NODE_BITMASK_SIZE - _NODE_BITMASK_SIZE_255_NODES)\
-  * sizeof(Uint32)
+#define _NDB_NBM_DIFF_BYTES \
+  (_NDB_NODE_BITMASK_SIZE - _NDB_NODE_BITMASK_SIZE_48_NODES) * sizeof(Uint32)
+#define _NBM_DIFF_BYTES \
+  (_NODE_BITMASK_SIZE - _NODE_BITMASK_SIZE_255_NODES) * sizeof(Uint32)
 /**
  * No of 32 bits word needed to store B bits for N nodes
  */
-#define NODE_ARRAY_SIZE(N, B) (((N)*(B)+31) >> 5)
+#define NODE_ARRAY_SIZE(N, B) (((N) * (B) + 31) >> 5)
 
 typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmask;
 typedef BitmaskPOD<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmaskPOD;
@@ -100,20 +99,19 @@ typedef BitmaskPOD<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmaskPOD;
 typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE_255_NODES> NodeBitmask255;
 typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE_48_NODES> NdbNodeBitmask48;
 
-
-#define __NBM_SZ  ((MAX_NODES >> 5) + ((MAX_NODES & 31) != 0))
-#define __TBM_SZ  ((MAX_NTRANSPORTERS >> 5) + ((MAX_NTRANSPORTERS & 31) != 0))
+#define __NBM_SZ ((MAX_NODES >> 5) + ((MAX_NODES & 31) != 0))
+#define __TBM_SZ ((MAX_NTRANSPORTERS >> 5) + ((MAX_NTRANSPORTERS & 31) != 0))
 #define __NNBM_SZ ((MAX_NDB_NODES >> 5) + ((MAX_NDB_NODES & 31) != 0))
 
-#if ( __NBM_SZ > _NODE_BITMASK_SIZE)
+#if (__NBM_SZ > _NODE_BITMASK_SIZE)
 #error "MAX_NODES can not fit into NODE_BITMASK_SIZE"
 #endif
 
-#if ( __TBM_SZ > _TRP_BITMASK_SIZE)
+#if (__TBM_SZ > _TRP_BITMASK_SIZE)
 #error "MAX_NTRANSPORTERS can not fit into TRP_BITMASK_SIZE"
 #endif
 
-#if ( __NNBM_SZ > _NDB_NODE_BITMASK_SIZE)
+#if (__NNBM_SZ > _NDB_NODE_BITMASK_SIZE)
 #error "MAX_NDB_NODES can not fit into NDB_NODE_BITMASK_SIZE"
 #endif
 
@@ -144,7 +142,6 @@ typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE_48_NODES> NdbNodeBitmask48;
  * S3 = 2log(B)
  * S4 = 2^B - 1
  */
-
 
 #undef JAM_FILE_ID
 

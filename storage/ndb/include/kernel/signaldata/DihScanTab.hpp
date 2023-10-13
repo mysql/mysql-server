@@ -27,12 +27,10 @@
 
 #define JAM_FILE_ID 108
 
-
 /**
  * DihScanTabReq
  */
-struct DihScanTabReq
-{
+struct DihScanTabReq {
   static constexpr Uint32 SignalLength = 6;
   static constexpr Uint32 RetryInterval = 5;
 
@@ -41,7 +39,7 @@ struct DihScanTabReq
   Uint32 senderRef;
   Uint32 schemaTransId;
   union {
-    void * jamBufferPtr;
+    void *jamBufferPtr;
     Uint32 jamBufferStorage[2];
   };
 };
@@ -49,8 +47,7 @@ struct DihScanTabReq
 /**
  * DihScanTabConf
  */
-struct DihScanTabConf
-{
+struct DihScanTabConf {
   static constexpr Uint32 SignalLength = 6;
   static constexpr Uint32 InvalidCookie = RNIL;
 
@@ -65,33 +62,27 @@ struct DihScanTabConf
 /**
  * DihScanTabRef
  */
-struct DihScanTabRef
-{
-  enum ErrorCode {
-    ErroneousState = 0,
-    ErroneousTableState = 1
-  };
+struct DihScanTabRef {
+  enum ErrorCode { ErroneousState = 0, ErroneousTableState = 1 };
   static constexpr Uint32 SignalLength = 5;
 
   Uint32 tableId;
   Uint32 senderData;
   Uint32 error;
-  Uint32 tableStatus; // Dbdih::TabRecord::tabStatus
+  Uint32 tableStatus;  // Dbdih::TabRecord::tabStatus
   Uint32 schemaTransId;
 };
 
-struct DihScanTabCompleteRep
-{
+struct DihScanTabCompleteRep {
   static constexpr Uint32 SignalLength = 4;
 
   Uint32 tableId;
   Uint32 scanCookie;
   union {
-    void * jamBufferPtr;
+    void *jamBufferPtr;
     Uint32 jamBufferStorage[2];
   };
 };
-
 
 #undef JAM_FILE_ID
 

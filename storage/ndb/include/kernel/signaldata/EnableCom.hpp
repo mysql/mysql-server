@@ -27,39 +27,37 @@
 
 #define JAM_FILE_ID 40
 
-
 // Only local async signal, not global.
 
-class EnableComReq  {
+class EnableComReq {
   friend class Qmgr;
   friend class Trpman;
   friend class TrpmanProxy;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
 
+ private:
   Uint32 m_senderRef;
   Uint32 m_senderData;
   Uint32 m_enableNodeId;
-  NodeBitmask m_nodeIds; // Not part of signal, but first section
+  NodeBitmask m_nodeIds;  // Not part of signal, but first section
 };
 
-class EnableComConf  {
+class EnableComConf {
   friend class Qmgr;
   friend class Trpman;
   friend class TrpmanProxy;
   friend class Cmvmi;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
 
+ private:
   Uint32 m_senderRef;
   Uint32 m_senderData;
   Uint32 m_enableNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

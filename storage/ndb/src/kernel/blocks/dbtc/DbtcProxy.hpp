@@ -29,34 +29,32 @@
 
 #include <signaldata/GCP.hpp>
 
-#include <signaldata/CreateIndxImpl.hpp>
-#include <signaldata/AlterIndxImpl.hpp>
-#include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AbortAll.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/CreateFKImpl.hpp>
+#include <signaldata/CreateIndxImpl.hpp>
 #include <signaldata/DropFKImpl.hpp>
+#include <signaldata/DropIndxImpl.hpp>
 
 #define JAM_FILE_ID 348
 
-
-
 class DbtcProxy : public DbgdmProxy {
-public:
-  DbtcProxy(Block_context& ctx);
+ public:
+  DbtcProxy(Block_context &ctx);
   ~DbtcProxy() override;
   BLOCK_DEFINES(DbtcProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 
   // GSN_NDB_STTOR
-  void callNDB_STTOR(Signal*) override;
+  void callNDB_STTOR(Signal *) override;
 
   /**
    * TCSEIZEREQ
    */
-  Uint32 m_tc_seize_req_instance; // round robin
-  void execTCSEIZEREQ(Signal* signal);
+  Uint32 m_tc_seize_req_instance;  // round robin
+  void execTCSEIZEREQ(Signal *signal);
 
   /**
    * TCGETOPSIZEREQ
@@ -69,15 +67,15 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendTCGETOPSIZECONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_TCGETOPSIZEREQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_TCGETOPSIZEREQ;
+    static SsPool<Ss_TCGETOPSIZEREQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_TCGETOPSIZEREQ;
     }
   };
   SsPool<Ss_TCGETOPSIZEREQ> c_ss_TCGETOPSIZEREQ;
-  void execTCGETOPSIZEREQ(Signal*);
-  void sendTCGETOPSIZEREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execTCGETOPSIZECONF(Signal*);
-  void sendTCGETOPSIZECONF(Signal*, Uint32 ssId);
+  void execTCGETOPSIZEREQ(Signal *);
+  void sendTCGETOPSIZEREQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execTCGETOPSIZECONF(Signal *);
+  void sendTCGETOPSIZECONF(Signal *, Uint32 ssId);
 
   /**
    * TC_CLOPSIZEREQ
@@ -89,15 +87,15 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendTC_CLOPSIZECONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_TC_CLOPSIZEREQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_TC_CLOPSIZEREQ;
+    static SsPool<Ss_TC_CLOPSIZEREQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_TC_CLOPSIZEREQ;
     }
   };
   SsPool<Ss_TC_CLOPSIZEREQ> c_ss_TC_CLOPSIZEREQ;
-  void execTC_CLOPSIZEREQ(Signal*);
-  void sendTC_CLOPSIZEREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execTC_CLOPSIZECONF(Signal*);
-  void sendTC_CLOPSIZECONF(Signal*, Uint32 ssId);
+  void execTC_CLOPSIZEREQ(Signal *);
+  void sendTC_CLOPSIZEREQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execTC_CLOPSIZECONF(Signal *);
+  void sendTC_CLOPSIZECONF(Signal *, Uint32 ssId);
 
   // GSN_GCP_NOMORETRANS
   struct Ss_GCP_NOMORETRANS : SsParallel {
@@ -108,15 +106,15 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendGCP_TCFINISHED;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_GCP_NOMORETRANS>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_GCP_NOMORETRANS;
+    static SsPool<Ss_GCP_NOMORETRANS> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_GCP_NOMORETRANS;
     }
   };
   SsPool<Ss_GCP_NOMORETRANS> c_ss_GCP_NOMORETRANS;
-  void execGCP_NOMORETRANS(Signal*);
-  void sendGCP_NOMORETRANS(Signal*, Uint32 ssId, SectionHandle*);
-  void execGCP_TCFINISHED(Signal*);
-  void sendGCP_TCFINISHED(Signal*, Uint32 ssId);
+  void execGCP_NOMORETRANS(Signal *);
+  void sendGCP_NOMORETRANS(Signal *, Uint32 ssId, SectionHandle *);
+  void execGCP_TCFINISHED(Signal *);
+  void sendGCP_TCFINISHED(Signal *, Uint32 ssId);
 
   // GSN_CREATE_INDX_IMPL_REQ
   struct Ss_CREATE_INDX_IMPL_REQ : SsParallel {
@@ -127,16 +125,16 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendCREATE_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_CREATE_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_CREATE_INDX_IMPL_REQ;
+    static SsPool<Ss_CREATE_INDX_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_CREATE_INDX_IMPL_REQ;
     }
   };
   SsPool<Ss_CREATE_INDX_IMPL_REQ> c_ss_CREATE_INDX_IMPL_REQ;
-  void execCREATE_INDX_IMPL_REQ(Signal*);
-  void sendCREATE_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execCREATE_INDX_IMPL_CONF(Signal*);
-  void execCREATE_INDX_IMPL_REF(Signal*);
-  void sendCREATE_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+  void execCREATE_INDX_IMPL_REQ(Signal *);
+  void sendCREATE_INDX_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execCREATE_INDX_IMPL_CONF(Signal *);
+  void execCREATE_INDX_IMPL_REF(Signal *);
+  void sendCREATE_INDX_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_ALTER_INDX_IMPL_REQ
   struct Ss_ALTER_INDX_IMPL_REQ : SsParallel {
@@ -146,16 +144,16 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendALTER_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_ALTER_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_ALTER_INDX_IMPL_REQ;
+    static SsPool<Ss_ALTER_INDX_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_ALTER_INDX_IMPL_REQ;
     }
   };
   SsPool<Ss_ALTER_INDX_IMPL_REQ> c_ss_ALTER_INDX_IMPL_REQ;
-  void execALTER_INDX_IMPL_REQ(Signal*);
-  void sendALTER_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execALTER_INDX_IMPL_CONF(Signal*);
-  void execALTER_INDX_IMPL_REF(Signal*);
-  void sendALTER_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+  void execALTER_INDX_IMPL_REQ(Signal *);
+  void sendALTER_INDX_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execALTER_INDX_IMPL_CONF(Signal *);
+  void execALTER_INDX_IMPL_REF(Signal *);
+  void sendALTER_INDX_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_DROP_INDX_IMPL_REQ
   struct Ss_DROP_INDX_IMPL_REQ : SsParallel {
@@ -165,19 +163,19 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendDROP_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_DROP_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_DROP_INDX_IMPL_REQ;
+    static SsPool<Ss_DROP_INDX_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_DROP_INDX_IMPL_REQ;
     }
   };
   SsPool<Ss_DROP_INDX_IMPL_REQ> c_ss_DROP_INDX_IMPL_REQ;
-  void execDROP_INDX_IMPL_REQ(Signal*);
-  void sendDROP_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execDROP_INDX_IMPL_CONF(Signal*);
-  void execDROP_INDX_IMPL_REF(Signal*);
-  void sendDROP_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+  void execDROP_INDX_IMPL_REQ(Signal *);
+  void sendDROP_INDX_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execDROP_INDX_IMPL_CONF(Signal *);
+  void execDROP_INDX_IMPL_REF(Signal *);
+  void sendDROP_INDX_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_TAKE_OVERTCCONF
-  void execTAKE_OVERTCCONF(Signal*);
+  void execTAKE_OVERTCCONF(Signal *);
 
   // GSN_ABORT_ALL_REQ
   struct Ss_ABORT_ALL_REQ : SsParallel {
@@ -187,16 +185,16 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendABORT_ALL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_ABORT_ALL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_ABORT_ALL_REQ;
+    static SsPool<Ss_ABORT_ALL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_ABORT_ALL_REQ;
     }
   };
   SsPool<Ss_ABORT_ALL_REQ> c_ss_ABORT_ALL_REQ;
-  void execABORT_ALL_REQ(Signal*);
-  void sendABORT_ALL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execABORT_ALL_REF(Signal*);
-  void execABORT_ALL_CONF(Signal*);
-  void sendABORT_ALL_CONF(Signal*, Uint32 ssId);
+  void execABORT_ALL_REQ(Signal *);
+  void sendABORT_ALL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execABORT_ALL_REF(Signal *);
+  void execABORT_ALL_CONF(Signal *);
+  void sendABORT_ALL_CONF(Signal *, Uint32 ssId);
 
   // GSN_CREATE_FK_IMPL_REQ
   struct Ss_CREATE_FK_IMPL_REQ : SsParallel {
@@ -207,16 +205,16 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendCREATE_FK_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_CREATE_FK_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_CREATE_FK_IMPL_REQ;
+    static SsPool<Ss_CREATE_FK_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_CREATE_FK_IMPL_REQ;
     }
   };
   SsPool<Ss_CREATE_FK_IMPL_REQ> c_ss_CREATE_FK_IMPL_REQ;
-  void execCREATE_FK_IMPL_REQ(Signal*);
-  void sendCREATE_FK_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execCREATE_FK_IMPL_CONF(Signal*);
-  void execCREATE_FK_IMPL_REF(Signal*);
-  void sendCREATE_FK_IMPL_CONF(Signal*, Uint32 ssId);
+  void execCREATE_FK_IMPL_REQ(Signal *);
+  void sendCREATE_FK_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execCREATE_FK_IMPL_CONF(Signal *);
+  void execCREATE_FK_IMPL_REF(Signal *);
+  void sendCREATE_FK_IMPL_CONF(Signal *, Uint32 ssId);
 
   // GSN_DROP_FK_IMPL_REQ
   struct Ss_DROP_FK_IMPL_REQ : SsParallel {
@@ -226,18 +224,17 @@ protected:
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendDROP_FK_IMPL_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_DROP_FK_IMPL_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_DROP_FK_IMPL_REQ;
+    static SsPool<Ss_DROP_FK_IMPL_REQ> &pool(LocalProxy *proxy) {
+      return ((DbtcProxy *)proxy)->c_ss_DROP_FK_IMPL_REQ;
     }
   };
   SsPool<Ss_DROP_FK_IMPL_REQ> c_ss_DROP_FK_IMPL_REQ;
-  void execDROP_FK_IMPL_REQ(Signal*);
-  void sendDROP_FK_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execDROP_FK_IMPL_CONF(Signal*);
-  void execDROP_FK_IMPL_REF(Signal*);
-  void sendDROP_FK_IMPL_CONF(Signal*, Uint32 ssId);
+  void execDROP_FK_IMPL_REQ(Signal *);
+  void sendDROP_FK_IMPL_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execDROP_FK_IMPL_CONF(Signal *);
+  void execDROP_FK_IMPL_REF(Signal *);
+  void sendDROP_FK_IMPL_CONF(Signal *, Uint32 ssId);
 };
-
 
 #undef JAM_FILE_ID
 

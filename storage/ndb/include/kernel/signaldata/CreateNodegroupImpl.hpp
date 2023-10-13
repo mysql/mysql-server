@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 36
 
-
 struct CreateNodegroupImplReq {
   /**
    * Sender(s) / Reciver(s)
@@ -39,15 +38,16 @@ struct CreateNodegroupImplReq {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_IMPL_REQ(FILE *, const Uint32 *, Uint32,
+                                             Uint16);
 
   static constexpr Uint32 SignalLength = 6 + MAX_REPLICAS;
 
   enum {
-    RT_PARSE    = 0x1,
-    RT_PREPARE  = 0x2,
-    RT_ABORT    = 0x3,
-    RT_COMMIT   = 0x4,
+    RT_PARSE = 0x1,
+    RT_PREPARE = 0x2,
+    RT_ABORT = 0x3,
+    RT_COMMIT = 0x4,
     RT_COMPLETE = 0x5
   };
 
@@ -57,7 +57,7 @@ struct CreateNodegroupImplReq {
   Uint32 nodegroupId;
   Uint32 gci_hi;
   Uint32 gci_lo;
-  Uint32 nodes[MAX_REPLICAS]; // 0 terminated
+  Uint32 nodes[MAX_REPLICAS];  // 0 terminated
 };
 
 struct CreateNodegroupImplRef {
@@ -71,7 +71,8 @@ struct CreateNodegroupImplRef {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_IMPL_REF(FILE *, const Uint32 *, Uint32,
+                                             Uint16);
 
   static constexpr Uint32 SignalLength = 3;
 
@@ -91,7 +92,8 @@ struct CreateNodegroupImplConf {
   /**
    * For printing
    */
-  friend bool printCREATE_NODEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
+  friend bool printCREATE_NODEGROUP_IMPL_CONF(FILE *, const Uint32 *, Uint32,
+                                              Uint16);
 
   static constexpr Uint32 SignalLength = 4;
 
@@ -100,7 +102,6 @@ struct CreateNodegroupImplConf {
   Uint32 gci_hi;
   Uint32 gci_lo;
 };
-
 
 #undef JAM_FILE_ID
 

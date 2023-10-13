@@ -29,15 +29,15 @@
 
 #define JAM_FILE_ID 169
 
-
 class TuxBoundInfo {
   friend class Dblqh;
   friend class Dbtux;
-public:
+
+ public:
   // must match API (0-4 and no changes expected)
   enum BoundType {
-    BoundLE = 0,        // bit 1 for less/greater
-    BoundLT = 1,        // bit 0 for strict
+    BoundLE = 0,  // bit 1 for less/greater
+    BoundLT = 1,  // bit 0 for strict
     BoundGE = 2,
     BoundGT = 3,
     BoundEQ = 4,
@@ -56,7 +56,8 @@ public:
     TooMuchAttrInfo = 823
   };
   static constexpr Uint32 SignalLength = 3;
-private:
+
+ private:
   /*
    * Error code set by TUX.  Zero means no error.
    */
@@ -69,10 +70,9 @@ private:
    * Number of words of bound info included after fixed signal data.
    */
   Uint32 boundAiLength;
-  
+
   Uint32 data[1];
 };
-
 
 #undef JAM_FILE_ID
 

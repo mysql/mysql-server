@@ -29,32 +29,48 @@
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 
-#define ERROR(x) {ndbout_c((x));}
-#define ERROR1(x,y) {ndbout_c((x), (y));}
-#define ERROR2(x,y,z) {ndbout_c((x), (y), (z));}
-#define ERROR3(x,y,z,u) {ndbout_c((x), (y), (z), (u));}
-#define ERROR4(x,y,z,u,w) {ndbout_c((x), (y), (z), (u), (w));}
+#define ERROR(x) \
+  { ndbout_c((x)); }
+#define ERROR1(x, y) \
+  { ndbout_c((x), (y)); }
+#define ERROR2(x, y, z) \
+  { ndbout_c((x), (y), (z)); }
+#define ERROR3(x, y, z, u) \
+  { ndbout_c((x), (y), (z), (u)); }
+#define ERROR4(x, y, z, u, w) \
+  { ndbout_c((x), (y), (z), (u), (w)); }
 
 #define INIT_RANDOM(x) srand48((x))
-#define UI_RANDOM(x)   ((unsigned int)(lrand48()%(x)))
+#define UI_RANDOM(x) ((unsigned int)(lrand48() % (x)))
 
 #define ASSERT(cond, message) \
-  { if(!(cond)) { ERROR(message); exit(-1); }}
+  {                           \
+    if (!(cond)) {            \
+      ERROR(message);         \
+      exit(-1);               \
+    }                         \
+  }
 
 #ifdef DEBUG_ON
-#define DEBUG(x) {ndbout_c((x));}
-#define DEBUG1(x,y) {ndbout_c((x), (y));}
-#define DEBUG2(x,y,z) {ndbout_c((x), (y), (z));}
-#define DEBUG3(x,y,z,u) {ndbout_c((x), (y), (z), (u));}
-#define DEBUG4(x,y,z,u,w) {ndbout_c((x), (y), (z), (u), (w));}
-#define DEBUG5(x,y,z,u,w, v) {ndbout_c((x), (y), (z), (u), (w), (v));}
+#define DEBUG(x) \
+  { ndbout_c((x)); }
+#define DEBUG1(x, y) \
+  { ndbout_c((x), (y)); }
+#define DEBUG2(x, y, z) \
+  { ndbout_c((x), (y), (z)); }
+#define DEBUG3(x, y, z, u) \
+  { ndbout_c((x), (y), (z), (u)); }
+#define DEBUG4(x, y, z, u, w) \
+  { ndbout_c((x), (y), (z), (u), (w)); }
+#define DEBUG5(x, y, z, u, w, v) \
+  { ndbout_c((x), (y), (z), (u), (w), (v)); }
 #else
 #define DEBUG(x)
-#define DEBUG1(x,y)
-#define DEBUG2(x,y,z)
-#define DEBUG3(x,y,z,u)
-#define DEBUG4(x,y,z,u,w)
-#define DEBUG5(x,y,z,u,w, v)
+#define DEBUG1(x, y)
+#define DEBUG2(x, y, z)
+#define DEBUG3(x, y, z, u)
+#define DEBUG4(x, y, z, u, w)
+#define DEBUG5(x, y, z, u, w, v)
 #endif
 
 #endif

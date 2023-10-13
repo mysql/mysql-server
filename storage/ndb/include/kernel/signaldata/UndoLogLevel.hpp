@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 499
 
-
 class UndoLogLevelRep {
   /**
    * Sender(s)
@@ -43,12 +42,11 @@ class UndoLogLevelRep {
   friend class Dblqh;
   friend class DblqhProxy;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 1;
 
-private:
-
-  Uint32 levelUsed; // in percent
+ private:
+  Uint32 levelUsed;  // in percent
 };
 
 #undef JAM_FILE_ID

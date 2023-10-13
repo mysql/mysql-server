@@ -21,20 +21,18 @@
 
 #ifdef TEST_SPAN
 
-#include "util/require.h"
+#include "util/span.h"
 #include <array>
 #include <cstddef>
 #include <cstring>
-#include "util/span.h"
+#include "util/require.h"
 
 template <std::size_t Extent = ndb::dynamic_extent>
-int f(ndb::span<char, Extent> buf) noexcept
-{
+int f(ndb::span<char, Extent> buf) noexcept {
   return buf.size();
 }
 
-int main()
-{
+int main() {
   char buf[100];
   ndb::span sp(buf);
   f(sp);
@@ -42,12 +40,12 @@ int main()
   std::array<char, 20> arr;
   f(ndb::span(arr));
 
-  char* p = buf;
+  char *p = buf;
   std::size_t len = 8;
   f({p, len});  // Note extra braces {} around buffer argument.
 
-  char* begin = &buf[0];
-  char* end = &buf[100];
+  char *begin = &buf[0];
+  char *end = &buf[100];
   f({begin, end});  // Note extra braces {} around buffer argument.
 
   ndb::span vec(buf);

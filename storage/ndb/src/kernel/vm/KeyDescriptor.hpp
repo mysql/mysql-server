@@ -25,34 +25,30 @@
 #ifndef KEY_DESCRIPTOR_HPP
 #define KEY_DESCRIPTOR_HPP
 
-#include <ndb_types.h>
 #include <ndb_limits.h>
+#include <ndb_types.h>
 #include "CArray.hpp"
 
 #define JAM_FILE_ID 259
 
-
-struct KeyDescriptor
-{
-  KeyDescriptor () { 
+struct KeyDescriptor {
+  KeyDescriptor() {
     primaryTableId = RNIL;
-    noOfKeyAttr = hasCharAttr = noOfDistrKeys = noOfVarKeys = 0; 
+    noOfKeyAttr = hasCharAttr = noOfDistrKeys = noOfVarKeys = 0;
   }
-  
+
   Uint32 primaryTableId;
   Uint8 noOfKeyAttr;
   Uint8 hasCharAttr;
   Uint8 noOfDistrKeys;
   Uint8 noOfVarKeys;
-  struct KeyAttr 
-  {
+  struct KeyAttr {
     Uint32 attributeDescriptor;
-    CHARSET_INFO* charsetInfo;
+    CHARSET_INFO *charsetInfo;
   } keyAttr[MAX_ATTRIBUTES_IN_INDEX];
 };
 
 extern CArray<KeyDescriptor> g_key_descriptor_pool;
-
 
 #undef JAM_FILE_ID
 

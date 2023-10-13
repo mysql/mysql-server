@@ -38,42 +38,36 @@ class Defragger {
     NodeId m_node_id;
     // Data
     UtilBuffer m_buffer;
-    DefragBuffer(NodeId nodeId, Uint32 fragId) :
-      m_fragment_id(fragId), m_node_id(nodeId) {}
+    DefragBuffer(NodeId nodeId, Uint32 fragId)
+        : m_fragment_id(fragId), m_node_id(nodeId) {}
   };
-  Vector<DefragBuffer*> m_buffers;
+  Vector<DefragBuffer *> m_buffers;
 
-  DefragBuffer* find_buffer(NodeId nodeId, Uint32 fragId){
-    for (unsigned i = 0; i < m_buffers.size(); i++)
-    {
-      DefragBuffer* dbuf = m_buffers[i];
-      if (dbuf->m_node_id == nodeId &&
-          dbuf->m_fragment_id == fragId)
+  DefragBuffer *find_buffer(NodeId nodeId, Uint32 fragId) {
+    for (unsigned i = 0; i < m_buffers.size(); i++) {
+      DefragBuffer *dbuf = m_buffers[i];
+      if (dbuf->m_node_id == nodeId && dbuf->m_fragment_id == fragId)
         return dbuf;
     }
     return NULL;
   }
 
-  void erase_buffer(const DefragBuffer* dbuf){
-    for (unsigned i = 0; i < m_buffers.size(); i++)
-    {
-      if (m_buffers[i] == dbuf)
-      {
+  void erase_buffer(const DefragBuffer *dbuf) {
+    for (unsigned i = 0; i < m_buffers.size(); i++) {
+      if (m_buffers[i] == dbuf) {
         delete dbuf;
         m_buffers.erase(i);
         return;
       }
     }
-    assert(false); // Should never be reached
+    assert(false);  // Should never be reached
   }
 
-public:
+ public:
   Defragger() {}
-  ~Defragger()
-  {
-    for (unsigned i = m_buffers.size(); i > 0; --i)
-    {
-      delete m_buffers[i-1]; // free the memory of the fragment
+  ~Defragger() {
+    for (unsigned i = m_buffers.size(); i > 0; --i) {
+      delete m_buffers[i - 1];  // free the memory of the fragment
     }
     // m_buffers will be freed by ~Vector
   }
@@ -82,40 +76,34 @@ public:
     return true when complete signal received
   */
 
-  bool defragment(SimpleSignal* sig) {
-
-    if (!sig->isFragmented())
-      return true;
+  bool defragment(SimpleSignal *sig) {
+    if (!sig->isFragmented()) return true;
 
     Uint32 fragId = sig->getFragmentId();
     NodeId nodeId = refToNode(sig->header.theSendersBlockRef);
 
-    DefragBuffer* dbuf;
-    if(sig->isFirstFragment()){
-
+    DefragBuffer *dbuf;
+    if (sig->isFirstFragment()) {
       // Make sure buffer does not exist
-      if (find_buffer(nodeId, fragId))
-        abort();
+      if (find_buffer(nodeId, fragId)) abort();
 
       dbuf = new DefragBuffer(nodeId, fragId);
       m_buffers.push_back(dbuf);
 
     } else {
       dbuf = find_buffer(nodeId, fragId);
-      if (dbuf == NULL)
-        abort();
+      if (dbuf == NULL) abort();
     }
     if (dbuf->m_buffer.append(sig->ptr[0].p, sig->ptr[0].sz * sizeof(Uint32)))
-      abort(); // OOM
+      abort();  // OOM
 
-    if (!sig->isLastFragment())
-      return false;
+    if (!sig->isLastFragment()) return false;
 
     // Copy defragmented data into signal...
     delete[] sig->ptr[0].p;
     int length = dbuf->m_buffer.length();
     int words = ndb_ceil_div(length, 4);
-    Uint32* p = new Uint32[words];
+    Uint32 *p = new Uint32[words];
     memcpy(p, dbuf->m_buffer.get_data(), length);
     sig->ptr[0].p = p;
     sig->ptr[0].sz = words;
@@ -125,21 +113,17 @@ public:
     return true;
   }
 
-
   /*
     clear any unassembled signal buffers from node
   */
   void node_failed(NodeId nodeId) {
-    for (unsigned i = m_buffers.size(); i > 0; --i)
-    {
-      if (m_buffers[i-1]->m_node_id == nodeId)
-      {
-        delete m_buffers[i]; // free the memory of the signal fragment
-	m_buffers.erase(i); // remove the reference from the vector.
+    for (unsigned i = m_buffers.size(); i > 0; --i) {
+      if (m_buffers[i - 1]->m_node_id == nodeId) {
+        delete m_buffers[i];  // free the memory of the signal fragment
+        m_buffers.erase(i);   // remove the reference from the vector.
       }
     }
   }
-
 };
 
 #endif

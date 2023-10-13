@@ -35,10 +35,8 @@
  * The values of dblqh_tcconnect_state should match values in
  * Dblqh::TcConnectionrec::TransactionState.
  */
-struct dblqh_tcconnect_state
-{
-  enum
-  {
+struct dblqh_tcconnect_state {
+  enum {
     IDLE = 0,
     WAIT_ACC = 1,
     WAIT_TUP = 4,

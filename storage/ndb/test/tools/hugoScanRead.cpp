@@ -26,43 +26,46 @@
 
 #include <NdbOut.hpp>
 
-#include <NdbApi.hpp>
-#include <NDBT.hpp> 
 #include <NdbSleep.h>
 #include <getarg.h>
+#include <NDBT.hpp>
+#include <NdbApi.hpp>
 
 #include <HugoTransactions.hpp>
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
 
   int _records = 0;
   int _loops = 1;
   int _abort = 0;
   int _parallelism = 1;
-  const char* _tabname = NULL, *db = 0;
+  const char *_tabname = NULL, *db = 0;
   int _help = 0;
   int lock = NdbOperation::LM_Read;
   int sorted = 0;
 
   struct getargs args[] = {
-    { "aborts", 'a', arg_integer, &_abort, "percent of transactions that are aborted", "abort%" },
-    { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
-    { "parallelism", 'p', arg_integer, &_parallelism, "parallelism(1-240)", "para" },
-    { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "lock", 'm', arg_integer, &lock, "lock mode", "" },
-    { "sorted", 's', arg_flag, &sorted, "sorted", "" },
-    { "database", 'd', arg_string, &db, "Database", "" }
-  };
+      {"aborts", 'a', arg_integer, &_abort,
+       "percent of transactions that are aborted", "abort%"},
+      {"loops", 'l', arg_integer, &_loops,
+       "number of times to run this program(0=infinite loop)", "loops"},
+      {"parallelism", 'p', arg_integer, &_parallelism, "parallelism(1-240)",
+       "para"},
+      {"records", 'r', arg_integer, &_records, "Number of records", "recs"},
+      {"usage", '?', arg_flag, &_help, "Print help", ""},
+      {"lock", 'm', arg_integer, &lock, "lock mode", ""},
+      {"sorted", 's', arg_flag, &sorted, "sorted", ""},
+      {"database", 'd', arg_string, &db, "Database", ""}};
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
-    " tabname\n"\
-    "This program will scan read all records in one table in Ndb.\n"\
-    "It will verify every column read by calculating the expected value.\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || argv[optind] == NULL || _help) {
+  char desc[] =
+      " tabname\n"
+      "This program will scan read all records in one table in Ndb.\n"
+      "It will verify every column read by calculating the expected value.\n";
+
+  if (getarg(args, num_args, argc, argv, &optind) || argv[optind] == NULL ||
+      _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
@@ -70,66 +73,52 @@ int main(int argc, const char** argv){
 
   // Connect to Ndb
   Ndb_cluster_connection con;
-  if(con.connect(12, 5, 1) != 0)
-  {
+  if (con.connect(12, 5, 1) != 0) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb( &con, db ? db : "TEST_DB" );
+  Ndb MyNdb(&con, db ? db : "TEST_DB");
 
-  if(MyNdb.init() != 0){
+  if (MyNdb.init() != 0) {
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  while(MyNdb.waitUntilReady() != 0)
+  while (MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
-  const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
-  if(pTab == NULL){
+  const NdbDictionary::Table *pTab =
+      NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
+  if (pTab == NULL) {
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  const NdbDictionary::Index * pIdx = 0;
-  if(optind+1 < argc)
-  {
-    pIdx = MyNdb.getDictionary()->getIndex(argv[optind+1], _tabname);
-    if(!pIdx)
-      ndbout << " Index " << argv[optind+1] << " not found" << endl;
-    else
-      if(pIdx->getType() != NdbDictionary::Index::OrderedIndex)
-      {
-	ndbout << " Index " << argv[optind+1] << " is not scannable" << endl;
-	pIdx = 0;
-      }
+  const NdbDictionary::Index *pIdx = 0;
+  if (optind + 1 < argc) {
+    pIdx = MyNdb.getDictionary()->getIndex(argv[optind + 1], _tabname);
+    if (!pIdx)
+      ndbout << " Index " << argv[optind + 1] << " not found" << endl;
+    else if (pIdx->getType() != NdbDictionary::Index::OrderedIndex) {
+      ndbout << " Index " << argv[optind + 1] << " is not scannable" << endl;
+      pIdx = 0;
+    }
   }
-  
+
   HugoTransactions hugoTrans(*pTab);
   int i = 0;
-  while (i<_loops || _loops==0) {
+  while (i < _loops || _loops == 0) {
     ndbout << i << ": ";
-    if(!pIdx)
-    {
-      if(hugoTrans.scanReadRecords(&MyNdb, 
-				   0,
-				   _abort,
-				   _parallelism,
-				   (NdbOperation::LockMode)lock) != 0)
-      {
-	return NDBT_ProgramExit(NDBT_FAILED);
+    if (!pIdx) {
+      if (hugoTrans.scanReadRecords(&MyNdb, 0, _abort, _parallelism,
+                                    (NdbOperation::LockMode)lock) != 0) {
+        return NDBT_ProgramExit(NDBT_FAILED);
       }
-    }
-    else
-    {
-      if(hugoTrans.scanReadRecords(&MyNdb, pIdx, 
-				   0,
-				   _abort,
-				   _parallelism,
-				   (NdbOperation::LockMode)lock,
-				   sorted) != 0)
-      {
-	return NDBT_ProgramExit(NDBT_FAILED);
+    } else {
+      if (hugoTrans.scanReadRecords(&MyNdb, pIdx, 0, _abort, _parallelism,
+                                    (NdbOperation::LockMode)lock,
+                                    sorted) != 0) {
+        return NDBT_ProgramExit(NDBT_FAILED);
       }
     }
     i++;

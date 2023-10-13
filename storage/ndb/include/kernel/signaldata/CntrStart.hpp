@@ -29,23 +29,22 @@
 
 #define JAM_FILE_ID 191
 
-
 /**
- * 
+ *
  */
 class CntrStartReq {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
-  
-  friend bool printCNTR_START_REQ(FILE*, const Uint32 *, Uint32, Uint16);
-  
-public:
+
+  friend bool printCNTR_START_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 OldSignalLength = 3;
   static constexpr Uint32 SignalLength = 4;
-private:
-  
+
+ private:
   Uint32 nodeId;
   Uint32 startType;
   Uint32 lastGci;
@@ -57,18 +56,15 @@ class CntrStartRef {
    * Sender(s) / Reciver(s)
    */
   friend class Ndbcntr;
-  
-  friend bool printCNTR_START_REF(FILE*, const Uint32 *, Uint32, Uint16);
-public:
+
+  friend bool printCNTR_START_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 2;
 
-  enum ErrorCode {
-    OK = 0,
-    NotMaster = 1,
-    StopInProgress = 2
-  };
-private:
-  
+  enum ErrorCode { OK = 0, NotMaster = 1, StopInProgress = 2 };
+
+ private:
   Uint32 errorCode;
   Uint32 masterNodeId;
 };
@@ -79,15 +75,14 @@ class CntrStartConf {
    */
   friend class Ndbcntr;
   friend struct UpgradeStartup;
-  
-  friend bool printCNTR_START_CONF(FILE*, const Uint32 *, Uint32, Uint16);
 
-public:
+  friend bool printCNTR_START_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 4;
   static constexpr Uint32 SignalLength_v1 = 4 + 2 * 2;
-  
-private:
-  
+
+ private:
   Uint32 startType;
   Uint32 startGci;
   Uint32 masterNodeId;
@@ -96,8 +91,7 @@ private:
   Uint32 startingNodes_v1[NdbNodeBitmask48::Size];
 };
 
-struct CntrWaitRep
-{
+struct CntrWaitRep {
   Uint32 nodeId;
   Uint32 waitPoint;
 
@@ -107,28 +101,22 @@ struct CntrWaitRep
   Uint32 request;
   Uint32 sp;
 
-  enum Request
-  {
-    WaitFor = 1,
-    Grant = 2
-  };
+  enum Request { WaitFor = 1, Grant = 2 };
 
   static constexpr Uint32 SignalLength = 4;
 
-  enum WaitPos
-  {
-    ZWAITPOINT_4_1  = 1
-    ,ZWAITPOINT_4_2 = 2
-    ,ZWAITPOINT_5_1 = 3
-    ,ZWAITPOINT_5_2 = 4
-    ,ZWAITPOINT_6_1 = 5
-    ,ZWAITPOINT_6_2 = 6
-    ,ZWAITPOINT_7_1 = 7
-    ,ZWAITPOINT_7_2 = 8
-    ,ZWAITPOINT_4_2_TO = 9 // We are forced to TO (during SR)
+  enum WaitPos {
+    ZWAITPOINT_4_1 = 1,
+    ZWAITPOINT_4_2 = 2,
+    ZWAITPOINT_5_1 = 3,
+    ZWAITPOINT_5_2 = 4,
+    ZWAITPOINT_6_1 = 5,
+    ZWAITPOINT_6_2 = 6,
+    ZWAITPOINT_7_1 = 7,
+    ZWAITPOINT_7_2 = 8,
+    ZWAITPOINT_4_2_TO = 9  // We are forced to TO (during SR)
   };
 };
-
 
 #undef JAM_FILE_ID
 

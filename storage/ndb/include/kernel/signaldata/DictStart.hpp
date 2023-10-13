@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 126
 
-
 class DictStartReq {
   /**
    * Sender(s)
@@ -38,15 +37,14 @@ class DictStartReq {
    */
   friend class Dbdict;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
-private:
-  
+
+ private:
   Uint32 restartGci;
   Uint32 senderRef;
   Uint32 senderData;
 };
-
 
 #undef JAM_FILE_ID
 

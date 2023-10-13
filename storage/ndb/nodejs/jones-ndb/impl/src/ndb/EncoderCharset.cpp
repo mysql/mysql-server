@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -28,17 +28,16 @@
 #include <string.h>
 
 #include <m_ctype.h>
-#include <mysql.h>
 #include <my_sys.h>
+#include <mysql.h>
 
-#include <NdbApi.hpp> 
+#include <NdbApi.hpp>
 
 #include "EncoderCharset.h"
 
 /* C++ initializes this to zeros:
-*/
-EncoderCharset * csinfo_table[MY_ALL_CHARSETS_SIZE];
-
+ */
+EncoderCharset *csinfo_table[MY_ALL_CHARSETS_SIZE];
 
 inline bool colIsUtf16le(const NdbDictionary::Column *col) {
   return (strncmp("utf16le", col->getCharset()->csname, 7) == 0);
@@ -60,18 +59,17 @@ inline bool colIsAscii(const NdbDictionary::Column *col) {
   return (strncmp("ascii", col->getCharset()->csname, 5) == 0);
 }
 
-inline bool colIsMultibyte(const NdbDictionary::Column *col) { 
+inline bool colIsMultibyte(const NdbDictionary::Column *col) {
   return (col->getCharset()->mbminlen > 1);
 }
 
+EncoderCharset *createEncoderCharset(const NdbDictionary::Column *col) {
+  EncoderCharset *csinfo = new EncoderCharset;
 
-EncoderCharset * createEncoderCharset(const NdbDictionary::Column *col) {
-  EncoderCharset * csinfo = new EncoderCharset;
-  
   csinfo->name = col->getCharset()->csname;
   csinfo->collationName = col->getCharset()->m_coll_name;
-  csinfo->minlen = (short) col->getCharset()->mbminlen;
-  csinfo->maxlen = (short) col->getCharset()->mbmaxlen;
+  csinfo->minlen = (short)col->getCharset()->mbminlen;
+  csinfo->maxlen = (short)col->getCharset()->mbmaxlen;
   csinfo->isMultibyte = colIsMultibyte(col);
   csinfo->isAscii = colIsAscii(col);
   csinfo->isUnicode = colIsUnicode(col);
@@ -81,11 +79,11 @@ EncoderCharset * createEncoderCharset(const NdbDictionary::Column *col) {
   return csinfo;
 }
 
-
-const EncoderCharset * getEncoderCharsetForColumn(const NdbDictionary::Column *col) {
+const EncoderCharset *getEncoderCharsetForColumn(
+    const NdbDictionary::Column *col) {
   int csnum = col->getCharsetNumber();
   EncoderCharset *csinfo = csinfo_table[csnum];
-  if(csinfo == 0) {
+  if (csinfo == 0) {
     csinfo = createEncoderCharset(col);
     csinfo_table[csnum] = csinfo;
   }

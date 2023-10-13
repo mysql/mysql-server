@@ -26,21 +26,20 @@
 #define CARRAY_HPP
 
 #include "ErrorReporter.hpp"
-#include "ndbd_malloc.hpp"
 #include "Pool.hpp"
+#include "ndbd_malloc.hpp"
 
 #define JAM_FILE_ID 271
-
 
 /**
  * Template class used for implementing an c - array
  */
 template <class T>
 class CArray {
-public:
+ public:
   CArray();
   ~CArray();
-  
+
   /**
    * Set the size of the pool
    *
@@ -52,38 +51,36 @@ public:
    * Get size
    */
   Uint32 getSize() const;
-  
+
   /**
-   * Update p value for ptr according to i value 
+   * Update p value for ptr according to i value
    */
   void getPtr(Ptr<T> &) const;
-  
+
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i) const;
+  T *getPtr(Uint32 i) const;
 
   /**
-   * Update p & i value for ptr according to <b>i</b> value 
+   * Update p & i value for ptr according to <b>i</b> value
    */
   void getPtr(Ptr<T> &, Uint32 i) const;
 
-private:
+ private:
   Uint32 size;
-  T * theArray;
+  T *theArray;
 };
 
 template <class T>
-inline
-CArray<T>::CArray(){
+inline CArray<T>::CArray() {
   size = 0;
   theArray = 0;
 }
 
 template <class T>
-inline
-CArray<T>::~CArray(){
-  if(theArray != 0){
+inline CArray<T>::~CArray() {
+  if (theArray != 0) {
     ndbd_free(theArray, size * sizeof(T));
     theArray = 0;
   }
@@ -95,50 +92,39 @@ CArray<T>::~CArray(){
  * Note, can currently only be called once
  */
 template <class T>
-inline
-bool
-CArray<T>::setSize(Uint32 noOfElements, bool exit_on_error){
-  if(size == noOfElements)
-    return true;
-  
+inline bool CArray<T>::setSize(Uint32 noOfElements, bool exit_on_error) {
+  if (size == noOfElements) return true;
+
   theArray = (T *)ndbd_malloc(noOfElements * sizeof(T));
-  if(theArray == 0)
-  {
-    if (!exit_on_error)
-      return false;
-    ErrorReporter::handleAssert("CArray<T>::setSize malloc failed",
-				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
-    return false; // not reached
+  if (theArray == 0) {
+    if (!exit_on_error) return false;
+    ErrorReporter::handleAssert("CArray<T>::setSize malloc failed", __FILE__,
+                                __LINE__, NDBD_EXIT_MEMALLOC);
+    return false;  // not reached
   }
   size = noOfElements;
   return true;
 }
 
-template<class T>
-inline
-Uint32
-CArray<T>::getSize() const {
+template <class T>
+inline Uint32 CArray<T>::getSize() const {
   return size;
 }
 
 template <class T>
-inline
-void
-CArray<T>::getPtr(Ptr<T> & ptr) const {
+inline void CArray<T>::getPtr(Ptr<T> &ptr) const {
   const Uint32 i = ptr.i;
-  if(i < size){
+  if (i < size) {
     ptr.p = &theArray[i];
     return;
   } else {
     ErrorReporter::handleAssert("CArray<T>::getPtr", __FILE__, __LINE__);
   }
 }
-  
+
 template <class T>
-inline
-T * 
-CArray<T>::getPtr(Uint32 i) const {
-  if(i < size){
+inline T *CArray<T>::getPtr(Uint32 i) const {
+  if (i < size) {
     return &theArray[i];
   } else {
     ErrorReporter::handleAssert("CArray<T>::getPtr", __FILE__, __LINE__);
@@ -147,18 +133,15 @@ CArray<T>::getPtr(Uint32 i) const {
 }
 
 template <class T>
-inline
-void
-CArray<T>::getPtr(Ptr<T> & ptr, Uint32 i) const {
+inline void CArray<T>::getPtr(Ptr<T> &ptr, Uint32 i) const {
   ptr.i = i;
-  if(i < size){
+  if (i < size) {
     ptr.p = &theArray[i];
     return;
   } else {
     ErrorReporter::handleAssert("CArray<T>::getPtr", __FILE__, __LINE__);
   }
 }
-
 
 #undef JAM_FILE_ID
 

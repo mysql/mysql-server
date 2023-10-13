@@ -31,47 +31,42 @@
 
 #define JAM_FILE_ID 247
 
-
 #define MAX_NO_OF_ZERO_TQ 128
 #define MAX_NO_OF_SHORT_TQ 512
 #define MAX_NO_OF_LONG_TQ 512
-#define MAX_NO_OF_TQ (MAX_NO_OF_ZERO_TQ + MAX_NO_OF_SHORT_TQ + \
-                      MAX_NO_OF_LONG_TQ)
+#define MAX_NO_OF_TQ \
+  (MAX_NO_OF_ZERO_TQ + MAX_NO_OF_SHORT_TQ + MAX_NO_OF_LONG_TQ)
 #define NULL_TQ_ENTRY 65535
 
-struct TimeStruct
-{
+struct TimeStruct {
   Uint16 delay_time;
   Uint16 job_index;
 };
 
-union TimerEntry
-{
+union TimerEntry {
   struct TimeStruct time_struct;
   Uint32 copy_struct;
 };
 
-class TimeQueue
-{
-public:
+class TimeQueue {
+ public:
   TimeQueue();
   ~TimeQueue();
 
-  void   insert(Signal25* signal, Uint32 delayTime);
-  void   clear();
-  void   scanTable(); // Called once per millisecond
-  void   scanZeroTimeQueue(); // Called after each doJob call
+  void insert(Signal25 *signal, Uint32 delayTime);
+  void clear();
+  void scanTable();          // Called once per millisecond
+  void scanZeroTimeQueue();  // Called after each doJob call
   Uint32 getIndex();
-  void   releaseIndex(Uint32 aIndex);
-  void   recount_timers();
-  
-private:
-  TimerEntry  theZeroQueue[MAX_NO_OF_ZERO_TQ];
-  TimerEntry  theShortQueue[MAX_NO_OF_SHORT_TQ];
-  TimerEntry  theLongQueue[MAX_NO_OF_LONG_TQ];
-  Uint16     theFreeIndex[MAX_NO_OF_TQ];
-};
+  void releaseIndex(Uint32 aIndex);
+  void recount_timers();
 
+ private:
+  TimerEntry theZeroQueue[MAX_NO_OF_ZERO_TQ];
+  TimerEntry theShortQueue[MAX_NO_OF_SHORT_TQ];
+  TimerEntry theLongQueue[MAX_NO_OF_LONG_TQ];
+  Uint16 theFreeIndex[MAX_NO_OF_TQ];
+};
 
 #undef JAM_FILE_ID
 

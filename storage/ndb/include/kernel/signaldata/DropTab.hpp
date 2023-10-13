@@ -29,15 +29,10 @@
 
 #define JAM_FILE_ID 138
 
-
 struct DropTabReq {
   static constexpr Uint32 SignalLength = 5;
 
-  enum RequestType {
-    OnlineDropTab = 0,
-    CreateTabDrop = 1,
-    RestartDropTab = 2
-  };
+  enum RequestType { OnlineDropTab = 0, CreateTabDrop = 1, RestartDropTab = 2 };
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -59,19 +54,18 @@ struct DropTabRef {
 
   enum ErrorCode {
     NoSuchTable = 1,
-    DropWoPrep = 2, // Calling Drop with first calling PrepDrop
+    DropWoPrep = 2,  // Calling Drop with first calling PrepDrop
     PrepDropInProgress = 3,
     DropInProgress = 4,
     NF_FakeErrorREF = 5,
     InvalidTableState = 6
   };
-  
+
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
   Uint32 errorCode;
 };
-
 
 #undef JAM_FILE_ID
 

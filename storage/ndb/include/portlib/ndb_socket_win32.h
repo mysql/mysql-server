@@ -25,11 +25,11 @@
 /* Link with winsock library */
 #pragma comment(lib, "ws2_32")
 
-#include <Winsock2.h> // INVALID_SOCKET
+#include <Winsock2.h>  // INVALID_SOCKET
 #include <ws2tcpip.h>
 
-#include <string>
 #include <cstring>
+#include <string>
 
 #include <ndb_global.h>
 #include "my_stacktrace.h"
@@ -44,27 +44,19 @@ struct ndb_socket_t {
   socket_t s = INVALID_SOCKET;
 };
 
-static inline
-int ndb_setsockopt(ndb_socket_t, int, int, const int *);
+static inline int ndb_setsockopt(ndb_socket_t, int, int, const int *);
 
-static inline
-std::string ndb_socket_to_string(ndb_socket_t s)
-{
+static inline std::string ndb_socket_to_string(ndb_socket_t s) {
   char buff[20];
   std::string str;
-  snprintf(buff, sizeof(buff), "%p", (void *) s.s);
+  snprintf(buff, sizeof(buff), "%p", (void *)s.s);
   str.assign(buff);
   return str;
 }
 
-static inline int ndb_socket_errno()
-{
-  return WSAGetLastError();
-}
+static inline int ndb_socket_errno() { return WSAGetLastError(); }
 
-static inline
-std::string ndb_socket_err_message(int error_code)
-{
+static inline std::string ndb_socket_err_message(int error_code) {
   LPTSTR tmp_str = NULL;
   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_IGNORE_INSERTS |
@@ -76,51 +68,36 @@ std::string ndb_socket_err_message(int error_code)
   return err_str;
 }
 
-static inline
-int ndb_socket_configure_reuseaddr(ndb_socket_t s, int enable)
-{
+static inline int ndb_socket_configure_reuseaddr(ndb_socket_t s, int enable) {
   const int on = enable;
   return ndb_setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &on);
 }
 
-static inline
-int ndb_socket_shutdown_both(ndb_socket_t s)
-{
+static inline int ndb_socket_shutdown_both(ndb_socket_t s) {
   return shutdown(s.s, SD_BOTH);
 }
 
-static inline
-int ndb_socket_close(ndb_socket_t s)
-{
-  return closesocket(s.s);
-}
+static inline int ndb_socket_close(ndb_socket_t s) { return closesocket(s.s); }
 
-static inline
-int ndb_socket_nonblock(ndb_socket_t s, int enable)
-{
+static inline int ndb_socket_nonblock(ndb_socket_t s, int enable) {
   unsigned long ul = enable;
 
-  if(ioctlsocket(s.s, FIONBIO, &ul))
-    return ndb_socket_errno();
+  if (ioctlsocket(s.s, FIONBIO, &ul)) return ndb_socket_errno();
 
   return 0;
 }
 
-static inline
-ssize_t ndb_recv(ndb_socket_t s, char* buf, size_t len, int flags)
-{
-  int ret= recv(s.s, buf, (int)len, flags);
-  if (ret == SOCKET_ERROR)
-    return -1;
+static inline ssize_t ndb_recv(ndb_socket_t s, char *buf, size_t len,
+                               int flags) {
+  int ret = recv(s.s, buf, (int)len, flags);
+  if (ret == SOCKET_ERROR) return -1;
   return ret;
 }
 
-static inline
-ssize_t ndb_send(ndb_socket_t s, const char* buf, size_t len, int flags)
-{
-  int ret= send(s.s, buf, (int)len, flags);
-  if (ret == SOCKET_ERROR)
-    return -1;
+static inline ssize_t ndb_send(ndb_socket_t s, const char *buf, size_t len,
+                               int flags) {
+  int ret = send(s.s, buf, (int)len, flags);
+  if (ret == SOCKET_ERROR) return -1;
   return ret;
 }
 
@@ -130,32 +107,27 @@ ssize_t ndb_send(ndb_socket_t s, const char* buf, size_t len, int flags)
  * just with different names for the members.
  */
 struct iovec {
-  u_long iov_len;   /* 'u_long len' in WSABUF */
-  void*  iov_base;  /* 'char*  buf' in WSABUF */
+  u_long iov_len; /* 'u_long len' in WSABUF */
+  void *iov_base; /* 'char*  buf' in WSABUF */
 };
 
-static inline
-ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov, int iovcnt)
-{
-  DWORD rv=0;
-  if (WSASend(s.s,
-              reinterpret_cast<LPWSABUF>(const_cast<struct iovec *>(iov)),
+static inline ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov,
+                                        int iovcnt) {
+  DWORD rv = 0;
+  if (WSASend(s.s, reinterpret_cast<LPWSABUF>(const_cast<struct iovec *>(iov)),
               iovcnt, &rv, 0, 0, 0) == SOCKET_ERROR)
     return -1;
   return rv;
 }
 
-
-static inline
-int ndb_poll_sockets(posix_poll_fd *fdarray, unsigned long nfds, int timeout)
-{
-  if (nfds == 0)
-  {
+static inline int ndb_poll_sockets(posix_poll_fd *fdarray, unsigned long nfds,
+                                   int timeout) {
+  if (nfds == 0) {
     Sleep(timeout);
     return 0;  // "timeout occurred"
   }
   int r = WSAPoll(fdarray, nfds, timeout);
-  if(r == SOCKET_ERROR) {
+  if (r == SOCKET_ERROR) {
     return -1;
   }
   return r;

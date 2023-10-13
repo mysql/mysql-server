@@ -74,31 +74,31 @@ class NdbRecord;
  * See @ref ndbapi_simple_index.cpp for details of usage.
  */
 class NdbDictionary {
-public:
-  NdbDictionary() {}                          /* Remove gcc warning */
+ public:
+  NdbDictionary() {} /* Remove gcc warning */
   /**
    * @class Object
    * @brief Meta information about a database object (a table, index, etc)
    */
   class Object {
-  public:
-    Object() {}                               /* Remove gcc warning */
-    virtual ~Object() {}                      /* Remove gcc warning */
+   public:
+    Object() {}          /* Remove gcc warning */
+    virtual ~Object() {} /* Remove gcc warning */
     /**
      * Status of object
      */
     enum Status {
-      New,                    ///< The object only exists in memory and
-                              ///< has not been created in the NDB Kernel
-      Changed,                ///< The object has been modified in memory
-                              ///< and has to be committed in NDB Kernel for
-                              ///< changes to take effect
-      Retrieved,              ///< The object exists and has been read
-                              ///< into main memory from NDB Kernel
-      Invalid,                ///< The object has been invalidated
-                              ///< and should not be used
-      Altered                 ///< Table has been altered in NDB kernel
-                              ///< but is still valid for usage
+      New,        ///< The object only exists in memory and
+                  ///< has not been created in the NDB Kernel
+      Changed,    ///< The object has been modified in memory
+                  ///< and has to be committed in NDB Kernel for
+                  ///< changes to take effect
+      Retrieved,  ///< The object exists and has been read
+                  ///< into main memory from NDB Kernel
+      Invalid,    ///< The object has been invalidated
+                  ///< and should not be used
+      Altered     ///< Table has been altered in NDB kernel
+                  ///< but is still valid for usage
     };
 
     /**
@@ -117,20 +117,20 @@ public:
      * Object type
      */
     enum Type {
-      TypeUndefined = 0,      ///< Undefined
-      SystemTable = 1,        ///< System table
-      UserTable = 2,          ///< User table (may be temporary)
-      UniqueHashIndex = 3,    ///< Unique un-ordered hash index
-      OrderedIndex = 6,       ///< Non-unique ordered index
-      HashIndexTrigger = 7,   ///< Index maintenance, internal
-      IndexTrigger = 8,       ///< Index maintenance, internal
-      SubscriptionTrigger = 9,///< Backup or replication, internal
-      ReadOnlyConstraint = 10,///< Trigger, internal
-      TableEvent = 11,        ///< Table event
-      Tablespace = 20,        ///< Tablespace
-      LogfileGroup = 21,      ///< Logfile group
-      Datafile = 22,          ///< Datafile
-      Undofile = 23,          ///< Undofile
+      TypeUndefined = 0,        ///< Undefined
+      SystemTable = 1,          ///< System table
+      UserTable = 2,            ///< User table (may be temporary)
+      UniqueHashIndex = 3,      ///< Unique un-ordered hash index
+      OrderedIndex = 6,         ///< Non-unique ordered index
+      HashIndexTrigger = 7,     ///< Index maintenance, internal
+      IndexTrigger = 8,         ///< Index maintenance, internal
+      SubscriptionTrigger = 9,  ///< Backup or replication, internal
+      ReadOnlyConstraint = 10,  ///< Trigger, internal
+      TableEvent = 11,          ///< Table event
+      Tablespace = 20,          ///< Tablespace
+      LogfileGroup = 21,        ///< Logfile group
+      Datafile = 22,            ///< Datafile
+      Undofile = 23,            ///< Undofile
       ReorgTrigger = 19,
       HashMap = 24,
       ForeignKey = 25,
@@ -143,22 +143,22 @@ public:
      * Object state
      */
     enum State {
-      StateUndefined = 0,     ///< Undefined
-      StateOffline = 1,       ///< Offline, not usable
-      StateBuilding = 2,      ///< Building, not yet usable
-      StateDropping = 3,      ///< Offlining or dropping, not usable
-      StateOnline = 4,        ///< Online, usable
-      ObsoleteStateBackup = 5,///< Online, being backed-up, usable
-      StateBroken = 9         ///< Broken, should be dropped and re-created
+      StateUndefined = 0,       ///< Undefined
+      StateOffline = 1,         ///< Offline, not usable
+      StateBuilding = 2,        ///< Building, not yet usable
+      StateDropping = 3,        ///< Offlining or dropping, not usable
+      StateOnline = 4,          ///< Online, usable
+      ObsoleteStateBackup = 5,  ///< Online, being backed-up, usable
+      StateBroken = 9           ///< Broken, should be dropped and re-created
     };
 
     /**
      * Object store
      */
     enum Store {
-      StoreUndefined = 0,     ///< Undefined
-      StoreNotLogged = 1,     ///< Object or data deleted on system restart
-      StorePermanent = 2      ///< Permanent. logged to disk
+      StoreUndefined = 0,  ///< Undefined
+      StoreNotLogged = 1,  ///< Object or data deleted on system restart
+      StorePermanent = 2   ///< Permanent. logged to disk
     };
 
     /**
@@ -173,11 +173,11 @@ public:
      * be changed.
      */
     enum FragmentType {
-      FragUndefined = 0,      ///< Fragmentation type undefined or default
-      FragSingle = 1,         ///< Only one fragment
-      FragAllSmall = 2,       ///< One fragment per node, default
-      FragAllMedium = 3,      ///< two fragments per node
-      FragAllLarge = 4,       ///< Four fragments per node.
+      FragUndefined = 0,  ///< Fragmentation type undefined or default
+      FragSingle = 1,     ///< Only one fragment
+      FragAllSmall = 2,   ///< One fragment per node, default
+      FragAllMedium = 3,  ///< two fragments per node
+      FragAllLarge = 4,   ///< Four fragments per node.
       DistrKeyHash = 5,
       DistrKeyLin = 6,
       UserDefined = 7,
@@ -210,8 +210,7 @@ public:
       /**
        * Use one fragment per LDM per nodegroup
        */
-      PartitionBalance_ForRAByLDM =
-        NDB_PARTITION_BALANCE_FOR_RA_BY_LDM,
+      PartitionBalance_ForRAByLDM = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM,
 
       /**
        * Use one fragment per node
@@ -224,16 +223,16 @@ public:
       PartitionBalance_ForRAByNode = NDB_PARTITION_BALANCE_FOR_RA_BY_NODE,
     };
 
-    Object(const Object&) = default;
-  private:
-    Object&operator=(const Object&);
+    Object(const Object &) = default;
+
+   private:
+    Object &operator=(const Object &);
   };
 
-  class Dictionary; // Forward declaration
+  class Dictionary;  // Forward declaration
 
-  class ObjectId : public Object
-  {
-  public:
+  class ObjectId : public Object {
+   public:
     ObjectId();
     ~ObjectId() override;
 
@@ -249,17 +248,17 @@ public:
 
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbDictObjectImpl;
-    class NdbDictObjectImpl & m_impl;
+    class NdbDictObjectImpl &m_impl;
 
-    ObjectId(const ObjectId&); // Not impl.
-    ObjectId&operator=(const ObjectId&);
+    ObjectId(const ObjectId &);  // Not impl.
+    ObjectId &operator=(const ObjectId &);
   };
 
-  class Table; // forward declaration
-  class Tablespace; // forward declaration
-  class HashMap; // Forward
+  class Table;       // forward declaration
+  class Tablespace;  // forward declaration
+  class HashMap;     // Forward
 
   /**
    * @class Column
@@ -279,42 +278,61 @@ public:
    * constructing such formats.  NDB kernel checks them however.
    */
   class Column {
-  public:
+   public:
     /**
      * The builtin column types
      */
     enum Type {
-      Undefined = NDB_TYPE_UNDEFINED,   ///< Undefined
-      Tinyint = NDB_TYPE_TINYINT,       ///< 8 bit. 1 byte signed integer, can be used in array
-      Tinyunsigned = NDB_TYPE_TINYUNSIGNED,  ///< 8 bit. 1 byte unsigned integer, can be used in array
-      Smallint = NDB_TYPE_SMALLINT,      ///< 16 bit. 2 byte signed integer, can be used in array
-      Smallunsigned = NDB_TYPE_SMALLUNSIGNED, ///< 16 bit. 2 byte unsigned integer, can be used in array
-      Mediumint = NDB_TYPE_MEDIUMINT,     ///< 24 bit. 3 byte signed integer, can be used in array
-      Mediumunsigned = NDB_TYPE_MEDIUMUNSIGNED,///< 24 bit. 3 byte unsigned integer, can be used in array
-      Int = NDB_TYPE_INT,           ///< 32 bit. 4 byte signed integer, can be used in array
-      Unsigned = NDB_TYPE_UNSIGNED,      ///< 32 bit. 4 byte unsigned integer, can be used in array
-      Bigint = NDB_TYPE_BIGINT,        ///< 64 bit. 8 byte signed integer, can be used in array
-      Bigunsigned = NDB_TYPE_BIGUNSIGNED,   ///< 64 Bit. 8 byte signed integer, can be used in array
-      Float = NDB_TYPE_FLOAT,         ///< 32-bit float. 4 bytes float, can be used in array
-      Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
-      Olddecimal = NDB_TYPE_OLDDECIMAL,    ///< MySQL < 5.0 signed decimal,  Precision, Scale
+      Undefined = NDB_TYPE_UNDEFINED,  ///< Undefined
+      Tinyint = NDB_TYPE_TINYINT,      ///< 8 bit. 1 byte signed integer, can be
+                                       ///< used in array
+      Tinyunsigned = NDB_TYPE_TINYUNSIGNED,  ///< 8 bit. 1 byte unsigned
+                                             ///< integer, can be used in array
+      Smallint = NDB_TYPE_SMALLINT,  ///< 16 bit. 2 byte signed integer, can be
+                                     ///< used in array
+      Smallunsigned =
+          NDB_TYPE_SMALLUNSIGNED,  ///< 16 bit. 2 byte unsigned integer, can be
+                                   ///< used in array
+      Mediumint = NDB_TYPE_MEDIUMINT,  ///< 24 bit. 3 byte signed integer, can
+                                       ///< be used in array
+      Mediumunsigned =
+          NDB_TYPE_MEDIUMUNSIGNED,  ///< 24 bit. 3 byte unsigned integer, can be
+                                    ///< used in array
+      Int = NDB_TYPE_INT,  ///< 32 bit. 4 byte signed integer, can be used in
+                           ///< array
+      Unsigned = NDB_TYPE_UNSIGNED,  ///< 32 bit. 4 byte unsigned integer, can
+                                     ///< be used in array
+      Bigint = NDB_TYPE_BIGINT,  ///< 64 bit. 8 byte signed integer, can be used
+                                 ///< in array
+      Bigunsigned = NDB_TYPE_BIGUNSIGNED,  ///< 64 Bit. 8 byte signed integer,
+                                           ///< can be used in array
+      Float = NDB_TYPE_FLOAT,  ///< 32-bit float. 4 bytes float, can be used in
+                               ///< array
+      Double = NDB_TYPE_DOUBLE,  ///< 64-bit float. 8 byte float, can be used in
+                                 ///< array
+      Olddecimal = NDB_TYPE_OLDDECIMAL,  ///< MySQL < 5.0 signed decimal,
+                                         ///< Precision, Scale
       Olddecimalunsigned = NDB_TYPE_OLDDECIMALUNSIGNED,
-      Decimal = NDB_TYPE_DECIMAL,    ///< MySQL >= 5.0 signed decimal,  Precision, Scale
+      Decimal =
+          NDB_TYPE_DECIMAL,  ///< MySQL >= 5.0 signed decimal,  Precision, Scale
       Decimalunsigned = NDB_TYPE_DECIMALUNSIGNED,
-      Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
-      Varchar = NDB_TYPE_VARCHAR,       ///< Length bytes: 1, Max: 255
+      Char = NDB_TYPE_CHAR,            ///< Len. A fixed array of 1-byte chars
+      Varchar = NDB_TYPE_VARCHAR,      ///< Length bytes: 1, Max: 255
       Binary = NDB_TYPE_BINARY,        ///< Len
-      Varbinary = NDB_TYPE_VARBINARY,     ///< Length bytes: 1, Max: 255
-      Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Date = NDB_TYPE_DATE,            ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
-      Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
-      Text = NDB_TYPE_TEXT,         ///< Text blob
-      Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
+      Varbinary = NDB_TYPE_VARBINARY,  ///< Length bytes: 1, Max: 255
+      Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec
+                                       ///< (sizeof(Datetime) == 8 bytes )
+      Date =
+          NDB_TYPE_DATE,  ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
+      Blob = NDB_TYPE_BLOB,  ///< Binary large object (see NdbBlob)
+      Text = NDB_TYPE_TEXT,  ///< Text blob
+      Bit = NDB_TYPE_BIT,    ///< Bit, length specifies no of bits
       Longvarchar = NDB_TYPE_LONGVARCHAR,  ///< Length bytes: 2, little-endian
-      Longvarbinary = NDB_TYPE_LONGVARBINARY, ///< Length bytes: 2, little-endian
-      Time = NDB_TYPE_TIME,        ///< Time without date
-      Year = NDB_TYPE_YEAR,   ///< Year 1901-2155 (1 byte)
-      Timestamp = NDB_TYPE_TIMESTAMP, ///< Unix time
+      Longvarbinary =
+          NDB_TYPE_LONGVARBINARY,      ///< Length bytes: 2, little-endian
+      Time = NDB_TYPE_TIME,            ///< Time without date
+      Year = NDB_TYPE_YEAR,            ///< Year 1901-2155 (1 byte)
+      Timestamp = NDB_TYPE_TIMESTAMP,  ///< Unix time
       /**
        * Time types in MySQL 5.6 add microsecond fraction.
        * One should use setPrecision(x) to set number of fractional
@@ -322,9 +340,9 @@ public:
        * and must use correct byte length.  NDB does not check data
        * itself since any values can be compared as binary strings.
        */
-      Time2 = NDB_TYPE_TIME2, ///< 3 bytes + 0-3 fraction
-      Datetime2 = NDB_TYPE_DATETIME2, ///< 5 bytes plus 0-3 fraction
-      Timestamp2 = NDB_TYPE_TIMESTAMP2 ///< 4 bytes + 0-3 fraction
+      Time2 = NDB_TYPE_TIME2,           ///< 3 bytes + 0-3 fraction
+      Datetime2 = NDB_TYPE_DATETIME2,   ///< 5 bytes plus 0-3 fraction
+      Timestamp2 = NDB_TYPE_TIMESTAMP2  ///< 4 bytes + 0-3 fraction
     };
 
     /*
@@ -342,7 +360,7 @@ public:
     enum ArrayType {
       ArrayTypeFixed = NDB_ARRAYTYPE_FIXED,          // 0 length bytes
       ArrayTypeShortVar = NDB_ARRAYTYPE_SHORT_VAR,   // 1 length bytes
-      ArrayTypeMediumVar = NDB_ARRAYTYPE_MEDIUM_VAR // 2 length bytes
+      ArrayTypeMediumVar = NDB_ARRAYTYPE_MEDIUM_VAR  // 2 length bytes
     };
 
     /*
@@ -365,7 +383,7 @@ public:
      * Get name of column
      * @return  Name of the column
      */
-    const char* getName() const;
+    const char *getName() const;
 
     /**
      * Get if the column is nullable or not
@@ -391,8 +409,7 @@ public:
      * @param  column  Column to compare with
      * @return  true if column is equal to some other column otherwise false.
      */
-    bool equal(const Column& column) const;
-
+    bool equal(const Column &column) const;
 
     /** @} *******************************************************************/
     /**
@@ -434,7 +451,7 @@ public:
      * specifies both character set and collation.  See get_charset()
      * etc in MySQL.  (The cs is not "const" in MySQL).
      */
-    CHARSET_INFO* getCharset() const;
+    CHARSET_INFO *getCharset() const;
 
     /**
      * Returns mysql's internal number for the column's character set.
@@ -504,7 +521,6 @@ public:
 
     /** @} *******************************************************************/
 
-
     /**
      * @name Column creation
      * @{
@@ -518,19 +534,19 @@ public:
      * Constructor
      * @param   name   Name of column
      */
-    Column(const char * name = "");
+    Column(const char *name = "");
     /**
      * Copy constructor
      * @param  column  Column to be copied
      */
-    Column(const Column& column);
+    Column(const Column &column);
     ~Column();
 
     /**
      * Set name of column
      * @param  name  Name of the column
      */
-    int setName(const char * name);
+    int setName(const char *name);
 
     /**
      * Set whether column is nullable or not
@@ -576,7 +592,7 @@ public:
      * specifies both character set and collation.  See get_charset()
      * etc in MySQL.  (The cs is not "const" in MySQL).
      */
-    void setCharset(CHARSET_INFO* cs);
+    void setCharset(CHARSET_INFO *cs);
 
     /**
      * For blob, set "inline size" i.e. number of initial bytes
@@ -623,8 +639,7 @@ public:
      */
     void setPartitionKey(bool enable);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    inline void setDistributionKey(bool enable)
-    { setPartitionKey(enable); }
+    inline void setDistributionKey(bool enable) { setPartitionKey(enable); }
 #endif
 
     void setArrayType(ArrayType type);
@@ -638,7 +653,7 @@ public:
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int setDefaultValue(const char*);
+    int setDefaultValue(const char *);
 #endif
     /* setDefaultValue
      * Set buf to NULL for no default value, or null default value for
@@ -648,63 +663,63 @@ public:
      * For variable length types, the leading 1 or 2 bytes pointed to
      * by buf also contain length information as normal for the type.
      */
-    int setDefaultValue(const void* buf, unsigned int len);
+    int setDefaultValue(const void *buf, unsigned int len);
 
     /* getDefaultValue
      * Get the default value data for this column.
      * Optional int len* will be updated with the significant length
      * of the default value, or set to 0 for NULL or no default.
      */
-    const void* getDefaultValue(unsigned int* len = 0) const;
+    const void *getDefaultValue(unsigned int *len = 0) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    const Table * getBlobTable() const;
+    const Table *getBlobTable() const;
 
     void setAutoIncrement(bool);
     bool getAutoIncrement() const;
     void setAutoIncrementInitialValue(Uint64 val);
 
-    static const Column * FRAGMENT;
-    static const Column * FRAGMENT_FIXED_MEMORY;
-    static const Column * FRAGMENT_VARSIZED_MEMORY;
-    static const Column * ROW_COUNT;
-    static const Column * COMMIT_COUNT;
-    static const Column * ROW_SIZE;
-    static const Column * RANGE_NO;
-    static const Column * DISK_REF;
-    static const Column * RECORDS_IN_RANGE;
-    static const Column * ROWID;
-    static const Column * ROW_GCI;
-    static const Column * ROW_GCI64;
-    static const Column * ROW_AUTHOR;
-    static const Column * ANY_VALUE;
-    static const Column * COPY_ROWID;
-    static const Column * LOCK_REF;
-    static const Column * OP_ID;
-    static const Column * OPTIMIZE;
-    static const Column * FRAGMENT_EXTENT_SPACE;
-    static const Column * FRAGMENT_FREE_EXTENT_SPACE;
+    static const Column *FRAGMENT;
+    static const Column *FRAGMENT_FIXED_MEMORY;
+    static const Column *FRAGMENT_VARSIZED_MEMORY;
+    static const Column *ROW_COUNT;
+    static const Column *COMMIT_COUNT;
+    static const Column *ROW_SIZE;
+    static const Column *RANGE_NO;
+    static const Column *DISK_REF;
+    static const Column *RECORDS_IN_RANGE;
+    static const Column *ROWID;
+    static const Column *ROW_GCI;
+    static const Column *ROW_GCI64;
+    static const Column *ROW_AUTHOR;
+    static const Column *ANY_VALUE;
+    static const Column *COPY_ROWID;
+    static const Column *LOCK_REF;
+    static const Column *OP_ID;
+    static const Column *OPTIMIZE;
+    static const Column *FRAGMENT_EXTENT_SPACE;
+    static const Column *FRAGMENT_FREE_EXTENT_SPACE;
 
     int getSizeInBytes() const;
 
-    int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
-    void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
+    int getBlobVersion() const;            // NDB_BLOB_V1 or NDB_BLOB_V2
+    void setBlobVersion(int blobVersion);  // default NDB_BLOB_V2
 
     /**
      * 0 = yes
      * -1 = no
      */
-    int isBindable(const Column&) const;
+    int isBindable(const Column &) const;
 #endif
 
-  private:
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbRecAttr;
     friend class NdbColumnImpl;
 #endif
-    class NdbColumnImpl & m_impl;
-    Column(NdbColumnImpl&);
-    Column& operator=(const Column&);
+    class NdbColumnImpl &m_impl;
+    Column(NdbColumnImpl &);
+    Column &operator=(const Column &);
   };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -734,13 +749,13 @@ public:
    *
    */
   class Table : public Object {
-  public:
+   public:
     /*
      * Single user mode specifies access rights to table during single user mode
      */
     enum SingleUserMode {
-      SingleUserModeLocked    = NDB_SUM_LOCKED,
-      SingleUserModeReadOnly  = NDB_SUM_READONLY,
+      SingleUserModeLocked = NDB_SUM_LOCKED,
+      SingleUserModeReadOnly = NDB_SUM_READONLY,
       SingleUserModeReadWrite = NDB_SUM_READ_WRITE
     };
 
@@ -752,7 +767,7 @@ public:
     /**
      * Get table name
      */
-    const char * getName() const;
+    const char *getName() const;
 
     /**
      * Get table id
@@ -763,25 +778,25 @@ public:
      * Get column definition via name.
      * @return null if none existing name
      */
-    const Column* getColumn(const char * name) const;
+    const Column *getColumn(const char *name) const;
 
     /**
      * Get column definition via index in table.
      * @return null if none existing name
      */
-    Column* getColumn(const int attributeId);
+    Column *getColumn(const int attributeId);
 
     /**
      * Get column definition via name.
      * @return null if none existing name
      */
-    Column* getColumn(const char * name);
+    Column *getColumn(const char *name);
 
     /**
      * Get column definition via index in table.
      * @return null if none existing name
      */
-    const Column* getColumn(const int attributeId) const;
+    const Column *getColumn(const int attributeId) const;
 
     /** @} *******************************************************************/
     /**
@@ -857,18 +872,18 @@ public:
     /**
      * Get name of primary key
      */
-    const char* getPrimaryKey(int no) const;
+    const char *getPrimaryKey(int no) const;
 
     /**
      * Check if table is equal to some other table
      */
-    bool equal(const Table&) const;
+    bool equal(const Table &) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get frm file stored with this table
      */
-    const void* getFrmData() const;
+    const void *getFrmData() const;
     Uint32 getFrmLength() const;
 #endif
 
@@ -877,7 +892,7 @@ public:
      * This NdbRecord object becomes invalid at the same time as
      * the table object - when the ndb_cluster_connection is closed.
      */
-    const NdbRecord* getDefaultRecord() const;
+    const NdbRecord *getDefaultRecord() const;
 
     /** @} *******************************************************************/
 
@@ -894,26 +909,26 @@ public:
      * Constructor
      * @param  name   Name of table
      */
-    Table(const char * name = "");
+    Table(const char *name = "");
 
     /**
      * Copy constructor
      * @param  table  Table to be copied
      */
-    Table(const Table& table);
+    Table(const Table &table);
     ~Table() override;
 
     /**
      * Assignment operator, deep copy
      * @param  table  Table to be copied
      */
-    Table& operator=(const Table& table);
+    Table &operator=(const Table &table);
 
     /**
      * Name of table
      * @param  name  Name of table
      */
-    int setName(const char * name);
+    int setName(const char *name);
 
     /**
      * Add a column definition to a table
@@ -958,13 +973,15 @@ public:
      * Get partition balance
      */
     NdbDictionary::Object::PartitionBalance getPartitionBalance() const;
-    static NdbDictionary::Object::PartitionBalance getPartitionBalance(const char str[]);
+    static NdbDictionary::Object::PartitionBalance getPartitionBalance(
+        const char str[]);
 
     /**
      * Get partition balance string
      */
-    const char* getPartitionBalanceString() const;
-    static const char* getPartitionBalanceString(PartitionBalance partition_balance);
+    const char *getPartitionBalanceString() const;
+    static const char *getPartitionBalanceString(
+        PartitionBalance partition_balance);
 
     /**
      * Set fragmentation type
@@ -997,12 +1014,12 @@ public:
      */
     void setMaxLoadFactor(int);
 
-    int setTablespaceName(const char * name);
-    const char * getTablespaceName() const;
+    int setTablespaceName(const char *name);
+    const char *getTablespaceName() const;
     int setTablespace(const class Tablespace &);
-    bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
+    bool getTablespace(Uint32 *id = 0, Uint32 *version = 0) const;
 
-    bool getHashMap(Uint32* id = 0, Uint32* version = 0) const;
+    bool getHashMap(Uint32 *id = 0, Uint32 *version = 0) const;
     int setHashMap(const class HashMap &);
 
     /**
@@ -1031,7 +1048,7 @@ public:
     /**
      * Set frm file to store with this table
      */
-    int setFrm(const void* data, Uint32 len);
+    int setFrm(const void *data, Uint32 len);
 #endif
 
     /**
@@ -1048,8 +1065,7 @@ public:
       returns 0 for success and otherwise error code indicating
       type of error, for caller error handling
     */
-    int setExtraMetadata(Uint32 version,
-                         const void* data, Uint32 data_length);
+    int setExtraMetadata(Uint32 version, const void *data, Uint32 data_length);
 
     /**
       Get unpacked extra metadata for this table
@@ -1059,9 +1075,8 @@ public:
 
       returns 0 for success and otherwise error code
     */
-    int getExtraMetadata(Uint32& version,
-                         void** data, Uint32* data_length) const;
-
+    int getExtraMetadata(Uint32 &version, void **data,
+                         Uint32 *data_length) const;
 
     /**
      * Set fragmentation, maps each fragment to specific nodegroup.
@@ -1074,7 +1089,7 @@ public:
      * For other FragmentType it should be called with nodegroups NULL and
      * cnt 0.
      */
-    int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
+    int setFragmentData(const Uint32 *nodegroups, Uint32 cnt);
 
     /**
      * Get Fragment Data (array of node groups)
@@ -1089,7 +1104,7 @@ public:
      * For range, this is a sorted list of range values
      * For list, this is a list of pairs { value, partition }
      */
-    int setRangeListData(const Int32* data, Uint32 cnt);
+    int setRangeListData(const Int32 *data, Uint32 cnt);
 
     /**
      * Get Range or List Array (value, partition)
@@ -1104,8 +1119,7 @@ public:
      * If fragment count is > arraySize param, only arraySize
      * entries are written.
      */
-    Uint32 getFragmentNodes(Uint32 fragmentId,
-                            Uint32* nodeIdArrayPtr,
+    Uint32 getFragmentNodes(Uint32 fragmentId, Uint32 *nodeIdArrayPtr,
                             Uint32 arraySize) const;
 
     /**
@@ -1128,7 +1142,6 @@ public:
     void setSingleUserMode(enum SingleUserMode);
     enum SingleUserMode getSingleUserMode() const;
 
-
     /** @} *******************************************************************/
 
     /**
@@ -1149,10 +1162,10 @@ public:
     void setStoredTable(bool x) { setLogging(x); }
     bool getStoredTable() const { return getLogging(); }
 
-    int getRowSizeInBytes() const ;
-    int createTableInDb(Ndb*, bool existingEqualIsOk = true) const ;
+    int getRowSizeInBytes() const;
+    int createTableInDb(Ndb *, bool existingEqualIsOk = true) const;
 
-    int getReplicaCount() const ;
+    int getReplicaCount() const;
 
     bool getTemporary() const;
     void setTemporary(bool);
@@ -1173,7 +1186,7 @@ public:
      *     bit 2 = at least 1 non disk column set
      *   passing NULL pointer will equal to bitmap with all columns set
      */
-    int checkColumns(const Uint32* bitmap, unsigned len_in_bytes) const;
+    int checkColumns(const Uint32 *bitmap, unsigned len_in_bytes) const;
 
     /**
      * Set tableId,tableVersion on a table...
@@ -1223,7 +1236,7 @@ public:
      * Returns 0 on success.  Returns -1 and sets error if an
      * inconsistency is detected.
      */
-    int aggregate(struct NdbError& error);
+    int aggregate(struct NdbError &error);
 
     /**
      * This method is not needed in normal usage.
@@ -1237,14 +1250,14 @@ public:
      * Returns 0 on success.  Returns -1 and sets error if an
      * inconsistency is detected.
      */
-    int validate(struct NdbError& error);
+    int validate(struct NdbError &error);
 
     /**
      * Return partitionId given a hashvalue
      *   Note, if table is not retrieved (e.i using getTable) result
      *   will most likely be wrong
      */
-    Uint32 getPartitionId(Uint32 hashvalue) const ;
+    Uint32 getPartitionId(Uint32 hashvalue) const;
 
     /*
      * Return true if any of the columns in the table have a
@@ -1252,15 +1265,15 @@ public:
      */
     bool hasDefaultValues() const;
 
-  private:
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class Ndb;
     friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
     friend class NdbEventOperationImpl;
 #endif
-    class NdbTableImpl & m_impl;
-    Table(NdbTableImpl&);
+    class NdbTableImpl &m_impl;
+    Table(NdbTableImpl &);
   };
 
   /**
@@ -1268,8 +1281,7 @@ public:
    * @brief Represents an index in an NDB Cluster
    */
   class Index : public Object {
-  public:
-
+   public:
     /**
      * @name Getting Index properties
      * @{
@@ -1278,12 +1290,12 @@ public:
     /**
      * Get the name of an index
      */
-    const char * getName() const;
+    const char *getName() const;
 
     /**
      * Get the name of the underlying table being indexed
      */
-    const char * getTable() const;
+    const char *getTable() const;
 
     /**
      * Get the number of columns in the index
@@ -1301,24 +1313,24 @@ public:
     /**
      * Get a specific column in the index
      */
-    const Column * getColumn(unsigned no) const ;
+    const Column *getColumn(unsigned no) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get a specific column name in the index
      * Deprecated, use getColumn instead.
      */
-    const char * getIndexColumn(int no) const ;
+    const char *getIndexColumn(int no) const;
 #endif
 
     /**
      * Represents type of index
      */
     enum Type {
-      Undefined = 0,          ///< Undefined object type (initial value)
-      UniqueHashIndex = 3,    ///< Unique un-ordered hash index
-                              ///< (only one currently supported)
-      OrderedIndex = 6        ///< Non-unique ordered index
+      Undefined = 0,        ///< Undefined object type (initial value)
+      UniqueHashIndex = 3,  ///< Unique un-ordered hash index
+                            ///< (only one currently supported)
+      OrderedIndex = 6      ///< Non-unique ordered index
     };
 
     /**
@@ -1357,7 +1369,7 @@ public:
      * the index object does - when the ndb_cluster_connection
      * is closed.
      */
-    const NdbRecord* getDefaultRecord() const;
+    const NdbRecord *getDefaultRecord() const;
 
     /** @} *******************************************************************/
 
@@ -1374,32 +1386,32 @@ public:
      *  Constructor
      *  @param  name  Name of index
      */
-    Index(const char * name = "");
+    Index(const char *name = "");
     ~Index() override;
 
     /**
      * Set the name of an index
      */
-    int setName(const char * name);
+    int setName(const char *name);
 
     /**
      * Define the name of the table to be indexed
      */
-    int setTable(const char * name);
+    int setTable(const char *name);
 
     /**
      * Add a column to the index definition
      * Note that the order of columns will be in
      * the order they are added (only matters for ordered indexes).
      */
-    int addColumn(const Column & c);
+    int addColumn(const Column &c);
 
     /**
      * Add a column name to the index definition
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    int addColumnName(const char * name);
+    int addColumnName(const char *name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -1408,7 +1420,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Deprecated, use addColumnName instead.
      */
-    int addIndexColumn(const char * name);
+    int addIndexColumn(const char *name);
 #endif
 
     /**
@@ -1416,7 +1428,7 @@ public:
      * Note that the order of indexes will be in
      * the order they are added (only matters for ordered indexes).
      */
-    int  addColumnNames(unsigned noOfNames, const char ** names);
+    int addColumnNames(unsigned noOfNames, const char **names);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
@@ -1425,7 +1437,7 @@ public:
      * the order they are added (only matters for ordered indexes).
      * Deprecated, use addColumnNames instead.
      */
-    int addIndexColumns(int noOfNames, const char ** names);
+    int addIndexColumns(int noOfNames, const char **names);
 #endif
 
     /**
@@ -1452,13 +1464,13 @@ public:
 
     /** @} *******************************************************************/
 
-  private:
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbIndexImpl;
     friend class NdbIndexStat;
 #endif
-    class NdbIndexImpl & m_impl;
-    Index(NdbIndexImpl&);
+    class NdbIndexImpl &m_impl;
+    Index(NdbIndexImpl &);
   };
 
   /**
@@ -1466,7 +1478,7 @@ public:
    * Passed as argument to optimizeTable
    */
   class OptimizeTableHandle {
-  public:
+   public:
     /**
      * Supported operations for OptimizeTableHandle
      */
@@ -1485,13 +1497,14 @@ public:
      *         -1 encountered some error
      */
     int close();
-  private:
+
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbOptimizeTableHandleImpl;
     friend class NdbOptimizeIndexHandleImpl;
     friend class NdbDicitionaryImpl;
 #endif
-    class NdbOptimizeTableHandleImpl & m_impl;
+    class NdbOptimizeTableHandleImpl &m_impl;
     OptimizeTableHandle(NdbOptimizeTableHandleImpl &);
   };
 
@@ -1500,7 +1513,7 @@ public:
    * passed as argument to optimizeIndex
    */
   class OptimizeIndexHandle {
-  public:
+   public:
     /**
      * Supported operations for OptimizeIndexHandle
      */
@@ -1519,12 +1532,13 @@ public:
      *         -1 encountered some error
      */
     int close();
-  private:
+
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbOptimizeIndexHandleImpl;
     friend class NdbDicitionaryImpl;
 #endif
-    class NdbOptimizeIndexHandleImpl & m_impl;
+    class NdbOptimizeIndexHandleImpl &m_impl;
     OptimizeIndexHandle(NdbOptimizeIndexHandleImpl &);
   };
 
@@ -1532,8 +1546,8 @@ public:
    * @brief Represents an Event in NDB Cluster
    *
    */
-  class Event : public Object  {
-  public:
+  class Event : public Object {
+   public:
     /**
      * Specifies the type of database operations an Event listens to
      */
@@ -1541,49 +1555,50 @@ public:
     /** TableEvent must match 1 << TriggerEvent */
 #endif
     enum TableEvent {
-      TE_INSERT      =1<<0, ///< Insert event on table
-      TE_DELETE      =1<<1, ///< Delete event on table
-      TE_UPDATE      =1<<2, ///< Update event on table
+      TE_INSERT = 1 << 0,  ///< Insert event on table
+      TE_DELETE = 1 << 1,  ///< Delete event on table
+      TE_UPDATE = 1 << 2,  ///< Update event on table
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-      TE_SCAN        =1<<3, ///< Scan event on table
-      TE_FIRST_NON_DATA_EVENT =1<<4,
+      TE_SCAN = 1 << 3,  ///< Scan event on table
+      TE_FIRST_NON_DATA_EVENT = 1 << 4,
 #endif
-      TE_DROP        =1<<4, ///< Drop of table
-      TE_ALTER       =1<<5, ///< Alter of table
-      TE_CREATE      =1<<6, ///< Create of table
-      TE_GCP_COMPLETE=1<<7, ///< GCP is complete
-      TE_CLUSTER_FAILURE=1<<8, ///< Cluster is unavailable
-      TE_STOP        =1<<9, ///< Stop of event operation
-      TE_NODE_FAILURE=1<<10, ///< Node failed
-      TE_SUBSCRIBE   =1<<11, ///< Node subscribes
-      TE_UNSUBSCRIBE =1<<12, ///< Node unsubscribes
-      TE_EMPTY         =1<<15, ///< Empty epoch from data nodes
-      TE_INCONSISTENT  =1<<21, ///< MISSING_DATA (buffer overflow) at data node
-      TE_OUT_OF_MEMORY =1<<22, ///< Buffer overflow in event buffer
-      TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when
-                            ///< events are received)
+      TE_DROP = 1 << 4,             ///< Drop of table
+      TE_ALTER = 1 << 5,            ///< Alter of table
+      TE_CREATE = 1 << 6,           ///< Create of table
+      TE_GCP_COMPLETE = 1 << 7,     ///< GCP is complete
+      TE_CLUSTER_FAILURE = 1 << 8,  ///< Cluster is unavailable
+      TE_STOP = 1 << 9,             ///< Stop of event operation
+      TE_NODE_FAILURE = 1 << 10,    ///< Node failed
+      TE_SUBSCRIBE = 1 << 11,       ///< Node subscribes
+      TE_UNSUBSCRIBE = 1 << 12,     ///< Node unsubscribes
+      TE_EMPTY = 1 << 15,           ///< Empty epoch from data nodes
+      TE_INCONSISTENT =
+          1 << 21,  ///< MISSING_DATA (buffer overflow) at data node
+      TE_OUT_OF_MEMORY = 1 << 22,  ///< Buffer overflow in event buffer
+      TE_ALL = 0xFFFF  ///< Any/all event on table (not relevant when
+                       ///< events are received)
     };
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     enum _TableEvent {
-      _TE_INSERT=0,
-      _TE_DELETE=1,
-      _TE_UPDATE=2,
-      _TE_SCAN=3,
-      _TE_FIRST_NON_DATA_EVENT=4,
-      _TE_DROP=4,
-      _TE_ALTER=5,
-      _TE_CREATE=6,
-      _TE_GCP_COMPLETE=7,
-      _TE_CLUSTER_FAILURE=8,
-      _TE_STOP=9,
-      _TE_NODE_FAILURE=10,
-      _TE_SUBSCRIBE=11,
-      _TE_UNSUBSCRIBE=12,
-      _TE_NUL=13, // internal (e.g. INS o DEL within same GCI)
-      _TE_ACTIVE=14, // internal (node becomes active)
-      _TE_EMPTY=15,
-      _TE_INCONSISTENT=21,
-      _TE_OUT_OF_MEMORY=22
+      _TE_INSERT = 0,
+      _TE_DELETE = 1,
+      _TE_UPDATE = 2,
+      _TE_SCAN = 3,
+      _TE_FIRST_NON_DATA_EVENT = 4,
+      _TE_DROP = 4,
+      _TE_ALTER = 5,
+      _TE_CREATE = 6,
+      _TE_GCP_COMPLETE = 7,
+      _TE_CLUSTER_FAILURE = 8,
+      _TE_STOP = 9,
+      _TE_NODE_FAILURE = 10,
+      _TE_SUBSCRIBE = 11,
+      _TE_UNSUBSCRIBE = 12,
+      _TE_NUL = 13,     // internal (e.g. INS o DEL within same GCI)
+      _TE_ACTIVE = 14,  // internal (node becomes active)
+      _TE_EMPTY = 15,
+      _TE_INCONSISTENT = 21,
+      _TE_OUT_OF_MEMORY = 22
     };
 #endif
     /**
@@ -1595,8 +1610,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 0
 #endif
-      ,ED_PERMANENT    ///< All API's can use it.
-                       ///< It's still defined after a cluster system restart
+      ,
+      ED_PERMANENT  ///< All API's can use it.
+                    ///< It's still defined after a cluster system restart
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 3
 #endif
@@ -1607,7 +1623,7 @@ public:
      */
     enum EventReport {
       ER_UPDATED = 0,
-      ER_ALL = 1, // except not-updated blob inlines
+      ER_ALL = 1,  // except not-updated blob inlines
       ER_SUBSCRIBE = 2,
       ER_DDL = 4
     };
@@ -1622,7 +1638,7 @@ public:
      *  @param  name  Name of event
      *  @param  table Reference retrieved from NdbDictionary
      */
-    Event(const char *name, const NdbDictionary::Table& table);
+    Event(const char *name, const NdbDictionary::Table &table);
     ~Event() override;
     /**
      * Set unique identifier for the event
@@ -1637,7 +1653,7 @@ public:
      *
      * @return pointer to table or NULL if no table has been defined
      */
-    const NdbDictionary::Table * getTable() const;
+    const NdbDictionary::Table *getTable() const;
     /**
      * Define table on which events should be detected
      *
@@ -1647,7 +1663,7 @@ public:
      *
      * @param table reference retrieved from NdbDictionary
      */
-    void setTable(const NdbDictionary::Table& table);
+    void setTable(const NdbDictionary::Table &table);
     /**
      * Set table for which events should be detected
      *
@@ -1661,7 +1677,7 @@ public:
      *
      * @return table name
      */
-    const char* getTableName() const;
+    const char *getTableName() const;
     /**
      * Add type of event that should be detected
      */
@@ -1717,7 +1733,7 @@ public:
      *
      * @note errors will not be detected until createEvent() is called
      */
-    void addEventColumn(const char * columnName);
+    void addEventColumn(const char *columnName);
     /**
      * Add several columns on which events should be detected
      *
@@ -1727,7 +1743,7 @@ public:
      * @note errors will not be detected until
      *       NdbDictionary::Dictionary::createEvent() is called
      */
-    void addEventColumns(int n, const char ** columnNames);
+    void addEventColumns(int n, const char **columnNames);
 
     /**
      * Get no of columns defined in an Event
@@ -1739,7 +1755,7 @@ public:
     /**
      * Get a specific column in the event
      */
-    const Column * getEventColumn(unsigned no) const;
+    const Column *getEventColumn(unsigned no) const;
 
     /**
      * The merge events flag is false by default.  Setting it true
@@ -1778,13 +1794,13 @@ public:
     void print();
 #endif
 
-  private:
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbEventImpl;
     friend class NdbEventOperationImpl;
 #endif
-    class NdbEventImpl & m_impl;
-    Event(NdbEventImpl&);
+    class NdbEventImpl &m_impl;
+    Event(NdbEventImpl &);
   };
 
   /* Flags for createRecord(). */
@@ -1793,20 +1809,17 @@ public:
       Use special mysqld varchar format in index keys, used only from
       inside mysqld.
     */
-    RecMysqldShrinkVarchar= 0x1,
+    RecMysqldShrinkVarchar = 0x1,
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
-    RecMysqldBitfield= 0x2,
+    RecMysqldBitfield = 0x2,
     /* Use the column specific flags from RecordSpecification. */
-    RecPerColumnFlags= 0x4
+    RecPerColumnFlags = 0x4
   };
   struct RecordSpecification {
     /*
       Size of the RecordSpecification structure.
     */
-    static inline Uint32 size()
-    {
-        return sizeof(RecordSpecification);
-    }
+    static inline Uint32 size() { return sizeof(RecordSpecification); }
 
     /*
       Column described by this entry (the column maximum size defines field
@@ -1841,14 +1854,13 @@ public:
       Column specific flags
       Used only when RecPerColumnFlags is enabled
     */
-    enum ColumnFlags
-    {
+    enum ColumnFlags {
       /*
         Skip reading/writing overflow bits in bitmap
         Used for MySQLD char(0) column
         Used only with RecMysqldBitfield flag
       */
-      BitColMapsNullBitOnly= 0x1
+      BitColMapsNullBitOnly = 0x1
     };
     Uint32 column_flags;
   };
@@ -1865,15 +1877,12 @@ public:
   };
 
   /* Types of NdbRecord object */
-  enum RecordType {
-    TableAccess,
-    IndexAccess
-  };
+  enum RecordType { TableAccess, IndexAccess };
 
   /*
     Return the type of the passed NdbRecord object
   */
-  static RecordType getRecordType(const NdbRecord* record);
+  static RecordType getRecordType(const NdbRecord *record);
 
   /*
     Return the name of the table object that the NdbRecord
@@ -1881,7 +1890,7 @@ public:
     This method returns Null if the NdbRecord object is not a
     TableAccess NdbRecord.
   */
-  static const char* getRecordTableName(const NdbRecord* record);
+  static const char *getRecordTableName(const NdbRecord *record);
 
   /*
     Return the name of the index object that the NdbRecord
@@ -1889,35 +1898,34 @@ public:
     This method returns Null if the NdbRecord object is not an
     IndexAccess NdbRecord
   */
-  static const char* getRecordIndexName(const NdbRecord* record);
+  static const char *getRecordIndexName(const NdbRecord *record);
 
   /*
     Get the first Attribute Id specified in the NdbRecord object.
     Returns false if no Attribute Ids are specified.
   */
-  static bool getFirstAttrId(const NdbRecord* record, Uint32& firstAttrId);
+  static bool getFirstAttrId(const NdbRecord *record, Uint32 &firstAttrId);
 
   /* Get the next Attribute Id specified in the NdbRecord object
      after the attribute Id passed in.
      Returns false if there are no more attribute Ids
   */
-  static bool getNextAttrId(const NdbRecord* record, Uint32& attrId);
+  static bool getNextAttrId(const NdbRecord *record, Uint32 &attrId);
 
   /* Get offset of the given attribute id's storage from the start
      of the NdbRecord row.
      Returns false if the attribute id is not present
   */
-  static bool getOffset(const NdbRecord* record, Uint32 attrId, Uint32& offset);
+  static bool getOffset(const NdbRecord *record, Uint32 attrId, Uint32 &offset);
 
   /* Get offset of the given attribute id's null bit from the start
      of the NdbRecord row.
      Returns false if the attribute is not present or if the
      attribute is not nullable
   */
-  static bool getNullBitOffset(const NdbRecord* record,
-                               Uint32 attrId,
-                               Uint32& nullbit_byte_offset,
-                               Uint32& nullbit_bit_in_byte);
+  static bool getNullBitOffset(const NdbRecord *record, Uint32 attrId,
+                               Uint32 &nullbit_byte_offset,
+                               Uint32 &nullbit_bit_in_byte);
 
   /*
     Return pointer to beginning of storage of data specified by
@@ -1932,13 +1940,10 @@ public:
     @return : Pointer to start of the attribute in the row.  Null if the
     attribute is not part of the NdbRecord definition
   */
-  static const char* getValuePtr(const NdbRecord* record,
-                                 const char* row,
+  static const char *getValuePtr(const NdbRecord *record, const char *row,
                                  Uint32 attrId);
 
-  static char* getValuePtr(const NdbRecord* record,
-                           char* row,
-                           Uint32 attrId);
+  static char *getValuePtr(const NdbRecord *record, char *row, Uint32 attrId);
 
   /*
     Return a bool indicating whether the null bit for the given
@@ -1955,9 +1960,7 @@ public:
     @return : true if attrId exists in NdbRecord, is nullable, and null bit
     in row is set, false otherwise.
   */
-  static bool isNull(const NdbRecord* record,
-                     const char* row,
-                     Uint32 attrId);
+  static bool isNull(const NdbRecord *record, const char *row, Uint32 attrId);
 
   /*
     Set the null bit for the given column to the supplied value.
@@ -1974,48 +1977,46 @@ public:
     @returns : 0 in success, -1 if the attrId is not part of the record,
     or is not nullable
   */
-  static int setNull(const NdbRecord* record,
-                     char* row,
-                     Uint32 attrId,
+  static int setNull(const NdbRecord *record, char *row, Uint32 attrId,
                      bool value);
 
   /*
     Return the number of bytes needed to store one row of data
     laid out as described by the passed NdbRecord structure.
   */
-  static Uint32 getRecordRowLength(const NdbRecord* record);
+  static Uint32 getRecordRowLength(const NdbRecord *record);
 
   /*
     Return an empty column presence bitmask.
     This bitmask can be used with any NdbRecord to specify that
     no NdbRecord columns are to be included in the operation.
   */
-  static const unsigned char* getEmptyBitmask();
+  static const unsigned char *getEmptyBitmask();
 
   struct AutoGrowSpecification {
     Uint32 min_free;
     Uint64 max_size;
     Uint64 file_size;
-    const char * filename_pattern;
+    const char *filename_pattern;
   };
 
   /**
    * @class LogfileGroup
    */
   class LogfileGroup : public Object {
-  public:
+   public:
     LogfileGroup();
-    LogfileGroup(const LogfileGroup&);
+    LogfileGroup(const LogfileGroup &);
     ~LogfileGroup() override;
 
-    void setName(const char * name);
-    const char* getName() const;
+    void setName(const char *name);
+    const char *getName() const;
 
     void setUndoBufferSize(Uint32 sz);
     Uint32 getUndoBufferSize() const;
 
-    void setAutoGrowSpecification(const AutoGrowSpecification&);
-    const AutoGrowSpecification& getAutoGrowSpecification() const;
+    void setAutoGrowSpecification(const AutoGrowSpecification &);
+    const AutoGrowSpecification &getAutoGrowSpecification() const;
 
     Uint64 getUndoFreeWords() const;
 
@@ -2034,35 +2035,35 @@ public:
      */
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbDictionaryImpl;
     friend class NdbLogfileGroupImpl;
-    class NdbLogfileGroupImpl & m_impl;
-    LogfileGroup(NdbLogfileGroupImpl&);
+    class NdbLogfileGroupImpl &m_impl;
+    LogfileGroup(NdbLogfileGroupImpl &);
   };
 
   /**
    * @class Tablespace
    */
   class Tablespace : public Object {
-  public:
+   public:
     Tablespace();
-    Tablespace(const Tablespace&);
+    Tablespace(const Tablespace &);
     ~Tablespace() override;
 
-    void setName(const char * name);
-    const char* getName() const;
+    void setName(const char *name);
+    const char *getName() const;
 
     void setExtentSize(Uint32 sz);
     Uint32 getExtentSize() const;
 
-    void setAutoGrowSpecification(const AutoGrowSpecification&);
-    const AutoGrowSpecification& getAutoGrowSpecification() const;
+    void setAutoGrowSpecification(const AutoGrowSpecification &);
+    const AutoGrowSpecification &getAutoGrowSpecification() const;
 
-    void setDefaultLogfileGroup(const char * name);
-    void setDefaultLogfileGroup(const class LogfileGroup&);
+    void setDefaultLogfileGroup(const char *name);
+    void setDefaultLogfileGroup(const class LogfileGroup &);
 
-    const char * getDefaultLogfileGroup() const;
+    const char *getDefaultLogfileGroup() const;
     Uint32 getDefaultLogfileGroupId() const;
 
     /**
@@ -2080,29 +2081,29 @@ public:
      */
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbTablespaceImpl;
-    class NdbTablespaceImpl & m_impl;
-    Tablespace(NdbTablespaceImpl&);
+    class NdbTablespaceImpl &m_impl;
+    Tablespace(NdbTablespaceImpl &);
   };
 
   class Datafile : public Object {
-  public:
+   public:
     Datafile();
-    Datafile(const Datafile&);
+    Datafile(const Datafile &);
     ~Datafile() override;
 
-    void setPath(const char * name);
-    const char* getPath() const;
+    void setPath(const char *name);
+    const char *getPath() const;
 
     void setSize(Uint64);
     Uint64 getSize() const;
     Uint64 getFree() const;
 
-    int setTablespace(const char * name);
+    int setTablespace(const char *name);
     int setTablespace(const class Tablespace &);
-    const char * getTablespace() const;
-    void getTablespaceId(ObjectId * dst) const;
+    const char *getTablespace() const;
+    void getTablespaceId(ObjectId *dst) const;
 
     /**
      * Get object status
@@ -2119,28 +2120,28 @@ public:
      */
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbDatafileImpl;
-    class NdbDatafileImpl & m_impl;
-    Datafile(NdbDatafileImpl&);
+    class NdbDatafileImpl &m_impl;
+    Datafile(NdbDatafileImpl &);
   };
 
   class Undofile : public Object {
-  public:
+   public:
     Undofile();
-    Undofile(const Undofile&);
+    Undofile(const Undofile &);
     ~Undofile() override;
 
-    void setPath(const char * path);
-    const char* getPath() const;
+    void setPath(const char *path);
+    const char *getPath() const;
 
     void setSize(Uint64);
     Uint64 getSize() const;
 
-    void setLogfileGroup(const char * name);
+    void setLogfileGroup(const char *name);
     void setLogfileGroup(const class LogfileGroup &);
-    const char * getLogfileGroup() const;
-    void getLogfileGroupId(ObjectId * dst) const;
+    const char *getLogfileGroup() const;
+    void getLogfileGroupId(ObjectId *dst) const;
 
     /**
      * Get object status
@@ -2157,10 +2158,10 @@ public:
      */
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbUndofileImpl;
-    class NdbUndofileImpl & m_impl;
-    Undofile(NdbUndofileImpl&);
+    class NdbUndofileImpl &m_impl;
+    Undofile(NdbUndofileImpl &);
   };
 
   /**
@@ -2169,23 +2170,23 @@ public:
    *
    */
   class HashMap : public Object {
-  public:
+   public:
     HashMap();
-    HashMap(const HashMap&);
+    HashMap(const HashMap &);
     ~HashMap() override;
 
     void setName(const char *);
-    const char * getName() const;
+    const char *getName() const;
 
-    void setMap(const Uint32* values, Uint32 len);
+    void setMap(const Uint32 *values, Uint32 len);
     Uint32 getMapLen() const;
-    int getMapValues(Uint32* dst, Uint32 len) const;
+    int getMapValues(Uint32 *dst, Uint32 len) const;
 
     /**
      * equal
      *   compares *values* only
      */
-    bool equal(const HashMap&) const;
+    bool equal(const HashMap &) const;
 
     /**
      * Get object status
@@ -2202,10 +2203,10 @@ public:
      */
     int getObjectId() const override;
 
-  private:
+   private:
     friend class NdbHashMapImpl;
-    class NdbHashMapImpl & m_impl;
-    HashMap(NdbHashMapImpl&);
+    class NdbHashMapImpl &m_impl;
+    HashMap(NdbHashMapImpl &);
   };
 
   /**
@@ -2214,23 +2215,22 @@ public:
    *
    */
   class ForeignKey : public Object {
-  public:
+   public:
     ForeignKey();
-    ForeignKey(const ForeignKey&);
+    ForeignKey(const ForeignKey &);
     ~ForeignKey() override;
 
-    enum FkAction
-    {
-      NoAction = NDB_FK_NO_ACTION, // deferred check
+    enum FkAction {
+      NoAction = NDB_FK_NO_ACTION,  // deferred check
       Restrict = NDB_FK_RESTRICT,
       Cascade = NDB_FK_CASCADE,
       SetNull = NDB_FK_SET_NULL,
       SetDefault = NDB_FK_SET_DEFAULT
     };
 
-    const char * getName() const;
-    const char * getParentTable() const;
-    const char * getChildTable() const;
+    const char *getName() const;
+    const char *getParentTable() const;
+    const char *getChildTable() const;
     unsigned getParentColumnCount() const;
     unsigned getChildColumnCount() const;
     int getParentColumnNo(unsigned no) const;
@@ -2239,12 +2239,12 @@ public:
     /**
      * return 0 if child refers to parent PK
      */
-    const char * getParentIndex() const;
+    const char *getParentIndex() const;
 
     /**
      * return 0 if child references are resolved using child PK
      */
-    const char * getChildIndex() const;
+    const char *getChildIndex() const;
 
     FkAction getOnUpdateAction() const;
     FkAction getOnDeleteAction() const;
@@ -2267,10 +2267,10 @@ public:
      *   column order must match given column order
      *
      */
-    void setParent(const Table&, const Index * index = 0,
-                   const Column * cols[] = 0);
-    void setChild(const Table&, const Index * index = 0,
-                  const Column * cols[] = 0);
+    void setParent(const Table &, const Index *index = 0,
+                   const Column *cols[] = 0);
+    void setChild(const Table &, const Index *index = 0,
+                  const Column *cols[] = 0);
 
     void setOnUpdateAction(FkAction);
     void setOnDeleteAction(FkAction);
@@ -2290,10 +2290,10 @@ public:
      */
     int getObjectVersion() const override;
 
-  private:
+   private:
     friend class NdbForeignKeyImpl;
-    class NdbForeignKeyImpl & m_impl;
-    ForeignKey(NdbForeignKeyImpl&);
+    class NdbForeignKeyImpl &m_impl;
+    ForeignKey(NdbForeignKeyImpl &);
   };
 
   /**
@@ -2301,7 +2301,7 @@ public:
    * @brief Dictionary for defining and retrieving meta data
    */
   class Dictionary {
-  public:
+   public:
     /**
      * @class List
      * @brief Structure for retrieving lists of object names
@@ -2311,31 +2311,31 @@ public:
        * @struct  Element
        * @brief   Object to be stored in an NdbDictionary::Dictionary::List
        */
-      List& operator=(const List&) = default;
+      List &operator=(const List &) = default;
       struct Element {
-        unsigned id;            ///< Id of object
-        Object::Type type;      ///< Type of object
-        Object::State state;    ///< State of object
-        Object::Store store;    ///< How object is logged
-        Uint32 temp;            ///< Temporary status of object
-        char * database;        ///< In what database the object resides
-        char * schema;          ///< What schema the object is defined in
-        char * name;            ///< Name of object
-        Element() :
-          id(0),
-          type(Object::TypeUndefined),
-          state(Object::StateUndefined),
-          store(Object::StoreUndefined),
-          temp(NDB_TEMP_TAB_PERMANENT),
-          database(0),
-          schema(0),
-          name(0) { }
+        unsigned id;          ///< Id of object
+        Object::Type type;    ///< Type of object
+        Object::State state;  ///< State of object
+        Object::Store store;  ///< How object is logged
+        Uint32 temp;          ///< Temporary status of object
+        char *database;       ///< In what database the object resides
+        char *schema;         ///< What schema the object is defined in
+        char *name;           ///< Name of object
+        Element()
+            : id(0),
+              type(Object::TypeUndefined),
+              state(Object::StateUndefined),
+              store(Object::StoreUndefined),
+              temp(NDB_TEMP_TAB_PERMANENT),
+              database(0),
+              schema(0),
+              name(0) {}
         /* qsort compare functions */
-        static int compareByName(const void * p, const void * q);
-        static int compareById(const void * p, const void * q);
+        static int compareByName(const void *p, const void *q);
+        static int compareById(const void *p, const void *q);
       };
-      unsigned count;           ///< Number of elements in list
-      Element * elements;       ///< Pointer to array of elements
+      unsigned count;     ///< Number of elements in list
+      Element *elements;  ///< Pointer to array of elements
       List() : count(0), elements(0) {}
       void clear() {
         if (elements != 0) {
@@ -2376,20 +2376,18 @@ public:
      *
      */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listObjects(List & list, Object::Type type = Object::TypeUndefined);
+    int listObjects(List &list, Object::Type type = Object::TypeUndefined);
 #endif
     int listObjects(List &list,
                     Object::Type type = Object::TypeUndefined) const;
-    int listObjects(List & list,
-                    Object::Type type,
-                    bool fullyQualified) const;
+    int listObjects(List &list, Object::Type type, bool fullyQualified) const;
 
     /**
      * Get the latest error
      *
      * @return   Error object.
      */
-    const struct NdbError & getNdbError() const;
+    const struct NdbError &getNdbError() const;
 
     /**
      * Get warning flags.  The value is valid only if the operation did
@@ -2410,20 +2408,20 @@ public:
      * @param name   Name of table to get
      * @return table if successful otherwise NULL.
      */
-    const Table * getTable(const char * name) const;
+    const Table *getTable(const char *name) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Given main table, get blob table.
      */
-    const Table * getBlobTable(const Table *, const char * col_name);
-    const Table * getBlobTable(const Table *, Uint32 col_no);
+    const Table *getBlobTable(const Table *, const char *col_name);
+    const Table *getBlobTable(const Table *, Uint32 col_no);
 
     /*
      * Save a table definition in dictionary cache
      * @param table Object to put into cache
      */
-    void putTable(const Table * table);
+    void putTable(const Table *table);
 #endif
 
     /**
@@ -2432,10 +2430,8 @@ public:
      * @param tableName  Name of table that index belongs to.
      * @return  index if successful, otherwise 0.
      */
-    const Index * getIndex(const char * indexName,
-			   const char * tableName) const;
-    const Index * getIndex(const char * indexName,
-                           const Table& base) const;
+    const Index *getIndex(const char *indexName, const char *tableName) const;
+    const Index *getIndex(const char *indexName, const Table &base) const;
 
     /**
      * Fetch list of indexes of given table.
@@ -2448,10 +2444,11 @@ public:
      * @return  0 if successful, otherwise -1
      */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listIndexes(List & list, const char * tableName);
+    int listIndexes(List &list, const char *tableName);
 #endif
-    int listIndexes(List & list, const char * tableName) const;
-    int listIndexes(List & list, const char * tableName, bool fullyQualified) const;
+    int listIndexes(List &list, const char *tableName) const;
+    int listIndexes(List &list, const char *tableName,
+                    bool fullyQualified) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
@@ -2460,7 +2457,7 @@ public:
      * @param table  Reference to table that index belongs to.
      * @return  0 if successful, otherwise -1
      */
-    int listIndexes(List & list, const Table &table) const;
+    int listIndexes(List &list, const Table &table) const;
 
     /**
      * Fetch list of objects that table depend on
@@ -2468,7 +2465,7 @@ public:
      * @param table  Reference to table that objects belongs to.
      * @return  0 if successful, otherwise -1
      */
-    int listDependentObjects(List & list, const Table &table) const;
+    int listDependentObjects(List &list, const Table &table) const;
 #endif
 
     /** @} *******************************************************************/
@@ -2489,7 +2486,7 @@ public:
      * @param eventName  Name of event to drop.
      * @return 0 if successful otherwise -1.
      */
-    int dropEvent(const char * eventName, int force= 0);
+    int dropEvent(const char *eventName, int force = 0);
 
     /**
      * Get event instance for given name.
@@ -2498,13 +2495,13 @@ public:
      *
      * @note The returned Event need to be released with `releaseEvent`
      */
-    const Event * getEvent(const char * eventName);
+    const Event *getEvent(const char *eventName);
 
     /**
      * Release event previously returned from getEvent()
      * @param event    The event to release
      */
-    static void releaseEvent(const Event* event);
+    static void releaseEvent(const Event *event);
 
     /**
      * List defined events
@@ -2512,9 +2509,9 @@ public:
      * @return 0 if successful otherwise -1.
      */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listEvents(List & list);
+    int listEvents(List &list);
 #endif
-    int listEvents(List & list) const;
+    int listEvents(List &list) const;
 
     /** @} *******************************************************************/
 
@@ -2539,7 +2536,7 @@ public:
      * @param table Table to create
      * @return 0 if successful otherwise -1.
      */
-    int createTable(const Table &table, ObjectId * objid);
+    int createTable(const Table &table, ObjectId *objid);
 
     /**
      * Start table optimization given defined table object
@@ -2547,8 +2544,7 @@ public:
      * @param h Pre-allocated OptimizeTableHandle
      * @return 0 if successful otherwise -1.
      */
-    int
-    optimizeTable(const Table &t, OptimizeTableHandle &h);
+    int optimizeTable(const Table &t, OptimizeTableHandle &h);
 
     /**
      * Start index optimization given defined index object
@@ -2556,8 +2552,7 @@ public:
      * @param h Pre-allocated OptimizeIndexHandle
      * @return 0 if successful otherwise -1.
      */
-    int
-    optimizeIndex(const Index &ind, OptimizeIndexHandle &h);
+    int optimizeIndex(const Index &ind, OptimizeIndexHandle &h);
 
     /**
      * Drop table given retrieved Table instance
@@ -2567,14 +2562,14 @@ public:
      * @note dropTable() drops indexes and foreign keys
      * where the table is child or parent
      */
-    int dropTable(Table & table);
+    int dropTable(Table &table);
 
     /**
      * Drop table given table name
      * @param name   Name of table to drop
      * @return 0 if successful otherwise -1.
      */
-    int dropTable(const char * name);
+    int dropTable(const char *name);
 
     /**
      * Check if alter of table given defined
@@ -2584,7 +2579,7 @@ public:
      * @return  true supported      <br>
      *          false not supported <br>
      */
-    bool supportedAlterTable(const Table & f, const Table & t);
+    bool supportedAlterTable(const Table &f, const Table &t);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
@@ -2595,7 +2590,7 @@ public:
      *          -1 general error          <br>
      *           0 success
      */
-    int alterTable(const Table & f, const Table & t);
+    int alterTable(const Table &f, const Table &t);
 
 #endif
 
@@ -2603,22 +2598,21 @@ public:
      * Invalidate cached table object
      * @param name  Name of table to invalidate
      */
-    void invalidateTable(const char * name);
+    void invalidateTable(const char *name);
     /**
      * Remove table from local cache
      */
-    void removeCachedTable(const char * table);
+    void removeCachedTable(const char *table);
     /**
      * Remove index from local cache
      */
-    void removeCachedIndex(const char * index, const char * table);
+    void removeCachedIndex(const char *index, const char *table);
     /**
      * Invalidate cached index object
      * @param indexName  Name of index to invalidate
      * @param tableName  Name of table the index belongs to
      */
-    void invalidateIndex(const char * indexName,
-                         const char * tableName);
+    void invalidateIndex(const char *indexName, const char *tableName);
 
     /** @} *******************************************************************/
     /**
@@ -2636,7 +2630,8 @@ public:
      * @return 0 if successful otherwise -1.
      */
     int createIndex(const Index &index, bool offline = false);
-    int createIndex(const Index &index, const Table &table, bool offline = false);
+    int createIndex(const Index &index, const Table &table,
+                    bool offline = false);
 
     /**
      * Drop index with given name
@@ -2644,8 +2639,7 @@ public:
      * @param tableName  Name of table that index belongs to.
      * @return 0 if successful otherwise -1.
      */
-    int dropIndex(const char * indexName,
-		  const char * tableName);
+    int dropIndex(const char *indexName, const char *tableName);
 
     /*
      * Force update of ordered index stats.  Scans an assigned fragment
@@ -2653,7 +2647,7 @@ public:
      * update is independent of IndexStatAuto settings.  Common use case
      * is mysql "analyze table".
      */
-    int updateIndexStat(const Index&, const Table&);
+    int updateIndexStat(const Index &, const Table &);
 
     /*
      * Force update of ordered index stats where index is given by id.
@@ -2664,7 +2658,7 @@ public:
      * Delete ordered index stats.  If IndexStatAutoUpdate is set, also
      * stops automatic updates, until another forced update is done.
      */
-    int deleteIndexStat(const Index&, const Table&);
+    int deleteIndexStat(const Index &, const Table &);
 
     /*
      * Delete ordered index stats where index is given by id.
@@ -2685,7 +2679,7 @@ public:
     /**
      * Get restart gci
      */
-    int getRestartGCI(Uint32 * gci);
+    int getRestartGCI(Uint32 *gci);
 #endif
 
     /** @} *******************************************************************/
@@ -2708,23 +2702,24 @@ public:
       WarnDatafileRoundUp = 0x10    // rounded up to extent size
     };
 
-    int createLogfileGroup(const LogfileGroup &, ObjectId* = 0);
-    int dropLogfileGroup(const LogfileGroup&);
-    LogfileGroup getLogfileGroup(const char * name);
+    int createLogfileGroup(const LogfileGroup &, ObjectId * = 0);
+    int dropLogfileGroup(const LogfileGroup &);
+    LogfileGroup getLogfileGroup(const char *name);
 
-    int createTablespace(const Tablespace &, ObjectId* = 0);
-    int dropTablespace(const Tablespace&);
-    Tablespace getTablespace(const char * name);
+    int createTablespace(const Tablespace &, ObjectId * = 0);
+    int dropTablespace(const Tablespace &);
+    Tablespace getTablespace(const char *name);
     Tablespace getTablespace(Uint32 tablespaceId);
 
-    int createDatafile(const Datafile &, bool overwrite_existing = false, ObjectId* = 0);
-    int dropDatafile(const Datafile&);
-    Datafile getDatafile(Uint32 node, const char * path);
+    int createDatafile(const Datafile &, bool overwrite_existing = false,
+                       ObjectId * = 0);
+    int dropDatafile(const Datafile &);
+    Datafile getDatafile(Uint32 node, const char *path);
 
-    int createUndofile(const Undofile &, bool overwrite_existing = false, ObjectId * = 0);
-    int dropUndofile(const Undofile&);
-    Undofile getUndofile(Uint32 node, const char * path);
-
+    int createUndofile(const Undofile &, bool overwrite_existing = false,
+                       ObjectId * = 0);
+    int dropUndofile(const Undofile &);
+    Undofile getUndofile(Uint32 node, const char *path);
 
     /** @} *******************************************************************/
     /**
@@ -2735,37 +2730,36 @@ public:
     /**
      * Create a HashMap in database
      */
-    int createHashMap(const HashMap&, ObjectId* = 0);
+    int createHashMap(const HashMap &, ObjectId * = 0);
 
     /**
      * Get a HashMap by name
      */
-    int getHashMap(HashMap& dst, const char* name);
+    int getHashMap(HashMap &dst, const char *name);
 
     /**
      * Get a HashMap for a table
      */
-    int getHashMap(HashMap& dst, const Table* table);
+    int getHashMap(HashMap &dst, const Table *table);
 
     /**
      * Get default HashMap
      */
-    int getDefaultHashMap(HashMap& dst, Uint32 partitionCount);
-    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
-
+    int getDefaultHashMap(HashMap &dst, Uint32 partitionCount);
+    int getDefaultHashMap(HashMap &dst, Uint32 buckets, Uint32 partitionCount);
 
     /**
      * Init a default HashMap
      */
-    int initDefaultHashMap(HashMap& dst, Uint32 partitionCount);
-    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
+    int initDefaultHashMap(HashMap &dst, Uint32 partitionCount);
+    int initDefaultHashMap(HashMap &dst, Uint32 buckets, Uint32 partitionCount);
 
     /**
      * create (or retrieve) a HashMap suitable for alter
      * NOTE: Requires a started schema transaction
      */
-    int prepareHashMap(const Table& oldTable, Table& newTable);
-    int prepareHashMap(const Table& oldTable, Table& newTable, Uint32 buckets);
+    int prepareHashMap(const Table &oldTable, Table &newTable);
+    int prepareHashMap(const Table &oldTable, Table &newTable, Uint32 buckets);
 
     /** @} *******************************************************************/
 
@@ -2775,8 +2769,7 @@ public:
      * @{
      */
 
-    enum CreateFKFlags
-    {
+    enum CreateFKFlags {
       /**
        * CreateFK_NoVerify
        * - don't verify FK as part of Create.
@@ -2788,17 +2781,17 @@ public:
     /**
      * Create a ForeignKey in database
      */
-    int createForeignKey(const ForeignKey&, ObjectId* = 0, int flags = 0);
+    int createForeignKey(const ForeignKey &, ObjectId * = 0, int flags = 0);
 
     /**
      * Get a ForeignKey by name
      */
-    int getForeignKey(ForeignKey& dst, const char* name);
+    int getForeignKey(ForeignKey &dst, const char *name);
 
     /**
      * Drop a ForeignKey
      */
-    int dropForeignKey(const ForeignKey&);
+    int dropForeignKey(const ForeignKey &);
 
     /** @} *******************************************************************/
 
@@ -2879,27 +2872,28 @@ public:
     bool hasSchemaTrans() const;
     //@}
 
-  protected:
-    Dictionary(Ndb & ndb);
+   protected:
+    Dictionary(Ndb &ndb);
     ~Dictionary();
 
-  private:
+   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbDictionaryImpl;
     friend class NdbBlob;
 #endif
-    class NdbDictionaryImpl & m_impl;
-    Dictionary(NdbDictionaryImpl&);
-  public:
+    class NdbDictionaryImpl &m_impl;
+    Dictionary(NdbDictionaryImpl &);
+
+   public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    const Table * getTable(const char * name, void **data) const;
+    const Table *getTable(const char *name, void **data) const;
     void set_local_table_data_size(unsigned sz);
 
-    const Index * getIndexGlobal(const char * indexName,
-                                 const Table &ndbtab) const;
-    const Index * getIndexGlobal(const char * indexName,
-                                 const char * tableName) const;
-    const Table * getTableGlobal(const char * tableName) const;
+    const Index *getIndexGlobal(const char *indexName,
+                                const Table &ndbtab) const;
+    const Index *getIndexGlobal(const char *indexName,
+                                const char *tableName) const;
+    const Table *getTableGlobal(const char *tableName) const;
     int alterTableGlobal(const Table &f, const Table &t);
     int dropTableGlobal(const Table &ndbtab);
     /* Flags for second variant of dropTableGlobal */
@@ -2914,43 +2908,37 @@ public:
        * Drop any referring foreign keys within same DB
        *   used when dropping database
        */
-      ,DropTableCascadeConstraintsDropDB = 0x2
+      ,
+      DropTableCascadeConstraintsDropDB = 0x2
     };
     int dropTableGlobal(const Table &ndbtab, int flags);
     int dropIndexGlobal(const Index &index);
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
-    void invalidateDbGlobal(const char * dbname);
+    void invalidateDbGlobal(const char *dbname);
 #endif
 
     /*
       Create an NdbRecord for use in table operations.
     */
     NdbRecord *createRecord(const Table *table,
-                            const RecordSpecification *recSpec,
-                            Uint32 length,
-                            Uint32 elemSize,
-                            Uint32 flags= 0);
+                            const RecordSpecification *recSpec, Uint32 length,
+                            Uint32 elemSize, Uint32 flags = 0);
 
     /*
       Create an NdbRecord for use in index operations.
     */
-    NdbRecord *createRecord(const Index *index,
-                            const Table *table,
-                            const RecordSpecification *recSpec,
-                            Uint32 length,
-                            Uint32 elemSize,
-                            Uint32 flags= 0);
+    NdbRecord *createRecord(const Index *index, const Table *table,
+                            const RecordSpecification *recSpec, Uint32 length,
+                            Uint32 elemSize, Uint32 flags = 0);
     /*
       Create an NdbRecord for use in index operations.
       This variant assumes that the index is for a table in
       the current database and schema
     */
     NdbRecord *createRecord(const Index *index,
-                            const RecordSpecification *recSpec,
-                            Uint32 length,
-                            Uint32 elemSize,
-                            Uint32 flags= 0);
+                            const RecordSpecification *recSpec, Uint32 length,
+                            Uint32 elemSize, Uint32 flags = 0);
 
     /*
       Free an NdbRecord object created earlier with
@@ -2962,13 +2950,12 @@ public:
       Methods to print objects more verbose than possible from
       object itself.
      */
-    void print(class NdbOut& out, NdbDictionary::Index const& idx);
-    void print(class NdbOut& out, NdbDictionary::Table const& tab);
-  }; // class Dictionary
+    void print(class NdbOut &out, NdbDictionary::Index const &idx);
+    void print(class NdbOut &out, NdbDictionary::Table const &tab);
+  };  // class Dictionary
 
-  class NdbDataPrintFormat
-  {
-  public:
+  class NdbDataPrintFormat {
+   public:
     NdbDataPrintFormat();
     virtual ~NdbDataPrintFormat();
     const char *lines_terminated_by;
@@ -2982,15 +2969,14 @@ public:
     int hex_format;
   };
 
-  static
-  class NdbOut& printFormattedValue(class NdbOut& out,
-                                    const NdbDataPrintFormat& format,
-                                    const NdbDictionary::Column* c,
-                                    const void* val);
-  static
-  class NdbOut& printColumnTypeDescription(class NdbOut &, const Column &);
+  static class NdbOut &printFormattedValue(class NdbOut &out,
+                                           const NdbDataPrintFormat &format,
+                                           const NdbDictionary::Column *c,
+                                           const void *val);
+  static class NdbOut &printColumnTypeDescription(class NdbOut &,
+                                                  const Column &);
 
-#if __cplusplus >= 201103L  || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
   // RAII support for the Event returned from Dictionary::getEvent()
   struct Event_deleter {
     void operator()(const Event *event) { Dictionary::releaseEvent(event); }
@@ -2998,15 +2984,18 @@ public:
   using Event_ptr = std::unique_ptr<const Event, Event_deleter>;
 #endif
 
+};  // class NdbDictionary
 
-}; // class NdbDictionary
-
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index& idx);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index::Type type);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::FragmentType fragtype);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Status status);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Type type);
-class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Table& tab);
+class NdbOut &operator<<(class NdbOut &out, const NdbDictionary::Column &col);
+class NdbOut &operator<<(class NdbOut &out, const NdbDictionary::Index &idx);
+class NdbOut &operator<<(class NdbOut &out,
+                         const NdbDictionary::Index::Type type);
+class NdbOut &operator<<(class NdbOut &out,
+                         const NdbDictionary::Object::FragmentType fragtype);
+class NdbOut &operator<<(class NdbOut &out,
+                         const NdbDictionary::Object::Status status);
+class NdbOut &operator<<(class NdbOut &out,
+                         const NdbDictionary::Object::Type type);
+class NdbOut &operator<<(class NdbOut &out, const NdbDictionary::Table &tab);
 
 #endif

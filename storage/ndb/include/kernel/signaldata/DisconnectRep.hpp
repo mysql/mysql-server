@@ -29,12 +29,10 @@
 
 #define JAM_FILE_ID 113
 
-
 /**
- * 
+ *
  */
-struct DisconnectRep
-{
+struct DisconnectRep {
   /**
    * Receiver(s)
    */
@@ -67,8 +65,6 @@ struct DisconnectRep
   Uint32 nodeId;
   Uint32 err;
 };
-
-
 
 #undef JAM_FILE_ID
 

@@ -25,15 +25,15 @@
 #ifndef Driver_hpp
 #define Driver_hpp
 
+#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
 
+#include "Load.hpp"
 #include "Properties.hpp"
 #include "hrt_utils.h"
-#include "Load.hpp"
 
 using std::ofstream;
 using std::ostringstream;
@@ -43,80 +43,78 @@ using std::vector;
 using utils::Properties;
 
 class Driver {
-    Driver(const Driver&);
-    Driver& operator=(const Driver&);
+  Driver(const Driver &);
+  Driver &operator=(const Driver &);
 
-public:
+ public:
+  // usage
+  static void parseArguments(int argc, const char *argv[]);
+  Driver() {}
+  virtual ~Driver() {}
+  virtual void run();
 
-    // usage
-    static void parseArguments(int argc, const char* argv[]);
-    Driver() {}
-    virtual ~Driver() {}
-    virtual void run();
+  // settings
+  int nRuns;
+  bool logRealTime;
+  bool logCpuTime;
+  bool logSumOfOps;
+  bool failOnError;
+  vector<string> loadClassNames;
 
-    // settings
-    int nRuns;
-    bool logRealTime;
-    bool logCpuTime;
-    bool logSumOfOps;
-    bool failOnError;
-    vector< string > loadClassNames;
+  // resources
+  virtual Properties &getProperties() { return props; }
+  virtual void setIgnoredSettings() { hasIgnoredSettings = true; };
+  virtual void addLoad(Load &load) { loads.push_back(&load); }
 
-    // resources
-    virtual Properties& getProperties() { return props; }
-    virtual void setIgnoredSettings() { hasIgnoredSettings = true; };
-    virtual void addLoad(Load& load) { loads.push_back(&load); }
+  // operations
+  virtual void logError(const string &load, const string &msg);
+  virtual void logWarning(const string &load, const string &msg);
+  virtual void beginOp(const string &name);
+  virtual void finishOp(const string &name, int nOps);
 
-    // operations
-    virtual void logError(const string& load, const string& msg);
-    virtual void logWarning(const string& load, const string& msg);
-    virtual void beginOp(const string& name);
-    virtual void finishOp(const string& name, int nOps);
+ protected:
+  // usage
+  static vector<string> propFileNames;
+  static string logFileName;
+  static void exitUsage();
 
-protected:
+  // resources
+  Properties props;
+  bool hasIgnoredSettings;
+  ofstream log;
+  string descr;
+  bool logHeader;
+  ostringstream header;
+  ostringstream rtimes;
+  ostringstream ctimes;
+  ostringstream errors;
+  int s0, s1;
+  hrt_tstamp t0, t1;
+  long rta, cta;
+  typedef vector<Load *> Loads;
+  Loads loads;
 
-    // usage
-    static vector< string > propFileNames;
-    static string logFileName;
-    static void exitUsage();
+  // initializers/finalizers
+  virtual void init();
+  virtual void close();
+  virtual void loadProperties();
+  virtual void initProperties();
+  virtual void printProperties();
+  virtual void openLogFile();
+  virtual void closeLogFile();
+  virtual void initLoads();
+  virtual void closeLoads();
+  virtual void addLoads();
+  virtual bool createLoad(const string &name) = 0;
 
-    // resources
-    Properties props;
-    bool hasIgnoredSettings;
-    ofstream log;
-    string descr;
-    bool logHeader;
-    ostringstream header;
-    ostringstream rtimes;
-    ostringstream ctimes;
-    ostringstream errors;
-    int s0, s1;
-    hrt_tstamp t0, t1;
-    long rta, cta;
-    typedef vector< Load * > Loads;
-    Loads loads;
-
-    // initializers/finalizers
-    virtual void init();
-    virtual void close();
-    virtual void loadProperties();
-    virtual void initProperties();
-    virtual void printProperties();
-    virtual void openLogFile();
-    virtual void closeLogFile();
-    virtual void initLoads();
-    virtual void closeLoads();
-    virtual void addLoads();
-    virtual bool createLoad(const string& name) = 0;
-
-    // operations
-    virtual void runLoad(Load& load) = 0;
-    virtual void runLoads();
-    virtual void abortIfErrors();
-    virtual void clearLogBuffers();
-    virtual void writeLogBuffers(const string& prefix);
-    virtual void beginOps(int nOps);
-    virtual void finishOps(int nOps);
+  // operations
+  virtual void runLoad(Load &load) = 0;
+  virtual void runLoads();
+  virtual void abortIfErrors();
+  virtual void clearLogBuffers();
+  virtual void writeLogBuffers(const string &prefix);
+  virtual void beginOps(int nOps);
+  virtual void finishOps(int nOps);
 };
 
-#endif // Driver_hpp
+#endif  // Driver_hpp

@@ -25,19 +25,11 @@
 
 #define JAM_FILE_ID 336
 
+RestoreProxy::RestoreProxy(Block_context &ctx) : LocalProxy(RESTORE, ctx) {}
 
-RestoreProxy::RestoreProxy(Block_context& ctx) :
-  LocalProxy(RESTORE, ctx)
-{
-}
+RestoreProxy::~RestoreProxy() {}
 
-RestoreProxy::~RestoreProxy()
-{
-}
-
-SimulatedBlock*
-RestoreProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *RestoreProxy::newWorker(Uint32 instanceNo) {
   return new Restore(m_ctx, instanceNo);
 }
 

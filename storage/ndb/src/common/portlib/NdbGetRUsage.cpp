@@ -20,11 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <cstring>
-#include "my_config.h"
 #include <NdbGetRUsage.h>
 #include <NdbMutex.h>
 #include <ndb_config.h>
+#include <cstring>
+#include "my_config.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -40,42 +40,33 @@
 
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
 #include <mach/mach_init.h>
-#include <mach/thread_act.h>
 #include <mach/mach_port.h>
+#include <mach/thread_act.h>
 
 mach_port_t our_mach_task = MACH_PORT_NULL;
 #endif
 
 #ifndef _WIN32
-static
-Uint64
-micros(struct timeval val)
-{
-  return
-    (Uint64)val.tv_sec * (Uint64)1000000 + val.tv_usec;
+static Uint64 micros(struct timeval val) {
+  return (Uint64)val.tv_sec * (Uint64)1000000 + val.tv_usec;
 }
 #endif
 
-void NdbGetRUsage_Init(void)
-{
+void NdbGetRUsage_Init(void) {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
   our_mach_task = mach_task_self();
 #endif
 }
 
-void NdbGetRUsage_End(void)
-{
+void NdbGetRUsage_End(void) {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
-  if (our_mach_task != MACH_PORT_NULL)
-  {
+  if (our_mach_task != MACH_PORT_NULL) {
     mach_port_deallocate(our_mach_task, our_mach_task);
   }
 #endif
 }
 
-int
-Ndb_GetRUsage(ndb_rusage* dst, bool process)
-{
+int Ndb_GetRUsage(ndb_rusage *dst, bool process) {
   int res = -1;
   (void)process;
 #ifdef _WIN32
@@ -97,20 +88,16 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
    * be used for microsecond measurements, but it is good enough for
    * keeping track of CPU usage on a second basis.
    */
-  bool ret = GetThreadTimes( GetCurrentThread(),
-                             &create_time,
-                             &exit_time,
-                             &kernel_time,
-                             &user_time);
-  if (ret)
-  {
+  bool ret = GetThreadTimes(GetCurrentThread(), &create_time, &exit_time,
+                            &kernel_time, &user_time);
+  if (ret) {
     /* Successful return */
     res = 0;
 
     Uint64 tmp = user_time.dwHighDateTime;
     tmp <<= 32;
     tmp += user_time.dwLowDateTime;
-    /** 
+    /**
      * Time reported in microseconds, Windows report it in
      * 100 ns intervals. So we need to divide by 10 the
      * Windows counter.
@@ -121,14 +108,11 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
     tmp <<= 32;
     tmp += kernel_time.dwLowDateTime;
     dst->ru_stime = tmp / 10;
-  }
-  else
-  {
+  } else {
     res = -1;
   }
 #elif defined(HAVE_MAC_OS_X_THREAD_INFO)
-  if (!process)
-  {
+  if (!process) {
     mach_port_t thread_port;
     kern_return_t ret_code;
     mach_msg_type_number_t basic_info_count = THREAD_BASIC_INFO_COUNT;
@@ -140,18 +124,13 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
      * the code with keeping track of this value.
      */
     thread_port = mach_thread_self();
-    if (thread_port != MACH_PORT_NULL &&
-        thread_port != MACH_PORT_DEAD)
-    {
-      ret_code = thread_info(thread_port,
-                             THREAD_BASIC_INFO,
-                             (thread_info_t) &basic_info,
-                             &basic_info_count);
-  
+    if (thread_port != MACH_PORT_NULL && thread_port != MACH_PORT_DEAD) {
+      ret_code = thread_info(thread_port, THREAD_BASIC_INFO,
+                             (thread_info_t)&basic_info, &basic_info_count);
+
       mach_port_deallocate(our_mach_task, thread_port);
 
-      if (ret_code == KERN_SUCCESS)
-      {
+      if (ret_code == KERN_SUCCESS) {
         dst->ru_minflt = 0;
         dst->ru_majflt = 0;
         dst->ru_nvcsw = 0;
@@ -167,31 +146,22 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
         dst->ru_stime = tmp;
 
         res = 0;
-      }
-      else
-      {
+      } else {
         res = -1;
       }
-    }
-    else if (thread_port == MACH_PORT_DEAD)
-    {
+    } else if (thread_port == MACH_PORT_DEAD) {
       mach_port_deallocate(our_mach_task, thread_port);
       res = -3;
-    }
-    else
-    {
+    } else {
       res = -2; /* Report -2 to distinguish error cases for debugging. */
     }
-  }
-  else
-  {
+  } else {
 #ifdef HAVE_GETRUSAGE
     struct rusage tmp;
 #ifdef RUSAGE_SELF
     res = getrusage(RUSAGE_SELF, &tmp);
 #endif
-    if (res == 0)
-    {
+    if (res == 0) {
       dst->ru_utime = micros(tmp.ru_utime);
       dst->ru_stime = micros(tmp.ru_stime);
       dst->ru_minflt = tmp.ru_minflt;
@@ -215,8 +185,7 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
   tmp.ru_maxrss /= Uint64(8);
 #endif
 
-  if (res == 0)
-  {
+  if (res == 0) {
     dst->ru_utime = micros(tmp.ru_utime);
     dst->ru_stime = micros(tmp.ru_stime);
     dst->ru_minflt = tmp.ru_minflt;
@@ -230,9 +199,8 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
 #endif
 #endif
 
-  if (res != 0)
-  {
-    std::memset(dst, 0, sizeof(* dst));
+  if (res != 0) {
+    std::memset(dst, 0, sizeof(*dst));
   }
   return res;
 }

@@ -24,21 +24,19 @@
 
 #include "Suma.hpp"
 
-#include <cstring>
-#include <Properties.hpp>
 #include <Configuration.hpp>
+#include <Properties.hpp>
+#include <cstring>
 
 #define JAM_FILE_ID 468
 
-
-Suma::Suma(Block_context& ctx) :
-  SimulatedBlock(SUMA, ctx),
-  c_tables(c_tablePool),
-  c_subscriptions(c_subscriptionPool),
-  c_gcp_list(c_gcp_pool),
-  b_dti_buf_ref_count(0),
-  m_current_gci(~(Uint64)0)
-{
+Suma::Suma(Block_context &ctx)
+    : SimulatedBlock(SUMA, ctx),
+      c_tables(c_tablePool),
+      c_subscriptions(c_subscriptionPool),
+      c_gcp_list(c_gcp_pool),
+      b_dti_buf_ref_count(0),
+      m_current_gci(~(Uint64)0) {
   BLOCK_CONSTRUCTOR(Suma);
 
   // Add received signals
@@ -49,15 +47,14 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_DBINFO_SCANREQ, &Suma::execDBINFO_SCANREQ);
   addRecSignal(GSN_READ_NODESCONF, &Suma::execREAD_NODESCONF);
   addRecSignal(GSN_API_START_REP, &Suma::execAPI_START_REP, true);
-  addRecSignal(GSN_API_FAILREQ,  &Suma::execAPI_FAILREQ);
+  addRecSignal(GSN_API_FAILREQ, &Suma::execAPI_FAILREQ);
   addRecSignal(GSN_NODE_FAILREP, &Suma::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Suma::execINCL_NODEREQ);
   addRecSignal(GSN_CONTINUEB, &Suma::execCONTINUEB);
   addRecSignal(GSN_SIGNAL_DROPPED_REP, &Suma::execSIGNAL_DROPPED_REP, true);
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Suma::execUTIL_SEQUENCE_CONF);
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &Suma::execUTIL_SEQUENCE_REF);
-  addRecSignal(GSN_CREATE_SUBID_REQ, 
-	       &Suma::execCREATE_SUBID_REQ);
+  addRecSignal(GSN_CREATE_SUBID_REQ, &Suma::execCREATE_SUBID_REQ);
 
   addRecSignal(GSN_SUB_CREATE_CONF, &Suma::execSUB_CREATE_CONF);
   addRecSignal(GSN_SUB_CREATE_REF, &Suma::execSUB_CREATE_REF);
@@ -71,12 +68,10 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUMA_HANDOVER_REQ, &Suma::execSUMA_HANDOVER_REQ);
   addRecSignal(GSN_SUMA_HANDOVER_REF, &Suma::execSUMA_HANDOVER_REF);
   addRecSignal(GSN_SUMA_HANDOVER_CONF, &Suma::execSUMA_HANDOVER_CONF);
-  
-  addRecSignal(GSN_SUB_GCP_COMPLETE_ACK, 
-	       &Suma::execSUB_GCP_COMPLETE_ACK);
-  
-  addRecSignal(GSN_STOP_ME_REQ,
-               &Suma::execSTOP_ME_REQ);
+
+  addRecSignal(GSN_SUB_GCP_COMPLETE_ACK, &Suma::execSUB_GCP_COMPLETE_ACK);
+
+  addRecSignal(GSN_STOP_ME_REQ, &Suma::execSTOP_ME_REQ);
 
   /**
    * SUMA participant if
@@ -121,9 +116,8 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUB_SYNC_CONTINUE_REF, 
 	       &Suma::execSUB_SYNC_CONTINUE_REF);
 #endif
-  addRecSignal(GSN_SUB_SYNC_CONTINUE_CONF, 
-	       &Suma::execSUB_SYNC_CONTINUE_CONF);
-  
+  addRecSignal(GSN_SUB_SYNC_CONTINUE_CONF, &Suma::execSUB_SYNC_CONTINUE_CONF);
+
   /**
    * Trigger stuff
    */
@@ -135,20 +129,18 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Suma::execCREATE_TRIG_IMPL_CONF);
   addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Suma::execDROP_TRIG_IMPL_REF);
   addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Suma::execDROP_TRIG_IMPL_CONF);
-  
-  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
-	       &Suma::execSUB_GCP_COMPLETE_REP);
+
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Suma::execSUB_GCP_COMPLETE_REP);
 
   addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ,
                &Suma::execCREATE_NODEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
-               &Suma::execDROP_NODEGROUP_IMPL_REQ);
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ, &Suma::execDROP_NODEGROUP_IMPL_REQ);
 
   c_current_seq = 0;
   c_outstanding_drop_trig_req = 0;
   c_restart.m_ref = 0;
-  c_startup.m_restart_server_node_id = RNIL; // Server for my NR
+  c_startup.m_restart_server_node_id = RNIL;  // Server for my NR
   c_shutdown.m_wait_handover = false;
 
 #ifdef VM_TRACE
@@ -167,25 +159,18 @@ Suma::Suma(Block_context& ctx) :
   std::memset(m_gcp_inflight, 0, sizeof(m_gcp_inflight));
 }
 
-Suma::~Suma()
-{
-  c_page_pool.clear();
-}
+Suma::~Suma() { c_page_pool.clear(); }
 
-bool
-Suma::getParam(const char * param, Uint32 * retVal)
-{
-  if (param != NULL && retVal != NULL)
-  {
-    if (strcmp(param, "FragmentSendPool") == 0)
-    {
+bool Suma::getParam(const char *param, Uint32 *retVal) {
+  if (param != NULL && retVal != NULL) {
+    if (strcmp(param, "FragmentSendPool") == 0) {
       /* FragmentSendPool
        * We increase the size of the fragment send pool
        * to possibly handle max number of SQL nodes
        * being subscribers
        */
 
-      *retVal= MAX_NODES;
+      *retVal = MAX_NODES;
       return true;
     }
   }
@@ -193,4 +178,3 @@ Suma::getParam(const char * param, Uint32 * retVal)
 }
 
 BLOCK_FUNCTIONS(Suma)
-

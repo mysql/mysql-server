@@ -28,17 +28,17 @@
 #include "SignalData.hpp"
 
 class ProcessInfoRep {
-  friend class ClusterMgr;     // Sender
-  friend class Qmgr;           // Receiver
-  friend class ProcessInfo;    // Stored format
+  friend class ClusterMgr;   // Sender
+  friend class Qmgr;         // Receiver
+  friend class ProcessInfo;  // Stored format
   friend bool printPROCESSINFO_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 20;
   static constexpr Uint32 PathSectionNum = 0;
   static constexpr Uint32 HostSectionNum = 1;
 
-private:
+ private:
   Uint8 process_name[48];
   Uint8 uri_scheme[16];
   Uint32 node_id;

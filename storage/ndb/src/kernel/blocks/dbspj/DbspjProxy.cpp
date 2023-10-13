@@ -27,20 +27,12 @@
 
 #define JAM_FILE_ID 483
 
+DbspjProxy::DbspjProxy(Block_context &ctx) : DbgdmProxy(DBSPJ, ctx) {}
 
-DbspjProxy::DbspjProxy(Block_context& ctx) :
-  DbgdmProxy(DBSPJ, ctx)
-{}
+DbspjProxy::~DbspjProxy() {}
 
-DbspjProxy::~DbspjProxy()
-{
-}
-
-SimulatedBlock*
-DbspjProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbspjProxy::newWorker(Uint32 instanceNo) {
   return new Dbspj(m_ctx, instanceNo);
 }
-
 
 BLOCK_FUNCTIONS(DbspjProxy)

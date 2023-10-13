@@ -32,7 +32,6 @@
 
 #define JAM_FILE_ID 190
 
-
 /**
  * Ask DIH to check if a node set can survive i.e. if it
  * has at least one node in every node group.  Returns one
@@ -42,28 +41,27 @@
  * be executed as a direct signal.
  */
 class CheckNodeGroups {
-public:
-
+ public:
   union {
-    Uint32 blockRef;              // sender's node id
-    Uint32 partitionBalance;     // For GetDefaultFragments
+    Uint32 blockRef;          // sender's node id
+    Uint32 partitionBalance;  // For GetDefaultFragments
   };
 
   union {
-    Uint32 requestType;           // direct flag, output code
+    Uint32 requestType;  // direct flag, output code
     Uint32 output;
   };
 
   union {
-    Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
-    Uint32 extraNodeGroups;    // For GetDefaultFragments
+    Uint32 nodeId;           // nodeId input for GetNodeGroupMembers
+    Uint32 extraNodeGroups;  // For GetDefaultFragments
   };
-  Uint32 senderData;            // Sender data, kept in return signal
-  NdbNodeBitmaskPOD mask;         /* set of NDB nodes, input for ArbitCheck,
-        			   * output for GetNodeGroupMembers
-                                   * Part of direct signal, but sent as first
-                                   * section for async signal.
-				   */
+  Uint32 senderData;      // Sender data, kept in return signal
+  NdbNodeBitmaskPOD mask; /* set of NDB nodes, input for ArbitCheck,
+                           * output for GetNodeGroupMembers
+                           * Part of direct signal, but sent as first
+                           * section for async signal.
+                           */
   /**
    * The set of nodes before failure, this is useful to discover if any node
    * group is completely alive after the failure. Even if only one node in
@@ -75,27 +73,29 @@ public:
   NdbNodeBitmaskPOD before_fail_mask;
 
   enum RequestType {
-    Direct              = 0x1,
-    ArbitCheck          = 0x2,
-    GetNodeGroup        = 0x4,
+    Direct = 0x1,
+    ArbitCheck = 0x2,
+    GetNodeGroup = 0x4,
     GetNodeGroupMembers = 0x8,
     GetDefaultFragments = 0x10,
     GetDefaultFragmentsFullyReplicated = 0x20,
-    UseBeforeFailMask   = 0x40
+    UseBeforeFailMask = 0x40
   };
 
   enum Output {
-    Lose = 1,                   // we cannot survive
-    Win = 2,                    // we and only we can survive
-    Partitioning = 3            // possible network partitioning
+    Lose = 1,         // we cannot survive
+    Win = 2,          // we and only we can survive
+    Partitioning = 3  // possible network partitioning
   };
 
-  static constexpr Uint32 SignalLength = 4 + NdbNodeBitmask::Size; // Only for direct signal.
-  static constexpr Uint32 SignalLengthArbitCheckShort = 4 + NdbNodeBitmask::Size;
-  static constexpr Uint32 SignalLengthArbitCheckLong = 4 + (2 * NdbNodeBitmask::Size);
+  static constexpr Uint32 SignalLength =
+      4 + NdbNodeBitmask::Size;  // Only for direct signal.
+  static constexpr Uint32 SignalLengthArbitCheckShort =
+      4 + NdbNodeBitmask::Size;
+  static constexpr Uint32 SignalLengthArbitCheckLong =
+      4 + (2 * NdbNodeBitmask::Size);
   static constexpr Uint32 SignalLengthNoBitmask = 4;
 };
-
 
 #undef JAM_FILE_ID
 

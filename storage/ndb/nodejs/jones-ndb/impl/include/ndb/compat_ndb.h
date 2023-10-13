@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -26,7 +26,7 @@
 
 #if NDB_VERSION_MAJOR < 7
 #error "Node.JS Adapter requires MySQL Cluster 7.4 or greater"
-#endif 
+#endif
 
 #if (NDB_VERSION_MAJOR == 7 && NDB_VERSION_MINOR < 4)
 #error "Node.JS Adapter requires MySQL Cluster 7.4 or greater"

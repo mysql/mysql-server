@@ -25,27 +25,25 @@
 #ifndef TRANSPOOL_HPP
 #define TRANSPOOL_HPP
 
-#include "util/require.h"
 #include "TransientSlotPool.hpp"
 #include "debugger/EventLogger.hpp"
+#include "util/require.h"
 #include "vm/ComposedSlotPool.hpp"
 #include "vm/Slot.hpp"
 
 #define JAM_FILE_ID 506
 
-
 #define SIZEOF_IN_WORDS(T) ((sizeof(T) + sizeof(Uint32) - 1) / sizeof(Uint32))
 
-typedef ComposedSlotPool<StaticSlotPool,TransientSlotPool> TransientFastSlotPool;
+typedef ComposedSlotPool<StaticSlotPool, TransientSlotPool>
+    TransientFastSlotPool;
 
-template <typename T,
-          Uint32 Slot_size = SIZEOF_IN_WORDS(T)>
-class TransientPool
-: public TransientFastSlotPool
-{
-public:
+template <typename T, Uint32 Slot_size = SIZEOF_IN_WORDS(T)>
+class TransientPool : public TransientFastSlotPool {
+ public:
   typedef T Type;
-  void init(Uint32 type_id, const Pool_context &pool_ctx, Uint32 min_recs, Uint32 max_recs);
+  void init(Uint32 type_id, const Pool_context &pool_ctx, Uint32 min_recs,
+            Uint32 max_recs);
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   void resetMaxSize();
   void setMaxSize(Uint32 max_recs);
@@ -103,7 +101,8 @@ public:
   [[nodiscard]] bool getValidPtr(Ptr<T> &p) const;
   [[nodiscard]] bool getUncheckedPtrRO(Ptr<T> &p) const;
   [[nodiscard]] bool getUncheckedPtrRW(Ptr<T> &p) const;
-  [[nodiscard]] Uint32 getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const;
+  [[nodiscard]] Uint32 getUncheckedPtrs(Uint32 *from, Ptr<T> ptrs[],
+                                        Uint32 cnt) const;
 
   Uint32 getEntrySize() const { return sizeof(Type); }
   Uint32 getNoOfFree() const { return SlotPool::getNoOfFree(); }
@@ -113,149 +112,135 @@ public:
   void resetUsedHi() { SlotPool::resetUsedHi(); }
 
   static Uint64 getMemoryNeed(Uint32 entry_count);
-private:
+
+ private:
   typedef TransientFastSlotPool SlotPool;
-  //typedef TransientSlotPool SlotPool;
+  // typedef TransientSlotPool SlotPool;
   typedef typename SlotPool::Type SlotType;
 
-  static void static_asserts()
-  {
-    static_assert( offsetof(T, m_magic) == 0);
-    static_assert( sizeof(T::m_magic) == 4);
+  static void static_asserts() {
+    static_assert(offsetof(T, m_magic) == 0);
+    static_assert(sizeof(T::m_magic) == 4);
   }
 };
 
-template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::seize(Ptr<T> &p)
-{
+template <typename T, Uint32 Slot_size>
+inline bool TransientPool<T, Slot_size>::seize(Ptr<T> &p) {
   Ptr<SlotType> slot;
-  if (unlikely(!SlotPool::seize(slot, Slot_size)))
-  {
+  if (unlikely(!SlotPool::seize(slot, Slot_size))) {
     return false;
   }
   p.i = slot.i;
 #if defined VM_TRACE || defined ERROR_INSERT
-  memset(reinterpret_cast<void*>(slot.p), 0xF4, Slot_size * sizeof(Uint32));
+  memset(reinterpret_cast<void *>(slot.p), 0xF4, Slot_size * sizeof(Uint32));
 #endif
   p.p = new (slot.p) T;
-  if (unlikely(!Magic::match(p.p->m_magic, T::TYPE_ID)))
-  {
-    g_eventLogger->info("Magic::match failed in %s: "
-                        "type_id %08x rg %u tid %u: "
-                        "slot_size %u: ptr.i %u: ptr.p %p: "
-                        "magic %08x expected %08x",
-                        __func__,
-                        T::TYPE_ID,
-                        GET_RG(T::TYPE_ID),
-                        GET_TID(T::TYPE_ID),
-                        Slot_size,
-                        p.i,
-                        p.p,
-                        p.p->m_magic,
-                        Magic::make(T::TYPE_ID));
+  if (unlikely(!Magic::match(p.p->m_magic, T::TYPE_ID))) {
+    g_eventLogger->info(
+        "Magic::match failed in %s: "
+        "type_id %08x rg %u tid %u: "
+        "slot_size %u: ptr.i %u: ptr.p %p: "
+        "magic %08x expected %08x",
+        __func__, T::TYPE_ID, GET_RG(T::TYPE_ID), GET_TID(T::TYPE_ID),
+        Slot_size, p.i, p.p, p.p->m_magic, Magic::make(T::TYPE_ID));
     require(Magic::match(p.p->m_magic, T::TYPE_ID));
   }
   return true;
 }
 
-template<typename T, Uint32 Slot_size> inline void TransientPool<T, Slot_size>::release(Ptr<T> p)
-{
+template <typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::release(Ptr<T> p) {
   Ptr<SlotType> slot;
   slot.i = p.i;
   p.p->~T();
 #if defined VM_TRACE || defined ERROR_INSERT
-  memset(reinterpret_cast<void*>(p.p), 0xF4, Slot_size * sizeof(Uint32));
+  memset(reinterpret_cast<void *>(p.p), 0xF4, Slot_size * sizeof(Uint32));
 #endif
   slot.p = new (p.p) SlotType;
   SlotPool::release(slot, Slot_size);
 }
 
-template<typename T, Uint32 Slot_size> inline T *TransientPool<T, Slot_size>::getPtr(Uint32 i) const
-{
+template <typename T, Uint32 Slot_size>
+inline T *TransientPool<T, Slot_size>::getPtr(Uint32 i) const {
   Ptr<SlotType> p;
   p.i = i;
   require(SlotPool::getValidPtr(p, Magic::make(T::TYPE_ID), Slot_size));
-  return reinterpret_cast<T*>(p.p);
+  return reinterpret_cast<T *>(p.p);
 }
 
-template<typename T, Uint32 Slot_size> inline void TransientPool<T, Slot_size>::getPtr(Ptr<T> &p) const
-{
+template <typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::getPtr(Ptr<T> &p) const {
   p.p = getPtr(p.i);
 }
 
-template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::getValidPtr(Ptr<T> &p) const
-{
+template <typename T, Uint32 Slot_size>
+inline bool TransientPool<T, Slot_size>::getValidPtr(Ptr<T> &p) const {
   Ptr<SlotType> slot;
   slot.i = p.i;
-  if (unlikely(!SlotPool::getValidPtr(slot, Magic::make(T::TYPE_ID), Slot_size)))
-  {
+  if (unlikely(
+          !SlotPool::getValidPtr(slot, Magic::make(T::TYPE_ID), Slot_size))) {
     return false;
   }
-  p.p = reinterpret_cast<T*>(slot.p);
+  p.p = reinterpret_cast<T *>(slot.p);
   return true;
 }
 
-template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::getUncheckedPtrRO(Ptr<T> &p) const
-{
+template <typename T, Uint32 Slot_size>
+inline bool TransientPool<T, Slot_size>::getUncheckedPtrRO(Ptr<T> &p) const {
   Ptr<SlotType> slot;
   slot.i = p.i;
-  if (unlikely(!SlotPool::getUncheckedPtrRO(slot, Slot_size)))
-  {
+  if (unlikely(!SlotPool::getUncheckedPtrRO(slot, Slot_size))) {
     return false;
   }
-  p.p = reinterpret_cast<T*>(slot.p);
+  p.p = reinterpret_cast<T *>(slot.p);
   return true;
 }
 
-template<typename T, Uint32 Slot_size> inline bool TransientPool<T, Slot_size>::getUncheckedPtrRW(Ptr<T> &p) const
-{
+template <typename T, Uint32 Slot_size>
+inline bool TransientPool<T, Slot_size>::getUncheckedPtrRW(Ptr<T> &p) const {
   Ptr<SlotType> slot;
   slot.i = p.i;
-  if (unlikely(!SlotPool::getUncheckedPtrRW(slot, Slot_size)))
-  {
+  if (unlikely(!SlotPool::getUncheckedPtrRW(slot, Slot_size))) {
     return false;
   }
-  p.p = reinterpret_cast<T*>(slot.p);
+  p.p = reinterpret_cast<T *>(slot.p);
   return true;
 }
 
-template<typename T, Uint32 Slot_size>
+template <typename T, Uint32 Slot_size>
 inline void TransientPool<T, Slot_size>::init(Uint32 type_id,
-                                              const Pool_context& pool_ctx,
+                                              const Pool_context &pool_ctx,
                                               Uint32 min_recs,
-                                              Uint32 max_recs)
-{
+                                              Uint32 max_recs) {
   SlotPool::init(type_id, Slot_size, &min_recs, max_recs, pool_ctx);
 }
 
-template<typename T, Uint32 Slot_size>
-inline bool TransientPool<T, Slot_size>::startup()
-{
+template <typename T, Uint32 Slot_size>
+inline bool TransientPool<T, Slot_size>::startup() {
   return SlotPool::startup(Slot_size);
 }
 
-template<typename T, Uint32 Slot_size>
-inline Uint64 TransientPool<T, Slot_size>::getMemoryNeed(Uint32 entry_count)
-{
+template <typename T, Uint32 Slot_size>
+inline Uint64 TransientPool<T, Slot_size>::getMemoryNeed(Uint32 entry_count) {
   return SlotPool::getMemoryNeed(Slot_size, entry_count);
 }
 
-template<typename T, Uint32 Slot_size>
-inline Uint32 TransientPool<T, Slot_size>::getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const
-{
-  Ptr<SlotType>* slots = reinterpret_cast<Ptr<SlotType>*>(ptrs);
+template <typename T, Uint32 Slot_size>
+inline Uint32 TransientPool<T, Slot_size>::getUncheckedPtrs(Uint32 *from,
+                                                            Ptr<T> ptrs[],
+                                                            Uint32 cnt) const {
+  Ptr<SlotType> *slots = reinterpret_cast<Ptr<SlotType> *>(ptrs);
   return SlotPool::getUncheckedPtrs(from, slots, cnt, Slot_size);
 }
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-template<typename T, Uint32 Slot_size>
-inline void TransientPool<T, Slot_size>::resetMaxSize()
-{
+template <typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::resetMaxSize() {
   SlotPool::resetMaxSize();
 }
 
-template<typename T, Uint32 Slot_size>
-inline void TransientPool<T, Slot_size>::setMaxSize(Uint32 max_recs)
-{
+template <typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::setMaxSize(Uint32 max_recs) {
   SlotPool::setMaxSize(max_recs);
 }
 #endif

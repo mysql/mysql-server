@@ -46,14 +46,14 @@ class NdbColumnImpl;
     1) Create NdbInterpretedCode object, optionally supplying a table
        for the program to operate on, and a buffer for program storage
        and finalisation
-       Note : 
+       Note :
        - If no table is supplied, then only instructions which do not
        access table attributes can be used.
        - If no buffer is supplied, then an internal buffer will be
        dynamically allocated and extended as necessary.
-    2) Add instructions and labels to the NdbInterpretedCode object 
+    2) Add instructions and labels to the NdbInterpretedCode object
        by calling the methods below.
-    3) When the program is complete, finalise it by calling the 
+    3) When the program is complete, finalise it by calling the
        finalise() method.  This will resolve internal branches and
        calls to label and subroutine offsets.
     4) Use the program with NdbRecord operations and scans by passing
@@ -64,8 +64,8 @@ class NdbColumnImpl;
     5) When the program is no longer required, the NdbInterpretedCode
        object can be deleted, along with any user-supplied buffer.
 
-  Notes : 
-    a) Each NDBAPI operation applies to one table, and so does any 
+  Notes :
+    a) Each NDBAPI operation applies to one table, and so does any
        NdbInterpretedCode program attached to that operation.
     b) A single finalised NdbInterpretedCode program can be used by
        more than one operation.  It need not be 'rebuilt' for each
@@ -75,36 +75,32 @@ class NdbColumnImpl;
        The NdbScanFilter API is a more stable Api for defining scan-filter
        style programs.
 */
-class NdbInterpretedCode
-{
-public:
+class NdbInterpretedCode {
+ public:
   /**
    * NdbInterpretedCode constructor
-   * 
+   *
    * @param table The table which this program will be run against.  This
-   * parameter must be supplied if the program is table specific (i.e. 
+   * parameter must be supplied if the program is table specific (i.e.
    * reads from or writes to columns in the table).
-   * @param buffer Pointer to a buffer of 32bit words used to store the 
-   * program.  
+   * @param buffer Pointer to a buffer of 32bit words used to store the
+   * program.
    * @param buffer_word_size Length of the buffer passed in
-   * If the program exceeds this length then adding new 
-   * instructions will fail with error 4518, Too many instructions in 
+   * If the program exceeds this length then adding new
+   * instructions will fail with error 4518, Too many instructions in
    * interpreted program.
    *
    * Alternatively, if no buffer is passed, a buffer will be dynamically
    * allocated internally and extended to cope as instructions are
    * added.
    */
-  NdbInterpretedCode(const NdbDictionary::Table *table= 0,
-                     Uint32 *buffer= 0, 
-                     Uint32 buffer_word_size= 0);
+  NdbInterpretedCode(const NdbDictionary::Table *table = 0, Uint32 *buffer = 0,
+                     Uint32 buffer_word_size = 0);
 
   /* Constructor variant that obtains table from NdbRecord
-  */
-  NdbInterpretedCode(const NdbRecord &,
-                     Uint32 *buffer= 0,
-                     Uint32 buffer_word_size= 0);
-
+   */
+  NdbInterpretedCode(const NdbRecord &, Uint32 *buffer = 0,
+                     Uint32 buffer_word_size = 0);
 
   ~NdbInterpretedCode();
 
@@ -117,9 +113,9 @@ public:
    * be taken or ignored. (BranchIfUnknown or ContinueIfUnknown)
    */
   enum UnknownHandling {
-    CmpHasNoUnknowns,   // Cmp Never compute boolean 'unknown'
-    BranchIfUnknown,    // Cmp will take the 'branch' if unknown.
-    ContinueIfUnknown   // 'Unknown' is inconclusive, continue
+    CmpHasNoUnknowns,  // Cmp Never compute boolean 'unknown'
+    BranchIfUnknown,   // Cmp will take the 'branch' if unknown.
+    ContinueIfUnknown  // 'Unknown' is inconclusive, continue
   };
 
   /**
@@ -132,12 +128,12 @@ public:
    * and allow construction to start over again.
    */
   void reset();
-  
+
   /* Register constant loads
    * -----------------------
    * These instructions allow numeric constants (and null)
    * to be loaded into the interpreter's registers
-   * 
+   *
    * Space required      Buffer    Request message
    *   load_const_null   1 word    1 word
    *   load_const_u16    1 word    1 word
@@ -153,7 +149,7 @@ public:
   int load_const_u32(Uint32 RegDest, Uint32 Constant);
   int load_const_u64(Uint32 RegDest, Uint64 Constant);
 
-  /* Register to / from table attribute load and store 
+  /* Register to / from table attribute load and store
    * -------------------------------------------------
    * These instructions allow data to be moved between the
    * interpreter's numeric registers and numeric columns
@@ -196,7 +192,7 @@ public:
   int add_reg(Uint32 RegDest, Uint32 RegSource1, Uint32 RegSource2);
   int sub_reg(Uint32 RegDest, Uint32 RegSource1, Uint32 RegSource2);
 
-  /* Control flow 
+  /* Control flow
    * ------------
    */
 
@@ -286,29 +282,17 @@ public:
    * @param label     Program label to jump to if condition is true
    * @return 0 if successful, -1 otherwise.
    */
-  int branch_col_eq(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_eq(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
-  int branch_col_ne(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_ne(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
-  int branch_col_lt(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_lt(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
-  int branch_col_le(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_le(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
-  int branch_col_gt(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_gt(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
-  int branch_col_ge(const void *val,
-                    Uint32 unused,
-                    Uint32 attrId,
+  int branch_col_ge(const void *val, Uint32 unused, Uint32 attrId,
                     Uint32 label);
 
   /* Variants of above methods allowing us to compare two Attr
@@ -384,9 +368,7 @@ public:
    *
    */
   int branch_col_like(const void *val, Uint32 len, Uint32 attrId, Uint32 label);
-  int branch_col_notlike(const void *val,
-                         Uint32 len,
-                         Uint32 attrId,
+  int branch_col_notlike(const void *val, Uint32 len, Uint32 attrId,
                          Uint32 label);
 
   /* Table based bitwise logical conditional operations
@@ -430,35 +412,27 @@ public:
    * @return 0 if successful, -1 otherwise.
    *
    */
-  int branch_col_and_mask_eq_mask(const void *mask,
-                                  Uint32 unused,
-                                  Uint32 attrId,
-                                  Uint32 label);
-  int branch_col_and_mask_ne_mask(const void *mask,
-                                  Uint32 unused,
-                                  Uint32 attrId,
-                                  Uint32 label);
-  int branch_col_and_mask_eq_zero(const void *mask,
-                                  Uint32 unused,
-                                  Uint32 attrId,
-                                  Uint32 label);
-  int branch_col_and_mask_ne_zero(const void *mask,
-                                  Uint32 unused,
-                                  Uint32 attrId,
-                                  Uint32 label);
+  int branch_col_and_mask_eq_mask(const void *mask, Uint32 unused,
+                                  Uint32 attrId, Uint32 label);
+  int branch_col_and_mask_ne_mask(const void *mask, Uint32 unused,
+                                  Uint32 attrId, Uint32 label);
+  int branch_col_and_mask_eq_zero(const void *mask, Uint32 unused,
+                                  Uint32 attrId, Uint32 label);
+  int branch_col_and_mask_ne_zero(const void *mask, Uint32 unused,
+                                  Uint32 attrId, Uint32 label);
 
-  /* Program results 
+  /* Program results
    * ---------------
    * These instructions indicate to the interpreter that processing
    * for the current row is finished.
-   * In a scanning operation, the program may then be re-run for 
+   * In a scanning operation, the program may then be re-run for
    * the next row.
    * In a non-scanning operation, the program will not be run again.
-   * 
+   *
    */
 
   /* interpret_exit_ok
-   * 
+   *
    * Scanning operation     : This row should be returned as part of
    *                          the scan.  Move onto next row.
    * Non-scanning operation : Exit interpreted program.
@@ -469,23 +443,23 @@ public:
    * @return 0 if successful, -1 otherwise.
    */
   int interpret_exit_ok();
-  
+
   /* interpret_exit_nok
    *
-   * Scanning operation     : Error codes 626 and 899: This row should not be 
+   * Scanning operation     : Error codes 626 and 899: This row should not be
    *                          returned as part of the scan.  Move onto next row.
    *                          Error codes [6000-6999]: Abort the scan.
    *
    * Non-scanning operation : Abort the operation
    *
    * Space required        Buffer    Request message
-   *   interpret_exit_nok  1 word    1 word   
+   *   interpret_exit_nok  1 word    1 word
    *
    * @param ErrorCode An error code which will be returned as part
-   * of the operation.  If not supplied, defaults to 626. Applications should 
+   * of the operation.  If not supplied, defaults to 626. Applications should
    * use error code 626 or any code in the [6000-6999] range. Error code 899
    * is supported for backwards compatibility, but 626 is recommended instead.
-   * For other codes, the behavior is undefined and may change at any time 
+   * For other codes, the behavior is undefined and may change at any time
    * without prior notice.
    *
    * @return 0 if successful, -1 otherwise
@@ -494,7 +468,7 @@ public:
   int interpret_exit_nok();
 
   /* interpret_exit_last_row
-   * 
+   *
    * Scanning operation     : This row should be returned as part of
    *                          the scan.  No more rows should be scanned
    *                          in this fragment.
@@ -509,7 +483,7 @@ public:
 
   /* Utilities
    * These utilities insert multiple instructions into the
-   * program and use specific registers to accomplish their 
+   * program and use specific registers to accomplish their
    * goal.
    */
 
@@ -559,7 +533,6 @@ public:
   int sub_val(Uint32 attrId, Uint32 aValue);
   int sub_val(Uint32 attrId, Uint64 aValue);
 
-
   /* Subroutines
    * Subroutines which can be called from the 'main' part of
    * an interpreted program can be defined.
@@ -569,11 +542,11 @@ public:
 
   /**
    * def_subroutine
-   * Define a subroutine.  Subroutines can only be defined 
+   * Define a subroutine.  Subroutines can only be defined
    * after all main program instructions are defined.
-   * Instructions following this, up to the next ret_sub() 
-   * instruction are part of this subroutine.  
-   * Subroutine numbers must be contiguous from zero but do 
+   * Instructions following this, up to the next ret_sub()
+   * instruction are part of this subroutine.
+   * Subroutine numbers must be contiguous from zero but do
    * not have to be in order.
    *
    * Space required     Buffer     Request message
@@ -613,9 +586,9 @@ public:
 
   /**
    * finalise
-   * This method must be called after an Interpreted program 
+   * This method must be called after an Interpreted program
    * is defined and before it is used.
-   * It uses the label and subroutine meta information to 
+   * It uses the label and subroutine meta information to
    * resolve branch jumps and subroutine calls.
    * It can only be called once.
    * If no instructions have been defined, then it will attempt
@@ -628,18 +601,17 @@ public:
    * getTable()
    * Returns a pointer to the table object representing the table
    * that this NdbInterpretedCode object operates on.
-   * This can be NULL if no table object was supplied at 
+   * This can be NULL if no table object was supplied at
    * construction time.
    */
-  const NdbDictionary::Table* getTable() const;
+  const NdbDictionary::Table *getTable() const;
 
   /**
    * getNdbError
    * This method returns the most recent error associated
    * with this NdbInterpretedCode object.
    */
-  const struct NdbError & getNdbError() const;
-
+  const struct NdbError &getNdbError() const;
 
   /**
    * getWordsUsed
@@ -652,27 +624,27 @@ public:
    * Makes a deep copy of 'src'
    * @return possible error code.
    */
-  int copy(const NdbInterpretedCode& src);
+  int copy(const NdbInterpretedCode &src);
 
-private:
+ private:
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbQueryOperationImpl;
   friend class NdbQueryOptionsImpl;
 
-  static const Uint32 MaxReg= 8;
-  static const Uint32 MaxLabels= 65535;
-  static const Uint32 MaxSubs=65535;
-  static const Uint32 MaxDynamicBufSize= NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
+  static const Uint32 MaxReg = 8;
+  static const Uint32 MaxLabels = 65535;
+  static const Uint32 MaxSubs = 65535;
+  static const Uint32 MaxDynamicBufSize = NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
 
   const NdbTableImpl *m_table_impl;
   Uint32 *m_buffer;
-  Uint32 m_buffer_length;               // In words
-  Uint32 *m_internal_buffer;            // Self-managed buffer
+  Uint32 m_buffer_length;     // In words
+  Uint32 *m_internal_buffer;  // Self-managed buffer
   Uint32 m_number_of_labels;
   Uint32 m_number_of_subs;
   Uint32 m_number_of_calls;
-  
+
   /* Offset of last meta info record from start of m_buffer
    * in words
    */
@@ -692,7 +664,7 @@ private:
    * meta information used when resolving branches and calls when
    * the program is finalised.
    * As this meta information grows, the remaining words in the
-   * buffer may be less than buffer length minus the 
+   * buffer may be less than buffer length minus the
    * instructions length
    */
   Uint32 m_available_length;
@@ -703,13 +675,13 @@ private:
       refuse to create an operation from InterpretedCode that the user
       forgot to do error checks on.
     */
-    GotError= 0x1,
+    GotError = 0x1,
     /* Set if reading disk column. */
-    UsesDisk= 0x2,
+    UsesDisk = 0x2,
     /* Object state : Set if currently defining a subroutine */
-    InSubroutineDef= 0x4,
+    InSubroutineDef = 0x4,
     /* Has this program been finalised? */
-    Finalised= 0x8
+    Finalised = 0x8
   };
   Uint32 m_flags;
 
@@ -718,22 +690,20 @@ private:
 
   UnknownHandling m_unknown_action;
 
-  enum InfoType {
-    Label      = 0,
-    Subroutine = 1};
+  enum InfoType { Label = 0, Subroutine = 1 };
 
   /* Instances of this type are stored at the end of
    * the buffer to describe label and subroutine
    * positions.  The instances are added as the labels and
    * subroutines are defined, so the order (working backwards
-   * from the end of the buffer) would be : 
+   * from the end of the buffer) would be :
    *
    *   Main program labels (if any)
    *   First subroutine (if any)
    *   First subroutine label defs (if any)
    *   Second subroutine (if any)
    *   Second subroutine label defs ....
-   * 
+   *
    * The subroutines should be in order of subroutine number
    * as they must be defined in-order.  The labels can be in
    * any order.
@@ -741,27 +711,24 @@ private:
    * Before this information is used for finalisation, it is
    * sorted so that the subroutines and labels are in-order.
    */
-  struct CodeMetaInfo
-  { 
+  struct CodeMetaInfo {
     Uint16 type;
     Uint16 number;         // Label or sub num
     Uint16 firstInstrPos;  // Offset from start of m_buffer, or
                            // from start of subs section for
                            // subs defs
   };
-  
+
   static const Uint32 CODEMETAINFO_WORDS = 2;
 
-
-  enum Errors 
-  {
+  enum Errors {
     TooManyInstructions = 4518,
-    BadAttributeId      = 4004,
-    BadLabelNum         = 4226,
-    BranchToBadLabel    = 4221,
-    BadLength           = 4209,
-    BadSubNumber        = 4227,
-    BadState            = 4231
+    BadAttributeId = 4004,
+    BadLabelNum = 4226,
+    BranchToBadLabel = 4221,
+    BadLength = 4209,
+    BadSubNumber = 4227,
+    BadState = 4231
   };
 
   int error(Uint32 code);
@@ -771,23 +738,21 @@ private:
   int add2(Uint32 x1, Uint32 x2);
   int add3(Uint32 x1, Uint32 x2, Uint32 x3);
   int addN(const Uint32 *data, Uint32 length);
-  int addMeta(CodeMetaInfo& info);
+  int addMeta(CodeMetaInfo &info);
 
   int add_branch(Uint32 instruction, Uint32 label);
   int read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest);
   int write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource);
-  int branch_col_val(Uint32 branch_type, Uint32 attrId, const void * val,
+  int branch_col_val(Uint32 branch_type, Uint32 attrId, const void *val,
                      Uint32 len, Uint32 label);
   int branch_col_col(Uint32 branch_type, Uint32 attrId1, Uint32 attrId2,
                      Uint32 label);
   int branch_col_param(Uint32 branch_type, Uint32 attrId, Uint32 paramId,
                        Uint32 label);
   int getInfo(Uint32 number, CodeMetaInfo &info) const;
-  static int compareMetaInfo(const void *a, 
-                             const void *b);
+  static int compareMetaInfo(const void *a, const void *b);
 
-  NdbInterpretedCode(const NdbInterpretedCode&); // Not impl.
-  NdbInterpretedCode&operator=(const NdbInterpretedCode&);
+  NdbInterpretedCode(const NdbInterpretedCode &);  // Not impl.
+  NdbInterpretedCode &operator=(const NdbInterpretedCode &);
 };
 #endif
-

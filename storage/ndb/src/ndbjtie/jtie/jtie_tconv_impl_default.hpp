@@ -39,47 +39,44 @@
  * A class template with static functions for conversion of parameter data
  * (Java <-> C++).
  */
-template< typename J, typename C >
-struct Param
-{
-private:
-    // prohibit instantiation
-    Param() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
+template <typename J, typename C>
+struct Param {
+ private:
+  // prohibit instantiation
+  Param() {
+    // prohibit unsupported template specializations
+    is_supported_type_mapping<J, C>();
+  }
 };
 
 /**
  * A class template with static functions for conversion of target objects
  * of method invocations (Java -> C++).
  */
-template< typename J, typename C >
-struct Target
-{
-private:
-    // prohibit instantiation
-    Target() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
+template <typename J, typename C>
+struct Target {
+ private:
+  // prohibit instantiation
+  Target() {
+    // prohibit unsupported template specializations
+    is_supported_type_mapping<J, C>();
+  }
 };
 
 /**
  * A class template with static functions for conversion of function call
  * or data access result data (Java <- C++).
  */
-template< typename J, typename C >
-struct Result
-{
-private:
-    // prohibit instantiation
-    Result() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
+template <typename J, typename C>
+struct Result {
+ private:
+  // prohibit instantiation
+  Result() {
+    // prohibit unsupported template specializations
+    is_supported_type_mapping<J, C>();
+  }
 };
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_impl_default_hpp
+#endif  // jtie_tconv_impl_default_hpp

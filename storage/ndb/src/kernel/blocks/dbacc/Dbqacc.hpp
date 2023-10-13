@@ -31,17 +31,16 @@
 
 #define JAM_FILE_ID 521
 
-class Dbqacc : public Dbacc
-{
+class Dbqacc : public Dbacc {
   friend class DbqaccProxy;
 
-public:
-  Dbqacc(Block_context& ctx,
-         Uint32 instanceNumber = 0);
+ public:
+  Dbqacc(Block_context &ctx, Uint32 instanceNumber = 0);
   virtual ~Dbqacc();
 
   static Uint64 getTransactionMemoryNeed();
-private:
+
+ private:
   BLOCK_DEFINES(Dbqacc);
 };
 

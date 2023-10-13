@@ -32,7 +32,7 @@ struct ndb_mgm_configuration {
 };
 
 /**
-  This is a struct for navigating in the set of configuration values. Each 
+  This is a struct for navigating in the set of configuration values. Each
   configuration value belongs to a section instance, and each section instance
   is an instance of a section type.
   This struct lets you iterate over the instances of a given section type, and
@@ -45,7 +45,7 @@ struct ndb_mgm_configuration_iterator {
 
   ndb_mgm_configuration_iterator(const ndb_mgm_configuration *, unsigned type);
 
-  /** 
+  /**
     Go to the first section instance. Return 0 if successful, i.e. if there is
     at least one instance.
    */
@@ -54,14 +54,14 @@ struct ndb_mgm_configuration_iterator {
   /** Go to the next instance. Return 0 if there was a next instance. */
   int next();
 
-  /** 
+  /**
      Return 0 if there is a valid current instance (i.e. if the last first() or
      next() call succeeded).
    */
   int valid() const;
-  
+
   /**
-    Search for a configuration value with type='Int' id='param' and 
+    Search for a configuration value with type='Int' id='param' and
     value='value'. If no match is found in the current section instance,
     try the next until we have tried the last section. Return 0 if a match
     was found.
@@ -70,14 +70,14 @@ struct ndb_mgm_configuration_iterator {
   int find(int param, unsigned value);
 
   /**
-    Lookup config value within current section. Return 0 if and only if 
+    Lookup config value within current section. Return 0 if and only if
     value was found.
    */
-  int get(int param, unsigned * value) const ;
-  int get(int param, Uint64 * value) const ;
-  int get(int param, const char ** value) const ;
+  int get(int param, unsigned *value) const;
+  int get(int param, Uint64 *value) const;
+  int get(int param, const char **value) const;
 
-private:
+ private:
   void reset();
   int enter();
 };

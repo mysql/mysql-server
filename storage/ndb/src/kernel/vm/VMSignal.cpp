@@ -27,18 +27,15 @@
 
 #define JAM_FILE_ID 308
 
-Signal::Signal(){
+Signal::Signal() {
   memset(&header, 0, sizeof(header));
   memset(theData, 0, sizeof(theData));
 }
 
-void
-Signal::garbage_register()
-{
+void Signal::garbage_register() {
   int i;
   theData[0] = 0x13579135;
   header.theLength = 0x13579135;
   header.theSendersBlockRef = 0x13579135;
-  for (i = 1; i < 24; i++)
-    theData[i] = 0x13579135;
+  for (i = 1; i < 24; i++) theData[i] = 0x13579135;
 }

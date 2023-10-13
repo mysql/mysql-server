@@ -30,9 +30,8 @@
 
 #define JAM_FILE_ID 184
 
-
 class StartOrd {
-public:
+ public:
   /**
    * Senders
    */
@@ -49,14 +48,11 @@ public:
    * RequestInfo - See StopReq for getters/setters
    */
   Uint32 restartInfo;
-  
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 1;
 };
-
-
 
 #undef JAM_FILE_ID
 
 #endif
-

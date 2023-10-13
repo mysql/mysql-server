@@ -22,65 +22,62 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
 
-#include <OutputStream.hpp>
-#include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
+#include <NdbOut.hpp>
+#include <OutputStream.hpp>
 
-#include <NdbRestarter.hpp>
 #include <NDBT.hpp>
+#include <NdbRestarter.hpp>
 
-int main(int argc, const char** argv){
+int main(int argc, const char **argv) {
   ndb_init();
 
-  const char* _hostName = NULL;
+  const char *_hostName = NULL;
   int _initial = 0;
   int _help = 0;
   int _wait = 1;
 
-
   struct getargs args[] = {
-    { "initial", 'i', arg_flag, &_initial, "Do initial restart", ""},
-    { "wait", '\0', arg_negative_flag, &_wait, "Wait until restarted(default=true)", ""},
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-    
+      {"initial", 'i', arg_flag, &_initial, "Do initial restart", ""},
+      {"wait", '\0', arg_negative_flag, &_wait,
+       "Wait until restarted(default=true)", ""},
+      {"usage", '?', arg_flag, &_help, "Print help", ""}
+
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
-    "hostname:port\n"
-    "This program will connect to the management server of an NDB cluster\n"
-    " and restart the cluster. \n";
+  char desc[] =
+      "hostname:port\n"
+      "This program will connect to the management server of an NDB cluster\n"
+      " and restart the cluster. \n";
 
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
+  if (getarg(args, num_args, argc, argv, &optind) || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _hostName = argv[optind];
-  
+
   NdbRestarter restarter(_hostName);
-  setOutputLevel(1); // Show only g_err
+  setOutputLevel(1);  // Show only g_err
   int result = NDBT_OK;
-  if (_initial){
+  if (_initial) {
     ndbout << "Restarting cluster with initial restart" << endl;
-    if (restarter.restartAll(true, false, false) != 0)
-      result = NDBT_FAILED;
+    if (restarter.restartAll(true, false, false) != 0) result = NDBT_FAILED;
   } else {
     ndbout << "Restarting cluster " << endl;
-    if (restarter.restartAll() != 0)
-      result = NDBT_FAILED;
+    if (restarter.restartAll() != 0) result = NDBT_FAILED;
   }
-  if (result == NDBT_FAILED){
+  if (result == NDBT_FAILED) {
     g_err << "Failed to restart cluster" << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
-  if (_wait == 1){
+
+  if (_wait == 1) {
     ndbout << "Waiting for cluster to start" << endl;
-    if ( restarter.waitClusterStarted(120) != 0){
+    if (restarter.waitClusterStarted(120) != 0) {
       ndbout << "Failed waiting for restart of cluster" << endl;
       result = NDBT_FAILED;
     }

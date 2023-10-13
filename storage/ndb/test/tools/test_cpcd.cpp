@@ -34,29 +34,33 @@ Vector<SimpleCpcClient::Process> g_procs;
 static BaseString g_exe;
 
 void define();
-void start(SimpleCpcClient::Process & p);
-void stop(SimpleCpcClient::Process & p);
-void undefine(SimpleCpcClient::Process & p);
+void start(SimpleCpcClient::Process &p);
+void stop(SimpleCpcClient::Process &p);
+void undefine(SimpleCpcClient::Process &p);
 void list();
-SimpleCpcClient::Process* find(int id);
+SimpleCpcClient::Process *find(int id);
 
-#define ABORT() {ndbout_c("ABORT"); while(true); abort();}
+#define ABORT()        \
+  {                    \
+    ndbout_c("ABORT"); \
+    while (true)       \
+      ;                \
+    abort();           \
+  }
 
 int name = 0;
 
-int
-main(){
-
+int main() {
   ndb_init();
   g_client.connect();
 
   NDBT_find_binary(g_exe, "test.sh", ".", nullptr);
-  
+
   srand(time(0));
-  for(int i = 0; i<1000; i++){
+  for (int i = 0; i < 1000; i++) {
     int sz = g_procs.size();
     int test = rand() % 100;
-    if(sz == 0 || test < 10){
+    if (sz == 0 || test < 10) {
       define();
       continue;
     }
@@ -64,25 +68,25 @@ main(){
     list();
 
     int proc = rand() % g_procs.size();
-    SimpleCpcClient::Process & p = g_procs[proc];
-    if(p.m_status == "running" && test > 50){
+    SimpleCpcClient::Process &p = g_procs[proc];
+    if (p.m_status == "running" && test > 50) {
       ndbout_c("undefine %d: %s (running)", p.m_id, p.m_name.c_str());
       undefine(p);
       g_procs.erase(proc);
       continue;
     }
-    if(p.m_status == "running" && test <= 50){
+    if (p.m_status == "running" && test <= 50) {
       ndbout_c("stop %d: %s(running)", p.m_id, p.m_name.c_str());
       stop(p);
       continue;
     }
-    if(p.m_status == "stopped" && test > 50){
+    if (p.m_status == "stopped" && test > 50) {
       ndbout_c("undefine %d: %s(stopped)", p.m_id, p.m_name.c_str());
       undefine(p);
       g_procs.erase(proc);
       continue;
     }
-    if(p.m_status == "stopped" && test <= 50){
+    if (p.m_status == "stopped" && test <= 50) {
       ndbout_c("start %d %s(stopped)", p.m_id, p.m_name.c_str());
       start(p);
       continue;
@@ -92,14 +96,14 @@ main(){
   ndb_end(0);
 }
 
-void define(){
+void define() {
   SimpleCpcClient::Process m_proc;
   m_proc.m_id = -1;
   m_proc.m_type = "temporary";
-  m_proc.m_owner = "atrt";  
+  m_proc.m_owner = "atrt";
   m_proc.m_group = "group";
   m_proc.m_ulimit = "c:unlimited";
-  if((rand() & 15) >= 0){
+  if ((rand() & 15) >= 0) {
     m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "sleep");
     m_proc.m_path.assign("/bin/sleep");
     m_proc.m_args = "600";
@@ -109,9 +113,9 @@ void define(){
     m_proc.m_args = "600";
   }
   g_procs.push_back(m_proc);
-  
+
   Properties reply;
-  if(g_client.define_process(g_procs.back(), reply) != 0){
+  if (g_client.define_process(g_procs.back(), reply) != 0) {
     ndbout_c("define %s -> ERR", m_proc.m_name.c_str());
     reply.print();
     ABORT();
@@ -119,48 +123,47 @@ void define(){
   ndbout_c("define %s -> %d", m_proc.m_name.c_str(), m_proc.m_id);
 }
 
-void start(SimpleCpcClient::Process & p){
+void start(SimpleCpcClient::Process &p) {
   Properties reply;
-  if(g_client.start_process(p.m_id, reply) != 0){
+  if (g_client.start_process(p.m_id, reply) != 0) {
     reply.print();
     ABORT();
   }
 }
 
-void stop(SimpleCpcClient::Process & p){
+void stop(SimpleCpcClient::Process &p) {
   Properties reply;
-  if(g_client.stop_process(p.m_id, reply) != 0){
+  if (g_client.stop_process(p.m_id, reply) != 0) {
     reply.print();
     ABORT();
   }
 }
 
-void undefine(SimpleCpcClient::Process & p){
+void undefine(SimpleCpcClient::Process &p) {
   Properties reply;
-  if(g_client.undefine_process(p.m_id, reply) != 0){
+  if (g_client.undefine_process(p.m_id, reply) != 0) {
     reply.print();
   }
 }
 
-void list(){
+void list() {
   Properties reply;
   Vector<SimpleCpcClient::Process> procs;
-  if(g_client.list_processes(procs, reply) != 0){
+  if (g_client.list_processes(procs, reply) != 0) {
     reply.print();
     ABORT();
   }
 
-  for(Uint32 i = 0; i<procs.size(); i++){
-    SimpleCpcClient::Process * p = find(procs[i].m_id);
-    if(p != 0){
+  for (Uint32 i = 0; i < procs.size(); i++) {
+    SimpleCpcClient::Process *p = find(procs[i].m_id);
+    if (p != 0) {
       p->m_status = procs[i].m_status;
     }
   }
 }
-SimpleCpcClient::Process* find(int id){
-  for(Uint32 i = 0; i<g_procs.size(); i++){
-    if(g_procs[i].m_id == id)
-      return &g_procs[i];
+SimpleCpcClient::Process *find(int id) {
+  for (Uint32 i = 0; i < g_procs.size(); i++) {
+    if (g_procs[i].m_id == id) return &g_procs[i];
   }
   return 0;
 }

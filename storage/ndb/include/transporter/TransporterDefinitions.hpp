@@ -25,8 +25,8 @@
 #ifndef TransporterDefinitions_H
 #define TransporterDefinitions_H
 
-#include <ndb_global.h> 
-#include <kernel_types.h> 
+#include <kernel_types.h>
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 
 /**
@@ -34,10 +34,10 @@
  */
 const int TCP_SEND_LIMIT = 64000;
 
-enum SendStatus { 
-  SEND_OK = 0, 
-  SEND_BLOCKED = 1, 
-  SEND_DISCONNECTED = 2, 
+enum SendStatus {
+  SEND_OK = 0,
+  SEND_BLOCKED = 1,
+  SEND_DISCONNECTED = 2,
   SEND_BUFFER_FULL = 3,
   SEND_MESSAGE_TOO_BIG = 4,
   SEND_UNKNOWN_NODE = 5
@@ -49,8 +49,7 @@ enum TransporterType {
   tt_Multi_TRANSPORTER = 4
 };
 
-enum SB_LevelType
-{
+enum SB_LevelType {
   SB_NO_RISK_LEVEL = 0,
   SB_LOW_LEVEL = 1,
   SB_MEDIUM_LEVEL = 2,
@@ -63,7 +62,7 @@ enum SB_LevelType
  * Maximum message sizes
  * ---------------------
  * Maximum byte sizes for sent and received messages.
- * The maximum send message size is temporarily smaller than 
+ * The maximum send message size is temporarily smaller than
  * the maximum receive message size to support online
  * upgrade
  * Maximum received size increased in :
@@ -71,9 +70,9 @@ enum SB_LevelType
  * Maximum send size increased in :
  *   mysql-5.1-telco-6.4.0 from 16516 bytes to 32768
  *
- * Therefore mysql-5.1-telco-6.4.0 cannot safely communicate 
- * with nodes at versions lower than mysql-5.1-telco-6.3.18 
- * 
+ * Therefore mysql-5.1-telco-6.4.0 cannot safely communicate
+ * with nodes at versions lower than mysql-5.1-telco-6.3.18
+ *
  */
 constexpr Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
 constexpr Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
@@ -85,7 +84,7 @@ constexpr Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
  * information specific to a transporter type.
  */
 struct TransporterConfiguration {
-  Int32 s_port; // negative port number implies dynamic port
+  Int32 s_port;  // negative port number implies dynamic port
   const char *remoteHostName;
   const char *localHostName;
   TrpId transporterIndex;
@@ -94,22 +93,22 @@ struct TransporterConfiguration {
   NodeId serverNodeId;
   bool checksum;
   bool signalId;
-  bool isMgmConnection; // is a mgm connection, requires transforming
+  bool isMgmConnection;  // is a mgm connection, requires transforming
   TransporterType type;
   bool preSendChecksum;
 
-  union { // Transporter specific configuration information
+  union {  // Transporter specific configuration information
 
     struct {
-      Uint32 sendBufferSize;     // Size of SendBuffer of priority B 
-      Uint32 maxReceiveSize;     // Maximum no of bytes to receive
+      Uint32 sendBufferSize;  // Size of SendBuffer of priority B
+      Uint32 maxReceiveSize;  // Maximum no of bytes to receive
       Uint32 tcpSndBufSize;
       Uint32 tcpRcvBufSize;
       Uint32 tcpMaxsegSize;
       Uint32 tcpOverloadLimit;
       Uint32 tcpSpintime;
     } tcp;
-    
+
     struct {
       Uint32 shmKey;
       Uint32 shmSize;
@@ -119,19 +118,19 @@ struct TransporterConfiguration {
   };
 };
 
-struct SignalHeader {	
+struct SignalHeader {
   Uint32 theVerId_signalNumber;    // 4 bit ver id - 16 bit gsn
-  Uint32 theReceiversBlockNumber;  // Only 16 bit blocknum  
+  Uint32 theReceiversBlockNumber;  // Only 16 bit blocknum
   Uint32 theSendersBlockRef;
   Uint32 theLength;
   Uint32 theSendersSignalId;
   Uint32 theSignalId;
   Uint16 theTrace;
-  Uint8  m_noOfSections;
-  Uint8  m_fragmentInfo;
+  Uint8 m_noOfSections;
+  Uint8 m_fragmentInfo;
 }; /** 7x4 = 28 Bytes */
 
-class NdbOut & operator <<(class NdbOut & out, SignalHeader & sh);
+class NdbOut &operator<<(class NdbOut &out, SignalHeader &sh);
 
 #define TE_DO_DISCONNECT 0x8000
 
@@ -220,7 +219,8 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  ,TE_SHM_DISCONNECT = 0xb | TE_DO_DISCONNECT
+  ,
+  TE_SHM_DISCONNECT = 0xb | TE_DO_DISCONNECT
 
   /**
    * TE_SHM_IPC_STAT
@@ -231,12 +231,14 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  ,TE_SHM_IPC_STAT = 0xc | TE_DO_DISCONNECT
+  ,
+  TE_SHM_IPC_STAT = 0xc | TE_DO_DISCONNECT
 
   /**
    * Permanent error
    */
-  ,TE_SHM_IPC_PERMANENT = 0x21
+  ,
+  TE_SHM_IPC_PERMANENT = 0x21
 
   /**
    * TE_SHM_UNABLE_TO_CREATE_SEGMENT
@@ -246,7 +248,8 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  ,TE_SHM_UNABLE_TO_CREATE_SEGMENT = 0xd
+  ,
+  TE_SHM_UNABLE_TO_CREATE_SEGMENT = 0xd
 
   /**
    * TE_SHM_UNABLE_TO_ATTACH_SEGMENT
@@ -256,7 +259,8 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  ,TE_SHM_UNABLE_TO_ATTACH_SEGMENT = 0xe
+  ,
+  TE_SHM_UNABLE_TO_ATTACH_SEGMENT = 0xe
 
   /**
    * TE_SHM_UNABLE_TO_REMOVE_SEGMENT
@@ -266,12 +270,14 @@ enum TransporterError {
    * Recommended behavior: Ignore (not much to do)
    *                       Print warning to logfile
    */
-  ,TE_SHM_UNABLE_TO_REMOVE_SEGMENT = 0xf
+  ,
+  TE_SHM_UNABLE_TO_REMOVE_SEGMENT = 0xf
 
-  ,TE_TOO_SMALL_SIGID = 0x10
-  ,TE_TOO_LARGE_SIGID = 0x11
-  ,TE_WAIT_STACK_FULL = 0x12 | TE_DO_DISCONNECT
-  ,TE_RECEIVE_BUFFER_FULL = 0x13 | TE_DO_DISCONNECT
+  ,
+  TE_TOO_SMALL_SIGID = 0x10,
+  TE_TOO_LARGE_SIGID = 0x11,
+  TE_WAIT_STACK_FULL = 0x12 | TE_DO_DISCONNECT,
+  TE_RECEIVE_BUFFER_FULL = 0x13 | TE_DO_DISCONNECT
 
   /**
    * TE_SIGNAL_LOST_SEND_BUFFER_FULL
@@ -280,7 +286,8 @@ enum TransporterError {
    *   a signal is dropped!! very bad very bad
    *
    */
-  ,TE_SIGNAL_LOST_SEND_BUFFER_FULL = 0x14 | TE_DO_DISCONNECT
+  ,
+  TE_SIGNAL_LOST_SEND_BUFFER_FULL = 0x14 | TE_DO_DISCONNECT
 
   /**
    * TE_SIGNAL_LOST
@@ -289,14 +296,16 @@ enum TransporterError {
    *   a signal is dropped!! very bad very bad
    *
    */
-  ,TE_SIGNAL_LOST = 0x15
+  ,
+  TE_SIGNAL_LOST = 0x15
 
   /**
    * TE_SEND_BUFFER_FULL
    *
    *   The send buffer was full, but sleeping for a while solved it
    */
-  ,TE_SEND_BUFFER_FULL = 0x16
+  ,
+  TE_SEND_BUFFER_FULL = 0x16
 
   /* Used 0x16 - 0x22 */
 
@@ -307,7 +316,8 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  , TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
+  ,
+  TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
 
   /**
    * TE_COMPRESSED_UNSUPPORTED
@@ -316,14 +326,16 @@ enum TransporterError {
    *
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  , TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
+  ,
+  TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
 
   /**
    *
    * Error found in signal, not following NDB protocol
    * Recommended behavior: setPerformState(PerformDisonnect)
    */
-  , TE_INVALID_SIGNAL = 0x25 | TE_DO_DISCONNECT
+  ,
+  TE_INVALID_SIGNAL = 0x25 | TE_DO_DISCONNECT
 };
 
-#endif // Define of TransporterDefinitions_H
+#endif  // Define of TransporterDefinitions_H

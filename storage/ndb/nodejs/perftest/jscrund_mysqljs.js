@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -27,11 +27,11 @@
 var mynode = require("database-jones");
 var DEBUG, DETAIL;
 
-var implementation = function() {
-};
+var implementation = function() {};
 
 implementation.prototype.close = function(callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.close', this);
+  if (DETAIL)
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.close', this);
   this.session.close(callback);
 };
 
@@ -45,24 +45,31 @@ implementation.prototype.initialize = function(options, callback) {
   // Set options
   this.options = options;
 
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.initialize', this);
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.initialize', this);
 
   // set up the session
-  mynode.openSession(options.properties, options.annotations, function(err, session) {
-    if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.initialize callback err:', err);
-    if (err) {
-      console.log(err);
-      process.exit(1);
-    }
-    impl.session = session;   // Initialize session
-    impl.context = session;   // This will be changed to batch in createBatch
-    impl.batch   = null;      // This will be set in createBatch
-    callback(err);
-  });
+  mynode.openSession(
+      options.properties, options.annotations, function(err, session) {
+        if (DETAIL)
+          JSCRUND.udebug.log_detail(
+              'jscrund_mysqljs implementation.initialize callback err:', err);
+        if (err) {
+          console.log(err);
+          process.exit(1);
+        }
+        impl.session = session;  // Initialize session
+        impl.context = session;  // This will be changed to batch in createBatch
+        impl.batch = null;       // This will be set in createBatch
+        callback(err);
+      });
 };
 
 implementation.prototype.persist = function(parameters, callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.persist object:', parameters.object);
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.persist object:', parameters.object);
   // account for object construction
   var o = new parameters.object.constructor();
   o.init(parameters.object.id);
@@ -72,30 +79,40 @@ implementation.prototype.persist = function(parameters, callback) {
 };
 
 implementation.prototype.find = function(parameters, callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find key:', parameters.key);
-  this.context.find(parameters.object.constructor, parameters.key, function(err, found) {
-    parameters.object.verify(found);
-    callback(err);
-  });
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.find key:', parameters.key);
+  this.context.find(
+      parameters.object.constructor, parameters.key, function(err, found) {
+        parameters.object.verify(found);
+        callback(err);
+      });
 };
 
 implementation.prototype.remove = function(parameters, callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.remove key:', parameters.key);
-  this.context.remove(parameters.object.constructor, parameters.key, function(err) {
-    callback(err);
-  });
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.remove key:', parameters.key);
+  this.context.remove(
+      parameters.object.constructor, parameters.key, function(err) {
+        callback(err);
+      });
 };
 
 implementation.prototype.setVarchar = function(parameters, callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.setVarchar key:', parameters.key);
-   parameters.object.cvarchar_def = this.options.B_varchar_value;
-   this.context.update(parameters.object, function(err) {
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.setVarchar key:', parameters.key);
+  parameters.object.cvarchar_def = this.options.B_varchar_value;
+  this.context.update(parameters.object, function(err) {
     callback(err);
   });
 };
 
 implementation.prototype.clearVarchar = function(parameters, callback) {
-   if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.clearVarchar key:', parameters.key);
+  if (DETAIL)
+    JSCRUND.udebug.log_detail(
+        'jscrund_mysqljs implementation.clearVarchar key:', parameters.key);
   parameters.object.cvarchar_def = null;
   this.context.update(parameters.object, function(err) {
     callback(err);
@@ -103,7 +120,8 @@ implementation.prototype.clearVarchar = function(parameters, callback) {
 };
 
 implementation.prototype.createBatch = function(callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.createBatch');
+  if (DETAIL)
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.createBatch');
   this.batch = this.session.createBatch();
   this.context = this.batch;
   callback(null);
@@ -118,7 +136,7 @@ implementation.prototype.executeBatch = function(callback) {
 };
 
 implementation.prototype.begin = function(callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
+  if (DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
   // begin() signals programming error by exception if no callback provided
   this.session.currentTransaction().begin(function(err) {
     callback(err);
@@ -126,7 +144,8 @@ implementation.prototype.begin = function(callback) {
 };
 
 implementation.prototype.commit = function(callback) {
-  if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit');
+  if (DETAIL)
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit');
   this.session.currentTransaction().commit(function(err) {
     callback(err);
   });

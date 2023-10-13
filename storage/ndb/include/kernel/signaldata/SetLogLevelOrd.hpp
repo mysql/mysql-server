@@ -31,9 +31,8 @@
 
 #define JAM_FILE_ID 195
 
-
 /**
- * 
+ *
  */
 class SetLogLevelOrd {
   /**
@@ -42,57 +41,50 @@ class SetLogLevelOrd {
   friend class MgmtSrvr; /* XXX can probably be removed */
   friend class MgmApiSession;
   friend class CommandInterpreter;
-  
+
   /**
    * Reciver(s)
    */
   friend class Cmvmi;
 
   friend class NodeLogLevel;
-  
-private:
+
+ private:
   static constexpr Uint32 SignalLength = 1 + LogLevel::LOGLEVEL_CATEGORIES;
-  
+
   Uint32 noOfEntries;
   Uint32 theData[LogLevel::LOGLEVEL_CATEGORIES];
-  
+
   void clear();
-  
+
   /**
    * Note level is valid as 0-15
    */
   void setLogLevel(LogLevel::EventCategory ec, int level = 7);
-  
-  SetLogLevelOrd& assign (const LogLevel& ll){
+
+  SetLogLevelOrd &assign(const LogLevel &ll) {
     noOfEntries = LogLevel::LOGLEVEL_CATEGORIES;
-    for(Uint32 i = 0; i<noOfEntries; i++){
+    for (Uint32 i = 0; i < noOfEntries; i++) {
       theData[i] = (i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
     }
-    return * this;
+    return *this;
   }
 
-  SetLogLevelOrd& assign (const EventSubscribeReq& ll){
+  SetLogLevelOrd &assign(const EventSubscribeReq &ll) {
     noOfEntries = ll.noOfEntries;
-    for(Uint32 i = 0; i<noOfEntries; i++){
+    for (Uint32 i = 0; i < noOfEntries; i++) {
       theData[i] = ll.theData[i];
     }
-    return * this;
+    return *this;
   }
 };
 
-inline
-void
-SetLogLevelOrd::clear(){
-  noOfEntries = 0;
-}
+inline void SetLogLevelOrd::clear() { noOfEntries = 0; }
 
-inline
-void
-SetLogLevelOrd::setLogLevel(LogLevel::EventCategory ec, int level){
+inline void SetLogLevelOrd::setLogLevel(LogLevel::EventCategory ec, int level) {
   theData[noOfEntries] = (ec << 16) | level;
   noOfEntries++;
 }
-
 
 #undef JAM_FILE_ID
 

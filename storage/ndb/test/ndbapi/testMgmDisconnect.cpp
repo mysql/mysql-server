@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -24,15 +24,14 @@
 
 #include <stdlib.h>
 
-#include <mgmapi.h>
 #include <NdbSleep.h>
+#include <mgmapi.h>
 
-int main()
-{
-  NdbMgmHandle handle= ndb_mgm_create_handle();
+int main() {
+  NdbMgmHandle handle = ndb_mgm_create_handle();
 
-  while(1==1){
-    if (ndb_mgm_connect(handle,0,0,0) == -1){
+  while (1 == 1) {
+    if (ndb_mgm_connect(handle, 0, 0, 0) == -1) {
       printf("connect failed, error: '%d: %s'\n",
              ndb_mgm_get_latest_error(handle),
              ndb_mgm_get_latest_error_desc(handle));
@@ -40,10 +39,10 @@ int main()
       continue;
     }
 
-    while(ndb_mgm_is_connected(handle) != 0){
-      struct ndb_mgm_cluster_state *state= ndb_mgm_get_status(handle);
+    while (ndb_mgm_is_connected(handle) != 0) {
+      struct ndb_mgm_cluster_state *state = ndb_mgm_get_status(handle);
 
-      if(state==NULL){
+      if (state == NULL) {
         printf("ndb_mgm_get_status failed, error: '%d: %s', line: %d\n",
                ndb_mgm_get_latest_error(handle),
                ndb_mgm_get_latest_error_desc(handle),
@@ -51,18 +50,17 @@ int main()
         continue;
       }
 
-      int i= 0;
-      for(i=0; i < state->no_of_nodes; i++)
-      {
-        struct ndb_mgm_node_state *node_state= &state->node_states[i];
+      int i = 0;
+      for (i = 0; i < state->no_of_nodes; i++) {
+        struct ndb_mgm_node_state *node_state = &state->node_states[i];
         printf("node with ID=%d ", node_state->node_id);
 
-        if(node_state->version != 0)
+        if (node_state->version != 0)
           printf("connected\n");
         else
           printf("not connected\n");
       }
-      free((void*)state);
+      free((void *)state);
     }
   }
 

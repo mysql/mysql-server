@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,27 +22,21 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <NdbApi.hpp>
 
+#include "JsValueAccess.h"
+#include "NativeMethodCall.h"
+#include "Record.h"
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
-#include "Record.h"
-#include "NativeMethodCall.h"
-#include "JsValueAccess.h"
 
 #include "NdbTypeEncoders.h"
 
-V8WrapperFn getColumnOffset_wrapper,
-            getBufferSize_wrapper,
-            setNull_wrapper,
-            setNotNull_wrapper,
-            isNull_wrapper,
-            record_encoderRead,
-            record_encoderWrite;
+V8WrapperFn getColumnOffset_wrapper, getBufferSize_wrapper, setNull_wrapper,
+    setNotNull_wrapper, isNull_wrapper, record_encoderRead, record_encoderWrite;
 
 class RecordEnvelopeClass : public Envelope {
-public:
+ public:
   RecordEnvelopeClass() : Envelope("const Record") {
     addMethod("getColumnOffset", getColumnOffset_wrapper);
     addMethod("getBufferSize", getBufferSize_wrapper);
@@ -55,108 +49,102 @@ public:
 
 RecordEnvelopeClass RecordEnvelope;
 
-
-/****  CALL THIS FROM C++ CODE TO CREATE A WRAPPED RECORD OBJECT. 
+/****  CALL THIS FROM C++ CODE TO CREATE A WRAPPED RECORD OBJECT.
 *****/
 Local<Value> Record_Wrapper(const Record *rec) {
   Local<Value> js_record = RecordEnvelope.wrap(rec);
   return js_record;
 }
 
-
 void getColumnOffset_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
-  
+
   REQUIRE_ARGS_LENGTH(1);
 
   typedef NativeConstMethodCall_1_<uint32_t, const Record, int> NCALL;
 
-  NCALL ncall(& Record::getColumnOffset, args);
+  NCALL ncall(&Record::getColumnOffset, args);
   ncall.run();
 
   args.GetReturnValue().Set(scope.Escape(ncall.jsReturnVal()));
 }
 
-
 void getBufferSize_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
-  
+
   REQUIRE_ARGS_LENGTH(0);
 
   typedef NativeConstMethodCall_0_<uint32_t, const Record> NCALL;
 
-  NCALL ncall(& Record::getBufferSize, args);
+  NCALL ncall(&Record::getBufferSize, args);
   ncall.run();
-  
+
   args.GetReturnValue().Set(scope.Escape(ncall.jsReturnVal()));
 }
 
 void setNull_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   EscapableHandleScope scope(args.GetIsolate());
-  
+
   REQUIRE_ARGS_LENGTH(2);
 
   typedef NativeVoidConstMethodCall_2_<const Record, int, char *> NCALL;
 
-  NCALL ncall(& Record::setNull, args);
+  NCALL ncall(&Record::setNull, args);
   ncall.run();
-  
+
   args.GetReturnValue().Set(scope.Escape(ncall.jsReturnVal()));
 }
 
 void isNull_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   EscapableHandleScope scope(args.GetIsolate());
-  
+
   REQUIRE_ARGS_LENGTH(2);
 
   typedef NativeConstMethodCall_2_<uint32_t, const Record, int, char *> NCALL;
 
-  NCALL ncall(& Record::isNull, args);
+  NCALL ncall(&Record::isNull, args);
   ncall.run();
-  
+
   args.GetReturnValue().Set(scope.Escape(ncall.jsReturnVal()));
 }
 
-
 /* read(columnNumber, buffer)
-*/
-void record_encoderRead(const Arguments & args) {
+ */
+void record_encoderRead(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
-  const Record * record = unwrapPointer<Record *>(args.Holder());
+  const Record *record = unwrapPointer<Record *>(args.Holder());
   int columnNumber = GetUint32Arg(args, 0);
-  char * buffer = GetBufferData(ArgToObject(args, 1));
+  char *buffer = GetBufferData(ArgToObject(args, 1));
 
-  const NdbDictionary::Column * col = record->getColumn(columnNumber);
+  const NdbDictionary::Column *col = record->getColumn(columnNumber);
   uint32_t offset = record->getColumnOffset(columnNumber);
 
-  const NdbTypeEncoder * encoder = getEncoderForColumn(col);
+  const NdbTypeEncoder *encoder = getEncoderForColumn(col);
   Local<Value> read = encoder->read(col, buffer, offset);
 
   args.GetReturnValue().Set(scope.Escape(read));
 }
 
-
 /* write(columnNumber, buffer, value)
-*/
-void record_encoderWrite(const Arguments & args) {
+ */
+void record_encoderWrite(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
 
-  const Record * record = unwrapPointer<const Record *>(args.Holder());
+  const Record *record = unwrapPointer<const Record *>(args.Holder());
   int columnNumber = GetUint32Arg(args, 0);
-  char * buffer = GetBufferData(ArgToObject(args, 1));
+  char *buffer = GetBufferData(ArgToObject(args, 1));
 
   record->setNotNull(columnNumber, buffer);
 
-  const NdbDictionary::Column * col = record->getColumn(columnNumber);
+  const NdbDictionary::Column *col = record->getColumn(columnNumber);
   uint32_t offset = record->getColumnOffset(columnNumber);
 
-  const NdbTypeEncoder * encoder = getEncoderForColumn(col);
+  const NdbTypeEncoder *encoder = getEncoderForColumn(col);
   Local<Value> error = encoder->write(col, args[2], buffer, offset);
 
   args.GetReturnValue().Set(scope.Escape(error));
 }
-

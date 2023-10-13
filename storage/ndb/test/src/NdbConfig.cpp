@@ -22,70 +22,66 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
 #include "NdbConfig.hpp"
-#include <NdbOut.hpp>
-#include <NDBT_Output.hpp>
 #include <NdbConfig.h>
-#include <ConfigRetriever.hpp>
-#include <ndb_version.h>
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
+#include <ndb_global.h>
+#include <ndb_version.h>
+#include <ConfigRetriever.hpp>
+#include <NDBT_Output.hpp>
+#include <NdbOut.hpp>
 #include <mgmapi_configuration.hpp>
 
-bool
-NdbConfig::getHostName(unsigned int node_id, const char ** hostname) {
-  
-  const ndb_mgm_configuration * conf = getConfig();
-  if(conf == nullptr){
+bool NdbConfig::getHostName(unsigned int node_id, const char **hostname) {
+  const ndb_mgm_configuration *conf = getConfig();
+  if (conf == nullptr) {
     return false;
   }
-  
+
   /**
    * Setup cluster configuration data
    */
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, node_id)){
+  if (iter.find(CFG_NODE_ID, node_id)) {
     ndbout << "Invalid configuration fetched, DB missing" << endl;
     return false;
   }
 
-  if (iter.get(CFG_NODE_HOST, hostname)){
+  if (iter.get(CFG_NODE_HOST, hostname)) {
     ndbout << "Host not found" << endl;
     return false;
   }
-  
+
   return true;
 }
 
-bool
-NdbConfig::getProperty(unsigned nodeid, 
-		       unsigned type, unsigned key, Uint32 * val){
-  const ndb_mgm_configuration * conf = getConfig();
-  if(conf == nullptr){
+bool NdbConfig::getProperty(unsigned nodeid, unsigned type, unsigned key,
+                            Uint32 *val) {
+  const ndb_mgm_configuration *conf = getConfig();
+  if (conf == nullptr) {
     return false;
   }
-  
+
   /**
    * Setup cluster configuration data
    */
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, nodeid)){
+  if (iter.find(CFG_NODE_ID, nodeid)) {
     ndbout << "Invalid configuration fetched, DB missing" << endl;
     return false;
   }
 
   unsigned _type;
-  if (iter.get(CFG_TYPE_OF_SECTION, &_type) || type != _type){
+  if (iter.get(CFG_TYPE_OF_SECTION, &_type) || type != _type) {
     ndbout << "No such node in configuration" << endl;
     return false;
   }
 
-  if (iter.get(key, val)){
+  if (iter.get(key, val)) {
     ndbout << "No such key: " << key << " in configuration" << endl;
     return false;
   }
-  
+
   return true;
 }
-

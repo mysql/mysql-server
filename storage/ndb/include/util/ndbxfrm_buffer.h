@@ -23,98 +23,79 @@
 #ifndef NDB_UTIL_NDBXFRM_BUFFER_H
 #define NDB_UTIL_NDBXFRM_BUFFER_H
 
-#include "util/require.h"
 #include "portlib/NdbMem.h"
 #include "util/ndbxfrm_iterator.h"
+#include "util/require.h"
 
-class ndbxfrm_buffer
-{
+class ndbxfrm_buffer {
   using byte = unsigned char;
   static constexpr size_t SIZE = 32768;
 
-  byte* m_data;
-  const byte* m_data_end = m_data + SIZE;
-  const byte* m_read_head;
-  byte* m_write_head;
+  byte *m_data;
+  const byte *m_data_end = m_data + SIZE;
+  const byte *m_read_head;
+  byte *m_write_head;
   bool m_wrote_last;
 
-public:
+ public:
   ndbxfrm_buffer()
-  : m_data(nullptr),
-    m_data_end(nullptr),
-    m_read_head(nullptr),
-    m_write_head(nullptr),
-    m_wrote_last(false)
-  {
+      : m_data(nullptr),
+        m_data_end(nullptr),
+        m_read_head(nullptr),
+        m_write_head(nullptr),
+        m_wrote_last(false) {
     void *p = NdbMem_AlignedAlloc(NDB_O_DIRECT_WRITE_ALIGNMENT, SIZE);
     // new (p) byte[SIZE] is not portable, use plain cast instead.
-    m_data = static_cast<byte*>(p);
+    m_data = static_cast<byte *>(p);
     m_data_end = m_data + SIZE;
   }
-  ~ndbxfrm_buffer()
-  {
-    NdbMem_AlignedFree(m_data);
-  }
+  ~ndbxfrm_buffer() { NdbMem_AlignedFree(m_data); }
   static constexpr size_t size() { return SIZE; }
-  void init()
-  {
+  void init() {
     m_read_head = m_write_head = m_data;
     m_wrote_last = false;
   }
-  void init_reverse()
-  {
+  void init_reverse() {
     m_read_head = m_write_head = m_data + SIZE;
     m_wrote_last = false;
   }
-  ndbxfrm_input_iterator get_input_iterator()
-  {
+  ndbxfrm_input_iterator get_input_iterator() {
     require(m_write_head >= m_read_head);
     return ndbxfrm_input_iterator(m_read_head, m_write_head, m_wrote_last);
   }
-  ndbxfrm_input_reverse_iterator get_input_reverse_iterator()
-  {
+  ndbxfrm_input_reverse_iterator get_input_reverse_iterator() {
     require(m_write_head <= m_read_head);
-    return ndbxfrm_input_reverse_iterator(
-        m_read_head, m_write_head, m_wrote_last);
+    return ndbxfrm_input_reverse_iterator(m_read_head, m_write_head,
+                                          m_wrote_last);
   }
-  ndbxfrm_output_iterator get_output_iterator()
-  {
+  ndbxfrm_output_iterator get_output_iterator() {
     require(m_write_head >= m_read_head);
-    return ndbxfrm_output_iterator(
-       m_write_head, m_data + SIZE, m_wrote_last);
+    return ndbxfrm_output_iterator(m_write_head, m_data + SIZE, m_wrote_last);
   }
-  ndbxfrm_output_reverse_iterator get_output_reverse_iterator()
-  {
+  ndbxfrm_output_reverse_iterator get_output_reverse_iterator() {
     require(m_write_head <= m_read_head);
-    return ndbxfrm_output_reverse_iterator(
-        m_write_head, m_data, m_wrote_last);
+    return ndbxfrm_output_reverse_iterator(m_write_head, m_data, m_wrote_last);
   }
-  void update_write(ndbxfrm_output_iterator& it)
-  {
+  void update_write(ndbxfrm_output_iterator &it) {
     m_write_head = it.begin();
     require(m_write_head >= m_read_head);
-    if (it.last())
-    {
+    if (it.last()) {
       m_wrote_last = true;
     }
     require(it.end() == m_data_end);
   }
-  void update_reverse_write(ndbxfrm_output_reverse_iterator& it)
-  {
+  void update_reverse_write(ndbxfrm_output_reverse_iterator &it) {
     m_write_head = it.begin();
     require(m_write_head <= m_read_head);
-    if (it.last())
-    {
+    if (it.last()) {
       m_wrote_last = true;
     }
     require(it.end() == m_data);
   }
-  void update_read(ndbxfrm_input_iterator& it)
-  {
+  void update_read(ndbxfrm_input_iterator &it) {
     m_read_head = it.cbegin();
     require(m_write_head >= m_read_head);
-    if (unlikely(it.cend() != m_write_head))
-    {
+    if (unlikely(it.cend() != m_write_head)) {
       /*
        * When one reach end of file there may be trailer data that is read but
        * should not be read further the readable data may be reduced by
@@ -126,12 +107,10 @@ public:
     }
     require(m_write_head >= m_read_head);
   }
-  void update_reverse_read(ndbxfrm_input_reverse_iterator& it)
-  {
+  void update_reverse_read(ndbxfrm_input_reverse_iterator &it) {
     m_read_head = it.cbegin();
     require(m_write_head <= m_read_head);
-    if (unlikely(it.cend() != m_write_head))
-    {
+    if (unlikely(it.cend() != m_write_head)) {
       /*
        * When reading backwards one reach start of file there may be header
        * data that is read but should not be read further the readable data may
@@ -143,40 +122,31 @@ public:
     }
     require(m_write_head <= m_read_head);
   }
-  size_t read_size() const
-  {
+  size_t read_size() const {
     require(m_write_head >= m_read_head);
     return m_write_head - m_read_head;
   }
-  size_t reverse_read_size() const
-  {
+  size_t reverse_read_size() const {
     require(m_write_head <= m_read_head);
     return m_read_head - m_write_head;
   }
-  size_t write_space() const
-  {
-    return m_data_end - m_write_head;
-  }
-  void rebase(size_t block_size)
-  {
+  size_t write_space() const { return m_data_end - m_write_head; }
+  void rebase(size_t block_size) {
     require(m_write_head >= m_read_head);
     if (block_size == 0) block_size = 1;
     size_t old_read_offset = m_read_head - m_data;
     size_t new_read_offset = old_read_offset % block_size;
-    memmove(
-        m_data + new_read_offset, m_read_head, m_write_head - m_read_head);
+    memmove(m_data + new_read_offset, m_read_head, m_write_head - m_read_head);
     m_write_head -= (old_read_offset - new_read_offset);
     m_read_head -= (old_read_offset - new_read_offset);
   }
-  void rebase_reverse(size_t block_size)
-  {
+  void rebase_reverse(size_t block_size) {
     require(m_write_head <= m_read_head);
     if (block_size == 0) block_size = 1;
     size_t old_read_offset = m_data + SIZE - m_read_head;
     size_t new_read_offset = old_read_offset % block_size;
     memmove(m_data + SIZE - new_read_offset - (m_read_head - m_write_head),
-            m_write_head,
-            m_read_head - m_write_head);
+            m_write_head, m_read_head - m_write_head);
     m_write_head += (old_read_offset - new_read_offset);
     m_read_head += (old_read_offset - new_read_offset);
   }

@@ -27,15 +27,14 @@
 
 #define JAM_FILE_ID 539
 
-class QRestoreProxy : public LocalProxy
-{
-public:
-  QRestoreProxy(Block_context& ctx);
+class QRestoreProxy : public LocalProxy {
+ public:
+  QRestoreProxy(Block_context &ctx);
   ~QRestoreProxy() override;
   BLOCK_DEFINES(QRestoreProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
 
 #undef JAM_FILE_ID

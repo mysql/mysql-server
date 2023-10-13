@@ -27,19 +27,17 @@
 
 #define JAM_FILE_ID 280
 
-
 enum JobBufferLevel {
-  JBA = 0, 
-  JBB = 1, 
-  JBC = 2, 
-  JBD = 3, LEVEL_IDLE = 3,
+  JBA = 0,
+  JBB = 1,
+  JBC = 2,
+  JBD = 3,
+  LEVEL_IDLE = 3,
   JB_LEVELS,
   ILLEGAL_JB_LEVEL
 };
 
 typedef JobBufferLevel Priority;
-
-
 
 #undef JAM_FILE_ID
 

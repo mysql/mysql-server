@@ -24,7 +24,7 @@
 
 #include <ndb_rand.h>
 
-static unsigned long next= 1;
+static unsigned long next = 1;
 
 #define NDB_RAND_MAX 32767
 
@@ -38,20 +38,14 @@ static unsigned long next= 1;
  * This is the POSIX example for "generating the same sequence on
  * different machines". Although that is not one of our requirements.
  */
-int ndb_rand(void)
-{
-  next= next * 1103515245 + 12345;
-  return((unsigned)(next/65536) % 32768);
+int ndb_rand(void) {
+  next = next * 1103515245 + 12345;
+  return ((unsigned)(next / 65536) % 32768);
 }
 
-void ndb_srand(unsigned seed)
-{
-  next= seed;
-}
+void ndb_srand(unsigned seed) { next = seed; }
 
-int
-ndb_rand_r(unsigned * seed)
-{
-  * seed = (* seed) * 1103515245 + 12345;
+int ndb_rand_r(unsigned *seed) {
+  *seed = (*seed) * 1103515245 + 12345;
   return ((unsigned)(*seed / 65536) % 32768);
 }

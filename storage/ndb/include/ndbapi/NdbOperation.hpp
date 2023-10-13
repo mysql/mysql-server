@@ -26,11 +26,11 @@
 #define NdbOperation_H
 
 #include <ndb_types.h>
-#include "ndbapi_limits.h"
+#include "Ndb.hpp"
+#include "NdbDictionary.hpp"
 #include "NdbError.hpp"
 #include "NdbReceiver.hpp"
-#include "NdbDictionary.hpp"
-#include "Ndb.hpp"
+#include "ndbapi_limits.h"
 
 class Ndb;
 class NdbApiSignal;
@@ -49,8 +49,7 @@ class NdbLockHandle;
  * @class NdbOperation
  * @brief Class of operations for use in transactions.
  */
-class NdbOperation
-{
+class NdbOperation {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbImpl;
@@ -65,7 +64,7 @@ class NdbOperation
   friend class OpList;
 #endif
 
-public:
+ public:
   /**
    * @name Define Standard Operation Type
    * @{
@@ -76,21 +75,24 @@ public:
    */
 
   enum Type {
-    PrimaryKeyAccess     ///< Read, insert, update, or delete using pk
+    PrimaryKeyAccess  ///< Read, insert, update, or delete using pk
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    = 0                  // NdbOperation
+    = 0  // NdbOperation
 #endif
-    ,UniqueIndexAccess   ///< Read, update, or delete using unique index
+    ,
+    UniqueIndexAccess  ///< Read, update, or delete using unique index
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    = 1                  // NdbIndexOperation
+    = 1  // NdbIndexOperation
 #endif
-    ,TableScan          ///< Full table scan
+    ,
+    TableScan  ///< Full table scan
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    = 2                  // NdbScanOperation
+    = 2  // NdbScanOperation
 #endif
-    ,OrderedIndexScan   ///< Ordered index scan
+    ,
+    OrderedIndexScan  ///< Ordered index scan
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    = 3                  // NdbIndexScanOperation
+    = 3  // NdbIndexScanOperation
 #endif
   };
 
@@ -99,20 +101,22 @@ public:
    */
 
   enum LockMode {
-    LM_Read                 ///< Read with shared lock
+    LM_Read  ///< Read with shared lock
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = 0
 #endif
-    ,LM_Exclusive           ///< Read with exclusive lock
+    ,
+    LM_Exclusive  ///< Read with exclusive lock
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = 1
 #endif
-    ,LM_CommittedRead       ///< Ignore locks, read last committed value
+    ,
+    LM_CommittedRead  ///< Ignore locks, read last committed value
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = 2,
     LM_Dirty = 2,
 #endif
-    LM_SimpleRead = 3       ///< Read with shared lock, but release lock directly
+    LM_SimpleRead = 3  ///< Read with shared lock, but release lock directly
   };
 
   /**
@@ -136,9 +140,9 @@ public:
    * CommittedRead does _only_ support AO_IgnoreError
    */
   enum AbortOption {
-    DefaultAbortOption = -1,///< Use default as specified by op-type
-    AbortOnError = 0,       ///< Abort transaction on failed operation
-    AO_IgnoreError = 2      ///< Transaction continues on failed operation
+    DefaultAbortOption = -1,  ///< Use default as specified by op-type
+    AbortOnError = 0,         ///< Abort transaction on failed operation
+    AO_IgnoreError = 2        ///< Transaction continues on failed operation
   };
 
   /**
@@ -148,7 +152,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			insertTuple();
+  virtual int insertTuple();
 
   /**
    * Define the NdbOperation to be a standard operation of type updateTuple.
@@ -157,7 +161,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			updateTuple();
+  virtual int updateTuple();
 
   /**
    * Define the NdbOperation to be a standard operation of type writeTuple.
@@ -167,7 +171,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			writeTuple();
+  virtual int writeTuple();
 
   /**
    * Define the NdbOperation to be a standard operation of type deleteTuple.
@@ -176,7 +180,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			deleteTuple();
+  virtual int deleteTuple();
 
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
@@ -185,7 +189,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			readTuple(LockMode);
+  virtual int readTuple(LockMode);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
@@ -195,7 +199,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			readTuple();
+  virtual int readTuple();
 
   /**
    * Define the NdbOperation to be a standard operation of type
@@ -205,7 +209,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int 			readTupleExclusive();
+  virtual int readTupleExclusive();
 
   /**
    * Define the NdbOperation to be a standard operation of type
@@ -225,7 +229,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			simpleRead();
+  virtual int simpleRead();
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
@@ -241,7 +245,7 @@ public:
    * @return 0 if successful otherwise -1.
    * @deprecated
    */
-  virtual int			dirtyRead();
+  virtual int dirtyRead();
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
@@ -255,7 +259,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			committedRead();
+  virtual int committedRead();
 
   /**
    * Define the NdbOperation to be a standard operation of type dirtyUpdate.
@@ -264,7 +268,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			dirtyUpdate();
+  virtual int dirtyUpdate();
 
   /**
    * Define the NdbOperation to be a standard operation of type dirtyWrite.
@@ -273,7 +277,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			dirtyWrite();
+  virtual int dirtyWrite();
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -288,7 +292,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			interpretedUpdateTuple();
+  virtual int interpretedUpdateTuple();
 
   /**
    * Write a tuple using an interpreted program.
@@ -296,14 +300,14 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int	interpretedWriteTuple();
+  virtual int interpretedWriteTuple();
 
   /**
    * Delete a tuple using an interpreted program.
    *
    * @return 0 if successful otherwise -1.
    */
-  virtual int			interpretedDeleteTuple();
+  virtual int interpretedDeleteTuple();
 #endif
 
   /** @} *********************************************************************/
@@ -335,21 +339,21 @@ public:
    * @return               -1 if unsuccessful.
    */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int  equal(const char* anAttrName, const char* aValue, Uint32 len);
+  int equal(const char *anAttrName, const char *aValue, Uint32 len);
 #endif
-  int  equal(const char* anAttrName, const char* aValue);
-  int  equal(const char* anAttrName, Int32 aValue);
-  int  equal(const char* anAttrName, Uint32 aValue);
-  int  equal(const char* anAttrName, Int64 aValue);
-  int  equal(const char* anAttrName, Uint64 aValue);
+  int equal(const char *anAttrName, const char *aValue);
+  int equal(const char *anAttrName, Int32 aValue);
+  int equal(const char *anAttrName, Uint32 aValue);
+  int equal(const char *anAttrName, Int64 aValue);
+  int equal(const char *anAttrName, Uint64 aValue);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int  equal(Uint32 anAttrId, const char* aValue, Uint32 len);
+  int equal(Uint32 anAttrId, const char *aValue, Uint32 len);
 #endif
-  int  equal(Uint32 anAttrId, const char* aValue);
-  int  equal(Uint32 anAttrId, Int32 aValue);
-  int  equal(Uint32 anAttrId, Uint32 aValue);
-  int  equal(Uint32 anAttrId, Int64 aValue);
-  int  equal(Uint32 anAttrId, Uint64 aValue);
+  int equal(Uint32 anAttrId, const char *aValue);
+  int equal(Uint32 anAttrId, Int32 aValue);
+  int equal(Uint32 anAttrId, Uint32 aValue);
+  int equal(Uint32 anAttrId, Int64 aValue);
+  int equal(Uint32 anAttrId, Uint64 aValue);
 
   /** @} *********************************************************************/
   /**
@@ -388,9 +392,9 @@ public:
    *                    the attribute, or a NULL pointer
    *                    (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0);
+  NdbRecAttr *getValue(const char *anAttrName, char *aValue = 0);
+  NdbRecAttr *getValue(Uint32 anAttrId, char *aValue = 0);
+  NdbRecAttr *getValue(const NdbDictionary::Column *, char *val = 0);
 
   /**
    * Define an attribute to set or update in query.
@@ -430,30 +434,30 @@ public:
    * @return               -1 if unsuccessful.
    */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int  setValue(const char* anAttrName, const char* aValue, Uint32 len);
+  int setValue(const char *anAttrName, const char *aValue, Uint32 len);
 #endif
-  int  setValue(const char* anAttrName, const char* aValue);
-  int  setValue(const char* anAttrName, Int32 aValue);
-  int  setValue(const char* anAttrName, Uint32 aValue);
-  int  setValue(const char* anAttrName, Int64 aValue);
-  int  setValue(const char* anAttrName, Uint64 aValue);
-  int  setValue(const char* anAttrName, float aValue);
-  int  setValue(const char* anAttrName, double aValue);
+  int setValue(const char *anAttrName, const char *aValue);
+  int setValue(const char *anAttrName, Int32 aValue);
+  int setValue(const char *anAttrName, Uint32 aValue);
+  int setValue(const char *anAttrName, Int64 aValue);
+  int setValue(const char *anAttrName, Uint64 aValue);
+  int setValue(const char *anAttrName, float aValue);
+  int setValue(const char *anAttrName, double aValue);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  int  setAnyValue(Uint32 aValue);
-  int  setOptimize(Uint32 options);
+  int setAnyValue(Uint32 aValue);
+  int setOptimize(Uint32 options);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  int  setValue(Uint32 anAttrId, const char* aValue, Uint32 len);
+  int setValue(Uint32 anAttrId, const char *aValue, Uint32 len);
 #endif
-  int  setValue(Uint32 anAttrId, const char* aValue);
-  int  setValue(Uint32 anAttrId, Int32 aValue);
-  int  setValue(Uint32 anAttrId, Uint32 aValue);
-  int  setValue(Uint32 anAttrId, Int64 aValue);
-  int  setValue(Uint32 anAttrId, Uint64 aValue);
-  int  setValue(Uint32 anAttrId, float aValue);
-  int  setValue(Uint32 anAttrId, double aValue);
+  int setValue(Uint32 anAttrId, const char *aValue);
+  int setValue(Uint32 anAttrId, Int32 aValue);
+  int setValue(Uint32 anAttrId, Uint32 aValue);
+  int setValue(Uint32 anAttrId, Int64 aValue);
+  int setValue(Uint32 anAttrId, Uint64 aValue);
+  int setValue(Uint32 anAttrId, float aValue);
+  int setValue(Uint32 anAttrId, double aValue);
 
   /**
    * This method replaces getValue/setValue for blobs.  It creates
@@ -472,10 +476,10 @@ public:
    * will be stored there, providing an alternative way of obtaining the
    * blob handle.
    */
-  virtual NdbBlob* getBlobHandle(const char* anAttrName);
-  virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
-  virtual NdbBlob* getBlobHandle(const char* anAttrName) const;
-  virtual NdbBlob* getBlobHandle(Uint32 anAttrId) const;
+  virtual NdbBlob *getBlobHandle(const char *anAttrName);
+  virtual NdbBlob *getBlobHandle(Uint32 anAttrId);
+  virtual NdbBlob *getBlobHandle(const char *anAttrName) const;
+  virtual NdbBlob *getBlobHandle(Uint32 anAttrId) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
@@ -500,10 +504,10 @@ public:
    * @param aValue         Value to add.
    * @return               -1 if unsuccessful.
    */
-  int   incValue(const char* anAttrName, Uint32 aValue);
-  int   incValue(const char* anAttrName, Uint64 aValue);
-  int   incValue(Uint32 anAttrId, Uint32 aValue);
-  int   incValue(Uint32 anAttrId, Uint64 aValue);
+  int incValue(const char *anAttrName, Uint32 aValue);
+  int incValue(const char *anAttrName, Uint64 aValue);
+  int incValue(Uint32 anAttrId, Uint32 aValue);
+  int incValue(Uint32 anAttrId, Uint64 aValue);
 
   /**
    * Interpreted program instruction:
@@ -522,10 +526,10 @@ public:
    * @param aValue        Value to subtract.
    * @return              -1 if unsuccessful.
    */
-  int   subValue(const char* anAttrName, Uint32 aValue);
-  int   subValue(const char* anAttrName, Uint64 aValue);
-  int   subValue(Uint32 anAttrId, Uint32 aValue);
-  int   subValue(Uint32 anAttrId, Uint64 aValue);
+  int subValue(const char *anAttrName, Uint32 aValue);
+  int subValue(const char *anAttrName, Uint64 aValue);
+  int subValue(Uint32 anAttrId, Uint32 aValue);
+  int subValue(Uint32 anAttrId, Uint64 aValue);
 
   /**
    * Interpreted program instruction:
@@ -542,7 +546,7 @@ public:
    * @param labelNumber   Label number.
    * @return              Label number, -1 if unsuccessful.
    */
-  int   def_label(int labelNumber);
+  int def_label(int labelNumber);
 
   /**
    * Interpreted program instruction:
@@ -556,7 +560,7 @@ public:
    * @param RegDest      Destination register where the result will be stored.
    * @return -1 if unsuccessful.
    */
-  int   add_reg(Uint32 RegSource1, Uint32 RegSource2, Uint32 RegDest);
+  int add_reg(Uint32 RegSource1, Uint32 RegSource2, Uint32 RegDest);
 
   /**
    * Interpreted program instruction:
@@ -570,7 +574,7 @@ public:
    * @param RegDest      Destination register where the result will be stored.
    * @return             -1 if unsuccessful.
    */
-  int   sub_reg(Uint32 RegSource1, Uint32 RegSource2, Uint32 RegDest);
+  int sub_reg(Uint32 RegSource1, Uint32 RegSource2, Uint32 RegDest);
 
   /**
    * Interpreted program instruction:
@@ -583,8 +587,8 @@ public:
    * @param Constant     Value to load.
    * @return             -1 if unsuccessful.
    */
-  int   load_const_u32(Uint32 RegDest, Uint32 Constant);
-  int   load_const_u64(Uint32 RegDest, Uint64 Constant);
+  int load_const_u32(Uint32 RegDest, Uint32 Constant);
+  int load_const_u64(Uint32 RegDest, Uint64 Constant);
 
   /**
    * Interpreted program instruction:
@@ -596,7 +600,7 @@ public:
    * @param RegDest      Destination register.
    * @return             -1 if unsuccessful.
    */
-  int   load_const_null(Uint32 RegDest);
+  int load_const_null(Uint32 RegDest);
 
   /**
    * Interpreted program instruction:
@@ -609,7 +613,7 @@ public:
    * @param RegDest      Destination register.
    * @return             -1 if unsuccessful.
    */
-  int   read_attr(const char* anAttrName, Uint32 RegDest);
+  int read_attr(const char *anAttrName, Uint32 RegDest);
 
   /**
    * Interpreted program instruction:
@@ -622,7 +626,7 @@ public:
    * @param RegSource    Source register.
    * @return             -1 if unsuccessful.
    */
-  int   write_attr(const char* anAttrName, Uint32 RegSource);
+  int write_attr(const char *anAttrName, Uint32 RegSource);
 
   /**
    * Interpreted program instruction:
@@ -635,7 +639,7 @@ public:
    * @param RegDest the destination register.
    * @return -1 if unsuccessful.
    */
-  int   read_attr(Uint32 anAttrId, Uint32 RegDest);
+  int read_attr(Uint32 anAttrId, Uint32 RegDest);
 
   /**
    * Interpreted program instruction:
@@ -648,7 +652,7 @@ public:
    * @param RegSource the source register.
    * @return -1 if unsuccessful.
    */
-  int   write_attr(Uint32 anAttrId, Uint32 RegSource);
+  int write_attr(Uint32 anAttrId, Uint32 RegSource);
 
   /**
    * Interpreted program instruction:
@@ -672,12 +676,12 @@ public:
    * @param Label the label to jump to.
    * @return -1 if unsuccessful.
    */
-  int   branch_ge(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
-  int   branch_gt(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
-  int   branch_le(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
-  int   branch_lt(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
-  int   branch_eq(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
-  int   branch_ne(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_ge(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_gt(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_le(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_lt(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_eq(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
+  int branch_ne(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
 
   /**
    * Interpreted program instruction:
@@ -690,7 +694,7 @@ public:
    * @param Label the label to jump to.
    * @return -1 if unsuccessful.
    */
-  int   branch_ne_null(Uint32 RegLvalue, Uint32 Label);
+  int branch_ne_null(Uint32 RegLvalue, Uint32 Label);
 
   /**
    * Interpreted program instruction:
@@ -703,7 +707,7 @@ public:
    * @param  Label      Label to jump to.
    * @return -1 if unsuccessful.
    */
-  int   branch_eq_null(Uint32 RegLvalue, Uint32 Label);
+  int branch_eq_null(Uint32 RegLvalue, Uint32 Label);
 
   /**
    * Interpreted program instruction:
@@ -715,7 +719,7 @@ public:
    * @param  Label  Label to jump to.
    * @return -1 if unsuccessful.
    */
-  int   branch_label(Uint32 Label);
+  int branch_label(Uint32 Label);
 
   /**
    * Interpreted program instruction:  branch after memcmp
@@ -742,17 +746,17 @@ public:
    * @param  Label   label to jump to
    * @return -1 if unsuccessful
    */
-  int branch_col_eq(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_eq(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
-  int branch_col_ne(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_ne(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
-  int branch_col_lt(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_lt(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
-  int branch_col_le(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_le(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
-  int branch_col_gt(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_gt(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
-  int branch_col_ge(Uint32 ColId, const void* val, Uint32 len, bool,
+  int branch_col_ge(Uint32 ColId, const void *val, Uint32 len, bool,
                     Uint32 Label);
   /**
    * LIKE/NOTLIKE wildcard comparisons
@@ -766,9 +770,9 @@ public:
    * @note For Scans and NdbRecord operations, use the
    *       NdbInterpretedCode interface.
    */
-  int branch_col_like(Uint32 ColId, const void*, Uint32 len, bool,
+  int branch_col_like(Uint32 ColId, const void *, Uint32 len, bool,
                       Uint32 Label);
-  int branch_col_notlike(Uint32 ColId, const void*, Uint32 len, bool,
+  int branch_col_notlike(Uint32 ColId, const void *, Uint32 len, bool,
                          Uint32 Label);
 
   /**
@@ -795,13 +799,13 @@ public:
    *     - Column data AND Mask != 0    (Some masked bits are set in data)
    *
    */
-  int branch_col_and_mask_eq_mask(Uint32 ColId, const void* mask, Uint32 len,
+  int branch_col_and_mask_eq_mask(Uint32 ColId, const void *mask, Uint32 len,
                                   bool, Uint32 Label);
-  int branch_col_and_mask_ne_mask(Uint32 ColId, const void* mask, Uint32 len,
+  int branch_col_and_mask_ne_mask(Uint32 ColId, const void *mask, Uint32 len,
                                   bool, Uint32 Label);
-  int branch_col_and_mask_eq_zero(Uint32 ColId, const void* mask, Uint32 len,
+  int branch_col_and_mask_eq_zero(Uint32 ColId, const void *mask, Uint32 len,
                                   bool, Uint32 Label);
-  int branch_col_and_mask_ne_zero(Uint32 ColId, const void* mask, Uint32 len,
+  int branch_col_and_mask_ne_zero(Uint32 ColId, const void *mask, Uint32 len,
                                   bool, Uint32 Label);
 
   /**
@@ -812,7 +816,7 @@ public:
    *
    * @return -1 if unsuccessful.
    */
-  int	interpret_exit_ok();
+  int interpret_exit_ok();
 
   /**
    * Interpreted program instruction: Exit with Not Ok
@@ -831,9 +835,8 @@ public:
    *                    at any time without prior notice.
    * @return            -1 if unsuccessful.
    */
-  int   interpret_exit_nok(Uint32 ErrorCode);
-  int   interpret_exit_nok();
-
+  int interpret_exit_nok(Uint32 ErrorCode);
+  int interpret_exit_nok();
 
   /**
    * Interpreted program instruction:
@@ -857,7 +860,7 @@ public:
    * @param SubroutineNumber the subroutine number.
    * @return -1 if unsuccessful.
    */
-  int   def_subroutine(int SubroutineNumber);
+  int def_subroutine(int SubroutineNumber);
 
   /**
    * Interpreted program instruction:
@@ -869,7 +872,7 @@ public:
    * @param Subroutine the subroutine to call.
    * @return -1 if unsuccessful.
    */
-  int   call_sub(Uint32 Subroutine);
+  int call_sub(Uint32 Subroutine);
 
   /**
    * Interpreted program instruction:
@@ -880,7 +883,7 @@ public:
    *
    * @return -1 if unsuccessful.
    */
-  int   ret_sub();
+  int ret_sub();
 #endif
 
   /** @} *********************************************************************/
@@ -895,7 +898,7 @@ public:
    *
    * @return error code.
    */
-  const NdbError & getNdbError() const;
+  const NdbError &getNdbError() const;
 
   /**
    * Get the method number where the error occurred.
@@ -911,13 +914,13 @@ public:
    * Get table name of this operation.
    * Not supported for NdbRecord operation.
    */
-  const char* getTableName() const;
+  const char *getTableName() const;
 
   /**
    * Get table object for this operation
    * Not supported for NdbRecord operation.
    */
-  const NdbDictionary::Table * getTable() const;
+  const NdbDictionary::Table *getTable() const;
 
   /**
    * Get the type of access for this operation
@@ -931,18 +934,18 @@ public:
    * Type of operation
    */
   enum OperationType {
-    ReadRequest = 0,              ///< Read operation
-    UpdateRequest = 1,            ///< Update Operation
-    InsertRequest = 2,            ///< Insert Operation
-    DeleteRequest = 3,            ///< Delete Operation
-    WriteRequest = 4,             ///< Write Operation
-    ReadExclusive = 5,            ///< Read exclusive
-    RefreshRequest = 6,           ///<
-    UnlockRequest = 7,            ///< Unlock operation
-    OpenScanRequest,              ///< Scan Operation
-    OpenRangeScanRequest,         ///< Range scan operation
-    NotDefined2,                  ///< Internal for debugging
-    NotDefined                    ///< Internal for debugging
+    ReadRequest = 0,       ///< Read operation
+    UpdateRequest = 1,     ///< Update Operation
+    InsertRequest = 2,     ///< Insert Operation
+    DeleteRequest = 3,     ///< Delete Operation
+    WriteRequest = 4,      ///< Write Operation
+    ReadExclusive = 5,     ///< Read exclusive
+    RefreshRequest = 6,    ///<
+    UnlockRequest = 7,     ///< Unlock operation
+    OpenScanRequest,       ///< Scan Operation
+    OpenRangeScanRequest,  ///< Range scan operation
+    NotDefined2,           ///< Internal for debugging
+    NotDefined             ///< Internal for debugging
   };
 #endif
 
@@ -960,7 +963,7 @@ public:
   /**
    * Get NdbTransaction object pointer for this operation
    */
-  virtual NdbTransaction* getNdbTransaction() const;
+  virtual NdbTransaction *getNdbTransaction() const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
@@ -1003,8 +1006,7 @@ public:
    * Limitation : Blob reads cannot be specified
    * using GetValueSpec.
    */
-  struct GetValueSpec
-  {
+  struct GetValueSpec {
     const NdbDictionary::Column *column;
     void *appStorage;
     NdbRecAttr *recAttr;
@@ -1022,10 +1024,9 @@ public:
    * Limitation : Blobs cannot be set using
    * SetValueSpec.
    */
-  struct SetValueSpec
-  {
+  struct SetValueSpec {
     const NdbDictionary::Column *column;
-    const void * value;
+    const void *value;
   };
 
   /*
@@ -1049,33 +1050,30 @@ public:
    *  structure.  This effect is achieved by passing
    *  sizeof(OperationOptions) into this parameter.
    */
-  struct OperationOptions
-  {
+  struct OperationOptions {
     /*
       Size of the OperationOptions structure.
     */
-    static inline Uint32 size()
-    {
-        return sizeof(OperationOptions);
-    }
+    static inline Uint32 size() { return sizeof(OperationOptions); }
 
     /*
      * Which options are present.  See below for option details
      */
     Uint64 optionsPresent;
-    enum Flags { OO_ABORTOPTION  = 0x01,
-                 OO_GETVALUE     = 0x02,
-                 OO_SETVALUE     = 0x04,
-                 OO_PARTITION_ID = 0x08,
-                 OO_INTERPRETED  = 0x10,
-                 OO_ANYVALUE     = 0x20,
-                 OO_CUSTOMDATA   = 0x40,
-                 OO_LOCKHANDLE   = 0x80,
-                 OO_QUEUABLE     = 0x100,
-                 OO_NOT_QUEUABLE = 0x200,
-                 OO_DEFERRED_CONSTAINTS = 0x400,
-                 OO_DISABLE_FK   = 0x800,
-                 OO_NOWAIT       = 0x1000
+    enum Flags {
+      OO_ABORTOPTION = 0x01,
+      OO_GETVALUE = 0x02,
+      OO_SETVALUE = 0x04,
+      OO_PARTITION_ID = 0x08,
+      OO_INTERPRETED = 0x10,
+      OO_ANYVALUE = 0x20,
+      OO_CUSTOMDATA = 0x40,
+      OO_LOCKHANDLE = 0x80,
+      OO_QUEUABLE = 0x100,
+      OO_NOT_QUEUABLE = 0x200,
+      OO_DEFERRED_CONSTAINTS = 0x400,
+      OO_DISABLE_FK = 0x800,
+      OO_NOWAIT = 0x1000
     };
 
     /* An operation-specific abort option.
@@ -1086,11 +1084,11 @@ public:
 
     /* Extra column values to be read */
     GetValueSpec *extraGetValues;
-    Uint32        numExtraGetValues;
+    Uint32 numExtraGetValues;
 
     /* Extra column values to be set  */
     const SetValueSpec *extraSetValues;
-    Uint32              numExtraSetValues;
+    Uint32 numExtraSetValues;
 
     /* Specific partition to execute this operation on */
     Uint32 partitionId;
@@ -1104,7 +1102,7 @@ public:
     Uint32 anyValue;
 
     /* customData ptr for this operation */
-    void * customData;
+    void *customData;
   };
 
   /* getLockHandle
@@ -1115,8 +1113,8 @@ public:
    * The returned LockHandle cannot be used until the operation
    * has been executed.
    */
-  const NdbLockHandle* getLockHandle() const;
-  const NdbLockHandle* getLockHandle();
+  const NdbLockHandle *getLockHandle() const;
+  const NdbLockHandle *getLockHandle();
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   // XXX until NdbRecord is used in ndb_restore
@@ -1126,38 +1124,38 @@ public:
   int setNoWait();
 #endif
 
-protected:
-/******************************************************************************
- * These are the methods used to create and delete the NdbOperation objects.
- *****************************************************************************/
+ protected:
+  /******************************************************************************
+   * These are the methods used to create and delete the NdbOperation objects.
+   *****************************************************************************/
 
-  bool                  needReply();
-/******************************************************************************
- * These methods are service routines used by the other NDB API classes.
- *****************************************************************************/
-//--------------------------------------------------------------
-// Initialise after allocating operation to a transaction
-//--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon);
+  bool needReply();
+  /******************************************************************************
+   * These methods are service routines used by the other NDB API classes.
+   *****************************************************************************/
+  //--------------------------------------------------------------
+  // Initialise after allocating operation to a transaction
+  //--------------------------------------------------------------
+  int init(const class NdbTableImpl *, NdbTransaction *aCon);
   void initInterpreter();
 
-  NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);
+  NdbOperation(Ndb *aNdb, Type aType = PrimaryKeyAccess);
   virtual ~NdbOperation();
-  void	next(NdbOperation*);		// Set next pointer
-  NdbOperation*	    next();	        // Get next pointer
+  void next(NdbOperation *);  // Set next pointer
+  NdbOperation *next();       // Get next pointer
 
-public:
+ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  const NdbOperation* next() const;
-  const NdbRecAttr* getFirstRecAttr() const;
+  const NdbOperation *next() const;
+  const NdbRecAttr *getFirstRecAttr() const;
 
-  void* getCustomData() const { return m_customData; }
-  void setCustomData(void* p) { m_customData = p; }
-protected:
-  void* m_customData;
+  void *getCustomData() const { return m_customData; }
+  void setCustomData(void *p) { m_customData = p; }
+
+ protected:
+  void *m_customData;
 #endif
-protected:
-
+ protected:
   /*
     Methods that define the operation (readTuple(), getValue(), etc). can be
     called in any order, but not all are valid.
@@ -1165,8 +1163,7 @@ protected:
     To keep track of things, we store a 'current state of definitin operation'
     in member 'theStatus', with possible values given here.
   */
-  enum OperationStatus
-  {
+  enum OperationStatus {
     /*
       Init: Initial state after getting NdbOperation.
       At this point, the type of operation must be set (insertTuple(),
@@ -1234,154 +1231,140 @@ protected:
     UseNdbRecord
   };
 
-  OperationStatus   Status();	         	// Read the status information
+  OperationStatus Status();  // Read the status information
 
-  void		    Status(OperationStatus);    // Set the status information
+  void Status(OperationStatus);  // Set the status information
 
-  void		    NdbCon(NdbTransaction*);	// Set reference to connection
-  						// object.
+  void NdbCon(NdbTransaction *);  // Set reference to connection
+                                  // object.
 
-  virtual void	    release();			// Release all operations
-                                                // connected to
-					      	// the operations object.
-  void              postExecuteRelease();       // Release resources
-                                                // no longer needed after
-                                                // execute
-  void		    setStartIndicator();
+  virtual void release();     // Release all operations
+                              // connected to
+                              // the operations object.
+  void postExecuteRelease();  // Release resources
+                              // no longer needed after
+                              // execute
+  void setStartIndicator();
 
   /* Utility method to 'add' operation options to an NdbOperation
    *
    * @return 0 for success.  NDBAPI to set error otherwise.
    */
-  static int        handleOperationOptions (const OperationType type,
-                                            const OperationOptions *opts,
-                                            const Uint32 sizeOfOptions,
-                                            NdbOperation *op);
+  static int handleOperationOptions(const OperationType type,
+                                    const OperationOptions *opts,
+                                    const Uint32 sizeOfOptions,
+                                    NdbOperation *op);
 
-/******************************************************************************
- * The methods below is the execution part of the NdbOperation
- * class. This is where the NDB signals are sent and received. The
- * operation can send TC[KEY/INDX]REQ, [INDX]ATTRINFO.
- * It can receive TC[KEY/INDX]CONF, TC[KEY/INDX]REF, [INDX]ATTRINFO.
- * When an operation is received in its fulness or a refuse message
- * was sent, then the connection object is told about this situation.
- *****************************************************************************/
+  /******************************************************************************
+   * The methods below is the execution part of the NdbOperation
+   * class. This is where the NDB signals are sent and received. The
+   * operation can send TC[KEY/INDX]REQ, [INDX]ATTRINFO.
+   * It can receive TC[KEY/INDX]CONF, TC[KEY/INDX]REF, [INDX]ATTRINFO.
+   * When an operation is received in its fulness or a refuse message
+   * was sent, then the connection object is told about this situation.
+   *****************************************************************************/
 
-  int    doSendKeyReq(int processorId,
-                      GenericSectionPtr* secs,
-                      Uint32 numSecs,
-                      bool lastFlag);
-  int    doSend(int ProcessorId, Uint32 lastFlag);
-  void   setRequestInfoTCKEYREQ(bool lastFlag, bool longSignal);
-  virtual int	 prepareSend(Uint32  TC_ConnectPtr,
-                             Uint64  TransactionId,
-			     AbortOption);
-  virtual void   setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
+  int doSendKeyReq(int processorId, GenericSectionPtr *secs, Uint32 numSecs,
+                   bool lastFlag);
+  int doSend(int ProcessorId, Uint32 lastFlag);
+  void setRequestInfoTCKEYREQ(bool lastFlag, bool longSignal);
+  virtual int prepareSend(Uint32 TC_ConnectPtr, Uint64 TransactionId,
+                          AbortOption);
+  virtual void setLastFlag(NdbApiSignal *signal, Uint32 lastFlag);
 
-  int	 prepareSendInterpreted();            // Help routine to prepare*
+  int prepareSendInterpreted();  // Help routine to prepare*
 
   int initInterpretedInfo(const NdbInterpretedCode *code,
-                          Uint32*& interpretedInfo,
-                          Uint32* stackSpace,
-                          Uint32 stackSpaceEntries,
-                          Uint32*& dynamicSpace);
+                          Uint32 *&interpretedInfo, Uint32 *stackSpace,
+                          Uint32 stackSpaceEntries, Uint32 *&dynamicSpace);
 
-  void freeInterpretedInfo(Uint32*& dynamicSpace);
-
+  void freeInterpretedInfo(Uint32 *&dynamicSpace);
 
   /* Method for adding signals for an interpreted program
    * to the signal train
    */
-  int buildInterpretedProgramSignals(Uint32 aTC_ConnectPtr,
-                                     Uint64 aTransId,
-                                     Uint32 **attrInfoPtr,
-                                     Uint32 *remain,
+  int buildInterpretedProgramSignals(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                                     Uint32 **attrInfoPtr, Uint32 *remain,
                                      const NdbInterpretedCode *code,
                                      Uint32 *interpretedWorkspace,
-                                     bool mainProgram,
-                                     Uint32 &wordsWritten);
+                                     bool mainProgram, Uint32 &wordsWritten);
 
   // Method which prepares signals at operation definition time.
-  int    buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
-                               const Uint32 * read_mask);
+  int buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                            const Uint32 *read_mask);
 
   // Method which does final preparations at execute time.
-  int    prepareSendNdbRecord(AbortOption ao);
+  int prepareSendNdbRecord(AbortOption ao);
 
   /* Helper routines for buildSignalsNdbRecord(). */
-  Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
-                         Uint32 connectPtr,
-                         Uint64 transId);
-  int    allocKeyInfo();
-  int    allocAttrInfo();
-  int    insertKEYINFO_NdbRecord(const char *value,
-                                 Uint32 byteSize);
-  int    insertATTRINFOHdr_NdbRecord(Uint32 attrId,
-                                     Uint32 attrLen);
-  int    insertATTRINFOData_NdbRecord(const char *value,
-                                      Uint32 size);
+  Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq, Uint32 connectPtr, Uint64 transId);
+  int allocKeyInfo();
+  int allocAttrInfo();
+  int insertKEYINFO_NdbRecord(const char *value, Uint32 byteSize);
+  int insertATTRINFOHdr_NdbRecord(Uint32 attrId, Uint32 attrLen);
+  int insertATTRINFOData_NdbRecord(const char *value, Uint32 size);
 
-  int	 receiveTCKEYREF(const NdbApiSignal*);
+  int receiveTCKEYREF(const NdbApiSignal *);
 
-  int	 checkMagicNumber(bool b = true); // Verify correct object
+  int checkMagicNumber(bool b = true);  // Verify correct object
   static Uint32 getMagicNumber() { return (Uint32)0xABCDEF01; }
 
-  int    checkState_TransId(const NdbApiSignal* aSignal);
+  int checkState_TransId(const NdbApiSignal *aSignal);
 
-/******************************************************************************
- *	These are support methods only used locally in this class.
-******************************************************************************/
+  /******************************************************************************
+   *	These are support methods only used locally in this class.
+   ******************************************************************************/
 
-  virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
-  NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
-  int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
-  NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
-  NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject) const;
-  int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
-  int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
-  int subValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
-  int subValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
-  int read_attr(const NdbColumnImpl* anAttrObject, Uint32 RegDest);
-  int write_attr(const NdbColumnImpl* anAttrObject, Uint32 RegSource);
+  virtual int equal_impl(const NdbColumnImpl *, const char *aValue);
+  virtual NdbRecAttr *getValue_impl(const NdbColumnImpl *, char *aValue = 0);
+  NdbRecAttr *getValue_NdbRecord(const NdbColumnImpl *tAttrInfo, char *aValue);
+  int setValue(const NdbColumnImpl *anAttrObject, const char *aValue);
+  NdbBlob *getBlobHandle(NdbTransaction *aCon,
+                         const NdbColumnImpl *anAttrObject);
+  NdbBlob *getBlobHandle(NdbTransaction *aCon,
+                         const NdbColumnImpl *anAttrObject) const;
+  int incValue(const NdbColumnImpl *anAttrObject, Uint32 aValue);
+  int incValue(const NdbColumnImpl *anAttrObject, Uint64 aValue);
+  int subValue(const NdbColumnImpl *anAttrObject, Uint32 aValue);
+  int subValue(const NdbColumnImpl *anAttrObject, Uint64 aValue);
+  int read_attr(const NdbColumnImpl *anAttrObject, Uint32 RegDest);
+  int write_attr(const NdbColumnImpl *anAttrObject, Uint32 RegSource);
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
   int branch_col(Uint32 type, Uint32, const void *, Uint32, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
-  NdbBlob *linkInBlobHandle(NdbTransaction *aCon,
-                            const NdbColumnImpl *column,
-                            NdbBlob * & lastPtr);
-  int getBlobHandlesNdbRecord(NdbTransaction* aCon, const Uint32 * mask);
-  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon,
-                                    bool checkReadSet, const Uint32 * mask);
+  NdbBlob *linkInBlobHandle(NdbTransaction *aCon, const NdbColumnImpl *column,
+                            NdbBlob *&lastPtr);
+  int getBlobHandlesNdbRecord(NdbTransaction *aCon, const Uint32 *mask);
+  int getBlobHandlesNdbRecordDelete(NdbTransaction *aCon, bool checkReadSet,
+                                    const Uint32 *mask);
 
   // Handle ATTRINFO signals
   int insertATTRINFO(Uint32 aData);
-  int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
+  int insertATTRINFOloop(const Uint32 *aDataPtr, Uint32 aLength);
 
-  int insertKEYINFO(const char* aValue,
-		    Uint32 aStartPosition,
-		    Uint32 aKeyLenInByte);
+  int insertKEYINFO(const char *aValue, Uint32 aStartPosition,
+                    Uint32 aKeyLenInByte);
   void reorderKEYINFO();
   int transferKeyInfoToAttrInfo();
 
   virtual void setErrorCode(int aErrorCode) const;
   virtual void setErrorCodeAbort(int aErrorCode) const;
 
-  bool        isNdbRecordOperation();
-  int	      incCheck(const NdbColumnImpl* anAttrObject);
-  int	      initial_interpreterCheck();
-  int	      intermediate_interpreterCheck();
-  int	      read_attrCheck(const NdbColumnImpl* anAttrObject);
-  int	      write_attrCheck(const NdbColumnImpl* anAttrObject);
-  int	      labelCheck();
-  int	      insertCall(Uint32 aCall);
-  int	      insertBranch(Uint32 aBranch);
+  bool isNdbRecordOperation();
+  int incCheck(const NdbColumnImpl *anAttrObject);
+  int initial_interpreterCheck();
+  int intermediate_interpreterCheck();
+  int read_attrCheck(const NdbColumnImpl *anAttrObject);
+  int write_attrCheck(const NdbColumnImpl *anAttrObject);
+  int labelCheck();
+  int insertCall(Uint32 aCall);
+  int insertBranch(Uint32 aBranch);
 
   Uint32 ptr2int() { return theReceiver.getId(); }
   Uint32 ptr2int() const { return theReceiver.getId(); }
 
   // get table or index key from prepared signals
-  int getKeyFromTCREQ(Uint32* data, Uint32 & size);
+  int getKeyFromTCREQ(Uint32 *data, Uint32 &size);
 
   int getLockHandleImpl();
   int prepareGetLockHandle();
@@ -1391,102 +1374,102 @@ protected:
   void setReadCommittedBase();
   Uint32 getReadCommittedBase();
 
-/******************************************************************************
- * These are the private variables that are defined in the operation objects.
- *****************************************************************************/
+  /******************************************************************************
+   * These are the private variables that are defined in the operation objects.
+   *****************************************************************************/
 
   Type m_type;
 
   NdbReceiver theReceiver;
 
   // Allow update error from const methods.
-  mutable NdbError theError;            // Errorcode
-  int 	   theErrorLine;		// Error line
+  mutable NdbError theError;  // Errorcode
+  int theErrorLine;           // Error line
 
-  Ndb*		   theNdb;	      	// Point back to the Ndb object.
-  NdbTransaction*   theNdbCon;	       	// Point back to the connection object.
-  NdbOperation*	   theNext;	       	// Next pointer to operation.
+  Ndb *theNdb;                // Point back to the Ndb object.
+  NdbTransaction *theNdbCon;  // Point back to the connection object.
+  NdbOperation *theNext;      // Next pointer to operation.
 
   union {
-    NdbApiSignal* theTCREQ;		// The TC[KEY/INDX]REQ signal object
-    NdbApiSignal* theSCAN_TABREQ;
-    NdbApiSignal* theRequest;
+    NdbApiSignal *theTCREQ;  // The TC[KEY/INDX]REQ signal object
+    NdbApiSignal *theSCAN_TABREQ;
+    NdbApiSignal *theRequest;
   };
 
-  NdbApiSignal*	   theFirstATTRINFO;	// The first ATTRINFO signal object
-  NdbApiSignal*	   theCurrentATTRINFO;	// The current ATTRINFO signal object
-  Uint32	   theTotalCurrAI_Len;	// The total number of attribute info
-  		      			// words currently defined
-  Uint32	   theAI_LenInCurrAI;	// The number of words defined in the
-		      		     	// current ATTRINFO signal
-  NdbApiSignal*	   theLastKEYINFO;	// The first KEYINFO signal object
+  NdbApiSignal *theFirstATTRINFO;    // The first ATTRINFO signal object
+  NdbApiSignal *theCurrentATTRINFO;  // The current ATTRINFO signal object
+  Uint32 theTotalCurrAI_Len;         // The total number of attribute info
+                                     // words currently defined
+  Uint32 theAI_LenInCurrAI;          // The number of words defined in the
+                                     // current ATTRINFO signal
+  NdbApiSignal *theLastKEYINFO;      // The first KEYINFO signal object
 
-  class NdbLabel*	    theFirstLabel;
-  class NdbLabel*	    theLastLabel;
-  class NdbBranch*	    theFirstBranch;
-  class NdbBranch*	    theLastBranch;
-  class NdbCall*	    theFirstCall;
-  class NdbCall*	    theLastCall;
-  class NdbSubroutine*    theFirstSubroutine;
-  class NdbSubroutine*    theLastSubroutine;
-  Uint32	    theNoOfLabels;
-  Uint32	    theNoOfSubroutines;
+  class NdbLabel *theFirstLabel;
+  class NdbLabel *theLastLabel;
+  class NdbBranch *theFirstBranch;
+  class NdbBranch *theLastBranch;
+  class NdbCall *theFirstCall;
+  class NdbCall *theLastCall;
+  class NdbSubroutine *theFirstSubroutine;
+  class NdbSubroutine *theLastSubroutine;
+  Uint32 theNoOfLabels;
+  Uint32 theNoOfSubroutines;
 
-  Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
-  Uint32            keyInfoRemain;       // KeyInfo space in current signal
-  Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
-  Uint32            attrInfoRemain;      // AttrInfo space in current signal
+  Uint32 *theKEYINFOptr;   // Pointer to where to write KEYINFO
+  Uint32 keyInfoRemain;    // KeyInfo space in current signal
+  Uint32 *theATTRINFOptr;  // Pointer to where to write ATTRINFO
+  Uint32 attrInfoRemain;   // AttrInfo space in current signal
 
   /*
      The table object for the table to read or modify (for index operations,
      it is the table being indexed.)
   */
-  const class NdbTableImpl* m_currentTable;
+  const class NdbTableImpl *m_currentTable;
 
   /*
     The table object for the index used to access the table. For primary key
     lookups, it is equal to m_currentTable.
   */
-  const class NdbTableImpl* m_accessTable;
+  const class NdbTableImpl *m_accessTable;
 
   // Set to true when a tuple key attribute has been defined.
-  Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
+  Uint32 theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
 
-  Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of
-  						     // keyword in signal.
+  Uint32 theTotalNrOfKeyWordInSignal;  // The total number of
+                                       // keyword in signal.
 
-  Uint32	    theTupKeyLen;	// Length of the tuple key in words
-		       		        // left until done
-  Uint8	theNoOfTupKeyLeft;  // The number of tuple key attributes
-  OperationType	theOperationType;        // Read Request, Update Req......
+  Uint32 theTupKeyLen;             // Length of the tuple key in words
+                                   // left until done
+  Uint8 theNoOfTupKeyLeft;         // The number of tuple key attributes
+  OperationType theOperationType;  // Read Request, Update Req......
 
-  LockMode        theLockMode;	   // Can be set to WRITE if read operation
-  OperationStatus theStatus;	   // The status of the operation.
+  LockMode theLockMode;       // Can be set to WRITE if read operation
+  OperationStatus theStatus;  // The status of the operation.
 
-  Uint32         theMagicNumber;  // Magic number to verify that object
-                                   // is correct
-  Uint32 theScanInfo;      	   // Scan info bits (take over flag etc)
-  Uint32 theDistributionKey;       // Distribution Key size if used
+  Uint32 theMagicNumber;      // Magic number to verify that object
+                              // is correct
+  Uint32 theScanInfo;         // Scan info bits (take over flag etc)
+  Uint32 theDistributionKey;  // Distribution Key size if used
 
-  Uint32 theSubroutineSize;	   // Size of subroutines for interpretation
-  Uint32 theInitialReadSize;	   // Size of initial reads for interpretation
-  Uint32 theInterpretedSize;	   // Size of interpretation
-  Uint32 theFinalUpdateSize;	   // Size of final updates for interpretation
-  Uint32 theFinalReadSize;	   // Size of final reads for interpretation
+  Uint32 theSubroutineSize;   // Size of subroutines for interpretation
+  Uint32 theInitialReadSize;  // Size of initial reads for interpretation
+  Uint32 theInterpretedSize;  // Size of interpretation
+  Uint32 theFinalUpdateSize;  // Size of final updates for interpretation
+  Uint32 theFinalReadSize;    // Size of final reads for interpretation
 
-  Uint8  theStartIndicator;	 // Indicator of whether start operation
-  Uint8  theCommitIndicator;	 // Indicator of whether commit operation
-  Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
-  Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
+  Uint8 theStartIndicator;   // Indicator of whether start operation
+  Uint8 theCommitIndicator;  // Indicator of whether commit operation
+  Uint8 theSimpleIndicator;  // Indicator of whether simple operation
+  Uint8 theDirtyIndicator;   // Indicator of whether dirty operation
   /**
    * Indicates that the base operation is ReadCommitted although it has
    * been upgraded to use locking read.
    */
-  Uint8  theReadCommittedBaseIndicator;
-  Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
-                                 // Note that scan operations always have this
-                                 // set true
-  Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
+  Uint8 theReadCommittedBaseIndicator;
+  Uint8 theInterpretIndicator;  // Indicator of whether interpreted operation
+                                // Note that scan operations always have this
+                                // set true
+  Int8 theDistrKeyIndicator_;   // Indicates whether distr. key is used
 
   enum OP_FLAGS {
     OF_NO_DISK = 0x1,
@@ -1502,7 +1485,7 @@ protected:
     OF_NOWAIT = 0x20,
     OF_BLOB_PART_READ = 0x40
   };
-  Uint8  m_flags;
+  Uint8 m_flags;
 
   Uint8 _unused1;
 
@@ -1541,7 +1524,7 @@ protected:
     Do not use clas Bitmask/BitmaskPOD here, to avoid having to
     #include <Bitmask.hpp> in application code.
   */
-  Uint32 m_unused_read_mask[(128+31)>>5];
+  Uint32 m_unused_read_mask[(128 + 31) >> 5];
   /* Interpreted program for NdbRecord operations. */
   const NdbInterpretedCode *m_interpreted_code;
 
@@ -1549,16 +1532,16 @@ protected:
   const SetValueSpec *m_extraSetValues;
   Uint32 m_numExtraSetValues;
 
-  Uint32 m_any_value;                           // Valid if m_use_any_value!=0
+  Uint32 m_any_value;  // Valid if m_use_any_value!=0
 
   // Blobs in this operation
-  NdbBlob* theBlobList;
+  NdbBlob *theBlobList;
 
   // ONLY for blob V2 implementation (not virtual, only PK ops)
-  NdbRecAttr*
-  getVarValue(const NdbColumnImpl*, char* aBareValue, Uint16* aLenLoc);
-  int
-  setVarValue(const NdbColumnImpl*, const char* aBareValue, const Uint16&  aLen);
+  NdbRecAttr *getVarValue(const NdbColumnImpl *, char *aBareValue,
+                          Uint16 *aLenLoc);
+  int setVarValue(const NdbColumnImpl *, const char *aBareValue,
+                  const Uint16 &aLen);
 
   /*
    * Abort option per operation, used by blobs.
@@ -1577,15 +1560,15 @@ protected:
 
   Uint32 repack_read(Uint32 len);
 
-  NdbLockHandle* theLockHandle;
+  NdbLockHandle *theLockHandle;
 
   bool m_blob_lock_upgraded; /* Did Blob code upgrade LM_CommittedRead
                               * to LM_Read?
                               */
 
-private:
-  NdbOperation(const NdbOperation&); // Not impl.
-  NdbOperation&operator=(const NdbOperation&);
+ private:
+  NdbOperation(const NdbOperation &);  // Not impl.
+  NdbOperation &operator=(const NdbOperation &);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1594,44 +1577,28 @@ private:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
-inline
-int
-NdbOperation::checkMagicNumber(bool b)
-{
+inline int NdbOperation::checkMagicNumber(bool b) {
 #ifndef NDB_NO_DROPPED_SIGNAL
   (void)b;  // unused param in this context
 #endif
-  if (theMagicNumber != getMagicNumber()){
+  if (theMagicNumber != getMagicNumber()) {
 #ifdef NDB_NO_DROPPED_SIGNAL
-    if(b) abort();
+    if (b) abort();
 #endif
     return -1;
   }
   return 0;
 }
 
-inline
-void
-NdbOperation::setStartIndicator()
-{
-  theStartIndicator = 1;
-}
+inline void NdbOperation::setStartIndicator() { theStartIndicator = 1; }
 
-inline
-int
-NdbOperation::getNdbErrorLine()
-{
+inline int NdbOperation::getNdbErrorLine() {
   // delegate to overloaded const function for same semantics
-  const NdbOperation * const cthis = this;
+  const NdbOperation *const cthis = this;
   return cthis->NdbOperation::getNdbErrorLine();
 }
 
-inline
-int
-NdbOperation::getNdbErrorLine() const
-{
-  return theErrorLine;
-}
+inline int NdbOperation::getNdbErrorLine() const { return theErrorLine; }
 
 /******************************************************************************
 void next(NdbOperation* aNdbOperation);
@@ -1639,10 +1606,7 @@ void next(NdbOperation* aNdbOperation);
 Parameters:    aNdbOperation: Pointers to the NdbOperation object.
 Remark:        Set the next variable of the operation object.
 ******************************************************************************/
-inline
-void
-NdbOperation::next(NdbOperation* aNdbOperation)
-{
+inline void NdbOperation::next(NdbOperation *aNdbOperation) {
   theNext = aNdbOperation;
 }
 
@@ -1652,24 +1616,11 @@ NdbOperation* next();
 Return Value:  	Return  next pointer to NdbOperation object.
 Remark:         Get the next variable of the operation object.
 ******************************************************************************/
-inline
-NdbOperation*
-NdbOperation::next()
-{
-  return theNext;
-}
+inline NdbOperation *NdbOperation::next() { return theNext; }
 
-inline
-const NdbOperation*
-NdbOperation::next() const
-{
-  return theNext;
-}
+inline const NdbOperation *NdbOperation::next() const { return theNext; }
 
-inline
-const NdbRecAttr*
-NdbOperation::getFirstRecAttr() const
-{
+inline const NdbRecAttr *NdbOperation::getFirstRecAttr() const {
   return theReceiver.m_firstRecAttr;
 }
 
@@ -1679,12 +1630,7 @@ Type getType()
 Return Value    Return the Type.
 Remark:         Gets type of access.
 ******************************************************************************/
-inline
-NdbOperation::Type
-NdbOperation::getType() const
-{
-  return m_type;
-}
+inline NdbOperation::Type NdbOperation::getType() const { return m_type; }
 
 /******************************************************************************
 OperationStatus  Status();
@@ -1693,10 +1639,7 @@ Return Value    Return the OperationStatus.
 Parameters:     aStatus:  The status.
 Remark:         Sets Operation status.
 ******************************************************************************/
-inline
-NdbOperation::OperationStatus
-NdbOperation::Status()
-{
+inline NdbOperation::OperationStatus NdbOperation::Status() {
   return theStatus;
 }
 
@@ -1707,10 +1650,7 @@ Parameters:     aStatus: The status.
 Remark:         Sets Operation
  status.
 ******************************************************************************/
-inline
-void
-NdbOperation::Status( OperationStatus aStatus )
-{
+inline void NdbOperation::Status(OperationStatus aStatus) {
   theStatus = aStatus;
 }
 
@@ -1720,202 +1660,121 @@ void NdbCon(NdbTransaction* aNdbCon);
 Parameters:    aNdbCon: Pointers to NdbTransaction object.
 Remark:        Set the reference to the connection in the operation object.
 ******************************************************************************/
-inline
-void
-NdbOperation::NdbCon(NdbTransaction* aNdbCon)
-{
+inline void NdbOperation::NdbCon(NdbTransaction *aNdbCon) {
   theNdbCon = aNdbCon;
 }
 
-inline
-int
-NdbOperation::equal(const char* anAttrName, const char* aValue,
-                    Uint32 len)
-{
-  (void)len;   // unused
+inline int NdbOperation::equal(const char *anAttrName, const char *aValue,
+                               Uint32 len) {
+  (void)len;  // unused
   return equal(anAttrName, aValue);
 }
 
-inline
-int
-NdbOperation::equal(const char* anAttrName, Int32 aPar)
-{
-  return equal(anAttrName, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::equal(const char *anAttrName, Int32 aPar) {
+  return equal(anAttrName, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::equal(const char* anAttrName, Uint32 aPar)
-{
-  return equal(anAttrName, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::equal(const char *anAttrName, Uint32 aPar) {
+  return equal(anAttrName, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::equal(const char* anAttrName, Int64 aPar)
-{
-  return equal(anAttrName, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::equal(const char *anAttrName, Int64 aPar) {
+  return equal(anAttrName, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::equal(const char* anAttrName, Uint64 aPar)
-{
-  return equal(anAttrName, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::equal(const char *anAttrName, Uint64 aPar) {
+  return equal(anAttrName, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::equal(Uint32 anAttrId, const char* aValue,
-                    Uint32 len)
-{
-  (void)len;   // unused
+inline int NdbOperation::equal(Uint32 anAttrId, const char *aValue,
+                               Uint32 len) {
+  (void)len;  // unused
   return equal(anAttrId, aValue);
 }
 
-inline
-int
-NdbOperation::equal(Uint32 anAttrId, Int32 aPar)
-{
-  return equal(anAttrId, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::equal(Uint32 anAttrId, Int32 aPar) {
+  return equal(anAttrId, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::equal(Uint32 anAttrId, Uint32 aPar)
-{
-  return equal(anAttrId, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::equal(Uint32 anAttrId, Uint32 aPar) {
+  return equal(anAttrId, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::equal(Uint32 anAttrId, Int64 aPar)
-{
-  return equal(anAttrId, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::equal(Uint32 anAttrId, Int64 aPar) {
+  return equal(anAttrId, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::equal(Uint32 anAttrId, Uint64 aPar)
-{
-  return equal(anAttrId, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::equal(Uint32 anAttrId, Uint64 aPar) {
+  return equal(anAttrId, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, const char* aValue,
-                       Uint32 len)
-{
-  (void)len;   // unused
+inline int NdbOperation::setValue(const char *anAttrName, const char *aValue,
+                                  Uint32 len) {
+  (void)len;  // unused
   return setValue(anAttrName, aValue);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, Int32 aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(const char *anAttrName, Int32 aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, Uint32 aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(const char *anAttrName, Uint32 aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, Int64 aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(const char *anAttrName, Int64 aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, Uint64 aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(const char *anAttrName, Uint64 aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, float aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(const char *anAttrName, float aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(const char* anAttrName, double aPar)
-{
-  return setValue(anAttrName, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(const char *anAttrName, double aPar) {
+  return setValue(anAttrName, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, const char* aValue,
-                       Uint32 len)
-{
-  (void)len;   // unused
+inline int NdbOperation::setValue(Uint32 anAttrId, const char *aValue,
+                                  Uint32 len) {
+  (void)len;  // unused
   return setValue(anAttrId, aValue);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, Int32 aPar)
-{
-  return setValue(anAttrId, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(Uint32 anAttrId, Int32 aPar) {
+  return setValue(anAttrId, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, Uint32 aPar)
-{
-  return setValue(anAttrId, (const char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(Uint32 anAttrId, Uint32 aPar) {
+  return setValue(anAttrId, (const char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, Int64 aPar)
-{
-  return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(Uint32 anAttrId, Int64 aPar) {
+  return setValue(anAttrId, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, Uint64 aPar)
-{
-  return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(Uint32 anAttrId, Uint64 aPar) {
+  return setValue(anAttrId, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, float aPar)
-{
-  return setValue(anAttrId, (char*)&aPar, (Uint32)4);
+inline int NdbOperation::setValue(Uint32 anAttrId, float aPar) {
+  return setValue(anAttrId, (char *)&aPar, (Uint32)4);
 }
 
-inline
-int
-NdbOperation::setValue(Uint32 anAttrId, double aPar)
-{
-  return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
+inline int NdbOperation::setValue(Uint32 anAttrId, double aPar) {
+  return setValue(anAttrId, (const char *)&aPar, (Uint32)8);
 }
 
-inline
-void
-NdbOperation::setReadCommittedBase()
-{
+inline void NdbOperation::setReadCommittedBase() {
   theReadCommittedBaseIndicator = 1;
 }
 
-inline
-Uint32
-NdbOperation::getReadCommittedBase()
-{
+inline Uint32 NdbOperation::getReadCommittedBase() {
   return theReadCommittedBaseIndicator;
 }
-#endif // doxygen
+#endif  // doxygen
 
 #endif

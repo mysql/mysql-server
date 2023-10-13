@@ -22,9 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
 #include "Rope.hpp"
 #include "DataBuffer.hpp"
+#include "util/require.h"
 
 #define JAM_FILE_ID 330
 
@@ -36,30 +36,27 @@
 #define DEBUG_ROPE 0
 #endif
 
-const char *
-ConstRope::firstSegment(Ptr<Segment> &it) const {
+const char *ConstRope::firstSegment(Ptr<Segment> &it) const {
   it.i = head.firstItem;
-  if(it.i == RNIL) return 0;
+  if (it.i == RNIL) return 0;
   thePool.getPtr(it);
-  return (const char *) it.p->data;
+  return (const char *)it.p->data;
 }
 
-const char *
-ConstRope::nextSegment(Ptr<Segment> &it) const {
+const char *ConstRope::nextSegment(Ptr<Segment> &it) const {
   it.i = it.p->nextPool;
-  if(it.i == RNIL) return 0;
+  if (it.i == RNIL) return 0;
   thePool.getPtr(it);
-  return (const char *) it.p->data;
+  return (const char *)it.p->data;
 }
 
 /* Returns number of bytes read, or 0 at EOF */
-int
-ConstRope::readBuffered(char* buf, Uint32 bufSize,
-                        Uint32 & rope_offset) const {
-   if (DEBUG_ROPE)
-     g_eventLogger->info(
-         "ConstRope::readBuffered(sz=%u,offset=%u) head = [ %d 0x%x 0x%x ]",
-         bufSize, rope_offset, head.used, head.firstItem, head.lastItem);
+int ConstRope::readBuffered(char *buf, Uint32 bufSize,
+                            Uint32 &rope_offset) const {
+  if (DEBUG_ROPE)
+    g_eventLogger->info(
+        "ConstRope::readBuffered(sz=%u,offset=%u) head = [ %d 0x%x 0x%x ]",
+        bufSize, rope_offset, head.used, head.firstItem, head.lastItem);
 
   Uint32 offset = rope_offset;
   require(m_length >= offset);
@@ -69,17 +66,17 @@ ConstRope::readBuffered(char* buf, Uint32 bufSize,
 
   /* Skip forward */
   Ptr<Segment> it;
-  const char * data = firstSegment(it);
-  while(offset > getSegmentSizeInBytes()) {
+  const char *data = firstSegment(it);
+  while (offset > getSegmentSizeInBytes()) {
     data = nextSegment(it);
     offset -= getSegmentSizeInBytes();
   }
 
   /* Read */
-  while(bytesLeft > 0 && bytesWritten < bufSize) {
+  while (bytesLeft > 0 && bytesWritten < bufSize) {
     Uint32 readBytes = getSegmentSizeInBytes() - offset;
-    if(readBytes > bytesLeft) readBytes = bytesLeft;
-    if(readBytes + bytesWritten > bufSize) readBytes = bufSize - bytesWritten;
+    if (readBytes > bytesLeft) readBytes = bytesLeft;
+    if (readBytes + bytesWritten > bufSize) readBytes = bufSize - bytesWritten;
 
     memcpy(buf + bytesWritten, data + offset, readBytes);
 
@@ -90,42 +87,38 @@ ConstRope::readBuffered(char* buf, Uint32 bufSize,
   }
 
   rope_offset += bytesWritten;
-  return (int) bytesWritten;
+  return (int)bytesWritten;
 }
 
-void
-ConstRope::copy(char* buf) const {
+void ConstRope::copy(char *buf) const {
   /* Assume that buffer is big enough */
   Uint32 offset = 0;
   readBuffered(buf, m_length, offset);
-  if (DEBUG_ROPE)
-    g_eventLogger->info("ConstRope::copy()-> %s", buf);
+  if (DEBUG_ROPE) g_eventLogger->info("ConstRope::copy()-> %s", buf);
 }
 
-bool ConstRope::copy(LocalRope & dest) {
+bool ConstRope::copy(LocalRope &dest) {
   const int bufsize = ROPE_COPY_BUFFER_SIZE;
   char buffer[bufsize];
   int nread;
   Uint32 offset = 0;
   dest.erase();
-  while((nread = readBuffered(buffer, bufsize, offset)) > 0)
-    if(! dest.appendBuffer(buffer, nread))
-      return false;
+  while ((nread = readBuffered(buffer, bufsize, offset)) > 0)
+    if (!dest.appendBuffer(buffer, nread)) return false;
   return true;
 }
 
-int
-ConstRope::compare(const char * str, Uint32 len) const {
+int ConstRope::compare(const char *str, Uint32 len) const {
   if (DEBUG_ROPE)
     g_eventLogger->info("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)",
                         head.used, head.firstItem, head.lastItem, str,
                         (int)len);
   Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> it;
-  const char * data = firstSegment(it);
-  while(left > getSegmentSizeInBytes()){
+  const char *data = firstSegment(it);
+  while (left > getSegmentSizeInBytes()) {
     int res = memcmp(str, data, getSegmentSizeInBytes());
-    if(res != 0){
+    if (res != 0) {
       if (DEBUG_ROPE)
         g_eventLogger->info("ConstRope::compare(%s, %d, %s) -> %d", str, left,
                             data, res);
@@ -135,10 +128,10 @@ ConstRope::compare(const char * str, Uint32 len) const {
     left -= getSegmentSizeInBytes();
     str += getSegmentSizeInBytes();
   }
-  
-  if(left > 0){
+
+  if (left > 0) {
     int res = memcmp(str, data, left);
-    if(res){
+    if (res) {
       if (DEBUG_ROPE)
         g_eventLogger->info("ConstRope::compare(%s, %d, %s) -> %d", str, left,
                             data, res);
@@ -151,133 +144,112 @@ ConstRope::compare(const char * str, Uint32 len) const {
   return m_length > len;
 }
 
-char *
-LocalRope::firstSegment(Ptr<Segment> &it) const {
+char *LocalRope::firstSegment(Ptr<Segment> &it) const {
   it.i = head.firstItem;
-  if(it.i == RNIL) return 0;
+  if (it.i == RNIL) return 0;
   thePool.getPtr(it);
-  return (char *) it.p->data;
+  return (char *)it.p->data;
 }
 
-char *
-LocalRope::nextSegment(Ptr<Segment> &it) const {
+char *LocalRope::nextSegment(Ptr<Segment> &it) const {
   it.i = it.p->nextPool;
-  if(it.i == RNIL) return 0;
+  if (it.i == RNIL) return 0;
   thePool.getPtr(it);
-  return (char *) it.p->data;
+  return (char *)it.p->data;
 }
 
-void
-LocalRope::copy(char* buf) const {
+void LocalRope::copy(char *buf) const {
   RopeHandle handle(head, m_length);
   ConstRope self(thePool, handle);
   self.copy(buf);
 }
 
-int
-LocalRope::compare(const char * str, Uint32 len) const {
+int LocalRope::compare(const char *str, Uint32 len) const {
   RopeHandle handle(head, m_length);
   ConstRope self(thePool, handle);
   return self.compare(str, len);
 }
 
-bool packFinalWord(const char * src, Uint32 & dest, Uint32 len) {
+bool packFinalWord(const char *src, Uint32 &dest, Uint32 len) {
   dest = 0;
   Uint32 left = len % 4;
-  if(left) {
-    src += len-left;
-    char* dst = (char*)&dest;
-    while(left--)
-      * dst++ = * src++;
+  if (left) {
+    src += len - left;
+    char *dst = (char *)&dest;
+    while (left--) *dst++ = *src++;
     return true;
   }
   return false;
 }
 
-bool
-LocalRope::appendBuffer(const char * s, Uint32 len) {
-  if (DEBUG_ROPE)
-    g_eventLogger->info("LocalRope::appendBuffer(%d)", (int)len);
-  bool ok = append((const Uint32*) s, len >> 2);
-  if(ok) {
+bool LocalRope::appendBuffer(const char *s, Uint32 len) {
+  if (DEBUG_ROPE) g_eventLogger->info("LocalRope::appendBuffer(%d)", (int)len);
+  bool ok = append((const Uint32 *)s, len >> 2);
+  if (ok) {
     Uint32 tail;
-    if(packFinalWord(s, tail, len))
-      ok = append(&tail, 1);
+    if (packFinalWord(s, tail, len)) ok = append(&tail, 1);
     m_length += len;
     m_hash = hash(s, len, m_hash);
   }
   return ok;
 }
 
-bool
-LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
+bool LocalRope::assign(const char *s, Uint32 len, Uint32 hash) {
   if (DEBUG_ROPE)
     g_eventLogger->info("LocalRope::assign(%s, %d, 0x%x)", s, (int)len, hash);
   erase();
   m_hash = hash;
-  bool ok = append((const Uint32*) s, len >> 2);
-  if(ok) {
+  bool ok = append((const Uint32 *)s, len >> 2);
+  if (ok) {
     Uint32 tail;
-    if(packFinalWord(s, tail, len))
-      ok = append(&tail, 1);
+    if (packFinalWord(s, tail, len)) ok = append(&tail, 1);
     m_length = len;
   }
   return ok;
 }
 
-void
-LocalRope::erase(){
+void LocalRope::erase() {
   m_length = 0;
   m_hash = 0;
   release();
 }
 
-Uint32
-LocalRope::hash(const char * p, Uint32 len, Uint32 starter){
+Uint32 LocalRope::hash(const char *p, Uint32 len, Uint32 starter) {
   Uint32 h = starter;
-  const char * data = p;
-  for (; len > 0; len--)
-    h = (h << 5) + h + (* data++);
+  const char *data = p;
+  for (; len > 0; len--) h = (h << 5) + h + (*data++);
   if (DEBUG_ROPE) {
     char msg_buffer[ROPE_COPY_BUFFER_SIZE];
     strncpy(msg_buffer, p, sizeof(msg_buffer));
-    msg_buffer[sizeof(msg_buffer)-1] = '\0';
+    msg_buffer[sizeof(msg_buffer) - 1] = '\0';
     g_eventLogger->info("LocalRope::hash(%s, %d) : 0x%x -> 0x%x", msg_buffer,
                         len, starter, h);
   }
   return h;
 }
 
-bool
-ConstRope::equal(const ConstRope& r2) const
-{
-  if (m_length != r2.m_length)
-    return false;
+bool ConstRope::equal(const ConstRope &r2) const {
+  if (m_length != r2.m_length) return false;
 
-  if (src.m_hash != r2.src.m_hash)
-    return false;
+  if (src.m_hash != r2.src.m_hash) return false;
 
   Uint32 left = m_length;
   Ptr<Segment> s1, s2;
-  const char * s1_data = firstSegment(s1);
-  const char * s2_data = firstSegment(s2);
-  while(left > getSegmentSizeInBytes())
-  {
+  const char *s1_data = firstSegment(s1);
+  const char *s2_data = firstSegment(s2);
+  while (left > getSegmentSizeInBytes()) {
     int res = memcmp(s1_data, s2_data, getSegmentSizeInBytes());
-    if(res != 0)
-    {
+    if (res != 0) {
       return false;
     }
     s1_data = nextSegment(s1);
     s2_data = nextSegment(s2);
     left -= getSegmentSizeInBytes();
   }
-  
-  if(left > 0)
-  {
+
+  if (left > 0) {
     int res = memcmp(s1_data, s2_data, left);
-    if (res != 0)
-    {
+    if (res != 0) {
       return false;
     }
   }
@@ -285,17 +257,17 @@ ConstRope::equal(const ConstRope& r2) const
 }
 
 /* Unit test
-*/
+ */
 
 #ifdef TEST_ROPE
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
   ndb_init();
   RopePool c_rope_pool;
   c_rope_pool.setSize(10000);
 
   char buffer_sml[32];
-  const char * a_string = "One Two Three Four Five Six Seven Eight Nine Ten";
+  const char *a_string = "One Two Three Four Five Six Seven Eight Nine Ten";
   RopeHandle h1, h2, h3, h4, h5, h6;
   bool ok;
 
@@ -307,8 +279,8 @@ int main(int argc, char ** argv) {
     ok = lr1.assign(a_string);
     assert(ok);
     assert(lr1.size() == strlen(a_string) + 1);
-    assert(! lr1.empty());
-    assert(! lr1.compare(a_string));
+    assert(!lr1.empty());
+    assert(!lr1.compare(a_string));
     printf("LocalRope lr1 size: %d\n", lr1.size());
   }
   /* When the LocalRope goes out of scope, its head is copied back into the
@@ -318,16 +290,14 @@ int main(int argc, char ** argv) {
   printf("ConstRope cr1 size: %d\n", cr1.size());
 
   /* Copy a zero-length rope */
-  {
-    LocalRope lr6(c_rope_pool, h6);
-  }
+  { LocalRope lr6(c_rope_pool, h6); }
   {
     ConstRope cr6(c_rope_pool, h6);
     cr6.copy(buffer_sml);
   }
 
   /* Assign & copy a string that is exactly the size as a rope segment */
-  const char * str28 = "____V____X____V____X____VII";
+  const char *str28 = "____V____X____V____X____VII";
   char buf28[28];
   {
     LocalRope lr5(c_rope_pool, h5);
@@ -339,18 +309,18 @@ int main(int argc, char ** argv) {
   cr5.copy(buf28);
 
   /* Test buffered-style reading from ConstRope
-  */
-  assert(! cr1.compare(a_string));
+   */
+  assert(!cr1.compare(a_string));
   Uint32 offset = 0;
   int nread = 0;
   printf(" --> START readBuffered TEST <-- \n");
   printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
   nread = cr1.readBuffered(buffer_sml, 32, offset);
   printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
-  assert(! strncmp(a_string, buffer_sml, nread));
+  assert(!strncmp(a_string, buffer_sml, nread));
   nread = cr1.readBuffered(buffer_sml, 32, offset);
   printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
-  assert(! strncmp(a_string + offset - nread, buffer_sml, nread));
+  assert(!strncmp(a_string + offset - nread, buffer_sml, nread));
   /* All done: */
   assert(offset == cr1.size());
   /* Read once more; should return 0: */
@@ -359,7 +329,7 @@ int main(int argc, char ** argv) {
   printf(" --> END readBuffered TEST <-- \n");
 
   /* Test buffered-style writing to LocalRope
-  */
+   */
   printf(" --> START appendBuffer TEST <-- \n");
   {
     LocalRope lr2(c_rope_pool, h2);
@@ -389,7 +359,7 @@ int main(int argc, char ** argv) {
   printf(" --> END appendBuffer TEST <-- \n");
 
   /* Test ConstRope::copy(LocalRope &)
-  */
+   */
   g_eventLogger->info(" --> START ConstRope::copy() TEST <--");
   ConstRope cr2(c_rope_pool, h2);
   printf("cr2 size: %d \n", cr2.size());

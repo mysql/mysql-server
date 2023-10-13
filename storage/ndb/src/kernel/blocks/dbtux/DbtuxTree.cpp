@@ -27,17 +27,14 @@
 
 #define JAM_FILE_ID 375
 
-
 /*
  * Add entry.  Handle the case when there is room for one more.  This
  * is the common case given slack in nodes.
  *
  * Can be called from MT-build of ordered indexes.
  */
-void
-Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeAdd(TuxCtx &ctx, Frag &frag, TreePos treePos, TreeEnt ent) {
+  TreeHead &tree = frag.m_tree;
   NodeHandle node(frag);
   do {
     if (treePos.m_loc != NullTupLoc) {
@@ -68,17 +65,11 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
  * node in left subtree with room for one more.  It will receive the min
  * entry of this node.  The min entry could be the entry to add.
  */
-void
-Dbtux::treeAddFull(TuxCtx& ctx,
-                   Frag& frag,
-                   NodeHandle lubNode,
-                   unsigned pos,
-                   TreeEnt ent)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeAddFull(TuxCtx &ctx, Frag &frag, NodeHandle lubNode,
+                        unsigned pos, TreeEnt ent) {
+  TreeHead &tree = frag.m_tree;
   TupLoc loc = lubNode.getLink(0);
-  if (loc != NullTupLoc)
-  {
+  if (loc != NullTupLoc) {
     // find g.l.b node
     NodeHandle glbNode(frag);
     do {
@@ -86,30 +77,18 @@ Dbtux::treeAddFull(TuxCtx& ctx,
       selectNode(ctx, glbNode, loc);
       loc = glbNode.getLink(1);
     } while (loc != NullTupLoc);
-    if (glbNode.getOccup() < tree.m_maxOccup)
-    {
+    if (glbNode.getOccup() < tree.m_maxOccup) {
       // g.l.b node has room
       thrjamDebug(ctx.jamBuffer);
       Uint32 scanList = RNIL;
       Uint32 scanInstance = 0;
-      if (pos != 0)
-      {
+      if (pos != 0) {
         thrjamDebug(ctx.jamBuffer);
         // add the new entry and return min entry
-        nodePushDown(ctx,
-                     lubNode,
-                     pos - 1,
-                     ent,
-                     scanList,
-                     scanInstance);
+        nodePushDown(ctx, lubNode, pos - 1, ent, scanList, scanInstance);
       }
       // g.l.b node receives min entry from l.u.b node
-      nodePushUp(ctx,
-                 glbNode,
-                 glbNode.getOccup(),
-                 ent,
-                 scanList,
-                 scanInstance);
+      nodePushUp(ctx, glbNode, glbNode.getOccup(), ent, scanList, scanInstance);
       return;
     }
     treeAddNode(ctx, frag, lubNode, pos, ent, glbNode, 1);
@@ -125,15 +104,9 @@ Dbtux::treeAddFull(TuxCtx& ctx,
  *
  * Can be called from MT-build of ordered indexes.
  */
-void
-Dbtux::treeAddNode(TuxCtx& ctx,
-                   Frag& frag,
-                   NodeHandle lubNode,
-                   unsigned pos,
-                   TreeEnt ent,
-                   NodeHandle parentNode,
-                   unsigned i)
-{
+void Dbtux::treeAddNode(TuxCtx &ctx, Frag &frag, NodeHandle lubNode,
+                        unsigned pos, TreeEnt ent, NodeHandle parentNode,
+                        unsigned i) {
   NodeHandle glbNode(frag);
   insertNode(ctx, glbNode);
   // connect parent and child
@@ -142,16 +115,10 @@ Dbtux::treeAddNode(TuxCtx& ctx,
   glbNode.setSide(i);
   Uint32 scanList = RNIL;
   Uint32 scanInstance = 0;
-  if (pos != 0)
-  {
+  if (pos != 0) {
     thrjam(ctx.jamBuffer);
     // add the new entry and return min entry
-    nodePushDown(ctx,
-                 lubNode,
-                 pos - 1,
-                 ent,
-                 scanList,
-                 scanInstance);
+    nodePushDown(ctx, lubNode, pos - 1, ent, scanList, scanInstance);
   }
   // g.l.b node receives min entry from l.u.b node
   nodePushUp(ctx, glbNode, 0, ent, scanList, scanInstance);
@@ -165,9 +132,8 @@ Dbtux::treeAddNode(TuxCtx& ctx,
  *
  * Can be called from MT-build of ordered indexes.
  */
-void
-Dbtux::treeAddRebalance(TuxCtx & ctx, Frag& frag, NodeHandle node, unsigned i)
-{
+void Dbtux::treeAddRebalance(TuxCtx &ctx, Frag &frag, NodeHandle node,
+                             unsigned i) {
   while (true) {
     // height of subtree i has increased by 1
     int j = (i == 0 ? -1 : +1);
@@ -221,10 +187,8 @@ Dbtux::treeAddRebalance(TuxCtx & ctx, Frag& frag, NodeHandle node, unsigned i)
  * interior nodes this is a requirement.  For others it means that we do
  * not need to consider merge of semi-leaf and leaf.
  */
-void
-Dbtux::treeRemove(Frag& frag, TreePos treePos)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeRemove(Frag &frag, TreePos treePos) {
+  TreeHead &tree = frag.m_tree;
   unsigned pos = treePos.m_pos;
   NodeHandle node(frag);
   selectNode(c_ctx, node, treePos.m_loc);
@@ -264,11 +228,7 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
  * left subtree to borrow an entry from.  The max entry of the g.l.b
  * node becomes the min entry of this node.
  */
-void
-Dbtux::treeRemoveInner(Frag& frag,
-                       NodeHandle lubNode,
-                       unsigned pos)
-{
+void Dbtux::treeRemoveInner(Frag &frag, NodeHandle lubNode, unsigned pos) {
   TreeEnt ent;
   // find g.l.b node
   NodeHandle glbNode(frag);
@@ -281,18 +241,13 @@ Dbtux::treeRemoveInner(Frag& frag,
   // borrow max entry from semi/leaf
   Uint32 scanList = RNIL;
   Uint32 scanInstance = 0;
-  nodePopDown(c_ctx,
-              glbNode,
-              glbNode.getOccup() - 1,
-              ent,
-              &scanList,
+  nodePopDown(c_ctx, glbNode, glbNode.getOccup() - 1, ent, &scanList,
               &scanInstance);
   // g.l.b may be empty now
   // a descending scan may try to enter the empty g.l.b
   // we prevent this in scanNext
   nodePopUp(c_ctx, lubNode, pos, ent, scanList, scanInstance);
-  if (glbNode.getLink(0) != NullTupLoc)
-  {
+  if (glbNode.getLink(0) != NullTupLoc) {
     jam();
     treeRemoveSemi(frag, glbNode, 0);
     return;
@@ -305,17 +260,16 @@ Dbtux::treeRemoveInner(Frag& frag,
  * semi-leaf to bring semi-leaf occupancy above minOccup, if possible.
  * The leaf may become empty.
  */
-void
-Dbtux::treeRemoveSemi(Frag& frag, NodeHandle semiNode, unsigned i)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeRemoveSemi(Frag &frag, NodeHandle semiNode, unsigned i) {
+  TreeHead &tree = frag.m_tree;
   ndbrequire(semiNode.getChilds() < 2);
   TupLoc leafLoc = semiNode.getLink(i);
   NodeHandle leafNode(frag);
   selectNode(c_ctx, leafNode, leafLoc);
   if (semiNode.getOccup() < tree.m_minOccup) {
     jam();
-    unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - semiNode.getOccup());
+    unsigned cnt =
+        min(leafNode.getOccup(), tree.m_minOccup - semiNode.getOccup());
     nodeSlide(c_ctx, semiNode, leafNode, cnt, i);
     if (leafNode.getOccup() == 0) {
       // remove empty leaf
@@ -330,10 +284,8 @@ Dbtux::treeRemoveSemi(Frag& frag, NodeHandle semiNode, unsigned i)
  * entries to it as in the semi-leaf case.  If parent is interior node,
  * do nothing.
  */
-void
-Dbtux::treeRemoveLeaf(Frag& frag, NodeHandle leafNode)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeRemoveLeaf(Frag &frag, NodeHandle leafNode) {
+  TreeHead &tree = frag.m_tree;
   TupLoc parentLoc = leafNode.getLink(2);
   if (parentLoc != NullTupLoc) {
     jam();
@@ -345,7 +297,8 @@ Dbtux::treeRemoveLeaf(Frag& frag, NodeHandle leafNode)
       jam();
       if (parentNode.getOccup() < tree.m_minOccup) {
         jam();
-        unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - parentNode.getOccup());
+        unsigned cnt =
+            min(leafNode.getOccup(), tree.m_minOccup - parentNode.getOccup());
         nodeSlide(c_ctx, parentNode, leafNode, cnt, i);
       }
     }
@@ -360,10 +313,8 @@ Dbtux::treeRemoveLeaf(Frag& frag, NodeHandle leafNode)
 /*
  * Remove empty leaf.
  */
-void
-Dbtux::treeRemoveNode(Frag& frag, NodeHandle leafNode)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeRemoveNode(Frag &frag, NodeHandle leafNode) {
+  TreeHead &tree = frag.m_tree;
   ndbrequire(leafNode.getChilds() == 0);
   TupLoc parentLoc = leafNode.getLink(2);
   unsigned i = leafNode.getSide();
@@ -387,9 +338,7 @@ Dbtux::treeRemoveNode(Frag& frag, NodeHandle leafNode)
  * Re-balance tree after removing a node.  The process starts with the
  * parent of the removed node.
  */
-void
-Dbtux::treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i)
-{
+void Dbtux::treeRemoveRebalance(Frag &frag, NodeHandle node, unsigned i) {
   while (true) {
     // height of subtree i has decreased by 1
     int j = (i == 0 ? -1 : +1);
@@ -457,10 +406,9 @@ Dbtux::treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i)
  * all optional. If 4 are there it changes side.
  *
  * Can be called from MT-build of ordered indexes.
-*/
-void
-Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
-{
+ */
+void Dbtux::treeRotateSingle(TuxCtx &ctx, Frag &frag, NodeHandle &node,
+                             unsigned i) {
   ndbrequire(i <= 1);
   /*
   5 is the old top node that have been unbalanced due to an insert or
@@ -497,11 +445,10 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   if (loc4 != NullTupLoc) {
     thrjam(ctx.jamBuffer);
     selectNode(ctx, node4, loc4);
-    ndbrequire(node4.getSide() == (1 - i) &&
-               node4.getLink(2) == loc3);
+    ndbrequire(node4.getSide() == (1 - i) && node4.getLink(2) == loc3);
     node4.setSide(i);
     node4.setLink(2, loc5);
-  }//if
+  }  // if
 
   /*
   Retrieve the address of 5's parent before it is destroyed
@@ -509,7 +456,7 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   TupLoc loc0 = node5.getLink(2);
 
   /*
-  The next step is to perform the rotation. 3 will inherit 5's parent 
+  The next step is to perform the rotation. 3 will inherit 5's parent
   and side. 5 will become a child of 3 on the right side for LL and on
   the left side for RR.
   5 will get 3 as the parent. It will get 4 as a child and it will be
@@ -536,7 +483,7 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   } else {
     thrjam(ctx.jamBuffer);
     frag.m_tree.m_root = loc3;
-  }//if
+  }  // if
   /* The final step of the change is to update the balance of 3 and
   5 that changed places. There are two cases here. The first case is
   when 3 unbalanced in the same direction by an insert or a delete.
@@ -548,22 +495,17 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   In this case 5 will change balance but still be unbalanced and 3 will
   be unbalanced in the opposite direction of 5.
   */
-  if (bal3 == bal5)
-  {
+  if (bal3 == bal5) {
     thrjam(ctx.jamBuffer);
     node3.setBalance(0);
     node5.setBalance(0);
-  }
-  else if (bal3 == 0)
-  {
+  } else if (bal3 == 0) {
     thrjam(ctx.jamBuffer);
     node3.setBalance(-bal5);
     node5.setBalance(bal5);
-  }
-  else
-  {
+  } else {
     ndbabort();
-  }//if
+  }  // if
   /*
   Set node to 3 as return parameter for enabling caller to continue
   traversing the tree.
@@ -622,7 +564,7 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
  * 5) Balance change:
  *    If balance(4) == 0 then balance(6) = 0
  *      since height(3) = height(5) = maxheight(3,5) = height(7)
- *    If balance(4) == +1 then balance(6) = 0 
+ *    If balance(4) == +1 then balance(6) = 0
  *      since height(5) = maxheight(3,5) = height(7)
  *    If balance(4) == -1 then balance(6) = 1
  *      since height(5) + 1 = maxheight(3,5) = height(7)
@@ -635,7 +577,7 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
  * 5) Balance change:
  *    If balance(4) == 0 then balance(2) = 0
  *      since height(3) = height(5) = maxheight(3,5) = height(1)
- *    If balance(4) == -1 then balance(2) = 0 
+ *    If balance(4) == -1 then balance(2) = 0
  *      since height(3) = maxheight(3,5) = height(1)
  *    If balance(4) == +1 then balance(6) = 1
  *      since height(3) + 1 = maxheight(3,5) = height(1)
@@ -660,12 +602,12 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
  * If Node 5 exists:
  * 1) Change parent from 4 to 6
  * 2) Change side from 1 - i to i
- * 
+ *
  * If Node 0 exists:
  * 1) previous link to 6 is replaced by link to 4 on proper side
  *
  * Node 1 and 7 needs no changes at all.
- * 
+ *
  * Some additional requires are that balance(2) = - balance(6) = -1/+1 since
  * otherwise we would do a single rotate.
  *
@@ -673,10 +615,9 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
  *
  * Can be called from MT-build of ordered indexes.
  */
-void
-Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
-{
-  TreeHead& tree = frag.m_tree;
+void Dbtux::treeRotateDouble(TuxCtx &ctx, Frag &frag, NodeHandle &node,
+                             unsigned i) {
+  TreeHead &tree = frag.m_tree;
 
   // old top node
   NodeHandle node6 = node;
@@ -709,11 +650,9 @@ Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   TupLoc loc5 = node4.getLink(1 - i);
 
   // fill up leaf before it becomes internal
-  if (loc3 == NullTupLoc && loc5 == NullTupLoc)
-  {
+  if (loc3 == NullTupLoc && loc5 == NullTupLoc) {
     thrjam(ctx.jamBuffer);
-    if (node4.getOccup() < tree.m_minOccup)
-    {
+    if (node4.getOccup() < tree.m_minOccup) {
       thrjam(ctx.jamBuffer);
       unsigned cnt = tree.m_minOccup - node4.getOccup();
       ndbrequire(cnt < node2.getOccup());
@@ -721,19 +660,15 @@ Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
       ndbrequire(node4.getOccup() >= tree.m_minOccup);
       ndbrequire(node2.getOccup() != 0);
     }
-  }
-  else
-  {
-    if (loc3 != NullTupLoc)
-    {
+  } else {
+    if (loc3 != NullTupLoc) {
       thrjam(ctx.jamBuffer);
       NodeHandle node3(frag);
       selectNode(ctx, node3, loc3);
       node3.setLink(2, loc2);
       node3.setSide(1 - i);
     }
-    if (loc5 != NullTupLoc)
-    {
+    if (loc5 != NullTupLoc) {
       thrjam(ctx.jamBuffer);
       NodeHandle node5(frag);
       selectNode(ctx, node5, loc5);
@@ -757,39 +692,29 @@ Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   node4.setLink(2, loc0);
   node4.setSide(side6);
 
-  if (loc0 != NullTupLoc)
-  {
+  if (loc0 != NullTupLoc) {
     thrjam(ctx.jamBuffer);
     selectNode(ctx, node0, loc0);
     node0.setLink(side6, loc4);
-  }
-  else
-  {
+  } else {
     thrjam(ctx.jamBuffer);
     frag.m_tree.m_root = loc4;
   }
   // set balance of changed nodes
   node4.setBalance(0);
-  if (bal4 == 0)
-  {
+  if (bal4 == 0) {
     thrjam(ctx.jamBuffer);
     node2.setBalance(0);
     node6.setBalance(0);
-  }
-  else if (bal4 == -bal2)
-  {
+  } else if (bal4 == -bal2) {
     thrjam(ctx.jamBuffer);
     node2.setBalance(0);
     node6.setBalance(bal2);
-  }
-  else if (bal4 == bal2)
-  {
+  } else if (bal4 == bal2) {
     thrjam(ctx.jamBuffer);
     node2.setBalance(-bal2);
     node6.setBalance(0);
-  }
-  else
-  {
+  } else {
     ndbabort();
   }
   // new top node

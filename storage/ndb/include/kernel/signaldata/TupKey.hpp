@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 57
 
-
 class TupKeyReq {
   /**
    * Reciver(s)
@@ -44,20 +43,19 @@ class TupKeyReq {
   /**
    * For printing
    */
-  friend bool printTUPKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printTUPKEYREQ(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 10;
 
-  enum
-  {
+  enum {
     OP_PRIMARY_REPLICA = 0,
     OP_BACKUP_REPLICA = 1,
     OP_NO_TRIGGERS = 2,
   };
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
@@ -72,10 +70,10 @@ private:
   Uint32 m_row_id_page_idx;
   Uint32 attrInfoIVal;
 
-  static Uint32 getInterpretedFlag(Uint32 const& requestInfo);
-  static Uint32 getRowidFlag(Uint32 const& requestInfo);
-  static void setInterpretedFlag(Uint32 & requestInfo, Uint32 value);
-  static void setRowidFlag(Uint32 & requestInfo, Uint32 value);
+  static Uint32 getInterpretedFlag(Uint32 const &requestInfo);
+  static Uint32 getRowidFlag(Uint32 const &requestInfo);
+  static void setInterpretedFlag(Uint32 &requestInfo, Uint32 value);
+  static void setRowidFlag(Uint32 &requestInfo, Uint32 value);
 
   /*
     Request Info
@@ -86,34 +84,28 @@ private:
   */
 
   enum RequestInfo {
-    INTERPRETED_POS = 10, INTERPRETED_MASK = 1,
-    ROWID_POS       = 11, ROWID_MASK       = 1
+    INTERPRETED_POS = 10,
+    INTERPRETED_MASK = 1,
+    ROWID_POS = 11,
+    ROWID_MASK = 1
   };
 };
 
-inline Uint32
-TupKeyReq::getInterpretedFlag(Uint32 const& requestInfo)
-{
+inline Uint32 TupKeyReq::getInterpretedFlag(Uint32 const &requestInfo) {
   return (requestInfo >> INTERPRETED_POS) & INTERPRETED_MASK;
 }
 
-inline Uint32
-TupKeyReq::getRowidFlag(Uint32 const& requestInfo)
-{
+inline Uint32 TupKeyReq::getRowidFlag(Uint32 const &requestInfo) {
   return (requestInfo >> ROWID_POS) & ROWID_MASK;
 }
 
-inline void
-TupKeyReq::setInterpretedFlag(Uint32 & requestInfo, Uint32 value)
-{
+inline void TupKeyReq::setInterpretedFlag(Uint32 &requestInfo, Uint32 value) {
   assert(value <= INTERPRETED_MASK);
   assert((requestInfo & (INTERPRETED_MASK << INTERPRETED_POS)) == 0);
   requestInfo |= value << INTERPRETED_POS;
 }
 
-inline void
-TupKeyReq::setRowidFlag(Uint32 & requestInfo, Uint32 value)
-{
+inline void TupKeyReq::setRowidFlag(Uint32 &requestInfo, Uint32 value) {
   assert(value <= ROWID_MASK);
   assert((requestInfo & (ROWID_MASK << ROWID_POS)) == 0);
   requestInfo |= value << ROWID_POS;
@@ -133,13 +125,13 @@ class TupKeyConf {
   /**
    * For printing
    */
-  friend bool printTUPKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printTUPKEYCONF(FILE *output, const Uint32 *theData, Uint32 len,
+                              Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 7;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
@@ -157,7 +149,7 @@ class TupKeyRef {
   /**
    * Reciver(s)
    */
-  friend class Dblqh;      
+  friend class Dblqh;
 
   /**
    * Sender(s)
@@ -167,13 +159,13 @@ class TupKeyRef {
   /**
    * For printing
    */
-  friend bool printTUPKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printTUPKEYREF(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
@@ -182,7 +174,6 @@ private:
   // Number of interpreter instructions executed.
   Uint32 noExecInstructions;
 };
-
 
 #undef JAM_FILE_ID
 

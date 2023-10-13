@@ -29,23 +29,18 @@
 
 #define JAM_FILE_ID 106
 
-
 class ContinueFragmented {
-  
   /**
    * Sender/Reciver(s)
    */
   friend class SimulatedBlock;
-  
-  friend bool printCONTINUE_FRAGMENTED(FILE *,const Uint32 *, Uint32, Uint16);
-public:
-  
-private:
-  enum {
-    CONTINUE_SENDING = 0,
-    CONTINUE_CLEANUP = 1
-  };
-  
+
+  friend bool printCONTINUE_FRAGMENTED(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
+ private:
+  enum { CONTINUE_SENDING = 0, CONTINUE_CLEANUP = 1 };
+
   static constexpr Uint32 CONTINUE_CLEANUP_FIXED_WORDS = 5;
 
   enum {
@@ -55,11 +50,10 @@ private:
   };
 
   Uint32 type;
-  
-  union
-  {
-    Uint32 line;  /* For CONTINUE_SENDING */
-    struct        /* For CONTINUE_CLEANUP */
+
+  union {
+    Uint32 line; /* For CONTINUE_SENDING */
+    struct       /* For CONTINUE_CLEANUP */
     {
       Uint32 failedNodeId;
       Uint32 resource;
@@ -69,7 +63,6 @@ private:
     } cleanup;
   };
 };
-
 
 #undef JAM_FILE_ID
 

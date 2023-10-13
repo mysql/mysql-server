@@ -25,11 +25,10 @@
 #ifndef DROP_INDX_HPP
 #define DROP_INDX_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 147
-
 
 struct DropIndxReq {
   static constexpr Uint32 SignalLength = 7;
@@ -79,7 +78,6 @@ struct DropIndxRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -27,11 +27,10 @@
 
 #define JAM_FILE_ID 33
 
-
 struct CreateIndxImplReq {
   static constexpr Uint32 SignalLength = 8;
-  SECTION( ATTRIBUTE_LIST_SECTION = 0 );
-  SECTION( INDEX_NAME_SECTION = 1 );
+  SECTION(ATTRIBUTE_LIST_SECTION = 0);
+  SECTION(INDEX_NAME_SECTION = 1);
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -86,7 +85,6 @@ struct CreateIndxImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

@@ -47,23 +47,27 @@
    In addition, the NDB API defines a structure NdbError, which contains the
    specification for an error.
 
-   It is also possible to receive "events" triggered when data in the database in changed.
-   This is done through the NdbEventOperation class.
+   It is also possible to receive "events" triggered when data in the database
+in changed. This is done through the NdbEventOperation class.
 
-   There are also some auxiliary classes, which are listed in the class hierarchy.
+   There are also some auxiliary classes, which are listed in the class
+hierarchy.
 
    The main structure of an application program is as follows:
    -# Connect to a cluster using the Ndb_cluster_connection
       object.
-   -# Initiate a database connection by constructing and initialising one or more Ndb objects.
+   -# Initiate a database connection by constructing and initialising one or
+more Ndb objects.
    -# Define and execute transactions using the NdbTransaction class.
    -# Delete Ndb objects.
-   -# Terminate the connection to the cluster (terminate instance of Ndb_cluster_connection).
+   -# Terminate the connection to the cluster (terminate instance of
+Ndb_cluster_connection).
 
    The procedure for using transactions is as follows:
    -# Start transaction (instantiate an NdbTransaction object)
-   -# Add and define operations associated with the transaction using instances of one or more of the
-      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes
+   -# Add and define operations associated with the transaction using instances
+of one or more of the NdbOperation, NdbScanOperation, NdbIndexOperation, and
+NdbIndexScanOperation classes
    -# Execute transaction (call NdbTransaction::execute())
 
    The operation can be of two different types,
@@ -76,8 +80,8 @@
    for later execution.
 
    If the operation is of type <var>Commit</var>, then the transaction is
-   immediately committed. The transaction <em>must</em> be closed after it has been
-   committed (even if commit fails), and no further addition or definition of
+   immediately committed. The transaction <em>must</em> be closed after it has
+been committed (even if commit fails), and no further addition or definition of
    operations for this transaction is allowed.
 
    @section secSync                     Synchronous Transactions
@@ -116,9 +120,9 @@
 
    @section secNdbOperations            Operations
 
-   A NdbTransaction consists of a list of operations, each of which is represented
-   by an instance of NdbOperation, NdbScanOperation, NdbIndexOperation, or
-   NdbIndexScanOperation.
+   A NdbTransaction consists of a list of operations, each of which is
+represented by an instance of NdbOperation, NdbScanOperation, NdbIndexOperation,
+or NdbIndexScanOperation.
 
    <h3>Single row operations</h3>
    After the operation is created using NdbTransaction::getNdbOperation()
@@ -193,14 +197,15 @@
 
    @note If you want to define multiple operations within the same transaction,
          then you need to call NdbTransaction::getNdbOperation() or
-	 NdbTransaction::getNdbIndexOperation() for each operation.
+         NdbTransaction::getNdbIndexOperation() for each operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
-   The search condition is used to select tuples. Search conditions are set using NdbOperation::equal().
+   The search condition is used to select tuples. Search conditions are set
+using NdbOperation::equal().
 
    <h4>Step 3: Specify Attribute Actions</h4>
-   Next, it is necessary to determine which attributes should be read or updated.
-   It is important to remember that:
+   Next, it is necessary to determine which attributes should be read or
+updated. It is important to remember that:
    - Deletes can neither read nor set values, but only delete them
    - Reads can only read values
    - Updates can only set values
@@ -250,7 +255,8 @@
       NdbScanOperation::nextResult()
 
    Here are two brief examples illustrating this process. Once again, in order
-   to keep things relatively short and simple, we will forego any error handling.
+   to keep things relatively short and simple, we will forego any error
+handling.
 
    This first example performs a table scan, using an NdbScanOperation:
    @code
@@ -297,13 +303,16 @@
    Some additional discussion of each step required to perform a scan follows:
 
    <h4>Step 1: Define Scan Operation Type</h4>
-   It is important to remember that only a single operation is supported for each scan operation
-   (@ref NdbScanOperation::readTuples() or @ref NdbIndexScanOperation::readTuples()).
+   It is important to remember that only a single operation is supported for
+each scan operation
+   (@ref NdbScanOperation::readTuples() or @ref
+NdbIndexScanOperation::readTuples()).
 
    @note If you want to define multiple scan operations within the same
          transaction, then you need to call
-	 NdbTransaction::getNdbScanOperation() or
-	 NdbTransaction::getNdbIndexScanOperation() separately for <b>each</b> operation.
+         NdbTransaction::getNdbScanOperation() or
+         NdbTransaction::getNdbIndexScanOperation() separately for <b>each</b>
+operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
    The search condition is used to select tuples.
@@ -316,7 +325,8 @@
    An index scan can use both NdbScanFilter and bounds.
 
    @note When NdbScanFilter is used, each row is examined, whether or not it is
-   actually returned. However, when using bounds, only rows within the bounds will be examined.
+   actually returned. However, when using bounds, only rows within the bounds
+will be examined.
 
    <h4>Step 3: Specify Attribute Actions</h4>
 
@@ -335,10 +345,10 @@
       either NdbScanOperation::updateCurrentTuple() or
       NdbScanOperation::deleteCurrentTuple()
    -# (If performing NdbScanOperation::updateCurrentTuple():)
-      Setting new values for records simply by using @ref NdbOperation::setValue()
-      (on the new NdbOperation object returned from updateCurrentTuple()).
-      NdbOperation::equal() should <em>not</em> be called in such cases, as the primary
-      key is retrieved from the scan.
+      Setting new values for records simply by using @ref
+NdbOperation::setValue() (on the new NdbOperation object returned from
+updateCurrentTuple()). NdbOperation::equal() should <em>not</em> be called in
+such cases, as the primary key is retrieved from the scan.
 
    @note The actual update or delete will not be performed until the next
    call to NdbTransaction::execute(), just as with single row operations.
@@ -349,17 +359,18 @@
 
    When performing an index scan, it is possible to
    scan only a subset of a table using @ref NdbIndexScanOperation::setBound().
-   In addition, result sets can be sorted in either ascending or descending order, using
-   @ref NdbIndexScanOperation::readTuples(). Note that rows are returned unordered
-   by default, that is, unless <var>sorted</var> is set to <b>true</b>.
+   In addition, result sets can be sorted in either ascending or descending
+order, using
+   @ref NdbIndexScanOperation::readTuples(). Note that rows are returned
+unordered by default, that is, unless <var>sorted</var> is set to <b>true</b>.
    It is also important to note that, when using NdbIndexScanOperation::BoundEQ
    on a partition key, only fragments containing rows will actually be scanned.
 
    @note When performing a sorted scan, any value passed as the
    NdbIndexScanOperation::readTuples() method's <code>parallel</code> argument
-   will be ignored and maximum parallelism will be used instead. In other words, all
-   fragments which it is possible to scan will be scanned simultaneously and in parallel
-   in such cases.
+   will be ignored and maximum parallelism will be used instead. In other words,
+all fragments which it is possible to scan will be scanned simultaneously and in
+parallel in such cases.
 
    @subsection secScanLocks Lock handling with scans
 
@@ -370,13 +381,14 @@
    <var>batch</var> parameter passed to NdbScanOperation::readTuples().
 
    In order to allow the application to handle how locks are released,
-   NdbScanOperation::nextResult() has a Boolean parameter <var>fetch_allow</var>.
-   If NdbScanOperation::nextResult() is called with <var>fetch_allow</var> equal to
-   <b>false</b>, then no locks may be released as result of the function call.
-   Otherwise the locks for the current batch may be released.
+   NdbScanOperation::nextResult() has a Boolean parameter
+<var>fetch_allow</var>. If NdbScanOperation::nextResult() is called with
+<var>fetch_allow</var> equal to <b>false</b>, then no locks may be released as
+result of the function call. Otherwise the locks for the current batch may be
+released.
 
-   This next example shows a scan delete that handle locks in an efficient manner.
-   For the sake of brevity, we omit error-handling.
+   This next example shows a scan delete that handle locks in an efficient
+manner. For the sake of brevity, we omit error-handling.
    @code
      int check;
 
@@ -434,16 +446,17 @@
    <code>theOperation</code>); if the result of
    NdbTransaction::getNdbErrorLine() is 0, this means that the error
    occurred when the operations were executed. In this example,
-   <code>errorOperation</code> will be a pointer to the <code>theOperation</code>
-   object. The NdbTransaction::getNdbError() method returns an NdbError
-   object providing information about the error.
+   <code>errorOperation</code> will be a pointer to the
+<code>theOperation</code> object. The NdbTransaction::getNdbError() method
+returns an NdbError object providing information about the error.
 
-   @note Transactions are <b>not</b> automatically closed when an error occurs. Call
-   Ndb::closeTransaction() to close the transaction.
+   @note Transactions are <b>not</b> automatically closed when an error occurs.
+Call Ndb::closeTransaction() to close the transaction.
 
    One recommended way to handle a transaction failure
    (i.e. an error is reported) is to:
-   -# Rollback transaction (call NdbTransaction::execute() with a special parameter)
+   -# Rollback transaction (call NdbTransaction::execute() with a special
+parameter)
    -# Close transaction (call NdbTransaction::closeTransaction())
    -# If the error was temporary, attempt to restart the transaction
 
@@ -494,7 +507,6 @@
  * @page ndbapi_event.cpp ndbapi_event.cpp
  * @include ndbapi_event.cpp
  */
-
 
 /**
    @page secAdapt  Adaptive Send Algorithm
@@ -586,8 +598,8 @@
    Usually, the programmer does not need to specify which TC should be used,
    but in some cases when performance is important, the programmer can
    provide "hints" to use a certain TC.
-   (If the node with the desired transaction co-ordinator is down, then another TC will
-   automatically take over the work.)
+   (If the node with the desired transaction co-ordinator is down, then another
+   TC will automatically take over the work.)
 
    Every storage node has an ACC and a TUP which store
    the indexes and data portions of the database table fragment.
@@ -598,20 +610,21 @@
 
    @section secNdbKernelConnection   Selecting a Transaction Co-ordinator
 
-   The default method is to select the transaction co-ordinator (TC) determined to be
-   the "closest" storage node, using a heuristic for proximity based on
-   the type of transporter connection. In order of closest to most distant, these are
+   The default method is to select the transaction co-ordinator (TC) determined
+   to be the "closest" storage node, using a heuristic for proximity based on
+   the type of transporter connection. In order of closest to most distant,
+   these are
    - SHM
    - TCP/IP (localhost)
    - TCP/IP (remote host)
-   If there are several connections available with the same proximity, they will each be
-   selected in a round robin fashion for every transaction. Optionally
-   one may set the method for TC selection to round-robin mode, where each new set of
-   transactions is placed on the next DB node. The pool of connections from which this
-   selection is made consists of all available connections.
+   If there are several connections available with the same proximity, they will
+   each be selected in a round robin fashion for every transaction. Optionally
+   one may set the method for TC selection to round-robin mode, where each new
+   set of transactions is placed on the next DB node. The pool of connections
+   from which this selection is made consists of all available connections.
 
-   As noted previously, the application programmer can provide hints to the NDB API as to
-   which transaction co-ordinator it should use. This is done by
+   As noted previously, the application programmer can provide hints to the NDB
+   API as to which transaction co-ordinator it should use. This is done by
    providing a <em>table</em> and <em>partition key</em>
    (usually the primary key).
    By using the primary key as the partition key,
@@ -623,16 +636,18 @@
    For more information, see NdbDictionary::Column::getPartitionKey() and
    Ndb::startTransaction(). The application programmer can specify
    the partition key from SQL by using the construct,
-   <code>CREATE TABLE ... ENGINE=NDB PARTITION BY KEY (<var>attribute-list</var>);</code>.
+   <code>CREATE TABLE ... ENGINE=NDB PARTITION BY KEY
+   (<var>attribute-list</var>);</code>.
 
 
    @section secRecordStruct          NDB Record Structure
    The NDB Cluster engine used by MySQL Cluster is a relational database engine
    storing records in tables just as with any other RDBMS.
    Table rows represent records as tuples of relational data.
-   When a new table is created, its attribute schema is specified for the table as a whole,
-   and thus each record of the table has the same structure. Again, this is typical
-   of relational databases, and NDB is no different in this regard.
+   When a new table is created, its attribute schema is specified for the table
+   as a whole, and thus each record of the table has the same structure. Again,
+   this is typical of relational databases, and NDB is no different in this
+   regard.
 
 
    @subsection secKeys               Primary Keys
@@ -648,7 +663,8 @@
    the system can still handle processor failures without loss
    of data.
    However, in the case of a system failure (e.g. the whole system goes down),
-   then all (committed or not) transactions occurring since the latest GCP are lost.
+   then all (committed or not) transactions occurring since the latest GCP are
+   lost.
 
 
    @subsection secConcur                Concurrency Control
@@ -671,15 +687,18 @@
    Placing the transaction co-ordinator in close proximity
    to the actual data used in the transaction can in many cases
    improve performance significantly. This is particularly true for
-   systems using TCP/IP. For example, a Solaris system using a single 500 MHz processor
-   has a cost model for TCP/IP communication which can be represented by the formula
+   systems using TCP/IP. For example, a Solaris system using a single 500 MHz
+   processor has a cost model for TCP/IP communication which can be represented
+   by the formula
 
-     <code>[30 microseconds] + ([100 nanoseconds] * [<var>number of bytes</var>])</code>
+     <code>[30 microseconds] + ([100 nanoseconds] * [<var>number of
+   bytes</var>])</code>
 
    This means that if we can ensure that we use "popular" links we increase
    buffering and thus drastically reduce the communication cost.
 
-   Typically, TCP/IP systems spend 30-60% of their working time on communication.
+   Typically, TCP/IP systems spend 30-60% of their working time on
+   communication.
 
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record.
@@ -839,8 +858,8 @@
 
    @note The subroutines are automatically numbered starting with 0.
          The parameter used by NdbOperation::def_subroutine
-	 should match the automatic numbering to make it easier to
-	 debug the interpreted program.
+         should match the automatic numbering to make it easier to
+         debug the interpreted program.
 */
 #endif
 
@@ -938,7 +957,7 @@
          objects belonging to this transaction until the transaction
          callback method have been executed.
          (The transaction is stated and sent by either
-	 NdbTransaction::executeAsynch or through the combination of
+         NdbTransaction::executeAsynch or through the combination of
          NdbTransaction::executeAsynchPrepare and either
          Ndb::sendPreparedTransactions or Ndb::sendPollNdb).
 
@@ -946,7 +965,6 @@
    available in section @ref secAdapt.
 */
 #endif
-
 
 /**
 
@@ -966,11 +984,10 @@
 #define Ndb_H
 
 #include <ndb_types.h>
-#include "ndbapi_limits.h"
-#include "ndb_cluster_connection.hpp"
-#include "NdbError.hpp"
 #include "NdbDictionary.hpp"
-
+#include "NdbError.hpp"
+#include "ndb_cluster_connection.hpp"
+#include "ndbapi_limits.h"
 
 class NdbObjectIdMap;
 class NdbOperation;
@@ -993,12 +1010,13 @@ class NdbReceiver;
 class TransporterFacade;
 class PollGuard;
 class Ndb_local_table_info;
-template <class T> struct Ndb_free_list_t;
+template <class T>
+struct Ndb_free_list_t;
 class NdbLockHandle;
 
-typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
+typedef void (*NdbEventCallback)(NdbEventOperation *, Ndb *, void *);
 
-#define WAITFOR_RESPONSE_TIMEOUT 120000 // Milliseconds
+#define WAITFOR_RESPONSE_TIMEOUT 120000  // Milliseconds
 
 #define NDB_SYSTEM_DATABASE "sys"
 #define NDB_SYSTEM_SCHEMA "def"
@@ -1047,8 +1065,7 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
  */
 #endif
 
-class Ndb
-{
+class Ndb {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbReceiver;
   friend class NdbOperation;
@@ -1076,7 +1093,7 @@ class Ndb
   friend class NdbWaitGroup;
 #endif
 
-public:
+ public:
   /**
    * @name General
    * @{
@@ -1084,7 +1101,8 @@ public:
   /**
    * The Ndb object represents a connection to a database.
    *
-   * @note The init() method must be called before the Ndb object may actually be used.
+   * @note The init() method must be called before the Ndb object may actually
+   * be used.
    *
    * @param ndb_cluster_connection is a connection to the cluster containing
    *        the database to be used
@@ -1097,7 +1115,7 @@ public:
    *       for the tables and indexes created in a given catalog.
    */
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
-      const char* aCatalogName = "", const char* aSchemaName = "def");
+      const char *aCatalogName = "", const char *aSchemaName = "def");
 
   ~Ndb();
 
@@ -1107,7 +1125,7 @@ public:
    *
    * @return the current connection
    */
-  Ndb_cluster_connection& get_ndb_cluster_connection();
+  Ndb_cluster_connection &get_ndb_cluster_connection();
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1116,35 +1134,35 @@ public:
    *
    * @return the current catalog name
    */
-  const char * getCatalogName() const;
+  const char *getCatalogName() const;
 
   /**
    * The current catalog name can be set by setCatalogName.
    *
    * @param aCatalogName is the new name of the current catalog
    */
-  int setCatalogName(const char * aCatalogName);
+  int setCatalogName(const char *aCatalogName);
 
   /**
    * The current schema name can be fetched by getSchemaName.
    *
    * @return the current schema name
    */
-  const char * getSchemaName() const;
+  const char *getSchemaName() const;
 
   /**
    * The current schema name can be set by setSchemaName.
    *
    * @param aSchemaName is the new name of the current schema
    */
-  int setSchemaName(const char * aSchemaName);
+  int setSchemaName(const char *aSchemaName);
 #endif
 
   /**
    * Get the name of the Ndb object.
    * If no name is given, it will return 0.
    **/
-  const char* getNdbObjectName () const;
+  const char *getNdbObjectName() const;
 
   /**
    * Set a human readable name optionally to identify an
@@ -1168,28 +1186,28 @@ public:
    *
    * @return the current database name
    */
-  const char * getDatabaseName() const;
+  const char *getDatabaseName() const;
 
   /**
    * The current database name can be set by setDatabaseName.
    *
    * @param aDatabaseName is the new name of the current database
    */
-  int setDatabaseName(const char * aDatabaseName);
+  int setDatabaseName(const char *aDatabaseName);
 
   /**
    * The current database schema name can be fetched by getDatabaseSchemaName.
    *
    * @return the current database schema name
    */
-  const char * getDatabaseSchemaName() const;
+  const char *getDatabaseSchemaName() const;
 
   /**
    * The current database schema name can be set by setDatabaseSchemaName.
    *
    * @param aDatabaseSchemaName is the new name of the current database schema
    */
-  int setDatabaseSchemaName(const char * aDatabaseSchemaName);
+  int setDatabaseSchemaName(const char *aDatabaseSchemaName);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** Set database and schema name to match previously retrieved table
@@ -1197,7 +1215,7 @@ public:
    * Returns non-zero if table internal name does not contain
    * non-empty database and schema names
    */
-  int setDatabaseAndSchemaName(const NdbDictionary::Table* t);
+  int setDatabaseAndSchemaName(const NdbDictionary::Table *t);
 #endif
 
   /**
@@ -1229,17 +1247,13 @@ public:
   int set_eventbuffer_free_percent(unsigned sz);
   unsigned get_eventbuffer_free_percent();
 
-  struct EventBufferMemoryUsage
-  {
-    EventBufferMemoryUsage() :
-      allocated_bytes(0),
-      used_bytes(0),
-      usage_percent(0)
-    {}
+  struct EventBufferMemoryUsage {
+    EventBufferMemoryUsage()
+        : allocated_bytes(0), used_bytes(0), usage_percent(0) {}
 
     Uint64 allocated_bytes;
     Uint64 used_bytes;
-    Uint32 usage_percent; // (used_bytes)*100/eventbuf_max_alloc
+    Uint32 usage_percent;  // (used_bytes)*100/eventbuf_max_alloc
   };
   /**
    * Get event buffer usauge as a percentage of eventbuf_max_alloc limit.
@@ -1253,7 +1267,7 @@ public:
    * according to the event data load. The latter causes frequent gaps
    * and thus should be avoided.
    */
-  void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
+  void get_event_buffer_memory_usage(EventBufferMemoryUsage &);
 
   void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
 
@@ -1298,8 +1312,7 @@ public:
    * @return Object containing meta information about all tables
    *         in NDB Cluster.
    */
-  class NdbDictionary::Dictionary* getDictionary() const;
-
+  class NdbDictionary::Dictionary *getDictionary() const;
 
   /** @} *********************************************************************/
 
@@ -1316,7 +1329,7 @@ public:
    *
    * @return Object representing an event, NULL on failure
    */
-  NdbEventOperation* createEventOperation(const char* eventName);
+  NdbEventOperation *createEventOperation(const char *eventName);
   /**
    * Drop a subscription to an event
    *
@@ -1325,15 +1338,15 @@ public:
    *
    * @return 0 on success
    */
-  int dropEventOperation(NdbEventOperation* eventOp);
+  int dropEventOperation(NdbEventOperation *eventOp);
 
-private:
+ private:
   // Help functions for pollEvents() and nextEvent()
 
   // Inform event buffer overflow and exit
   void printOverflowErrorAndExit();
-public:
 
+ public:
   /**
    * Wait for an event to occur. Will return as soon as an event data
    * is available on any of the created events. PollEvents() also moves
@@ -1352,7 +1365,7 @@ public:
    * pollEvents2 will also return >0 when there is an event data
    * representing empty or error epoch available on the head of the event queue.
    */
-  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
+  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch = 0);
 
   /**
    * Check if higher queued epochs have been seen by the last
@@ -1402,7 +1415,7 @@ public:
    * - removes empty epochs from the event queue head until a regular
    *   event data is found or the whole queue is processed.
    */
-  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI = 0);
 
   /**
    * Returns the event operation associated with the dequeued
@@ -1455,14 +1468,14 @@ public:
    * @return true if all received events are consistent, false if possible
    * inconsistency
    */
-  bool isConsistent(Uint64& gci);
+  bool isConsistent(Uint64 &gci);
 
   /**
    * Check if all events in a GCI are consistent
    * If node failure occurs during resource exaustion events
    * may be lost and the delivered event data might thus be incomplete.
    *
-  * @param gci
+   * @param gci
    *        the GCI to check
    *
    * @return true if GCI is consistent, false if possible inconsistency
@@ -1480,9 +1493,8 @@ public:
    * This is a wrapper for getNextEventOpInEpoch3, but retains the
    * old name in order to preserve backward compatibility.
    */
-  const NdbEventOperation*
-    getGCIEventOperations(Uint32* iter,
-                          Uint32* event_types);
+  const NdbEventOperation *getGCIEventOperations(Uint32 *iter,
+                                                 Uint32 *event_types);
 
   /**
    * Iterate over distinct event operations which are part of current
@@ -1493,8 +1505,8 @@ public:
    * is not NULL, it returns bitmask of received event types.
    */
 
-  const NdbEventOperation*
-    getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types);
+  const NdbEventOperation *getNextEventOpInEpoch2(Uint32 *iter,
+                                                  Uint32 *event_types);
 
   /**
    * Iterate over distinct event operations which are part of current
@@ -1507,10 +1519,9 @@ public:
    * received any_value(s) to show what bits are set for all operations of a
    * specific table.
    */
-  const NdbEventOperation*
-    getNextEventOpInEpoch3(Uint32* iter,
-                           Uint32* event_types,
-                           Uint32* cumulative_any_value);
+  const NdbEventOperation *getNextEventOpInEpoch3(Uint32 *iter,
+                                                  Uint32 *event_types,
+                                                  Uint32 *cumulative_any_value);
 
   /**
    * Iterate over distinct event operations which are part of current
@@ -1525,12 +1536,9 @@ public:
    * received any_value(s) as filtered by the event operations
    * any_value filter function.
    */
-  const NdbEventOperation*
-    getNextEventOpInEpoch4(Uint32* iter,
-                           Uint32& event_types,
-                           Uint32& cumulative_any_value,
-                           Uint32& filtered_any_value) const;
-
+  const NdbEventOperation *getNextEventOpInEpoch4(
+      Uint32 *iter, Uint32 &event_types, Uint32 &cumulative_any_value,
+      Uint32 &filtered_any_value) const;
 
   /** Get the highest epoch that have entered into the event queue.
    * This value can be higher than the epoch returned by the last
@@ -1540,7 +1548,7 @@ public:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int flushIncompleteEvents(Uint64 gci);
-  NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
+  NdbEventOperation *getEventOperation(NdbEventOperation *eventOp = 0);
   Uint64 getLatestGCI();
   void forceGCP();
   void setReportThreshEventGCISlip(unsigned thresh);
@@ -1575,10 +1583,8 @@ public:
    *
    * @return NdbTransaction object, or NULL on failure.
    */
-  NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
-				   const char  *keyData = 0,
-				   Uint32       keyLen = 0);
-
+  NdbTransaction *startTransaction(const NdbDictionary::Table *table = 0,
+                                   const char *keyData = 0, Uint32 keyLen = 0);
 
   /**
    * Structure for passing in pointers to distribution key values
@@ -1586,9 +1592,8 @@ public:
    * passed as an array, with the last part's ptr == NULL.
    *
    */
-  struct Key_part_ptr
-  {
-    const void * ptr;
+  struct Key_part_ptr {
+    const void *ptr;
     unsigned len;
   };
 
@@ -1612,42 +1617,36 @@ public:
    *
    */
 
-  struct PartitionSpec
-  {
+  struct PartitionSpec {
     /*
       Size of the PartitionSpec structure.
     */
-    static inline Uint32 size()
-    {
-        return sizeof(PartitionSpec);
-    }
+    static inline Uint32 size() { return sizeof(PartitionSpec); }
 
-    enum SpecType
-    {
-      PS_NONE                = 0,
-      PS_USER_DEFINED        = 1,
-      PS_DISTR_KEY_PART_PTR  = 2,
-      PS_DISTR_KEY_RECORD    = 3
+    enum SpecType {
+      PS_NONE = 0,
+      PS_USER_DEFINED = 1,
+      PS_DISTR_KEY_PART_PTR = 2,
+      PS_DISTR_KEY_RECORD = 3
     };
 
     Uint32 type;
 
-    union
-    {
+    union {
       struct {
         Uint32 partitionId;
       } UserDefined;
 
       struct {
-        const Key_part_ptr* tableKeyParts;
-        void* xfrmbuf;
+        const Key_part_ptr *tableKeyParts;
+        void *xfrmbuf;
         Uint32 xfrmbuflen;
       } KeyPartPtr;
 
       struct {
-        const NdbRecord* keyRecord;
-        const char* keyRow;
-        void* xfrmbuf;
+        const NdbRecord *keyRecord;
+        const char *keyRow;
+        void *xfrmbuf;
         Uint32 xfrmbuflen;
       } KeyRecord;
     };
@@ -1657,26 +1656,23 @@ public:
   /* First version of PartitionSpec, defined here for
    * backwards compatibility reasons
    */
-  struct PartitionSpec_v1
-  {
-    enum SpecType
-    {
-      PS_NONE                = 0,
-      PS_USER_DEFINED        = 1,
-      PS_DISTR_KEY_PART_PTR  = 2
+  struct PartitionSpec_v1 {
+    enum SpecType {
+      PS_NONE = 0,
+      PS_USER_DEFINED = 1,
+      PS_DISTR_KEY_PART_PTR = 2
     };
 
     Uint32 type;
 
-    union
-    {
+    union {
       struct {
         Uint32 partitionId;
       } UserDefined;
 
       struct {
-        const Key_part_ptr* tableKeyParts;
-        void* xfrmbuf;
+        const Key_part_ptr *tableKeyParts;
+        void *xfrmbuf;
         Uint32 xfrmbuflen;
       } KeyPartPtr;
     };
@@ -1709,23 +1705,23 @@ public:
    *
    * @return NdbTransaction object, or NULL on failure.
    */
-  NdbTransaction* startTransaction(const NdbDictionary::Table *table,
-				   const struct Key_part_ptr * keyData,
-				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+  NdbTransaction *startTransaction(const NdbDictionary::Table *table,
+                                   const struct Key_part_ptr *keyData,
+                                   void *xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Unlike startTransaction function above, this function will not try to
    * allocate a bigger buffer using malloc/free if provided buffer is too small.
    */
-  NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
-				   void* xfrmbuf, Uint32 xfrmbuflen);
+  NdbTransaction *startTransaction(const NdbRecord *keyRec, const char *keyData,
+                                   void *xfrmbuf, Uint32 xfrmbuflen);
 #endif
   /**
    * Start a transaction, specifying table+partition as hint for
    *  TC-selection
    *
    */
-  NdbTransaction* startTransaction(const NdbDictionary::Table* table,
+  NdbTransaction *startTransaction(const NdbDictionary::Table *table,
                                    Uint32 partitionId);
   /**
    * Start a transaction on a specified node id and instance id.
@@ -1736,7 +1732,7 @@ public:
    * merely a hint and if the node is down another TC will be used
    * instead.
    */
-  NdbTransaction* startTransaction(Uint32 nodeId, Uint32 instanceId);
+  NdbTransaction *startTransaction(Uint32 nodeId, Uint32 instanceId);
 
   /**
    * Compute distribution hash value given table/keys
@@ -1761,18 +1757,17 @@ public:
    * @return 0 - ok - hashvalueptr is set
    *         else - fail, return error code
    */
-  static int computeHash(Uint32* hashvalueptr,
-                         const NdbDictionary::Table* table,
-                         const struct Key_part_ptr * keyData,
-                         void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+  static int computeHash(Uint32 *hashvalueptr,
+                         const NdbDictionary::Table *table,
+                         const struct Key_part_ptr *keyData, void *xfrmbuf = 0,
+                         Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Unlike computeHash function above, this function will not try to allocate
    * a bigger buffer using malloc/free if provided buffer is too small.
    */
-  static int computeHash(Uint32* hashvalueptr,
-                         const NdbRecord *keyRec, const char *keyData,
-                         void* xfrmbuf, Uint32 xfrmbuflen);
+  static int computeHash(Uint32 *hashvalueptr, const NdbRecord *keyRec,
+                         const char *keyData, void *xfrmbuf, Uint32 xfrmbuflen);
 #endif
   /**
    * Close a transaction.
@@ -1792,7 +1787,7 @@ public:
    *       If the transaction is not committed it will be aborted.
    */
 #endif
-  void closeTransaction(NdbTransaction*);
+  void closeTransaction(NdbTransaction *);
 
   /** @} *********************************************************************/
 
@@ -1822,8 +1817,8 @@ public:
    *            outstanding transactions to return before waking up.
    * @return Number of transactions polled.
    */
-  int  pollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
-	      int minNoOfEventsToWakeup = 1);
+  int pollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
+              int minNoOfEventsToWakeup = 1);
 
   /**
    * This send method will send all prepared database operations.
@@ -1870,9 +1865,8 @@ public:
    * - 2: non-force, adaptive algorithm does not notice the send.
    * @return Number of transactions polled.
    */
-  int  sendPollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
-		   int minNoOfEventsToWakeup = 1,
-		   int forceSend = 0);
+  int sendPollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
+                  int minNoOfEventsToWakeup = 1, int forceSend = 0);
   /** @} *********************************************************************/
 #endif
 
@@ -1886,14 +1880,14 @@ public:
    *
    * @note The NdbError object is valid until a new NDB API method is called.
    */
-  const NdbError & getNdbError() const;
+  const NdbError &getNdbError() const;
 
   /**
    * Get a NdbError object for a specific error code
    *
    * The NdbError object is valid until you call a new NDB API method.
    */
-  const NdbError & getNdbError(int errorCode);
+  const NdbError &getNdbError(int errorCode);
 
   /**
    * Get a string containing any extra error details in the supplied
@@ -1904,8 +1898,7 @@ public:
    * then it will be truncated to fit.
    * Where there is no extra detail, NULL will be returned.
    */
-  const char* getNdbErrorDetail(const NdbError& err,
-                                char* buff,
+  const char *getNdbErrorDetail(const NdbError &err, char *buff,
                                 Uint32 buffLen) const;
 
   /** @} *********************************************************************/
@@ -1924,13 +1917,13 @@ public:
    * Different types of tampering with the NDB Cluster.
    * <b>Only for debugging purposes only.</b>
    */
-  enum TamperType	{
-    LockGlbChp = 1,           ///< Lock GCP
-    UnlockGlbChp,             ///< Unlock GCP
-    CrashNode,                ///< Crash an NDB node
-    ReadRestartGCI,           ///< Request the restart GCI id from NDB Cluster
-    InsertError               ///< Execute an error in NDB Cluster
-                              ///< (may crash system)
+  enum TamperType {
+    LockGlbChp = 1,  ///< Lock GCP
+    UnlockGlbChp,    ///< Unlock GCP
+    CrashNode,       ///< Crash an NDB node
+    ReadRestartGCI,  ///< Request the restart GCI id from NDB Cluster
+    InsertError      ///< Execute an error in NDB Cluster
+                     ///< (may crash system)
   };
 
   struct TupleIdRange {
@@ -1959,75 +1952,71 @@ public:
    *
    * @return 0 or -1 on error, and tupleId in out parameter
    */
-  int getAutoIncrementValue(const char* aTableName,
-                            Uint64 & autoValue, Uint32 cacheSize,
+  int getAutoIncrementValue(const char *aTableName, Uint64 &autoValue,
+                            Uint32 cacheSize, Uint64 step = 1,
+                            Uint64 start = 1);
+  int getAutoIncrementValue(const NdbDictionary::Table *aTable,
+                            Uint64 &autoValue, Uint32 cacheSize,
                             Uint64 step = 1, Uint64 start = 1);
-  int getAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            Uint64 & autoValue, Uint32 cacheSize,
-                            Uint64 step = 1, Uint64 start = 1);
-  int getAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            TupleIdRange & range, Uint64 & autoValue,
-                            Uint32 cacheSize,
-                            Uint64 step = 1, Uint64 start = 1);
-  int readAutoIncrementValue(const char* aTableName,
-                             Uint64 & autoValue);
-  int readAutoIncrementValue(const NdbDictionary::Table * aTable,
-                             Uint64 & autoValue);
-  int readAutoIncrementValue(const NdbDictionary::Table * aTable,
-                             TupleIdRange & range, Uint64 & autoValue);
-  int setAutoIncrementValue(const char* aTableName,
-                            Uint64 autoValue, bool modify);
-  int setAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            Uint64 autoValue, bool modify);
-  int setAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            TupleIdRange & range, Uint64 autoValue,
+  int getAutoIncrementValue(const NdbDictionary::Table *aTable,
+                            TupleIdRange &range, Uint64 &autoValue,
+                            Uint32 cacheSize, Uint64 step = 1,
+                            Uint64 start = 1);
+  int readAutoIncrementValue(const char *aTableName, Uint64 &autoValue);
+  int readAutoIncrementValue(const NdbDictionary::Table *aTable,
+                             Uint64 &autoValue);
+  int readAutoIncrementValue(const NdbDictionary::Table *aTable,
+                             TupleIdRange &range, Uint64 &autoValue);
+  int setAutoIncrementValue(const char *aTableName, Uint64 autoValue,
                             bool modify);
+  int setAutoIncrementValue(const NdbDictionary::Table *aTable,
+                            Uint64 autoValue, bool modify);
+  int setAutoIncrementValue(const NdbDictionary::Table *aTable,
+                            TupleIdRange &range, Uint64 autoValue, bool modify);
 #ifdef NDBAPI_50_COMPAT
-  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable,
-			       Uint32 cacheSize = 1)
-    {
-      Uint64 val;
-      if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
-        return ~(Uint64)0;
-      return val;
-    }
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table *aTable,
+                               Uint32 cacheSize = 1) {
+    Uint64 val;
+    if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
+      return ~(Uint64)0;
+    return val;
+  }
 #endif
-  bool checkUpdateAutoIncrementValue(TupleIdRange & range, Uint64 autoValue);
-private:
-  int getTupleIdFromNdb(const NdbTableImpl* table,
-                        TupleIdRange & range, Uint64 & tupleId,
-                        Uint32 cacheSize, Uint64 step = 1, Uint64 start = 1);
-  int readTupleIdFromNdb(const NdbTableImpl* table,
-                         TupleIdRange & range, Uint64 & tupleId);
-  int setTupleIdInNdb(const NdbTableImpl* table,
-                      TupleIdRange & range, Uint64 tupleId, bool modify);
-  int checkTupleIdInNdb(TupleIdRange & range,
-                        Uint64 tupleId);
-  int opTupleIdOnNdb(const NdbTableImpl* table,
-                     TupleIdRange & range, Uint64 & opValue, Uint32 op);
-public:
+  bool checkUpdateAutoIncrementValue(TupleIdRange &range, Uint64 autoValue);
 
+ private:
+  int getTupleIdFromNdb(const NdbTableImpl *table, TupleIdRange &range,
+                        Uint64 &tupleId, Uint32 cacheSize, Uint64 step = 1,
+                        Uint64 start = 1);
+  int readTupleIdFromNdb(const NdbTableImpl *table, TupleIdRange &range,
+                         Uint64 &tupleId);
+  int setTupleIdInNdb(const NdbTableImpl *table, TupleIdRange &range,
+                      Uint64 tupleId, bool modify);
+  int checkTupleIdInNdb(TupleIdRange &range, Uint64 tupleId);
+  int opTupleIdOnNdb(const NdbTableImpl *table, TupleIdRange &range,
+                     Uint64 &opValue, Uint32 op);
+
+ public:
   /**
    */
-  NdbTransaction* hupp( NdbTransaction* );
-  Uint32 getReference() const { return theMyRef;}
+  NdbTransaction *hupp(NdbTransaction *);
+  Uint32 getReference() const { return theMyRef; }
 
-  struct Free_list_usage
-  {
-    const char * m_name;
+  struct Free_list_usage {
+    const char *m_name;
     Uint32 m_created;
     Uint32 m_free;
     Uint32 m_sizeof;
   };
 
-  Free_list_usage * get_free_list_usage(Free_list_usage*);
+  Free_list_usage *get_free_list_usage(Free_list_usage *);
 
   /* Get minimum known DB node version */
   Uint32 getMinDbNodeVersion() const;
 
   /* Get/Set per-Ndb custom data pointer */
-  void setCustomData(void*);
-  void* getCustomData() const;
+  void setCustomData(void *);
+  void *getCustomData() const;
 
   /* Get/Set per-Ndb custom data pointer */
   /* NOTE: shares storage with void*
@@ -2044,150 +2033,147 @@ public:
   /* Some client behaviour counters to assist
    * optimisation
    */
-  enum ClientStatistics
-  {
+  enum ClientStatistics {
     /* Latency avoidance : */
     /* Number of times user thread blocked waiting for data node response */
-    WaitExecCompleteCount    = 0,  /* Waiting for PK/UK/Scan requests to complete */
-    WaitScanResultCount      = 1,  /* Waiting for next scan batch(es) to arrive */
-    WaitMetaRequestCount     = 2,  /* Waiting for some meta data operation to complete */
+    WaitExecCompleteCount = 0, /* Waiting for PK/UK/Scan requests to complete */
+    WaitScanResultCount = 1,   /* Waiting for next scan batch(es) to arrive */
+    WaitMetaRequestCount =
+        2, /* Waiting for some meta data operation to complete */
 
     /* Measured latency */
-    WaitNanosCount           = 3,  /* Nanoseconds spent waiting for kernel response */
+    WaitNanosCount = 3, /* Nanoseconds spent waiting for kernel response */
 
     /* Data transfer */
-    BytesSentCount           = 4,  /* Bytes sent to kernel by this object */
-    BytesRecvdCount          = 5,  /* Bytes received from kernel by this object */
+    BytesSentCount = 4,  /* Bytes sent to kernel by this object */
+    BytesRecvdCount = 5, /* Bytes received from kernel by this object */
 
     /* Work performed */
-    TransStartCount          = 6,  /* Transactions started */
-    TransCommitCount         = 7,  /* Transactions committed */
-    TransAbortCount          = 8,  /* Transactions aborted */
-    TransCloseCount          = 9,  /* Transactions closed */
+    TransStartCount = 6,  /* Transactions started */
+    TransCommitCount = 7, /* Transactions committed */
+    TransAbortCount = 8,  /* Transactions aborted */
+    TransCloseCount = 9,  /* Transactions closed */
 
-    PkOpCount                = 10, /* Primary key operation count */
-    UkOpCount                = 11, /* Unique key operation count */
-    TableScanCount           = 12, /* Table scans */
-    RangeScanCount           = 13, /* Range scans */
+    PkOpCount = 10,      /* Primary key operation count */
+    UkOpCount = 11,      /* Unique key operation count */
+    TableScanCount = 12, /* Table scans */
+    RangeScanCount = 13, /* Range scans */
 
     /* Efficiency */
-    PrunedScanCount          = 14, /* Count of scans scanning 1 fragment */
-    ScanBatchCount           = 15, /* Count of scan batches received */
-    ReadRowCount             = 16, /* Rows returned to API, from PK/UK/Scan */
-    TransLocalReadRowCount   = 17, /* Rows returned to API from trans node */
+    PrunedScanCount = 14,        /* Count of scans scanning 1 fragment */
+    ScanBatchCount = 15,         /* Count of scan batches received */
+    ReadRowCount = 16,           /* Rows returned to API, from PK/UK/Scan */
+    TransLocalReadRowCount = 17, /* Rows returned to API from trans node */
 
     /* Event Api */
-    DataEventsRecvdCount     = 18, /* Number of table data change events received */
-    NonDataEventsRecvdCount  = 19, /* Number of non-data events received */
-    EventBytesRecvdCount     = 20, /* Number of bytes of event data received */
+    DataEventsRecvdCount = 18, /* Number of table data change events received */
+    NonDataEventsRecvdCount = 19, /* Number of non-data events received */
+    EventBytesRecvdCount = 20,    /* Number of bytes of event data received */
 
     /* Adaptive Send */
-    ForcedSendsCount         = 21, /* Number of sends with force-send set */
-    UnforcedSendsCount       = 22, /* Number of sends without force-send */
-    DeferredSendsCount       = 23, /* Number of adaptive send calls not actually sent */
+    ForcedSendsCount = 21,   /* Number of sends with force-send set */
+    UnforcedSendsCount = 22, /* Number of sends without force-send */
+    DeferredSendsCount =
+        23, /* Number of adaptive send calls not actually sent */
 
-    NumClientStatistics      = 24   /* End marker */
+    NumClientStatistics = 24 /* End marker */
   };
 
   Uint64 getClientStat(Uint32 id) const;
-  const char* getClientStatName(Uint32 id) const;
+  const char *getClientStatName(Uint32 id) const;
 #endif
 
-private:
-/*****************************************************************************
- *     These are service routines used by the other classes in the NDBAPI.
- ****************************************************************************/
+ private:
+  /*****************************************************************************
+   *     These are service routines used by the other classes in the NDBAPI.
+   ****************************************************************************/
   Uint32 _unused;
   void *_unused2;
 
-  Ndb(const Ndb&); // Not impl.
-  Ndb&operator=(const Ndb&);
+  Ndb(const Ndb &);  // Not impl.
+  Ndb &operator=(const Ndb &);
 
   void setup(Ndb_cluster_connection *ndb_cluster_connection,
-	     const char* aCatalogName, const char* aSchemaName);
+             const char *aCatalogName, const char *aSchemaName);
 
   void connected(Uint32 block_reference);
 
+  NdbTransaction *startTransactionLocal(Uint32 aPrio, Uint32 aNode,
+                                        Uint32 instance);
 
-  NdbTransaction*  startTransactionLocal(Uint32 aPrio, Uint32 aNode,
-                                         Uint32 instance);
-
-// Connect the connection object to the Database.
+  // Connect the connection object to the Database.
   int NDB_connect(Uint32 tNode, Uint32 instance);
-  NdbTransaction* doConnect(Uint32 nodeId, Uint32 instance);
-  void    doDisconnect();
+  NdbTransaction *doConnect(Uint32 nodeId, Uint32 instance);
+  void doDisconnect();
 
-  NdbReceiver*	        getNdbScanRec();// Get a NdbScanReceiver from idle list
-  NdbLabel*		getNdbLabel();	// Get a NdbLabel from idle list
-  NdbBranch*            getNdbBranch();	// Get a NdbBranch from idle list
-  NdbSubroutine*	getNdbSubroutine();// Get a NdbSubroutine from idle
-  NdbCall*		getNdbCall();	// Get a NdbCall from idle list
-  NdbApiSignal*	        getSignal();	// Get an operation from idle list
-  NdbRecAttr*	        getRecAttr();	// Get a receeive attribute object from
-					// idle list of the Ndb object.
-  NdbOperation* 	getOperation();	// Get an operation from idle list
-  NdbIndexScanOperation* getScanOperation(); // Get a scan operation from idle
-  NdbIndexOperation* 	getIndexOperation();// Get an index operation from idle
+  NdbReceiver *getNdbScanRec();       // Get a NdbScanReceiver from idle list
+  NdbLabel *getNdbLabel();            // Get a NdbLabel from idle list
+  NdbBranch *getNdbBranch();          // Get a NdbBranch from idle list
+  NdbSubroutine *getNdbSubroutine();  // Get a NdbSubroutine from idle
+  NdbCall *getNdbCall();              // Get a NdbCall from idle list
+  NdbApiSignal *getSignal();          // Get an operation from idle list
+  NdbRecAttr *getRecAttr();           // Get a receeive attribute object from
+                                      // idle list of the Ndb object.
+  NdbOperation *getOperation();       // Get an operation from idle list
+  NdbIndexScanOperation *getScanOperation();  // Get a scan operation from idle
+  NdbIndexOperation *getIndexOperation();  // Get an index operation from idle
 
-  NdbBlob*              getNdbBlob();// Get a blob handle etc
+  NdbBlob *getNdbBlob();  // Get a blob handle etc
 
-  NdbLockHandle*        getLockHandle(); // Get a lock handle.
+  NdbLockHandle *getLockHandle();  // Get a lock handle.
 
-  void			releaseSignal(NdbApiSignal* anApiSignal);
-  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
-  void                  releaseSignalsInList(NdbApiSignal** pList);
-  void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
-  void			releaseNdbLabel(NdbLabel* anNdbLabel);
-  void			releaseNdbBranch(NdbBranch* anNdbBranch);
-  void			releaseNdbSubroutine(NdbSubroutine* anNdbSubroutine);
-  void			releaseNdbCall(NdbCall* anNdbCall);
-  void			releaseRecAttr (NdbRecAttr* aRecAttr);
-  void		 	releaseOperation(NdbOperation* anOperation);
-  void		 	releaseScanOperation(NdbIndexScanOperation*);
-  void                  releaseNdbBlob(NdbBlob* aBlob);
-  void                  releaseLockHandle(NdbLockHandle* lh);
+  void releaseSignal(NdbApiSignal *anApiSignal);
+  void releaseSignals(Uint32, NdbApiSignal *, NdbApiSignal *);
+  void releaseSignalsInList(NdbApiSignal **pList);
+  void releaseNdbScanRec(NdbReceiver *aNdbScanRec);
+  void releaseNdbLabel(NdbLabel *anNdbLabel);
+  void releaseNdbBranch(NdbBranch *anNdbBranch);
+  void releaseNdbSubroutine(NdbSubroutine *anNdbSubroutine);
+  void releaseNdbCall(NdbCall *anNdbCall);
+  void releaseRecAttr(NdbRecAttr *aRecAttr);
+  void releaseOperation(NdbOperation *anOperation);
+  void releaseScanOperation(NdbIndexScanOperation *);
+  void releaseNdbBlob(NdbBlob *aBlob);
+  void releaseLockHandle(NdbLockHandle *lh);
 
-  void                  check_send_timeout();
-  void                  remove_sent_list(Uint32);
-  Uint32                insert_completed_list(NdbTransaction*);
-  Uint32                insert_sent_list(NdbTransaction*);
+  void check_send_timeout();
+  void remove_sent_list(Uint32);
+  Uint32 insert_completed_list(NdbTransaction *);
+  Uint32 insert_sent_list(NdbTransaction *);
 
-  int			sendRecSignal(Uint16 aNodeId,
-				      Uint32 aWaitState,
-				      NdbApiSignal* aSignal,
-                                      Uint32 nodeSequence,
-                                      Uint32 *ret_conn_seq= 0);
+  int sendRecSignal(Uint16 aNodeId, Uint32 aWaitState, NdbApiSignal *aSignal,
+                    Uint32 nodeSequence, Uint32 *ret_conn_seq = 0);
 
   // Get block number of this NDBAPI object
-  int			getBlockNumber();
+  int getBlockNumber();
 
   /****************************************************************************
    *	These are local service routines used by this class.
    ***************************************************************************/
 
-  int			createConIdleList(int aNrOfCon);
-  int 		createOpIdleList( int nrOfOp );
+  int createConIdleList(int aNrOfCon);
+  int createOpIdleList(int nrOfOp);
 
-  void	freeOperation();          // Free the first idle operation.
-  void	freeScanOperation();      // Free the first idle scan operation.
-  void	freeIndexOperation();     // Free the first idle index operation.
-  void	freeNdbCon();	// Free the first idle connection.
-  void	freeSignal();	// Free the first idle signal
-  void	freeRecAttr();	// Free the first idle receive attr obj
-  void	freeNdbLabel();	// Free the first idle NdbLabel obj
-  void	freeNdbBranch();// Free the first idle NdbBranch obj
-  void	freeNdbSubroutine();// Free the first idle NdbSubroutine obj
-  void	freeNdbCall();	    // Free the first idle NdbCall obj
-  void	freeNdbScanRec();   // Free the first idle NdbScanRec obj
-  void  freeNdbBlob();      // Free the first etc
+  void freeOperation();       // Free the first idle operation.
+  void freeScanOperation();   // Free the first idle scan operation.
+  void freeIndexOperation();  // Free the first idle index operation.
+  void freeNdbCon();          // Free the first idle connection.
+  void freeSignal();          // Free the first idle signal
+  void freeRecAttr();         // Free the first idle receive attr obj
+  void freeNdbLabel();        // Free the first idle NdbLabel obj
+  void freeNdbBranch();       // Free the first idle NdbBranch obj
+  void freeNdbSubroutine();   // Free the first idle NdbSubroutine obj
+  void freeNdbCall();         // Free the first idle NdbCall obj
+  void freeNdbScanRec();      // Free the first idle NdbScanRec obj
+  void freeNdbBlob();         // Free the first etc
 
-  NdbTransaction* getNdbCon();	// Get a connection from idle list
+  NdbTransaction *getNdbCon();  // Get a connection from idle list
 
   /**
    * Get a connected NdbTransaction to nodeId
    *   Returns NULL if none found
    */
-  NdbTransaction* getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance);
+  NdbTransaction *getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance);
   /**
    * Handle Connection Array lists
    */
@@ -2197,91 +2183,86 @@ private:
 
   // Release and disconnect from DBTC a connection
   // and seize it to theConIdleList
-  void	releaseConnectToNdb (NdbTransaction*);
+  void releaseConnectToNdb(NdbTransaction *);
 
   // Release a connection to idle list
-  void 	releaseNdbCon (NdbTransaction*);
+  void releaseNdbCon(NdbTransaction *);
 
-  int	checkInitState();		// Check that we are initialized
-  void	report_node_failure(Uint32 node_id);           // Report Failed node
-  void	report_node_failure_completed(Uint32 node_id); // Report Failed node(NF comp.)
+  int checkInitState();                      // Check that we are initialized
+  void report_node_failure(Uint32 node_id);  // Report Failed node
+  void report_node_failure_completed(
+      Uint32 node_id);  // Report Failed node(NF comp.)
 
-  void	checkFailedNode();		// Check for failed nodes
+  void checkFailedNode();  // Check for failed nodes
 
-  int   NDB_connect();     // Perform connect towards NDB Kernel
+  int NDB_connect();  // Perform connect towards NDB Kernel
 
   // Release arrays of NdbTransaction pointers
-  void  releaseTransactionArrays();
+  void releaseTransactionArrays();
 
-  Uint32  pollCompleted(NdbTransaction** aCopyArray);
-  void    sendPrepTrans(int forceSend);
-  void    reportCallback(NdbTransaction** aCopyArray, Uint32 aNoOfComplTrans);
-  int     poll_trans(int milliSecs, int noOfEventsToWaitFor, PollGuard *pg);
-  void    waitCompletedTransactions(int milliSecs, int noOfEventsToWaitFor,
-		                    PollGuard *pg);
-  void    completedTransaction(NdbTransaction* aTransaction);
-  void    completedScanTransaction(NdbTransaction* aTransaction);
+  Uint32 pollCompleted(NdbTransaction **aCopyArray);
+  void sendPrepTrans(int forceSend);
+  void reportCallback(NdbTransaction **aCopyArray, Uint32 aNoOfComplTrans);
+  int poll_trans(int milliSecs, int noOfEventsToWaitFor, PollGuard *pg);
+  void waitCompletedTransactions(int milliSecs, int noOfEventsToWaitFor,
+                                 PollGuard *pg);
+  void completedTransaction(NdbTransaction *aTransaction);
+  void completedScanTransaction(NdbTransaction *aTransaction);
 
-  void    abortTransactionsAfterNodeFailure(Uint16 aNodeId);
+  void abortTransactionsAfterNodeFailure(Uint16 aNodeId);
 
-  static
-  const char * externalizeTableName(const char * internalTableName,
-                                    bool fullyQualifiedNames);
-  const BaseString internalize_table_name(const char * external_name) const;
+  static const char *externalizeTableName(const char *internalTableName,
+                                          bool fullyQualifiedNames);
+  const BaseString internalize_table_name(const char *external_name) const;
 
-  static
-  const char * externalizeIndexName(const char * internalIndexName,
-                                    bool fullyQualifiedNames);
+  static const char *externalizeIndexName(const char *internalIndexName,
+                                          bool fullyQualifiedNames);
 
-  static
-  const BaseString getDatabaseFromInternalName(const char * internalName);
-  static
-  const BaseString getSchemaFromInternalName(const char * internalName);
+  static const BaseString getDatabaseFromInternalName(const char *internalName);
+  static const BaseString getSchemaFromInternalName(const char *internalName);
 
   Uint64 allocate_transaction_id();
 
-/******************************************************************************
- *	These are the private variables in this class.
- *****************************************************************************/
-  NdbTransaction**       thePreparedTransactionsArray;
-  NdbTransaction**       theSentTransactionsArray;
-  NdbTransaction**       theCompletedTransactionsArray;
+  /******************************************************************************
+   *	These are the private variables in this class.
+   *****************************************************************************/
+  NdbTransaction **thePreparedTransactionsArray;
+  NdbTransaction **theSentTransactionsArray;
+  NdbTransaction **theCompletedTransactionsArray;
 
-  Uint32                theNoOfPreparedTransactions;
-  Uint32                theNoOfSentTransactions;
-  Uint32                theNoOfCompletedTransactions;
-  Uint32                theRemainingStartTransactions;
-  Uint32                theMaxNoOfTransactions;
-  Uint32                theMinNoOfEventsToWakeUp;
+  Uint32 theNoOfPreparedTransactions;
+  Uint32 theNoOfSentTransactions;
+  Uint32 theNoOfCompletedTransactions;
+  Uint32 theRemainingStartTransactions;
+  Uint32 theMaxNoOfTransactions;
+  Uint32 theMinNoOfEventsToWakeUp;
 
-  Uint32                theNextConnectNode;
+  Uint32 theNextConnectNode;
 
   bool deleted_v8_0_24;
 
+  class NdbImpl *theImpl;
+  class NdbDictionaryImpl *theDictionary;
+  class NdbEventBuffer *theEventBuffer;
 
+  NdbTransaction *theTransactionList;
+  NdbTransaction **theConnectionArray;
+  NdbTransaction **theConnectionArrayLast;
 
-  class NdbImpl * theImpl;
-  class NdbDictionaryImpl* theDictionary;
-  class NdbEventBuffer* theEventBuffer;
+  Uint32 theMyRef;  // My block reference
+  Uint32 theNode;   // The node number of our node
 
-  NdbTransaction*	theTransactionList;
-  NdbTransaction**      theConnectionArray;
-  NdbTransaction**      theConnectionArrayLast;
-
-  Uint32   theMyRef;        // My block reference
-  Uint32   theNode;         // The node number of our node
-
-  Uint64               the_last_check_time;
-  Uint64               theFirstTransId;
+  Uint64 the_last_check_time;
+  Uint64 theFirstTransId;
   // The tupleId is retrieved from DB
   const NdbDictionary::Table *m_sys_tab_0;
 
-  Uint32		theRestartGCI;	// the Restart GCI used by DIHNDBTAMPER
+  Uint32 theRestartGCI;  // the Restart GCI used by DIHNDBTAMPER
 
   // Allow updating error also from const member functions
   mutable NdbError theError;
 
-  Int32        	        theNdbBlockNumber;
+  Int32 theNdbBlockNumber;
 
   enum InitType {
     NotConstructed,
@@ -2291,11 +2272,10 @@ private:
     InitConfigError
   } theInitState;
 
-  NdbApiSignal* theCommitAckSignal;
+  NdbApiSignal *theCommitAckSignal;
 
   /* Cached minimum connected Db node version */
   Uint32 theCachedMinDbNodeVersion;
-
 
 #ifdef POORMANSPURIFY
   int cfreeSignals;
@@ -2305,11 +2285,11 @@ private:
 #endif
 
 #ifdef VM_TRACE
-  void printState(const char* fmt, ...)
+  void printState(const char *fmt, ...)
 #ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)))
+      __attribute__((format(printf, 2, 3)))
 #endif
-    ;
+      ;
 #endif
 };
 

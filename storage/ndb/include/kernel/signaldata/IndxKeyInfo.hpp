@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 203
 
-
 class IndxKeyInfo {
   /**
    * Sender(s)
@@ -40,25 +39,25 @@ class IndxKeyInfo {
    * Reciver(s)
    */
   friend class Dbtc;
-  
+
   friend bool printINDXKEYINFO(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
+ public:
   static constexpr Uint32 HeaderLength = 3;
   static constexpr Uint32 DataLength = 20;
   static constexpr Uint32 MaxSignalLength = HeaderLength + DataLength;
 
   // Public methods
-public:
- const Uint32* getData() const;
+ public:
+  const Uint32 *getData() const;
 
-private:
+ private:
   Uint32 connectPtr;
   Uint32 transId[2];
   Uint32 keyData[DataLength];
 };
 
-inline const Uint32* IndxKeyInfo::getData() const { return keyData; }
+inline const Uint32 *IndxKeyInfo::getData() const { return keyData; }
 
 #undef JAM_FILE_ID
 

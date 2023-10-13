@@ -23,16 +23,14 @@
 
 #include <signaldata/DropTrigImpl.hpp>
 
-bool
-printDROP_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigImplReq::SignalLength)
-  {
+bool printDROP_TRIG_IMPL_REQ(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16) {
+  if (len < DropTrigImplReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigImplReq* sig = (const DropTrigImplReq*)theData;
+  const DropTrigImplReq *sig = (const DropTrigImplReq *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " requestType: %u", sig->requestType);
@@ -49,16 +47,14 @@ printDROP_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool
-printDROP_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigImplConf::SignalLength)
-  {
+bool printDROP_TRIG_IMPL_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                              Uint16) {
+  if (len < DropTrigImplConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigImplConf* sig = (const DropTrigImplConf*) theData;
+  const DropTrigImplConf *sig = (const DropTrigImplConf *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
@@ -68,16 +64,14 @@ printDROP_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16
   return true;
 }
 
-bool
-printDROP_TRIG_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  if (len < DropTrigImplRef::SignalLength)
-  {
+bool printDROP_TRIG_IMPL_REF(FILE *output, const Uint32 *theData, Uint32 len,
+                             Uint16) {
+  if (len < DropTrigImplRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const DropTrigImplRef * sig = (const DropTrigImplRef*) theData;
+  const DropTrigImplRef *sig = (const DropTrigImplRef *)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");

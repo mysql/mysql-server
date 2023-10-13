@@ -25,8 +25,8 @@
 #ifndef UTIL_PREPARE_REQ_HPP
 #define UTIL_PREPARE_REQ_HPP
 
-#include "SignalData.hpp"
 #include <SimpleProperties.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 18
 
@@ -51,30 +51,28 @@ class UtilPrepareReq {
   /**
    * For printing
    */
-  friend bool printUTIL_PREPARE_REQ(FILE * output, 
-                                    const Uint32 * theData, 
-                                    Uint32 len, 
-                                    Uint16 receiverBlockNo);
+  friend bool printUTIL_PREPARE_REQ(FILE *output, const Uint32 *theData,
+                                    Uint32 len, Uint16 receiverBlockNo);
 
-public:
+ public:
   enum OperationTypeValue {
-    Read               = 0,
-    Update             = 1,
-    Insert             = 2,
-    Delete             = 3,
-    Write	       = 4,
-    Probe              = 5  // check existence...
+    Read = 0,
+    Update = 1,
+    Insert = 2,
+    Delete = 3,
+    Write = 4,
+    Probe = 5  // check existence...
   };
 
   enum KeyValue {
-    NoOfOperations     = 1,  ///< No of operations in transaction
-    OperationType      = 2,  /// 
-    TableName          = 3,  ///< String
-    AttributeName      = 4,  ///< String
-    TableId	       = 5,
-    AttributeId	       = 6,
-    ScanTakeOverInd    = 7,
-    ReorgInd           = 8
+    NoOfOperations = 1,  ///< No of operations in transaction
+    OperationType = 2,   ///
+    TableName = 3,       ///< String
+    AttributeName = 4,   ///< String
+    TableId = 5,
+    AttributeId = 6,
+    ScanTakeOverInd = 7,
+    ReorgInd = 8
   };
 
   // Signal constants
@@ -84,8 +82,8 @@ public:
 
   GET_SET_SENDERREF
   GET_SET_SENDERDATA
-private:  
-  Uint32 senderData; // MUST be no 1!
+ private:
+  Uint32 senderData;  // MUST be no 1!
   Uint32 senderRef;
   Uint32 schemaTransId;
 };
@@ -94,7 +92,7 @@ private:
  * @class UtilPrepareConf
  *
  * Data format:
- * - UTIL_PREPARE_CONF <UtilPrepareId> 
+ * - UTIL_PREPARE_CONF <UtilPrepareId>
  */
 
 class UtilPrepareConf {
@@ -107,27 +105,24 @@ class UtilPrepareConf {
   /**
    * For printing
    */
-  friend bool printUTIL_PREPARE_CONF(FILE * output, 
-				     const Uint32 * theData, 
-				     Uint32 len, 
-				     Uint16 receiverBlockNo);
+  friend bool printUTIL_PREPARE_CONF(FILE *output, const Uint32 *theData,
+                                     Uint32 len, Uint16 receiverBlockNo);
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 2;
 
   GET_SET_SENDERDATA
   GET_SET_PREPAREID
-private:
-  Uint32 senderData; // MUST be no 1!
-  Uint32 prepareId; 
+ private:
+  Uint32 senderData;  // MUST be no 1!
+  Uint32 prepareId;
 };
-
 
 /**
  * @class UtilPrepareRef
  *
  * Data format:
- * - UTIL_PREPARE_REF 
+ * - UTIL_PREPARE_REF
  */
 
 class UtilPrepareRef {
@@ -141,12 +136,10 @@ class UtilPrepareRef {
   /**
    * For printing
    */
-  friend bool printUTIL_PREPARE_REF(FILE * output, 
-				    const Uint32 * theData, 
-				    Uint32 len, 
-				    Uint16 receiverBlockNo);
+  friend bool printUTIL_PREPARE_REF(FILE *output, const Uint32 *theData,
+                                    Uint32 len, Uint16 receiverBlockNo);
 
-public:
+ public:
   enum ErrorCode {
     PREPARE_REF_NO_ERROR = 0,
     PREPARE_SEIZE_ERROR = 1,
@@ -160,13 +153,11 @@ public:
 
   GET_SET_SENDERDATA
   GET_SET_ERRORCODE
-private:
-  Uint32 senderData; // MUST be no 1!
+ private:
+  Uint32 senderData;  // MUST be no 1!
   Uint32 errorCode;
-  Uint32 dictErrCode; // If errorCode == DICT_TAB_INFO_ERROR
+  Uint32 dictErrCode;  // If errorCode == DICT_TAB_INFO_ERROR
 };
-
-
 
 #undef JAM_FILE_ID
 

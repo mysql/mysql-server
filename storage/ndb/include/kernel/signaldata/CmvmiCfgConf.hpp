@@ -29,34 +29,32 @@
 
 #define JAM_FILE_ID 88
 
-
 /**
- * This signal is used for transferring the 
+ * This signal is used for transferring the
  *   ISP_X Data
  *
  * I.e. Configuration data which is sent in a specific start phase
  *
  */
-class CmvmiCfgConf  {
+class CmvmiCfgConf {
   /**
    * Sender(s)
    */
   friend class Cmvmi;
-  
+
   /**
    * Reciver(s)
    */
   friend class Ndbcntr;
-  
-public:
+
+ public:
   static constexpr Uint32 NO_OF_WORDS = 16;
   static constexpr Uint32 LENGTH = 17;
-private:
-  
+
+ private:
   Uint32 startPhase;
   Uint32 theData[NO_OF_WORDS];
 };
-
 
 #undef JAM_FILE_ID
 

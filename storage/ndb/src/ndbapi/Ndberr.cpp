@@ -24,87 +24,64 @@
 
 #include "API.hpp"
 
-static void update(NdbError& error)
-{
+static void update(NdbError &error) {
   ndberror_struct ndberror = (ndberror_struct)error;
   ndberror_update(&ndberror);
   error = NdbError(ndberror);
 }
 
-const 
-NdbError & 
-Ndb::getNdbError(int code){
+const NdbError &Ndb::getNdbError(int code) {
   theError.code = code;
   update(theError);
   return theError;
 }
 
-const 
-NdbError & 
-Ndb::getNdbError() const {
+const NdbError &Ndb::getNdbError() const {
   update(theError);
   return theError;
 }
 
-const 
-NdbError & 
-NdbDictionaryImpl::getNdbError() const {
+const NdbError &NdbDictionaryImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }
 
-const 
-NdbError & 
-NdbTransaction::getNdbError() const {
+const NdbError &NdbTransaction::getNdbError() const {
   update(theError);
   return theError;
 }
 
-const 
-NdbError & 
-NdbOperation::getNdbError() const {
+const NdbError &NdbOperation::getNdbError() const {
   update(theError);
   return theError;
 }
 
-const
-NdbError &
-NdbBlob::getNdbError() const {
+const NdbError &NdbBlob::getNdbError() const {
   update(theError);
   return theError;
 }
 
-const
-NdbError &
-NdbEventOperationImpl::getNdbError() const {
+const NdbError &NdbEventOperationImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }
 
-const
-NdbError &
-NdbDictInterface::getNdbError() const {
+const NdbError &NdbDictInterface::getNdbError() const {
   update(m_error);
   return m_error;
 }
 
-const
-NdbError &
-NdbQueryBuilderImpl::getNdbError() const {
+const NdbError &NdbQueryBuilderImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }
 
-const
-NdbError &
-NdbQueryImpl::getNdbError() const {
+const NdbError &NdbQueryImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }
 
-const
-NdbIndexStat::Error &
-NdbIndexStatImpl::getNdbError() const {
+const NdbIndexStat::Error &NdbIndexStatImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }

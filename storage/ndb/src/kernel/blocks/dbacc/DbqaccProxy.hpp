@@ -27,15 +27,14 @@
 
 #define JAM_FILE_ID 523
 
-class DbqaccProxy : public LocalProxy
-{
-public:
-  DbqaccProxy(Block_context& ctx);
+class DbqaccProxy : public LocalProxy {
+ public:
+  DbqaccProxy(Block_context &ctx);
   ~DbqaccProxy() override;
   BLOCK_DEFINES(DbqaccProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
 
 #undef JAM_FILE_ID

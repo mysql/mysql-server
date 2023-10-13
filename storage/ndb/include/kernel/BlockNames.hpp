@@ -28,7 +28,7 @@
  * Used for printing and stuff
  */
 struct BlockName {
-  const char* name;
+  const char *name;
   BlockNumber number;
 };
 

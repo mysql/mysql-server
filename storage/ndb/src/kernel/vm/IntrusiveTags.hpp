@@ -33,8 +33,7 @@
  * Tags to be used for intrusive data types
  */
 
-enum IntrusiveTags
-{
+enum IntrusiveTags {
   IA_List,
   IA_Hash,
   IA_Cursor,
@@ -52,17 +51,33 @@ enum IntrusiveTags
   IA_Scan
 };
 
-template<IntrusiveTags tag> struct IntrusiveAccess;
+template <IntrusiveTags tag>
+struct IntrusiveAccess;
 
-#define INTRUSIVE_ACCESS(tag) \
-template<> struct IntrusiveAccess<IA_##tag> \
-{ \
-template<typename T> static Uint32& getNext(T& r) { return r.next##tag; } \
-template<typename T> static Uint32& getPrev(T& r) { return r.prev##tag; } \
-template<typename T> static Uint32& getFirst(T& r) { return r.first##tag; } \
-template<typename T> static Uint32& getLast(T& r) { return r.last##tag; } \
-template<typename T> static Uint32& getCount(T& r) { return r.count##tag; } \
-}
+#define INTRUSIVE_ACCESS(tag)        \
+  template <>                        \
+  struct IntrusiveAccess<IA_##tag> { \
+    template <typename T>            \
+    static Uint32 &getNext(T &r) {   \
+      return r.next##tag;            \
+    }                                \
+    template <typename T>            \
+    static Uint32 &getPrev(T &r) {   \
+      return r.prev##tag;            \
+    }                                \
+    template <typename T>            \
+    static Uint32 &getFirst(T &r) {  \
+      return r.first##tag;           \
+    }                                \
+    template <typename T>            \
+    static Uint32 &getLast(T &r) {   \
+      return r.last##tag;            \
+    }                                \
+    template <typename T>            \
+    static Uint32 &getCount(T &r) {  \
+      return r.count##tag;           \
+    }                                \
+  }
 
 INTRUSIVE_ACCESS(List);
 INTRUSIVE_ACCESS(Hash);
@@ -79,13 +94,22 @@ INTRUSIVE_ACCESS(Gcp);
 INTRUSIVE_ACCESS(GcpConnect);
 INTRUSIVE_ACCESS(Scan);
 
-template<> struct IntrusiveAccess<IA_Page8> \
-{ \
-template<typename T> static Uint32& getNext(T& r) { return r.word32[r.NEXT_PAGE]; }
-template<typename T> static Uint32& getPrev(T& r) { return r.word32[r.PREV_PAGE]; }
-template<typename T> static Uint32& getFirst(T& r); \
-template<typename T> static Uint32& getLast(T& r); \
-template<typename T> static Uint32& getCount(T& r); \
+template <>
+struct IntrusiveAccess<IA_Page8> {
+  template <typename T>
+  static Uint32 &getNext(T &r) {
+    return r.word32[r.NEXT_PAGE];
+  }
+  template <typename T>
+  static Uint32 &getPrev(T &r) {
+    return r.word32[r.PREV_PAGE];
+  }
+  template <typename T>
+  static Uint32 &getFirst(T &r);
+  template <typename T>
+  static Uint32 &getLast(T &r);
+  template <typename T>
+  static Uint32 &getCount(T &r);
 };
 #undef JAM_FILE_ID
 

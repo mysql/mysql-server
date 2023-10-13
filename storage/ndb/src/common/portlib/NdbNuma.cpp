@@ -41,27 +41,27 @@ static int NDB_TRACE_NUMA = 0;
  *   use existence of symbol "numa_all_nodes_ptr" to use v2 abi
  */
 struct bitmask;
-extern "C"
-{
-  typedef int (* fun0)(void);
-  typedef void (* fun1)(struct bitmask*);
-  typedef void (* fun2)(int);
-  typedef int (* fun3)(int node, unsigned long * bug, int buflen);
-  typedef bitmask * (* fun4)();
-  typedef void (* fun5)(struct bitmask*);
-  typedef bitmask * (* fun6)(struct bitmask*);
+extern "C" {
+typedef int (*fun0)(void);
+typedef void (*fun1)(struct bitmask *);
+typedef void (*fun2)(int);
+typedef int (*fun3)(int node, unsigned long *bug, int buflen);
+typedef bitmask *(*fun4)();
+typedef void (*fun5)(struct bitmask *);
+typedef bitmask *(*fun6)(struct bitmask *);
 };
 
-class NdbNuma
-{
-public:
-  NdbNuma() { handle = 0;}
-  ~NdbNuma() { if (handle) dlclose(handle); }
+class NdbNuma {
+ public:
+  NdbNuma() { handle = 0; }
+  ~NdbNuma() {
+    if (handle) dlclose(handle);
+  }
 
   int open();
   int build_cputonodemap();
 
-  void * handle;
+  void *handle;
   fun0 numa_available;
 
   fun0 numa_max_node;
@@ -73,17 +73,13 @@ public:
   fun5 numa_bitmask_free;
   fun6 numa_bitmask_setall;
 
-  struct bitmask * numa_all_nodes;
-  struct bitmask * numa_all_nodes_ptr;
+  struct bitmask *numa_all_nodes;
+  struct bitmask *numa_all_nodes_ptr;
 };
 
-static
-void*
-my_dlopen(const char * name)
-{
-  void * p = dlopen(name, RTLD_LAZY);
-  if (NDB_TRACE_NUMA)
-  {
+static void *my_dlopen(const char *name) {
+  void *p = dlopen(name, RTLD_LAZY);
+  if (NDB_TRACE_NUMA) {
     if (p == 0)
       printf("info: failed to load %s\n", name);
     else
@@ -92,48 +88,34 @@ my_dlopen(const char * name)
   return p;
 }
 
-static
-void*
-my_dlsym(void * handle, const char * name)
-{
-  void * p = dlsym(handle, name);
-  if (NDB_TRACE_NUMA)
-  {
-    if (p != 0)
-    {
+static void *my_dlsym(void *handle, const char *name) {
+  void *p = dlsym(handle, name);
+  if (NDB_TRACE_NUMA) {
+    if (p != 0) {
       printf("info: %s OK\n", name);
-    }
-    else
-    {
+    } else {
       printf("info: %s NOT FOUND\n", name);
     }
   }
   return p;
 }
 
-int
-NdbNuma::open()
-{
+int NdbNuma::open() {
   handle = my_dlopen("libnuma.so");
-  if (handle == 0)
-  {
+  if (handle == 0) {
     handle = my_dlopen("libnuma.so.1");
   }
-  if (handle == 0)
-  {
+  if (handle == 0) {
     return -1;
   }
 
   numa_available = (fun0)my_dlsym(handle, "numa_available");
-  if (numa_available == 0)
-  {
+  if (numa_available == 0) {
     goto fail;
   }
 
-  if ((* numa_available)() == -1)
-  {
-    if (NDB_TRACE_NUMA)
-    {
+  if ((*numa_available)() == -1) {
+    if (NDB_TRACE_NUMA) {
       printf("info: numa_available() returns -1 => no numa support\n");
     }
     goto fail;
@@ -143,12 +125,11 @@ NdbNuma::open()
   numa_set_interleave_mask = (fun1)my_dlsym(handle, "numa_set_interleave_mask");
   numa_set_strict = (fun2)my_dlsym(handle, "numa_set_strict");
   numa_node_to_cpus = (fun3)my_dlsym(handle, "numa_node_to_cpus");
-  numa_all_nodes = (struct bitmask*)my_dlsym(handle, "numa_all_nodes");
-  numa_all_nodes_ptr = (struct bitmask*)my_dlsym(handle, "numa_all_nodes_ptr");
+  numa_all_nodes = (struct bitmask *)my_dlsym(handle, "numa_all_nodes");
+  numa_all_nodes_ptr = (struct bitmask *)my_dlsym(handle, "numa_all_nodes_ptr");
   numa_allocate_nodemask = (fun4)my_dlsym(handle, "numa_allocate_nodemask");
   numa_bitmask_free = (fun5)my_dlsym(handle, "numa_bitmask_free");
   numa_bitmask_setall = (fun6)my_dlsym(handle, "numa_bitmask_setall");
-
 
   return 0;
 fail:
@@ -157,48 +138,36 @@ fail:
   return -1;
 }
 
-static
-bool
-bit_is_set(unsigned long * mask, int bit)
-{
+static bool bit_is_set(unsigned long *mask, int bit) {
   int n = bit / (8 * sizeof(unsigned long));
   int b = bit % (8 * sizeof(unsigned long));
   return (mask[n] & (1UL << b)) != 0;
 }
 
-int
-NdbNuma::build_cputonodemap()
-{
+int NdbNuma::build_cputonodemap() {
   int len = 512;
-  unsigned long * buf = (unsigned long*)malloc(len);
-  if (buf == 0)
-    return -1;
+  unsigned long *buf = (unsigned long *)malloc(len);
+  if (buf == 0) return -1;
 
-  int m = (* numa_max_node)();
-  for (int i = 0; i <= m; i++)
-  {
-retry:
-    int r = (* numa_node_to_cpus)(i, buf, len);
-    if (r == -1)
-    {
-      if (errno != ERANGE)
-        goto fail;
+  int m = (*numa_max_node)();
+  for (int i = 0; i <= m; i++) {
+  retry:
+    int r = (*numa_node_to_cpus)(i, buf, len);
+    if (r == -1) {
+      if (errno != ERANGE) goto fail;
 
       len = len + 512;
-      if (len > 4096)
-        goto fail;
+      if (len > 4096) goto fail;
 
-      void * p = realloc(buf, len);
-      if (p == 0)
-        goto fail;
+      void *p = realloc(buf, len);
+      if (p == 0) goto fail;
 
-      buf = (unsigned long*)p;
+      buf = (unsigned long *)p;
       goto retry;
     }
     printf("node %d cpu(s): ", i);
-    for (int j = 0; j<8*len;j++)
-      if (bit_is_set(buf, j))
-        printf("%d ", j);
+    for (int j = 0; j < 8 * len; j++)
+      if (bit_is_set(buf, j)) printf("%d ", j);
     printf("\n");
   }
   free(buf);
@@ -208,52 +177,35 @@ fail:
   return -1;
 }
 
-extern "C"
-int
-NdbNuma_setInterleaved()
-{
+extern "C" int NdbNuma_setInterleaved() {
   NdbNuma numa;
-  if (numa.open() == -1)
-    return -1;
+  if (numa.open() == -1) return -1;
 
-  if (numa.numa_set_interleave_mask == 0)
-    return -1;
+  if (numa.numa_set_interleave_mask == 0) return -1;
 
-  if (numa.numa_all_nodes_ptr != 0)
-  {
+  if (numa.numa_all_nodes_ptr != 0) {
     /**
      * libnuma v2
      */
-    if (numa.numa_allocate_nodemask != 0 &&
-        numa.numa_bitmask_setall != 0 &&
-        numa.numa_bitmask_free != 0)
-    {
-      struct bitmask * bm = (* numa.numa_allocate_nodemask)();
-      if (bm != 0)
-      {
-        (* numa.numa_bitmask_setall)(bm);
-        (* numa.numa_set_interleave_mask)(bm);
-        (* numa.numa_bitmask_free)(bm);
-      }
-      else
-      {
+    if (numa.numa_allocate_nodemask != 0 && numa.numa_bitmask_setall != 0 &&
+        numa.numa_bitmask_free != 0) {
+      struct bitmask *bm = (*numa.numa_allocate_nodemask)();
+      if (bm != 0) {
+        (*numa.numa_bitmask_setall)(bm);
+        (*numa.numa_set_interleave_mask)(bm);
+        (*numa.numa_bitmask_free)(bm);
+      } else {
         return -1;
       }
-    }
-    else
-    {
+    } else {
       return -1;
     }
-  }
-  else if (numa.numa_all_nodes != 0)
-  {
+  } else if (numa.numa_all_nodes != 0) {
     /**
      * libnuma v1
      */
-    (* numa.numa_set_interleave_mask)(numa.numa_all_nodes);
-  }
-  else
-  {
+    (*numa.numa_set_interleave_mask)(numa.numa_all_nodes);
+  } else {
     return -1;
   }
 
@@ -261,21 +213,15 @@ NdbNuma_setInterleaved()
 }
 
 #else
-extern "C"
-int
-NdbNuma_setInterleaved()
-{
-  return -1;
-}
+extern "C" int NdbNuma_setInterleaved() { return -1; }
 #endif
 
 #ifdef TEST_NDBNUMA
 #include <NdbTap.hpp>
 
-TAPTEST(SetInterleaved)
-{
+TAPTEST(SetInterleaved) {
   NDB_TRACE_NUMA = 1;
   NdbNuma_setInterleaved();
-  return 1; // OK
+  return 1;  // OK
 }
 #endif

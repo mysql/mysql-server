@@ -28,7 +28,7 @@
 #include <ndb_global.h>
 #include "thr_mutex.h"
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -52,7 +52,7 @@ typedef struct {
   char name[32];
 #endif
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  struct ndb_mutex_state * m_mutex_state;
+  struct ndb_mutex_state *m_mutex_state;
 #endif
 } NdbMutex;
 #endif
@@ -60,12 +60,12 @@ typedef struct {
 /**
  * Create a mutex
  *  - the allocated mutex should be released by calling
- *    NdbMutex_Destroy 
+ *    NdbMutex_Destroy
  *
  * returnvalue: pointer to the mutex structure
  */
-NdbMutex* NdbMutex_Create(void);
-NdbMutex* NdbMutex_CreateWithName(const char * name);
+NdbMutex *NdbMutex_Create(void);
+NdbMutex *NdbMutex_CreateWithName(const char *name);
 
 /**
  * Initialize a mutex created with file-storage or on the stack
@@ -74,8 +74,8 @@ NdbMutex* NdbMutex_CreateWithName(const char * name);
  * * returnvalue: 0 = succeeded, -1 = failed
  */
 int NdbMutex_Init_Shared(NdbMutex *p_mutex);
-int NdbMutex_Init(NdbMutex* p_mutex);
-int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
+int NdbMutex_Init(NdbMutex *p_mutex);
+int NdbMutex_InitWithName(NdbMutex *p_mutex, const char *name);
 
 /**
  * Destroy a mutex
@@ -83,8 +83,8 @@ int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
  * * p_mutex: pointer to the mutex structure
  * * returnvalue: 0 = succeeded, -1 = failed
  */
-int NdbMutex_Destroy(NdbMutex* p_mutex);
-int NdbMutex_Deinit(NdbMutex* p_mutex);
+int NdbMutex_Destroy(NdbMutex *p_mutex);
+int NdbMutex_Deinit(NdbMutex *p_mutex);
 
 /**
  * Lock a mutex
@@ -92,7 +92,7 @@ int NdbMutex_Deinit(NdbMutex* p_mutex);
  * * p_mutex: pointer to the mutex structure
  * * returnvalue: 0 = succeeded, -1 = failed
  */
-int NdbMutex_Lock(NdbMutex* p_mutex);
+int NdbMutex_Lock(NdbMutex *p_mutex);
 
 /**
  * Unlock a mutex
@@ -100,7 +100,7 @@ int NdbMutex_Lock(NdbMutex* p_mutex);
  * * p_mutex: pointer to the mutex structure
  * * returnvalue: 0 = succeeded, -1 = failed
  */
-int NdbMutex_Unlock(NdbMutex* p_mutex);
+int NdbMutex_Unlock(NdbMutex *p_mutex);
 
 /**
  * Try to lock a mutex
@@ -108,9 +108,9 @@ int NdbMutex_Unlock(NdbMutex* p_mutex);
  * * p_mutex: pointer to the mutex structure
  * * returnvalue: 0 = succeeded, -1 = failed
  */
-int NdbMutex_Trylock(NdbMutex* p_mutex);
+int NdbMutex_Trylock(NdbMutex *p_mutex);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 
@@ -118,36 +118,44 @@ int NdbMutex_Trylock(NdbMutex* p_mutex);
 class NdbLockable {
   friend class Guard;
   friend class Guard2;
-public:
+
+ public:
   NdbLockable() { m_mutex = NdbMutex_Create(); }
   ~NdbLockable() { NdbMutex_Destroy(m_mutex); }
-  
-  void lock() { NdbMutex_Lock(m_mutex); }
-  void unlock(){ NdbMutex_Unlock(m_mutex);}
-  bool tryLock(){ return NdbMutex_Trylock(m_mutex) == 0;}
-  
-  NdbMutex* getMutex() {return m_mutex;}
 
-protected:
-  NdbMutex * m_mutex;
+  void lock() { NdbMutex_Lock(m_mutex); }
+  void unlock() { NdbMutex_Unlock(m_mutex); }
+  bool tryLock() { return NdbMutex_Trylock(m_mutex) == 0; }
+
+  NdbMutex *getMutex() { return m_mutex; }
+
+ protected:
+  NdbMutex *m_mutex;
 };
 
 class Guard {
-public:
+ public:
   Guard(NdbMutex *mtx) : m_mtx(mtx) { NdbMutex_Lock(m_mtx); }
-  Guard(NdbLockable & l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }
+  Guard(NdbLockable &l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }
   ~Guard() { NdbMutex_Unlock(m_mtx); }
-private:
+
+ private:
   NdbMutex *m_mtx;
 };
 
-class Guard2
-{
-public:
-  Guard2(NdbMutex *mtx) : m_mtx(mtx) { if (m_mtx) NdbMutex_Lock(m_mtx);}
-  Guard2(NdbLockable & l) : m_mtx(l.m_mutex) { if(m_mtx)NdbMutex_Lock(m_mtx);}
-  ~Guard2() { if (m_mtx) NdbMutex_Unlock(m_mtx); }
-private:
+class Guard2 {
+ public:
+  Guard2(NdbMutex *mtx) : m_mtx(mtx) {
+    if (m_mtx) NdbMutex_Lock(m_mtx);
+  }
+  Guard2(NdbLockable &l) : m_mtx(l.m_mutex) {
+    if (m_mtx) NdbMutex_Lock(m_mtx);
+  }
+  ~Guard2() {
+    if (m_mtx) NdbMutex_Unlock(m_mtx);
+  }
+
+ private:
   NdbMutex *m_mtx;
 };
 

@@ -25,17 +25,10 @@
 
 #define JAM_FILE_ID 524
 
-DbqaccProxy::DbqaccProxy(Block_context& ctx) :
-  LocalProxy(DBQACC, ctx)
-{
-}
+DbqaccProxy::DbqaccProxy(Block_context &ctx) : LocalProxy(DBQACC, ctx) {}
 
-DbqaccProxy::~DbqaccProxy()
-{
-}
+DbqaccProxy::~DbqaccProxy() {}
 
-SimulatedBlock*
-DbqaccProxy::newWorker(Uint32 instanceNo)
-{
+SimulatedBlock *DbqaccProxy::newWorker(Uint32 instanceNo) {
   return new Dbqacc(m_ctx, instanceNo);
 }

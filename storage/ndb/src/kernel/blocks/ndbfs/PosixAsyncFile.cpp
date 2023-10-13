@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -33,13 +33,13 @@
 #include "PosixAsyncFile.hpp"
 #include "my_thread_local.h"
 
-#include <ErrorHandlingMacros.hpp>
-#include <kernel_types.h>
-#include <ndbd_malloc.hpp>
 #include <NdbThread.h>
-#include <signaldata/FsRef.hpp>
+#include <kernel_types.h>
+#include <ErrorHandlingMacros.hpp>
+#include <ndbd_malloc.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsRef.hpp>
 
 #include <NdbTick.h>
 
@@ -49,27 +49,19 @@
 
 #define JAM_FILE_ID 384
 
+PosixAsyncFile::PosixAsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 
-
-PosixAsyncFile::PosixAsyncFile(Ndbfs& fs) :
-  AsyncFile(fs)
-{
-}
-
-void PosixAsyncFile::removeReq(Request *request)
-{
+void PosixAsyncFile::removeReq(Request *request) {
   if (-1 == ::remove(theFileName.c_str())) {
     NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
 
-void
-PosixAsyncFile::rmrfReq(Request *request, const char * src, bool removePath)
-{
-  if(!request->par.rmrf.directory)
-  {
+void PosixAsyncFile::rmrfReq(Request *request, const char *src,
+                             bool removePath) {
+  if (!request->par.rmrf.directory) {
     // Remove file
-    if(unlink(src) != 0 && errno != ENOENT)
+    if (unlink(src) != 0 && errno != ENOENT)
       NDBFS_SET_REQUEST_ERROR(request, errno);
     return;
   }
@@ -78,56 +70,47 @@ PosixAsyncFile::rmrfReq(Request *request, const char * src, bool removePath)
   strcpy(path, src);
   strcat(path, "/");
 
-  DIR* dirp;
-  struct dirent * dp;
+  DIR *dirp;
+  struct dirent *dp;
 loop:
   dirp = opendir(path);
-  if(dirp == 0)
-  {
-    if(errno != ENOENT)
-      NDBFS_SET_REQUEST_ERROR(request, errno);
+  if (dirp == 0) {
+    if (errno != ENOENT) NDBFS_SET_REQUEST_ERROR(request, errno);
     return;
   }
 
-  while ((dp = readdir(dirp)) != NULL)
-  {
-    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) 
-    {
+  while ((dp = readdir(dirp)) != NULL) {
+    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
       int len = strlen(path);
       strcat(path, dp->d_name);
-      if (remove(path) == 0)
-      {
+      if (remove(path) == 0) {
         path[len] = 0;
         continue;
       }
-      
+
       closedir(dirp);
       strcat(path, "/");
       goto loop;
     }
   }
   closedir(dirp);
-  path[strlen(path)-1] = 0; // remove /
-  if (strcmp(src, path) != 0)
-  {
-    char * t = strrchr(path, '/');
+  path[strlen(path) - 1] = 0;  // remove /
+  if (strcmp(src, path) != 0) {
+    char *t = strrchr(path, '/');
     t[1] = 0;
     goto loop;
   }
 
-  if(removePath && rmdir(src) != 0)
-  {
+  if (removePath && rmdir(src) != 0) {
     NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
 
-void PosixAsyncFile::createDirectories()
-{
-  char* tmp;
-  const char * name = theFileName.c_str();
-  const char * base = theFileName.get_base_name();
-  while((tmp = (char *)strstr(base, DIR_SEPARATOR)))
-  {
+void PosixAsyncFile::createDirectories() {
+  char *tmp;
+  const char *name = theFileName.c_str();
+  const char *base = theFileName.get_base_name();
+  while ((tmp = (char *)strstr(base, DIR_SEPARATOR))) {
     char t = tmp[0];
     tmp[0] = 0;
     mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);

@@ -30,30 +30,30 @@
 
 #define JAM_FILE_ID 48
 
-
 /**
- * 
+ *
  */
 class MasterLCPConf {
   /**
    * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-    
-  friend bool printMASTER_LCP_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
-public:
+
+  friend bool printMASTER_LCP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 3;
 
   enum State {
-    LCP_STATUS_IDLE        = 0,
-    LCP_STATUS_ACTIVE      = 2,
-    LCP_TAB_COMPLETED      = 8,
-    LCP_TAB_SAVED          = 9
+    LCP_STATUS_IDLE = 0,
+    LCP_STATUS_ACTIVE = 2,
+    LCP_TAB_COMPLETED = 8,
+    LCP_TAB_SAVED = 9
   };
 
-  friend NdbOut& operator<<(NdbOut&, const State&);
-  
-private:  
+  friend NdbOut &operator<<(NdbOut &, const State &);
+
+ private:
   /**
    * Data replied
    */
@@ -62,7 +62,7 @@ private:
   Uint32 failedNodeId;
 };
 /**
- * 
+ *
  */
 class MasterLCPReq {
   /**
@@ -70,10 +70,12 @@ class MasterLCPReq {
    */
   friend class Dbdih;
 
-  friend bool printMASTER_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);   
-public:
+  friend bool printMASTER_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:
+
+ private:
   Uint32 masterRef;
   Uint32 failedNodeId;
 };
@@ -84,10 +86,12 @@ class MasterLCPRef {
    */
   friend class Dbdih;
 
-  friend bool printMASTER_LCP_REF(FILE *, const Uint32 *, Uint32, Uint16);   
-public:
+  friend bool printMASTER_LCP_REF(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
   static constexpr Uint32 SignalLength = 2;
-private:  
+
+ private:
   /**
    * Data replied
    */

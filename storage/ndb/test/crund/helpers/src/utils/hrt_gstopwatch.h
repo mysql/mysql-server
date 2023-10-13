@@ -39,7 +39,7 @@ extern "C" {
  * High-Resolution Time Global Stopwatch Utility
  */
 
-//extern hrt_stopwatch gsw;
+// extern hrt_stopwatch gsw;
 
 /**
  * Initializes the global stopwatch with a given storage capacity for timemarks.
@@ -62,7 +62,8 @@ extern int hrt_gsw_top(void);
 extern int hrt_gsw_capacity(void);
 
 /**
- * Marks the time and stores that mark in the global stopwatch returning the index.
+ * Marks the time and stores that mark in the global stopwatch returning the
+ * index.
  */
 extern int hrt_gsw_pushmark(void);
 

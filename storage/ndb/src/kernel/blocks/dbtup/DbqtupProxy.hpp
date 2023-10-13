@@ -27,15 +27,14 @@
 
 #define JAM_FILE_ID 527
 
-class DbqtupProxy : public LocalProxy
-{
-public:
-  DbqtupProxy(Block_context& ctx);
+class DbqtupProxy : public LocalProxy {
+ public:
+  DbqtupProxy(Block_context &ctx);
   ~DbqtupProxy() override;
   BLOCK_DEFINES(DbqtupProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
 
 #undef JAM_FILE_ID

@@ -23,12 +23,11 @@
 #ifndef DBLQH_COMMON_H
 #define DBLQH_COMMON_H
 
-#include <pc.hpp>
 #include <ndb_types.h>
 #include <Bitmask.hpp>
+#include <pc.hpp>
 
 #define JAM_FILE_ID 443
-
 
 /*
  * Log part id is from DBDIH.  Number of log parts is configurable with a
@@ -51,12 +50,11 @@ struct NdbLogPartInfo {
   Uint32 lqhWorkers;
   Uint32 partCount;
   Uint16 partNo[NDB_MAX_LOG_PARTS];
-  Bitmask<(NDB_MAX_LOG_PARTS+31)/32> partMask;
+  Bitmask<(NDB_MAX_LOG_PARTS + 31) / 32> partMask;
   Uint32 partNoFromId(Uint32 lpid) const;
   bool partNoOwner(Uint32 lpno) const;
   Uint32 partNoIndex(Uint32 lpno) const;
 };
-
 
 #undef JAM_FILE_ID
 

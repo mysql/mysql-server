@@ -37,8 +37,7 @@
 struct MYSQL;
 
 class SqlResultSet : public Properties {
-public:
-
+ public:
   // Get row with number
   bool get_row(int row_num);
   // Load next row
@@ -53,32 +52,29 @@ public:
   SqlResultSet();
   ~SqlResultSet();
 
-  const char* column(const char* col_name);
-  std::string_view columnAsString(const char* col_name);
-  uint columnAsInt(const char* col_name);
-  unsigned long long columnAsLong(const char* col_name);
+  const char *column(const char *col_name);
+  std::string_view columnAsString(const char *col_name);
+  uint columnAsInt(const char *col_name);
+  unsigned long long columnAsLong(const char *col_name);
 
   unsigned long long insertId();
   unsigned long long affectedRows();
   uint numRows();
   uint mysqlErrno();
-  const char* mysqlError();
-  const char* mysqlSqlstate();
+  const char *mysqlError();
+  const char *mysqlSqlstate();
 
-private:
-  uint get_int(const char* name);
-  unsigned long long get_long(const char* name);
-  const char* get_string(const char* name);
+ private:
+  uint get_int(const char *name);
+  unsigned long long get_long(const char *name);
+  const char *get_string(const char *name);
 
-  const Properties* m_curr_row;
+  const Properties *m_curr_row;
   uint m_curr_row_num;
 };
 
-
-class SqlClient
-{
-public:
-
+class SqlClient {
+ public:
   /*
    The SqlClient class can be used in two modes.
     1) The class owns its MySQL object which it will create,
@@ -88,24 +84,23 @@ public:
        created and is connected. The class will not release the MySQL
        object (since it's not owned by the class).
    */
-  SqlClient(MYSQL* mysql);
-  SqlClient(const char* dbname = "mysql",
-         const char* suffix = NULL);
+  SqlClient(MYSQL *mysql);
+  SqlClient(const char *dbname = "mysql", const char *suffix = NULL);
   ~SqlClient();
 
-  bool doQuery(const char* query);
-  bool doQuery(const char* query, SqlResultSet& result);
-  bool doQuery(const char* query, const Properties& args, SqlResultSet& result);
-  bool doQuery(const char* query, const Properties& args);
+  bool doQuery(const char *query);
+  bool doQuery(const char *query, SqlResultSet &result);
+  bool doQuery(const char *query, const Properties &args, SqlResultSet &result);
+  bool doQuery(const char *query, const Properties &args);
 
-  bool doQuery(BaseString& str);
-  bool doQuery(BaseString& str, SqlResultSet& result);
-  bool doQuery(BaseString& str, const Properties& args, SqlResultSet& result);
-  bool doQuery(BaseString& str, const Properties& args);
+  bool doQuery(BaseString &str);
+  bool doQuery(BaseString &str, SqlResultSet &result);
+  bool doQuery(BaseString &str, const Properties &args, SqlResultSet &result);
+  bool doQuery(BaseString &str, const Properties &args);
 
   bool waitConnected(int timeout = 120);
 
-  unsigned long long selectCountTable(const char * table);
+  unsigned long long selectCountTable(const char *table);
 
   /*
      Usage of SqlClient initializes the MySQL library and allocates resources in
@@ -119,7 +114,7 @@ public:
     ~ThreadScopeGuard() { thread_end(); }
   };
 
-protected:
+ protected:
   /**
     Run query using prepared statement interface, this allow the query to
     contain placeholders (i.e '?') which are replaced by arguments in "arg".
@@ -146,9 +141,9 @@ protected:
 
   bool isConnected();
 
-private:
-  MYSQL * m_mysql{nullptr};
-  const bool m_owns_mysql{true}; // The MYSQL object is owned by this class
+ private:
+  MYSQL *m_mysql{nullptr};
+  const bool m_owns_mysql{true};  // The MYSQL object is owned by this class
 
   const BaseString m_user;    // MySQL User
   const BaseString m_pass;    // MySQL User Password
@@ -159,8 +154,7 @@ private:
   bool connect();
   void disconnect();
 
-  void report_error(const char* message) const;
+  void report_error(const char *message) const;
   void printError(const char *msg) const;
 };
 #endif
-

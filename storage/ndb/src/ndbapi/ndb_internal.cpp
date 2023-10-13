@@ -22,34 +22,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "API.hpp"
 #include "ndb_internal.hpp"
+#include "API.hpp"
 
-int
-Ndb_internal::send_event_report(bool is_poll_owner,
-                                Ndb *ndb,
-                                Uint32 *data,
-                                Uint32 length)
-{
+int Ndb_internal::send_event_report(bool is_poll_owner, Ndb *ndb, Uint32 *data,
+                                    Uint32 length) {
   return ndb->theImpl->send_event_report(is_poll_owner, data, length);
 }
 
-void
-Ndb_internal::setForceShortRequests(Ndb* ndb, bool val)
-{
+void Ndb_internal::setForceShortRequests(Ndb *ndb, bool val) {
   ndb->theImpl->forceShortRequests = val;
 }
 
-void
-Ndb_internal::set_TC_COMMIT_ACK_immediate(Ndb *ndb, bool flag)
-{
+void Ndb_internal::set_TC_COMMIT_ACK_immediate(Ndb *ndb, bool flag) {
   ndb->theImpl->set_TC_COMMIT_ACK_immediate(flag);
 }
 
-int
-Ndb_internal::send_dump_state_all(Ndb *ndb,
-                                  Uint32 *dumpStateCodeArray,
-                                  Uint32 len)
-{
+int Ndb_internal::send_dump_state_all(Ndb *ndb, Uint32 *dumpStateCodeArray,
+                                      Uint32 len) {
   return ndb->theImpl->send_dump_state_all(dumpStateCodeArray, len);
 }

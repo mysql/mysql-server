@@ -28,44 +28,41 @@
 #include <NdbApi.hpp>
 
 class NDBT_ResultRow {
-public:
-  NDBT_ResultRow(const NdbDictionary::Table &tab, char attrib_delimiter='\t');
+ public:
+  NDBT_ResultRow(const NdbDictionary::Table &tab, char attrib_delimiter = '\t');
   ~NDBT_ResultRow();
-  NdbRecAttr * & attributeStore(int i);
-  const NdbRecAttr * attributeStore(int i) const ;
-  const NdbRecAttr * attributeStore(const char* name) const ;
-  
-  BaseString c_str() const ;
+  NdbRecAttr *&attributeStore(int i);
+  const NdbRecAttr *attributeStore(int i) const;
+  const NdbRecAttr *attributeStore(const char *name) const;
 
-  NdbOut & header (NdbOut &) const;
-  friend NdbOut & operator << (NdbOut&, const NDBT_ResultRow &);
-  
+  BaseString c_str() const;
+
+  NdbOut &header(NdbOut &) const;
+  friend NdbOut &operator<<(NdbOut &, const NDBT_ResultRow &);
+
   /**
-   * Make copy of NDBT_ResultRow 
+   * Make copy of NDBT_ResultRow
    */
-  NDBT_ResultRow * clone() const;
+  NDBT_ResultRow *clone() const;
 
-  bool operator==(const NDBT_ResultRow&) const ;
-  bool operator!=(const NDBT_ResultRow& other) const { 
-    return ! (*this == other);
+  bool operator==(const NDBT_ResultRow &) const;
+  bool operator!=(const NDBT_ResultRow &other) const {
+    return !(*this == other);
   }
 
-  const NdbDictionary::Table& getTable() const { return m_table;}
-  
-private:
+  const NdbDictionary::Table &getTable() const { return m_table; }
+
+ private:
   int cols;
   char **names;
   NdbRecAttr **data;
   char ad[2];
 
   bool m_ownData;
-  const NdbDictionary::Table & m_table;
-  
+  const NdbDictionary::Table &m_table;
+
   NDBT_ResultRow(const NDBT_ResultRow &);
-  NDBT_ResultRow& operator=(const NDBT_ResultRow &);
+  NDBT_ResultRow &operator=(const NDBT_ResultRow &);
 };
-
-
-
 
 #endif

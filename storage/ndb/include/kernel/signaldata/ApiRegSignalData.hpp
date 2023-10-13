@@ -29,82 +29,78 @@
 
 #define JAM_FILE_ID 77
 
-
 class ApiRegReq {
   /**
    * Sender(s)
    */
   friend class ClusterMgr;
-  
+
   /**
    * Reciver(s)
    */
   friend class Qmgr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 3;
 
-private:
+ private:
   Uint32 ref;
-  Uint32 version; // Version of API node
+  Uint32 version;  // Version of API node
   Uint32 mysql_version;
 };
 
 /**
- * 
+ *
  */
 class ApiRegRef {
   /**
    * Sender(s)
    */
   friend class Qmgr;
-  
+
   /**
    * Reciver(s)
    */
   friend class ClusterMgr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 4;
-  
-  enum ErrorCode {
-    WrongType = 1,
-    UnsupportedVersion = 2
-  };
-private:
-  Uint32 ref; // Qmgr ref
-  Uint32 version; // Version of NDB node
+
+  enum ErrorCode { WrongType = 1, UnsupportedVersion = 2 };
+
+ private:
+  Uint32 ref;      // Qmgr ref
+  Uint32 version;  // Version of NDB node
   Uint32 errorCode;
   Uint32 mysql_version;
 };
 
 /**
- * 
+ *
  */
 class ApiRegConf {
   /**
    * Sender(s)
    */
   friend class Qmgr;
-  
+
   /**
    * Reciver(s)
    */
   friend class ClusterMgr;
 
-public:
+ public:
   static constexpr Uint32 SignalLength = 6 + NodeState::DataLength;
-private:
-  
+
+ private:
   Uint32 qmgrRef;
-  Uint32 version; // Version of NDB node
+  Uint32 version;  // Version of NDB node
   Uint32 apiHeartbeatFrequency;
   Uint32 mysql_version;
   Uint32 minDbVersion;
   NodeStatePOD nodeState;
   Uint32 minApiVersion;
 };
-
 
 #undef JAM_FILE_ID
 

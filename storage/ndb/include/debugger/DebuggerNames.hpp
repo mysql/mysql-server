@@ -36,19 +36,18 @@
  *
  * RETURNS: Signal name or 0 if none found
  */
-const char * 
-getSignalName(GlobalSignalNumber gsn, const char * defualtValue = "Unknown");
+const char *getSignalName(GlobalSignalNumber gsn,
+                          const char *defualtValue = "Unknown");
 
 /**
  * getBlockName
  *
  * NOTES: Very quick
  *
- * RETURNS: Block name or 
+ * RETURNS: Block name or
  *          defValue if not a valid block number
  */
-const char * 
-getBlockName(BlockNumber blockNo, const char * defValue = nullptr);
+const char *getBlockName(BlockNumber blockNo, const char *defValue = nullptr);
 
 /**
  * getBlockNo
@@ -57,8 +56,7 @@ getBlockName(BlockNumber blockNo, const char * defValue = nullptr);
  *
  * RETURNS: BlockNo or 0 if none found
  */
-BlockNumber
-getBlockNo(const char * blockName);
+BlockNumber getBlockNo(const char *blockName);
 
 /**
  * Find a print function for a signal

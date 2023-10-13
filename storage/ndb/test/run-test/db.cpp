@@ -22,16 +22,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
-#include <cstring>
 #include <NdbSleep.h>
+#include <cstring>
 #include "atrt.hpp"
+#include "util/require.h"
 
-static bool populate_db(atrt_config&, atrt_process*);
-static bool setup_repl(atrt_config&);
+static bool populate_db(atrt_config &, atrt_process *);
+static bool setup_repl(atrt_config &);
 
-static bool run_query(atrt_process* proc, const char* query) {
-  MYSQL* mysql = &proc->m_mysql;
+static bool run_query(atrt_process *proc, const char *query) {
+  MYSQL *mysql = &proc->m_mysql;
   g_logger.debug("'%s@%s' - Running query '%s'",
                  proc->m_cluster->m_name.c_str(),
                  proc->m_host->m_hostname.c_str(), query);
@@ -46,7 +46,7 @@ static bool run_query(atrt_process* proc, const char* query) {
   return true;
 }
 
-static const char* create_sql[] = {
+static const char *create_sql[] = {
     "create database atrt",
 
     "use atrt",
@@ -99,13 +99,13 @@ static const char* create_sql[] = {
 
     0};
 
-bool setup_db(atrt_config& config) {
+bool setup_db(atrt_config &config) {
   /**
    * Install atrt db
    */
-  atrt_process* atrt_client = 0;
+  atrt_process *atrt_client = 0;
   {
-    atrt_cluster* cluster = 0;
+    atrt_cluster *cluster = 0;
     for (unsigned i = 0; i < config.m_clusters.size(); i++) {
       if (strcmp(config.m_clusters[i]->m_name.c_str(), ".atrt") == 0) {
         cluster = config.m_clusters[i];
@@ -121,24 +121,24 @@ bool setup_db(atrt_config& config) {
     }
   }
 
-    /**
-     * connect to all mysqld's
-     */
+  /**
+   * connect to all mysqld's
+   */
 #ifndef _WIN32
   for (size_t i = 0; i < config.m_processes.size(); i++) {
-    atrt_process* proc = config.m_processes[i];
+    atrt_process *proc = config.m_processes[i];
     if (proc->m_type == atrt_process::AP_MYSQLD) {
       if (!connect_mysqld(*config.m_processes[i])) return false;
     }
   }
 
   if (atrt_client) {
-    atrt_process* atrt_mysqld = atrt_client->m_mysqld;
+    atrt_process *atrt_mysqld = atrt_client->m_mysqld;
     require(atrt_mysqld);
 
     // Run the commands to create the db
     for (int i = 0; create_sql[i]; i++) {
-      const char* query = create_sql[i];
+      const char *query = create_sql[i];
       if (!run_query(atrt_mysqld, query)) return false;
     }
 
@@ -154,22 +154,22 @@ bool setup_db(atrt_config& config) {
   return true;
 }
 
-static const char* find(atrt_process* proc, const char* key) {
-  const char* res = 0;
+static const char *find(atrt_process *proc, const char *key) {
+  const char *res = 0;
   if (proc->m_options.m_loaded.get(key, &res)) return res;
 
   proc->m_options.m_generated.get(key, &res);
   return res;
 }
 
-bool connect_mysqld(atrt_process& proc) {
+bool connect_mysqld(atrt_process &proc) {
   if (!mysql_init(&proc.m_mysql)) {
     g_logger.error("Failed to init mysql");
     return false;
   }
 
-  const char* port = find(&proc, "--port=");
-  const char* socket = find(&proc, "--socket=");
+  const char *port = find(&proc, "--port=");
+  const char *socket = find(&proc, "--socket=");
   if (port == 0 && socket == 0) {
     g_logger.error("Neither socket nor port specified...cant connect to mysql");
     return false;
@@ -192,50 +192,52 @@ bool connect_mysqld(atrt_process& proc) {
     NdbSleep_SecSleep(3);
   }
 
-  g_logger.error("Giving up attempt to connect to Host: %s; Port: %u;"
-                 "Socket: %s after %d retries", proc.m_host->m_hostname.c_str(),
-                 port ? atoi(port) : 0, socket ? socket : "<null>",retries);
+  g_logger.error(
+      "Giving up attempt to connect to Host: %s; Port: %u;"
+      "Socket: %s after %d retries",
+      proc.m_host->m_hostname.c_str(), port ? atoi(port) : 0,
+      socket ? socket : "<null>", retries);
   return false;
 }
 
-bool disconnect_mysqld(atrt_process& proc) {
+bool disconnect_mysqld(atrt_process &proc) {
   mysql_close(&proc.m_mysql);
   return true;
 }
 
-void BINDI(MYSQL_BIND& bind, int* i) {
+void BINDI(MYSQL_BIND &bind, int *i) {
   bind.buffer_type = MYSQL_TYPE_LONG;
-  bind.buffer = (char*)i;
+  bind.buffer = (char *)i;
   bind.is_unsigned = 0;
   bind.is_null = 0;
 }
 
-void BINDS(MYSQL_BIND& bind, const char* s, unsigned long* len) {
+void BINDS(MYSQL_BIND &bind, const char *s, unsigned long *len) {
   bind.buffer_type = MYSQL_TYPE_STRING;
-  bind.buffer = (char*)s;
+  bind.buffer = (char *)s;
   bind.buffer_length = *len = (unsigned long)strlen(s);
   bind.length = len;
   bind.is_null = 0;
 }
 
 template <typename T>
-int find(T* obj, Vector<T*>& arr) {
+int find(T *obj, Vector<T *> &arr) {
   for (unsigned i = 0; i < arr.size(); i++)
     if (arr[i] == obj) return (int)i;
   abort();
   return -1;
 }
 
-static bool populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
-                             int process_id, Properties* p) {
+static bool populate_options(MYSQL *mysql, MYSQL_STMT *stmt, int *option_id,
+                             int process_id, Properties *p) {
   int kk = *option_id;
   Properties::Iterator it(p);
-  const char* name = it.first();
+  const char *name = it.first();
   for (; name; name = it.next()) {
     int optid = kk;
     int proc_id = process_id;
     unsigned long l0, l1;
-    const char* value;
+    const char *value;
     p->get(name, &value);
     MYSQL_BIND bind2[4];
     std::memset(bind2, 0, sizeof(bind2));
@@ -259,10 +261,10 @@ static bool populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
   return true;
 }
 
-static bool populate_db(atrt_config& config, atrt_process* mysqld) {
+static bool populate_db(atrt_config &config, atrt_process *mysqld) {
   {
-    const char* sql = "INSERT INTO host (id, name, port) values (?, ?, ?)";
-    MYSQL_STMT* stmt = mysql_stmt_init(&mysqld->m_mysql);
+    const char *sql = "INSERT INTO host (id, name, port) values (?, ?, ?)";
+    MYSQL_STMT *stmt = mysql_stmt_init(&mysqld->m_mysql);
     if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql))) {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
@@ -292,8 +294,8 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
   }
 
   {
-    const char* sql = "INSERT INTO cluster (id, name) values (?, ?)";
-    MYSQL_STMT* stmt = mysql_stmt_init(&mysqld->m_mysql);
+    const char *sql = "INSERT INTO cluster (id, name) values (?, ?)";
+    MYSQL_STMT *stmt = mysql_stmt_init(&mysqld->m_mysql);
     if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql))) {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
@@ -322,21 +324,21 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
   }
 
   {
-    const char* sql =
+    const char *sql =
         "INSERT INTO process "
         "(id, host_id, cluster_id, type, name, state, node_id) "
         "values (?,?,?,?,?,?,?)";
 
-    const char* sqlopt =
+    const char *sqlopt =
         "INSERT INTO options (id, process_id, name, value) values (?,?,?,?)";
 
-    MYSQL_STMT* stmt = mysql_stmt_init(&mysqld->m_mysql);
+    MYSQL_STMT *stmt = mysql_stmt_init(&mysqld->m_mysql);
     if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql))) {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
     }
 
-    MYSQL_STMT* stmtopt = mysql_stmt_init(&mysqld->m_mysql);
+    MYSQL_STMT *stmtopt = mysql_stmt_init(&mysqld->m_mysql);
     if (mysql_stmt_prepare(stmtopt, sqlopt, (unsigned long)strlen(sqlopt))) {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
@@ -348,14 +350,14 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       MYSQL_BIND bind[7];
       std::memset(bind, 0, sizeof(bind));
       int id = (int)i;
-      atrt_process* proc = config.m_processes[i];
+      atrt_process *proc = config.m_processes[i];
       int host_id = find(proc->m_host, config.m_hosts);
       int cluster_id = find(proc->m_cluster, config.m_clusters);
       int node_id = proc->m_nodeid;
 
-      const char* type = 0;
-      const char* name = proc->m_name.c_str();
-      const char* state = "started";
+      const char *type = 0;
+      const char *name = proc->m_name.c_str();
+      const char *state = "started";
       switch (proc->m_type) {
         case atrt_process::AP_NDBD:
           type = "ndbd";
@@ -415,7 +417,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
   return true;
 }
 
-static bool setup_repl(atrt_process* dst, atrt_process* src) {
+static bool setup_repl(atrt_process *dst, atrt_process *src) {
   if (!run_query(src, "STOP SLAVE")) {
     g_logger.error("Failed to stop slave: %s", mysql_error(&src->m_mysql));
     return false;
@@ -454,9 +456,9 @@ static bool setup_repl(atrt_process* dst, atrt_process* src) {
   return true;
 }
 
-bool setup_repl(atrt_config& config) {
+bool setup_repl(atrt_config &config) {
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process* dst = config.m_processes[i];
+    atrt_process *dst = config.m_processes[i];
     if (dst->m_rep_src) {
       if (setup_repl(dst->m_rep_src, dst) != true) return false;
     }
@@ -464,5 +466,5 @@ bool setup_repl(atrt_config& config) {
   return true;
 }
 
-template int find(atrt_host* obj, Vector<atrt_host*>& arr);
-template int find(atrt_cluster* obj, Vector<atrt_cluster*>& arr);
+template int find(atrt_host *obj, Vector<atrt_host *> &arr);
+template int find(atrt_cluster *obj, Vector<atrt_cluster *> &arr);

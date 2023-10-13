@@ -89,7 +89,7 @@
  * PAGE REPLACEMENT
  *
  * Page replacement uses the LIRS algorithm (Jiang-Zhang).
- * 
+ *
  * The "recency" of a page is the time between now and the last request
  * for the page.  The "inter-reference recency" (IRR) of a page is the
  * time between the last 2 requests for the page.  "Time" is advanced by
@@ -245,7 +245,7 @@
  * "locked" forever in PGMAN cache.
  *
  * CLIENT DBTUP
- * 
+ *
  * DBTUP works with copy pages (or UNDO buffers) in memory.  The real
  * page is updated only between page request with COMMIT_REQ flag and
  * a subsequent LSN update.  These need not occur in same timeslice
@@ -256,10 +256,9 @@
  * a busy page can be started by clean-up or LCP.
  */
 
-class Pgman : public SimulatedBlock
-{
-public:
-  Pgman(Block_context& ctx, Uint32 instanceNumber = 0);
+class Pgman : public SimulatedBlock {
+ public:
+  Pgman(Block_context &ctx, Uint32 instanceNumber = 0);
   ~Pgman() override;
 
   /* Special function to indicate the block is the extra PGMAN worker */
@@ -267,17 +266,16 @@ public:
 
   BLOCK_DEFINES(Pgman);
 
-private:
+ private:
   friend class Tsman;
   friend class Page_cache_client;
   friend class PgmanProxy;
 
-  struct Page_entry; // CC
+  struct Page_entry;  // CC
   friend struct Page_entry;
 
-  struct File_entry
-  {
-    File_entry(){}
+  struct File_entry {
+    File_entry() {}
 
     Uint32 m_magic;
     Uint32 m_fd;
@@ -285,30 +283,42 @@ private:
     Uint32 m_file_no;
     Uint32 nextPool;
   };
-  typedef RecordPool<RWPool<File_entry> > File_entry_pool;
+  typedef RecordPool<RWPool<File_entry>> File_entry_pool;
   File_entry_pool m_file_entry_pool;
 
   struct Page_request {
     enum Flags {
-      OP_MASK       = 0x000F // 4 bits for TUP operation
-      ,UNDO_GET_REQ = 0x0010 // Get page to get table id and fragment id
-      ,LOCK_PAGE    = 0x0020 // lock page in memory
-      ,EMPTY_PAGE   = 0x0040 // empty (new) page
-      ,ALLOC_REQ    = 0x0080 // part of alloc
-      ,COMMIT_REQ   = 0x0100 // part of commit
-      ,DIRTY_REQ    = 0x0200 // make page dirty wo/ update_lsn
-      ,UNLOCK_PAGE  = 0x0400
-      ,CORR_REQ     = 0x0800 // correlated request (no LIRS update)
+      OP_MASK = 0x000F  // 4 bits for TUP operation
+      ,
+      UNDO_GET_REQ = 0x0010  // Get page to get table id and fragment id
+      ,
+      LOCK_PAGE = 0x0020  // lock page in memory
+      ,
+      EMPTY_PAGE = 0x0040  // empty (new) page
+      ,
+      ALLOC_REQ = 0x0080  // part of alloc
+      ,
+      COMMIT_REQ = 0x0100  // part of commit
+      ,
+      DIRTY_REQ = 0x0200  // make page dirty wo/ update_lsn
+      ,
+      UNLOCK_PAGE = 0x0400,
+      CORR_REQ = 0x0800  // correlated request (no LIRS update)
 #ifdef ERROR_INSERT
-      ,DELAY_REQ    = 0x1000 // Force request to be delayed
+      ,
+      DELAY_REQ = 0x1000  // Force request to be delayed
 #endif
-      ,UNDO_REQ     = 0x2000 // Request from UNDO processing
-      ,DISK_SCAN    = 0x4000 // Request from Disk scan
-      ,ABORT_REQ    = 0x8000 // Part of ABORT will not update LSN
-      ,COPY_FRAG    = 0x10000// Request part of BACKUP/COPY_FRAG processing
+      ,
+      UNDO_REQ = 0x2000  // Request from UNDO processing
+      ,
+      DISK_SCAN = 0x4000  // Request from Disk scan
+      ,
+      ABORT_REQ = 0x8000  // Part of ABORT will not update LSN
+      ,
+      COPY_FRAG = 0x10000  // Request part of BACKUP/COPY_FRAG processing
     };
-    
-    Uint32 m_block; // includes instance
+
+    Uint32 m_block;  // includes instance
     Uint32 m_flags;
     SimulatedBlock::Callback m_callback;
 
@@ -320,12 +330,12 @@ private:
     NDB_TICKS m_start_time;
   };
 
-  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
+  typedef RecordPool<WOPool<Page_request>> Page_request_pool;
   typedef SLFifoList<Page_request_pool> Page_request_list;
   typedef LocalSLFifoList<Page_request_pool> Local_page_request_list;
-  
+
   typedef Uint32 Page_state;
-  
+
   enum DirtyState {
     IN_FIRST_FRAG_DIRTY_LIST = 0,
     IN_SECOND_FRAG_DIRTY_LIST = 1,
@@ -333,56 +343,69 @@ private:
     IN_NO_DIRTY_LIST = 3
   };
 
-  struct Page_entry
-  {
+  struct Page_entry {
     Page_entry() {}
-    Page_entry(Uint32 file_no,
-               Uint32 page_no,
-               Uint32 tableId,
+    Page_entry(Uint32 file_no, Uint32 page_no, Uint32 tableId,
                Uint32 fragmentId);
 
     enum State {
-      NO_STATE = 0x0000
-      ,REQUEST = 0x0001 // has outstanding request
-      ,EMPTY   = 0x0002 // empty (never written) page
-      ,BOUND   = 0x0004 // m_real_page_ptr assigned
-      ,MAPPED  = 0x0008 // bound, and empty or paged in
-      ,DIRTY   = 0x0010 // page is modified
-      ,USED    = 0x0020 // used by some tx (not set currently)
-      ,BUSY    = 0x0040 // page is being written to
-      ,LOCKED  = 0x0080 // locked in cache (forever)
-      ,PAGEIN  = 0x0100 // paging in
-      ,PAGEOUT = 0x0200 // paging out
-      ,LOGSYNC = 0x0400 // undo WAL as part of pageout
-      ,LCP     = 0x1000 // page is LCP flushed
-      ,HOT     = 0x2000 // page is hot
-      ,ONSTACK = 0x4000 // page is on LIRS stack
-      ,ONQUEUE = 0x8000 // page is on LIRS queue
-      ,WAIT_LCP= 0x10000 //BUSY page holding up LCP
-      ,PREP_LCP= 0x20000 //Page is flushed as part of prepare LCP
-    };
-    
-    enum Sublist {
-      SL_BIND = 0
-      ,SL_MAP = 1
-      ,SL_MAP_IO = 2
-      ,SL_CALLBACK = 3
-      ,SL_CALLBACK_IO = 4
-      ,SL_BUSY = 5
-      ,SL_LOCKED = 6
-      ,SL_IDLE = 7
-      ,SL_OTHER = 8
-      ,SUBLIST_COUNT = 9
+      NO_STATE = 0x0000,
+      REQUEST = 0x0001  // has outstanding request
+      ,
+      EMPTY = 0x0002  // empty (never written) page
+      ,
+      BOUND = 0x0004  // m_real_page_ptr assigned
+      ,
+      MAPPED = 0x0008  // bound, and empty or paged in
+      ,
+      DIRTY = 0x0010  // page is modified
+      ,
+      USED = 0x0020  // used by some tx (not set currently)
+      ,
+      BUSY = 0x0040  // page is being written to
+      ,
+      LOCKED = 0x0080  // locked in cache (forever)
+      ,
+      PAGEIN = 0x0100  // paging in
+      ,
+      PAGEOUT = 0x0200  // paging out
+      ,
+      LOGSYNC = 0x0400  // undo WAL as part of pageout
+      ,
+      LCP = 0x1000  // page is LCP flushed
+      ,
+      HOT = 0x2000  // page is hot
+      ,
+      ONSTACK = 0x4000  // page is on LIRS stack
+      ,
+      ONQUEUE = 0x8000  // page is on LIRS queue
+      ,
+      WAIT_LCP = 0x10000  // BUSY page holding up LCP
+      ,
+      PREP_LCP = 0x20000  // Page is flushed as part of prepare LCP
     };
 
-    Uint16 m_file_no;       // disk page address set at seize
+    enum Sublist {
+      SL_BIND = 0,
+      SL_MAP = 1,
+      SL_MAP_IO = 2,
+      SL_CALLBACK = 3,
+      SL_CALLBACK_IO = 4,
+      SL_BUSY = 5,
+      SL_LOCKED = 6,
+      SL_IDLE = 7,
+      SL_OTHER = 8,
+      SUBLIST_COUNT = 9
+    };
+
+    Uint16 m_file_no;  // disk page address set at seize
 
     DirtyState m_dirty_state;
 
     bool m_dirty_during_pageout;
 
-    Page_state m_state;         // flags (0 for new entry)
- 
+    Page_state m_state;  // flags (0 for new entry)
+
     Uint32 m_page_no;
     Uint32 m_real_page_i;
     Uint64 m_lsn;
@@ -393,12 +416,12 @@ private:
     Uint32 m_dirty_count;
     Uint32 m_copy_page_i;
     union {
-      Uint32 m_busy_count;        // non-zero means BUSY
+      Uint32 m_busy_count;  // non-zero means BUSY
       Uint32 nextPool;
     };
-    
+
     Page_request_list::Head m_requests;
-    
+
     Uint32 nextStack;
     Uint32 prevStack;
 
@@ -413,15 +436,14 @@ private:
 
     Uint32 nextHash;
     Uint32 prevHash;
-    
+
     Uint32 hashValue() const { return m_file_no << 16 | m_page_no; }
-    bool equal(const Page_entry& obj) const { 
-      return 
-	m_file_no == obj.m_file_no && m_page_no == obj.m_page_no;
+    bool equal(const Page_entry &obj) const {
+      return m_file_no == obj.m_file_no && m_page_no == obj.m_page_no;
     }
 
 #ifdef VM_TRACE
-    Pgman* m_this;
+    Pgman *m_this;
 #endif
     Uint64 m_time_tracking;
   };
@@ -448,8 +470,7 @@ private:
    * in the extent page list is dirty. When this is completed the
    * LCP of extent pages is done.
    */
-  struct FragmentRecord
-  {
+  struct FragmentRecord {
     FragmentRecord(Pgman &pgman, Uint32, Uint32);
     Uint32 m_table_id;
     Uint32 m_fragment_id;
@@ -462,26 +483,21 @@ private:
     Uint32 prevList;
     Uint32 nextList;
     Uint32 prevHash;
-    union
-    {
+    union {
       Uint32 nextPool;
       Uint32 nextHash;
     };
 
-    inline bool equal(const FragmentRecord & p) const
-    {
-      return (p.m_table_id == m_table_id &&
-              p.m_fragment_id == m_fragment_id);
+    inline bool equal(const FragmentRecord &p) const {
+      return (p.m_table_id == m_table_id && p.m_fragment_id == m_fragment_id);
     }
-    inline Uint32 hashValue() const
-    {
+    inline Uint32 hashValue() const {
       /**
        * tableId is fairly good, usually there are 2 fragments per
        * LDM per table. So we provide a function that gives at least
        * sometimes a different first bit dependent on fragmentId.
        */
-      return ((m_table_id << 1) +
-              ((m_fragment_id >> 1) & 1));
+      return ((m_table_id << 1) + ((m_fragment_id >> 1) & 1));
     }
   };
   typedef Ptr<FragmentRecord> FragmentRecordPtr;
@@ -489,17 +505,15 @@ private:
   FragmentRecord_pool m_fragmentRecordPool;
 #define NUM_ORDERED_LISTS 128
   typedef LocalDLFifoList<FragmentRecord_pool> Local_FragmentRecord_list;
-  DLFifoList<FragmentRecord_pool>::Head
-    m_fragmentRecordList[NUM_ORDERED_LISTS];
+  DLFifoList<FragmentRecord_pool>::Head m_fragmentRecordList[NUM_ORDERED_LISTS];
   void insert_ordered_fragment_list(FragmentRecordPtr);
-  bool get_first_ordered_fragment(FragmentRecordPtr&);
-  bool get_next_ordered_fragment(FragmentRecordPtr&);
+  bool get_first_ordered_fragment(FragmentRecordPtr &);
+  bool get_next_ordered_fragment(FragmentRecordPtr &);
   Uint32 get_ordered_list_from_table_id(Uint32 table_id);
 
   DLHashTable<FragmentRecord_pool, FragmentRecord> m_fragmentRecordHash;
 
-  struct TableRecord
-  {
+  struct TableRecord {
     bool m_is_table_ready_for_prep_lcp_writes;
     Uint32 m_num_prepare_lcp_outstanding;
     Uint32 nextPool;
@@ -507,11 +521,12 @@ private:
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
   TableRecord_pool m_tableRecordPool;
-public:
+
+ public:
   void set_table_ready_for_prep_lcp_writes(Uint32, bool);
   bool is_prep_lcp_writes_outstanding(Uint32);
 
-private:
+ private:
   Page_dirty_list m_dirty_list_lcp;
   Page_dirty_list m_dirty_list_lcp_out;
 
@@ -524,7 +539,7 @@ private:
   bool m_lcp_ongoing;
   Uint32 m_num_ldm_completed_lcp;
   Uint32 m_locked_pages_written;
-  Uint32 m_lcp_outstanding;     // remaining i/o waits
+  Uint32 m_lcp_outstanding;  // remaining i/o waits
   Uint32 m_prep_lcp_outstanding;
   SyncExtentPagesReq::LcpOrder m_sync_extent_order;
   bool m_sync_extent_pages_ongoing;
@@ -536,21 +551,21 @@ private:
 
   /* Methods to handle local LCP from LGMAN after UNDO log execution */
   void sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages);
-  void sendSYNC_PAGE_CACHE_REQ(Signal*, FragmentRecordPtr);
-  void sendSYNC_EXTENT_PAGES_REQ(Signal*);
-  void sendEND_LCPCONF(Signal*);
+  void sendSYNC_PAGE_CACHE_REQ(Signal *, FragmentRecordPtr);
+  void sendSYNC_EXTENT_PAGES_REQ(Signal *);
+  void sendEND_LCPCONF(Signal *);
 
-  void check_restart_lcp(Signal*, bool check_prepare_lcp);
-  void start_lcp_loop(Signal*);
-  void handle_lcp(Signal*, Uint32 tableId, Uint32 fragmentId);
-  void handle_lcp(Signal*, FragmentRecord*);
-  void handle_prepare_lcp(Signal*, FragmentRecordPtr);
-  void finish_lcp(Signal*, FragmentRecord*);
-  void finish_sync_extent_pages(Signal*);
+  void check_restart_lcp(Signal *, bool check_prepare_lcp);
+  void start_lcp_loop(Signal *);
+  void handle_lcp(Signal *, Uint32 tableId, Uint32 fragmentId);
+  void handle_lcp(Signal *, FragmentRecord *);
+  void handle_prepare_lcp(Signal *, FragmentRecordPtr);
+  void finish_lcp(Signal *, FragmentRecord *);
+  void finish_sync_extent_pages(Signal *);
   Uint32 get_num_lcp_pages_to_write(bool);
 
-  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
-  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
+  void process_lcp_locked(Signal *signal, Ptr<Page_entry> ptr);
+  void process_lcp_locked_fswriteconf(Signal *signal, Ptr<Page_entry> ptr);
   void copy_back_page(Ptr<Page_entry> ptr);
 
   /**
@@ -610,13 +625,15 @@ private:
   Uint64 m_max_pageout_rate;
 
   bool m_track_lcp_speed_loop_ongoing;
-public:
+
+ public:
   bool lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal);
   void set_lcp_dd_percentage(Uint32 dd_percentage);
   void set_current_disk_write_speed(Uint64);
-  void lcp_start_point(Signal*, Uint32, Uint32);
-private:
-  void do_track_handle_lcp_speed_loop(Signal*);
+  void lcp_start_point(Signal *, Uint32, Uint32);
+
+ private:
+  void do_track_handle_lcp_speed_loop(Signal *);
   Uint64 get_current_lcp_made_dirty();
 
 #define PGMAN_TIME_TRACK_NUM_RANGES 20
@@ -672,10 +689,11 @@ private:
   Uint32 m_abort_counter;
   Uint32 m_abort_level;
 
-public:
+ public:
   void set_redo_alert_state(RedoStateRep::RedoAlertState new_state);
-private:
-  void do_calc_stats_loop(Signal*);
+
+ private:
+  void do_calc_stats_loop(Signal *);
   bool check_overload_error();
 
   void add_histogram(Uint64 elapsed_time, Uint64 *histogram);
@@ -690,7 +708,7 @@ private:
   void lock_access_extent_page();
   void unlock_access_extent_page();
   // file map
-  typedef DataBuffer<15,ArrayPool<DataBufferSegment<15> > > File_map;
+  typedef DataBuffer<15, ArrayPool<DataBufferSegment<15>>> File_map;
   File_map m_file_map;
   File_map::DataBufferPool m_data_buffer_pool;
 
@@ -700,15 +718,15 @@ private:
   Page_hashlist m_page_hashlist;
   Page_stack m_page_stack;
   Page_queue m_page_queue;
-  Page_sublist* m_page_sublist[Page_entry::SUBLIST_COUNT];
+  Page_sublist *m_page_sublist[Page_entry::SUBLIST_COUNT];
 
   // configuration
   struct Param {
     Param();
-    Uint32 m_max_pages;         // max number of cache pages
-    Uint32 m_lirs_stack_mult;   // in m_max_pages (around 3-10)
-    Uint32 m_max_hot_pages;     // max hot cache pages (up to 99%)
-    Uint32 m_max_loop_count;    // limit purely local loops
+    Uint32 m_max_pages;        // max number of cache pages
+    Uint32 m_lirs_stack_mult;  // in m_max_pages (around 3-10)
+    Uint32 m_max_hot_pages;    // max hot cache pages (up to 99%)
+    Uint32 m_max_loop_count;   // limit purely local loops
     Uint32 m_max_io_waits;
     Uint32 m_stats_loop_delay;
     Uint32 m_cleanup_loop_delay;
@@ -716,23 +734,22 @@ private:
 
   // runtime sizes and statistics
   struct Stats {
-    Stats() :
-      m_num_pages(0),
-      m_num_hot_pages(0),
-      m_current_io_waits(0),
-      m_page_hits(0),
-      m_page_faults(0),
-      m_pages_written(0),
-      m_pages_written_lcp(0),
-      m_pages_read(0),
-      m_log_waits(0),
-      m_page_requests_direct_return(0),
-      m_page_requests_wait_q(0),
-      m_page_requests_wait_io(0),
-      m_entries_high(0),
-      m_num_locked_pages(0)
-    {}
-    Uint32 m_num_pages;         // current number of cache pages
+    Stats()
+        : m_num_pages(0),
+          m_num_hot_pages(0),
+          m_current_io_waits(0),
+          m_page_hits(0),
+          m_page_faults(0),
+          m_pages_written(0),
+          m_pages_written_lcp(0),
+          m_pages_read(0),
+          m_log_waits(0),
+          m_page_requests_direct_return(0),
+          m_page_requests_wait_q(0),
+          m_page_requests_wait_io(0),
+          m_entries_high(0),
+          m_num_locked_pages(0) {}
+    Uint32 m_num_pages;  // current number of cache pages
     Uint32 m_num_hot_pages;
     Uint32 m_current_io_waits;
     Uint64 m_page_hits;
@@ -740,7 +757,7 @@ private:
     Uint64 m_pages_written;
     Uint64 m_pages_written_lcp;
     Uint64 m_pages_read;
-    Uint64 m_log_waits; // wait for undo WAL to flush the log recs
+    Uint64 m_log_waits;  // wait for undo WAL to flush the log recs
     Uint64 m_page_requests_direct_return;
     Uint64 m_page_requests_wait_q;
     Uint64 m_page_requests_wait_io;
@@ -756,172 +773,159 @@ private:
   CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
   CallbackTable m_callbackTable;
 
-protected:
-  void execSTTOR(Signal* signal);
-  void sendSTTORRY(Signal*);
-  void execREAD_CONFIG_REQ(Signal* signal);
-  void execCONTINUEB(Signal* signal);
+ protected:
+  void execSTTOR(Signal *signal);
+  void sendSTTORRY(Signal *);
+  void execREAD_CONFIG_REQ(Signal *signal);
+  void execCONTINUEB(Signal *signal);
 
-  void execEND_LCPREQ(Signal*);
-  void execSYNC_PAGE_CACHE_REQ(Signal*);
-  void execSYNC_PAGE_CACHE_CONF(Signal*);
-  void execSYNC_EXTENT_PAGES_REQ(Signal*);
-  void execSYNC_EXTENT_PAGES_CONF(Signal*);
-  void execRELEASE_PAGES_REQ(Signal*);
-  
-  void execFSREADCONF(Signal*);
-  void execFSREADREF(Signal*);
-  void execFSWRITECONF(Signal*);
-  void execFSWRITEREF(Signal*);
+  void execEND_LCPREQ(Signal *);
+  void execSYNC_PAGE_CACHE_REQ(Signal *);
+  void execSYNC_PAGE_CACHE_CONF(Signal *);
+  void execSYNC_EXTENT_PAGES_REQ(Signal *);
+  void execSYNC_EXTENT_PAGES_CONF(Signal *);
+  void execRELEASE_PAGES_REQ(Signal *);
 
-  void execDUMP_STATE_ORD(Signal* signal);
+  void execFSREADCONF(Signal *);
+  void execFSREADREF(Signal *);
+  void execFSWRITECONF(Signal *);
+  void execFSWRITEREF(Signal *);
 
-  void execDATA_FILE_ORD(Signal*);
+  void execDUMP_STATE_ORD(Signal *signal);
 
-  void execDBINFO_SCANREQ(Signal*);
-public:
-  bool idle_fragment_lcp(Uint32 tableId, Uint32 fragmentId); 
+  void execDATA_FILE_ORD(Signal *);
 
-private:
+  void execDBINFO_SCANREQ(Signal *);
+
+ public:
+  bool idle_fragment_lcp(Uint32 tableId, Uint32 fragmentId);
+
+ private:
   static Uint32 get_sublist_no(Page_state state);
-  void set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr,
+  void set_page_state(EmulatedJamBuffer *jamBuf, Ptr<Page_entry> ptr,
                       Page_state new_state);
 
-  bool seize_cache_page(Ptr<GlobalPage>& gptr);
+  bool seize_cache_page(Ptr<GlobalPage> &gptr);
   void release_cache_page(Uint32 i);
 
-  bool find_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
-  Uint32 seize_page_entry(Ptr<Page_entry>&,
-                          Uint32 file_no,
-                          Uint32 page_no,
-                          Uint32 tableId,
-                          Uint32 fragmentId,
+  bool find_page_entry(Ptr<Page_entry> &, Uint32 file_no, Uint32 page_no);
+  Uint32 seize_page_entry(Ptr<Page_entry> &, Uint32 file_no, Uint32 page_no,
+                          Uint32 tableId, Uint32 fragmentId,
                           EmulatedJamBuffer *jamBuf);
-  bool get_page_entry(EmulatedJamBuffer* jamBuf,
-                      Ptr<Page_entry>&, 
-                      Uint32 file_no,
-                      Uint32 page_no,
-                      Uint32 tableId,
-                      Uint32 fragmentId,
-                      Uint32 flags);
-  void release_page_entry(Ptr<Page_entry>&, EmulatedJamBuffer *jamBuf);
+  bool get_page_entry(EmulatedJamBuffer *jamBuf, Ptr<Page_entry> &,
+                      Uint32 file_no, Uint32 page_no, Uint32 tableId,
+                      Uint32 fragmentId, Uint32 flags);
+  void release_page_entry(Ptr<Page_entry> &, EmulatedJamBuffer *jamBuf);
 
-  void lirs_stack_prune(EmulatedJamBuffer*);
-  void lirs_stack_pop(EmulatedJamBuffer*);
-  void lirs_reference(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr);
+  void lirs_stack_prune(EmulatedJamBuffer *);
+  void lirs_stack_pop(EmulatedJamBuffer *);
+  void lirs_reference(EmulatedJamBuffer *jamBuf, Ptr<Page_entry> ptr);
 
-  void do_stats_loop(Signal*);
-  void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
-  void do_cleanup_loop(Signal*);
+  void do_stats_loop(Signal *);
+  void do_busy_loop(Signal *, bool direct, EmulatedJamBuffer *jamBuf);
+  void do_cleanup_loop(Signal *);
 
-  bool process_bind(Signal*, EmulatedJamBuffer*);
-  bool process_bind(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
-  bool process_map(Signal*, EmulatedJamBuffer*);
-  bool process_map(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
-  bool process_callback(Signal*, EmulatedJamBuffer*);
-  bool process_callback(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_bind(Signal *, EmulatedJamBuffer *);
+  bool process_bind(Signal *, Ptr<Page_entry> ptr, EmulatedJamBuffer *);
+  bool process_map(Signal *, EmulatedJamBuffer *);
+  bool process_map(Signal *, Ptr<Page_entry> ptr, EmulatedJamBuffer *);
+  bool process_callback(Signal *, EmulatedJamBuffer *);
+  bool process_callback(Signal *, Ptr<Page_entry> ptr, EmulatedJamBuffer *);
 
-  bool process_cleanup(Signal*);
-  void move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_cleanup(Signal *);
+  void move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer *);
 
-  void pagein(Signal*, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
-  void fsreadreq(Signal*, Ptr<Page_entry>);
-  void fsreadconf(Signal*, Ptr<Page_entry>);
-  void pageout(Signal*, Ptr<Page_entry>, bool check_sync_lsn = true);
-  void logsync_callback(Signal*, Uint32 ptrI, Uint32 res);
-  void fswritereq(Signal*, Ptr<Page_entry>);
-  void fswriteconf(Signal*, Ptr<Page_entry>);
+  void pagein(Signal *, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
+  void fsreadreq(Signal *, Ptr<Page_entry>);
+  void fsreadconf(Signal *, Ptr<Page_entry>);
+  void pageout(Signal *, Ptr<Page_entry>, bool check_sync_lsn = true);
+  void logsync_callback(Signal *, Uint32 ptrI, Uint32 res);
+  void fswritereq(Signal *, Ptr<Page_entry>);
+  void fswriteconf(Signal *, Ptr<Page_entry>);
 
-  int get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
+  int get_page_no_lirs(EmulatedJamBuffer *jamBuf, Signal *, Ptr<Page_entry>,
                        Page_request page_req);
-  int get_page(EmulatedJamBuffer* jamBuf,
-               Signal*,
-               Ptr<Page_entry>, 
+  int get_page(EmulatedJamBuffer *jamBuf, Signal *, Ptr<Page_entry>,
                Page_request page_req);
-  Uint32 get_extent_page(EmulatedJamBuffer* jamBuf,
-                         Signal*,
-                         Ptr<Page_entry>, 
+  Uint32 get_extent_page(EmulatedJamBuffer *jamBuf, Signal *, Ptr<Page_entry>,
                          Page_request page_req);
   void set_lsn(Ptr<Page_entry>, Uint64 lsn);
-  void update_lsn(Signal *signal,
-                  EmulatedJamBuffer* jamBuf,
-                  Ptr<Page_entry>,
-                  Uint32 block, 
-                  Uint64 lsn);
+  void update_lsn(Signal *signal, EmulatedJamBuffer *jamBuf, Ptr<Page_entry>,
+                  Uint32 block, Uint64 lsn);
   int add_fragment(Uint32 tableId, Uint32 fragmentId);
   void drop_fragment(Uint32 tableId, Uint32 fragmentId);
-  void insert_fragment_dirty_list(Ptr<Page_entry>,
-                                  Page_state,
-                                  EmulatedJamBuffer*);
-  void remove_fragment_dirty_list(Signal*, Ptr<Page_entry>, Page_state);
+  void insert_fragment_dirty_list(Ptr<Page_entry>, Page_state,
+                                  EmulatedJamBuffer *);
+  void remove_fragment_dirty_list(Signal *, Ptr<Page_entry>, Page_state);
   Uint32 create_data_file(Uint32 version);
   Uint32 alloc_data_file(Uint32 file_no, Uint32 version);
   void map_file_no(Uint32 file_no, Uint32 fd);
   void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
   int drop_page(Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   bool extent_pages_available(Uint32 pages_needed);
-  
+
 #ifdef VM_TRACE
-  bool debugFlag;        // not yet in use in 7.0
-  bool debugSummaryFlag; // loop summary to signal log even if ! debugFlag
+  bool debugFlag;         // not yet in use in 7.0
+  bool debugSummaryFlag;  // loop summary to signal log even if ! debugFlag
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();
   bool dump_page_lists(Uint32 ptrI = RNIL);
 #endif
-  static const char* get_sublist_name(Uint32 list_no);
-  friend class NdbOut& operator<<(NdbOut&, Ptr<Page_request>);
-  friend class NdbOut& operator<<(NdbOut&, Ptr<Page_entry>);
+  static const char *get_sublist_name(Uint32 list_no);
+  friend class NdbOut &operator<<(NdbOut &, Ptr<Page_request>);
+  friend class NdbOut &operator<<(NdbOut &, Ptr<Page_entry>);
   friend void print(EventLogger *logger, Ptr<Pgman::Page_request> ptr);
   friend void print(EventLogger *logger, Ptr<Pgman::Page_entry> ptr);
 };
 
-class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_request>);
-class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_entry>);
+class NdbOut &operator<<(NdbOut &, Ptr<Pgman::Page_request>);
+class NdbOut &operator<<(NdbOut &, Ptr<Pgman::Page_entry>);
 
-class Page_cache_client
-{
+class Page_cache_client {
   friend class PgmanProxy;
-  Uint32 m_block; // includes instance
-  class PgmanProxy* m_pgman_proxy; // set if we go via proxy
-  Pgman* m_pgman;
-  EmulatedJamBuffer* const m_jamBuf;
+  Uint32 m_block;                   // includes instance
+  class PgmanProxy *m_pgman_proxy;  // set if we go via proxy
+  Pgman *m_pgman;
+  EmulatedJamBuffer *const m_jamBuf;
   DEBUG_OUT_DEFINES(PGMAN);
 
-public:
-  Page_cache_client(SimulatedBlock* block, SimulatedBlock* pgman);
+ public:
+  Page_cache_client(SimulatedBlock *block, SimulatedBlock *pgman);
 
   struct Request {
     Uint32 m_table_id;
     Uint32 m_fragment_id;
     Local_key m_page;
     SimulatedBlock::Callback m_callback;
-    
+
 #ifdef ERROR_INSERT
     NDB_TICKS m_delay_until_time;
 #endif
   };
 
-  Ptr<GlobalPage> m_ptr;        // TODO remove
+  Ptr<GlobalPage> m_ptr;  // TODO remove
 
   enum RequestFlags {
-    LOCK_PAGE = Pgman::Page_request::LOCK_PAGE
-    ,EMPTY_PAGE = Pgman::Page_request::EMPTY_PAGE
-    ,ALLOC_REQ = Pgman::Page_request::ALLOC_REQ
-    ,COMMIT_REQ = Pgman::Page_request::COMMIT_REQ
-    ,DIRTY_REQ = Pgman::Page_request::DIRTY_REQ
-    ,UNLOCK_PAGE = Pgman::Page_request::UNLOCK_PAGE
-    ,CORR_REQ = Pgman::Page_request::CORR_REQ
+    LOCK_PAGE = Pgman::Page_request::LOCK_PAGE,
+    EMPTY_PAGE = Pgman::Page_request::EMPTY_PAGE,
+    ALLOC_REQ = Pgman::Page_request::ALLOC_REQ,
+    COMMIT_REQ = Pgman::Page_request::COMMIT_REQ,
+    DIRTY_REQ = Pgman::Page_request::DIRTY_REQ,
+    UNLOCK_PAGE = Pgman::Page_request::UNLOCK_PAGE,
+    CORR_REQ = Pgman::Page_request::CORR_REQ
 #ifdef ERROR_INSERT
-    ,DELAY_REQ = Pgman::Page_request::DELAY_REQ
+    ,
+    DELAY_REQ = Pgman::Page_request::DELAY_REQ
 #endif
-    ,UNDO_REQ = Pgman::Page_request::UNDO_REQ
-    ,DISK_SCAN = Pgman::Page_request::DISK_SCAN
-    ,ABORT_REQ = Pgman::Page_request::ABORT_REQ
-    ,UNDO_GET_REQ = Pgman::Page_request::UNDO_GET_REQ
-    ,COPY_FRAG = Pgman::Page_request::COPY_FRAG
+    ,
+    UNDO_REQ = Pgman::Page_request::UNDO_REQ,
+    DISK_SCAN = Pgman::Page_request::DISK_SCAN,
+    ABORT_REQ = Pgman::Page_request::ABORT_REQ,
+    UNDO_GET_REQ = Pgman::Page_request::UNDO_GET_REQ,
+    COPY_FRAG = Pgman::Page_request::COPY_FRAG
   };
-  
+
   /**
    * Get a page
    * @note This request may return true even if previous request
@@ -930,14 +934,14 @@ public:
    *          0, request is queued
    *         >0, real_page_id
    */
-  int get_page(Signal*, Request&, Uint32 flags);
+  int get_page(Signal *, Request &, Uint32 flags);
 
   /**
    * Get an extent page
    * Given that these pages are always locked in memory this function
    * cannot return any failures, it will crash if it fails.
    */
-  void get_extent_page(Signal*, Request&, Uint32 flags);
+  void get_extent_page(Signal *, Request &, Uint32 flags);
 
   /**
    * When reading the UNDO log we don't have access to the table id and
@@ -945,10 +949,10 @@ public:
    * properly set on the page entry object we use this method to set
    * table id and fragment id on the page entry object.
    */
-  bool init_page_entry(Request&);
+  bool init_page_entry(Request &);
 
   void set_lsn(Local_key, Uint64 lsn);
-  void update_lsn(Signal*, Local_key, Uint64 lsn);
+  void update_lsn(Signal *, Local_key, Uint64 lsn);
 
   /**
    * Drop page
@@ -968,22 +972,22 @@ public:
   /**
    * Create file record
    */
-  Uint32 create_data_file(Signal*, Uint32 version);
+  Uint32 create_data_file(Signal *, Uint32 version);
 
   /**
    * Alloc datafile record
    */
-  Uint32 alloc_data_file(Signal*, Uint32 file_no, Uint32 version);
+  Uint32 alloc_data_file(Signal *, Uint32 file_no, Uint32 version);
 
   /**
    * Map file_no to m_fd
    */
-  void map_file_no(Signal*, Uint32 m_file_no, Uint32 m_fd);
+  void map_file_no(Signal *, Uint32 m_file_no, Uint32 m_fd);
 
   /**
    * Free file
    */
-  void free_data_file(Signal*, Uint32 file_no, Uint32 fd = RNIL);
+  void free_data_file(Signal *, Uint32 file_no, Uint32 fd = RNIL);
 
   /**
    * Allocate fragment record
@@ -995,7 +999,6 @@ public:
    */
   void drop_fragment(Uint32 tableId, Uint32 fragmentId);
 };
-
 
 #undef JAM_FILE_ID
 

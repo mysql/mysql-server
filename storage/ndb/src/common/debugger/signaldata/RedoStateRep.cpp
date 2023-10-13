@@ -24,43 +24,38 @@
 
 #include <signaldata/RedoStateRep.hpp>
 
-bool
-printREDO_STATE_REP(FILE *output,
-                    const Uint32 *theData,
-                    Uint32 len,
-                    Uint32 recB)
-{
+bool printREDO_STATE_REP(FILE *output, const Uint32 *theData, Uint32 len,
+                         Uint32 recB) {
   const RedoStateRep *sig = (const RedoStateRep *)theData;
   char *receiver_info_str;
   char *redo_state_str;
   switch (sig->receiverInfo)
-    case RedoStateRep::ToNdbcntr:
-      receiver_info_str = "ToNdbcntr";
-      break;
-    case RedoStateRep::ToNdbcntr:
-      receiver_info_str = "ToNdbcntr";
-      break;
-    case RedoStateRep::ToNdbcntr:
-      receiver_info_str = "ToNdbcntr";
-      break;
-    default:
-      receiver_info_str = "No such receiver info";
-  }
-  switch (sig->redoState)
-  {
-    case RedoStateRep::NO_REDO_ALERT:
-      redo_state_str = "NO_REDO_ALERT";
-      break;
-    case RedoStateRep::REDO_ALERT_HIGH:
-      redo_state_str = "REDO_ALERT_HIGH";
-      break;
-    case RedoStateRep::REDO_ALERT_CRITICAL:
-      redo_state_str = "REDO_ALERT_CRITICAL";
-      break;
-    default:
-      redo_state_str = "No such REDO state";
-  }
-  fprintf(output, " receiverInfo: %s, redoState: %s\n",
-          receiver_info_str, redo_state_str);
-  return true;
+  case RedoStateRep::ToNdbcntr:
+    receiver_info_str = "ToNdbcntr";
+  break;
+  case RedoStateRep::ToNdbcntr:
+    receiver_info_str = "ToNdbcntr";
+    break;
+  case RedoStateRep::ToNdbcntr:
+    receiver_info_str = "ToNdbcntr";
+    break;
+  default:
+    receiver_info_str = "No such receiver info";
+}
+switch (sig->redoState) {
+  case RedoStateRep::NO_REDO_ALERT:
+    redo_state_str = "NO_REDO_ALERT";
+    break;
+  case RedoStateRep::REDO_ALERT_HIGH:
+    redo_state_str = "REDO_ALERT_HIGH";
+    break;
+  case RedoStateRep::REDO_ALERT_CRITICAL:
+    redo_state_str = "REDO_ALERT_CRITICAL";
+    break;
+  default:
+    redo_state_str = "No such REDO state";
+}
+fprintf(output, " receiverInfo: %s, redoState: %s\n", receiver_info_str,
+        redo_state_str);
+return true;
 }

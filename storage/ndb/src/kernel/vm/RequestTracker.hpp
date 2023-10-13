@@ -29,30 +29,36 @@
 
 #define JAM_FILE_ID 328
 
-
 class RequestTracker {
-public:
-  RequestTracker(){ init(); }
+ public:
+  RequestTracker() { init(); }
 
-  void init() { m_confs.clear(); m_nRefs = 0; }
+  void init() {
+    m_confs.clear();
+    m_nRefs = 0;
+  }
 
-  template<typename SignalClass>
-  bool init(SafeCounterManager& mgr,
-	    NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData)
-  {
+  template <typename SignalClass>
+  bool init(SafeCounterManager &mgr, NodeReceiverGroup rg, Uint16 GSN,
+            Uint32 senderData) {
     init();
     SafeCounter tmp(mgr, m_sc);
     return tmp.init<SignalClass>(rg, GSN, senderData);
   }
 
-  bool ignoreRef(SafeCounterManager& mgr, Uint32 nodeId)
-  { return m_sc.clearWaitingFor(mgr, nodeId); }
+  bool ignoreRef(SafeCounterManager &mgr, Uint32 nodeId) {
+    return m_sc.clearWaitingFor(mgr, nodeId);
+  }
 
-  bool reportRef(SafeCounterManager& mgr, Uint32 nodeId)
-  { m_nRefs++; return m_sc.clearWaitingFor(mgr, nodeId); }
+  bool reportRef(SafeCounterManager &mgr, Uint32 nodeId) {
+    m_nRefs++;
+    return m_sc.clearWaitingFor(mgr, nodeId);
+  }
 
-  bool reportConf(SafeCounterManager& mgr, Uint32 nodeId)
-  { m_confs.set(nodeId); return m_sc.clearWaitingFor(mgr, nodeId); }
+  bool reportConf(SafeCounterManager &mgr, Uint32 nodeId) {
+    m_confs.set(nodeId);
+    return m_sc.clearWaitingFor(mgr, nodeId);
+  }
 
   bool hasRef() { return m_nRefs != 0; }
 
@@ -62,12 +68,11 @@ public:
 
   NdbNodeBitmask m_confs;
 
-private:
+ private:
   SafeCounterHandle m_sc;
   Uint8 m_nRefs;
 };
 
-
 #undef JAM_FILE_ID
 
-#endif // __REQUEST_TRACKER_HPP
+#endif  // __REQUEST_TRACKER_HPP

@@ -29,24 +29,24 @@
 
 #define JAM_FILE_ID 92
 
-
 class ExecFragReq {
   /**
    * Sender & Receiver(s)
    */
   friend class Dblqh;
   friend class DblqhProxy;
-public:
+
+ public:
   static constexpr Uint32 SignalLength = 7;
 
-private:
+ private:
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 tableId;
   Uint32 fragId;
   Uint32 startGci;
   Uint32 lastGci;
-  Uint32 dst; // Final destination
+  Uint32 dst;  // Final destination
 };
 
 #undef JAM_FILE_ID

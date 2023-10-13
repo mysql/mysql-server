@@ -23,22 +23,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-#include <kernel_types.h>
 #include <BlockNumbers.h>
+#include <kernel_types.h>
 #include <signaldata/DihContinueB.hpp>
 #include <signaldata/NdbfsContinueB.hpp>
 
-bool
-printCONTINUEB(FILE * output, const Uint32 * theData, Uint32 len, 
-	       Uint16 receiverBlockNo){
-  if(receiverBlockNo == DBDIH){
+bool printCONTINUEB(FILE *output, const Uint32 *theData, Uint32 len,
+                    Uint16 receiverBlockNo) {
+  if (receiverBlockNo == DBDIH) {
     return printCONTINUEB_DBDIH(output, theData, len, 0);
-  } else if(receiverBlockNo == NDBFS) {
+  } else if (receiverBlockNo == NDBFS) {
     return printCONTINUEB_NDBFS(output, theData, len, 0);
   }
-  
+
   return false;
 }
-
-

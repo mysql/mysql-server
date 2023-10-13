@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,37 +22,35 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <string.h>
 #include <assert.h>
+#include <string.h>
 
 // #include "node.h"
 #include "uv.h"
 
-
 /* Simple LIFO shareable list.
    Uses uv_mutex_t for synchronization.
-   signalinfo can be used for in-band metadata. 
+   signalinfo can be used for in-band metadata.
    The note can serve to document a list item, and also as cache-line padding.
 */
 #define VPSZ sizeof(void *)
-#define ISZ  sizeof(int)
+#define ISZ sizeof(int)
 #define LIST_ITEM_NOTE_SIZE 64 - (ISZ + VPSZ + VPSZ)
 
-template<typename T> class ListNode {
-public:
-  ListNode<T> * next;
-  T * item;
+template <typename T>
+class ListNode {
+ public:
+  ListNode<T> *next;
+  T *item;
   int signalinfo;
-private:
+
+ private:
   char note[LIST_ITEM_NOTE_SIZE];
 
-public:
+ public:
   /* Constructor */
-  ListNode<T>(T *t) : next(0), item(t), signalinfo(0)
-  {
-    note[0] = '\0';
-  }
-  
+  ListNode<T>(T *t) : next(0), item(t), signalinfo(0) { note[0] = '\0'; }
+
   /* Methods */
   void setNote(const char *txt) {
     strncpy(note, txt, LIST_ITEM_NOTE_SIZE);
@@ -60,51 +58,40 @@ public:
     note[LIST_ITEM_NOTE_SIZE] = '\0';
   }
 
-  const char * getNote() const {
-    return note;
-  }
+  const char *getNote() const { return note; }
 };
 
-
-template<typename T> class SharedList {
-private:
+template <typename T>
+class SharedList {
+ private:
   uv_mutex_t lock;
-  ListNode<T> * head;
-  
-public:
-  SharedList<T>() : head(0)
-  {
-    int i = uv_mutex_init(& lock);
+  ListNode<T> *head;
+
+ public:
+  SharedList<T>() : head(0) {
+    int i = uv_mutex_init(&lock);
     assert(i == 0);
   }
-  
-  
-  ~SharedList<T>()
-  {
-    uv_mutex_destroy(& lock);
-  }
-  
-  
-  void produce(ListNode<T> * node) {
+
+  ~SharedList<T>() { uv_mutex_destroy(&lock); }
+
+  void produce(ListNode<T> *node) {
     /* Find the tail */
-    ListNode<T> * tail;
-    for(tail = node; tail->next; tail = tail->next) {};
-    
-    uv_mutex_lock(& lock);
+    ListNode<T> *tail;
+    for (tail = node; tail->next; tail = tail->next) {
+    };
+
+    uv_mutex_lock(&lock);
     tail->next = head;
     head = node;
-    uv_mutex_unlock(& lock);
+    uv_mutex_unlock(&lock);
   }
-  
-  
-  ListNode<T> * consumeAll() {
-    uv_mutex_lock(& lock);
-    ListNode<T> * result = head;
+
+  ListNode<T> *consumeAll() {
+    uv_mutex_lock(&lock);
+    ListNode<T> *result = head;
     head = 0;
-    uv_mutex_unlock(& lock);
+    uv_mutex_unlock(&lock);
     return result;
   }
 };
-
-
-

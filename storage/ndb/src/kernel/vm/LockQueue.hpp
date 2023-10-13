@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,24 +25,21 @@
 #ifndef BLOCK_MUTEX_IMPL_HPP
 #define BLOCK_MUTEX_IMPL_HPP
 
+#include <signaldata/UtilLock.hpp>
 #include "ArrayPool.hpp"
 #include "IntrusiveList.hpp"
 #include "KeyTable.hpp"
-#include <signaldata/UtilLock.hpp>
 
 #define JAM_FILE_ID 283
 
-
-class LockQueue
-{
-public:
+class LockQueue {
+ public:
   LockQueue() {}
 
   /**
    * A lock queue element
    */
-  struct LockQueueElement 
-  {
+  struct LockQueueElement {
     LockQueueElement() {}
 
     UtilLockReq m_req;
@@ -56,51 +53,48 @@ public:
   typedef ArrayPool<LockQueueElement> Pool;
   typedef DLFifoList<Pool> LockQueueElement_fifo;
   typedef LocalDLFifoList<Pool> Local_LockQueueElement_fifo;
-  
-  Uint32 lock(SimulatedBlock*, 
-              Pool&, const UtilLockReq*, const UtilLockReq** = 0);
-  Uint32 unlock(SimulatedBlock*,
-                Pool&, const UtilUnlockReq* req,
-                UtilLockReq* orig_req= 0);
-  
+
+  Uint32 lock(SimulatedBlock *, Pool &, const UtilLockReq *,
+              const UtilLockReq ** = 0);
+  Uint32 unlock(SimulatedBlock *, Pool &, const UtilUnlockReq *req,
+                UtilLockReq *orig_req = 0);
+
   /**
    * After unlock
    */
-  struct Iterator 
-  {
-    SimulatedBlock* m_block;
-    Pool * thePool;
+  struct Iterator {
+    SimulatedBlock *m_block;
+    Pool *thePool;
     Ptr<LockQueueElement> m_prev;
     Ptr<LockQueueElement> m_curr;
   };
-  
-  bool first(SimulatedBlock*, Pool& pool, Iterator&);
-  bool next(Iterator&);
-  
+
+  bool first(SimulatedBlock *, Pool &pool, Iterator &);
+  bool next(Iterator &);
+
   /**
    * 0 - done
    * 1 - already granted
    * 2 - needs conf
    */
-  int checkLockGrant(Iterator &, UtilLockReq * req);
+  int checkLockGrant(Iterator &, UtilLockReq *req);
 
   /**
    * Clear lock queue
    */
-  void clear (Pool&);
+  void clear(Pool &);
 
   /**
    * Dump
    */
-  void dump_queue(Pool&, SimulatedBlock* block);
-  
-private:
+  void dump_queue(Pool &, SimulatedBlock *block);
+
+ private:
   /**
    * The actual lock queue
    */
   LockQueueElement_fifo::Head m_queue;
 };
-
 
 #undef JAM_FILE_ID
 

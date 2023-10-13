@@ -36,7 +36,6 @@
 */
 #define UBUNTU18_OPENSSL_VER_ID 0x1010100fL
 
-
 /* NDB_OPENSSL_TOO_OLD is used as an error return value from functions
    to report a OpenSSL library version less than NDB_TLS_MINIMUM_OPENSSL
    at runtime.

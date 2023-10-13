@@ -29,23 +29,23 @@
 
 #define JAM_FILE_ID 140
 
-
 class RestoreContinueB {
   /**
    * Sender(s)/Reciver(s)
    */
   friend class Restore;
-  friend bool printCONTINUEB_RESTORE(FILE * output, const Uint32 * theData, Uint32 len);
-private:
+  friend bool printCONTINUEB_RESTORE(FILE *output, const Uint32 *theData,
+                                     Uint32 len);
+
+ private:
   enum {
     START_FILE_THREAD = 0,
-    BUFFER_UNDERFLOW  = 1,
-    BUFFER_FULL_SCAN  = 2,
+    BUFFER_UNDERFLOW = 1,
+    BUFFER_FULL_SCAN = 2,
     BUFFER_FULL_FRAG_COMPLETE = 3,
-    BUFFER_FULL_META  = 4
+    BUFFER_FULL_META = 4
   };
 };
-
 
 #undef JAM_FILE_ID
 

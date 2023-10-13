@@ -27,9 +27,9 @@
 
 #include <cstring>
 
+#include "NdbApiSignal.hpp"
 #include "ndb_global.h"
 #include "ndb_types.h"
-#include "NdbApiSignal.hpp"
 
 /** AssembleBatchedFragments
  *  ========================
@@ -52,9 +52,8 @@
  * sent as batched fragments.
  *
  */
-class AssembleBatchedFragments
-{
-public:
+class AssembleBatchedFragments {
+ public:
   enum Result : int {
     /* Message complete, no fragments use signal as is */
     MESSAGE_OK,
@@ -84,15 +83,14 @@ public:
   ~AssembleBatchedFragments();
 
   bool is_in_progress() const;
-  Result assemble(const NdbApiSignal* signal, const LinearSectionPtr ptr[3]);
+  Result assemble(const NdbApiSignal *signal, const LinearSectionPtr ptr[3]);
   bool setup(Uint32 size);
-  Uint32 extract(NdbApiSignal* signal, LinearSectionPtr ptr[3]) const;
+  Uint32 extract(NdbApiSignal *signal, LinearSectionPtr ptr[3]) const;
   void cleanup();
-  void extract_signal_only(NdbApiSignal* signal);
+  void extract_signal_only(NdbApiSignal *signal);
 
-private:
-  Result do_assemble(const NdbApiSignal* signal,
-                     const LinearSectionPtr ptr[3]);
+ private:
+  Result do_assemble(const NdbApiSignal *signal, const LinearSectionPtr ptr[3]);
 
   // Signal data for first fragment
   SignalHeader m_sigheader;
@@ -103,7 +101,7 @@ private:
   Uint32 m_fragment_id;
 
   // Section buffer
-  Uint32* m_section_memory;
+  Uint32 *m_section_memory;
   Uint32 m_size;
   Uint32 m_offset;
 
@@ -113,21 +111,16 @@ private:
   Uint32 m_section_size[3];
 };
 
-inline bool AssembleBatchedFragments::is_in_progress() const
-{
+inline bool AssembleBatchedFragments::is_in_progress() const {
   return m_section_memory != nullptr;
 }
 
-inline AssembleBatchedFragments::Result
-AssembleBatchedFragments::assemble(const NdbApiSignal* signal,
-                                   const LinearSectionPtr ptr[3])
-{
+inline AssembleBatchedFragments::Result AssembleBatchedFragments::assemble(
+    const NdbApiSignal *signal, const LinearSectionPtr ptr[3]) {
   const bool in_progress = (m_section_memory != nullptr);
 
-  if (!signal->isFragmented())
-  {
-    if (unlikely(in_progress))
-    {
+  if (!signal->isFragmented()) {
+    if (unlikely(in_progress)) {
       // Drop section data
       cleanup();
       return Result::ERR_BATCH_IN_PROGRESS;
@@ -135,25 +128,18 @@ AssembleBatchedFragments::assemble(const NdbApiSignal* signal,
     return Result::MESSAGE_OK;
   }
 
-  if (in_progress)
-  {
-    if (signal->isFirstFragment() && m_sender_ref == 0)
-    {}
-    else if (signal->isFirstFragment() ||
-             m_sender_ref != signal->theSendersBlockRef ||
-             m_fragment_id != signal->getFragmentId())
-    {
+  if (in_progress) {
+    if (signal->isFirstFragment() && m_sender_ref == 0) {
+    } else if (signal->isFirstFragment() ||
+               m_sender_ref != signal->theSendersBlockRef ||
+               m_fragment_id != signal->getFragmentId()) {
       // Drop section data
       cleanup();
       return Result::ERR_BATCH_IN_PROGRESS;
     }
-  }
-  else if (signal->isFirstFragment())
-  {
+  } else if (signal->isFirstFragment()) {
     return Result::NEED_SETUP;
-  }
-  else
-  {
+  } else {
     return Result::ERR_OUT_OF_SYNC;
   }
 

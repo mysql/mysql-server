@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 73
 
-
 // -------- CODES FOR COMPRESSED SIGNAL (PACKED_SIGNAL) -------
 #define ZCOMMIT 0
 #define ZCOMPLETE 1
@@ -47,32 +46,29 @@ static const int VERIFY_PACKED_RECEIVE = 1;
 #else
 static const int VERIFY_PACKED_RECEIVE = 0;
 #endif
-static const int LQH_RECEIVE_TYPES = ((1 << ZCOMMIT) +
-                                      (1 << ZCOMPLETE) + 
-                                      (1 << ZLQHKEYCONF) +
-                                      (1 << ZREMOVE_MARKER) +
-                                      (1 << ZFIRE_TRIG_REQ));
-static const int TC_RECEIVE_TYPES = ((1 << ZCOMMITTED) +
-                                     (1 << ZCOMPLETED) +
-                                     (1 << ZLQHKEYCONF) +
-                                     (1 << ZFIRE_TRIG_CONF));
+static const int LQH_RECEIVE_TYPES =
+    ((1 << ZCOMMIT) + (1 << ZCOMPLETE) + (1 << ZLQHKEYCONF) +
+     (1 << ZREMOVE_MARKER) + (1 << ZFIRE_TRIG_REQ));
+static const int TC_RECEIVE_TYPES =
+    ((1 << ZCOMMITTED) + (1 << ZCOMPLETED) + (1 << ZLQHKEYCONF) +
+     (1 << ZFIRE_TRIG_CONF));
 
 class PackedSignal {
-public:
-  static bool verify(const Uint32* data, Uint32 len, Uint32 typesExpected, Uint32 commitLen, Uint32 receiverBlockNo);
+ public:
+  static bool verify(const Uint32 *data, Uint32 len, Uint32 typesExpected,
+                     Uint32 commitLen, Uint32 receiverBlockNo);
 
-private:
+ private:
   static Uint32 getSignalType(Uint32 data);
 
   /**
    * For printing
    */
-  friend bool printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  friend bool printPACKED_SIGNAL(FILE *output, const Uint32 *theData,
+                                 Uint32 len, Uint16 receiverBlockNo);
 };
 
-inline
-Uint32 PackedSignal::getSignalType(Uint32 data) { return data >> 28; }
-
+inline Uint32 PackedSignal::getSignalType(Uint32 data) { return data >> 28; }
 
 #undef JAM_FILE_ID
 

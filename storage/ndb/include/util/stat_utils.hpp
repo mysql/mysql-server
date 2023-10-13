@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 
-
 /**
  * Provide an implementation of an incremental calculation
  * of means and standard deviation, without storing the
@@ -37,7 +36,7 @@
  *   http://en.wikipedia.org/wiki/Moving_average
  *   http://www-uxsup.csx.cam.ac.uk/~fanf2/hermes/doc/antiforgery/stats.pdf
  *
- * A 'simple moving average' is calculated up to the 
+ * A 'simple moving average' is calculated up to the
  * specified 'sampleSize', short description:
  *
  *   Suppose that the data set is x1, x2,..., xn then for each xn
@@ -54,38 +53,31 @@
  * The EWMA has the nice property, that the weight for older samples
  * decrease exponentially as they become 'outdated'.
  */
-class NdbStatistics
-{
-public:
+class NdbStatistics {
+ public:
   NdbStatistics(Uint32 sampleSize = 10)
-    : m_maxSamples(sampleSize),
-      m_noOfSamples(0),
-      m_mean(0.0), m_sumSquare(0.0)
-  {
+      : m_maxSamples(sampleSize),
+        m_noOfSamples(0),
+        m_mean(0.0),
+        m_sumSquare(0.0) {
     assert(m_maxSamples > 1);
   }
 
-  void init()
-  {
+  void init() {
     m_noOfSamples = 0;
     m_mean = m_sumSquare = 0.0;
   }
 
-  void update(double sample)
-  {
-    if (unlikely(m_noOfSamples == 0))
-    {
-      //First sample, see def of 'M(1)' and 'S(1)' above.
-      m_mean        = sample;
-      m_sumSquare   = 0;
+  void update(double sample) {
+    if (unlikely(m_noOfSamples == 0)) {
+      // First sample, see def of 'M(1)' and 'S(1)' above.
+      m_mean = sample;
+      m_sumSquare = 0;
       m_noOfSamples = 1;
-    }
-    else
-    {
+    } else {
       const double delta = sample - m_mean;
 
-      if (m_noOfSamples == m_maxSamples)
-      {
+      if (m_noOfSamples == m_maxSamples) {
         /**
          * An 'exponentially weighted moving average' need to expire
          * an average 'sumSquare' sample from the moving average window.
@@ -98,24 +90,19 @@ public:
 
       /* Add 'sample' as 'simple moving average' */
       m_noOfSamples++;
-      m_mean      += (delta / m_noOfSamples);
+      m_mean += (delta / m_noOfSamples);
       m_sumSquare += fabs(delta * (sample - m_mean));
     }
   }
 
-  double getMean() const
-  {
-    return m_mean;
+  double getMean() const { return m_mean; }
+
+  double getStdDev() const {
+    return likely(m_noOfSamples > 1) ? sqrt(m_sumSquare / (m_noOfSamples - 1))
+                                     : 0;
   }
 
-  double getStdDev() const
-  {
-    return likely(m_noOfSamples > 1)
-            ? sqrt(m_sumSquare / (m_noOfSamples - 1))
-            : 0;
-  }
-
-protected:
+ protected:
   // Size of 'window' we calculate over
   const Uint32 m_maxSamples;
 
@@ -125,6 +112,6 @@ protected:
   // Moving average of all current samples
   double m_mean;
 
-  //Sum of square of differences from the current mean.
+  // Sum of square of differences from the current mean.
   double m_sumSquare;
 };

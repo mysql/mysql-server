@@ -10,21 +10,19 @@
   Modifications Copyright (c) 2017, 2023, Oracle and/or its affiliates.
   All rights reserved.
 */
-#include <windows.h>
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <windows.h>
 #include "sql/nt_servc.h"
-
 
 static NTService *pService;
 
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-NTService::NTService()
-{
-  //service variables
+NTService::NTService() {
+  // service variables
   ServiceName = NULL;
   hExitEvent = 0;
   bPause = false;
@@ -32,13 +30,13 @@ NTService::NTService()
   hThreadHandle = 0;
   fpServiceThread = NULL;
 
-  //time-out variables
+  // time-out variables
   nStartTimeOut = 15000;
   nStopTimeOut = 86400000;
   nPauseTimeOut = 5000;
   nResumeTimeOut = 5000;
 
-  //install variables
+  // install variables
   dwDesiredAccess = SERVICE_ALL_ACCESS;
   dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   dwStartType = SERVICE_AUTO_START;
@@ -57,8 +55,7 @@ NTService::NTService()
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-NTService::~NTService()
-{
+NTService::~NTService() {
   if (ServiceName != NULL) delete[] ServiceName;
 }
 
@@ -70,24 +67,18 @@ NTService::~NTService()
   when the service is started
 */
 
-
-long NTService::Init(LPCSTR szInternName, void *ServiceThread)
-{
-
+long NTService::Init(LPCSTR szInternName, void *ServiceThread) {
   pService = this;
 
   fpServiceThread = (THREAD_FC)ServiceThread;
   ServiceName = new char[lstrlen(szInternName) + 1];
   lstrcpy(ServiceName, szInternName);
 
-  SERVICE_TABLE_ENTRY stb[] =
-  {
-    { const_cast<char *>(szInternName),(LPSERVICE_MAIN_FUNCTION)ServiceMain } ,
-    { NULL, NULL }
-  };
-  return StartServiceCtrlDispatcher(stb); //register with the Service Manager
+  SERVICE_TABLE_ENTRY stb[] = {
+      {const_cast<char *>(szInternName), (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+      {NULL, NULL}};
+  return StartServiceCtrlDispatcher(stb);  // register with the Service Manager
 }
-
 
 /**
   Installs the service with Service manager.
@@ -98,17 +89,13 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread)
   - 2  Failed to create service.
 */
 
-
 BOOL NTService::Install(int startType, LPCSTR szInternName,
-                        LPCSTR szDisplayName,
-                        LPCSTR szFullPath, LPCSTR szAccountName,
-                        LPCSTR szPassword)
-{
+                        LPCSTR szDisplayName, LPCSTR szFullPath,
+                        LPCSTR szAccountName, LPCSTR szPassword) {
   BOOL ret_val = false;
   SC_HANDLE newService, scm;
 
-  if (!SeekStatus(szInternName, 1))
-    return false;
+  if (!SeekStatus(szInternName, 1)) return false;
 
   char szFilePath[_MAX_PATH];
   GetModuleFileName(NULL, szFilePath, sizeof(szFilePath));
@@ -116,36 +103,31 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
   // open a connection to the SCM
   if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
     printf("Failed to install the service (Couldn't open the SCM)\n");
-  else 				// Install the new service
+  else  // Install the new service
   {
-    if (!(newService =
-      CreateService(scm,
-                    szInternName,
-                    szDisplayName,
-                    dwDesiredAccess,//default: SERVICE_ALL_ACCESS
-                    dwServiceType,	//default: SERVICE_WIN32_OWN_PROCESS
-                                    //default: SERVICE_AUTOSTART
-                    (startType == 1 ? SERVICE_AUTO_START :
-                        SERVICE_DEMAND_START),
-                    dwErrorControl,	//default: SERVICE_ERROR_NORMAL
-                    szFullPath,	//exec full path
-                    szLoadOrderGroup, //default: NULL
-                    lpdwTagID,	//default: NULL
-                    szDependencies,	//default: NULL
-                    szAccountName,	//default: NULL
-                    szPassword)))	//default: NULL
+    if (!(newService = CreateService(
+              scm, szInternName, szDisplayName,
+              dwDesiredAccess,  // default: SERVICE_ALL_ACCESS
+              dwServiceType,    // default: SERVICE_WIN32_OWN_PROCESS
+                              // default: SERVICE_AUTOSTART
+              (startType == 1 ? SERVICE_AUTO_START : SERVICE_DEMAND_START),
+              dwErrorControl,    // default: SERVICE_ERROR_NORMAL
+              szFullPath,        // exec full path
+              szLoadOrderGroup,  // default: NULL
+              lpdwTagID,         // default: NULL
+              szDependencies,    // default: NULL
+              szAccountName,     // default: NULL
+              szPassword)))      // default: NULL
       printf("Failed to install the service (Couldn't create service)\n");
-    else
-    {
+    else {
       printf("Service successfully installed.\n");
       CloseServiceHandle(newService);
-      ret_val = true;				// Everything went ok
+      ret_val = true;  // Everything went ok
     }
     CloseServiceHandle(scm);
   }
   return ret_val;
 }
-
 
 /**
   Removes  the service.
@@ -157,36 +139,27 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
   - 3  Failed to delete service.
 */
 
-
-BOOL NTService::Remove(LPCSTR szInternName)
-{
+BOOL NTService::Remove(LPCSTR szInternName) {
   BOOL ret_value = false;
   SC_HANDLE service, scm;
 
-  if (!SeekStatus(szInternName, 0))
-    return false;
+  if (!SeekStatus(szInternName, 0)) return false;
 
   nError = 0;
 
   // open a connection to the SCM
-  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
-  {
+  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE))) {
     printf("Failed to remove the service (Couldn't open the SCM)\n");
-  }
-  else
-  {
-    if ((service = OpenService(scm, szInternName, DELETE)))
-    {
+  } else {
+    if ((service = OpenService(scm, szInternName, DELETE))) {
       if (!DeleteService(service))
         printf("Failed to remove the service\n");
-      else
-      {
+      else {
         printf("Service successfully removed.\n");
-        ret_value = true;				// everything went ok
+        ret_value = true;  // everything went ok
       }
       CloseServiceHandle(service);
-    }
-    else
+    } else
       printf("Failed to remove the service (Couldn't open the service)\n");
     CloseServiceHandle(scm);
   }
@@ -197,33 +170,24 @@ BOOL NTService::Remove(LPCSTR szInternName)
   this function should be called before the app. exits to stop
   the service
 */
-void NTService::Stop(void)
-{
+void NTService::Stop(void) {
   SetStatus(SERVICE_STOP_PENDING, NO_ERROR, 0, 1, 160000);
   StopService();
   SetStatus(SERVICE_STOPPED, NO_ERROR, 0, 1, 1000);
 }
 
-
-void NTService::SetExitEvent()
-{
-  SetEvent(hExitEvent);
-}
-
+void NTService::SetExitEvent() { SetEvent(hExitEvent); }
 
 /**
   This is the function that is called from the
   service manager to start the service.
 */
 
-
-void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
-{
+void NTService::ServiceMain(DWORD argc, LPTSTR *argv) {
   // registration function
-  if (!(pService->hServiceStatusHandle =
-    RegisterServiceCtrlHandler(pService->ServiceName,
-                               (LPHANDLER_FUNCTION)
-                               NTService::ServiceCtrlHandler)))
+  if (!(pService->hServiceStatusHandle = RegisterServiceCtrlHandler(
+            pService->ServiceName,
+            (LPHANDLER_FUNCTION)NTService::ServiceCtrlHandler)))
     goto error;
 
   // notify SCM of progress
@@ -231,8 +195,7 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
     goto error;
 
   // create the exit event
-  if (!(pService->hExitEvent = CreateEvent(0, true, false, 0)))
-    goto error;
+  if (!(pService->hExitEvent = CreateEvent(0, true, false, 0))) goto error;
 
   if (!pService->SetStatus(SERVICE_START_PENDING, NO_ERROR, 0, 3,
                            pService->nStartTimeOut))
@@ -243,8 +206,7 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
   pService->my_argv = argv;
 
   // start the service
-  if (!pService->StartService())
-    goto error;
+  if (!pService->StartService()) goto error;
 
   // wait for exit event
   WaitForSingleObject(pService->hExitEvent, INFINITE);
@@ -261,30 +223,23 @@ error:
   return;
 }
 
-
-
-void NTService::SetRunning()
-{
-  if (pService)
-    pService->SetStatus(SERVICE_RUNNING, NO_ERROR, 0, 0, 0);
+void NTService::SetRunning() {
+  if (pService) pService->SetStatus(SERVICE_RUNNING, NO_ERROR, 0, 0, 0);
 }
 
-void NTService::SetSlowStarting(unsigned long timeout)
-{
+void NTService::SetSlowStarting(unsigned long timeout) {
   if (pService)
     pService->SetStatus(SERVICE_START_PENDING, NO_ERROR, 0, 0, timeout);
 }
-
 
 /* ------------------------------------------------------------------------
 StartService() - starts the application thread
 -------------------------------------------------------------------------- */
 
-BOOL NTService::StartService()
-{
+BOOL NTService::StartService() {
   // Start the real service's thread (application)
-  if (!(hThreadHandle = (HANDLE)_beginthread((THREAD_FC)fpServiceThread, 0,
-                                             (void *)this)))
+  if (!(hThreadHandle =
+            (HANDLE)_beginthread((THREAD_FC)fpServiceThread, 0, (void *)this)))
     return false;
   bRunning = true;
   return true;
@@ -292,12 +247,10 @@ BOOL NTService::StartService()
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-void NTService::StopService()
-{
+void NTService::StopService() {
   bRunning = false;
   // Set the event for application
-  if (hShutdownEvent)
-    SetEvent(hShutdownEvent);
+  if (hShutdownEvent) SetEvent(hShutdownEvent);
 
   // Set the event for ServiceMain
   SetEvent(hExitEvent);
@@ -305,16 +258,14 @@ void NTService::StopService()
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-void NTService::PauseService()
-{
+void NTService::PauseService() {
   bPause = true;
   SuspendThread(hThreadHandle);
 }
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-void NTService::ResumeService()
-{
+void NTService::ResumeService() {
   bPause = false;
   ResumeThread(hThreadHandle);
 }
@@ -323,8 +274,7 @@ void NTService::ResumeService()
 -------------------------------------------------------------------------- */
 BOOL NTService::SetStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode,
                           DWORD dwServiceSpecificExitCode, DWORD dwCheckPoint,
-                          DWORD dwWaitHint)
-{
+                          DWORD dwWaitHint) {
   BOOL bRet;
   SERVICE_STATUS serviceStatus;
 
@@ -334,12 +284,12 @@ BOOL NTService::SetStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode,
   serviceStatus.dwCurrentState = dwCurrentState;
 
   if (dwCurrentState == SERVICE_START_PENDING)
-    serviceStatus.dwControlsAccepted = 0;	//don't accept control events
+    serviceStatus.dwControlsAccepted = 0;  // don't accept control events
   else
-    serviceStatus.dwControlsAccepted = (SERVICE_ACCEPT_STOP |
-      SERVICE_ACCEPT_PAUSE_CONTINUE |
-      SERVICE_ACCEPT_SHUTDOWN);
-    
+    serviceStatus.dwControlsAccepted =
+        (SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE |
+         SERVICE_ACCEPT_SHUTDOWN);
+
   // if a specific exit code is defined,set up the win32 exit code properly
   if (dwServiceSpecificExitCode == 0)
     serviceStatus.dwWin32ExitCode = dwWin32ExitCode;
@@ -360,78 +310,66 @@ BOOL NTService::SetStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode,
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
-void NTService::ServiceCtrlHandler(DWORD ctrlCode)
-{
-  DWORD  dwState;
+void NTService::ServiceCtrlHandler(DWORD ctrlCode) {
+  DWORD dwState;
 
-  if (!pService)
-    return;
+  if (!pService) return;
 
   dwState = pService->dwState;  // get current state
 
   switch (ctrlCode) {
-  case SERVICE_CONTROL_SHUTDOWN:
-  case SERVICE_CONTROL_STOP:
-    dwState = SERVICE_STOP_PENDING;
-    pService->SetStatus(SERVICE_STOP_PENDING, NO_ERROR, 0, 1,
-                        pService->nStopTimeOut);
-    pService->StopService();
-    break;
+    case SERVICE_CONTROL_SHUTDOWN:
+    case SERVICE_CONTROL_STOP:
+      dwState = SERVICE_STOP_PENDING;
+      pService->SetStatus(SERVICE_STOP_PENDING, NO_ERROR, 0, 1,
+                          pService->nStopTimeOut);
+      pService->StopService();
+      break;
 
-  default:
-    pService->SetStatus(dwState, NO_ERROR, 0, 0, 0);
-    break;
+    default:
+      pService->SetStatus(dwState, NO_ERROR, 0, 0, 0);
+      break;
   }
-  //pService->SetStatus(dwState, NO_ERROR,0, 0, 0);
+  // pService->SetStatus(dwState, NO_ERROR,0, 0, 0);
 }
 
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
 
-void NTService::Exit(DWORD error)
-{
-  if (hExitEvent)
-    CloseHandle(hExitEvent);
+void NTService::Exit(DWORD error) {
+  if (hExitEvent) CloseHandle(hExitEvent);
 
   // Send a message to the scm to tell that we stop
-  if (hServiceStatusHandle)
-    SetStatus(SERVICE_STOPPED, error, 0, 0, 0);
+  if (hServiceStatusHandle) SetStatus(SERVICE_STOPPED, error, 0, 0, 0);
 
   // If the thread has started kill it ???
   // if (hThreadHandle) CloseHandle(hThreadHandle);
-
 }
 
 /* ------------------------------------------------------------------------
 
 -------------------------------------------------------------------------- */
 
-BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
-{
+BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType) {
   BOOL ret_value = false;
   SC_HANDLE service, scm;
 
   // open a connection to the SCM
-  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
-  {
+  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE))) {
     DWORD ret_error = GetLastError();
-    if (ret_error == ERROR_ACCESS_DENIED)
-    {
+    if (ret_error == ERROR_ACCESS_DENIED) {
       printf("Install/Remove of the Service Denied!\n");
       if (!is_super_user())
-        printf("That operation should be made by an user with Administrator privileges!\n");
-    }
-    else
+        printf(
+            "That operation should be made by an user with Administrator "
+            "privileges!\n");
+    } else
       printf("There is a problem for to open the Service Control Manager!\n");
-  }
-  else
-  {
-    if (OperationType == 1)
-    {
+  } else {
+    if (OperationType == 1) {
       /* an install operation */
-      if ((service = OpenService(scm, szInternName, SERVICE_ALL_ACCESS)))
-      {
+      if ((service = OpenService(scm, szInternName, SERVICE_ALL_ACCESS))) {
         LPQUERY_SERVICE_CONFIG ConfigBuf;
         DWORD dwSize;
 
@@ -439,30 +377,28 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
         printf("The service already exists!\n");
         if (QueryServiceConfig(service, ConfigBuf, 4096, &dwSize))
           printf("The current server installed: %s\n",
-            ConfigBuf->lpBinaryPathName);
+                 ConfigBuf->lpBinaryPathName);
         LocalFree(ConfigBuf);
         CloseServiceHandle(service);
-      }
-      else
+      } else
         ret_value = true;
-    }
-    else
-    {
+    } else {
       /* a remove operation */
       if (!(service = OpenService(scm, szInternName, SERVICE_ALL_ACCESS)))
         printf("The service doesn't exist!\n");
-      else
-      {
+      else {
         SERVICE_STATUS ss;
 
         memset(&ss, 0, sizeof(ss));
-        if (QueryServiceStatus(service, &ss))
-        {
+        if (QueryServiceStatus(service, &ss)) {
           DWORD dwState = ss.dwCurrentState;
           if (dwState == SERVICE_RUNNING)
-            printf("Failed to remove the service because the service is running\nStop the service and try again\n");
+            printf(
+                "Failed to remove the service because the service is "
+                "running\nStop the service and try again\n");
           else if (dwState == SERVICE_STOP_PENDING)
-            printf("\
+            printf(
+                "\
             Failed to remove the service because the service is in stop pending state!\n\
             Wait 30 seconds and try again.\n\
             If this condition persist, reboot the machine and try again\n");
@@ -479,15 +415,12 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
 }
 /* ------------------------------------------------------------------------
 -------------------------------------------------------------------------- */
-BOOL NTService::IsService(LPCSTR ServiceName)
-{
+BOOL NTService::IsService(LPCSTR ServiceName) {
   BOOL ret_value = false;
   SC_HANDLE service, scm;
 
-  if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE)))
-  {
-    if ((service = OpenService(scm, ServiceName, SERVICE_QUERY_STATUS)))
-    {
+  if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE))) {
+    if ((service = OpenService(scm, ServiceName, SERVICE_QUERY_STATUS))) {
       ret_value = true;
       CloseServiceHandle(service);
     }
@@ -497,18 +430,15 @@ BOOL NTService::IsService(LPCSTR ServiceName)
 }
 /* ------------------------------------------------------------------------
 -------------------------------------------------------------------------- */
-BOOL NTService::got_service_option(char **argv, const char *service_option)
-{
+BOOL NTService::got_service_option(char **argv, const char *service_option) {
   char *option;
   for (option = argv[1]; *option; option++)
-    if (!strcmp(option, service_option))
-      return true;
+    if (!strcmp(option, service_option)) return true;
   return false;
 }
 /* ------------------------------------------------------------------------
 -------------------------------------------------------------------------- */
-BOOL NTService::is_super_user()
-{
+BOOL NTService::is_super_user() {
   HANDLE hAccessToken;
   UCHAR InfoBuffer[1024];
   PTOKEN_GROUPS ptgGroups = (PTOKEN_GROUPS)InfoBuffer;
@@ -518,40 +448,32 @@ BOOL NTService::is_super_user()
   UINT x;
   BOOL ret_value = false;
 
-  if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, true, &hAccessToken))
-  {
-    if (GetLastError() != ERROR_NO_TOKEN)
-      return false;
+  if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, true, &hAccessToken)) {
+    if (GetLastError() != ERROR_NO_TOKEN) return false;
 
     if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
       return false;
   }
 
-  ret_value = GetTokenInformation(hAccessToken, TokenGroups, InfoBuffer,
-                                  1024, &dwInfoBufferSize);
+  ret_value = GetTokenInformation(hAccessToken, TokenGroups, InfoBuffer, 1024,
+                                  &dwInfoBufferSize);
 
   CloseHandle(hAccessToken);
 
-  if (!ret_value)
-    return false;
+  if (!ret_value) return false;
 
-  if (!AllocateAndInitializeSid(&siaNtAuthority, 2,
-                                SECURITY_BUILTIN_DOMAIN_RID,
-                                DOMAIN_ALIAS_RID_ADMINS,
-                                0, 0, 0, 0, 0, 0,
+  if (!AllocateAndInitializeSid(&siaNtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
+                                DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0,
                                 &psidAdministrators))
     return false;
 
   ret_value = false;
 
-  for (x = 0; x<ptgGroups->GroupCount; x++)
-  {
-    if (EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid))
-    {
+  for (x = 0; x < ptgGroups->GroupCount; x++) {
+    if (EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid)) {
       ret_value = true;
       break;
     }
-
   }
   FreeSid(psidAdministrators);
   return ret_value;

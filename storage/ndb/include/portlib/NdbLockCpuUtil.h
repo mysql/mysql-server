@@ -53,16 +53,14 @@ struct NdbThread;
  *     bound to use the set of CPUs specified here, but it will not affect
  *     other threads from other programs.
  */
-int Ndb_LockCPUSet(struct NdbThread* thread,
-                   const Uint32 *cpu_ids,
-                   Uint32 num_cpu_ids,
-                   int is_exclusive);
+int Ndb_LockCPUSet(struct NdbThread *thread, const Uint32 *cpu_ids,
+                   Uint32 num_cpu_ids, int is_exclusive);
 /**
  * A simple interface to bind one thread to one CPU non-exclusively.
  * Has similar effect as calling above function with 1 CPU in the
  * array and setting is_exclusive to FALSE.
  */
-int Ndb_LockCPU(struct NdbThread*, Uint32 cpu);
+int Ndb_LockCPU(struct NdbThread *, Uint32 cpu);
 
 /**
  * Interface to UNDO a previous call to Ndb_LockCPUSet.
@@ -77,7 +75,7 @@ int Ndb_LockCPU(struct NdbThread*, Uint32 cpu);
  *
  * Release all memory attached to the thread regarding its CPU locking.
  */
-int Ndb_UnlockCPU(struct NdbThread*);
+int Ndb_UnlockCPU(struct NdbThread *);
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -38,18 +38,17 @@
 class Ndbfs;
 class Request;
 
-class PosixAsyncFile : public AsyncFile
-{
+class PosixAsyncFile : public AsyncFile {
   friend class Ndbfs;
-public:
-  PosixAsyncFile(Ndbfs& fs);
+
+ public:
+  PosixAsyncFile(Ndbfs &fs);
 
   void removeReq(Request *request) override;
-  void rmrfReq(Request *request, const char * path, bool removePath) override;
+  void rmrfReq(Request *request, const char *path, bool removePath) override;
 
   void createDirectories() override;
 };
-
 
 #undef JAM_FILE_ID
 

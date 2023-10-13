@@ -25,7 +25,6 @@
 #ifndef SectionIterators_H
 #define SectionIterators_H
 
-
 #include <ndb_global.h>
 
 class NdbApiSignal;
@@ -39,20 +38,19 @@ class NdbApiSignal;
  * send time to obtain all of the relevant words for the
  * signal section
  */
-class LinearSectionIterator: public GenericSectionIterator
-{
-private :
-  const Uint32* data;
+class LinearSectionIterator : public GenericSectionIterator {
+ private:
+  const Uint32 *data;
   Uint32 len;
   bool read;
-public :
-  LinearSectionIterator(const Uint32* _data, Uint32 _len);
+
+ public:
+  LinearSectionIterator(const Uint32 *_data, Uint32 _len);
   ~LinearSectionIterator() override;
 
   void reset() override;
-  const Uint32* getNextWords(Uint32& sz) override;
+  const Uint32 *getNextWords(Uint32 &sz) override;
 };
-
 
 /**
  * SignalSectionIterator
@@ -64,19 +62,18 @@ public :
  * send time to obtain all of the relevant words for the
  * signal section
  */
-class SignalSectionIterator: public GenericSectionIterator
-{
-private :
-  NdbApiSignal* firstSignal;
-  NdbApiSignal* currentSignal;
-public :
-  SignalSectionIterator(NdbApiSignal* signal);
+class SignalSectionIterator : public GenericSectionIterator {
+ private:
+  NdbApiSignal *firstSignal;
+  NdbApiSignal *currentSignal;
+
+ public:
+  SignalSectionIterator(NdbApiSignal *signal);
   ~SignalSectionIterator() override;
 
   void reset() override;
-  const Uint32* getNextWords(Uint32& sz) override;
+  const Uint32 *getNextWords(Uint32 &sz) override;
 };
-
 
 /**
  * FragmentedSectionIterator
@@ -89,31 +86,30 @@ public :
  * GenericSectionIterator that only returns a subset of
  * the contained words for each signal fragment.
  */
-class FragmentedSectionIterator: public GenericSectionIterator
-{
-private :
-  GenericSectionIterator* realIterator; /* Real underlying iterator */
+class FragmentedSectionIterator : public GenericSectionIterator {
+ private:
+  GenericSectionIterator *realIterator; /* Real underlying iterator */
   Uint32 realIterWords;                 /* Total size of underlying */
   Uint32 realCurrPos;                   /* Offset of start of last chunk
                                          * obtained from underlying */
   Uint32 rangeStart;                    /* Sub range start in underlying */
   Uint32 rangeLen;                      /* Sub range len in underlying */
-  Uint32 rangeRemain;                   /* Remaining unconsumed words in subrange */
-  const Uint32* lastReadPtr;            /* Ptr to last chunk obtained from
-                                         * underlying */
-  Uint32 lastReadTotal;                 /* Total read words in last chunk, starting from
-                                         * lastReadPtr */
-  Uint32 lastReadAvail;                 /* Remaining words (unconsumed) in last chunk
-                                         * obtained from underlying */
-public:
+  Uint32 rangeRemain;        /* Remaining unconsumed words in subrange */
+  const Uint32 *lastReadPtr; /* Ptr to last chunk obtained from
+                              * underlying */
+  Uint32 lastReadTotal;      /* Total read words in last chunk, starting from
+                              * lastReadPtr */
+  Uint32 lastReadAvail;      /* Remaining words (unconsumed) in last chunk
+                              * obtained from underlying */
+ public:
   /* Constructor
    * The instance is constructed with the sub-range set to be the
    * full range of the underlying iterator
    */
   FragmentedSectionIterator(GenericSectionPtr ptr);
 
-private:
-  /** 
+ private:
+  /**
    * checkInvariants
    * These class invariants must hold true at all stable states
    * of the iterator
@@ -132,7 +128,7 @@ private:
    */
   void moveToPos(Uint32 pos);
 
-public:
+ public:
   /**
    * setRange
    * Set the sub-range of the iterator.  Must be within the
@@ -155,9 +151,7 @@ public:
    * (GenericSectionIterator)
    * Get ptr and size of next contiguous words in subrange
    */
-  const Uint32* getNextWords(Uint32& sz) override;
-
+  const Uint32 *getNextWords(Uint32 &sz) override;
 };
 
-
-#endif // SectionIterators_H
+#endif  // SectionIterators_H

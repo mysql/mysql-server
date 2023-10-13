@@ -25,17 +25,16 @@
 #ifndef WatchDog_H
 #define WatchDog_H
 
-#include <kernel_types.h>
-#include <NdbThread.h>
 #include <NdbMutex.h>
+#include <NdbThread.h>
 #include <NdbTick.h>
+#include <kernel_types.h>
 
 #define JAM_FILE_ID 253
 
+extern "C" void *runWatchDog(void *w);
 
-extern "C" void* runWatchDog(void* w);
-
-class WatchDog{
+class WatchDog {
   enum { MAX_WATCHED_THREADS = MAX_THREADS_TO_WATCH };
 
   struct WatchedThread {
@@ -55,11 +54,11 @@ class WatchDog{
     Uint32 m_lastCounterValue;
   };
 
-public:
+ public:
   WatchDog(Uint32 interval = 3000);
   ~WatchDog();
- 
-  struct NdbThread* doStart();
+
+  struct NdbThread *doStart();
   void doStop();
 
   Uint32 setCheckInterval(Uint32 interval);
@@ -74,18 +73,18 @@ public:
 
   void setKillSwitch(bool kill);
 
-protected:
+ protected:
   /**
    * Thread function
    */
-  friend void* runWatchDog(void* w);
-  
+  friend void *runWatchDog(void *w);
+
   /**
-   * Thread pointer 
+   * Thread pointer
    */
-  NdbThread* theThreadPtr;
-  
-private:
+  NdbThread *theThreadPtr;
+
+ private:
   Uint32 theInterval;
   /*
     List of watched threads.
@@ -100,12 +99,11 @@ private:
 
   bool theStop;
   bool killer;
-  
+
   void run();
   void shutdownSystem(const char *last_stuck_action);
 };
 
-
 #undef JAM_FILE_ID
 
-#endif // WatchDog_H
+#endif  // WatchDog_H

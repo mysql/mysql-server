@@ -25,8 +25,8 @@
 #include "util/require.h"
 #include <ndb_global.h>
 
-void require_failed(int exitcode, const char* expr, const char* file, int line)
-{
+void require_failed(int exitcode, const char *expr, const char *file,
+                    int line) {
   // Print directly to stderr
   fflush(nullptr);
   fprintf(stderr, "%s:%d: require(%s) failed\n", file, line, expr);
@@ -34,16 +34,14 @@ void require_failed(int exitcode, const char* expr, const char* file, int line)
 #ifdef _WIN32
   DebugBreak();
 #endif
-  if(exitcode)
-  {
+  if (exitcode) {
     exit(exitcode);
   }
   abort();
 }
 
 #ifdef TEST
-int main()
-{
+int main() {
   require(1);
   require(0);
 }

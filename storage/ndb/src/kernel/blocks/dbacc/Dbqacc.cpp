@@ -29,17 +29,12 @@
 
 #define JAM_FILE_ID 522
 
-Dbqacc::Dbqacc(Block_context& ctx,
-               Uint32 instanceNumber):
-  Dbacc(ctx, instanceNumber, DBQACC)
-{
-}
+Dbqacc::Dbqacc(Block_context &ctx, Uint32 instanceNumber)
+    : Dbacc(ctx, instanceNumber, DBQACC) {}
 
-Uint64 Dbqacc::getTransactionMemoryNeed()
-{
+Uint64 Dbqacc::getTransactionMemoryNeed() {
   Uint32 query_instance_count =
-    globalData.ndbMtQueryThreads +
-    globalData.ndbMtRecoverThreads;
+      globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads;
   Uint32 acc_scan_recs = 1;
   Uint32 acc_op_recs = 1;
 
@@ -53,7 +48,4 @@ Uint64 Dbqacc::getTransactionMemoryNeed()
   return (scan_byte_count + op_byte_count);
 }
 
-
-Dbqacc::~Dbqacc()
-{
-}
+Dbqacc::~Dbqacc() {}

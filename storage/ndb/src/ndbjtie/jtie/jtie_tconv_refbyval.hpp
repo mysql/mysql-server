@@ -51,11 +51,9 @@
  *   ttrait_<T>_r_v             J <->       C &
  *   ttrait_<T>_cr_v            J <-> const C &
  */
-#define JTIE_DEFINE_VALUE_REF_TYPE_MAPPING( J, C, T )                   \
-    typedef ttrait< J, C &                                              \
-                    > ttrait_##T##_r_v;                                 \
-    typedef ttrait< J, const C &                                        \
-                    > ttrait_##T##_cr_v;
+#define JTIE_DEFINE_VALUE_REF_TYPE_MAPPING(J, C, T) \
+  typedef ttrait<J, C &> ttrait_##T##_r_v;          \
+  typedef ttrait<J, const C &> ttrait_##T##_cr_v;
 
 /**
  * Defines the trait type aliases for the mapping of a
@@ -73,10 +71,9 @@
  * Note that there's no point in defining a mapping:
  *   ttrait_<T>_cr_a            J <-> const C &       (of array length 1)
  */
-#define JTIE_DEFINE_ARRAY_REF_TYPE_MAPPING( J, C, T )                   \
-    typedef ttrait< J *, C &                                            \
-                    > ttrait_##T##_r_a;
+#define JTIE_DEFINE_ARRAY_REF_TYPE_MAPPING(J, C, T) \
+  typedef ttrait<J *, C &> ttrait_##T##_r_a;
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_refbyval_hpp
+#endif  // jtie_tconv_refbyval_hpp

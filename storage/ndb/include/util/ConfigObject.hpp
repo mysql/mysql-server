@@ -26,7 +26,7 @@
 #define ConfigObject_H
 
 #include <vector>
-#include "ConfigSection.hpp" // ConfigSection::Entry, SectionType, ValueType
+#include "ConfigSection.hpp"  // ConfigSection::Entry, SectionType, ValueType
 #include "ndb_types.h"
 
 #define OUR_V2_VERSION true
@@ -64,11 +64,10 @@
 
 class ConfigSection;
 
-class ConfigObject
-{
+class ConfigObject {
   friend class ConfigSection;
 
-public: /* Public methods */
+ public: /* Public methods */
   ConfigObject();
   ~ConfigObject();
 
@@ -90,7 +89,7 @@ public: /* Public methods */
    * No other values of section type are allowed. The index
    * is the section id within this section type.
    */
-  ConfigSection* openSection(Uint32 section_type, Uint32 index) const;
+  ConfigSection *openSection(Uint32 section_type, Uint32 index) const;
 
   /**
    * Fill the current section with a new key and its value.
@@ -103,15 +102,13 @@ public: /* Public methods */
   /**
    * Get an key entry from the current section.
    */
-  bool get(ConfigSection *curr_section,
-           Uint32 key,
+  bool get(ConfigSection *curr_section, Uint32 key,
            ConfigSection::Entry &entry) const;
 
   /**
    * Set one item in the current section.
    */
-  bool set(ConfigSection *curr_section,
-           ConfigSection::Entry &entry,
+  bool set(ConfigSection *curr_section, ConfigSection::Entry &entry,
            bool free_string);
 
   /**
@@ -149,7 +146,7 @@ public: /* Public methods */
   /**
    * Create a new ConfigObject consisting of only the specified ConfigSection.
    */
-  ConfigObject* copy_current(ConfigSection *cs) const;
+  ConfigObject *copy_current(ConfigSection *cs) const;
 
   /**
    * Read all entries in configuration one by one.
@@ -174,7 +171,7 @@ public: /* Public methods */
   void print_error_code() const;
   int get_error_code() const;
 
-private: /* Private methods */
+ private: /* Private methods */
   Uint32 get_num_comm_sections(Uint32 node_id) const;
   /* Remove pointer sections as final unpack_v1 step */
   void remove_pointer_sections();
@@ -201,28 +198,20 @@ private: /* Private methods */
   /**
    * Functions to create the v1 configuration binary.
    */
-  void create_v1_header_section(Uint32 **v1_ptr,
-                                Uint32 &curr_section) const;
+  void create_v1_header_section(Uint32 **v1_ptr, Uint32 &curr_section) const;
   void create_v1_node_header_section(Uint32 **v1_ptr,
                                      Uint32 &curr_section) const;
-  void create_v1_mgm_node_sections(Uint32 **v1_ptr,
-                                   Uint32 &curr_section) const;
-  void create_v1_api_node_sections(Uint32 **v1_ptr,
-                                   Uint32 &curr_section) const;
+  void create_v1_mgm_node_sections(Uint32 **v1_ptr, Uint32 &curr_section) const;
+  void create_v1_api_node_sections(Uint32 **v1_ptr, Uint32 &curr_section) const;
   void create_v1_system_header_section(Uint32 **v1_ptr,
                                        Uint32 &curr_section) const;
-  void create_v1_system_section(Uint32 **v1_ptr,
-                                Uint32 &curr_section) const;
+  void create_v1_system_section(Uint32 **v1_ptr, Uint32 &curr_section) const;
   void create_v1_comm_header_section(Uint32 **v1_ptr,
                                      Uint32 &curr_section) const;
-  void create_v1_comm_sections(Uint32 **v1_ptr,
-                               Uint32 &curr_section) const;
+  void create_v1_comm_sections(Uint32 **v1_ptr, Uint32 &curr_section) const;
   void create_v1_data_node_sections(Uint32 **v1_ptr,
                                     Uint32 &curr_section) const;
-  void create_v1_entry(Uint32**,
-                       Uint32 type,
-                       Uint32 key,
-                       Uint32 section);
+  void create_v1_entry(Uint32 **, Uint32 type, Uint32 key, Uint32 section);
   void create_v1_comm_specific_sections(Uint32 **v1_ptr,
                                         ConfigSection::SectionType sect_type,
                                         Uint32 &curr_section) const;
@@ -233,11 +222,9 @@ private: /* Private methods */
   /**
    * Functions to create v2 configuration binary.
    */
-  void create_v2_header_section(Uint32** v2_ptr,
-                                         Uint32 tot_len,
-                                         Uint32 num_comm_sections) const;
-  void create_empty_default_trp_section(Uint32 **v2_ptr,
-                                        Uint32 type) const;
+  void create_v2_header_section(Uint32 **v2_ptr, Uint32 tot_len,
+                                Uint32 num_comm_sections) const;
+  void create_empty_default_trp_section(Uint32 **v2_ptr, Uint32 type) const;
 
   /**
    * Functions to unpack v2 configuration binary
@@ -249,7 +236,7 @@ private: /* Private methods */
   bool unpack_comm_sections(const Uint32 **data);
   bool read_v2_header_info(const Uint32 **data);
 
-private: /* Private data */
+ private: /* Private data */
   /**
    * Variable pointing to the currently opened ConfigSection object.
    */
@@ -258,7 +245,7 @@ private: /* Private data */
    * The array of the current set of ConfigSection objects in this
    * configuration.
    */
-  std::vector<ConfigSection*> m_cfg_sections;
+  std::vector<ConfigSection *> m_cfg_sections;
   /**
    * Number of ConfigSection* entries in m_cfg_sections array.
    */
@@ -271,7 +258,7 @@ private: /* Private data */
    * Pointer to an array of node sections.
    * Number of entries in the array.
    */
-  std::vector<ConfigSection*> m_node_sections;
+  std::vector<ConfigSection *> m_node_sections;
   Uint32 m_num_node_sections;
 
   Uint32 m_num_data_nodes;
@@ -284,7 +271,7 @@ private: /* Private data */
    * Pointer to an array of communication sections.
    * Number of entries in the array.
    */
-  std::vector<ConfigSection*> m_comm_sections;
+  std::vector<ConfigSection *> m_comm_sections;
   Uint32 m_num_comm_sections;
 
   /**
@@ -296,28 +283,22 @@ private: /* Private data */
   ConfigSection *m_tcp_default_section;
   ConfigSection *m_shm_default_section;
 
-protected:
+ protected:
   /**
    * Error code after failure of some kind.
    */
   Uint32 m_error_code;
 };
 
-inline ConfigSection::ValueType 
-ConfigObject::get_old_type(Uint32 key)
-{
+inline ConfigSection::ValueType ConfigObject::get_old_type(Uint32 key) {
   return (ConfigSection::ValueType)(key >> OLD_KP_TYPE_SHIFT);
 }
 
-inline Uint32
-ConfigObject::get_old_section(Uint32 key)
-{
+inline Uint32 ConfigObject::get_old_section(Uint32 key) {
   return ((key >> OLD_KP_SECTION_SHIFT) & OLD_KP_SECTION_MASK);
 }
 
-inline Uint32
-ConfigObject::get_old_key(Uint32 key)
-{
+inline Uint32 ConfigObject::get_old_key(Uint32 key) {
   return ((key >> OLD_KP_KEYVAL_SHIFT) & OLD_KP_KEYVAL_MASK);
 }
 #endif

@@ -24,51 +24,50 @@
 #define NDB_BACKUP_PROXY_HPP
 
 #include <LocalProxy.hpp>
-#include <signaldata/UtilSequence.hpp>
 #include <signaldata/BackupImpl.hpp>
 #include <signaldata/BackupSignalData.hpp>
+#include <signaldata/UtilSequence.hpp>
 
 #define JAM_FILE_ID 478
 
-
 class BackupProxy : public LocalProxy {
-public:
-  BackupProxy(Block_context& ctx);
+ public:
+  BackupProxy(Block_context &ctx);
   ~BackupProxy() override;
   BLOCK_DEFINES(BackupProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 
   // GSN_STTOR
-  void callSTTOR(Signal*) override;
-  void sendUTIL_SEQUENCE_REQ(Signal*);
-  void execUTIL_SEQUENCE_CONF(Signal*);
-  void execUTIL_SEQUENCE_REF(Signal*);
+  void callSTTOR(Signal *) override;
+  void sendUTIL_SEQUENCE_REQ(Signal *);
+  void execUTIL_SEQUENCE_CONF(Signal *);
+  void execUTIL_SEQUENCE_REF(Signal *);
 
   struct Ss_SUM_DUMP_STATE_ORD : SsParallel {
     static const int MAX_REQ_SIZE = 2;
     static const int MAX_REP_SIZE = 11;
-    Uint32 m_request[ MAX_REQ_SIZE ];
-    Uint32 m_report[ MAX_REP_SIZE ];
-    
+    Uint32 m_request[MAX_REQ_SIZE];
+    Uint32 m_report[MAX_REP_SIZE];
+
     Ss_SUM_DUMP_STATE_ORD() {
       m_sendREQ = (SsFUNCREQ)&BackupProxy::sendSUM_DUMP_STATE_ORD;
       m_sendCONF = (SsFUNCREP)&BackupProxy::sendSUM_EVENT_REP;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_SUM_DUMP_STATE_ORD>& pool(LocalProxy* proxy) {
-      return ((BackupProxy*)proxy)->c_ss_SUM_DUMP_STATE_ORD;
+    static SsPool<Ss_SUM_DUMP_STATE_ORD> &pool(LocalProxy *proxy) {
+      return ((BackupProxy *)proxy)->c_ss_SUM_DUMP_STATE_ORD;
     }
   };
   SsPool<Ss_SUM_DUMP_STATE_ORD> c_ss_SUM_DUMP_STATE_ORD;
 
   // DUMP_STATE_ORD
-  void execDUMP_STATE_ORD(Signal* );
-  void sendSUM_DUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
-  void execEVENT_REP(Signal* );
-  void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
-  void execRESTORABLE_GCI_REP(Signal*);
+  void execDUMP_STATE_ORD(Signal *);
+  void sendSUM_DUMP_STATE_ORD(Signal *, Uint32 ssId, SectionHandle *);
+  void execEVENT_REP(Signal *);
+  void sendSUM_EVENT_REP(Signal *, Uint32 ssId);
+  void execRESTORABLE_GCI_REP(Signal *);
 
   // DEFINE_BACKUP_REQ
   struct Ss_DEFINE_BACKUP_REQ : SsParallel {
@@ -79,17 +78,17 @@ protected:
       m_sendCONF = (SsFUNCREP)&BackupProxy::sendDEFINE_BACKUP_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_DEFINE_BACKUP_REQ>& pool(LocalProxy* proxy) {
-      return ((BackupProxy*)proxy)->c_ss_DEFINE_BACKUP_REQ;
+    static SsPool<Ss_DEFINE_BACKUP_REQ> &pool(LocalProxy *proxy) {
+      return ((BackupProxy *)proxy)->c_ss_DEFINE_BACKUP_REQ;
     }
     Uint32 masterRef;
   };
   SsPool<Ss_DEFINE_BACKUP_REQ> c_ss_DEFINE_BACKUP_REQ;
-  void execDEFINE_BACKUP_REQ(Signal*);
-  void sendDEFINE_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execDEFINE_BACKUP_CONF(Signal*);
-  void execDEFINE_BACKUP_REF(Signal*);
-  void sendDEFINE_BACKUP_CONF(Signal*, Uint32 ssId);
+  void execDEFINE_BACKUP_REQ(Signal *);
+  void sendDEFINE_BACKUP_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execDEFINE_BACKUP_CONF(Signal *);
+  void execDEFINE_BACKUP_REF(Signal *);
+  void sendDEFINE_BACKUP_CONF(Signal *, Uint32 ssId);
 
   // START_BACKUP_REQ
   struct Ss_START_BACKUP_REQ : SsParallel {
@@ -100,17 +99,17 @@ protected:
       m_sendCONF = (SsFUNCREP)&BackupProxy::sendSTART_BACKUP_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_START_BACKUP_REQ>& pool(LocalProxy* proxy) {
-      return ((BackupProxy*)proxy)->c_ss_START_BACKUP_REQ;
+    static SsPool<Ss_START_BACKUP_REQ> &pool(LocalProxy *proxy) {
+      return ((BackupProxy *)proxy)->c_ss_START_BACKUP_REQ;
     }
     Uint32 masterRef;
   };
   SsPool<Ss_START_BACKUP_REQ> c_ss_START_BACKUP_REQ;
-  void execSTART_BACKUP_REQ(Signal*);
-  void sendSTART_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execSTART_BACKUP_CONF(Signal*);
-  void execSTART_BACKUP_REF(Signal*);
-  void sendSTART_BACKUP_CONF(Signal*, Uint32 ssId);
+  void execSTART_BACKUP_REQ(Signal *);
+  void sendSTART_BACKUP_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execSTART_BACKUP_CONF(Signal *);
+  void execSTART_BACKUP_REF(Signal *);
+  void sendSTART_BACKUP_CONF(Signal *, Uint32 ssId);
   // STOP_BACKUP_REQ
   struct Ss_STOP_BACKUP_REQ : SsParallel {
     StopBackupReq m_req;
@@ -120,17 +119,17 @@ protected:
       m_sendCONF = (SsFUNCREP)&BackupProxy::sendSTOP_BACKUP_CONF;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_STOP_BACKUP_REQ>& pool(LocalProxy* proxy) {
-      return ((BackupProxy*)proxy)->c_ss_STOP_BACKUP_REQ;
+    static SsPool<Ss_STOP_BACKUP_REQ> &pool(LocalProxy *proxy) {
+      return ((BackupProxy *)proxy)->c_ss_STOP_BACKUP_REQ;
     }
     Uint32 masterRef;
   };
   SsPool<Ss_STOP_BACKUP_REQ> c_ss_STOP_BACKUP_REQ;
-  void execSTOP_BACKUP_REQ(Signal*);
-  void sendSTOP_BACKUP_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execSTOP_BACKUP_CONF(Signal*);
-  void execSTOP_BACKUP_REF(Signal*);
-  void sendSTOP_BACKUP_CONF(Signal*, Uint32 ssId);
+  void execSTOP_BACKUP_REQ(Signal *);
+  void sendSTOP_BACKUP_REQ(Signal *, Uint32 ssId, SectionHandle *);
+  void execSTOP_BACKUP_CONF(Signal *);
+  void execSTOP_BACKUP_REF(Signal *);
+  void sendSTOP_BACKUP_CONF(Signal *, Uint32 ssId);
 
   // ABORT_BACKUP_ORD
   struct Ss_ABORT_BACKUP_ORD : SsParallel {
@@ -141,17 +140,16 @@ protected:
       m_sendCONF = (SsFUNCREP)0;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_ABORT_BACKUP_ORD>& pool(LocalProxy* proxy) {
-      return ((BackupProxy*)proxy)->c_ss_ABORT_BACKUP_ORD;
+    static SsPool<Ss_ABORT_BACKUP_ORD> &pool(LocalProxy *proxy) {
+      return ((BackupProxy *)proxy)->c_ss_ABORT_BACKUP_ORD;
     }
     Uint32 masterRef;
   };
   SsPool<Ss_ABORT_BACKUP_ORD> c_ss_ABORT_BACKUP_ORD;
-  void execABORT_BACKUP_ORD(Signal*);
-  void sendABORT_BACKUP_ORD(Signal*, Uint32 ssId, SectionHandle*);
-  void execNODE_START_REP(Signal* signal);
+  void execABORT_BACKUP_ORD(Signal *);
+  void sendABORT_BACKUP_ORD(Signal *, Uint32 ssId, SectionHandle *);
+  void execNODE_START_REP(Signal *signal);
 };
-
 
 #undef JAM_FILE_ID
 

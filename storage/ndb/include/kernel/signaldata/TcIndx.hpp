@@ -26,14 +26,12 @@
 #define TC_INDX_H
 
 #include "SignalData.hpp"
-#include "TcKeyReq.hpp"
 #include "TcKeyConf.hpp"
+#include "TcKeyReq.hpp"
 
 #define JAM_FILE_ID 211
 
-
 typedef TcKeyConf TcIndxConf;
-
 
 #undef JAM_FILE_ID
 

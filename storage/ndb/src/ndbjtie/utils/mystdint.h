@@ -33,10 +33,10 @@
  *
  * JTie has pre-defined type mappings for the C99 exact-width type aliases:
  * int8_t, uint8_t, ... int64_t, uint64_t, which are a more natural fit for
- * Java than the native, integral C types, char ... long long, 
+ * Java than the native, integral C types, char ... long long,
  *
  * Unfortunately, the C99 <stdint.h> file is not provided by some C/C++
- * compilers.  (It's a crying shame.  For instance, MS Visual Studio 
+ * compilers.  (It's a crying shame.  For instance, MS Visual Studio
  * provides <stdint.h> not until VS2010.)  Therefore, this header deals in a
  * single place with the presence or absence of the <stdint.h> file.
  *
@@ -54,7 +54,7 @@
 
 #ifdef HAVE_STDINT_H
 
-#include <stdint.h> // not using namespaces yet
+#include <stdint.h>  // not using namespaces yet
 
 #else
 
@@ -70,7 +70,6 @@ typedef unsigned char uint8_t;
 typedef signed short int16_t;
 typedef unsigned short uint16_t;
 
-#endif // !HAVE_STDINT_H
+#endif  // !HAVE_STDINT_H
 
-#endif // mystdint_h
-
+#endif  // mystdint_h

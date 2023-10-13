@@ -34,9 +34,8 @@ class LogHandler;
  * @see LogHandler
  * @version #@ $Id: LogHandlerList.hpp,v 1.2 2002/03/14 13:07:21 eyualex Exp $
  */
-class LogHandlerList
-{
-public:
+class LogHandlerList {
+ public:
   /**
    * Default Constructor.
    */
@@ -52,14 +51,14 @@ public:
    *
    * @param pNewHandler log handler.
    */
-  bool add(LogHandler* pNewHandler);
+  bool add(LogHandler *pNewHandler);
 
   /**
    * Removes a log handler from the list and call its destructor.
    *
    * @param pRemoveHandler the handler to remove
    */
-  bool remove(LogHandler* pRemoveHandler);
+  bool remove(LogHandler *pRemoveHandler);
 
   /**
    * Removes all log handlers.
@@ -67,36 +66,34 @@ public:
   void removeAll();
 
   /**
-   * Returns the next log handler in the list. 
+   * Returns the next log handler in the list.
    * returns a log handler or NULL.
    */
-  LogHandler* next();
+  LogHandler *next();
 
   /**
    * Returns the size of the list.
-   */ 
+   */
   int size() const;
-private:
+
+ private:
   /** List node */
-  struct LogHandlerNode
-  {
-    LogHandlerNode* pPrev;
-    LogHandlerNode* pNext;    
-    LogHandler* pHandler;
+  struct LogHandlerNode {
+    LogHandlerNode *pPrev;
+    LogHandlerNode *pNext;
+    LogHandler *pHandler;
   };
 
-  LogHandlerNode* next(LogHandlerNode* pNode);
-  LogHandlerNode* prev(LogHandlerNode* pNode);
+  LogHandlerNode *next(LogHandlerNode *pNode);
+  LogHandlerNode *prev(LogHandlerNode *pNode);
 
-  void removeNode(LogHandlerNode* pNode);
+  void removeNode(LogHandlerNode *pNode);
 
   int m_size;
 
-  LogHandlerNode* m_pHeadNode;
-  LogHandlerNode* m_pTailNode;
-  LogHandlerNode* m_pCurrNode;
+  LogHandlerNode *m_pHeadNode;
+  LogHandlerNode *m_pTailNode;
+  LogHandlerNode *m_pCurrNode;
 };
 
 #endif
-
-

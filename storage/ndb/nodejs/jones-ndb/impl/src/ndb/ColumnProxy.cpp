@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -22,16 +22,15 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "adapter_global.h"
-#include "unified_debug.h"
 #include "ColumnProxy.h"
 #include "JsWrapper.h"
-
+#include "adapter_global.h"
+#include "unified_debug.h"
 
 Local<Value> ColumnProxy::get(v8::Isolate *isolate, char *buffer) {
   Local<Value> val = jsValue.Get(isolate);
 
-  if(! isLoaded) {
+  if (!isLoaded) {
     val = handler->read(buffer, blobBuffer.Get(isolate));
     jsValue.Reset(isolate, val);
     isLoaded = true;
@@ -49,7 +48,7 @@ void ColumnProxy::set(v8::Isolate *isolate, Local<Value> newValue) {
 Local<Value> ColumnProxy::write(v8::Isolate *isolate, char *buffer) {
   Local<Value> rval = Undefined(isolate);
 
-  if(isDirty && ! (handler->isBlob())) {
+  if (isDirty && !(handler->isBlob())) {
     rval = handler->write(jsValue.Get(isolate), buffer);
   }
   isDirty = false;
@@ -57,10 +56,9 @@ Local<Value> ColumnProxy::write(v8::Isolate *isolate, char *buffer) {
   return rval;
 }
 
-BlobWriteHandler * ColumnProxy::createBlobWriteHandle(v8::Isolate * isolate,
-                                                      int i) {
-  if(isNull) return nullptr;
+BlobWriteHandler *ColumnProxy::createBlobWriteHandle(v8::Isolate *isolate,
+                                                     int i) {
+  if (isNull) return nullptr;
   Local<Value> columnValue = jsValue.Get(isolate);
   return handler->createBlobWriteHandle(columnValue, i);
 }
-

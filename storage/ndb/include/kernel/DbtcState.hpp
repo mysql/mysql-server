@@ -35,10 +35,8 @@
  * The values of dbtc_apiconnect_state should match values in
  * Dbtc::ConnectionState.
  */
-struct dbtc_apiconnect_state
-{
-  enum
-  {
+struct dbtc_apiconnect_state {
+  enum {
     CS_CONNECTED = 0,
     CS_DISCONNECTED = 1,
     CS_STARTED = 2,

@@ -30,7 +30,6 @@
 
 #define JAM_FILE_ID 52
 
-
 /**
  * Send by different block to report that a event has taken place
  *
@@ -51,12 +50,12 @@ class EventReport {
   friend class Dbdict;
   friend class MgmtSrvr;
 
-public:
-  /* 
-     EventType defines what event reports to send. 
+ public:
+  /*
+     EventType defines what event reports to send.
 
      The ORDER is NOT important anymore. //ejonore 2003-07-24 15:03
-     
+
      HOW TO ADD A NEW EVENT
      --------------------
      1) Add SentHeartbeat EventType in the category where it belongs.
@@ -69,11 +68,11 @@ public:
      2) remember to update # of events below. Just to keep count...
         Number of event types = 53
 
-     3) Add a new SentHeartBeat entry to EventLogger::matrix[]. 
+     3) Add a new SentHeartBeat entry to EventLogger::matrix[].
        ...
        // INFO
        { EventReport::SentHeartbeat, LogLevel::llInfo, 11, INFO },
-       { EventReport::InfoEvent,     LogLevel::llInfo,  2, INFO }      
+       { EventReport::InfoEvent,     LogLevel::llInfo,  2, INFO }
        ...
 
      4) Add SentHeartbeat in EventLogger::getText()
@@ -83,33 +82,22 @@ public:
   Uint32 getNodeId() const;
   void setEventType(Ndb_logevent_type type);
   Ndb_logevent_type getEventType() const;
-  UintR eventType;    // DATA 0
+  UintR eventType;  // DATA 0
 };
 
-inline
-void
-EventReport::setNodeId(Uint32 nodeId){
+inline void EventReport::setNodeId(Uint32 nodeId) {
   eventType = (nodeId << 16) | (eventType & 0xFFFF);
 }
 
-inline
-Uint32
-EventReport::getNodeId() const {
-  return eventType >> 16;
+inline Uint32 EventReport::getNodeId() const { return eventType >> 16; }
+
+inline void EventReport::setEventType(Ndb_logevent_type type) {
+  eventType = (eventType & 0xFFFF0000) | (((UintR)type) & 0xFFFF);
 }
 
-inline
-void
-EventReport::setEventType(Ndb_logevent_type type){
-  eventType = (eventType & 0xFFFF0000) | (((UintR) type) & 0xFFFF);
-}
-
-inline
-Ndb_logevent_type
-EventReport::getEventType() const {
+inline Ndb_logevent_type EventReport::getEventType() const {
   return (Ndb_logevent_type)(eventType & 0xFFFF);
 }
-
 
 #undef JAM_FILE_ID
 

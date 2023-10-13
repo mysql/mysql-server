@@ -28,42 +28,33 @@
 
 #define JAM_FILE_ID 501
 
-[[noreturn]] inline void ndb_end_and_exit(int exitcode)
-{
+[[noreturn]] inline void ndb_end_and_exit(int exitcode) {
   ndb_end(0);
   exit(exitcode);
 }
 
-void 
-usage(const char * prg){
-  ndbout << "Usage " << prg 
-	 << " S[0-20000].FragList" << endl;  
+void usage(const char *prg) {
+  ndbout << "Usage " << prg << " S[0-20000].FragList" << endl;
 }
 
-void
-fill(const char * buf, int mod){
-  int len = (int)(strlen(buf)+1);
+void fill(const char *buf, int mod) {
+  int len = (int)(strlen(buf) + 1);
   ndbout << buf << " ";
-  while((len % mod) != 0){
+  while ((len % mod) != 0) {
     ndbout << " ";
     len++;
   }
 }
 
-Uint32 readWord(Uint32 &index, Uint32 *buf)
-{
-  if ((index % 2048) == 0)
-  {
+Uint32 readWord(Uint32 &index, Uint32 *buf) {
+  if ((index % 2048) == 0) {
     index += 32;
   }
   index++;
   return buf[index];
 }
 
-void readFragment(Uint32 &numStoredReplicas,
-                  Uint32 &index,
-                  Uint32 *buf)
-{
+void readFragment(Uint32 &numStoredReplicas, Uint32 &index, Uint32 *buf) {
   Uint32 fragId = readWord(index, buf);
   Uint32 prefPrimary = readWord(index, buf);
   numStoredReplicas = readWord(index, buf);
@@ -80,8 +71,7 @@ void readFragment(Uint32 &numStoredReplicas,
   ndbout << " LogPartId: " << logPartId << endl;
 }
 
-void readReplica(Uint32 &index, Uint32 *buf)
-{
+void readReplica(Uint32 &index, Uint32 *buf) {
   Uint32 i;
   Uint32 procNode = readWord(index, buf);
   Uint32 initialGci = readWord(index, buf);
@@ -92,42 +82,33 @@ void readReplica(Uint32 &index, Uint32 *buf)
   ndbout << " initialGci: " << initialGci;
   ndbout << " numCrashedReplicas = " << numCrashedReplicas;
   ndbout << " nextLcpNo = " << nextLcp << endl;
-  for (i = 0; i < 3; i++)
-  {
+  for (i = 0; i < 3; i++) {
     Uint32 maxGciCompleted = readWord(index, buf);
     Uint32 maxGciStarted = readWord(index, buf);
     Uint32 lcpId = readWord(index, buf);
     Uint32 lcpStatus = readWord(index, buf);
 
-    if (i == 2)
-      continue;
+    if (i == 2) continue;
 
     ndbout << "LcpNo[" << i << "]: ";
     ndbout << "maxGciCompleted: " << maxGciCompleted;
     ndbout << " maxGciStarted: " << maxGciStarted;
     ndbout << " lcpId: " << lcpId;
     ndbout << " lcpStatus: ";
-    if (lcpStatus == 1)
-    {
+    if (lcpStatus == 1) {
       ndbout << "valid";
-    }
-    else if (lcpStatus == 2)
-    {
+    } else if (lcpStatus == 2) {
       ndbout << "invalid";
-    }
-    else
-    {
+    } else {
       ndbout << "error: set to " << lcpStatus;
     }
     ndbout << endl;
   }
-  for (i = 0; i < 8; i++)
-  {
+  for (i = 0; i < 8; i++) {
     Uint32 createGci = readWord(index, buf);
     Uint32 replicaLastGci = readWord(index, buf);
-    
-    if (i < numCrashedReplicas)
-    {
+
+    if (i < numCrashedReplicas) {
       ndbout << "Crashed_replica[" << i << "]: ";
       ndbout << "CreateGci: " << createGci;
       ndbout << " replicaLastGci:" << replicaLastGci << endl;
@@ -135,15 +116,12 @@ void readReplica(Uint32 &index, Uint32 *buf)
   }
 }
 
-static void
-print(const char *filename, Uint32 *buf, Uint32 size)
-{
+static void print(const char *filename, Uint32 *buf, Uint32 size) {
   Uint32 index = 0;
   ndbout << "Filename: " << filename << " with size " << size << endl;
 
   Uint32 noOfPages = readWord(index, buf);
-  if (noOfPages * 8192 != size)
-  {
+  if (noOfPages * 8192 != size) {
     ndbout << "noOfPages is wrong: noOfPages = " << noOfPages << endl;
     return;
   }
@@ -167,29 +145,27 @@ print(const char *filename, Uint32 *buf, Uint32 size)
   ndbout << "kvalue: " << kvalue;
   ndbout << " mask: " << hex << mask;
   ndbout << " method: ";
-  switch (tab_method)
-  {
-  case 0:
-    ndbout << "LinearHash";
-    break;
-  case 2:
-    ndbout << "Hash";
-    break;
-  case 3:
-    ndbout << "User Defined";
-    break;
-  case 4:
-    ndbout << "HashMap";
-    break;
-  default:
-    ndbout << "set to:" <<  tab_method;
-    break;
+  switch (tab_method) {
+    case 0:
+      ndbout << "LinearHash";
+      break;
+    case 2:
+      ndbout << "Hash";
+      break;
+    case 3:
+      ndbout << "User Defined";
+      break;
+    case 4:
+      ndbout << "HashMap";
+      break;
+    default:
+      ndbout << "set to:" << tab_method;
+      break;
   }
   ndbout << endl;
 
   ndbout << "Storage is on ";
-  switch (tab_storage)
-  {
+  switch (tab_storage) {
     case 0:
       ndbout << "Logged, not checkpointed, doesn't survive SR";
       break;
@@ -200,76 +176,66 @@ print(const char *filename, Uint32 *buf, Uint32 size)
       ndbout << "Table is lost after SR";
       break;
     default:
-      ndbout << "set to:" <<  tab_storage;
+      ndbout << "set to:" << tab_storage;
       break;
   }
   ndbout << endl;
-  for (Uint32 i = 0; i < totalfrags; i++)
-  {
+  for (Uint32 i = 0; i < totalfrags; i++) {
     Uint32 j;
     Uint32 numStoredReplicas;
     readFragment(numStoredReplicas, index, buf);
-    for (j = 0; j < numStoredReplicas; j++)
-    {
+    for (j = 0; j < numStoredReplicas; j++) {
       ndbout << "-------Stored Replica----------" << endl;
       readReplica(index, buf);
     }
-    for ( ; j < (1 + noOfBackups); j++)
-    {
+    for (; j < (1 + noOfBackups); j++) {
       ndbout << "-------Old Stored Replica------" << endl;
       readReplica(index, buf);
     }
   }
 }
 
-
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
   ndb_init();
-  if(argc != 2){
+  if (argc != 2) {
     usage(argv[0]);
     ndb_end_and_exit(0);
   }
 
-  for (int i = 1; i<argc; i++)
-  {
-    const char * filename = argv[i];
+  for (int i = 1; i < argc; i++) {
+    const char *filename = argv[i];
 
     struct stat sbuf;
 
-    if(stat(filename, &sbuf) != 0)
-    {
+    if (stat(filename, &sbuf) != 0) {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
     const Uint32 bytes = sbuf.st_size;
-    
-    Uint32 * buf = new Uint32[bytes/4+1];
-    
-    FILE * f = fopen(filename, "rb");
-    if(f == 0)
-    {
+
+    Uint32 *buf = new Uint32[bytes / 4 + 1];
+
+    FILE *f = fopen(filename, "rb");
+    if (f == 0) {
       ndbout << "Failed to open file" << endl;
-      delete [] buf;
+      delete[] buf;
       continue;
     }
     Uint32 sz = (Uint32)fread(buf, 1, bytes, f);
     fclose(f);
-    if(sz != bytes)
-    {
+    if (sz != bytes) {
       ndbout << "Failure while reading file" << endl;
-      delete [] buf;
+      delete[] buf;
       continue;
     }
-    if (sz % 8192 != 0)
-    {
+    if (sz % 8192 != 0) {
       ndbout << "Size of file should be multiple of 8192" << endl;
-      delete [] buf;
+      delete[] buf;
       continue;
     }
-    
+
     print(filename, buf, sz);
-    delete [] buf;
+    delete[] buf;
     continue;
   }
   ndb_end_and_exit(0);

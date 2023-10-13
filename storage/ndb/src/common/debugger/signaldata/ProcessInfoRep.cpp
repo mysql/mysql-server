@@ -24,13 +24,9 @@
 
 #include <signaldata/ProcessInfoRep.hpp>
 
-bool printPROCESSINFO_REP(FILE *out,
-                          const Uint32 *data,
-                          Uint32 len,
-                          Uint16 /*bno*/)
-{
-  if (len < ProcessInfoRep::SignalLength)
-  {
+bool printPROCESSINFO_REP(FILE *out, const Uint32 *data, Uint32 len,
+                          Uint16 /*bno*/) {
+  if (len < ProcessInfoRep::SignalLength) {
     assert(false);
     return false;
   }

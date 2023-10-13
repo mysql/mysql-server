@@ -27,15 +27,14 @@
 
 #define JAM_FILE_ID 535
 
-class QBackupProxy : public LocalProxy
-{
-public:
-  QBackupProxy(Block_context& ctx);
+class QBackupProxy : public LocalProxy {
+ public:
+  QBackupProxy(Block_context &ctx);
   ~QBackupProxy() override;
   BLOCK_DEFINES(QBackupProxy);
 
-protected:
-  SimulatedBlock* newWorker(Uint32 instanceNo) override;
+ protected:
+  SimulatedBlock *newWorker(Uint32 instanceNo) override;
 };
 
 #undef JAM_FILE_ID

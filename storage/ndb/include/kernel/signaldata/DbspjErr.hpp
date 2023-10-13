@@ -28,35 +28,32 @@
 
 #define JAM_FILE_ID 155
 
-
-struct DbspjErr
-{
+struct DbspjErr {
   enum {
-    OutOfOperations = 20000
-    ,ZeroLengthQueryTree = 20001
-    ,InvalidRequest = 20002
-    ,UnknowQueryOperation = 20003
-    ,InvalidTreeNodeSpecification = 20004
-    ,InvalidTreeParametersSpecification = 20005
-    ,OutOfSectionMemory = 20006
-    ,InvalidPattern = 20007
-    ,OutOfQueryMemory = 20008
-    ,QueryNodeTooBig = 20009
-    ,QueryNodeParametersTooBig = 20010
-    ,BothTreeAndParametersContainInterpretedProgram = 20011
-    ,InvalidTreeParametersSpecificationKeyParamBitsMissmatch = 20012
-    ,InvalidTreeParametersSpecificationIncorrectKeyParamCount = 20013
-    ,InternalError = 20014
-    ,OutOfRowMemory = 20015
-    ,NodeFailure = 20016
-    ,InvalidTreeNodeCount = 20017
-    ,IndexFragNotFound = 20018
-    ,NoSuchTable = 20019
-    ,DropTableInProgress = 20020
-    ,WrongSchemaVersion = 20021
+    OutOfOperations = 20000,
+    ZeroLengthQueryTree = 20001,
+    InvalidRequest = 20002,
+    UnknowQueryOperation = 20003,
+    InvalidTreeNodeSpecification = 20004,
+    InvalidTreeParametersSpecification = 20005,
+    OutOfSectionMemory = 20006,
+    InvalidPattern = 20007,
+    OutOfQueryMemory = 20008,
+    QueryNodeTooBig = 20009,
+    QueryNodeParametersTooBig = 20010,
+    BothTreeAndParametersContainInterpretedProgram = 20011,
+    InvalidTreeParametersSpecificationKeyParamBitsMissmatch = 20012,
+    InvalidTreeParametersSpecificationIncorrectKeyParamCount = 20013,
+    InternalError = 20014,
+    OutOfRowMemory = 20015,
+    NodeFailure = 20016,
+    InvalidTreeNodeCount = 20017,
+    IndexFragNotFound = 20018,
+    NoSuchTable = 20019,
+    DropTableInProgress = 20020,
+    WrongSchemaVersion = 20021
   };
 };
-
 
 #undef JAM_FILE_ID
 

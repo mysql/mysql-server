@@ -24,10 +24,10 @@
 #ifndef AsyncIoThread_H
 #define AsyncIoThread_H
 
-#include <kernel_types.h>
-#include "MemoryChannel.hpp"
-#include <signaldata/BuildIndxImpl.hpp>
 #include <NdbTick.h>
+#include <kernel_types.h>
+#include <signaldata/BuildIndxImpl.hpp>
+#include "MemoryChannel.hpp"
 #include "util/ndb_openssl_evp.h"
 
 // Use this define if you want printouts from AsyncFile class
@@ -43,7 +43,6 @@ void printErrorAndFlags(Uint32 used_flags);
 #define PRINT_ERRORANDFLAGS(f)
 #endif
 
-
 #define JAM_FILE_ID 381
 
 const int ERR_ReadUnderflow = 1000;
@@ -52,13 +51,11 @@ class AsyncFile;
 class AsyncIoThread;
 struct Block_context;
 
-class Request
-{
-public:
+class Request {
+ public:
   Request() {}
 
-  void atGet()
-  {
+  void atGet() {
     m_do_bind = false;
     NdbTick_Invalidate(&m_startTime);
   }
@@ -81,7 +78,7 @@ public:
     suspend
   };
   Action action;
-  static const char* actionName(Action);
+  static const char *actionName(Action);
   union {
     struct {
       Uint32 flags;
@@ -91,14 +88,14 @@ public:
     } open;
     struct {
       int numberOfPages;
-      struct{
-	char *buf;
-	size_t size;
-	ndb_off_t offset;
+      struct {
+        char *buf;
+        size_t size;
+        ndb_off_t offset;
       } pages[NDB_FS_RW_PAGES];
     } readWrite;
     struct {
-      const char * buf;
+      const char *buf;
       size_t size;
     } append;
     struct {
@@ -106,7 +103,7 @@ public:
       bool own_directory;
     } rmrf;
     struct {
-      Block_context* ctx;
+      Block_context *ctx;
       Uint32 requestInfo;
       Uint64 bytes;
     } alloc;
@@ -120,23 +117,22 @@ public:
   struct {
     int code;
     int line;
-    const char* file;
-    const char* func;
+    const char *file;
+    const char *func;
   } error;
-  void set_error(int code, int line, const char* file, const char* func) {
-    error = { code, line, file, func};
+  void set_error(int code, int line, const char *file, const char *func) {
+    error = {code, line, file, func};
   }
-#define NDBFS_SET_REQUEST_ERROR(req,code) \
-          ((req)->set_error((code), __LINE__, __FILE__, __func__))
-  void set(BlockReference userReference,
-	   Uint32 userPointer,
-	   Uint16 filePointer);
+#define NDBFS_SET_REQUEST_ERROR(req, code) \
+  ((req)->set_error((code), __LINE__, __FILE__, __func__))
+  void set(BlockReference userReference, Uint32 userPointer,
+           Uint16 filePointer);
   BlockReference theUserReference;
   Uint32 theUserPointer;
   Uint16 theFilePointer;
-   // Information for open, needed if the first open action fails.
-  AsyncFile* file;
-  AsyncIoThread* thread;
+  // Information for open, needed if the first open action fails.
+  AsyncFile *file;
+  AsyncIoThread *thread;
   Uint32 theTrace;
   bool m_do_bind;
 
@@ -150,35 +146,29 @@ public:
   NDB_TICKS m_startTime;
 
   /* Pool members */
-  Request* listNext;
-  Request* listPrev;
+  Request *listNext;
+  Request *listPrev;
 };
 
-NdbOut& operator <<(NdbOut&, const Request&);
+NdbOut &operator<<(NdbOut &, const Request &);
 
-inline
-void
-Request::set(BlockReference userReference,
-	     Uint32 userPointer, Uint16 filePointer)
-{
-  theUserReference= userReference;
-  theUserPointer= userPointer;
-  theFilePointer= filePointer;
+inline void Request::set(BlockReference userReference, Uint32 userPointer,
+                         Uint16 filePointer) {
+  theUserReference = userReference;
+  theUserPointer = userPointer;
+  theFilePointer = filePointer;
 }
 
-class AsyncIoThread
-{
+class AsyncIoThread {
   friend class Ndbfs;
   friend class AsyncFile;
-public:
-  AsyncIoThread(class Ndbfs&, bool bound);
+
+ public:
+  AsyncIoThread(class Ndbfs &, bool bound);
   virtual ~AsyncIoThread() {}
 
-  struct NdbThread* doStart();
-  void set_real_time(bool real_time)
-  {
-    m_real_time = real_time;
-  }
+  struct NdbThread *doStart();
+  void set_real_time(bool real_time) { m_real_time = real_time; }
   void shutdown();
 
   // its a thread so its always running
@@ -188,23 +178,23 @@ public:
    * Add a request to a thread,
    *   should only be used with bound threads
    */
-  void dispatch(Request*);
+  void dispatch(Request *);
 
-  AsyncFile * m_current_file;
+  AsyncFile *m_current_file;
   Request *m_current_request, *m_last_request;
 
-private:
-  Ndbfs & m_fs;
+ private:
+  Ndbfs &m_fs;
 
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request> *theMemoryChannelPtr;
-  MemoryChannel<Request> theMemoryChannel; // If file-bound
+  MemoryChannel<Request> theMemoryChannel;  // If file-bound
 
-  bool   m_real_time;
-  bool   theStartFlag;
-  struct NdbThread* theThreadPtr;
-  NdbMutex* theStartMutexPtr;
-  NdbCondition* theStartConditionPtr;
+  bool m_real_time;
+  bool theStartFlag;
+  struct NdbThread *theThreadPtr;
+  NdbMutex *theStartMutexPtr;
+  NdbCondition *theStartConditionPtr;
 
   /*
    * Keep an encryption context for reuse for thread unbound files since
@@ -214,17 +204,16 @@ private:
   /**
    * Alloc mem in FS thread
    */
-  void allocMemReq(Request*);
+  void allocMemReq(Request *);
 
   /**
    * Build ordered index in multi-threaded fashion
    */
-  void buildIndxReq(Request*);
+  void buildIndxReq(Request *);
 
-  void attach(AsyncFile*);
-  void detach(AsyncFile*);
+  void attach(AsyncFile *);
+  void detach(AsyncFile *);
 };
-
 
 #undef JAM_FILE_ID
 

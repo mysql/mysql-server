@@ -33,41 +33,39 @@ class File_class;
 
 /**
  * Logs messages to a file. The log file will be archived depending on
- * the file's size or after N number of log entries. 
- * There will be only a specified number of archived logs 
+ * the file's size or after N number of log entries.
+ * There will be only a specified number of archived logs
  * which will be "recycled".
  *
  * The archived log file will be named as <filename>.1..N.
- * 
+ *
  *
  * @see LogHandler
  * @version #@ $Id: FileLogHandler.hpp,v 1.2 2003/09/01 10:15:53 innpeno Exp $
  */
-class FileLogHandler : public LogHandler
-{
-public:
-
-  const char* handler_type() override {return "FILE"; }
+class FileLogHandler : public LogHandler {
+ public:
+  const char *handler_type() override { return "FILE"; }
 
   /**
-   * Creates a new file handler with the specified filename, 
+   * Creates a new file handler with the specified filename,
    * max number of archived log files and max log size for each log.
    *
    * @param aFileName the log filename.
    * @param maxNoFiles the maximum number of archived log files.
    * @param maxFileSize the maximum log file size before archiving.
-   * @param maxLogEntries the maximum number of log entries before checking time to archive.
+   * @param maxLogEntries the maximum number of log entries before checking time
+   * to archive.
    */
-  FileLogHandler(const char* aFileName,
-		 int maxNoFiles = 6,
-		 long maxFileSize = 1024000,
-		 unsigned int maxLogEntries = 10000);
+  FileLogHandler(const char *aFileName, int maxNoFiles = 6,
+                 long maxFileSize = 1024000,
+                 unsigned int maxLogEntries = 10000);
 
   /**
    * Destructor.
    */
   ~FileLogHandler() override;
-  
+
   bool open() override;
   bool close() override;
 
@@ -81,17 +79,17 @@ public:
   ndb_off_t getCurrentSize() override;
   ndb_off_t getMaxSize() override { return m_maxFileSize; }
 
-protected:	
-  void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+ protected:
+  void writeHeader(const char *pCategory, Logger::LoggerLevel level,
                    time_t now) override;
-  void writeMessage(const char* pMsg) override;
+  void writeMessage(const char *pMsg) override;
   void writeFooter() override;
-  
-private:
+
+ private:
   /** Prohibit */
-  FileLogHandler(const FileLogHandler&);
-  FileLogHandler operator = (const FileLogHandler&);
-  bool operator == (const FileLogHandler&);
+  FileLogHandler(const FileLogHandler &);
+  FileLogHandler operator=(const FileLogHandler &);
+  bool operator==(const FileLogHandler &);
 
   /**
    * Returns true if it is time to create a new log file.
@@ -109,11 +107,11 @@ private:
   bool setFilename(const BaseString &filename);
   bool setMaxSize(const BaseString &size);
   bool setMaxFiles(const BaseString &files);
-  
+
   int m_maxNoFiles;
   ndb_off_t m_maxFileSize;
   unsigned int m_maxLogEntries;
-  File_class* m_pLogFile;
+  File_class *m_pLogFile;
 };
 
 #endif

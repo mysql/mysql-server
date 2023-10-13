@@ -48,7 +48,7 @@ class CPCDAPISession : public SocketServer::Session {
   void printLongString(const char *key, const char *value);
 
  public:
-  CPCDAPISession(NdbSocket&& sock, class CPCD &);
+  CPCDAPISession(NdbSocket &&sock, class CPCD &);
   CPCDAPISession(FILE *f, CPCD &cpcd);
   ~CPCDAPISession() override;
 
@@ -76,7 +76,7 @@ class CPCDAPIService : public SocketServer::Service {
  public:
   CPCDAPIService(class CPCD &cpcd) : m_cpcd(cpcd) {}
 
-  CPCDAPISession *newSession(NdbSocket&& theSock) override {
+  CPCDAPISession *newSession(NdbSocket &&theSock) override {
     return new CPCDAPISession(std::move(theSock), m_cpcd);
   }
 };

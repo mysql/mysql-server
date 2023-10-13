@@ -1,6 +1,6 @@
 /*
  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
- 
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -25,23 +25,23 @@
 "use strict";
 
 /**********************
-  This is the standard TypeConverter class used with TIME columns 
+  This is the standard TypeConverter class used with TIME columns
   in the Ndb Adapter.
 
-  On the JavaScript side, this converter takes a string formatted as 
+  On the JavaScript side, this converter takes a string formatted as
   "HH:MM:SS.sss" with optional sign +/-, and precision after the decimal
   point up to six digits.
-  
-  On the database side, TIME columns are read and written using a MySQLTime 
-  structure.  MySQL TIME is a signed type, and the sign is preserved.  
-  In MySQL 5.6, MySQL TIME can also support up to microsecond precision. 
+
+  On the database side, TIME columns are read and written using a MySQLTime
+  structure.  MySQL TIME is a signed type, and the sign is preserved.
+  In MySQL 5.6, MySQL TIME can also support up to microsecond precision.
 
   An application can override this converter and use MySQLTime directly:
     sessionFactory.registerTypeConverter("TIME", null);
-  
+
   Or replace this converter with a custom one:
     sessionFactory.registerTypeConverter("TIME", myConverterClass);
-      
+
 ************************/
 
 var jones = require("database-jones"),
@@ -50,20 +50,19 @@ var jones = require("database-jones"),
 
 exports.toDB = function(jsValue) {
   var dbtime;
-  if(typeof jsValue === 'string') {
+  if (typeof jsValue === 'string') {
     dbtime = new MySQLTime().initializeFromTimeString(jsValue);
-  } else if(jsValue === null) {
+  } else if (jsValue === null) {
     dbtime = null;
   }
   return dbtime;
 };
 
 exports.fromDB = function(dbTime) {
-  if(dbTime === null) {
+  if (dbTime === null) {
     return null;
   }
-  if(typeof dbTime === 'object') {
+  if (typeof dbTime === 'object') {
     return MySQLTime.initializeFromNdb(dbTime).toTimeString();
   }
 };
-

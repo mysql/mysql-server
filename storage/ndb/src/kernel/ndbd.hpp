@@ -23,17 +23,14 @@
 #ifndef NDBD_HPP
 #define NDBD_HPP
 
-#include <stddef.h> // size_t
+#include <stddef.h>  // size_t
 
 #define JAM_FILE_ID 218
 
-
-void
-ndbd_run(bool foreground, int report_fd,
-         const char* connect_str, int force_nodeid, const char* bind_address,
-         bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid, int connect_retries, int connect_delay,
-         size_t logbuffer_size);
+void ndbd_run(bool foreground, int report_fd, const char *connect_str,
+              int force_nodeid, const char *bind_address, bool no_start,
+              bool initial, bool initialstart, unsigned allocated_nodeid,
+              int connect_retries, int connect_delay, size_t logbuffer_size);
 
 enum NdbShutdownType {
   NST_Normal,
@@ -45,11 +42,11 @@ enum NdbShutdownType {
 };
 
 enum NdbRestartType {
-  NRT_Default               = 0,
-  NRT_NoStart_Restart       = 1, // -n
-  NRT_DoStart_Restart       = 2, //
-  NRT_NoStart_InitialStart  = 3, // -n -i
-  NRT_DoStart_InitialStart  = 4  // -i
+  NRT_Default = 0,
+  NRT_NoStart_Restart = 1,       // -n
+  NRT_DoStart_Restart = 2,       //
+  NRT_NoStart_InitialStart = 3,  // -n -i
+  NRT_DoStart_InitialStart = 4   // -i
 };
 
 /**
@@ -61,13 +58,8 @@ enum NdbRestartType {
  *
  * NOTE! never returns
  */
-void
-NdbShutdown(int error_code,
-            NdbShutdownType type,
-	    NdbRestartType restartType = NRT_Default);
-
-
-
+void NdbShutdown(int error_code, NdbShutdownType type,
+                 NdbRestartType restartType = NRT_Default);
 
 #undef JAM_FILE_ID
 

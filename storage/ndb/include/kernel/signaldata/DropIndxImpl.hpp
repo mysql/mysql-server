@@ -27,7 +27,6 @@
 
 #define JAM_FILE_ID 63
 
-
 struct DropIndxImplReq {
   static constexpr Uint32 SignalLength = 7;
 
@@ -69,7 +68,6 @@ struct DropIndxImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
-
 
 #undef JAM_FILE_ID
 

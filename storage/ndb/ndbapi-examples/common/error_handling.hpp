@@ -26,30 +26,28 @@
 #define ERROR_HANDLING_HPP
 
 template <typename T>
-inline static void print_if_not_equal(T got,
-                                      T expected,
-                                      const char* msg,
-                                      const char* file,
-                                      int line)
-{
+inline static void print_if_not_equal(T got, T expected, const char *msg,
+                                      const char *file, int line) {
   std::cout << "Got value " << got << " instead of expected value " << expected
             << " in " << file << ":" << line;
 }
 
-#define PRINT_IF_NOT_EQUAL(got, expected, msg) {                        \
-    if (got != expected) {                                              \
-      print_if_not_equal(got, expected, msg, __FILE__, __LINE__);       \
-      exit(-1);                                                         \
-    }                                                                   \
+#define PRINT_IF_NOT_EQUAL(got, expected, msg)                    \
+  {                                                               \
+    if (got != expected) {                                        \
+      print_if_not_equal(got, expected, msg, __FILE__, __LINE__); \
+      exit(-1);                                                   \
+    }                                                             \
   }
 
-#define PRINT_ERROR(code,msg)                                           \
-  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__        \
-            << ", code: " << code                                       \
-            << ", msg: " << msg << "." << std::endl
+#define PRINT_ERROR(code, msg)                                   \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code << ", msg: " << msg << "." << std::endl
 
-#define APIERROR(error) {                \
-  PRINT_ERROR(error.code,error.message); \
-  exit(-1); }
+#define APIERROR(error)                     \
+  {                                         \
+    PRINT_ERROR(error.code, error.message); \
+    exit(-1);                               \
+  }
 
-#endif 
+#endif

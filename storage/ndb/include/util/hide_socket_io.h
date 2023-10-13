@@ -37,4 +37,3 @@
 #define read_socket(A, B, C)
 #define readln_socket(A, B, C, D, E, F)
 #define write_socket(A, B, C, D, E)
-

@@ -26,49 +26,55 @@
 #define INPUT_STREAM_HPP
 
 #include "ndb_global.h"
-#include "portlib/ndb_socket.h"
 #include "portlib/NdbMutex.h"
+#include "portlib/ndb_socket.h"
 #include "util/NdbSocket.h"
 
 /**
  * Input stream
  */
 class InputStream {
-public:
-  InputStream() { m_mutex= nullptr; }
+ public:
+  InputStream() { m_mutex = nullptr; }
   virtual ~InputStream() {}
-  virtual char* gets(char * buf, int bufLen) = 0;
+  virtual char *gets(char *buf, int bufLen) = 0;
   /**
    * Set the mutex to be UNLOCKED when blocking (e.g. select(2))
    */
-  void set_mutex(NdbMutex *m) { m_mutex= m; }
+  void set_mutex(NdbMutex *m) { m_mutex = m; }
   virtual void reset_timeout() {}
-protected:
+
+ protected:
   NdbMutex *m_mutex;
 };
 
 class FileInputStream : public InputStream {
-  FILE * f;
-public:
-  FileInputStream(FILE * file = stdin);
+  FILE *f;
+
+ public:
+  FileInputStream(FILE *file = stdin);
   ~FileInputStream() override {}
-  char* gets(char * buf, int bufLen) override;
+  char *gets(char *buf, int bufLen) override;
 };
 
 extern FileInputStream Stdin;
 
 class SocketInputStream : public InputStream {
-  const NdbSocket & m_socket;
+  const NdbSocket &m_socket;
   unsigned m_timeout_ms;
   unsigned m_timeout_remain;
   bool m_startover;
   bool m_timedout;
-public:
+
+ public:
   SocketInputStream(const NdbSocket &, unsigned read_timeout_ms = 3000);
   ~SocketInputStream() override {}
-  char* gets(char * buf, int bufLen) override;
+  char *gets(char *buf, int bufLen) override;
   bool timedout() { return m_timedout; }
-  void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
+  void reset_timeout() override {
+    m_timedout = false;
+    m_timeout_remain = m_timeout_ms;
+  }
 };
 
 #endif

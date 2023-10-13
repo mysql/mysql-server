@@ -23,77 +23,63 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <signaldata/GCP.hpp>
 #include <RefConvert.hpp>
+#include <signaldata/GCP.hpp>
 
-bool printGCPSaveReq(FILE* output,
-                     const Uint32* theData,
-                     Uint32 len,
-                     Uint16 /*receiverBlockNo*/)
-{
-  if (len < GCPSaveReq::SignalLength)
-  {
+bool printGCPSaveReq(FILE *output, const Uint32 *theData, Uint32 len,
+                     Uint16 /*receiverBlockNo*/) {
+  if (len < GCPSaveReq::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GCPSaveReq* sr = (const GCPSaveReq*)theData;
+  const GCPSaveReq *sr = (const GCPSaveReq *)theData;
 
   fprintf(output, " dihBlockRef = (%d, %d) dihPtr = %d gci = %d\n",
-	  refToBlock(sr->dihBlockRef), refToNode(sr->dihBlockRef),
-	  sr->dihPtr, sr->gci);
-  
+          refToBlock(sr->dihBlockRef), refToNode(sr->dihBlockRef), sr->dihPtr,
+          sr->gci);
+
   return true;
 }
 
-bool printGCPSaveRef(FILE* output,
-                     const Uint32* theData,
-                     Uint32 len,
-                     Uint16 /*receiverBlockNo*/)
-{
-  if (len < GCPSaveRef::SignalLength)
-  {
+bool printGCPSaveRef(FILE *output, const Uint32 *theData, Uint32 len,
+                     Uint16 /*receiverBlockNo*/) {
+  if (len < GCPSaveRef::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GCPSaveRef* sr = (const GCPSaveRef*)theData;
+  const GCPSaveRef *sr = (const GCPSaveRef *)theData;
 
-  fprintf(output, " nodeId = %d dihPtr = %d gci = %d reason: ",
-	  sr->nodeId,
-	  sr->dihPtr, sr->gci);
-  
-  switch(sr->errorCode){
-  case GCPSaveRef::NodeShutdownInProgress:
-    fprintf(output, "NodeShutdownInProgress\n");
-    break;
-  case GCPSaveRef::FakedSignalDueToNodeFailure:
-    fprintf(output, "FakedSignalDueToNodeFailure\n");
-    break;
-  default:
-    fprintf(output, "Unknown reason: %d\n", sr->errorCode);
-    return false;
+  fprintf(output, " nodeId = %d dihPtr = %d gci = %d reason: ", sr->nodeId,
+          sr->dihPtr, sr->gci);
+
+  switch (sr->errorCode) {
+    case GCPSaveRef::NodeShutdownInProgress:
+      fprintf(output, "NodeShutdownInProgress\n");
+      break;
+    case GCPSaveRef::FakedSignalDueToNodeFailure:
+      fprintf(output, "FakedSignalDueToNodeFailure\n");
+      break;
+    default:
+      fprintf(output, "Unknown reason: %d\n", sr->errorCode);
+      return false;
   }
-  
+
   return true;
 }
 
-bool printGCPSaveConf(FILE* output,
-                      const Uint32* theData,
-                      Uint32 len,
-                      Uint16 /*receiverBlockNo*/)
-{
-  if (len < GCPSaveConf::SignalLength)
-  {
+bool printGCPSaveConf(FILE *output, const Uint32 *theData, Uint32 len,
+                      Uint16 /*receiverBlockNo*/) {
+  if (len < GCPSaveConf::SignalLength) {
     assert(false);
     return false;
   }
 
-  const GCPSaveConf* sr = (const GCPSaveConf*)theData;
+  const GCPSaveConf *sr = (const GCPSaveConf *)theData;
 
-  fprintf(output, " nodeId = %d dihPtr = %d gci = %d\n",
-	  sr->nodeId,
-	  sr->dihPtr, sr->gci);
-  
+  fprintf(output, " nodeId = %d dihPtr = %d gci = %d\n", sr->nodeId, sr->dihPtr,
+          sr->gci);
+
   return true;
 }

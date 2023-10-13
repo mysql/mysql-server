@@ -22,18 +22,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <NdbLockCpuUtil.h>
+#include <NdbMutex.h>
+#include <NdbSpin.h>
 #include <ndb_global.h>
 #include "my_sys.h"
-#include <NdbMutex.h>
-#include <NdbLockCpuUtil.h>
-#include <NdbSpin.h>
 
 class EventLogger *g_eventLogger = nullptr;
 
 NdbMutex *g_ndb_connection_mutex = nullptr;
 
-extern class EventLogger * create_event_logger();
-extern void destroy_event_logger(class EventLogger ** g_eventLogger);
+extern class EventLogger *create_event_logger();
+extern void destroy_event_logger(class EventLogger **g_eventLogger);
 
 static int ndb_init_called = 0;
 
@@ -52,18 +52,14 @@ extern void NdbSpin_Init();
 extern int NdbHW_Init();
 extern void NdbHW_End();
 
-extern "C"
-{
+extern "C" {
 
 #define NORMAL_USER 0
 #define MYSQLD_USER 1
 #define THREAD_REGISTER_USER 2
-void
-ndb_init_internal(Uint32 caller)
-{
+void ndb_init_internal(Uint32 caller) {
   bool init_all = true;
-  if (caller != NORMAL_USER)
-  {
+  if (caller != NORMAL_USER) {
     /**
      * This is called from MySQL Server, normally called
      * from ndbcluster_init, but can also be called from
@@ -78,29 +74,21 @@ ndb_init_internal(Uint32 caller)
      */
     Uint32 init_called = ndb_init_called;
     ndb_init_called++;
-    if (init_called > 0)
-    {
-      if (caller == THREAD_REGISTER_USER)
-      {
+    if (init_called > 0) {
+      if (caller == THREAD_REGISTER_USER) {
         return;
       }
       init_all = false;
     }
   }
-  if (caller != THREAD_REGISTER_USER)
-    NdbOut_Init();
-  if (init_all)
-    NdbMutex_SysInit();
-  if (caller != THREAD_REGISTER_USER)
-  {
-    if (!g_ndb_connection_mutex)
-      g_ndb_connection_mutex = NdbMutex_Create();
-    if (!g_eventLogger)
-      g_eventLogger = create_event_logger();
-    if ((g_ndb_connection_mutex == nullptr) || (g_eventLogger == nullptr))
-    {
+  if (caller != THREAD_REGISTER_USER) NdbOut_Init();
+  if (init_all) NdbMutex_SysInit();
+  if (caller != THREAD_REGISTER_USER) {
+    if (!g_ndb_connection_mutex) g_ndb_connection_mutex = NdbMutex_Create();
+    if (!g_eventLogger) g_eventLogger = create_event_logger();
+    if ((g_ndb_connection_mutex == nullptr) || (g_eventLogger == nullptr)) {
       {
-        const char* err = "ndb_init() failed - exit\n";
+        const char *err = "ndb_init() failed - exit\n";
         int res = (int)write(2, err, (unsigned)strlen(err));
         (void)res;
         exit(1);
@@ -111,30 +99,23 @@ ndb_init_internal(Uint32 caller)
     NdbGetRUsage_Init();
     NdbSpin_Init();
   }
-  if (init_all)
-  {
+  if (init_all) {
     NdbThread_Init();
-    if (NdbLockCpu_Init() != 0)
-    {
-      const char* err = "ndbLockCpu_Init() failed - exit\n";
+    if (NdbLockCpu_Init() != 0) {
+      const char *err = "ndbLockCpu_Init() failed - exit\n";
       int res = (int)write(2, err, (unsigned)strlen(err));
       (void)res;
       exit(1);
     }
-    if (caller != MYSQLD_USER)
-      NdbHW_Init();
+    if (caller != MYSQLD_USER) NdbHW_Init();
   }
 }
 
-int
-ndb_init()
-{
-  if (ndb_init_called == 0)
-  {
+int ndb_init() {
+  if (ndb_init_called == 0) {
     ndb_init_called = 1;
-    if (my_init())
-    {
-      const char* err = "my_init() failed - exit\n";
+    if (my_init()) {
+      const char *err = "my_init() failed - exit\n";
       int res = (int)write(2, err, (unsigned)strlen(err));
       (void)res;
       exit(1);
@@ -152,48 +133,35 @@ ndb_init()
   return 0;
 }
 
-void
-ndb_end_internal(Uint32 caller)
-{
+void ndb_end_internal(Uint32 caller) {
   bool end_all = true;
-  if (caller != NORMAL_USER)
-  {
+  if (caller != NORMAL_USER) {
     ndb_init_called--;
-    if (ndb_init_called > 0)
-    {
-      if (caller == THREAD_REGISTER_USER)
-      {
+    if (ndb_init_called > 0) {
+      if (caller == THREAD_REGISTER_USER) {
         return;
       }
       end_all = false;
     }
   }
-  if (caller != THREAD_REGISTER_USER)
-  {
-    if (g_ndb_connection_mutex) 
-    {
+  if (caller != THREAD_REGISTER_USER) {
+    if (g_ndb_connection_mutex) {
       NdbMutex_Destroy(g_ndb_connection_mutex);
-      g_ndb_connection_mutex=nullptr;
+      g_ndb_connection_mutex = nullptr;
     }
-    if (g_eventLogger)
-      destroy_event_logger(&g_eventLogger);
+    if (g_eventLogger) destroy_event_logger(&g_eventLogger);
     NdbGetRUsage_End();
   }
-  if (end_all)
-  {
+  if (end_all) {
     NdbLockCpu_End();
     NdbThread_End();
     NdbMutex_SysEnd();
-    if (caller != MYSQLD_USER)
-      NdbHW_End();
+    if (caller != MYSQLD_USER) NdbHW_End();
   }
 }
 
-void
-ndb_end(int flags)
-{
-  if (ndb_init_called == 1)
-  {
+void ndb_end(int flags) {
+  if (ndb_init_called == 1) {
     my_end(flags);
     ndb_end_internal(0);
     ndb_init_called = 0;

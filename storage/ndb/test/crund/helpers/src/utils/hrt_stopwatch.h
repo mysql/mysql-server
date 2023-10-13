@@ -43,9 +43,9 @@ extern "C" {
  * A snapshot of the system's real and this process's cpu time count.
  */
 typedef struct hrt_stopwatch {
-    hrt_tstamp* tstamps;
-    unsigned int top;
-    unsigned int cap;
+  hrt_tstamp *tstamps;
+  unsigned int top;
+  unsigned int cap;
 } hrt_stopwatch;
 
 /*
@@ -55,49 +55,49 @@ typedef struct hrt_stopwatch {
 /**
  * Initializes a stopwatch with a given storage capacity for timemarks.
  */
-extern void hrt_sw_init(hrt_stopwatch* sw, int cap);
+extern void hrt_sw_init(hrt_stopwatch *sw, int cap);
 
 /**
  * Releases all reources allocated by a stopwatch.
  */
-extern void hrt_sw_close(hrt_stopwatch* sw);
+extern void hrt_sw_close(hrt_stopwatch *sw);
 
 /**
  * Returns the index of a stopwatch's last timemark.
  */
-extern int hrt_sw_top(const hrt_stopwatch* sw);
+extern int hrt_sw_top(const hrt_stopwatch *sw);
 
 /**
  * Returns the number of timemarks a stopwatch can hold.
  */
-extern int hrt_sw_capacity(const hrt_stopwatch* sw);
+extern int hrt_sw_capacity(const hrt_stopwatch *sw);
 
 /**
  * Marks the time and stores that mark in a stopwatch returning the index.
  */
-extern int hrt_sw_pushmark(hrt_stopwatch* sw);
+extern int hrt_sw_pushmark(hrt_stopwatch *sw);
 
 /**
  * Removes the top timemark from a stopwatch.
  */
-extern void hrt_sw_popmark(hrt_stopwatch* sw);
+extern void hrt_sw_popmark(hrt_stopwatch *sw);
 
 /**
  * Returns the real time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
-extern double hrt_sw_rtmicros(const hrt_stopwatch* sw, int y, int x);
+extern double hrt_sw_rtmicros(const hrt_stopwatch *sw, int y, int x);
 
 /**
  * Returns the cpu time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
-extern double hrt_sw_ctmicros(const hrt_stopwatch* sw, int y, int x);
+extern double hrt_sw_ctmicros(const hrt_stopwatch *sw, int y, int x);
 
 /**
  * Clears all timemarks stored in a stopwatch.
  */
-extern void hrt_sw_clear(hrt_stopwatch* sw);
+extern void hrt_sw_clear(hrt_stopwatch *sw);
 
 #ifdef __cplusplus
 }

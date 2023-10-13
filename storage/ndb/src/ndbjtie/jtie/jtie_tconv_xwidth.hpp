@@ -31,11 +31,11 @@
 #include <jni.h>
 
 #include "jtie_stdint.h"
-#include "jtie_tconv_value.hpp"
 #include "jtie_tconv_ptrbybb.hpp"
-#include "jtie_tconv_refbybb.hpp"
 #include "jtie_tconv_ptrbyval.hpp"
+#include "jtie_tconv_refbybb.hpp"
 #include "jtie_tconv_refbyval.hpp"
+#include "jtie_tconv_value.hpp"
 
 // ---------------------------------------------------------------------------
 // Java <-> C primitive & derived exact-width type conversions
@@ -52,15 +52,15 @@
  *
  * Naming convention: see documentation of the JTIE_DEFINE_... macros
  */
-#define JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( J, C, T )                   \
-    JTIE_DEFINE_BASIC_TYPE_MAPPING(J, C, T)                             \
-    JTIE_DEFINE_ARRAY_PTR_TYPE_MAPPING(_##J##Array, C, T)               \
-    JTIE_DEFINE_ARRAY_PTR_LENGTH1_TYPE_MAPPING(_##J##Array, C, T)       \
-    JTIE_DEFINE_VALUE_REF_TYPE_MAPPING(J, C, T)                         \
-    JTIE_DEFINE_ARRAY_REF_TYPE_MAPPING(_##J##Array, C, T)               \
-    JTIE_DEFINE_BYTEBUFFER_PTR_TYPE_MAPPING(C, T)                       \
-    JTIE_DEFINE_BYTEBUFFER_PTR_LENGTH1_TYPE_MAPPING(C, T)               \
-    JTIE_DEFINE_BYTEBUFFER_REF_TYPE_MAPPING(C, T)
+#define JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(J, C, T)             \
+  JTIE_DEFINE_BASIC_TYPE_MAPPING(J, C, T)                       \
+  JTIE_DEFINE_ARRAY_PTR_TYPE_MAPPING(_##J##Array, C, T)         \
+  JTIE_DEFINE_ARRAY_PTR_LENGTH1_TYPE_MAPPING(_##J##Array, C, T) \
+  JTIE_DEFINE_VALUE_REF_TYPE_MAPPING(J, C, T)                   \
+  JTIE_DEFINE_ARRAY_REF_TYPE_MAPPING(_##J##Array, C, T)         \
+  JTIE_DEFINE_BYTEBUFFER_PTR_TYPE_MAPPING(C, T)                 \
+  JTIE_DEFINE_BYTEBUFFER_PTR_LENGTH1_TYPE_MAPPING(C, T)         \
+  JTIE_DEFINE_BYTEBUFFER_REF_TYPE_MAPPING(C, T)
 
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jboolean, bool, bool)
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jbyte, char, char)
@@ -79,4 +79,4 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING_SET(jdouble, double, double)
 
 // ---------------------------------------------------------------------------
 
-#endif // jtie_tconv_xwidth_hpp
+#endif  // jtie_tconv_xwidth_hpp

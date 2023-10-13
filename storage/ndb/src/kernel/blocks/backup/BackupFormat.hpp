@@ -30,46 +30,43 @@
 
 #define JAM_FILE_ID 473
 
-
-static const char BACKUP_MAGIC[] = { 'N', 'D', 'B', 'B', 'C', 'K', 'U', 'P' };
+static const char BACKUP_MAGIC[] = {'N', 'D', 'B', 'B', 'C', 'K', 'U', 'P'};
 
 struct BackupFormat {
-
   static const Uint32 NDB_MAX_LCP_PARTS = 2048;
   static const Uint32 NDB_MAX_FILES_PER_LCP = 8;
   static const Uint32 NDB_MAX_LCP_PARTS_PER_ROUND =
-    NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
+      NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
   static const Uint32 NDB_MAX_LCP_FILES = 2064;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_SMALL = 4096;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
   static const Uint32 BYTES_PER_PART_ON_DISK = 3;
   static constexpr Uint32 MAX_BACKUP_FILE_LOG_DATA_SIZE =
-    MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS +
-    MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS;
+      MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS +
+      MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS;
 
-  enum RecordType
-  {
-    INSERT_TYPE            = 0,
-    WRITE_TYPE             = 1,
-    DELETE_BY_ROWID_TYPE   = 2,
-    DELETE_BY_PAGEID_TYPE  = 3,
+  enum RecordType {
+    INSERT_TYPE = 0,
+    WRITE_TYPE = 1,
+    DELETE_BY_ROWID_TYPE = 2,
+    DELETE_BY_PAGEID_TYPE = 3,
     DELETE_BY_ROWID_WRITE_TYPE = 4,
-    NORMAL_DELETE_TYPE     = 5,
-    END_TYPE               = 6
+    NORMAL_DELETE_TYPE = 5,
+    END_TYPE = 6
   };
 
   /**
    * Section types in file
    */
   enum SectionType {
-    FILE_HEADER       = 1,
-    FRAGMENT_HEADER   = 2,
-    FRAGMENT_FOOTER   = 3,
-    TABLE_LIST        = 4,
+    FILE_HEADER = 1,
+    FRAGMENT_HEADER = 2,
+    FRAGMENT_FOOTER = 3,
+    TABLE_LIST = 4,
     TABLE_DESCRIPTION = 5,
-    GCP_ENTRY         = 6,
-    FRAGMENT_INFO     = 7,
-    EMPTY_ENTRY       = 8
+    GCP_ENTRY = 6,
+    FRAGMENT_INFO = 7,
+    EMPTY_ENTRY = 8
   };
 
   struct FileHeader {
@@ -105,21 +102,19 @@ struct BackupFormat {
    */
   enum FileType {
     CTL_FILE = 1,
-    LOG_FILE = 2, //redo log file for backup.
+    LOG_FILE = 2,  // redo log file for backup.
     DATA_FILE = 3,
     LCP_FILE = 4,
-    UNDO_FILE = 5,//undo log for backup.
+    UNDO_FILE = 5,  // undo log for backup.
     LCP_CTL_FILE = 6
   };
 
-  struct PartPair
-  {
+  struct PartPair {
     Uint16 startPart;
     Uint16 numParts;
   };
 
-  struct OldLCPCtlFile
-  {
+  struct OldLCPCtlFile {
     struct FileHeader fileHeader;
     Uint32 Checksum;
     Uint32 ValidFlag;
@@ -142,8 +137,7 @@ struct BackupFormat {
      */
     struct PartPair partPairs[1];
   };
-  struct LCPCtlFile
-  {
+  struct LCPCtlFile {
     struct FileHeader fileHeader;
     Uint32 Checksum;
     Uint32 ValidFlag;
@@ -178,20 +172,20 @@ struct BackupFormat {
    * area.
    */
   static const Uint32 LCP_CTL_FILE_SIZE_ON_DISK =
-                   (BYTES_PER_PART_ON_DISK * NDB_MAX_LCP_PARTS) +
-                   sizeof(BackupFormat::LCPCtlFile);
+      (BYTES_PER_PART_ON_DISK * NDB_MAX_LCP_PARTS) +
+      sizeof(BackupFormat::LCPCtlFile);
   static const Uint32 LCP_CTL_SIZE_IN_MEMORY =
-    (sizeof(struct PartPair) * NDB_MAX_LCP_PARTS) +
+      (sizeof(struct PartPair) * NDB_MAX_LCP_PARTS) +
       sizeof(BackupFormat::LCPCtlFile);
   static const Uint32 LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS =
-    (MAX(NDB_LCP_CTL_FILE_SIZE_BIG,
-        MAX(LCP_CTL_FILE_SIZE_ON_DISK, LCP_CTL_SIZE_IN_MEMORY))) / 4;
+      (MAX(NDB_LCP_CTL_FILE_SIZE_BIG,
+           MAX(LCP_CTL_FILE_SIZE_ON_DISK, LCP_CTL_SIZE_IN_MEMORY))) /
+      4;
 
   /**
    * Data file formats
    */
   struct DataFile {
-
     struct FragmentHeader {
       Uint32 SectionType;
       Uint32 SectionLength;
@@ -199,13 +193,13 @@ struct BackupFormat {
       Uint32 FragmentNo;
       Uint32 ChecksumType;
     };
-    
+
     struct VariableData {
       Uint32 Sz;
       Uint32 Id;
       Uint32 Data[1];
     };
-    
+
     struct Record {
       Uint32 Length;
       Uint32 NullBitmask[1];
@@ -213,7 +207,7 @@ struct BackupFormat {
       Uint32 DataFixedAttributes[1];
       VariableData DataVariableAttributes[1];
     };
-    
+
     struct FragmentFooter {
       Uint32 SectionType;
       Uint32 SectionLength;
@@ -235,14 +229,13 @@ struct BackupFormat {
    * CTL file formats
    */
   struct CtlFile {
-    
     /**
      * Table list
      */
     struct TableList {
       Uint32 SectionType;
       Uint32 SectionLength;
-      Uint32 TableIds[1];      // Length = SectionLength - 2
+      Uint32 TableIds[1];  // Length = SectionLength - 2
     };
 
     /**
@@ -252,7 +245,7 @@ struct BackupFormat {
       Uint32 SectionType;
       Uint32 SectionLength;
       Uint32 TableType;
-      Uint32 DictTabInfo[1];   // Length = SectionLength - 3
+      Uint32 DictTabInfo[1];  // Length = SectionLength - 3
     };
 
     /**
@@ -284,7 +277,6 @@ struct BackupFormat {
    * LOG file format (since 5.1.6 but not drop6 (5.2.x))
    */
   struct LogFile {
-
     /**
      * Log Entry
      */
@@ -294,23 +286,22 @@ struct BackupFormat {
       static constexpr Uint32 FRAGID_OFFSET = 3;
       // Add one word for leading Length word for data offset
       static constexpr Uint32 DATA_OFFSET = 1 + HEADER_LENGTH_WORDS;
-      static constexpr Uint32 MAX_SIZE = 1 /* length word */ +
-                                         HEADER_LENGTH_WORDS +
-                                         MAX_BACKUP_FILE_LOG_DATA_SIZE +
-                                         1 /* gci */ +
-                                         1 /* trailing length word for undo */;
+      static constexpr Uint32 MAX_SIZE =
+          1 /* length word */ + HEADER_LENGTH_WORDS +
+          MAX_BACKUP_FILE_LOG_DATA_SIZE + 1 /* gci */ +
+          1 /* trailing length word for undo */;
 
       Uint32 Length;
       Uint32 TableId;
       // If TriggerEvent & 0x10000 == true then GCI is right after data
       Uint32 TriggerEvent;
       Uint32 FragId;
-      Uint32 Data[1]; // Len = Length - 3
+      Uint32 Data[1];  // Len = Length - 3
     };
     static_assert(offsetof(LogEntry, FragId) ==
-                    LogEntry::FRAGID_OFFSET * sizeof(Uint32));
+                  LogEntry::FRAGID_OFFSET * sizeof(Uint32));
     static_assert(offsetof(LogEntry, Data) ==
-                    LogEntry::DATA_OFFSET * sizeof(Uint32));
+                  LogEntry::DATA_OFFSET * sizeof(Uint32));
 
     /**
      * Log Entry pre NDBD_FRAGID_VERSION (<5.1.6) and drop6 (5.2.x)
@@ -325,10 +316,10 @@ struct BackupFormat {
       Uint32 TableId;
       // If TriggerEvent & 0x10000 == true then GCI is right after data
       Uint32 TriggerEvent;
-      Uint32 Data[1]; // Len = Length - 2
+      Uint32 Data[1];  // Len = Length - 2
     };
     static_assert(offsetof(LogEntry_no_fragid, Data) ==
-                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32));
+                  LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32));
   };
 
   /**
@@ -342,7 +333,6 @@ struct BackupFormat {
     DataFile::FragmentFooter FragmentFooter;
   };
 };
-
 
 #undef JAM_FILE_ID
 

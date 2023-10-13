@@ -25,32 +25,30 @@
 #ifndef QMGR_H
 #define QMGR_H
 
-
+#include <NdbGetRUsage.h>
+#include <NdbTick.h>
+#include <NodeBitmask.hpp>
+#include <ProcessInfo.hpp>
+#include <SignalCounter.hpp>
+#include <SimulatedBlock.hpp>
 #include <cstring>
 #include <pc.hpp>
-#include <NdbTick.h>
-#include <NdbGetRUsage.h>
-#include <SimulatedBlock.hpp>
-#include <NodeBitmask.hpp>
-#include <SignalCounter.hpp>
-#include <ProcessInfo.hpp>
 
-#include <signaldata/EventReport.hpp>
+#include <signaldata/AllocNodeId.hpp>
+#include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/CmRegSignalData.hpp>
-#include <signaldata/ApiRegSignalData.hpp>
+#include <signaldata/EventReport.hpp>
 #include <signaldata/FailRep.hpp>
-#include <signaldata/AllocNodeId.hpp>
 
+#include <ndb_limits.h>
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
-#include <ndb_limits.h>
 #include "../ndbcntr/Ndbcntr.hpp"
 
 #include "timer.hpp"
 
 #define JAM_FILE_ID 362
-
 
 #ifdef QMGR_C
 
@@ -100,25 +98,22 @@
 #define QMGR_MAX_FAIL_STATE_BLOCKS 5
 
 class Qmgr : public SimulatedBlock {
-public:
+ public:
   // State values
-  enum QmgrState {
-    Q_NOT_ACTIVE = 0,
-    Q_ACTIVE = 1
-  };
-  
+  enum QmgrState { Q_NOT_ACTIVE = 0, Q_ACTIVE = 1 };
+
   enum FailState {
     NORMAL = 0,
-    WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,     /* Node had phase ZAPI_ACTIVE */
-    WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2,  /* Node had phase != ZAPI_ACTIVE */
+    WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,    /* Node had phase ZAPI_ACTIVE */
+    WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2, /* Node had phase != ZAPI_ACTIVE */
     WAITING_FOR_API_FAILCONF = 3,
     WAITING_FOR_NDB_FAILCONF = 6
   };
 
   enum Phase {
-    ZINIT = 1, 		        /* All nodes start in phase INIT         */
-    ZSTARTING = 2, 		/* Node is connecting to cluster         */
-    ZRUNNING = 3, 		/* Node is running in the cluster        */
+    ZINIT = 1,                  /* All nodes start in phase INIT         */
+    ZSTARTING = 2,              /* Node is connecting to cluster         */
+    ZRUNNING = 3,               /* Node is running in the cluster        */
     ZPREPARE_FAIL = 4,          /* PREPARATION FOR FAILURE               */
     ZFAIL_CLOSING = 5,          /* API/NDB IS DISCONNECTING              */
     ZAPI_ACTIVE = 6,            /* API IS RUNNING IN NODE                */
@@ -128,16 +123,16 @@ public:
 
   struct StartRecord {
     StartRecord() {}
-    void reset(){ 
-      m_startKey++; 
-      m_startNode = 0; 
-      m_gsn = RNIL; 
+    void reset() {
+      m_startKey++;
+      m_startNode = 0;
+      m_gsn = RNIL;
       m_nodes.clearWaitingFor();
     }
     Uint32 m_startKey;
     Uint32 m_startNode;
     Uint64 m_startTimeout;
-    
+
     Uint32 m_gsn;
     SignalCounter m_nodes;
     Uint32 m_latest_gci;
@@ -154,10 +149,10 @@ public:
     Uint16 m_regReqReqRecv;
     Uint32 m_node_gci[MAX_NDB_NODES];
   } c_start;
-  
-  NdbNodeBitmask c_definedNodes; // DB nodes in config
-  NdbNodeBitmask c_clusterNodes; // DB nodes in cluster
-  NodeBitmask c_connectedNodes;  // All kinds of connected nodes
+
+  NdbNodeBitmask c_definedNodes;  // DB nodes in config
+  NdbNodeBitmask c_clusterNodes;  // DB nodes in cluster
+  NodeBitmask c_connectedNodes;   // All kinds of connected nodes
 
   /**
    * Nodes which we're checking for partitioned cluster
@@ -168,20 +163,18 @@ public:
 
   Uint32 c_maxDynamicId;
 
-  struct ConnectCheckRec
-  {
-    bool m_enabled;                     // Config set && all node version OK
-    bool m_active;                      // Connectivity check underway?
-    Timer m_timer;                      // Check timer object
-    Uint32 m_currentRound;              // Last round started
-    Uint32 m_tick;                      // Periods elapsed in current check
-    NdbNodeBitmask m_nodesPinged;       // Nodes sent a NodePingReq in round
-    NdbNodeBitmask m_nodesWaiting;      // Nodes which have not sent a response
-    NdbNodeBitmask m_nodesFailedDuring; // Nodes which failed during check
-    NdbNodeBitmask m_nodesSuspect;      // Nodes with suspect connectivity
+  struct ConnectCheckRec {
+    bool m_enabled;                      // Config set && all node version OK
+    bool m_active;                       // Connectivity check underway?
+    Timer m_timer;                       // Check timer object
+    Uint32 m_currentRound;               // Last round started
+    Uint32 m_tick;                       // Periods elapsed in current check
+    NdbNodeBitmask m_nodesPinged;        // Nodes sent a NodePingReq in round
+    NdbNodeBitmask m_nodesWaiting;       // Nodes which have not sent a response
+    NdbNodeBitmask m_nodesFailedDuring;  // Nodes which failed during check
+    NdbNodeBitmask m_nodesSuspect;       // Nodes with suspect connectivity
 
-    ConnectCheckRec()
-    {
+    ConnectCheckRec() {
       m_enabled = false;
       m_active = false;
       m_currentRound = 0;
@@ -199,8 +192,7 @@ public:
     bool reportNodeFailure(Uint32 nodeId);
 
     bool getEnabled() const {
-      if (m_enabled)
-      {
+      if (m_enabled) {
         assert(m_timer.getDelay() > 0);
       }
       return m_enabled;
@@ -255,62 +247,58 @@ public:
 
     NodeRec() { std::memset(m_failconf_blocks, 0, sizeof(m_failconf_blocks)); }
   }; /* p2c: size = 52 bytes */
-  
+
   typedef Ptr<NodeRec> NodeRecPtr;
-  
+
   enum ArbitState {
     ARBIT_NULL = 0,
-    ARBIT_INIT = 1,             // create new ticket
-    ARBIT_FIND = 2,		// find candidate arbitrator node
-    ARBIT_PREP1 = 3,		// PREP db nodes with null ticket
-    ARBIT_PREP2 = 4,		// PREP db nodes with current ticket
-    ARBIT_START = 5,		// START arbitrator API thread
-    ARBIT_RUN = 6,		// running with arbitrator
-    ARBIT_CHOOSE = 7,		// ask arbitrator after network partition
-    ARBIT_CRASH = 8		// crash ourselves
+    ARBIT_INIT = 1,    // create new ticket
+    ARBIT_FIND = 2,    // find candidate arbitrator node
+    ARBIT_PREP1 = 3,   // PREP db nodes with null ticket
+    ARBIT_PREP2 = 4,   // PREP db nodes with current ticket
+    ARBIT_START = 5,   // START arbitrator API thread
+    ARBIT_RUN = 6,     // running with arbitrator
+    ARBIT_CHOOSE = 7,  // ask arbitrator after network partition
+    ARBIT_CRASH = 8    // crash ourselves
   };
 
   struct ArbitRec {
     ArbitRec() {}
 
     enum Method {
-      DISABLED = ARBIT_METHOD_DISABLED, // Arbitration disabled
-      METHOD_DEFAULT = ARBIT_METHOD_DEFAULT, // Default arbitration
+      DISABLED = ARBIT_METHOD_DISABLED,       // Arbitration disabled
+      METHOD_DEFAULT = ARBIT_METHOD_DEFAULT,  // Default arbitration
       // Delay commit to give "external" time to arbitrate
       METHOD_EXTERNAL = ARBIT_METHOD_WAITEXTERNAL
     } method;
 
-    ArbitState state;		// state
-    bool newstate;		// flag to initialize new state
-    unsigned thread;		// identifies a continueB "thread"
-    NodeId node;		// current arbitrator candidate
-    ArbitTicket ticket;		// ticket
-    NodeBitmask apiMask[1+2];	// arbitrators 0=all 1,2=per rank
-    NdbNodeBitmask newMask;	// new nodes to process in RUN state
-    Uint8 sendCount;		// control send/recv of signals
+    ArbitState state;            // state
+    bool newstate;               // flag to initialize new state
+    unsigned thread;             // identifies a continueB "thread"
+    NodeId node;                 // current arbitrator candidate
+    ArbitTicket ticket;          // ticket
+    NodeBitmask apiMask[1 + 2];  // arbitrators 0=all 1,2=per rank
+    NdbNodeBitmask newMask;      // new nodes to process in RUN state
+    Uint8 sendCount;             // control send/recv of signals
     Uint8 recvCount;
-    NdbNodeBitmask recvMask;	// left to recv
-    Uint32 code;		// code field from signal
-    Uint32 failureNr;           // cfailureNr at arbitration start
-    Uint32 timeout;             // timeout for CHOOSE state
-    NDB_TICKS timestamp;	// timestamp for checking timeouts
+    NdbNodeBitmask recvMask;  // left to recv
+    Uint32 code;              // code field from signal
+    Uint32 failureNr;         // cfailureNr at arbitration start
+    Uint32 timeout;           // timeout for CHOOSE state
+    NDB_TICKS timestamp;      // timestamp for checking timeouts
 
-    inline bool match(ArbitSignalData* sd) {
-      return
-	node == sd->node &&
-	ticket.match(sd->ticket);
+    inline bool match(ArbitSignalData *sd) {
+      return node == sd->node && ticket.match(sd->ticket);
     }
 
-    inline void setTimestamp() {
-      timestamp = NdbTick_getCurrentTicks();
-    }
+    inline void setTimestamp() { timestamp = NdbTick_getCurrentTicks(); }
 
     inline Uint64 getTimediff() {
       const NDB_TICKS now = NdbTick_getCurrentTicks();
       return NdbTick_Elapsed(timestamp, now).milliSec();
     }
   };
-  
+
   /* State values for handling ENABLE_COMREQ / ENABLE_COMCONF. */
   enum EnableComState {
     ENABLE_COM_CM_ADD_COMMIT = 0,
@@ -318,79 +306,78 @@ public:
     ENABLE_COM_API_REGREQ = 2
   };
 
-  struct NodeFailRec
-  {
+  struct NodeFailRec {
     NdbNodeBitmask nodes;
     Uint32 failureNr;
     Uint16 president;
   };
 
-public:
-  Qmgr(Block_context&);
+ public:
+  Qmgr(Block_context &);
   ~Qmgr() override;
 
-private:
+ private:
   BLOCK_DEFINES(Qmgr);
 
   // Transit signals
-  void execDEBUG_SIG(Signal* signal);
-  void execCONTINUEB(Signal* signal);
-  void execCM_HEARTBEAT(Signal* signal);
-  void execCM_ADD(Signal* signal);
-  void execCM_ACKADD(Signal* signal);
-  void execCM_REGREQ(Signal* signal);
-  void execCM_REGCONF(Signal* signal);
-  void execCM_REGREF(Signal* signal);
-  void execCM_NODEINFOREQ(Signal* signal);
-  void execCM_NODEINFOCONF(Signal* signal);
-  void execCM_NODEINFOREF(Signal* signal);
-  void execPREP_FAILREQ(Signal* signal);
-  void execPREP_FAILCONF(Signal* signal);
-  void execPREP_FAILREF(Signal* signal);
-  void execCOMMIT_FAILREQ(Signal* signal);
-  void execCOMMIT_FAILCONF(Signal* signal);
-  void execFAIL_REP(Signal* signal);
-  void execPRES_TOREQ(Signal* signal);
-  void execPRES_TOCONF(Signal* signal);
-  void execDISCONNECT_REP(Signal* signal);
-  void execSYSTEM_ERROR(Signal* signal);
-  void execSTOP_REQ(Signal* signal);
+  void execDEBUG_SIG(Signal *signal);
+  void execCONTINUEB(Signal *signal);
+  void execCM_HEARTBEAT(Signal *signal);
+  void execCM_ADD(Signal *signal);
+  void execCM_ACKADD(Signal *signal);
+  void execCM_REGREQ(Signal *signal);
+  void execCM_REGCONF(Signal *signal);
+  void execCM_REGREF(Signal *signal);
+  void execCM_NODEINFOREQ(Signal *signal);
+  void execCM_NODEINFOCONF(Signal *signal);
+  void execCM_NODEINFOREF(Signal *signal);
+  void execPREP_FAILREQ(Signal *signal);
+  void execPREP_FAILCONF(Signal *signal);
+  void execPREP_FAILREF(Signal *signal);
+  void execCOMMIT_FAILREQ(Signal *signal);
+  void execCOMMIT_FAILCONF(Signal *signal);
+  void execFAIL_REP(Signal *signal);
+  void execPRES_TOREQ(Signal *signal);
+  void execPRES_TOCONF(Signal *signal);
+  void execDISCONNECT_REP(Signal *signal);
+  void execSYSTEM_ERROR(Signal *signal);
+  void execSTOP_REQ(Signal *signal);
 
   // Received signals
-  void execDUMP_STATE_ORD(Signal* signal);
-  void execCONNECT_REP(Signal* signal);
-  void execNDB_FAILCONF(Signal* signal);
-  void execNF_COMPLETEREP(Signal*);
-  void execREAD_CONFIG_REQ(Signal* signal);
-  void execSTTOR(Signal* signal);
-  void execCM_INFOCONF(Signal* signal);
-  void execCLOSE_COMCONF(Signal* signal);
-  void execAPI_REGREQ(Signal* signal);
-  void execAPI_FAILCONF(Signal* signal);
-  void execREAD_NODESREQ(Signal* signal);
-  void execAPI_FAILREQ(Signal* signal);
+  void execDUMP_STATE_ORD(Signal *signal);
+  void execCONNECT_REP(Signal *signal);
+  void execNDB_FAILCONF(Signal *signal);
+  void execNF_COMPLETEREP(Signal *);
+  void execREAD_CONFIG_REQ(Signal *signal);
+  void execSTTOR(Signal *signal);
+  void execCM_INFOCONF(Signal *signal);
+  void execCLOSE_COMCONF(Signal *signal);
+  void execAPI_REGREQ(Signal *signal);
+  void execAPI_FAILCONF(Signal *signal);
+  void execREAD_NODESREQ(Signal *signal);
+  void execAPI_FAILREQ(Signal *signal);
 
-  void execREAD_NODESREF(Signal* signal);
-  void execREAD_NODESCONF(Signal* signal);
+  void execREAD_NODESREF(Signal *signal);
+  void execREAD_NODESCONF(Signal *signal);
 
-  void execDIH_RESTARTREF(Signal* signal);
-  void execDIH_RESTARTCONF(Signal* signal);
+  void execDIH_RESTARTREF(Signal *signal);
+  void execDIH_RESTARTCONF(Signal *signal);
 
-  void execSET_UP_MULTI_TRP_REQ(Signal*);
-  void execGET_NUM_MULTI_TRP_REQ(Signal*);
-  void execGET_NUM_MULTI_TRP_CONF(Signal*);
-  void execGET_NUM_MULTI_TRP_REF(Signal*);
-  void execFREEZE_ACTION_REQ(Signal*);
-  void execFREEZE_THREAD_CONF(Signal*);
-  void execACTIVATE_TRP_REQ(Signal*);
-  void execACTIVATE_TRP_CONF(Signal*);
-  void execSWITCH_MULTI_TRP_REQ(Signal*);
-  void execSWITCH_MULTI_TRP_CONF(Signal*);
-  void execSWITCH_MULTI_TRP_REF(Signal*);
+  void execSET_UP_MULTI_TRP_REQ(Signal *);
+  void execGET_NUM_MULTI_TRP_REQ(Signal *);
+  void execGET_NUM_MULTI_TRP_CONF(Signal *);
+  void execGET_NUM_MULTI_TRP_REF(Signal *);
+  void execFREEZE_ACTION_REQ(Signal *);
+  void execFREEZE_THREAD_CONF(Signal *);
+  void execACTIVATE_TRP_REQ(Signal *);
+  void execACTIVATE_TRP_CONF(Signal *);
+  void execSWITCH_MULTI_TRP_REQ(Signal *);
+  void execSWITCH_MULTI_TRP_CONF(Signal *);
+  void execSWITCH_MULTI_TRP_REF(Signal *);
 
-  void execAPI_VERSION_REQ(Signal* signal);
-  void execAPI_BROADCAST_REP(Signal* signal);
-  void execTRP_KEEP_ALIVE(Signal* signal);
+  void execAPI_VERSION_REQ(Signal *signal);
+  void execAPI_BROADCAST_REP(Signal *signal);
+  void execTRP_KEEP_ALIVE(Signal *signal);
 
   void execNODE_FAILREP(Signal *);
   void execALLOC_NODEID_REQ(Signal *);
@@ -402,26 +389,26 @@ private:
   void handleEnableComCommitNew(Signal *signal);
   void handleEnableComApiRegreq(Signal *signal, Uint32 node);
   void sendApiRegConf(Signal *signal, Uint32 node);
-  
-  void execSTART_ORD(Signal*);
-  void execSYNC_THREAD_VIA_CONF(Signal*);
+
+  void execSTART_ORD(Signal *);
+  void execSYNC_THREAD_VIA_CONF(Signal *);
 
   // Arbitration signals
-  void execARBIT_CFG(Signal* signal);
-  void execARBIT_PREPREQ(Signal* signal);
-  void execARBIT_PREPCONF(Signal* signal);
-  void execARBIT_PREPREF(Signal* signal);
-  void execARBIT_STARTCONF(Signal* signal);
-  void execARBIT_STARTREF(Signal* signal);
-  void execARBIT_CHOOSECONF(Signal* signal);
-  void execARBIT_CHOOSEREF(Signal* signal);
-  void execARBIT_STOPREP(Signal* signal);
+  void execARBIT_CFG(Signal *signal);
+  void execARBIT_PREPREQ(Signal *signal);
+  void execARBIT_PREPCONF(Signal *signal);
+  void execARBIT_PREPREF(Signal *signal);
+  void execARBIT_STARTCONF(Signal *signal);
+  void execARBIT_STARTREF(Signal *signal);
+  void execARBIT_CHOOSECONF(Signal *signal);
+  void execARBIT_CHOOSEREF(Signal *signal);
+  void execARBIT_STOPREP(Signal *signal);
 
-  void execUPGRADE_PROTOCOL_ORD(Signal*);
-  
+  void execUPGRADE_PROTOCOL_ORD(Signal *);
+
   // Connectivity check signals
-  void execNODE_PINGREQ(Signal* signal);
-  void execNODE_PINGCONF(Signal* signal);
+  void execNODE_PINGREQ(Signal *signal);
+  void execNODE_PINGCONF(Signal *signal);
 
   // Ndbinfo signal
   void execDBINFO_SCANREQ(Signal *signal);
@@ -434,106 +421,99 @@ private:
 
   // NDBCNTR node state change
   void execNODE_STATE_REP(Signal *signal);
-  void handleStateChange(Signal* signal, const Uint32 nodeId);
+  void handleStateChange(Signal *signal, const Uint32 nodeId);
 
   // Statement blocks
-  void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
-  Uint32 check_startup(Signal* signal);
+  void check_readnodes_reply(Signal *signal, Uint32 nodeId, Uint32 gsn);
+  Uint32 check_startup(Signal *signal);
 
-  void api_failed(Signal* signal, Uint32 aFailedNode);
-  void node_failed(Signal* signal, Uint16 aFailedNode);
-  void checkStartInterface(Signal* signal, NDB_TICKS now);
-  void failReport(Signal* signal,
-                  Uint16 aFailedNode,
-                  UintR aSendFailRep,
-                  FailRep::FailCause failCause,
-                  Uint16 sourceNode);
-  void findNeighbours(Signal* signal, Uint32 from);
-  Uint16 translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId);
+  void api_failed(Signal *signal, Uint32 aFailedNode);
+  void node_failed(Signal *signal, Uint16 aFailedNode);
+  void checkStartInterface(Signal *signal, NDB_TICKS now);
+  void failReport(Signal *signal, Uint16 aFailedNode, UintR aSendFailRep,
+                  FailRep::FailCause failCause, Uint16 sourceNode);
+  void findNeighbours(Signal *signal, Uint32 from);
+  Uint16 translateDynamicIdToNodeId(Signal *signal, UintR TdynamicId);
 
-  void initData(Signal* signal);
-  void sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 TfailNo);
-  void sendPrepFailReq(Signal* signal, Uint16 aNode);
-  void sendApiFailReq(Signal* signal, Uint16 aFailedNode, bool sumaOnly);
-  void sendApiRegRef(Signal*, Uint32 ref, ApiRegRef::ErrorCode);
+  void initData(Signal *signal);
+  void sendCloseComReq(Signal *signal, BlockReference TBRef, Uint16 TfailNo);
+  void sendPrepFailReq(Signal *signal, Uint16 aNode);
+  void sendApiFailReq(Signal *signal, Uint16 aFailedNode, bool sumaOnly);
+  void sendApiRegRef(Signal *, Uint32 ref, ApiRegRef::ErrorCode);
 
   // Generated statement blocks
-  void startphase1(Signal* signal);
-  void electionWon(Signal* signal);
-  void cmInfoconf010Lab(Signal* signal);
-  
-  void apiHbHandlingLab(Signal* signal, NDB_TICKS now);
-  void timerHandlingLab(Signal* signal);
-  void hbReceivedLab(Signal* signal);
-  void sendCmRegrefLab(Signal* signal, BlockReference ref, 
-		       CmRegRef::ErrorCode, Uint32 remote_node_version);
-  void systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line, NodeId);
-  [[noreturn]] void systemErrorLab(Signal* signal,
-                                   Uint32 line,
-                                   const char* message = NULL);
-  void prepFailReqLab(Signal* signal);
-  void prepFailConfLab(Signal* signal);
-  void prepFailRefLab(Signal* signal);
-  void commitFailReqLab(Signal* signal);
-  void commitFailConfLab(Signal* signal);
-  void failReportLab(Signal* signal, Uint16 aFailedNode, 
-		     FailRep::FailCause aFailCause,
-                     Uint16 sourceNode);
-  void sendCommitFailReq(Signal* signal);
-  void presToConfLab(Signal* signal);
-  void sendSttorryLab(Signal* signal, bool first_phase);
-  void sttor020Lab(Signal* signal);
-  void closeComConfLab(Signal* signal);
-  void apiRegReqLab(Signal* signal);
-  void regreqTimeLimitLab(Signal* signal);
-  void regreqTimeMasterLimitLab(Signal* signal);
-  void cmRegreq010Lab(Signal* signal);
-  void cmRegconf010Lab(Signal* signal);
-  void sttor010Lab(Signal* signal);
-  void sendHeartbeat(Signal* signal);
-  void checkHeartbeat(Signal* signal);
+  void startphase1(Signal *signal);
+  void electionWon(Signal *signal);
+  void cmInfoconf010Lab(Signal *signal);
+
+  void apiHbHandlingLab(Signal *signal, NDB_TICKS now);
+  void timerHandlingLab(Signal *signal);
+  void hbReceivedLab(Signal *signal);
+  void sendCmRegrefLab(Signal *signal, BlockReference ref, CmRegRef::ErrorCode,
+                       Uint32 remote_node_version);
+  void systemErrorBecauseOtherNodeFailed(Signal *signal, Uint32 line, NodeId);
+  [[noreturn]] void systemErrorLab(Signal *signal, Uint32 line,
+                                   const char *message = NULL);
+  void prepFailReqLab(Signal *signal);
+  void prepFailConfLab(Signal *signal);
+  void prepFailRefLab(Signal *signal);
+  void commitFailReqLab(Signal *signal);
+  void commitFailConfLab(Signal *signal);
+  void failReportLab(Signal *signal, Uint16 aFailedNode,
+                     FailRep::FailCause aFailCause, Uint16 sourceNode);
+  void sendCommitFailReq(Signal *signal);
+  void presToConfLab(Signal *signal);
+  void sendSttorryLab(Signal *signal, bool first_phase);
+  void sttor020Lab(Signal *signal);
+  void closeComConfLab(Signal *signal);
+  void apiRegReqLab(Signal *signal);
+  void regreqTimeLimitLab(Signal *signal);
+  void regreqTimeMasterLimitLab(Signal *signal);
+  void cmRegreq010Lab(Signal *signal);
+  void cmRegconf010Lab(Signal *signal);
+  void sttor010Lab(Signal *signal);
+  void sendHeartbeat(Signal *signal);
+  void checkHeartbeat(Signal *signal);
   void setHbDelay(UintR aHbDelay);
   void setHbApiDelay(UintR aHbApiDelay);
   void setArbitTimeout(UintR aArbitTimeout);
   void setCCDelay(UintR aCCDelay);
-  void send_trp_keep_alive_start(Signal* signal);
-  void send_trp_keep_alive(Signal* signal);
+  void send_trp_keep_alive_start(Signal *signal);
+  void send_trp_keep_alive(Signal *signal);
   void setTrpKeepAliveSendDelay(Uint32 delay);
 
   // Interface to arbitration module
-  void handleArbitStart(Signal* signal);
-  void handleArbitApiFail(Signal* signal, Uint16 nodeId);
-  void handleArbitNdbAdd(Signal* signal, Uint16 nodeId);
-  void handleArbitCheck(Signal* signal);
+  void handleArbitStart(Signal *signal);
+  void handleArbitApiFail(Signal *signal, Uint16 nodeId);
+  void handleArbitNdbAdd(Signal *signal, Uint16 nodeId);
+  void handleArbitCheck(Signal *signal);
 
   // Private arbitration routines
   Uint32 getArbitDelay();
   Uint32 getArbitTimeout();
-  void startArbitThread(Signal* signal);
-  void runArbitThread(Signal* signal);
-  void stateArbitInit(Signal* signal);
-  void stateArbitFind(Signal* signal);
-  void stateArbitPrep(Signal* signal);
-  void stateArbitStart(Signal* signal);
-  void stateArbitRun(Signal* signal);
-  void stateArbitChoose(Signal* signal);
-  void stateArbitCrash(Signal* signal);
+  void startArbitThread(Signal *signal);
+  void runArbitThread(Signal *signal);
+  void stateArbitInit(Signal *signal);
+  void stateArbitFind(Signal *signal);
+  void stateArbitPrep(Signal *signal);
+  void stateArbitStart(Signal *signal);
+  void stateArbitRun(Signal *signal);
+  void stateArbitChoose(Signal *signal);
+  void stateArbitCrash(Signal *signal);
   Uint32 count_previously_alive_nodes();
-  void computeArbitNdbMask(NodeBitmaskPOD& aMask);
-  void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
-  void computeBeforeFailNdbMask(NdbNodeBitmaskPOD& aMask);
-  void computeNonDiedNdbMask(NdbNodeBitmaskPOD& aMask);
-  void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
+  void computeArbitNdbMask(NodeBitmaskPOD &aMask);
+  void computeArbitNdbMask(NdbNodeBitmaskPOD &aMask);
+  void computeBeforeFailNdbMask(NdbNodeBitmaskPOD &aMask);
+  void computeNonDiedNdbMask(NdbNodeBitmaskPOD &aMask);
+  void reportArbitEvent(Signal *signal, Ndb_logevent_type type,
                         const NodeBitmask mask = NodeBitmask());
 
   // Interface to Connectivity Check
-  void startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 node);
-  void checkConnectivityTimeSignal(Signal* signal);
-  void connectivityCheckCompleted(Signal* signal);
+  void startConnectivityCheck(Signal *signal, Uint32 reason, Uint32 node);
+  void checkConnectivityTimeSignal(Signal *signal);
+  void connectivityCheckCompleted(Signal *signal);
   bool isNodeConnectivitySuspect(Uint32 nodeId) const;
-  void handleFailFromSuspect(Signal* signal,
-                             Uint32 reason,
-                             Uint16 aFailedNode,
+  void handleFailFromSuspect(Signal *signal, Uint32 reason, Uint16 aFailedNode,
                              Uint16 sourceNode);
 
   // Initialisation
@@ -542,30 +522,27 @@ private:
 
   // Transit signals
   // Variables
-  
+
   bool checkAPIVersion(NodeId, Uint32 nodeVersion, Uint32 ownVersion) const;
   bool checkNDBVersion(NodeId, Uint32 nodeVersion, Uint32 ownVersion) const;
 
-  void cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec* self);
+  void cmAddPrepare(Signal *signal, NodeRecPtr nodePtr, const NodeRec *self);
   void sendCmAckAdd(Signal *, Uint32 nodeId, CmAdd::RequestType);
-  void joinedCluster(Signal* signal, NodeRecPtr nodePtr);
-  void sendCmRegReq(Signal * signal, Uint32 nodeId);
-  void sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self);
-  ProcessInfo * getProcessInfo(Uint32 nodeId);
+  void joinedCluster(Signal *signal, NodeRecPtr nodePtr);
+  void sendCmRegReq(Signal *signal, Uint32 nodeId);
+  void sendCmNodeInfoReq(Signal *signal, Uint32 nodeId, const NodeRec *self);
+  ProcessInfo *getProcessInfo(Uint32 nodeId);
 
-private:
-  void sendPrepFailReqRef(Signal* signal, 
-			  Uint32 dstBlockRef,
-			  GlobalSignalNumber gsn,
-			  Uint32 blockRef,
-			  Uint32 failNo,
-			  const NdbNodeBitmask& nodes);
+ private:
+  void sendPrepFailReqRef(Signal *signal, Uint32 dstBlockRef,
+                          GlobalSignalNumber gsn, Uint32 blockRef,
+                          Uint32 failNo, const NdbNodeBitmask &nodes);
 
-  void handleApiCloseComConf(Signal* signal);
+  void handleApiCloseComConf(Signal *signal);
   void add_failconf_block(NodeRecPtr, Uint32 block);
   bool remove_failconf_block(NodeRecPtr, Uint32 block);
   bool is_empty_failconf_block(NodeRecPtr) const;
-  
+
   /* Wait this time until we try to join the       */
   /* cluster again                                 */
 
@@ -577,15 +554,15 @@ private:
   NodeFailRec *nodeFailRec;
 
   /* Block references ------------------------------*/
-  BlockReference cpdistref;	 /* Dist. ref of president   */
+  BlockReference cpdistref; /* Dist. ref of president   */
 
   /* Node numbers. ---------------------------------*/
-  Uint16 cneighbourl; 		 /* Node no. of lower neighbour  */
-  Uint16 cneighbourh; 		 /* Node no. of higher neighbour */
-  Uint16 cpresident; 		 /* Node no. of president        */
+  Uint16 cneighbourl; /* Node no. of lower neighbour  */
+  Uint16 cneighbourh; /* Node no. of higher neighbour */
+  Uint16 cpresident;  /* Node no. of president        */
 
   /* Counters --------------------------------------*/
-  Uint16 cnoOfNodes; 		 /* Static node counter          */
+  Uint16 cnoOfNodes; /* Static node counter          */
   /* Status flags ----------------------------------*/
 
   Uint32 c_restartPartialTimeout;
@@ -618,13 +595,13 @@ private:
   Timer ka_send_timer;
 
   Int16 processInfoNodeIndex[MAX_NODES];
-  ProcessInfo * receivedProcessInfo = nullptr;
+  ProcessInfo *receivedProcessInfo = nullptr;
   Uint16 max_api_node_id;
 
   NdbNodeBitmask cfailedNodes;
   NdbNodeBitmask cprepFailedNodes;
   NdbNodeBitmask ccommitFailedNodes;
-  
+
   struct OpAllocNodeIdReq {
     RequestTracker m_tracker;
     AllocNodeIdReq m_req;
@@ -633,7 +610,7 @@ private:
   };
 
   struct OpAllocNodeIdReq opAllocNodeIdReq;
-  
+
   struct StopReqRec {
     Uint32 senderRef;
     Uint32 senderData;
@@ -642,32 +619,29 @@ private:
   };
 
   StopReqRec c_stopReq;
-  bool check_multi_node_shutdown(Signal* signal);
+  bool check_multi_node_shutdown(Signal *signal);
 
   void recompute_version_info(Uint32 type);
   void recompute_version_info(Uint32 type, Uint32 version);
-  void execNODE_VERSION_REP(Signal* signal);
-  void sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr);
-  void sendVersionedDb(NodeReceiverGroup rg,
-                       GlobalSignalNumber gsn, 
-                       Signal* signal, 
-                       Uint32 length, 
-                       JobBufferLevel jbuf,
+  void execNODE_VERSION_REP(Signal *signal);
+  void sendApiVersionRep(Signal *signal, NodeRecPtr nodePtr);
+  void sendVersionedDb(NodeReceiverGroup rg, GlobalSignalNumber gsn,
+                       Signal *signal, Uint32 length, JobBufferLevel jbuf,
                        Uint32 minversion);
-  void get_node_group_mask(Signal*, NdbNodeBitmask&);
-  bool get_num_multi_trps(Signal*, bool&);
+  void get_node_group_mask(Signal *, NdbNodeBitmask &);
+  bool get_num_multi_trps(Signal *, bool &);
   void create_multi_transporter(NodeId);
-  void connect_multi_transporter(Signal*, NodeId);
-  void check_connect_multi_transporter(Signal*, NodeId);
-  void send_get_num_multi_trp_req(Signal*, NodeId);
-  void send_switch_multi_transporter(Signal*, NodeId, bool);
-  void switch_multi_transporter(Signal*, NodeId);
-  void check_switch_completed(Signal*, NodeId);
-  void check_no_multi_trp(Signal*, NodeId);
-  void check_more_trp_switch_nodes(Signal*);
-  void handle_activate_trp_req(Signal*, Uint32);
+  void connect_multi_transporter(Signal *, NodeId);
+  void check_connect_multi_transporter(Signal *, NodeId);
+  void send_get_num_multi_trp_req(Signal *, NodeId);
+  void send_switch_multi_transporter(Signal *, NodeId, bool);
+  void switch_multi_transporter(Signal *, NodeId);
+  void check_switch_completed(Signal *, NodeId);
+  void check_no_multi_trp(Signal *, NodeId);
+  void check_more_trp_switch_nodes(Signal *);
+  void handle_activate_trp_req(Signal *, Uint32);
   bool check_all_multi_trp_nodes_connected();
-  bool select_node_id_for_switch(NodeId&, bool);
+  bool select_node_id_for_switch(NodeId &, bool);
 
   bool m_micro_gcp_enabled;
 
@@ -685,22 +659,22 @@ private:
   bool m_initial_set_up_multi_trp_done;
   Uint32 m_current_switch_multi_trp_node;
   BlockReference m_ref_set_up_multi_trp_req;
-  Ndbcntr* c_ndbcntr;
+  Ndbcntr *c_ndbcntr;
 
   Uint32 get_hb_count(Uint32 nodeId) const {
     return globalData.get_hb_count(nodeId);
   }
 
-  Uint32& set_hb_count(Uint32 nodeId) {
+  Uint32 &set_hb_count(Uint32 nodeId) {
     return globalData.set_hb_count(nodeId);
   }
 
-  void execISOLATE_ORD(Signal* signal);
+  void execISOLATE_ORD(Signal *signal);
 
-  void sendReadLocalSysfile(Signal*);
-  void execREAD_LOCAL_SYSFILE_CONF(Signal*);
+  void sendReadLocalSysfile(Signal *);
+  void execREAD_LOCAL_SYSFILE_CONF(Signal *);
   bool is_multi_socket_setup_active(Uint32 node_id, bool locked);
-  void complete_multi_trp_setup(Signal*, bool);
+  void complete_multi_trp_setup(Signal *, bool);
   void dec_get_num_multi_trps_sent(NodeId);
   void inc_get_num_multi_trps_sent(NodeId);
 };

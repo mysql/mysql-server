@@ -29,43 +29,38 @@
 
 #define JAM_FILE_ID 386
 
+class OpenFiles {
+ public:
+  OpenFiles() {}
 
-class OpenFiles
-{
-public:
-   OpenFiles(){ }
-   
   /* Get a pointer to the file with id */
-  AsyncFile* find(Uint16 id) const;
+  AsyncFile *find(Uint16 id) const;
   /* Insert file with id */
-  bool insert(AsyncFile* file, Uint16 id);
+  bool insert(AsyncFile *file, Uint16 id);
   /* Erase file with id */
   bool erase(Uint16 id);
   /* Get number of open files */
   unsigned size();
 
   Uint16 getId(unsigned i);
-  AsyncFile* getFile(unsigned i);
-  
-   
-private:
+  AsyncFile *getFile(unsigned i);
 
+ private:
   class OpenFileItem {
-  public:
-    OpenFileItem():  m_file(NULL), m_id(0){}
+   public:
+    OpenFileItem() : m_file(NULL), m_id(0) {}
 
-    AsyncFile* m_file;      
+    AsyncFile *m_file;
     Uint16 m_id;
   };
 
   Vector<OpenFileItem> m_files;
 };
 
-
 //*****************************************************************************
-inline AsyncFile* OpenFiles::find(Uint16 id) const {
-  for (unsigned i = 0; i < m_files.size(); i++){
-    if (m_files[i].m_id == id){
+inline AsyncFile *OpenFiles::find(Uint16 id) const {
+  for (unsigned i = 0; i < m_files.size(); i++) {
+    if (m_files[i].m_id == id) {
       return m_files[i].m_file;
     }
   }
@@ -73,9 +68,9 @@ inline AsyncFile* OpenFiles::find(Uint16 id) const {
 }
 
 //*****************************************************************************
-inline bool OpenFiles::erase(Uint16 id){
-  for (unsigned i = 0; i < m_files.size(); i++){
-    if (m_files[i].m_id == id){
+inline bool OpenFiles::erase(Uint16 id) {
+  for (unsigned i = 0; i < m_files.size(); i++) {
+    if (m_files[i].m_id == id) {
       m_files.erase(i);
       return true;
     }
@@ -84,50 +79,39 @@ inline bool OpenFiles::erase(Uint16 id){
   return false;
 }
 
-
 //*****************************************************************************
-inline bool OpenFiles::insert(AsyncFile* file, Uint16 id){
+inline bool OpenFiles::insert(AsyncFile *file, Uint16 id) {
   // Check if file has already been opened
-  for (unsigned i = 0; i < m_files.size(); i++){
-    if(m_files[i].m_file == NULL)
-      continue;
+  for (unsigned i = 0; i < m_files.size(); i++) {
+    if (m_files[i].m_file == NULL) continue;
 
-    if(strcmp(m_files[i].m_file->theFileName.c_str(), 
-	      file->theFileName.c_str()) == 0)
-    {
+    if (strcmp(m_files[i].m_file->theFileName.c_str(),
+               file->theFileName.c_str()) == 0) {
       BaseString names;
-      names.assfmt("open: >%s< existing: >%s<",
-		   file->theFileName.c_str(),
-		   m_files[i].m_file->theFileName.c_str());
+      names.assfmt("open: >%s< existing: >%s<", file->theFileName.c_str(),
+                   m_files[i].m_file->theFileName.c_str());
       ERROR_SET(fatal, NDBD_EXIT_AFS_ALREADY_OPEN, names.c_str(),
-		"OpenFiles::insert()");    
+                "OpenFiles::insert()");
     }
   }
-  
+
   // Insert the file into vector
   OpenFileItem openFile;
   openFile.m_id = id;
   openFile.m_file = file;
   m_files.push_back(openFile);
-  
+
   return true;
 }
 
 //*****************************************************************************
-inline Uint16 OpenFiles::getId(unsigned i){
-  return m_files[i].m_id; 
-}
+inline Uint16 OpenFiles::getId(unsigned i) { return m_files[i].m_id; }
 
 //*****************************************************************************
-inline AsyncFile* OpenFiles::getFile(unsigned i){
-  return m_files[i].m_file; 
-}
+inline AsyncFile *OpenFiles::getFile(unsigned i) { return m_files[i].m_file; }
 
 //*****************************************************************************
-inline unsigned OpenFiles::size(){
-  return m_files.size(); 
-}
-
+inline unsigned OpenFiles::size() { return m_files.size(); }
 
 #undef JAM_FILE_ID
 

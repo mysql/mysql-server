@@ -29,7 +29,6 @@
 
 #define JAM_FILE_ID 95
 
-
 /*
  * Ordered index maintenance operation.
  */
@@ -37,13 +36,14 @@
 class TuxMaintReq {
   friend class Dbtup;
   friend class Dbtux;
-  friend bool printTUX_MAINT_REQ(FILE*, const Uint32*, Uint32, Uint16);
-public:
-  enum OpCode {         // first byte of opInfo
+  friend bool printTUX_MAINT_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+
+ public:
+  enum OpCode {  // first byte of opInfo
     OpAdd = 1,
     OpRemove = 2
   };
-  enum OpFlag {         // second byte of opInfo
+  enum OpFlag {  // second byte of opInfo
   };
   enum ErrorCode {
     NoError = 0,        // must be zero
@@ -78,7 +78,6 @@ public:
   Uint32 tupFragPtrI;
   Uint32 fragPageId;
 };
-
 
 #undef JAM_FILE_ID
 

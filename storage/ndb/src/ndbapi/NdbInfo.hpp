@@ -29,16 +29,13 @@
 #include <ndb_types.h>
 #include <ndb_version.h>
 
-#include <util/Vector.hpp>
 #include <util/BaseString.hpp>
 #include <util/HashMap.hpp>
+#include <util/Vector.hpp>
 
-class NdbInfo
-{
-public:
-
-  enum Error
-  {
+class NdbInfo {
+ public:
+  enum Error {
     ERR_NoError = 0,
     ERR_NoSuchTable = 4240,
     ERR_OutOfMemory = 4241,
@@ -47,46 +44,34 @@ public:
     ERR_VirtScanStart = 4244
   };
 
-  enum class TableName
-  {
-    WithPrefix,
-    NoPrefix
-  };
+  enum class TableName { WithPrefix, NoPrefix };
 
-  struct Column
-  {
-  public:
-
-    const enum Type
-    {
-      String = 1,
-      Number = 2,
-      Number64 = 3
-    } m_type;
+  struct Column {
+   public:
+    const enum Type { String = 1, Number = 2, Number64 = 3 } m_type;
 
     const Uint32 m_column_id;
     const BaseString m_name;
 
-    Column(const char* name, Uint32 col_id, Type type);
-    Column(const Column & col);
-    Column & operator=(const Column & col) = delete;
+    Column(const char *name, Uint32 col_id, Type type);
+    Column(const Column &col);
+    Column &operator=(const Column &col) = delete;
   };
 
-  class Table
-  {
-  public:
+  class Table {
+   public:
     // Constructor for ndbinfo tables with pre-defined table id
     Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
           bool exact_row_count = false);
     // Constructor for virtual tables
-    Table(const char * table_name, const class VirtualTable* virt,
+    Table(const char *table_name, const class VirtualTable *virt,
           Uint32 rows_estimate, bool exact_row_count = true,
           TableName prefixed = TableName::WithPrefix);
-    Table(const Table& tab);
-    const Table & operator=(const Table& tab) = delete;
+    Table(const Table &tab);
+    const Table &operator=(const Table &tab) = delete;
     ~Table();
 
-    const char * getName() const;
+    const char *getName() const;
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
     Uint32 getRowsEstimate() const { return m_rows_estimate; }
@@ -94,46 +79,45 @@ public:
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
-    const Column* getColumn(const unsigned attributeId) const;
-    const Column* getColumn(const char * name) const;
+    const Column *getColumn(const unsigned attributeId) const;
+    const Column *getColumn(const char *name) const;
 
-    const class VirtualTable* getVirtualTable() const;
+    const class VirtualTable *getVirtualTable() const;
 
-  private:
+   private:
     friend class NdbInfo;
     const BaseString m_name;
     Uint32 m_table_id;
     Uint32 m_rows_estimate;
     bool m_exact_row_count;
     bool m_use_full_prefix;
-    Vector<Column*> m_columns;
-    const class VirtualTable * m_virt;
+    Vector<Column *> m_columns;
+    const class VirtualTable *m_virt;
   };
 
-  NdbInfo(class Ndb_cluster_connection* connection, const char* prefix);
+  NdbInfo(class Ndb_cluster_connection *connection, const char *prefix);
   bool init(void);
   ~NdbInfo();
 
-  int openTable(const char* table_name, const Table**);
-  int openTable(Uint32 tableId, const Table**);
-  void closeTable(const Table* table);
+  int openTable(const char *table_name, const Table **);
+  int openTable(Uint32 tableId, const Table **);
+  void closeTable(const Table *table);
 
-  int createScanOperation(const Table*,
-                          class NdbInfoScanOperation**,
+  int createScanOperation(const Table *, class NdbInfoScanOperation **,
                           Uint32 max_rows = 256, Uint32 max_bytes = 0);
-  void releaseScanOperation(class NdbInfoScanOperation*) const;
+  void releaseScanOperation(class NdbInfoScanOperation *) const;
 
-private:
+ private:
   static const size_t NUM_HARDCODED_TABLES = 2;
   unsigned m_connect_count;
   unsigned m_min_db_version;
-  class Ndb_cluster_connection* m_connection;
+  class Ndb_cluster_connection *m_connection;
   native_mutex_t m_mutex;
   HashMap<BaseString, Table, BaseString_get_key> m_tables;
-  Table* m_tables_table;
-  Table* m_columns_table;
-  BaseString m_full_prefix;    // "./ndbinfo/ndb@0024"
-  BaseString m_short_prefix;   // "./ndbinfo/"
+  Table *m_tables_table;
+  Table *m_columns_table;
+  BaseString m_full_prefix;   // "./ndbinfo/ndb@0024"
+  BaseString m_short_prefix;  // "./ndbinfo/"
   Uint32 m_id_counter;
 
   bool addColumn(Uint32 tableId, const Column aCol);
@@ -147,11 +131,10 @@ private:
 
   BaseString mysql_table_name(const NdbInfo::Table &) const;
 
-  Vector<Table*> m_virtual_tables;
-
+  Vector<Table *> m_virtual_tables;
 };
 
-#include "NdbInfoScanOperation.hpp"
 #include "NdbInfoRecAttr.hpp"
+#include "NdbInfoScanOperation.hpp"
 
 #endif

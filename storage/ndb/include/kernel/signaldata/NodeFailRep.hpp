@@ -25,11 +25,10 @@
 #ifndef NODE_FAILREP_HPP
 #define NODE_FAILREP_HPP
 
-#include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+#include "SignalData.hpp"
 
 #define JAM_FILE_ID 59
-
 
 /**
  * This signals is sent by Qmgr to NdbCntr
@@ -52,21 +51,18 @@ struct NodeFailRep {
   Uint32 masterNodeId;
 
   Uint32 noOfNodes;
-  union
-  {
-    Uint32 theNodes[NdbNodeBitmask::Size]; // data nodes 8.0.17 and older
-    Uint32 theAllNodes[NodeBitmask::Size]; // api nodes 8.0.17 and older
+  union {
+    Uint32 theNodes[NdbNodeBitmask::Size];  // data nodes 8.0.17 and older
+    Uint32 theAllNodes[NodeBitmask::Size];  // api nodes 8.0.17 and older
   };
 
   static Uint32 getNodeMaskLength(Uint32 signalLength) {
-    assert(signalLength == SignalLength ||
-           signalLength == SignalLengthLong ||
+    assert(signalLength == SignalLength || signalLength == SignalLengthLong ||
            signalLength == SignalLength_v1 ||
            signalLength == SignalLengthLong_v1);
     return signalLength - 3;
   }
 };
-
 
 #undef JAM_FILE_ID
 

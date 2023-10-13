@@ -29,13 +29,13 @@
 
 #define JAM_FILE_ID 182
 
-
 class TsmanContinueB {
   /**
    * Sender(s)/Reciver(s)
    */
   friend class Tsman;
-private:
+
+ private:
   enum {
     LOAD_EXTENT_PAGES = 0,
     SCAN_TABLESPACE_EXTENT_HEADERS = 1,
@@ -44,7 +44,6 @@ private:
     RELEASE_EXTENT_PAGES = 4
   };
 };
-
 
 #undef JAM_FILE_ID
 

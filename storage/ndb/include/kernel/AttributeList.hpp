@@ -31,7 +31,6 @@
 
 #define JAM_FILE_ID 4
 
-
 /**
  * Masks and lists used by index and trigger.  Must be plain old Uint32 data.
  * XXX depends on other headers XXX move to some common file
@@ -41,14 +40,12 @@ typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
 typedef BitmaskPOD<MAXNROFATTRIBUTESINWORDS> AttributeMaskPOD;
 
 template <Uint32 SZ>
-struct Id_array
-{
+struct Id_array {
   Uint32 sz;
   Uint32 id[SZ];
 };
 
 typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> IndexAttributeList;
-
 
 #undef JAM_FILE_ID
 

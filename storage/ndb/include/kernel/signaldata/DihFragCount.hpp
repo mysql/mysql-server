@@ -21,21 +21,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
- 
+
 #ifndef DIH_FRAG_COUNT_HPP
 #define DIH_FRAG_COUNT_HPP
- 
+
 #include "SignalData.hpp"
 
 #define JAM_FILE_ID 12
-
 
 /**
  * DihFragCountReq
  */
 class DihFragCountReq {
-
-public:
+ public:
   static constexpr Uint32 SignalLength = 4;
   static constexpr Uint32 RetryInterval = 5;
   Uint32 m_connectionData;
@@ -48,8 +46,7 @@ public:
  * DihFragCountConf
  */
 class DihFragCountConf {
-
-public:
+ public:
   static constexpr Uint32 SignalLength = 5;
   Uint32 m_connectionData;
   Uint32 m_tableRef;
@@ -62,21 +59,16 @@ public:
  * DihFragCountRef
  */
 class DihFragCountRef {
-
-public:
-  enum ErrorCode {
-    ErroneousState = 0,
-    ErroneousTableState = 1
-  };
+ public:
+  enum ErrorCode { ErroneousState = 0, ErroneousTableState = 1 };
   static constexpr Uint32 SignalLength = 6;
   Uint32 m_connectionData;
   Uint32 m_tableRef;
   Uint32 m_senderData;
   Uint32 m_error;
-  Uint32 m_tableStatus; // Dbdih::TabRecord::tabStatus
+  Uint32 m_tableStatus;  // Dbdih::TabRecord::tabStatus
   Uint32 m_schemaTransId;
 };
-
 
 #undef JAM_FILE_ID
 

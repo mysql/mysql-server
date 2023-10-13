@@ -29,12 +29,15 @@
 
 #define JAM_FILE_ID 176
 
-
 struct DropTableReq {
   static constexpr Uint32 SignalLength = 7;
 
-  union { Uint32 clientRef, senderRef; };
-  union { Uint32 clientData, senderData; };
+  union {
+    Uint32 clientRef, senderRef;
+  };
+  union {
+    Uint32 clientData, senderData;
+  };
   Uint32 requestInfo;
   Uint32 transId;
   Uint32 transKey;
@@ -44,41 +47,44 @@ struct DropTableReq {
 
 struct DropTableConf {
   static constexpr Uint32 SignalLength = 5;
-  
+
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
+  union {
+    Uint32 clientData, senderData;
+  };
   Uint32 transId;
-  Uint32 tableId; 
+  Uint32 tableId;
   Uint32 tableVersion;
 };
 
 struct DropTableRef {
   static constexpr Uint32 SignalLength = 9;
-  
+
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
+  union {
+    Uint32 clientData, senderData;
+  };
   Uint32 transId;
-  Uint32 tableId; 
+  Uint32 tableId;
   Uint32 tableVersion;
-  Uint32 errorCode; 
+  Uint32 errorCode;
   Uint32 errorLine;
   Uint32 errorNodeId;
   Uint32 masterNodeId;
-  
+
   enum ErrorCode {
     Busy = 701,
     BusyWithNR = 711,
     NotMaster = 702,
-    NoSuchTable         = 709,
+    NoSuchTable = 709,
     InvalidTableVersion = 241,
-    DropInProgress      = 283,
+    DropInProgress = 283,
     NoDropTableRecordAvailable = 1229,
     BackupInProgress = 761,
     SingleUser = 299,
     ActiveSchemaTrans = 785
   };
 };
-
 
 #undef JAM_FILE_ID
 

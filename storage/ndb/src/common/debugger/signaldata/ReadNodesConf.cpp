@@ -24,13 +24,9 @@
 
 #include <signaldata/ReadNodesConf.hpp>
 
-bool printREAD_NODES_CONF(FILE *output,
-                          const Uint32 *theData,
-                          Uint32 len,
-                          Uint16 /*receiverBlockNo*/)
-{
-  if (len < ReadNodesConf::SignalLength)
-  {
+bool printREAD_NODES_CONF(FILE *output, const Uint32 *theData, Uint32 len,
+                          Uint16 /*receiverBlockNo*/) {
+  if (len < ReadNodesConf::SignalLength) {
     assert(false);
     return false;
   }
