@@ -29,6 +29,10 @@
 #include <mutex>
 #include <utility>
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace collector {
 
 template <typename Obj>
@@ -40,17 +44,26 @@ class CacheManager {
   class CachedObject {
    public:
     CachedObject(CacheManager *parent = nullptr)
-        : parent_{parent}, object_{nullptr} {}
+        : parent_{parent}, object_{nullptr} {
+      log_debug("CachedObject(CacheManager *parent = %p)", parent);
+    }
 
     CachedObject(CachedObject &&other)
-        : parent_{other.parent_}, object_{std::move(other.object_)} {
+        : parent_{other.parent_},
+          wait_{other.wait_},
+          object_{std::move(other.object_)} {
       other.parent_ = nullptr;
       other.object_ = nullptr;
+      log_debug("CachedObject(other->parent:%p, other->object:%p)", parent_,
+                object_);
     }
 
     template <typename... Args>
-    CachedObject(CacheManager *parent, bool wait, Args &&... args)
-        : parent_{parent}, wait_{wait}, object_{std::forward<Args>(args)...} {}
+    explicit CachedObject(CacheManager *parent, bool wait, Args &&... args)
+        : parent_{parent}, wait_{wait}, object_{std::forward<Args>(args)...} {
+      log_debug("CachedObject(WAIT,other->parent:%p, other->object:%p)",
+                parent_, object_);
+    }
 
     ~CachedObject() {
       if (parent_ && object_) parent_->return_instance(*this);
@@ -58,6 +71,7 @@ class CacheManager {
 
     CachedObject &operator=(CachedObject &&other) {
       parent_ = other.parent_;
+      wait_ = other.wait_;
       object_ = other.object_;
       other.parent_ = nullptr;
       other.object_ = {};

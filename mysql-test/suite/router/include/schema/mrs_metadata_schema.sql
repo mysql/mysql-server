@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set` (
   `service_id` BINARY(16) NOT NULL,
   `request_path` VARCHAR(255) NOT NULL,
   `requires_auth` TINYINT NOT NULL DEFAULT 0,
-  `enabled` TINYINT NOT NULL DEFAULT 0,
+  `enabled` TINYINT NOT NULL DEFAULT 1,
   `comments` VARCHAR(512) NULL,
   `options` JSON NULL,
   PRIMARY KEY (`id`),
