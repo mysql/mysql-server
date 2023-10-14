@@ -362,7 +362,6 @@ bool Transporter::connect_client(NdbSocket &&socket) {
   if (!socket.is_valid()) {
     DBUG_PRINT("error", ("Socket %s is not valid", socket.to_string().c_str()));
     DEBUG_FPRINTF((stderr, "Socket not valid\n"));
-    socket.close();
     DBUG_RETURN(false);
   }
 
