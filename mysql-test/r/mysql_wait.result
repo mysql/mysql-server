@@ -1,0 +1,9 @@
+#
+# Bug#11747227: --CONNECT_TIMEOUT AND --WAIT KEYS ARE NOT TAKE EFFECT
+#
+Test --wait with unavailable server host
+include/assert_grep.inc [Found Waiting line in mysql client log]
+Test --wait with unresolvable server host name
+include/assert_grep.inc [No Waiting line in mysql client log]
+
+End of tests

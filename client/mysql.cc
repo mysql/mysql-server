@@ -1986,8 +1986,8 @@ static struct my_option my_long_options[] = {
      nullptr},
     {"version", 'V', "Output version information and exit.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"wait", 'w', "Wait and retry if connection is down.", nullptr, nullptr,
-     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"wait", 'w', "Wait and retry if connection is down.", &wait_flag,
+     &wait_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"connect_timeout", OPT_CONNECT_TIMEOUT,
      "Number of seconds before connection timeout.", &opt_connect_timeout,
      &opt_connect_timeout, nullptr, GET_ULONG, REQUIRED_ARG, 0, 0, 3600 * 12,
@@ -5209,8 +5209,16 @@ static int sql_connect(char *host, char *database, char *user, uint silent) {
       }
       return error;
     }
+    // exit after single try if no --wait flag
     if (!wait_flag) return ignore_errors ? -1 : 1;
-    if (!message && !silent) {
+    // exit after two tries if --wait, but no --force flag provided
+    if (!ignore_errors && count > 0) {
+      tee_fputs("\n", stderr);
+      (void)fflush(stderr);
+      return 1;
+    }
+
+    if (!message && (!silent || verbose)) {
       message = true;
       tee_fputs("Waiting", stderr);
       (void)fflush(stderr);
@@ -5219,8 +5227,8 @@ static int sql_connect(char *host, char *database, char *user, uint silent) {
     if (!silent) {
       putc('.', stderr);
       (void)fflush(stderr);
-      count++;
     }
+    count++;
   }
 }
 
