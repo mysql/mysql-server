@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "dynamic_loader_scheme_file_imp.h"
 #include "minimal_chassis_runtime_error_imp.h"
 #include "registry_imp.h"
+#include "registry_no_lock_imp.h"
 
 extern SERVICE_TYPE(registry) imp_mysql_minimal_chassis_registry;
 
@@ -52,9 +53,20 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_minimal_chassis, registry)
 mysql_registry_imp::acquire, mysql_registry_imp::acquire_related,
     mysql_registry_imp::release END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_minimal_chassis_no_lock, registry)
+mysql_registry_no_lock_imp::acquire,
+    mysql_registry_no_lock_imp::acquire_related,
+    mysql_registry_no_lock_imp::release END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_minimal_chassis, registry_registration)
 mysql_registry_imp::register_service, mysql_registry_imp::unregister,
     mysql_registry_imp::set_default END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_minimal_chassis_no_lock,
+                             registry_registration)
+mysql_registry_no_lock_imp::register_service,
+    mysql_registry_no_lock_imp::unregister,
+    mysql_registry_no_lock_imp::set_default END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_minimal_chassis, registry_query)
 mysql_registry_imp::iterator_create, mysql_registry_imp::iterator_get,
@@ -104,7 +116,9 @@ mysql_runtime_error_imp::emit END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(mysql_minimal_chassis)
 PROVIDES_SERVICE(mysql_minimal_chassis, registry),
+    PROVIDES_SERVICE(mysql_minimal_chassis_no_lock, registry),
     PROVIDES_SERVICE(mysql_minimal_chassis, registry_registration),
+    PROVIDES_SERVICE(mysql_minimal_chassis_no_lock, registry_registration),
     PROVIDES_SERVICE(mysql_minimal_chassis, registry_query),
     PROVIDES_SERVICE(mysql_minimal_chassis, registry_metadata_enumerate),
     PROVIDES_SERVICE(mysql_minimal_chassis, registry_metadata_query),

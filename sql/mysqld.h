@@ -829,6 +829,7 @@ extern mysql_component_t mysql_component_performance_schema;
 /* This variable is a registry handler, defined in mysql_server component and
    used as a output parameter for minimal chassis. */
 extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 /* These global variables which are defined and used in
    mysql_server component */
 extern SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;

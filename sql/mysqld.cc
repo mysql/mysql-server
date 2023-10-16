@@ -2011,6 +2011,7 @@ SERVICE_TYPE(mysql_runtime_error) * error_service;
 SERVICE_TYPE(mysql_psi_system_v1) * system_service;
 SERVICE_TYPE(mysql_rwlock_v1) * rwlock_service;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 using runtime_error_type_t = SERVICE_TYPE_NO_CONST(mysql_runtime_error);
@@ -2044,6 +2045,10 @@ static bool component_infrastructure_init() {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
+  srv_registry->acquire(
+      "registry.mysql_minimal_chassis_no_lock",
+      reinterpret_cast<my_h_service *>(&srv_registry_no_lock));
+
   /* Here minimal_chassis dynamic_loader_scheme_file service has
      to be acquired */
   srv_registry->acquire(
@@ -2158,6 +2163,7 @@ static bool component_infrastructure_deinit() {
 
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<loader_scheme_type_t *>(scheme_file_srv)));
+  srv_registry->release(reinterpret_cast<my_h_service>(srv_registry_no_lock));
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<loader_type_t *>(dynamic_loader_srv)));
   srv_registry->release(reinterpret_cast<my_h_service>(

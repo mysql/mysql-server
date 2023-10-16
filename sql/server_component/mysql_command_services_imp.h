@@ -71,6 +71,7 @@ struct mysql_command_service_extn {
   int mcs_tcpip_port;
   const char *mcs_db = nullptr;
   uint32_t mcs_client_flag = 0;
+  bool no_lock_registry = false;
 };
 
 #define MYSQL_COMMAND_SERVICE_EXTN(H)                    \

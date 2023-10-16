@@ -23,26 +23,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_SERVER_REGISTRY_H
 #define MYSQL_SERVER_REGISTRY_H
 
-#include <mysql/components/my_service.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/registry.h>
-#include <map>
-#include <memory>
-
-#include "c_string_less.h"
-#include "mysql_service_implementation.h"
+#include "registry_no_lock_imp.h"
 #include "rwlock_scoped_lock.h"
 
-typedef std::map<const char *, mysql_service_implementation *, c_string_less>
-    my_service_registry;
-
-class mysql_registry_imp {
-  typedef std::map<my_h_service, mysql_service_implementation *>
-      my_interface_mapping;
-
-  /* contain the actual fields definitions */
-  static my_service_registry service_registry;
-  static my_interface_mapping interface_mapping;
+class mysql_registry_imp : public mysql_registry_no_lock_imp {
   static mysql_rwlock_t LOCK_registry;
 
  public:
@@ -51,6 +35,7 @@ class mysql_registry_imp {
     should be empty. Shouldn't be called multiple times.
   */
   static void init();
+
   /**
     De-initializes registry. De-initializes RW lock, all other structures
     are cleaned up.
@@ -67,77 +52,7 @@ class mysql_registry_imp {
   */
   static minimal_chassis::rwlock_scoped_lock lock_registry_for_write();
 
-  /**
-    Gets current reference count for a Service Implementation related to the
-    specified pointer to the interface structure. Assumes caller has at least
-    a read lock on the Registry.
-
-    @param interface A pointer to the interface structure of the Service
-      Implementation to get reference count of.
-    @return A current reference count for specified Service Implementation.
-      Returns 0 in case there is no such interface or it is not referenced.
-  */
-  static uint64_t get_service_implementation_reference_count(
-      my_h_service interface);
-
-  /**
-    Finds and acquires a Service by name. A name of the Service or the Service
-    Implementation can be specified. In case of the Service name, the default
-    Service Implementation for Service specified will be returned. Assumes
-    caller has at least a read lock on the Registry.
-
-    @param service_name Name of Service or Service Implementation to acquire.
-    @param [out] out_service Pointer to Service handle to set acquired Service.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  static bool acquire_nolock(const char *service_name,
-                             my_h_service *out_service);
-
-  /**
-    Releases the Service Implementation previously acquired. After the call to
-    this method the usage of the Service Implementation handle will lead to
-    unpredicted results. Assumes caller has at least a read lock on the
-    Registry.
-
-    @param service Service Implementation handle of already acquired Service.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  static bool release_nolock(my_h_service service);
-
-  /**
-    Registers a new Service Implementation. If it is the first Service
-    Implementation for the specified Service then it is made a default one.
-    Assumes caller has a write lock on the Registry.
-
-    @param service_implementation_name Name of the Service Implementation to
-      register.
-    @param ptr Pointer to the Service Implementation structure.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  static bool register_service_nolock(const char *service_implementation_name,
-                                      my_h_service ptr);
-
-  /**
-    Removes previously registered Service Implementation from registry. If it is
-    the default one for specified Service then any one still registered is made
-    default. If there is no other, the default entry is removed from the
-    Registry too. Assumes caller has a write lock on the Registry.
-
-    @param service_implementation_name Name of the Service Implementation to
-      unregister.
-    @return Status of performed operation
-    @retval false success
-    @retval true Failure. May happen when Service is still being referenced.
-  */
-  static bool unregister_nolock(const char *service_implementation_name);
-
- public: /* Service Implementations */
+  /* Service Implementations */
   /**
     Finds and acquires a Service by name. A name of the Service or the Service
     Implementation can be specified. In case of the Service name, the default
@@ -293,28 +208,13 @@ class mysql_registry_imp {
                             (my_h_service_iterator iterator));
 
   /* This includes metadata-related method implementations that are shared
-    by registry and dynamic_loader, so we don't duplicate the code. Following
-    defines set up all required symbols. Unfortunately they are not only the
-    types, but also static members with different name, so usage of templates
-    is not enough to reuse that part of code. */
+  by registry and dynamic_loader, so we don't duplicate the code. Following
+  defines set up all required symbols. Unfortunately they are not only the
+  types, but also static members with different name, so usage of templates
+  is not enough to reuse that part of code. */
 #define OBJECT_ITERATOR my_h_service_iterator
 #define METADATA_ITERATOR my_h_service_metadata_iterator
 
 #include "registry_metadata.h.inc"
-
- private:
-  /**
-    Finds a Service Implementation data structure based on the pointer to
-    interface struct supplied. Assumes caller has at least a read lock on the
-    Registry.
-
-    @param interface A pointer to the interface structure of the Service
-      Implementation to look for.
-    @return A pointer to respective Service Implementation data structure, or
-      NULL if no such interface pointer is registered within the Registry.
-  */
-  static mysql_service_implementation *get_service_implementation_by_interface(
-      my_h_service interface);
 };
-
 #endif /* MYSQL_SERVER_REGISTRY_H */

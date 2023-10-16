@@ -36,6 +36,7 @@
 #include "sql/srv_session.h"
 
 extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 
 namespace cs {
 
@@ -62,60 +63,11 @@ MYSQL_METHODS mysql_methods = {
     nullptr,  /* read_change_user_result_nonblocking */
 };
 
-mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
-  MYSQL *mysql = ctx->mysql;
-  auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
-  assert(mcs_extn);
-  const char *host = ctx->host;
-  const char *user = ctx->user;
-  const char *db = ctx->db;
-  MYSQL_THD thd;
+static mysql_state_machine_status acquire_services(
+    mysql_command_consumer_refs *consumer_refs,
+    mysql_service_registry_t *srv_registry) {
   my_h_service h_command_consumer = nullptr;
   my_h_service h_command_consumer_srv = nullptr;
-
-  MYSQL_SESSION mysql_session = nullptr;
-  if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
-    /*
-     Avoid possibility of nested txn in the current thd.
-     If it is called, for example from a UDF.
-    */
-    my_service<SERVICE_TYPE(mysql_admin_session)> service(
-        "mysql_admin_session.mysql_server", srv_registry);
-    if (service.is_valid()) {
-      mysql_session = service->open(nullptr, ctx);
-      if (mysql_session == nullptr) return STATE_MACHINE_FAILED;
-    } else
-      return STATE_MACHINE_FAILED;
-    thd = mysql_session->get_thd();
-    mcs_extn->is_thd_associated = false;
-    Security_context_handle sc;
-    if (mysql_security_context_imp::get(thd, &sc)) return STATE_MACHINE_FAILED;
-    if (mysql_security_context_imp::lookup(sc, user, host, nullptr, db))
-      return STATE_MACHINE_FAILED;
-    mcs_extn->mcs_thd = thd;
-    mysql->thd = thd;
-    mcs_extn->session_svc = mysql_session;
-  } else {
-    mysql->thd = reinterpret_cast<void *>(mcs_extn->mcs_thd);
-  }
-  /*
-    These references might be created in mysql_command_services_imp::set api.
-    If not, we will create here.
-  */
-  if (mcs_extn->command_consumer_services == nullptr) {
-    /*
-      Provide default implementations for mysql command consumer services
-      and will be released in close() api.
-    */
-    mcs_extn->command_consumer_services = new mysql_command_consumer_refs();
-  }
-  mysql_command_consumer_refs *consumer_refs =
-      (mysql_command_consumer_refs *)mcs_extn->command_consumer_services;
-  /* The above new allocation failed */
-  if (consumer_refs == nullptr) return STATE_MACHINE_FAILED;
-  /* If the service is not acquired by mysql_command_services_imp::set api,
-     then it will be acquired below. The same will be applicable for all
-     other below services. */
   if (consumer_refs->factory_srv == nullptr) {
     if (srv_registry->acquire("mysql_text_consumer_factory_v1.mysql_server",
                               &h_command_consumer))
@@ -236,6 +188,68 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
               mysql_text_consumer_client_capabilities_v1) *>(
               h_command_consumer_srv);
   }
+  return STATE_MACHINE_DONE;
+}
+
+mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
+  MYSQL *mysql = ctx->mysql;
+  Mysql_handle mysql_handle;
+  mysql_handle.mysql = mysql;
+  auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  assert(mcs_extn);
+  const char *host = ctx->host;
+  const char *user = ctx->user;
+  const char *db = ctx->db;
+  MYSQL_THD thd;
+  bool no_lock_registry = false;
+  MYSQL_SESSION mysql_session = nullptr;
+
+  if (mysql_command_services_imp::get(
+          (MYSQL_H)&mysql_handle, MYSQL_NO_LOCK_REGISTRY, &no_lock_registry))
+    return STATE_MACHINE_FAILED;
+  mysql_service_registry_t *registry_service =
+      no_lock_registry ? srv_registry_no_lock : srv_registry;
+
+  if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
+    /*
+     Avoid possibility of nested txn in the current thd.
+     If it is called, for example from a UDF.
+    */
+    my_service<SERVICE_TYPE(mysql_admin_session)> service(
+        "mysql_admin_session.mysql_server", registry_service);
+    if (service.is_valid()) mysql_session = service->open(nullptr, ctx);
+    if (mysql_session == nullptr) return STATE_MACHINE_FAILED;
+    thd = mysql_session->get_thd();
+    mcs_extn->is_thd_associated = false;
+    Security_context_handle sc;
+    if (mysql_security_context_imp::get(thd, &sc)) return STATE_MACHINE_FAILED;
+    if (mysql_security_context_imp::lookup(sc, user, host, nullptr, db))
+      return STATE_MACHINE_FAILED;
+    mcs_extn->mcs_thd = thd;
+    mysql->thd = thd;
+    mcs_extn->session_svc = mysql_session;
+  } else {
+    mysql->thd = reinterpret_cast<void *>(mcs_extn->mcs_thd);
+  }
+  /*
+    These references might be created in mysql_command_services_imp::set api.
+    If not, we will create here.
+  */
+  if (mcs_extn->command_consumer_services == nullptr) {
+    /*
+      Provide default implementations for mysql command consumer services
+      and will be released in close() api.
+    */
+    mcs_extn->command_consumer_services = new mysql_command_consumer_refs();
+  }
+  mysql_command_consumer_refs *consumer_refs =
+      (mysql_command_consumer_refs *)mcs_extn->command_consumer_services;
+  /* The above new allocation failed */
+  if (consumer_refs == nullptr) return STATE_MACHINE_FAILED;
+  /* If the services are not acquired by mysql_command_services_imp::set api,
+     then it will be acquired. */
+  auto status = acquire_services(consumer_refs, registry_service);
+  if (status == STATE_MACHINE_FAILED) return status;
   mysql->client_flag = 0; /* For handshake */
   mysql->server_status = SERVER_STATUS_AUTOCOMMIT;
   return STATE_MACHINE_DONE;
