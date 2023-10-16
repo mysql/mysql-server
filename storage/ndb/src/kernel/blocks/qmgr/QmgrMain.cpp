@@ -9374,7 +9374,6 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
       multi_trp->get_callback_obj()->unlock_send_transporter(id);
       multi_trp->get_callback_obj()->enable_send_buffer(id);
     }
-    globalTransporterRegistry.insert_node_transporter(node_id, multi_trp);
     globalTransporterRegistry.unlockMultiTransporters();
 
     if (ERROR_INSERTED(983)) {

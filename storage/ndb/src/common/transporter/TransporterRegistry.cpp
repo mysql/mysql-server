@@ -758,26 +758,12 @@ void TransporterRegistry::remove_allTransporters(Transporter *t) {
   }
 }
 
-void TransporterRegistry::insert_node_transporter(NodeId node_id,
-                                                  Transporter *t) {
-  theNodeIdTransporters[node_id] = t;
-}
-
 void TransporterRegistry::lockMultiTransporters() {
   NdbMutex_Lock(theMultiTransporterMutex);
 }
 
 void TransporterRegistry::unlockMultiTransporters() {
   NdbMutex_Unlock(theMultiTransporterMutex);
-}
-
-Uint32 TransporterRegistry::get_num_multi_transporters() {
-  return nMultiTransporters;
-}
-
-Multi_Transporter *TransporterRegistry::get_multi_transporter(Uint32 index) {
-  require(index < nMultiTransporters);
-  return theMultiTransporters[index];
 }
 
 bool TransporterRegistry::configureTransporter(
@@ -848,6 +834,7 @@ bool TransporterRegistry::createMultiTransporter(NodeId node_id,
     }
   }
   multi_trp->add_active_trp(base_trp);
+  theNodeIdTransporters[node_id] = multi_trp;
   unlockMultiTransporters();
   return true;
 }
@@ -1154,7 +1141,6 @@ SendStatus TransporterRegistry::prepareSendOverAllLinks(
     return status;
   } else {
     Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
-    require(multi_trp == node_trp);
 
     SendStatus return_status = SEND_OK;
     Uint32 num_trps = multi_trp->get_num_active_transporters();
@@ -2277,19 +2263,6 @@ void TransporterRegistry::report_connect(TransporterReceiveHandle &recvdata,
   DBUG_VOID_RETURN;
 }
 
-Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
-    NodeId node_id) {
-  Uint32 i;
-  Uint32 num_multi_transporters = get_num_multi_transporters();
-  for (i = 0; i < num_multi_transporters; i++) {
-    Multi_Transporter *multi_trp = get_multi_transporter(i);
-    if (multi_trp->getRemoteNodeId() == node_id) {
-      return multi_trp;
-    }
-  }
-  return (Multi_Transporter *)nullptr;
-}
-
 void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
                                             NodeId node_id, int errnum) {
   DEBUG_FPRINTF((stderr, "(%u)REG:report_disconnect(%u, %d)\n", localNodeId,
@@ -3202,6 +3175,11 @@ Transporter *TransporterRegistry::get_transporter(TrpId trp_id) const {
 Transporter *TransporterRegistry::get_node_transporter(NodeId nodeId) const {
   assert(nodeId <= MAX_NODES);
   return theNodeIdTransporters[nodeId];
+}
+
+Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
+    NodeId nodeId) {
+  return dynamic_cast<Multi_Transporter *>(get_node_transporter(nodeId));
 }
 
 bool TransporterRegistry::connect_client(NdbMgmHandle *h) {

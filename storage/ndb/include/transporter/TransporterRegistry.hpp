@@ -276,7 +276,6 @@ class TransporterRegistry {
   void unlockMultiTransporters();
   void insert_allTransporters(Transporter *);
   void remove_allTransporters(Transporter *);
-  void insert_node_transporter(NodeId, Transporter *);
   bool isMultiTransporter(Transporter *);
   void switch_active_trp(Multi_Transporter *);
   Uint32 get_num_active_transporters(Multi_Transporter *);
@@ -523,8 +522,6 @@ class TransporterRegistry {
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
 
-  Uint32 get_num_multi_transporters();
-  Multi_Transporter *get_multi_transporter(Uint32 index);
   Multi_Transporter *get_node_multi_transporter(NodeId node_id);
 
  private:
