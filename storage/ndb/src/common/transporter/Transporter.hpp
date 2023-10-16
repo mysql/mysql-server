@@ -128,8 +128,6 @@ class Transporter {
    */
   void doDisconnect();
 
-  void forceUnsafeDisconnect();
-
   /**
    * Are we currently connected
    */

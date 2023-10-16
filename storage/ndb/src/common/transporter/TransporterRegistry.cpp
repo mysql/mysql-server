@@ -2206,70 +2206,88 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
    * Thus there can be multiple reset & disable of the buffers (below)
    * without being 'enabled' in between.
    */
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  Uint32 num_ids;
+  recvdata.m_recv_transporters.clear(trp_id);
+  recvdata.m_has_data_transporters.clear(trp_id);
+  recvdata.m_handled_transporters.clear(trp_id);
+  recvdata.m_bad_data_transporters.clear(trp_id);
+  recvdata.m_last_trp_id = 0;
+  /**
+   * disable_send_buffer ensures that no more signals will be sent
+   * to the disconnected node. Every time we collect data for sending
+   * we will check the send buffer enabled flag holding the m_send_lock
+   * thereby ensuring that after the disable_send_buffer method is
+   * called no more signals are added to the buffers.
+   */
+  callbackObj->disable_send_buffer(trp_id);
+  /**
+   * Transporter was 'shutdown' when we disconnected.
+   * Now we need to release the NdbSocket resources still kept.
+   * If DISCONNECTING was started while in CONNECTING state there
+   * may be no socket to close.
+   */
+  if (!this_trp->isReleased()) {
+    this_trp->releaseAfterDisconnect();
+  }
+  /**
+   * For MultiTransporters we need to check that all transporters has
+   * reported DISCONNECTED.
+   *  1) If an active transporter DISCONNECTED, the entire node need
+   *     to disconnect -> start_disconnecting_trp's not yet DISCONNECTED.
+   *  2) We are 'ready_to_disconnect' the node when all active
+   *     and inactive transporters are DISCONNECTED.
+   *  3) We are 'ready_to_switch' the node when all active transporters
+   *     are DISCONNECTED.
+   *  4) If we are now 'ready_to_switch' we switch back to awaiting
+   *     RECONNECTING on the single base-Transporter.
+   *  5) If we are also 'ready_to_disconnect', we reportDisconnect(nodeId),
+   *     which conclude the disconnect on node level.
+   */
   lockMultiTransporters();
-  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-
   performStates[trp_id] = DISCONNECTED;
   DEBUG_FPRINTF((stderr, "(%u)performStates[trp:%u] = DISCONNECTED\n",
                  localNodeId, trp_id));
 
   bool ready_to_disconnect = true;
   Transporter *node_trp = theNodeIdTransporters[node_id];
-  for (Uint32 i = 0; i < num_ids; i++) {
-    const TrpId trp_id = trp_ids[i];
-    DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u\n", trp_id, node_id));
+  if (node_trp->isMultiTransporter()) {
+    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(node_trp);
 
-    if (!node_trp->isMultiTransporter()) {
-      // Transporter was 'shutdown' when we disconnected.
-      // Now we may need to release the NdbSocket resources still kept.
-      // If DISCONNECTING was started while in CONNECTING state there may be
-      // no socket to close.
-      if (!allTransporters[trp_id]->isReleased()) {
-        allTransporters[trp_id]->releaseAfterDisconnect();
-      }
-    }
+    // Check if all active transporters are DISCONNECTED
+    const int num_active = multi_trp->get_num_active_transporters();
+    for (int i = 0; i < num_active; i++) {
+      Transporter *other_trp = multi_trp->get_active_transporter(i);
+      const TrpId other_trp_id = other_trp->getTransporterIndex();
+      if (performStates[other_trp_id] != DISCONNECTED) {
+        if (this_trp->m_is_active)  // 1)
+          start_disconnecting_trp(other_trp_id);
 
-    if (recvdata.m_transporters.get(trp_id)) {
-      /**
-       * disable_send_buffer ensures that no more signals will be sent
-       * to the disconnected node. Every time we collect data for sending
-       * we will check the send buffer enabled flag holding the m_send_lock
-       * thereby ensuring that after the disable_send_buffer method is
-       * called no more signals are sent.
-       */
-      callbackObj->disable_send_buffer(trp_id);
-      recvdata.m_recv_transporters.clear(trp_id);
-      recvdata.m_has_data_transporters.clear(trp_id);
-      recvdata.m_handled_transporters.clear(trp_id);
-      recvdata.m_bad_data_transporters.clear(trp_id);
-      recvdata.m_last_trp_id = 0;
-    } else {
-      /**
-       * Transporter is handled by another receive thread. If the
-       * transporter is still in the allTransporters array it means
-       * that we haven't called report_disconnect in this receive
-       * thread yet. Thus we are not yet ready to disconnect.
-       */
-      require(node_trp->isMultiTransporter());
-      if (performStates[trp_id] != DISCONNECTED) {
-        ready_to_disconnect = false;
+        ready_to_disconnect = false;  // 2)
         DEBUG_FPRINTF((stderr,
                        "trp_id = %u, node_id = %u,"
                        " ready_to_disconnect = false\n",
-                       trp_id, node_id));
+                       other_trp_id, node_id));
       }
     }
-  }
-  /**
-   * OJA: Note that as soon as a transporter to a node having multiple
-   * transporters report_disconnect, we forcefully disconnects all the other
-   * multi transporters to this node which are handled by the same recv-thread.
-   * Disconnect of these other transporters do *not* follow the transporter
-   * protocol for doing disconnect.
-   */
-  if (node_trp->isMultiTransporter()) {
+    // Switch the MultiTransporter when all active are disconnected
+    const bool ready_to_switch = ready_to_disconnect;  // 3)
+
+    // Inactive transporters should also be DISCONNECTED
+    const int num_inactive = multi_trp->get_num_inactive_transporters();
+    for (int i = 0; i < num_inactive; i++) {
+      Transporter *other_trp = multi_trp->get_inactive_transporter(i);
+      const TrpId other_trp_id = other_trp->getTransporterIndex();
+      if (performStates[other_trp_id] != DISCONNECTED) {
+        if (this_trp->m_is_active)  // 1)
+          start_disconnecting_trp(other_trp_id);
+
+        ready_to_disconnect = false;  // 2)
+        DEBUG_FPRINTF((stderr,
+                       "trp_id = %u, node_id = %u,"
+                       " ready_to_disconnect = false\n",
+                       other_trp_id, node_id));
+      }
+    }
+
     /**
      * Switch back to having only one active transporter which is the
      * original TCP or SHM transporter. We only handle the single
@@ -2277,75 +2295,23 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
      * only move from single transporter to multi transporter when
      * the transporter is connected.
      */
-    Multi_Transporter *multi_trp = (Multi_Transporter *)node_trp;
-    for (Uint32 i = 0; i < num_ids; i++) {
-      const TrpId trp_id = trp_ids[i];
-      if (recvdata.m_transporters.get(trp_id)) {
-        /**
-         * Bug#35750394 MultiTranporter should follow the DISCONNECT protocol:
-         *
-         * MultiTransporters disconnect its 'parts' directly.
-         * As we are called from the block-threads, this may hang/timeout
-         * the threads as disconnects may be slow. It also prevents us from
-         * having a transporter_lock-free implementation.
-         * Also see comments for Transporter::forceUnsafeDisconnect()
-         */
-        DEBUG_FPRINTF((stderr,
-                       "trp_id = %u, node_id = %u,"
-                       " multi remove_all\n",
-                       trp_id, node_id));
-        Transporter *t = multi_trp->get_active_transporter(i);
-        if (t->isPartOfMultiTransporter()) {
-          require(num_ids > 1);
-          t->forceUnsafeDisconnect();
-          remove_allTransporters(t);
-        } else {
-          require(num_ids == 1);
-          t->doDisconnect();
-          Uint32 num_multi_trps = multi_trp->get_num_inactive_transporters();
-          for (Uint32 i = 0; i < num_multi_trps; i++) {
-            Transporter *remove_trp = multi_trp->get_inactive_transporter(i);
-            const TrpId remove_trp_id = remove_trp->getTransporterIndex();
-            if (remove_trp_id != 0) {
-              callbackObj->disable_send_buffer(remove_trp_id);
-              remove_trp->forceUnsafeDisconnect();
-              remove_allTransporters(remove_trp);
-            }
-          }
-        }
-      }
+    if (ready_to_switch && multi_trp->get_num_active_transporters() > 1)  // 4)
+    {
+      // Multi socket setup was in use, thus switch to single transporter.
+      multi_trp->switch_active_trp();
     }
-    if (ready_to_disconnect) {
-      /**
-       * All multi transporter objects for this node have been removed
-       * from being handled by any receive thread. We set the single
-       * transporter used for setup of connections to be handled by
-       * this receive thread. This assignment means that we can get
-       * an unbalanced load on receive threads. However normally the
-       * transporters should return to using multiple transporters as
-       * soon as the connection is setup again. So this imbalance should
-       * be temporary.
-       */
-      DEBUG_FPRINTF((stderr, "node_id = %u, new_node_trp\n", node_id));
-      if (multi_trp->get_num_active_transporters() > 1) {
-        /**
-         * Multi socket setup is in use, thus switch to single transporter.
-         * In rare situations we can still have data to send on base
-         * transporter, so need to remove the send buffer before
-         * disconnecting. Also ensure that connection is dropped here.
-         */
-        multi_trp->switch_active_trp();
-        Transporter *base_trp = multi_trp->get_active_transporter(0);
-        const TrpId base_trp_id = base_trp->getTransporterIndex();
-        callbackObj->disable_send_buffer(base_trp_id);
-        base_trp->doDisconnect();
-      }
+
+    if (this_trp->isPartOfMultiTransporter()) {
+      DEBUG_FPRINTF((stderr,
+                     "trp_id = %u, node_id = %u,"
+                     " multi remove_all\n",
+                     trp_id, node_id));
+      remove_allTransporters(this_trp);
     }
-  } else {
-    DEBUG_FPRINTF((stderr, "node_id = %u, not a multi transporter\n", node_id));
-  }
-  recvdata.m_last_trp_id = 0;
-  if (ready_to_disconnect) {
+  }  // End of multiTransporter DISCONNECT handling
+
+  if (ready_to_disconnect)  //  5)
+  {
     DEBUG_FPRINTF((stderr, "(%u) -> reportDisconnect(node_id=%u)\n",
                    localNodeId, node_id));
     recvdata.reportDisconnect(node_id, errnum);
@@ -2597,12 +2563,10 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * removed from this array even after a node failure.
  *
  * When we setup the multi transporters we assign them to different recv
- * threads. We also ensure that the port number is copied from the base
- * transporter to the new multi transporters to ensure that we use the
- * dynamic port number for a new node after a restart.
+ * threads.
  *
  * The way to activate the connect of the multiple transporters is to
- * use start_connecting_trp() to initiate the asynchronous tranporter
+ * use start_connecting_trp() to initiate the asynchronous transporter
  * connection protocol. start_clients_thread will then discover that
  * the transporter has requested 'CONNECTING' and connect it for us.
  * Finally the update_connection -> report_connected steps will set
@@ -2634,8 +2598,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * the number of transporters for a node.
  *
  * After this we will send the activation request for each new transporter
- * to each of the TRPMAN instances. When this request arrives the new
- * transporter will be added to the epoll set of the receive thread. So
+ * to each of the TRPMAN instances. So
  * from here on the signals sent after the ACTIVATE_TRP_REQ signal can
  * be processed in the receiving node. When all ACTIVATE_TRP_REQ have
  * been processed we can send ACTIVATE_TRP_CONF to the requesting node.
@@ -2655,13 +2618,6 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * We have added a test case that both tests crashes in all phases as
  * well as long sleeps in all phases.
  *
- * Closing the base transporter will cause start_disconnecting to be called
- * on this transporter while the node is still up. Thus we have to
- * handle this call separately for non-active connections. This should
- * only happen in the receive thread, so we don't take the send
- * mutex before changing theSocket here. Since the transporter isn't
- * active it should not perform any send activity here.
- *
  *
  * Disconnects when using multi transporters still happens through the
  * start_disconnecting call, either activated by an error on any of the multi
@@ -2674,40 +2630,25 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * This in turn will lead to that update_connections will call
  * report_disconnect for each of the multi transporters.
  *
- * OJA: Note that the above two sections are incorrect, and was
- *      never how multi transporters disconnected:
- *  - As soon as one of the Transporters in a MultiTransporter
- *    report_disconnect(), it will forcefully close all transporters
- *    being 'PartOfMultiTransporter' with Transporter::forceUnsafeDisconnect().
- *    That method calls disconnectImpl() -> NdbSocked::shutdown()+close()
- *    directly instead of letting start_client_threads() handle the disconnect.
- *    Thus, the 'protocol' for disconnecting these transporters are not
- *    followed, contrary to what is stated in comments above.
- * OJA-end
- *
  * The report_disconnect will discover that a multi transporter is
  * involved. It will disable send buffers and receive thread bitmasks
  * will be cleared. It will remove the multi transporter from the
  * allTransporters array. This is synchronized by acquiring the
  * lockMultiTransporters before these actions.
  *
+ * As part of report_disconnect we will check if all multi transporters
+ * have been handled by report_disconnect, we check that all performStates[]
+ * for the multi transporters is DISCONNECTED. If all are DISCONNECTED we
+ * switch back to the base transporter as the active transporter. For those
+ * multi transporters not being DISCONNECTED we start_disconnecting them, as
+ * a node connection can not survive a failure of a singel transporter.
+ *
  * It is possible to arrive here after the switch to multi transporter
  * still having data in the send buffer (still waiting to send the
- * ACTIVATE_TRP_REQ signal). This case must be handled by calling
- * disable send buffer as well as calling doDisconnect on the
- * base transporter that we already switched away from, otherwise these
- * send buffers will remain when starting the node up again and cause
- * a crash.
- *
- * As part of report_disconnect we will check if all multi transporters
- * have been handled by report_disconnect, we check this by looking into
- * allTransporters array to see if we removed the transporter from this
- * array for all multi transporters. If all have been removed we switch
- * back to the base transporter as the active transporter.
- *
- * If the failure happens before we switch to the multi transporters we will
- * disable send buffer and call doDisconnect also on the multi transporters
- * just in case.
+ * ACTIVATE_TRP_REQ signal). Thus we need to check the performStates[]
+ * for the inactive transporters as well, and start_disconnecting them
+ * if not DISCONNECTED. The asynch DISCONNECTING process will eventually
+ * disable and clear the send buffers such that we are ready for a reconnect.
  *
  * Finally when all multi transporters have been handled and we have
  * switched back to the base transporter we will send the DISCONNECT_REP
