@@ -3683,6 +3683,8 @@ void MoveDegenerateJoinConditionToFilter(THD *thd, Query_block *query_block,
   Item *filter_cond = CreateConjunction(&conds);
   AccessPath *filter_path = NewFilterAccessPath(thd, *right_path, filter_cond);
   CopyBasicProperties(**right_path, filter_path);
+  filter_path->filter_predicates = (*right_path)->filter_predicates;
+  filter_path->delayed_predicates = (*right_path)->delayed_predicates;
   filter_path->set_num_output_rows(filter_path->num_output_rows() *
                                    (*edge)->selectivity);
   filter_path->set_cost(filter_path->cost() +
