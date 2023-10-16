@@ -100,8 +100,6 @@ class TCP_Transporter : public Transporter {
 
   inline bool hasReceiveData() const { return receiveBuffer.sizeOfData > 0; }
 
-  void shutdown() override;
-
  protected:
   /**
    * Setup client/server and perform connect/accept

@@ -375,35 +375,6 @@ bool TCP_Transporter::doSend(bool need_wakeup [[maybe_unused]]) {
   return (remain > 0);  // false if nothing remains or disconnected, else true
 }
 
-/**
- * Note that shutdown() and its usage breaks 'disconnect protocol':
- *  - It close the socket without a NdbSocket::shutdown() first.
- *    Breaks the two step shutdown-then-close introduced by 'lifecycle patch'
- *
- *  - It is called from a block-thread while executing
- *    Qmgr::check_switch_completed()
- *    Breaks:
- *     1. start_client_threads() should shutdown DISCONNECTING sockets
- *        (Preventing slow/blocked socket shutdown stalling block threads)
- *     2. report_disconnect()(-> the receive thread) should close
- *        the socket and update its 'state'
- *        (Avoiding thread locking problems)
- */
-void TCP_Transporter::shutdown() {
-  if (theSocket.is_valid()) {
-    DEB_MULTI_TRP(("Close socket for trp %u", getTransporterIndex()));
-    theSocket.close();
-  } else {
-    DEB_MULTI_TRP(("Socket already closed for trp %u", getTransporterIndex()));
-  }
-  m_connected = false;
-
-  // OJA: We disconnected directly, without following the transporter protocol.
-  // Just update the 'state' for now.
-  m_transporter_registry.performStates[getTransporterIndex()] =
-      TransporterRegistry::DISCONNECTED;
-}
-
 int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
   // Select-function must return the socket for read
   // before this method is called

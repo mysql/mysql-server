@@ -185,14 +185,6 @@ class Transporter {
 
   TransporterType getTransporterType() const;
 
-  /**
-   * Only applies to TCP transporter, abort on any other object.
-   * Used as part of shutting down transporter when switching to
-   * multi socket setup.
-   * Shut down only for writes when all data have been sent.
-   */
-  virtual void shutdown() { abort(); }
-
  protected:
   Transporter(TransporterRegistry &, TrpId transporter_index, TransporterType,
               const char *lHostName, const char *rHostName, int s_port,

@@ -9570,22 +9570,13 @@ void Qmgr::check_switch_completed(Signal *signal, NodeId node_id) {
       globalTransporterRegistry.get_node_multi_transporter(node_id);
   ndbrequire(multi_trp != nullptr);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
-  Transporter *array_trp[MAX_NODE_GROUP_TRANSPORTERS];
   for (Uint32 i = 0; i < num_inactive_transporters; i++) {
     jam();
     Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
-    array_trp[i] = tmp_trp;
+    TrpId trp_id = tmp_trp->getTransporterIndex();
+    globalTransporterRegistry.start_disconnecting_trp(trp_id);
   }
   globalTransporterRegistry.unlockMultiTransporters();
-  for (Uint32 i = 0; i < num_inactive_transporters; i++) {
-    jam();
-    Transporter *tmp_trp = array_trp[i];
-    TrpId trp_id = tmp_trp->getTransporterIndex();
-    tmp_trp->get_callback_obj()->lock_transporter(trp_id);
-    tmp_trp->shutdown();
-    tmp_trp->get_callback_obj()->unlock_transporter(trp_id);
-    multi_trp->get_callback_obj()->disable_send_buffer(trp_id);
-  }
   /**
    * We have now completed the switch to new set of transporters, the
    * old set is inactive and will be put back if the node fails. We

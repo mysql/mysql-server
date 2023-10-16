@@ -206,9 +206,6 @@ class TransporterRegistry {
   friend class Transporter;
   friend class TransporterService;
 
-  // OJA: temporary until TCP_Transporter::shutdown() is gone
-  friend class TCP_Transporter;
-
  public:
   /**
    * Constructor
