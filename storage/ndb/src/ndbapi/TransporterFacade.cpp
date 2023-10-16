@@ -102,7 +102,7 @@ void TransporterFacade::reportError(NodeId nodeId, TransporterError errorCode,
     }
     DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n", ownId(), nodeId,
                    (int)errorCode, info));
-    doDisconnect(nodeId);
+    startDisconnecting(nodeId);
   }
 }
 
@@ -1483,7 +1483,7 @@ bool TransporterFacade::do_connect_mgm(NodeId nodeId,
     if (is_mgmd(nodeId1, conf) && is_mgmd(nodeId2, conf)) {
       Uint32 remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
       DBUG_PRINT("info", ("opening connection to node %d", remoteNodeId));
-      doConnect(remoteNodeId);
+      startConnecting(remoteNodeId);
     }
   }
 
@@ -1631,7 +1631,7 @@ bool TransporterFacade::configure(NodeId nodeId,
   /**
    * Also setup Loopback Transporter
    */
-  doConnect(nodeId);
+  startConnecting(nodeId);
 
   DBUG_RETURN(true);
 }
@@ -2410,13 +2410,13 @@ int TransporterFacade::sendSignal(trp_client *clnt, const NdbApiSignal *aSignal,
 /******************************************************************************
  * CONNECTION METHODS  Etc
  ******************************************************************************/
-void TransporterFacade::doConnect(NodeId aNodeId) {
+void TransporterFacade::startConnecting(NodeId aNodeId) {
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
-  theTransporterRegistry->do_connect(aNodeId);
+  theTransporterRegistry->start_connecting(aNodeId);
 }
 
-void TransporterFacade::doDisconnect(NodeId aNodeId) {
-  theTransporterRegistry->do_disconnect(aNodeId);
+void TransporterFacade::startDisconnecting(NodeId aNodeId) {
+  theTransporterRegistry->start_disconnecting(aNodeId);
 }
 
 /**
@@ -2580,12 +2580,12 @@ void TransporterFacade::propose_poll_owner() {
         (recv_client && recv_client->m_poll.m_poll_queue &&
          recv_client->m_state == ReceiveThreadClient::ACTIVE)
             ? recv_client
-            // Avoid the recv_client as it is not ACTIVE
-            : (m_poll_queue_tail == recv_client &&
-               m_poll_queue_tail->m_poll.m_prev != nullptr)
-                  // 'tail' is the recv_client, prefer another
-                  ? m_poll_queue_tail->m_poll.m_prev
-                  : m_poll_queue_tail;
+        // Avoid the recv_client as it is not ACTIVE
+        : (m_poll_queue_tail == recv_client &&
+           m_poll_queue_tail->m_poll.m_prev != nullptr)
+            // 'tail' is the recv_client, prefer another
+            ? m_poll_queue_tail->m_poll.m_prev
+            : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock
@@ -3535,7 +3535,7 @@ bool TransporterFacade::ext_isConnected(NodeId aNodeId) {
 void TransporterFacade::ext_doConnect(NodeId aNodeId) {
   theClusterMgr->lock();
   assert(theClusterMgr->theNodes[aNodeId].is_connected() == false);
-  doConnect(aNodeId);
+  startConnecting(aNodeId);
   theClusterMgr->unlock();
 }
 

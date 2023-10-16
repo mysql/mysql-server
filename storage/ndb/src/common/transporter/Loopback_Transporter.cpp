@@ -140,7 +140,7 @@ bool Loopback_Transporter::doSend(bool need_wakeup) {
     {
       const int err = ndb_socket_errno();
       if ((DISCONNECT_ERRNO(err, nBytesSent))) {
-        do_disconnect(err, true);  // Initiate pending disconnect
+        start_disconnecting(err, true);  // Initiate pending disconnect
         remain = 0;
       }
       break;

@@ -61,9 +61,9 @@ class Transporter {
   virtual ~Transporter();
 
   /**
-   * Disconnect node/socket
+   * Initiate the asynch disconnecting protocol of node/socket
    */
-  bool do_disconnect(int err, bool send_source);
+  bool start_disconnecting(int err, bool send_source);
 
   /**
    * Clear any data buffered in the transporter.

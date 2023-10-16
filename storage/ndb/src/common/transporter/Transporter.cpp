@@ -155,11 +155,12 @@ Transporter::Transporter(TransporterRegistry &t_reg, TrpId transporter_index,
 
 Transporter::~Transporter() { delete m_socket_client; }
 
-bool Transporter::do_disconnect(int err, bool send_source) {
+bool Transporter::start_disconnecting(int err, bool send_source) {
   if (m_is_active) {
-    DEB_MULTI_TRP(("Disconnect trp_id %u for node %u in active mode",
+    DEB_MULTI_TRP(("Disconnecting trp_id %u for node %u in active mode",
                    getTransporterIndex(), remoteNodeId));
-    return m_transporter_registry.do_disconnect(remoteNodeId, err, send_source);
+    return m_transporter_registry.start_disconnecting(remoteNodeId, err,
+                                                      send_source);
   } else {
     if (theSocket.is_valid()) {
       DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",

@@ -132,7 +132,7 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
         goto done;
       }
 
-      globalTransporterRegistry.do_connect(tStartingNode);
+      globalTransporterRegistry.start_connecting(tStartingNode);
       globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
 
       //-----------------------------------------------------
@@ -157,7 +157,7 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
           continue;
 #endif
 
-        globalTransporterRegistry.do_connect(i);
+        globalTransporterRegistry.start_connecting(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
 
         signal->theData[0] = NDB_LE_CommunicationOpened;
@@ -219,7 +219,7 @@ void Trpman::close_com_failed_node(Signal *signal, Uint32 nodeId) {
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
     globalTransporterRegistry.setIOState(nodeId, HaltIO);
-    globalTransporterRegistry.do_disconnect(nodeId);
+    globalTransporterRegistry.start_disconnecting(nodeId);
   }
 }
 

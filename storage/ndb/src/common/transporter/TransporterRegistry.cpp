@@ -1591,7 +1591,7 @@ void TransporterRegistry::set_recv_thread_idx(Transporter *t,
  * used by performReceive() may be reset or released.
  * A transporter should be brought to the DISCONNECTED state
  * before it can reconnect again. (Note: There is a break of
- * this rule in ::do_connect, see own note here)
+ * this rule in ::start_connecting, see own note here)
  *
  * To not interfere with ::poll- or ::performReceive(),
  * ::update_connections() has to be synched with with these
@@ -2000,8 +2000,7 @@ extern "C" void *run_start_clients_C(void *me) {
  * Note that even if we are going to use MultiTransporters to communicate with
  * this NodeId, we always start with connecting the single base-Transporter.
  */
-// TODO?: rename -> start_connecting()
-void TransporterRegistry::do_connect_trp(TrpId trp_id) {
+void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
   switch (performStates[trp_id]) {
     case DISCONNECTED:
       break;
@@ -2023,8 +2022,9 @@ void TransporterRegistry::do_connect_trp(TrpId trp_id) {
       assert(false);
       break;
   }
-  DEBUG_FPRINTF((stderr, "(%u)REG:do_connect(trp:%u)\n", localNodeId, trp_id));
-  DBUG_ENTER("TransporterRegistry::do_connect_trp");
+  DEBUG_FPRINTF(
+      (stderr, "(%u)REG:start_connecting(trp:%u)\n", localNodeId, trp_id));
+  DBUG_ENTER("TransporterRegistry::start_connecting_trp");
   DBUG_PRINT("info", ("performStates[trp:%u]=CONNECTING", trp_id));
 
   Transporter *t = allTransporters[trp_id];
@@ -2039,12 +2039,13 @@ void TransporterRegistry::do_connect_trp(TrpId trp_id) {
   DBUG_VOID_RETURN;
 }
 
-void TransporterRegistry::do_connect(NodeId node_id) {
+void TransporterRegistry::start_connecting(NodeId node_id) {
   DEBUG_FPRINTF(
-      (stderr, "(%u)REG:do_connect(node:%u)\n", localNodeId, node_id));
+      (stderr, "(%u)REG:start_connecting(node:%u)\n", localNodeId, node_id));
   // Initially only the base-transporter is CONNECTING
   Transporter *base_trp = get_node_base_transporter(node_id);
-  if (base_trp != nullptr) do_connect_trp(base_trp->getTransporterIndex());
+  if (base_trp != nullptr)
+    start_connecting_trp(base_trp->getTransporterIndex());
 }
 
 /**
@@ -2052,16 +2053,15 @@ void TransporterRegistry::do_connect(NodeId node_id) {
  * It is also called from the TCP/SHM transporter in case of an I/O error
  * on the socket.
  *
- * This works asynchronously, similar to do_connect().
+ * This works asynchronously, similar to start_connecting().
  *
  * Return: 'true' if already fully DISCONNECTED, else 'false' if
  *          the asynch disconnect may still be in progres
  */
-// TODO?: rename -> start_disconnecting
-bool TransporterRegistry::do_disconnect_trp(TrpId trp_id, int errnum,
-                                            bool send_source) {
-  DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(trp:%u, %d)\n", localNodeId,
-                 trp_id, errnum));
+bool TransporterRegistry::start_disconnecting_trp(TrpId trp_id, int errnum,
+                                                  bool send_source) {
+  DEBUG_FPRINTF((stderr, "(%u)REG:start_disconnecting(trp:%u, %d)\n",
+                 localNodeId, trp_id, errnum));
   switch (performStates[trp_id]) {
     case DISCONNECTED: {
       return true;
@@ -2101,7 +2101,7 @@ bool TransporterRegistry::do_disconnect_trp(TrpId trp_id, int errnum,
         trp_id, allTransporters[trp_id]->getRemoteNodeId(),
         send_source ? "send" : "recv", errnum, performStates[trp_id]);
   }
-  DBUG_ENTER("TransporterRegistry::do_disconnect_trp");
+  DBUG_ENTER("TransporterRegistry::start_disconnecting_trp");
   DBUG_PRINT("info", ("performStates[trp:%u]=DISCONNECTING", trp_id));
   DEBUG_FPRINTF((stderr, "(%u)performStates[trp:%u] = DISCONNECTING\n",
                  localNodeId, trp_id));
@@ -2110,10 +2110,10 @@ bool TransporterRegistry::do_disconnect_trp(TrpId trp_id, int errnum,
   DBUG_RETURN(false);
 }
 
-bool TransporterRegistry::do_disconnect(NodeId node_id, int errnum,
-                                        bool send_source) {
-  DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(node:%u, %d)\n", localNodeId,
-                 node_id, errnum));
+bool TransporterRegistry::start_disconnecting(NodeId node_id, int errnum,
+                                              bool send_source) {
+  DEBUG_FPRINTF((stderr, "(%u)REG:start_disconnecting(node:%u, %d)\n",
+                 localNodeId, node_id, errnum));
   Uint32 num_ids;
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
   lockMultiTransporters();
@@ -2121,7 +2121,7 @@ bool TransporterRegistry::do_disconnect(NodeId node_id, int errnum,
 
   bool is_disconnected = true;
   for (uint i = 0; i < num_ids; i++)
-    is_disconnected &= do_disconnect_trp(trp_ids[i], errnum, send_source);
+    is_disconnected &= start_disconnecting_trp(trp_ids[i], errnum, send_source);
   unlockMultiTransporters();
   return is_disconnected;
 }
@@ -2208,7 +2208,7 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
    * No one else should be using the transporter now,
    * reset its send buffer and recvdata.
    *
-   * Note that we may 'do_disconnect' due to transporter failure,
+   * Note that we may 'start_disconnecting' due to transporter failure,
    * while trying to 'CONNECTING'. This cause a transition
    * from CONNECTING to DISCONNECTING without first being CONNECTED.
    * Thus there can be multiple reset & disable of the buffers (below)
@@ -2507,7 +2507,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  *
  * Disconnects can be discovered by both the send logic as well as the
  * receive logic when calling socket send and socket recv. In both cases
- * the transporter will call do_disconnect. The only action here is to
+ * the transporter will call start_disconnecting. The only action here is to
  * set the state to DISCONNECTING (no action if already set or the state
  * is already set to DISCONNECTED). While calling this function we can
  * either hold the send mutex or the receive mutex. But none of these
@@ -2547,7 +2547,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * receiving a signal from another node that the node is dead.
  * In this case QMGR will send CLOSE_COMREQ to TRPMAN instances and
  * TRPMAN will set the IO state to HaltIO to ensure no more signals
- * are handled and it will call do_disconnect in TransporterRegistry
+ * are handled and it will call start_disconnecting in TransporterRegistry
  * to ensure that the above close sequence is called although the
  * transporters are still functional.
  *
@@ -2660,7 +2660,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * We have added a test case that both tests crashes in all phases as
  * well as long sleeps in all phases.
  *
- * Closing the base transporter will cause do_disconnect to be called
+ * Closing the base transporter will cause start_disconnecting to be called
  * on this transporter while the node is still up. Thus we have to
  * handle this call separately for non-active connections. This should
  * only happen in the receive thread, so we don't take the send
@@ -2669,7 +2669,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  *
  *
  * Disconnects when using multi transporters still happens through the
- * do_disconnect call, either activated by an error on any of the multi
+ * start_disconnecting call, either activated by an error on any of the multi
  * sockets or activated by blocks discovering a failed node. This means
  * that performStates for the transporters are set to DISCONNECTING. This will
  * trigger call to doDisconnect from start_clients_thread for each of
@@ -2975,7 +2975,7 @@ void TransporterRegistry::start_clients_thread() {
           lockMultiTransporters();
 
           // OJA: Above we connect_client() directly, bypasssing the transporter
-          // protocol which should have requiested do_connect() to set
+          // protocol which should have requested start_connecting() to set
           // CONNECTING, ending with report_connected() setting CONNECTED.
           //
           // -> We just forcefully set CONNECTED for now (-> this patch only).

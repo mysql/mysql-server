@@ -1084,7 +1084,7 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (getNodeInfo(i).m_type == NodeInfo::MGM) {
         jam();
-        globalTransporterRegistry.do_connect(i);
+        globalTransporterRegistry.start_connecting(i);
       }
     }
     g_eventLogger->info("First START_ORD executed to connect MGM servers");
@@ -1116,7 +1116,7 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
     // without any connected nodes.
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM) {
-        globalTransporterRegistry.do_disconnect(i);
+        globalTransporterRegistry.start_disconnecting(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }

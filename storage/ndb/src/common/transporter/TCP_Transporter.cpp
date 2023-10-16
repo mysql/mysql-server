@@ -348,8 +348,8 @@ bool TCP_Transporter::doSend(bool need_wakeup [[maybe_unused]]) {
           ndb_socket_errno(), (char *)ndbstrerror(err));
 #endif
       if ((DISCONNECT_ERRNO(err, nBytesSent))) {
-        remain = 0;                     // Will stop retries of this send.
-        if (!do_disconnect(err, true))  // Initiate pending disconnect
+        remain = 0;                           // Will stop retries of this send.
+        if (!start_disconnecting(err, true))  // Initiate pending disconnect
         {
           // We are 'DISCONNECTING' asynch -> We may still attempt more sends.
           // -> The send buffers still need to be maintained with the 'sum_sent'
@@ -454,8 +454,8 @@ int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
           /**
            * According to documentation of recv on a socket, returning 0 means
            * that the peer has closed the connection. Not likely that the
-           * errno is set in this case, so we set it ourselves to
-           * 0, do_disconnect will write special message for this situation.
+           * errno is set in this case, so we set it ourselves to 0,
+           * start_disconnecting will write special message for this situation.
            */
           err = 0;
         } else {
@@ -469,7 +469,7 @@ int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
             (char *)ndbstrerror(err));
 #endif
         if (DISCONNECT_ERRNO(err, nBytesRead)) {
-          if (!do_disconnect(err, false)) {
+          if (!start_disconnecting(err, false)) {
             return 0;
           }
         }

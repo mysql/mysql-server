@@ -338,6 +338,9 @@ class TransporterRegistry {
     DISCONNECTED = 2,
     DISCONNECTING = 3
   };
+  /**
+   * Get and set methods for PerformState
+   */
   const char *getPerformStateString(TrpId trpId) const {
     return performStateString[(unsigned)performStates[trpId]];
   }
@@ -345,17 +348,20 @@ class TransporterRegistry {
     return performStates[trpId];
   }
   /**
-   * Get and set methods for PerformState
+   * Initiate asynch connecting 'protocol' for node and transporters
    */
-  void do_connect(NodeId node_id);
-  void do_connect_trp(TrpId trpId);
+  void start_connecting(NodeId node_id);
+  void start_connecting_trp(TrpId trpId);
   /**
-   * do_disconnect can be issued both from send and recv, it is possible to
-   * specify from where it is called in send_source parameter, this enables
-   * us to provide more detailed information for disconnects.
+   * start_disconnecting can be issued both from send and recv.
+   * It is possible to specify from where it is called
+   * in send_source parameter, this enables us to provide more
+   * detailed information for disconnects.
    */
-  bool do_disconnect(NodeId node_id, int errnum = 0, bool send_source = true);
-  bool do_disconnect_trp(TrpId trpId, int errnum = 0, bool send_source = true);
+  bool start_disconnecting(NodeId node_id, int errnum = 0,
+                           bool send_source = true);
+  bool start_disconnecting_trp(TrpId trpId, int errnum = 0,
+                               bool send_source = true);
   bool is_connected(TrpId trpId) const {
     return performStates[trpId] == CONNECTED;
   }
