@@ -433,6 +433,15 @@ bool SqlClient::runQueryBasic(const char *sql, SqlResultSet &rows) {
             // Save as Uint64 in result
             curr.put64(fields[i].name, std::stoull(field_data));
             break;
+
+          case MYSQL_TYPE_TINY:
+          case MYSQL_TYPE_SHORT:
+          case MYSQL_TYPE_INT24:
+          case MYSQL_TYPE_LONG:
+            // Save as Uint32 in result
+            curr.put(fields[i].name, std::stoul(field_data));
+            break;
+
           default:
             // Save as string in result
             curr.put(fields[i].name, field_data);

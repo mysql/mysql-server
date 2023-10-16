@@ -50,6 +50,8 @@ class SqlResultSet : public Properties {
   void clear();
 
   SqlResultSet();
+  SqlResultSet(SqlResultSet &) = delete;
+  SqlResultSet(SqlResultSet &&) = delete;
   ~SqlResultSet();
 
   const char *column(const char *col_name);
