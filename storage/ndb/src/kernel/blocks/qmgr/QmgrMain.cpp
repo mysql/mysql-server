@@ -8934,14 +8934,7 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
   multi_trp->set_num_inactive_transporters(nodePtr.p->m_used_num_multi_trps);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
   Transporter *current_trp =
-      globalTransporterRegistry.get_node_transporter(node_id);
-  if (current_trp->isMultiTransporter()) {
-    jam();
-    DEB_MULTI_TRP(("Get current trp from multi transporter"));
-    ndbrequire(current_trp == multi_trp);
-    current_trp = multi_trp->get_active_transporter(0);
-    ndbrequire(multi_trp->get_num_active_transporters() == 1);
-  }
+      globalTransporterRegistry.get_node_base_transporter(node_id);
   DEB_MULTI_TRP(
       ("Base transporter has trp_id: %u", current_trp->getTransporterIndex()));
   int trp_port = current_trp->get_s_port();
@@ -9585,7 +9578,7 @@ void Qmgr::check_switch_completed(Signal *signal, NodeId node_id) {
   globalTransporterRegistry.lockMultiTransporters();
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);
-  ndbrequire(multi_trp && multi_trp->isMultiTransporter());
+  ndbrequire(multi_trp != nullptr);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
   Transporter *array_trp[MAX_NODE_GROUP_TRANSPORTERS];
   for (Uint32 i = 0; i < num_inactive_transporters; i++) {

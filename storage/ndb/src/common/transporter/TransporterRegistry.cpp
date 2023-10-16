@@ -2132,15 +2132,8 @@ void TransporterRegistry::do_connect(NodeId node_id) {
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info", ("performStates[%d]=CONNECTING", node_id));
 
-  Transporter *t = theNodeIdTransporters[node_id];
+  Transporter *t = get_node_base_transporter(node_id);
   if (t != nullptr) {
-    if (t->isMultiTransporter()) {
-      Multi_Transporter *multi_trp = (Multi_Transporter *)t;
-      require(multi_trp->get_num_active_transporters() == 1);
-      t = multi_trp->get_active_transporter(0);
-    }
-    require(!t->isPartOfMultiTransporter());
-    require(!t->isMultiTransporter());
     DEBUG_FPRINTF((stderr, "(%u)REG:resetBuffers(%u)\n", localNodeId, node_id));
     t->resetBuffers();
   }
@@ -2228,14 +2221,7 @@ bool TransporterRegistry::do_disconnect(NodeId node_id, int errnum,
  */
 void TransporterRegistry::report_connect(TransporterReceiveHandle &recvdata,
                                          NodeId node_id) {
-  Transporter *t = theNodeIdTransporters[node_id];
-  if (t->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = (Multi_Transporter *)t;
-    require(multi_trp->get_num_active_transporters() == 1);
-    t = multi_trp->get_active_transporter(0);
-  }
-  require(!t->isMultiTransporter());
-  require(!t->isPartOfMultiTransporter());
+  Transporter *t = get_node_base_transporter(node_id);
   const TrpId trp_id = t->getTransporterIndex();
   DEBUG_FPRINTF((stderr, "(%u)REG:report_connect(%u)\n", localNodeId, node_id));
   assert((receiveHandle == &recvdata) || (receiveHandle == nullptr));
@@ -3182,6 +3168,29 @@ Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
   return dynamic_cast<Multi_Transporter *>(get_node_transporter(nodeId));
 }
 
+/**
+ * If a multi transporter is used, the base transporter is the
+ * initial transporter being connected, also denoted the instance=0.
+ * In case a multi transporter is not used, the normal Transporter
+ * is the base transporter.
+ */
+Transporter *TransporterRegistry::get_node_base_transporter(
+    NodeId nodeId) const {
+  assert(nodeId <= MAX_NODES);
+  Transporter *t = theNodeIdTransporters[nodeId];
+  if (t != nullptr && t->isMultiTransporter()) {
+    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(t);
+    if (multi_trp->get_num_active_transporters() == 1) {
+      // An 'unswitched' multi transporter
+      return multi_trp->get_active_transporter(0);
+    } else {
+      return multi_trp->get_inactive_transporter(0);
+    }
+  }
+  assert(t == nullptr || !t->isPartOfMultiTransporter());
+  return t;
+}
+
 bool TransporterRegistry::connect_client(NdbMgmHandle *h) {
   DBUG_ENTER("TransporterRegistry::connect_client(NdbMgmHandle)");
 
@@ -3191,19 +3200,11 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h) {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
-  Transporter *t = theNodeIdTransporters[mgm_nodeid];
-  if (!t) {
+  Transporter *t = get_node_base_transporter(mgm_nodeid);
+  if (t == nullptr) {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
-
-  if (t->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = (Multi_Transporter *)t;
-    require(multi_trp->get_num_active_transporters() == 1);
-    t = multi_trp->get_active_transporter(0);
-  }
-  require(!t->isMultiTransporter());
-  require(!t->isPartOfMultiTransporter());
   NdbSocket secureSocket = connect_ndb_mgmd(h);
   bool res = t->connect_client(std::move(secureSocket));
   if (res == true) {
