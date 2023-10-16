@@ -170,6 +170,14 @@ bool Transporter::do_disconnect(int err, bool send_source) {
       DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket invalid",
                      getTransporterIndex()));
     }
+
+    /**
+     * OJA: Temp fix until we follow the disconnect protocol.
+     * Until then we need to forcefully set the correct state now.
+     */
+    m_transporter_registry.performStates[getTransporterIndex()] =
+        TransporterRegistry::DISCONNECTED;
+
     return true;
   }
 }
@@ -367,7 +375,7 @@ bool Transporter::connect_client(NdbSocket &&socket) {
   }
 
   DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
-  DEBUG_FPRINTF((stderr, "Sending hello : %s\n"));
+  DEBUG_FPRINTF((stderr, "Sending hello : %s\n", helloBuf));
 
   SocketOutputStream s_output(socket);
   if (s_output.println("%s", helloBuf) < 0) {
@@ -481,7 +489,7 @@ void Transporter::releaseAfterDisconnect() {
  * forceUnsafeDisconnect() Is only intended to be used when disconnecting
  * a Transporter which 'isPartOfMultiTransporter'. The Multi_Transporter
  * breaks the disconnect 'protocol' by disconnecting these Transporters
- * directly from report_disconnect(), instead of just setting DISONNECTING
+ * directly from report_disconnect(), instead of just setting DISCONNECTING
  * state and let start_client_thread() -> doDisconnect(), and finally let
  * report_disconnect() set DISCONNECTED state.
  *
@@ -500,6 +508,13 @@ void Transporter::forceUnsafeDisconnect() {
   get_callback_obj()->lock_transporter(m_transporter_index);
   if (!isReleased()) releaseAfterDisconnect();
   get_callback_obj()->unlock_transporter(m_transporter_index);
+
+  /**
+   * OJA: Temp fix until we follow the disconnect protocol.
+   * Until then we need to forcefully set the correct state now.
+   */
+  m_transporter_registry.performStates[getTransporterIndex()] =
+      TransporterRegistry::DISCONNECTED;
 }
 
 void Transporter::resetCounters() {

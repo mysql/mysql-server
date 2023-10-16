@@ -301,7 +301,7 @@ class Transporter {
     return m_transporter_registry.callbackObj;
   }
   void report_error(enum TransporterError err, const char *info = nullptr) {
-    m_transporter_registry.report_error(remoteNodeId, err, info);
+    m_transporter_registry.report_error(m_transporter_index, err, info);
   }
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);

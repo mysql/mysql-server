@@ -7160,12 +7160,13 @@ void Qmgr::execNODE_FAILREP(Signal *signal) {
       bool switch_required = false;
       Multi_Transporter *multi_trp =
           globalTransporterRegistry.get_node_multi_transporter(nodePtr.i);
-      if (multi_trp && globalTransporterRegistry.get_num_active_transporters(
-                           multi_trp) > 1) {
+      if (multi_trp != nullptr &&
+          globalTransporterRegistry.get_num_active_transporters(multi_trp) >
+              1) {
         /**
          * The timing of the NODE_FAILREP signal is such that the transporter
          * haven't had time to switch the active transporters yet, we know
-         * this will happen, so we switch now to use the old transporter for
+         * this will happen, so we switch now to use the base transporter for
          * the neighbour node. The node is currently down, so will have to
          * be setup before it can be used again.
          *
@@ -8928,7 +8929,7 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
    */
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);
-  ndbrequire(multi_trp != 0);
+  ndbrequire(multi_trp != nullptr);
 
   globalTransporterRegistry.lockMultiTransporters();
   multi_trp->set_num_inactive_transporters(nodePtr.p->m_used_num_multi_trps);
@@ -8943,11 +8944,11 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
     /**
      * It is vital that we set the port number in the transporters used
      * by the multi transporter. It is possible that the node comes up
-     * with a different port number after a restart. For the first
+     * with a different port number after a restart. For the base
      * transporter this port number is set in start_clients_thread.
      * Thus before we connect using these transporters we update the
      * port number of those transporters to be the same port number as
-     * used by the first transporter.
+     * used by the base transporter.
      */
     jam();
     Transporter *t = multi_trp->get_inactive_transporter(i);
@@ -8981,7 +8982,8 @@ void Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id) {
     for (Uint32 i = 0; i < num_inactive_transporters; i++) {
       jam();
       Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
-      bool is_connected = tmp_trp->isConnected();
+      const TrpId trpId = tmp_trp->getTransporterIndex();
+      const bool is_connected = globalTransporterRegistry.is_connected(trpId);
       if (!is_connected) {
         jam();
         connected = false;
@@ -9033,6 +9035,7 @@ void Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id) {
       jam();
       return;
     }
+    // Done as part of switch_multi_transporter as well:
     assign_multi_trps_to_send_threads();
     send_switch_multi_transporter(signal, node_id, false);
     return;
@@ -9575,6 +9578,10 @@ void Qmgr::check_switch_completed(Signal *signal, NodeId node_id) {
     return;
   }
 
+  /**
+   * When switch has completed the now 'inactive_transporter' will not be
+   * needed any more and is disconnected.
+   */
   globalTransporterRegistry.lockMultiTransporters();
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);

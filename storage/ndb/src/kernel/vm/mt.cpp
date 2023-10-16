@@ -2696,7 +2696,7 @@ found_neighbour:
   assert(trp_state.m_thr_no_sender == NO_OWNER_THREAD);
   trp_state.m_next = 0;
   trp_state.m_data_available = 1;
-  return (TrpId)trp_id;
+  return trp_id;
 }
 
 /* Called under mutex protection of send_thread_mutex */

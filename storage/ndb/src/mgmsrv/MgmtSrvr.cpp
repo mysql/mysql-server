@@ -3025,7 +3025,11 @@ int MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no) {
         Uint32 nodeId = args[1];
         ndbout_c("Blocking send to node %u", nodeId);
         TransporterRegistry *tr = theFacade->get_registry();
-        tr->blockSend(*theFacade, nodeId);
+        TrpId trpId;
+        Uint32 num_ids;
+        tr->get_trps_for_node(nodeId, &trpId, num_ids, 1);
+        require(num_ids == 1);
+        tr->blockSend(*theFacade, trpId);
       }
       break;
     }
@@ -3035,7 +3039,11 @@ int MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no) {
         Uint32 nodeId = args[1];
         ndbout_c("Unblocking send to node %u", nodeId);
         TransporterRegistry *tr = theFacade->get_registry();
-        tr->unblockSend(*theFacade, nodeId);
+        TrpId trpId;
+        Uint32 num_ids;
+        tr->get_trps_for_node(nodeId, &trpId, num_ids, 1);
+        require(num_ids == 1);
+        tr->unblockSend(*theFacade, trpId);
       }
       break;
     }

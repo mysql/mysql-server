@@ -25,8 +25,6 @@
 #include <ndb_global.h>
 #include "util/require.h"
 
-#include <NdbSleep.h>
-#include <NdbOut.hpp>
 #include "TCP_Transporter.hpp"
 
 #include <EventLogger.hpp>
@@ -243,8 +241,7 @@ bool TCP_Transporter::send_is_possible(ndb_socket_t fd,
   return true;
 }
 
-bool TCP_Transporter::doSend(bool need_wakeup) {
-  (void)need_wakeup;
+bool TCP_Transporter::doSend(bool need_wakeup [[maybe_unused]]) {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
   Uint32 init_cnt = cnt;
@@ -363,7 +360,7 @@ bool TCP_Transporter::doSend(bool need_wakeup) {
     }
   }
 
-  if (sum_sent > 0) {
+  if (likely(sum_sent > 0)) {
     iovec_data_sent(sum_sent);
   }
   sendCount += send_cnt;
@@ -378,6 +375,20 @@ bool TCP_Transporter::doSend(bool need_wakeup) {
   return (remain > 0);  // false if nothing remains or disconnected, else true
 }
 
+/**
+ * Note that shutdown() and its usage breaks 'disconnect protocol':
+ *  - It close the socket without a NdbSocket::shutdown() first.
+ *    Breaks the two step shutdown-then-close introduced by 'lifecycle patch'
+ *
+ *  - It is called from a block-thread while executing
+ *    Qmgr::check_switch_completed()
+ *    Breaks:
+ *     1. start_client_threads() should shutdown DISCONNECTING sockets
+ *        (Preventing slow/blocked socket shutdown stalling block threads)
+ *     2. report_disconnect()(-> the receive thread) should close
+ *        the socket and update its 'state'
+ *        (Avoiding thread locking problems)
+ */
 void TCP_Transporter::shutdown() {
   if (theSocket.is_valid()) {
     DEB_MULTI_TRP(("Close socket for trp %u", getTransporterIndex()));
@@ -386,6 +397,11 @@ void TCP_Transporter::shutdown() {
     DEB_MULTI_TRP(("Socket already closed for trp %u", getTransporterIndex()));
   }
   m_connected = false;
+
+  // OJA: We disconnected directly, without following the transporter protocol.
+  // Just update the 'state' for now.
+  m_transporter_registry.performStates[getTransporterIndex()] =
+      TransporterRegistry::DISCONNECTED;
 }
 
 int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
