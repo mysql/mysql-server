@@ -8911,9 +8911,11 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
   /**
    * Connect a multi-transporter.
    * For clients this happens by moving the transporters inside the
-   * multi-transporter into the allTransporters array. This leads to
-   * that they are checked in start_clients_thread. These transporters
-   * are special in that they only connect in the CONNECTED state.
+   * multi-transporter into the allTransporters array and initiate the
+   * CONNECTING protocol with start_connecting_trp(). The multiTransporter parts
+   * then connects as any other transporter and finally report_connect'ed.
+   * QMGR will wait until all parts of the MultiTransporter has CONNECTED,
+   * then 'switch' the MultiTransporter.
    *
    * To differentiate between normal transporters and these transporters
    * that are part of a multi-transporter we have a method called
@@ -8923,9 +8925,6 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
    * By replacing the position in theNodeIdTransporters with a
    * multi transporter we ensure that connect_server will handle the
    * connection properly.
-   *
-   * By placing the transporters in the allTransporters array ensures
-   * that we connect as clients in start_clients_thread.
    */
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);
@@ -8934,32 +8933,17 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
   globalTransporterRegistry.lockMultiTransporters();
   multi_trp->set_num_inactive_transporters(nodePtr.p->m_used_num_multi_trps);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
-  Transporter *current_trp =
-      globalTransporterRegistry.get_node_base_transporter(node_id);
-  DEB_MULTI_TRP(
-      ("Base transporter has trp_id: %u", current_trp->getTransporterIndex()));
-  int trp_port = current_trp->get_s_port();
 
   for (Uint32 i = 0; i < num_inactive_transporters; i++) {
-    /**
-     * It is vital that we set the port number in the transporters used
-     * by the multi transporter. It is possible that the node comes up
-     * with a different port number after a restart. For the base
-     * transporter this port number is set in start_clients_thread.
-     * Thus before we connect using these transporters we update the
-     * port number of those transporters to be the same port number as
-     * used by the base transporter.
-     */
     jam();
     Transporter *t = multi_trp->get_inactive_transporter(i);
-    t->set_s_port(trp_port);
     globalTransporterRegistry.insert_allTransporters(t);
     assign_recv_thread_new_trp(t->getTransporterIndex());
     DEB_MULTI_TRP(
-        ("Insert trp id %u for node %u, mti = %u, server: %u"
-         ", port: %d",
+        ("Start connecting trp id %u for node %u, mti = %u, server: %u",
          t->getTransporterIndex(), node_id, t->get_multi_transporter_instance(),
-         t->isServer, trp_port));
+         t->isServer));
+    globalTransporterRegistry.start_connecting_trp(t->getTransporterIndex());
   }
   globalTransporterRegistry.unlockMultiTransporters();
   signal->theData[0] = ZCHECK_MULTI_TRP_CONNECT;
@@ -9368,7 +9352,6 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
       Transporter *tmp_trp = multi_trp->get_active_transporter(i);
       TrpId id = tmp_trp->getTransporterIndex();
       multi_trp->get_callback_obj()->unlock_send_transporter(id);
-      multi_trp->get_callback_obj()->enable_send_buffer(id);
     }
     globalTransporterRegistry.unlockMultiTransporters();
 

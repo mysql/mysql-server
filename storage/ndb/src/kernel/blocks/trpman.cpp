@@ -854,7 +854,6 @@ void Trpman::execACTIVATE_TRP_REQ(Signal *signal) {
    * to an already enabled node.
    */
   if (is_recv_thread_for_new_trp(trp_id)) {
-    epoll_add_trp(trp_id);
     globalTransporterRegistry.setIOState_trp(trp_id, NoHalt);
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)", instance(),
                    node_id, trp_id));

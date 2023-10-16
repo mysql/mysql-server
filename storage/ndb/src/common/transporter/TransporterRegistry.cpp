@@ -657,18 +657,7 @@ bool TransporterRegistry::connect_server(NdbSocket &&socket, BaseString &msg,
   // Setup transporter (transporter responsible for closing sockfd)
   DEBUG_FPRINTF(
       (stderr, "connect_server for trp_id %u\n", t->getTransporterIndex()));
-  if (!t->connect_server(std::move(socket), msg)) {
-    DBUG_RETURN(false);
-  }
-
-  // OJA Temporary adaption glue, (this patch only):
-  // As Transporters being 'PartOfMultiTransporter' connects without
-  // following the connection protocol (never set CONNECTING),
-  // -> We need to set the CONNECTED state for such transporters now:
-  if (t->isPartOfMultiTransporter()) {
-    performStates[t->getTransporterIndex()] = CONNECTED;
-  }
-  DBUG_RETURN(true);
+  DBUG_RETURN(t->connect_server(std::move(socket), msg));
 }
 
 void TransporterRegistry::insert_allTransporters(Transporter *t) {
@@ -1999,6 +1988,9 @@ extern "C" void *run_start_clients_C(void *me) {
  *
  * Note that even if we are going to use MultiTransporters to communicate with
  * this NodeId, we always start with connecting the single base-Transporter.
+ *
+ * QMGR will then later start_connecting_trp the individual MultiTransporter
+ * parts and synchronice the switch to the MultiTransporter
  */
 void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
   switch (performStates[trp_id]) {
@@ -2609,9 +2601,12 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * transporter to the new multi transporters to ensure that we use the
  * dynamic port number for a new node after a restart.
  *
- * The way to activate the connect of the multiple transporters happens by
- * inserting them into the allTransporters array. By inserting them into
- * this array they will be handled by the start_clients_thread.
+ * The way to activate the connect of the multiple transporters is to
+ * use start_connecting_trp() to initiate the asynchronous tranporter
+ * connection protocol. start_clients_thread will then discover that
+ * the transporter has requested 'CONNECTING' and connect it for us.
+ * Finally the update_connection -> report_connected steps will set
+ * the performState to 'CONNECTED'.
  *
  * The protocol to setup a multi transporter is slightly different since we
  * need to know the node id, transporter type and additionally the instance
@@ -2820,10 +2815,6 @@ void TransporterRegistry::start_clients_thread() {
       const NodeId nodeId = t->getRemoteNodeId();
       switch (performStates[trpId]) {
         case CONNECTING: {
-          // OJA: MultiTransporter 'parts' didnt use the connection protocol.
-          // Thus they were never in a state of 'CONNECTING' either.
-          require(!t->isPartOfMultiTransporter());
-
           if (!t->isConnected() && !t->isServer) {
             if (get_and_clear_node_up_indicator(nodeId)) {
               // Other node have indicated that node nodeId is up, try connect
@@ -2946,42 +2937,6 @@ void TransporterRegistry::start_clients_thread() {
           break;
         default:
           break;
-      }
-
-      /**
-       * OJA: Temporary adaption to NodeId vs TrpId state. Used to be part
-       *  of handling 'CONNECTED' state for the node (above). As we now keep
-       * states on the TrpId's, we use the state of the base-transporter
-       * to decide whether we should start connecting the multi transporters
-       *
-       * If the node is CONNECTED, we start connecting the parts of
-       * the MultiTransporter.
-       * (Code section will soon go away in next patches)
-       */
-      Transporter *base_trp = get_node_base_transporter(nodeId);
-      const TrpId base_trpId = base_trp->getTransporterIndex();
-      if (performStates[base_trpId] == CONNECTED) {
-        // Connect this transporter when base-transporter is connected
-        if (t->isPartOfMultiTransporter() && !t->isConnected() &&
-            !t->isServer) {
-          require(t->get_s_port());
-          DBUG_PRINT("info", ("connecting multi-transporter to node %d"
-                              " using port %d",
-                              nodeId, t->get_s_port()));
-          unlockMultiTransporters();
-          t->connect_client();
-          DEBUG_FPRINTF((stderr, "Connect client of trp id %u, res: %u\n",
-                         t->getTransporterIndex(), t->isConnected()));
-          lockMultiTransporters();
-
-          // OJA: Above we connect_client() directly, bypasssing the transporter
-          // protocol which should have requested start_connecting() to set
-          // CONNECTING, ending with report_connected() setting CONNECTED.
-          //
-          // -> We just forcefully set CONNECTED for now (-> this patch only).
-          // See similar temp-code in TransporterRegistry::connect_server()
-          performStates[trpId] = CONNECTED;
-        }
       }
     }
     unlockMultiTransporters();

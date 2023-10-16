@@ -8938,26 +8938,6 @@ void mt_assign_recv_thread_new_trp(TrpId trp_id) {
   recvdata->m_transporters.set(trp_id);
 }
 
-bool mt_epoll_add_trp(Uint32 self, TrpId trp_id) {
-  struct thr_repository *rep = g_thr_repository;
-  struct thr_data *selfptr = &rep->m_thread[self];
-  unsigned thr_no = selfptr->m_thr_no;
-  require(thr_no >= first_receiver_thread_no);
-  unsigned recv_thread_idx = thr_no - first_receiver_thread_no;
-  TransporterReceiveHandleKernel *recvdata =
-      g_trp_receive_handle_ptr[recv_thread_idx];
-  if (recv_thread_idx != g_trp_to_recv_thr_map[trp_id]) {
-    return false;
-  }
-  Transporter *t = globalTransporterRegistry.get_transporter(trp_id);
-  lock(&rep->m_send_buffers[trp_id].m_send_lock);
-  lock(&rep->m_receive_lock[recv_thread_idx]);
-  require(recvdata->epoll_add(t));
-  unlock(&rep->m_receive_lock[recv_thread_idx]);
-  unlock(&rep->m_send_buffers[trp_id].m_send_lock);
-  return true;
-}
-
 bool mt_is_recv_thread_for_new_trp(Uint32 self, TrpId trp_id) {
   struct thr_repository *rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
