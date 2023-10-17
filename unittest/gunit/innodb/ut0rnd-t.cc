@@ -295,6 +295,30 @@ TEST(ut0rnd, hash_uint64_pair_sysbench_ahi_distribution) {
   }
 }
 
+/* Test uint64_pair distribution of a sequential BIGINT record as hashed by
+ut::hash_binary(). This method will read it as little-endian, while the InnoDB
+storage format for BIGINT is big-endian. */
+TEST(ut0rnd, hash_uint64_pair_highest_byte_distribution) {
+  ut_crc32_init();
+  /* This test checks if hash_uint64_pair causes collisions when one of the
+  arguments is kept constant, and the other takes consecutive values.
+  Historically, the number of collisions depended mostly on the pattern of
+  lowest bits in the constant, so we try all possible lowest bytes. */
+  for (uint64_t seed = 0; seed < 256; ++seed) {
+    std::set<uint64_t> hashes_left, hashes_right;
+    for (uint64_t highest = 0; highest < 256; highest++) {
+      /* As mentioned in the test, we want to test a real-world example of a
+      BIGINT field as seen by `tuple->fields[0].data`. It has 7 bytes set, with
+      main non-zero part of the value in the highest bytes. The value of
+      `highest` byte will be inserted to the 8th, the highest byte of this
+      value and it represents the lowest byte of the BIGINT field's value. */
+      uint64_t rec = 0x9a533400000080ULL | (highest << (64 - 8));
+      EXPECT_TRUE(hashes_left.insert(ut::hash_uint64_pair(rec, seed)).second);
+      EXPECT_TRUE(hashes_right.insert(ut::hash_uint64_pair(seed, rec)).second);
+    }
+  }
+}
+
 /* Test distributions for algorithms that hash pair of uint32_t that are:
 increasing together or with either one being constant. */
 
@@ -403,9 +427,9 @@ BENCHMARK(BM_RND_GEN_STD_HASH)
 
 #if SIZEOF_VOIDP >= 8
 static void BM_RND_GEN_STD_LINEAR(const size_t num_iterations) {
-  std::linear_congruential_engine<
-      uint64_t, ut::detail::fast_hash_coeff_a1_64bit,
-      ut::detail::fast_hash_coeff_b_64bit, std::numeric_limits<uint64_t>::max()>
+  std::linear_congruential_engine<uint64_t, 0xacb1f3526e25dd39,
+                                  0xf72a876a516b4b56,
+                                  std::numeric_limits<uint64_t>::max()>
       eng;
   benchmark_hasher(num_iterations,
                    [&eng](uint64_t, uint64_t n) { return eng(); });
