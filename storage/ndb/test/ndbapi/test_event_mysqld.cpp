@@ -42,7 +42,6 @@ static int dropTableApi(NDBT_Context *ctx, NDBT_Step *step) {
  */
 static int createDatabaseSql(NDBT_Context *ctx, NDBT_Step *step) {
   /* Create a client for talking to MySQLD */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient;
 
   if (!sqlClient.waitConnected()) {
@@ -71,7 +70,6 @@ static int createDatabaseSql(NDBT_Context *ctx, NDBT_Step *step) {
  */
 static int createT1Sql(NDBT_Context *ctx, NDBT_Step *step) {
   /* Create a client for talking to MySQLD */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient;
 
   if (!sqlClient.waitConnected()) {
@@ -101,7 +99,6 @@ static int createT1Sql(NDBT_Context *ctx, NDBT_Step *step) {
  */
 static int dropT1Sql(NDBT_Context *ctx, NDBT_Step *step) {
   /* Create a client for talking to MySQLD 1 */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient("TEST_DB");
 
   if (!sqlClient.waitConnected()) {
@@ -224,7 +221,6 @@ static int runMySQLDDisconnects(NDBT_Context *ctx, NDBT_Step *step) {
 
   {
     /* Create a client for talking to MySQLD 1 */
-    SqlClient::ThreadScopeGuard g;
     SqlClient sqlClient("TEST_DB");
 
     if (!sqlClient.waitConnected()) {
@@ -290,7 +286,6 @@ static int limitRuntime(NDBT_Context *ctx, NDBT_Step *step) {
 static int setEventBufferMaxImpl(NDBT_Context *ctx, NDBT_Step *step,
                                  const Uint32 maxBytes) {
   /* Create a client for talking to MySQLD 1 */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient("TEST_DB");
 
   if (!sqlClient.waitConnected()) {
@@ -324,7 +319,6 @@ static int clearEventBufferMax(NDBT_Context *ctx, NDBT_Step *step) {
 
 static int runLockUnlockBinlogIndex(NDBT_Context *ctx, NDBT_Step *step) {
   /* Create a client for talking to MySQLD 1 */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient("TEST_DB");
 
   if (!sqlClient.waitConnected()) {
@@ -369,7 +363,6 @@ static int runLockUnlockBinlogIndex(NDBT_Context *ctx, NDBT_Step *step) {
 
 static int runSqlDDL(NDBT_Context *ctx, NDBT_Step *step) {
   /* Create a client for talking to MySQLD 1 */
-  SqlClient::ThreadScopeGuard g;
   SqlClient sqlClient("TEST_DB");
 
   const bool ignoreErrors =
