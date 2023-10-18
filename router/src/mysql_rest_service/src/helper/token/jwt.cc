@@ -50,6 +50,14 @@ std::vector<uint8_t> as_array(const std::string &s) {
   return std::vector<uint8_t>(s.begin(), s.end());
 }
 
+template <typename Document>
+void doc_set_member(Document &doc, std::string_view name,
+                    std::string_view value) {
+  rapidjson::Value jname{name.data(), name.size(), doc.GetAllocator()};
+  rapidjson::Value jvalue{value.data(), value.size(), doc.GetAllocator()};
+  doc.AddMember(jname, jvalue, doc.GetAllocator());
+}
+
 using Base64NoPadd =
     Base64Base<Base64Alphabet::Base64Url, Base64Endianess::BIG, false, '='>;
 void Jwt::parse(const std::string &token, JwtHolder *out) {
@@ -109,11 +117,8 @@ Jwt Jwt::create(const std::string &algorithm, Document &payload) {
   // No other supported.
   assert(algorithm == "HS256" || algorithm == "none");
   result.header_.SetObject();
-  result.header_.AddMember(StringRef(kHeaderClaimType.c_str()),
-                           StringRef("JWT"), result.header_.GetAllocator());
-  result.header_.AddMember(StringRef(kHeaderClaimAlgorithm.c_str()),
-                           StringRef(algorithm.c_str()),
-                           result.header_.GetAllocator());
+  doc_set_member(result.header_, kHeaderClaimType, "JWT");
+  doc_set_member(result.header_, kHeaderClaimAlgorithm, algorithm);
   result.payload_.CopyFrom(payload, result.payload_.GetAllocator());
 
   result.holder_.parts[0] = (Base64NoPadd::encode(
