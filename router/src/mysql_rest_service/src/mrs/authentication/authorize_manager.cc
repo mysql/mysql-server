@@ -30,6 +30,7 @@
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <string_view>
 
 #include "my_macros.h"
 
@@ -320,6 +321,14 @@ static bool is_timestamp_in_past(const std::string ts) {
   return true;
 }
 
+template <typename Document>
+void doc_set_member(Document &doc, std::string_view name,
+                    std::string_view value) {
+  rapidjson::Value jname{name.data(), name.size(), doc.GetAllocator()};
+  rapidjson::Value jvalue{value.data(), value.size(), doc.GetAllocator()};
+  doc.AddMember(jname, jvalue, doc.GetAllocator());
+}
+
 std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
                                             Session *s) {
   using namespace rapidjson;
@@ -328,18 +337,15 @@ std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
   auto user_id_hex = helper::string::hex(s->user.user_id.raw);
 
   payload.SetObject();
-  payload.AddMember(StringRef("user_id"), StringRef(user_id_hex.c_str()),
-                    payload.GetAllocator());
+  doc_set_member(payload, "user_id", user_id_hex);
 
-  if (!s->user.email.empty())
-    payload.AddMember(StringRef("email"), StringRef(s->user.email.c_str()),
-                      payload.GetAllocator());
+  if (!s->user.email.empty()) doc_set_member(payload, "email", s->user.email);
 
-  payload.AddMember(StringRef("exp"), StringRef(exp.c_str()),
-                    payload.GetAllocator());
-  payload.AddMember(StringRef("service_id"),
-                    StringRef((const char *)service_id.raw, service_id.k_size),
-                    payload.GetAllocator());
+  doc_set_member(payload, "exp", exp);
+  doc_set_member(
+      payload, "service_id",
+      std::string_view{reinterpret_cast<const char *>(service_id.raw),
+                       service_id.k_size});
 
   auto jwt = helper::Jwt::create("HS256", payload);
 
