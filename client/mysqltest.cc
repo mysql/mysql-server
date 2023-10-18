@@ -262,8 +262,9 @@ static uint opt_test_ssl_fips_mode = 0;
 static DWORD opt_safe_process_pid;
 static HANDLE mysqltest_thread;
 // Event handle for stacktrace request event
-static HANDLE stacktrace_request_event = nullptr;
-static std::thread wait_for_stacktrace_request_event_thread;
+static std::atomic<HANDLE> stacktrace_collector_event{nullptr};
+static std::thread stacktrace_collector_thread;
+static std::atomic<bool> stacktrace_collector_thread_should_stop{};
 #endif
 
 Logfile log_file;
@@ -1456,6 +1457,7 @@ static void handle_command_error(struct st_command *command,
 
 static void close_connections() {
   DBUG_TRACE;
+  cur_con = nullptr;
   for (--next_con; next_con >= connections; --next_con) {
     if (next_con->stmt) mysql_stmt_close(next_con->stmt);
     next_con->stmt = nullptr;
@@ -1485,9 +1487,18 @@ static void close_files() {
     my_free(cur_file->file_name);
     cur_file->file_name = nullptr;
   }
+  cur_file = file_stack;
 }
 
 static void free_used_memory() {
+  static std::atomic<bool> already_freed{false};
+
+  // The rest of this method is not thread-safe, we really want at most one
+  // thread to execute it.
+  if (already_freed.exchange(true)) {
+    return;
+  }
+
   // Delete the expected errors pointer
   delete expected_errors;
 
@@ -1534,7 +1545,7 @@ static void free_used_memory() {
 }
 
 static void cleanup_and_exit(int exit_code) {
-  if (opt_offload_count_file) {
+  if (opt_offload_count_file && cur_con) {
     // Check if the current connection is active, if not create one.
     if (cur_con->mysql.net.vio == nullptr) {
       mysql_real_connect(&cur_con->mysql, opt_host, opt_user, opt_pass, opt_db,
@@ -1579,16 +1590,25 @@ static void cleanup_and_exit(int exit_code) {
     }
   }
 
-// exit() appears to be not 100% reliable on Windows under some conditions.
+  // exit() appears to be not 100% reliable on Windows under some conditions.
 #ifdef _WIN32
   if (opt_safe_process_pid) {
-    // Close the stack trace request event handle
-    if (stacktrace_request_event != nullptr)
-      CloseHandle(stacktrace_request_event);
+    // Close the stack trace request thread by signaling it with a flag set to
+    // not execute the handler. It will close the event handle.
+    if (stacktrace_collector_event != nullptr) {
+      stacktrace_collector_thread_should_stop.store(true);
+      SetEvent(stacktrace_collector_event);
+    }
 
-    // Detach or stop the thread waiting for stack trace event to occur.
-    if (wait_for_stacktrace_request_event_thread.joinable())
-      wait_for_stacktrace_request_event_thread.detach();
+    // After we have set the event, the stacktrace_collector_thread must be
+    // waken up and exit. We must wait for this to finish if we are in the
+    // context of the main thread, as when the main thread ends, all other will
+    // be terminated. We can't join the thread with itself as it would throw
+    // `resource_deadlock_would_occur` exception.
+    if (stacktrace_collector_thread.joinable() &&
+        stacktrace_collector_thread.get_id() != std::this_thread::get_id()) {
+      stacktrace_collector_thread.join();
+    }
 
     // Close the thread handle
     if (!CloseHandle(mysqltest_thread))
@@ -1614,7 +1634,7 @@ static void print_file_stack() {
 }
 
 void die(const char *fmt, ...) {
-  static int dying = 0;
+  static std::atomic<bool> dying{false};
   va_list args;
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
@@ -1623,8 +1643,7 @@ void die(const char *fmt, ...) {
 
   // Protect against dying twice first time 'die' is called, try to
   // write log files second time, just exit.
-  if (dying) cleanup_and_exit(1);
-  dying = 1;
+  if (dying.exchange(true)) cleanup_and_exit(1);
 
   // Print the error message
   fprintf(stderr, "mysqltest: ");
@@ -9350,7 +9369,7 @@ static void init_signal_handling(void) {
 ///   structure
 /// - Call exception_filter() method to generate to stack trace
 /// - Resume the suspended test thread
-static void handle_wait_stacktrace_request_event() {
+static void handle_wait_stacktrace_collector_event() {
   fprintf(stderr, "Test case timeout failure.\n");
 
   // Suspend the thread running the test
@@ -9367,7 +9386,7 @@ static void handle_wait_stacktrace_request_event() {
   if (GetThreadContext(mysqltest_thread, &test_thread_ctx) == FALSE) {
     const DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
-    die("Error while fetching thread conext information, err = %lu.\n", error);
+    die("Error while fetching thread context information, err = %lu.\n", error);
   }
 
   EXCEPTION_POINTERS exp = {};
@@ -9392,18 +9411,24 @@ static void handle_wait_stacktrace_request_event() {
 
 /// Thread waiting for timeout event to occur. If the event occurs,
 /// this method will trigger signal_handler() function.
-static void wait_stacktrace_request_event() {
+static void wait_stacktrace_collector_event() {
   const DWORD wait_res =
-      WaitForSingleObject(stacktrace_request_event, INFINITE);
+      WaitForSingleObject(stacktrace_collector_event, INFINITE);
   switch (wait_res) {
     case WAIT_OBJECT_0:
-      handle_wait_stacktrace_request_event();
+      if (!stacktrace_collector_thread_should_stop.load()) {
+        handle_wait_stacktrace_collector_event();
+      }
       break;
     default:
-      die("Unexpected result %lu from WaitForSingleObject.", wait_res);
+      die("Unexpected result %lu from WaitForSingleObject() in " __FUNCTION__
+          "().",
+          wait_res);
       break;
   }
-  CloseHandle(stacktrace_request_event);
+
+  CloseHandle(stacktrace_collector_event);
+  stacktrace_collector_event = nullptr;
 }
 
 /// Create an event name from the safeprocess PID value of the form
@@ -9413,17 +9438,16 @@ static void wait_stacktrace_request_event() {
 /// When this event occurs, signal_handler() method is called and
 /// stacktrace for the mysqltest client process is printed in the
 /// log file.
-static void create_stacktrace_request_event() {
+static void create_stacktrace_collector_event() {
   char event_name[64];
   std::sprintf(event_name, "mysqltest[%lu]stacktrace", opt_safe_process_pid);
 
   // Create an event for the signal handler
-  if ((stacktrace_request_event =
+  if ((stacktrace_collector_event =
            CreateEvent(nullptr, TRUE, FALSE, event_name)) == nullptr)
-    die("Failed to create timeout_event.");
+    die("Failed to create stacktrace_collector_event.");
 
-  wait_for_stacktrace_request_event_thread =
-      std::thread(wait_stacktrace_request_event);
+  stacktrace_collector_thread = std::thread(wait_stacktrace_collector_event);
 }
 
 #else /* _WIN32 */
@@ -9519,7 +9543,7 @@ int main(int argc, char **argv) {
 
 #ifdef _WIN32
   // Create an event to request stack trace when timeout occurs
-  if (opt_safe_process_pid) create_stacktrace_request_event();
+  if (opt_safe_process_pid) create_stacktrace_collector_event();
 #endif
 
   /* Init connections, allocate 1 extra as buffer + 1 for default */
