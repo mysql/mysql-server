@@ -51,6 +51,8 @@
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 
+#include "my_sys.h"
+
 #define HTTP_STATUS_ENTRY(X) \
   { mysql_harness::make_lower(#X), HttpStatusCode::X, }
 
@@ -687,7 +689,8 @@ static void validate_result(Result &result) {
   if (json_filter && doc.IsNull()) result.body = "";
 }
 
-int main(int argc, char *argv[]) {
+int main_app(int argc, char *argv[]) {
+  MY_INIT(argv[0]);
   g_executable = argv[0];
   std::vector<std::string> arguments;
 
@@ -755,4 +758,12 @@ int main(int argc, char *argv[]) {
   }
 
   return EXIT_SUCCESS;
+}
+
+int main(int argc, char *argv[]) {
+  MY_INIT(argv[0]);
+  auto result = main_app(argc, argv);
+  my_end(0);
+
+  return result;
 }
