@@ -57,8 +57,8 @@ class InjectMockJsonTemplateFactory
  public:
   std::shared_ptr<JsonTemplate> create_template(
       const JsonTemplateType type = JsonTemplateType::kStandard,
-      [[maybe_unused]] const bool encode_bigints_as_strings =
-          false) const override {
+      [[maybe_unused]] const bool encode_bigints_as_strings = false,
+      [[maybe_unused]] const bool include_links = true) const override {
     JsonTemplate *ptr;
 
     switch (type) {

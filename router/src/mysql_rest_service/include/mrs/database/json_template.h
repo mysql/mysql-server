@@ -79,7 +79,8 @@ class JsonTemplateFactory {
   virtual ~JsonTemplateFactory() = default;
   virtual std::shared_ptr<JsonTemplate> create_template(
       const JsonTemplateType type = JsonTemplateType::kStandard,
-      const bool encode_bigints_as_strings = false) const = 0;
+      const bool encode_bigints_as_strings = false,
+      const bool include_links = true) const = 0;
 };
 
 }  // namespace database

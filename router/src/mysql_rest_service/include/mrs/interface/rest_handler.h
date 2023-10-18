@@ -115,6 +115,12 @@ class Options {
    public:
     bool gtid_cache{false};
   } cache;
+
+  class Result {
+   public:
+    bool include_links{true};
+    bool stored_procedure_nest_resultsets{false};
+  } result;
 };
 
 class RestHandler {

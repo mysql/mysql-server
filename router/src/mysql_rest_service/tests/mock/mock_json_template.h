@@ -63,7 +63,7 @@ class MockJsonTemplateFactory : public JsonTemplateFactory {
  public:
   MOCK_METHOD(std::shared_ptr<JsonTemplate>, create_template,
               (const JsonTemplateType type,
-               const bool encode_bigints_as_strings),
+               const bool encode_bigints_as_strings, const bool include_links),
               (const, override));
 };
 

@@ -82,7 +82,7 @@ class ResponseSpJsonTemplateUnnest : public database::JsonTemplate {
   uint32_t pushed_documents_{0};
   bool began_{false};
   std::vector<helper::Column> columns_;
-  bool encode_bigints_as_string_{false};
+  bool encode_bigints_as_string_;
 };
 
 }  // namespace json

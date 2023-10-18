@@ -48,12 +48,15 @@ using sqlstring = mysqlrouter::sqlstring;
 using MySQLSession = mysqlrouter::MySQLSession;
 
 QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory,
-                               bool encode_bigints_as_strings)
+                               bool encode_bigints_as_strings,
+                               bool include_links)
     : factory_{factory},
-      encode_bigints_as_strings_{encode_bigints_as_strings} {}
+      encode_bigints_as_strings_{encode_bigints_as_strings},
+      include_links_{include_links} {}
 
-QueryRestTable::QueryRestTable(bool encode_bigints_as_strings)
-    : QueryRestTable(nullptr, encode_bigints_as_strings) {}
+QueryRestTable::QueryRestTable(bool encode_bigints_as_strings,
+                               bool include_links)
+    : QueryRestTable(nullptr, encode_bigints_as_strings, include_links) {}
 
 void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
@@ -393,16 +396,18 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
 
   auto pk_columns = format_key_names(object_->get_base_table());
 
-  if (pk_columns.is_empty()) {
-    static sqlstring empty_links{"'links', JSON_ARRAY()"};
-    json_object_fields.push_back(empty_links);
-  } else {
-    sqlstring fmt{
-        "'links', "
-        "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',"
-        "CONCAT_WS(',',?))))"};
-    fmt << url << pk_columns;
-    json_object_fields.push_back(fmt);
+  if (include_links_) {
+    if (pk_columns.is_empty()) {
+      static sqlstring empty_links{"'links', JSON_ARRAY()"};
+      json_object_fields.push_back(empty_links);
+    } else {
+      sqlstring fmt{
+          "'links', "
+          "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',"
+          "CONCAT_WS(',',?))))"};
+      fmt << url << pk_columns;
+      json_object_fields.push_back(fmt);
+    }
   }
 
   query_ << json_object_fields;
@@ -411,11 +416,11 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
 }
 
 void QueryRestTable::create_serializer() {
-  if (factory_)
-    serializer_ = factory_->create_template();
-  else
-    serializer_ = mrs::json::JsonTemplateFactory().create_template(
-        JsonTemplateType::kStandard, encode_bigints_as_strings_);
+  mrs::json::JsonTemplateFactory factory_instance;
+  auto factory = factory_ ? factory_ : &factory_instance;
+
+  serializer_ = factory->create_template(
+      JsonTemplateType::kStandard, encode_bigints_as_strings_, include_links_);
 }
 
 }  // namespace database
