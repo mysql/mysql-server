@@ -42,8 +42,8 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
-  explicit ResponseJsonTemplate(bool encode_bigints_as_string = false)
-      : encode_bigints_as_string_{encode_bigints_as_string} {}
+  explicit ResponseJsonTemplate(bool encode_bigints_as_string = false,
+                                const bool include_links = true);
 
   void begin_resultset(const std::string &url, const std::string &items_name,
                        const std::vector<helper::Column> &columns) override;
@@ -64,9 +64,10 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   bool count_check_if_push_is_allowed();
 
   // External data needed by the template
-  uint32_t offset_;
-  uint32_t limit_;
-  bool is_default_limit_;
+  // supplied by call to begin_resultset.
+  uint32_t offset_{0};
+  uint32_t limit_{0};
+  bool is_default_limit_{false};
   bool limit_not_set_{false};
   std::string url_;
 
@@ -80,7 +81,8 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   uint32_t pushed_documents_{0};
   bool began_{false};
   const std::vector<helper::Column> *columns_{nullptr};
-  bool encode_bigints_as_string_{false};
+  bool encode_bigints_as_string_;
+  bool include_links_;
 };
 
 }  // namespace json

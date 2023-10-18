@@ -41,6 +41,11 @@ const char *to_cstr(bool value) { return value ? "true" : "false"; }
 
 }  // namespace
 
+ResponseJsonTemplate::ResponseJsonTemplate(bool encode_bigints_as_string,
+                                           const bool include_links)
+    : encode_bigints_as_string_{encode_bigints_as_string},
+      include_links_{include_links} {}
+
 std::string ResponseJsonTemplate::get_result() {
   return serializer_.get_result();
 }
@@ -105,7 +110,8 @@ void ResponseJsonTemplate::end_resultset() {
                                  helper::JsonType::kBool);
   }
   json_root_->member_add_value("count", std::min(limit_, pushed_documents_));
-  {
+
+  if (include_links_) {
     auto array_links = serializer_.member_add_array("links");
     array_links->add_object()
         ->member_add_value("rel", "self")

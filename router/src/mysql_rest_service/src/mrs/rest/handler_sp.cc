@@ -191,14 +191,7 @@ HandlerSP::HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager)
     : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
               auth_manager},
       route_{r},
-      auth_manager_{auth_manager} {
-  auto p = get_options().parameters_;
-  auto it = p.find("");
-  if (it != p.end()) {
-    auto result = helper::json::to_bool(it->second);
-    if (result.has_value()) always_nest_result_sets_ = result.value();
-  }
-}
+      auth_manager_{auth_manager} {}
 
 HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
@@ -346,7 +339,8 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
       db.query_entries(session.get(), route_->get_schema_name(),
                        route_->get_object_name(), route_->get_rest_url(),
                        route_->get_user_row_ownership().user_ownership_column,
-                       result.c_str(), variables, p, always_nest_result_sets_);
+                       result.c_str(), variables, p,
+                       get_options().result.stored_procedure_nest_resultsets);
 
       Counter<kEntityCounterRestReturnedItems>::increment(db.items);
       Counter<kEntityCounterRestAffectedItems>::increment(

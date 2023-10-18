@@ -44,8 +44,10 @@ static void json_object_fast_append(std::string &jo, const std::string &key,
   jo.push_back('}');
 }
 
-QueryRestTableSingleRow::QueryRestTableSingleRow(bool encode_bigints_as_string)
-    : encode_bigints_as_string_{encode_bigints_as_string} {}
+QueryRestTableSingleRow::QueryRestTableSingleRow(bool encode_bigints_as_string,
+                                                 const bool include_links)
+    : encode_bigints_as_string_{encode_bigints_as_string},
+      include_links_{include_links} {}
 
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
@@ -96,10 +98,12 @@ void QueryRestTableSingleRow::build_query(
 
   std::vector<mysqlrouter::sqlstring> fields;
   if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
-  fields.emplace_back(
-      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',CONCAT_WS(',',?))))");
-  fields.back() << url_route << format_key(object->get_base_table(), pk);
+  if (include_links_) {
+    fields.emplace_back(
+        "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+        "'href', CONCAT(?,'/',CONCAT_WS(',',?))))");
+    fields.back() << url_route << format_key(object->get_base_table(), pk);
+  }
 
   query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE ?;";
   query_ << fields << qb.from_clause()

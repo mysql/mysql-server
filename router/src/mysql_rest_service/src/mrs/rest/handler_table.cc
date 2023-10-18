@@ -227,7 +227,8 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
   auto pk = get_rest_pk_parameter(object, requests_uri);
   const auto accepted_content_type =
       validate_content_type_encoding(&ctxt->accepts);
-  const bool encode_bigints_as_string =
+  const bool opt_sp_include_links = get_options().result.include_links;
+  const bool opt_encode_bigints_as_string =
       accepted_content_type == MediaType::typeXieee754ClientJson;
 
   Url uri_param(requests_uri);
@@ -267,7 +268,8 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
       database::FilterObjectGenerator fog(object, true,
                                           get_options().query.wait,
                                           get_options().query.embed_wait);
-      database::QueryRestTable rest{encode_bigints_as_string};
+      database::QueryRestTable rest{opt_encode_bigints_as_string,
+                                    opt_sp_include_links};
 
       fog.parse(uri_param.get_query_parameter("q"));
       database::QueryRetryOnRW query_retry{route_->get_cache(),
@@ -304,7 +306,8 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
     return {std::move(rest.response), detected_type};
   } else {
     if (raw_value.empty()) {
-      database::QueryRestTableSingleRow rest(encode_bigints_as_string);
+      database::QueryRestTableSingleRow rest(opt_encode_bigints_as_string,
+                                             opt_sp_include_links);
       log_debug(
           "Rest select single row %s",
           database::format_key(object->get_base_table(), pk).str().c_str());

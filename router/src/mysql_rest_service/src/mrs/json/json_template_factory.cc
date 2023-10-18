@@ -31,8 +31,8 @@ namespace mrs {
 namespace json {
 
 std::shared_ptr<database::JsonTemplate> JsonTemplateFactory::create_template(
-    const database::JsonTemplateType type,
-    const bool encode_bigints_as_strings) const {
+    const database::JsonTemplateType type, const bool encode_bigints_as_strings,
+    const bool include_links) const {
   switch (type) {
     case database::JsonTemplateType::kObjectNested:
       return std::shared_ptr<database::JsonTemplate>{
@@ -43,7 +43,7 @@ std::shared_ptr<database::JsonTemplate> JsonTemplateFactory::create_template(
     case database::JsonTemplateType::kStandard:
     default:
       return std::shared_ptr<database::JsonTemplate>{
-          new ResponseJsonTemplate(encode_bigints_as_strings)};
+          new ResponseJsonTemplate(encode_bigints_as_strings, include_links)};
   }
 }
 
