@@ -3569,3 +3569,40 @@ DROP TABLE t1, t2;
 --echo #
 
 SELECT COUNT(*) WHERE RAND() > 1;
+
+--echo #
+--echo # Bug#34959356: Poor performance when using HASH field to check unique
+--echo #
+CREATE TABLE product (
+  value INT NOT NULL AUTO_INCREMENT,
+  code VARCHAR(255),
+  name VARCHAR(255),
+  comment VARCHAR(255),
+  platform VARCHAR(50),
+  KEY idx_key (value)
+);
+
+DELIMITER //;
+CREATE PROCEDURE BatchInsert(IN row_count int)
+BEGIN
+  START TRANSACTION;
+  SET @n = 1;
+  REPEAT
+      SET @str = (CONCAT('test', CAST(@n AS CHAR)));
+      INSERT INTO product(code, name) VALUES(@str, @str);
+      SET @n = @n + 1;
+  UNTIL @n > row_count
+  END REPEAT;
+  COMMIT;
+END;
+//
+DELIMITER ;//
+
+CALL BatchInsert(200); # original repro had 20000.
+SELECT COUNT(*)
+FROM ( SELECT ANY_VALUE(value)
+       FROM product
+       GROUP BY code, name, comment, platform ) derived;
+
+DROP PROCEDURE BatchInsert;
+DROP TABLE product;

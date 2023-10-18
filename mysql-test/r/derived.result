@@ -90,7 +90,7 @@ select * from (select * from t1 union all select * from t1 limit 2) a;
 a	b
 1	a
 2	b
-select * from (select * from t1 intersect all select * from t1 limit 2) a;
+select * from (select * from t1 intersect all select * from t1 order by a,b limit 2) a;
 a	b
 1	a
 2	b

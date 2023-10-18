@@ -45,7 +45,7 @@ select 1 from (select 1) as a;
 select * from (select * from t1 union select * from t1) a;
 select * from (select * from t1 union all select * from t1) a;
 select * from (select * from t1 union all select * from t1 limit 2) a;
-select * from (select * from t1 intersect all select * from t1 limit 2) a;
+select * from (select * from t1 intersect all select * from t1 order by a,b limit 2) a;
 select * from (select * from t1 except all select * from t1 limit 2) a;
 explain select * from (select * from t1 union select * from t1) a;
 explain select * from (select * from t1 union all select * from t1) a;

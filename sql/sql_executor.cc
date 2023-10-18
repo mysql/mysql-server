@@ -54,6 +54,7 @@
 #include "my_byteorder.h"
 #include "my_checksum.h"
 #include "my_dbug.h"
+#include "my_hash_combine.h"
 #include "my_loglevel.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -3930,8 +3931,8 @@ static bool table_rec_cmp(TABLE *table) {
 */
 
 ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
-  uint64 seed1 = 0, seed2 = 4;
-  ulonglong crc = *hash_val;
+  uint64_t seed1 = 0, seed2 = 4;
+  uint64_t crc = *hash_val;
 
   if (field->is_null()) {
     /*
@@ -3957,7 +3958,7 @@ ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
     }
     field->charset()->coll->hash_sort(field->charset(), data_ptr,
                                       field->data_length(), &seed1, &seed2);
-    crc ^= seed1;
+    my_hash_combine(crc, seed1);
   } else {
     const uchar *pos = field->data_ptr();
     const uchar *end = pos + field->data_length();
