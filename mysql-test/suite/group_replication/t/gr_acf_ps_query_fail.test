@@ -132,7 +132,7 @@ SET sql_log_bin=1;
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.replication_asynchronous_connection_failover, count, 1]= 2
 --source include/assert.inc
 
---let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-015089' AND data LIKE "The replica IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user'@%' for table 'replication_group_members'. The query failed to execute on the source % for channel 'ch1_3'."
+--let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-015088' AND data LIKE "The replica IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user'@%' for table 'replication_group_members'. The query failed to execute on the source % for channel 'ch1_3'."
 --source include/wait_condition.inc
 
 

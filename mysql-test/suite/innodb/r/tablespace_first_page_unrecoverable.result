@@ -43,7 +43,7 @@ SET GLOBAL innodb_purge_stop_now = ON;
 #
 Pattern "MY-012224" found
 Pattern "MY-012237" found
-Pattern "MY-015091" found
+Pattern "MY-015090" found
 
 # Restore the tablespace file t1.ibd and start the server as usual
 

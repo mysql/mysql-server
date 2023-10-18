@@ -101,10 +101,10 @@ SET SESSION sql_log_bin = 1;
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015088' AND data LIKE "%The Monitor IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user%' for table 'replication_group_members'. The query failed to execute on the source (host:% port:% network_namespace:%) for channel 'ch1_2'%"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015087' AND data LIKE "%The Monitor IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user%' for table 'replication_group_members'. The query failed to execute on the source (host:% port:% network_namespace:%) for channel 'ch1_2'%"
 --source include/wait_condition.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015089' AND data LIKE "%The replica IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user%' for table 'replication_group_members'. The query failed to execute on the source (host:% port:% network_namespace:%) for channel 'ch1_2'%"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015088' AND data LIKE "%The replica IO thread failed to detect if the source belongs to the group majority. Error: SELECT command denied to user 'rpl_user%' for table 'replication_group_members'. The query failed to execute on the source (host:% port:% network_namespace:%) for channel 'ch1_2'%"
 --source include/wait_condition.inc
 
 
