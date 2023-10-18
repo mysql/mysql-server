@@ -617,7 +617,8 @@ struct ChecksumHandler
     // if we're ending an object inside an array, then don't pop the context
     // stacks because all objects in the array are expected to have the same
     // type
-    if (context_.back() != ContainerType::ARRAY) {
+    auto current = (context_.empty() ? ContainerType::OBJECT : context_.back());
+    if (current != ContainerType::ARRAY) {
       object_.pop_back();
 
       if (!path_.empty()) path_.popd();
