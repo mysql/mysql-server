@@ -201,7 +201,7 @@ static inline uint64_t crc32_update_uint64(uint64_t crc, uint64_t data) {
 @return hashed value */
 static inline uint64_t crc32_hash_uint64(uint64_t value) {
   ut_ad(ut_crc32_cpu_enabled);
-  value *= 0x1a2be5a5fa110e23;
+  value *= 0xb5eb6fbadd39bf9b;
   return (crc32_update_uint64(0, value) ^ value) << 32 |
          crc32_update_uint64(0, (value >> 32 | value << 32));
 }
