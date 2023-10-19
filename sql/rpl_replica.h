@@ -52,6 +52,7 @@ class Rpl_channel_filters;
   --log_error_verbosity > 2
 */
 const long mts_online_stat_period = 60 * 2;
+const long mts_online_stat_count = 1024;
 
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 

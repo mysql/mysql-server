@@ -4603,10 +4603,12 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
       }
       *ptr_ev = nullptr;  // announcing the event is passed to w-worker
 
-      if (rli->is_parallel_exec() && rli->mts_events_assigned % 1024 == 1) {
+      if (rli->is_parallel_exec() &&
+          rli->mts_online_stat_curr > mts_online_stat_count) {
         time_t my_now = time(nullptr);
 
-        if ((my_now - rli->mts_last_online_stat) >= mts_online_stat_period) {
+        if (((my_now - rli->mts_last_online_stat) >= mts_online_stat_period) ||
+            DBUG_EVALUATE_IF("simulate_log_err_ER_RPL_MTA_STATISTICS", 1, 0)) {
           LogErr(INFORMATION_LEVEL, ER_RPL_MTA_STATISTICS,
                  rli->get_for_channel_str(),
                  static_cast<unsigned long>(my_now - rli->mts_last_online_stat),
@@ -4616,6 +4618,8 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
                  rli->mts_wq_no_underrun_cnt, rli->mts_total_wait_worker_avail);
           rli->mts_last_online_stat = my_now;
         }
+
+        rli->mts_online_stat_curr = 0;
       }
     }
   } else

@@ -1272,6 +1272,8 @@ class Relay_log_info : public Rpl_info {
   /*
     MTS statistics:
   */
+  long mts_online_stat_curr;      // counter to decide on generating
+                                  // ER_RPL_MTA_STATISTICS message
   ulonglong mts_events_assigned;  // number of events (statements) scheduled
   ulonglong mts_groups_assigned;  // number of groups (transactions) scheduled
   std::atomic<ulong>

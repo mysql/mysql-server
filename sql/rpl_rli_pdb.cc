@@ -2146,6 +2146,7 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   rli->pending_jobs++;
   rli->mts_pending_jobs_size = new_pend_size;
   rli->mts_events_assigned++;
+  rli->mts_online_stat_curr++;
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 

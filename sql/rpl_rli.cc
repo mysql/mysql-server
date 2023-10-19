@@ -276,6 +276,7 @@ void Relay_log_info::init_workers(ulong n_workers) {
   */
   mts_groups_assigned = 0;
   mts_events_assigned = 0;
+  mts_online_stat_curr = 0;
   pending_jobs = 0;
   wq_size_waits_cnt = 0;
   mts_wq_excess_cnt = mts_wq_no_underrun_cnt = mts_wq_overfill_cnt = 0;
