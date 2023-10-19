@@ -23,6 +23,9 @@ ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOE
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_restore_encrypted_backups :BUG#11761083 NDB : MYSQLD DEFAULT VALUES IN FRM EMBEDDED IN BACKUP NOT ENDIAN-CONVERTE
 
+# ndb_tls suite tests
+ndb_tls.clusterj  @windows: Bug#35645569 Cluster/J on Windows needs OpenSSL Applink
+
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
