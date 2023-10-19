@@ -16,6 +16,8 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server  --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster
 # ps-protocol
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server  --comment=ndbcluster_ps --vardir=var-ndbcluster-ps --ps-protocol --suite=ndbcluster
+# with security features in ndb cluster: encrypted backup, TDE, TLS.
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server  --comment=ndbcluster-sec --vardir=var-ndbcluster-sec --suite=ndbcluster --defaults-extra-file=suite/ndb/secure.cnf
 
 # 3. Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server  --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2

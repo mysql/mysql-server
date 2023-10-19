@@ -323,3 +323,17 @@ have_ruby.inc
 # 33. Skip tests on platforms that don't support the FIDO plugins
 have_fido_plugin.inc
 have_webauthn_plugin.inc
+
+# 34.0 Tests skipped due to conflicting use of ./mtr --defaults-extra-file
+
+# 34.1 ./mtr-defaults-extra-file=source/ndb/encrypted_filesystem.cnf (and ndb/secure.cnf)
+ndb_secretsfile1.test
+
+# 34.2 ./mtr-defaults-extra-file=source/ndb/tls.cnf (and ndb/secure.cnf)
+api_require_trp.test
+clusterj.test
+no_path.test
+require_mgm_tls.test
+sign_keys.test
+test_mgmd.test
+tls_off_certs.test
