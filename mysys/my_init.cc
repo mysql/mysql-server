@@ -457,7 +457,8 @@ PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
     key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
     key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
     key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
-    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap,
+    key_THR_LOCK_dd_cache;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 
@@ -484,6 +485,8 @@ static PSI_mutex_info all_mysys_mutexes[] = {
      PSI_DOCUMENT_ME},
     {&key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_dd_cache, "THR_LOCK_dd_cache", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 

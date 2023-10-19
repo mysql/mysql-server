@@ -56,6 +56,7 @@
 #include "thr_mutex.h"
 
 static bool my_thread_global_init_done = false;
+static bool is_dd_reset_tables_and_tablespaces_done = false;
 #ifndef NDEBUG
 static uint THR_thread_count = 0;
 static Timeout_type my_thread_end_wait_time = 5;
@@ -68,6 +69,7 @@ static thread_local int THR_myerrno = 0;
 static thread_local int THR_winerrno = 0;
 #endif
 
+mysql_mutex_t THR_LOCK_dd_cache;
 mysql_mutex_t THR_LOCK_myisam_mmap;
 mysql_mutex_t THR_LOCK_myisam;
 mysql_mutex_t THR_LOCK_heap;
@@ -192,6 +194,8 @@ bool my_thread_global_init() {
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_dd_cache, &THR_LOCK_dd_cache,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
 #ifndef NDEBUG
@@ -242,6 +246,7 @@ void my_thread_global_end() {
   mysql_mutex_destroy(&THR_LOCK_lock);
   mysql_mutex_destroy(&THR_LOCK_myisam);
   mysql_mutex_destroy(&THR_LOCK_myisam_mmap);
+  mysql_mutex_destroy(&THR_LOCK_dd_cache);
   mysql_mutex_destroy(&THR_LOCK_heap);
   mysql_mutex_destroy(&THR_LOCK_net);
   mysql_mutex_destroy(&THR_LOCK_charset);
@@ -377,3 +382,54 @@ static void install_sigabrt_handler() {
   signal(SIGABRT, my_sigabrt_handler);
 }
 #endif
+
+/**
+  Signal that the resetting of data dictionary tables and tablespaces 
+  is done, during server initialization.
+
+  @note This function should only be called during initialization. It was
+  created to ensure strict ordering between resetting of data dictionary
+  tables and tablespaces and initialization of the memcached plugin
+*/
+
+void my_dd_reset_tables_and_tablespaces_set_done(){
+  mysql_mutex_lock(&THR_LOCK_dd_cache);
+  is_dd_reset_tables_and_tablespaces_done = true;
+  mysql_mutex_unlock(&THR_LOCK_dd_cache);
+}
+
+/**
+  Check if the resetting of data dictionary tables and tablespaces has
+  completed, during server initialization. 
+
+  @note This function should only be called during initialization. It was
+  created to ensure strict ordering between resetting of data dictionary
+  tables and tablespaces and initialization of the memcached plugin
+*/
+
+extern "C" bool my_is_dd_reset_tables_and_tablespaces_done() {
+  int err = 0;
+  int check_count = 0;
+  do{
+
+    if (check_count > 0 && !err){
+      // Lock is already held by this thread, so release it first
+      mysql_mutex_unlock(&THR_LOCK_dd_cache);
+    }
+
+    if (check_count > 0 ){
+      // After the first try always perform a back-off
+      // We expect this back-off to only ever happen once in
+      // a single run.
+      my_sleep(1);
+    }
+
+    err = mysql_mutex_trylock(&THR_LOCK_dd_cache);
+    ++check_count;
+    // Loop if we failed to capture the lock or if we did capture it
+    // and found that the data dict table space has been reset
+  }while (err < 0 || (!err && !is_dd_reset_tables_and_tablespaces_done));
+  bool retval = is_dd_reset_tables_and_tablespaces_done;
+  mysql_mutex_unlock(&THR_LOCK_dd_cache);
+  return retval;
+}

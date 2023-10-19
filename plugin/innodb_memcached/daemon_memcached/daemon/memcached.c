@@ -44,6 +44,7 @@
 #define INNODB_MEMCACHED
 void my_thread_init();
 void my_thread_end();
+bool my_is_dd_reset_tables_and_tablespaces_done();
 
 static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     settings.engine.v1->item_set_cas(settings.engine.v0, cookie, it, cas);
@@ -7864,6 +7865,10 @@ int main (int argc, char **argv) {
 
     /* initialize main thread libevent instance */
     main_base = event_init();
+
+#ifdef INNODB_MEMCACHED
+    my_is_dd_reset_tables_and_tablespaces_done();
+#endif
 
     /* Load the storage engine */
     ENGINE_HANDLE *engine_handle = NULL;

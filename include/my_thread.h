@@ -177,5 +177,7 @@ extern void my_thread_global_end();
 // Need to be extern "C" for the time being, due to memcached.
 extern "C" bool my_thread_init();
 extern "C" void my_thread_end();
+extern void my_dd_reset_tables_and_tablespaces_set_done();
+extern "C" bool my_is_dd_reset_tables_and_tablespaces_done();
 
 #endif /* MY_THREAD_INCLUDED */

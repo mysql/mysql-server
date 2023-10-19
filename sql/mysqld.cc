@@ -6865,6 +6865,7 @@ static int init_server_components() {
   if (dd::reset_tables_and_tablespaces()) {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+  my_dd_reset_tables_and_tablespaces_set_done();
   ha_post_recover();
 
   /*

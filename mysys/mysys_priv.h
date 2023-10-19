@@ -47,7 +47,8 @@ extern PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
     key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
     key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
     key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
-    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap, 
+    key_THR_LOCK_dd_cache;
 
 extern PSI_rwlock_key key_SAFE_HASH_lock;
 
