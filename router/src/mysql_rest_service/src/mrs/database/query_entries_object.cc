@@ -112,7 +112,9 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
-      " WHERE object_field.object_id = ? and object_field.enabled";
+      " WHERE object_field.object_id = ?"
+      "  AND (object_field.enabled"
+      "   OR object_field.db_column->>'$.is_primary'='true')";
   query_ << object_id;
 
   execute(session);
@@ -138,7 +140,9 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.no_check,"
       " object_field.no_update"
       " FROM mysql_rest_service_metadata.object_field"
-      " WHERE object_field.object_id = ? and object_field.enabled"
+      " WHERE object_field.object_id = ?"
+      "  AND (object_field.enabled"
+      "   OR object_field.db_column->>'$.is_primary'='true')"
       " ORDER BY object_field.represents_reference_id";
   query_ << object_id;
 
