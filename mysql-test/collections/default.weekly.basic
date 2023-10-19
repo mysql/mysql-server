@@ -14,6 +14,8 @@ perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --su
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only
+# with security features in ndb cluster: encrypted backup, TDE.
+perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-sec  --vardir=var-ndb-sec  --report-features --no-skip --with-ndb-only --defaults-extra-file=suite/ndb/secure.cnf
 
 ############END OF SECTION1(DEFAULT SUITES) ######################
 
