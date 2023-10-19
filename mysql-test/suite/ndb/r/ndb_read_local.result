@@ -8073,3 +8073,5 @@ delete from t1;
 delete from t2;
 drop table test.t1;
 drop table test.t2;
+Drop Node Group 1 done
+Drop Node Group 2 done

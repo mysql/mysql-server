@@ -159,3 +159,6 @@ alter table t2 algorithm=inplace, reorganize partition;
 
 drop table test.t1;
 drop table test.t2;
+
+--exec $NDB_MGM -e'drop nodegroup 1'
+--exec $NDB_MGM -e'drop nodegroup 2'

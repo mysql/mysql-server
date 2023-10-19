@@ -2217,3 +2217,4 @@ Warnings:
 Warning	1287	'@@new' is deprecated and will be removed in a future release.
 set global ndb_read_backup = @old_ndb_read_backup;
 set global ndb_fully_replicated = @old_ndb_fully_replicated;
+Drop Node Group 2 done
