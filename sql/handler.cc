@@ -72,6 +72,7 @@
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sd_notify.h"             // for sysd::notify() calls
 #include "sql/auth/auth_common.h"  // check_readonly() and SUPER_ACL
 #include "sql/binlog.h"            // mysql_bin_log
 #include "sql/check_stack.h"
@@ -982,8 +983,21 @@ void ha_kill_connection(THD *thd) {
 @retval false (always) */
 static bool pre_dd_shutdown_handlerton(THD *, plugin_ref plugin, void *) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (hton->state == SHOW_OPTION_YES && hton->pre_dd_shutdown)
+  if (hton->state == SHOW_OPTION_YES && hton->pre_dd_shutdown) {
+    /*
+      systemd notifications are added here to make the case of "InnoDB purge
+      thread taking a long time to shut down" externally visible. The message is
+      kept general to accommodate pre_dd_shutdown handlertons of other SEs (if
+      any).
+    */
+    sysd::notify("STATUS=Pre DD shutdown of MySQL SE plugin ",
+                 ha_resolve_storage_engine_name(hton), " in progress\n");
+
     hton->pre_dd_shutdown(hton);
+
+    sysd::notify("STATUS=Pre DD shutdown of MySQL SE plugin ",
+                 ha_resolve_storage_engine_name(hton), " completed\n");
+  }
   return false;
 }
 
