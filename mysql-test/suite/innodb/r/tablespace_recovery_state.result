@@ -1,0 +1,116 @@
+#
+#  Test-1 : Blob fits into lob data pages which are not
+#  in the multiple of commit frequency that is set as 4
+#
+CREATE TABLE foo (c1 INT PRIMARY KEY, c2 MEDIUMBLOB) ENGINE=INNODB;
+#
+# Stop the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+#
+# Do DML such that redo log record spans multiple log blocks
+#
+INSERT INTO foo VALUES(1, repeat('#', 85674));
+#
+# Take snapshot of the datadir to recovery_snapshot_dir
+#
+#
+# Resume the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = OFF;
+SET GLOBAL innodb_master_thread_disabled_debug = OFF;
+SET GLOBAL debug = "-d,gtid_persist_flush_disable";
+SET GLOBAL debug = "-d,disable_se_persists_gtid";
+SET GLOBAL innodb_page_cleaner_disabled_debug = OFF;
+SET GLOBAL innodb_checkpoint_disabled = OFF;
+SET GLOBAL innodb_purge_stop_now = OFF;
+SET GLOBAL innodb_purge_run_now = ON;
+#
+# Clean server shutdown
+#
+# Take snapshot of datadir after shutdown to MYSQL_TMP_DIR/shutdown_snapshot
+#
+# Start the server with the snapshot dir to recover it
+#
+# restart: --datadir=MYSQL_TMP_DIR/recovery_snapshot/data
+#
+# Clean server shutdown
+#
+#
+# Start the server with usual datadir
+#
+# restart: --datadir=MYSQLD_DATADIR
+#
+# Compare the two snapshots of the tablespace foo.ibd
+# If the two snapshots are same so does the FIL_PAGE_LSN in the pages.
+#
+# Success
+
+# Test Cleanup
+DROP TABLE foo;
+#
+#  Test-2 : Blob fits into lob data pages which are in
+#  the multiple of commit frequency that is set as 4
+#
+CREATE TABLE foo (c1 INT PRIMARY KEY, c2 MEDIUMBLOB) ENGINE=INNODB;
+#
+# Stop the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+#
+# Do DML such that redo log record spans multiple log blocks
+#
+INSERT INTO foo VALUES(1, repeat('#', 261888));
+#
+# Take snapshot of the datadir to recovery_snapshot_dir
+#
+#
+# Resume the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = OFF;
+SET GLOBAL innodb_master_thread_disabled_debug = OFF;
+SET GLOBAL debug = "-d,gtid_persist_flush_disable";
+SET GLOBAL debug = "-d,disable_se_persists_gtid";
+SET GLOBAL innodb_page_cleaner_disabled_debug = OFF;
+SET GLOBAL innodb_checkpoint_disabled = OFF;
+SET GLOBAL innodb_purge_stop_now = OFF;
+SET GLOBAL innodb_purge_run_now = ON;
+#
+# Clean server shutdown
+#
+# Take snapshot of datadir after shutdown to MYSQL_TMP_DIR/shutdown_snapshot
+#
+# Start the server with the snapshot dir to recover it
+#
+# restart: --datadir=MYSQL_TMP_DIR/recovery_snapshot/data
+#
+# Clean server shutdown
+#
+#
+# Start the server with usual datadir
+#
+# restart: --datadir=MYSQLD_DATADIR
+#
+# Until Bug#35912429 is fixed, comparing the entire file fails because
+# page lsn in the lob first page differs. The least that we could do,
+# compare the tablespace data.
+#
+# Success
+# Test Cleanup
+DROP TABLE foo;

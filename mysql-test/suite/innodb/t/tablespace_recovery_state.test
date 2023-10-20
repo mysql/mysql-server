@@ -1,0 +1,80 @@
+#
+# This test compares tablespace file in two states :
+# - When all pages were flushed to the tablespace as usual, with
+# - All redos are applied after the crash recovery is completed.
+# The objective of this test is to detect if the FIL_PAGE_LSN is
+# correctly computed and updated during recovery.
+#
+# But as you may notice through Bug#35912429, the FIL_PAGE_LSN may not
+# always match in the above two states of the tablespace since Innodb
+# flushes non-dirtied pages S[X] latched pages too.
+#
+# In case of blob insert this situation happens when the lob data fits
+# in the lob data pages in the multiple of commit frequency variable
+# in the lob::insert() method. The current value is set 4.
+
+# Therefore, the exact size of the blob is chosen carefully to not
+# accidentally match the commit frequency variable regardless of page
+# size configured. If this test fails, consider changing the value of
+# c2 column or if that's too costly, simply remove this test, as
+# maintaining it might be more expensive than the value it already provided.
+#
+
+--source include/have_debug.inc
+
+--let MYSQLD_DATADIR = `SELECT @@datadir`
+--let recovery_snapshot_dir = $MYSQL_TMP_DIR/recovery_snapshot
+--let shutdown_snapshot_dir = $MYSQL_TMP_DIR/shutdown_snapshot
+
+--echo #
+--echo #  Test-1 : Blob fits into lob data pages which are not
+--echo #  in the multiple of commit frequency that is set as 4
+--echo #
+
+CREATE TABLE foo (c1 INT PRIMARY KEY, c2 MEDIUMBLOB) ENGINE=INNODB;
+
+--let blob_length = 85674
+--source ../include/tablespace_recovery_state.inc
+
+--echo #
+--echo # Compare the two snapshots of the tablespace foo.ibd
+--echo # If the two snapshots are same so does the FIL_PAGE_LSN in the pages.
+--echo #
+--diff_files $shutdown_snapshot_dir/data/test/foo.ibd $recovery_snapshot_dir/data/test/foo.ibd
+--echo # Success
+--echo
+
+--echo # Test Cleanup
+DROP TABLE foo;
+--force-rmdir $recovery_snapshot_dir
+--force-rmdir $shutdown_snapshot_dir
+
+--echo #
+--echo #  Test-2 : Blob fits into lob data pages which are in
+--echo #  the multiple of commit frequency that is set as 4
+--echo #
+
+--let PAGE_SIZE = `SELECT @@innodb_page_size`
+CREATE TABLE foo (c1 INT PRIMARY KEY, c2 MEDIUMBLOB) ENGINE=INNODB;
+
+--let blob_length=261888
+--source ../include/tablespace_recovery_state.inc
+
+--echo #
+--echo # Until Bug#35912429 is fixed, comparing the entire file fails because
+--echo # page lsn in the lob first page differs. The least that we could do,
+--echo # compare the tablespace data.
+--echo #
+
+--error 1
+--diff_files $shutdown_snapshot_dir/data/test/foo.ibd $recovery_snapshot_dir/data/test/foo.ibd
+
+let IBD_FILE_1_PATH = $shutdown_snapshot_dir/data/test/foo.ibd;
+let IBD_FILE_2_PATH = $recovery_snapshot_dir/data/test/foo.ibd;
+--source ../include/compare_tablespaces_data.inc
+--echo # Success
+
+--echo # Test Cleanup
+DROP TABLE foo;
+--force-rmdir $recovery_snapshot_dir
+--force-rmdir $shutdown_snapshot_dir
