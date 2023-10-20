@@ -45,6 +45,7 @@ uint64_t QueryAuditLogEntries::count_entries(
     MySQLSession *session, const std::vector<std::string> &allowed_tables,
     const uint64_t audit_log_id) {
   fetch_entries_ = false;
+  no_of_entries_ = 0;
   build_query(allowed_tables, audit_log_id, true);
   execute(session);
   return no_of_entries_;

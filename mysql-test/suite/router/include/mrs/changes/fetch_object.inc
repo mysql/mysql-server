@@ -9,7 +9,10 @@ if (!$mrs_sql_changes_variable)
 if (!$_mrs_not_first_object_fetch)
 {
   eval SET $mrs_sql_changes_variable=0;
-  --source ./wait_object.inc
+  if (!$mrs_do_not_wait_at_fetch)
+  {
+    --source ./wait_object.inc
+  }
   --let $_mrs_not_first_object_fetch=1
 }
 
@@ -25,3 +28,5 @@ eval SET $mrs_sql_changes_variable=(
 --enable_result_log
 
 --let $mrs_schema_id_sql_variable=
+--let $mrs_sql_changes_variable=
+--let $mrs_do_not_wait_at_fetch=

@@ -116,6 +116,8 @@ void SchemaMonitor::run() {
         options_files.analyze_global(state == mrs::stateOn, global_json_config);
         if (options_files.content_files_.size()) {
           dbobject_manager_->update(options_files.content_files_);
+          EntityCounter<kEntityCounterUpdatesFiles>::increment(
+              options_files.content_files_.size());
         }
       }
 
@@ -133,6 +135,8 @@ void SchemaMonitor::run() {
 
         if (options_files.content_files_.size()) {
           dbobject_manager_->update(options_files.content_files_);
+          EntityCounter<kEntityCounterUpdatesFiles>::increment(
+              options_files.content_files_.size());
         }
       }
 
@@ -144,6 +148,8 @@ void SchemaMonitor::run() {
         options_files.analyze(content_file_fetcher->entries);
         if (options_files.content_files_.size()) {
           dbobject_manager_->update(options_files.content_files_);
+          EntityCounter<kEntityCounterUpdatesFiles>::increment(
+              options_files.content_files_.size());
         }
       }
 

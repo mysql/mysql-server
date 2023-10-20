@@ -39,9 +39,9 @@ void QueryChangesState::query_state(MySQLSession *session) {
   QueryAuditLogEntries audit_entries;
 
   changed_ = false;
+
   if (0 == audit_entries.count_entries(session, {"config"}, audit_log_id_))
     return;
-
   changed_ = true;
 
   query_state_impl(session, &transaction);

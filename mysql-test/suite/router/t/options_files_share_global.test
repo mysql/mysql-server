@@ -25,7 +25,6 @@
 --echo # 4. remove all
 --echo #
 
-# THE 
 --let $mrs_add_service_path="/svc2"
 --let $mrs_add_host_name=""
 --let $mrs_add_service_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
@@ -44,13 +43,9 @@ SET @service_id2=@service_id;
 
 # Sync with newly created REST object
 # wait for the creation
-exec $MRS_CLIENT_ARGS
-  --path /svc2/sch2/obj2
-  --wait-until-found 60
-  --exclude-json-pointer '*'
-  --display none;
-
 --source ../include/mrs/changes/fetch_object.inc
+--let $mrs_do_not_wait_at_fetch=1
+--source ../include/mrs/changes/fetch_files.inc
 
 
 --echo
@@ -97,7 +92,7 @@ UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent"
 --let $mrs_sql_id_variable=@service_id2
 --let $mrs_modify_options="{}"
 --source ../include/mrs/service/modify_options.inc
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/changes/wait_files.inc
 
 
 exec $MRS_CLIENT_ARGS
@@ -135,7 +130,7 @@ UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent"
 --let $mrs_sql_id_variable=@service_id2
 --let $mrs_modify_options='{"invalid":""}'
 --source ../include/mrs/service/modify_options.inc
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/changes/wait_files.inc
 
 # The index is not applied in this case 
 exec $MRS_CLIENT_ARGS
@@ -169,7 +164,7 @@ UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent"
 --let $mrs_sql_id_variable=@service_id2
 --let $mrs_modify_options='{"aaa":1}'
 --source ../include/mrs/service/modify_options.inc
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/changes/wait_files.inc
 
 exec $MRS_CLIENT_ARGS
   --path ""
@@ -203,7 +198,7 @@ UPDATE  `mysql_rest_service_metadata`.`config` SET data=NULL;
 --let $mrs_sql_id_variable=@service_id2
 --let $mrs_modify_options=NULL
 --source ../include/mrs/service/modify_options.inc
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/changes/wait_files.inc
 
 exec $MRS_CLIENT_ARGS
   --path ""
