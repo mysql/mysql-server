@@ -31,6 +31,7 @@
 --echo #    parameters encoded into "items" and "itemsOut" fields.
 --echo #
 
+START TRANSACTION;
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
 --source ../include/mrs/service/add.inc
@@ -78,7 +79,7 @@
 --let $mrs_modify_columns=min(id)
 --let $mrs_modify_fields=first_id
 --source ../include/mrs/db_object/add_named_resultset.inc
-
+COMMIT;
 
 
 --echo

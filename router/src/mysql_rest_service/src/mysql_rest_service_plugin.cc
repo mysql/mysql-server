@@ -111,8 +111,9 @@ struct MrdsModule {
     }
 
     mrs::initialize_entities(&entities_manager);
-    mrds_monitor.start();
   }
+
+  void start() { mrds_monitor.start(); }
 
   const ::mrs::Configuration &configuration;
   const std::string jwt_secret;
@@ -200,6 +201,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
             service_names) &&
         g_mrs_configuration->init_runtime_configuration()) {
       g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
+      g_mrds_module->start();
     }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -209,6 +211,11 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     log_debug("New exception %s", exc.what());
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
   }
+}
+
+static void stop(mysql_harness::PluginFuncEnv * /* env */) {
+  log_debug("stop");
+  if (g_mrs_configuration) g_mrs_configuration->service_monitor_.abort();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
@@ -246,11 +253,11 @@ mysql_harness::Plugin MYSQL_REST_SERVICE_EXPORT
         // conflicts
         0,
         nullptr,
-        init,     // init
-        deinit,   // deinit
-        run,      // run
-        nullptr,  // on_signal_stop
-        false,    // signals ready
+        init,    // init
+        deinit,  // deinit
+        run,     // run
+        stop,    // on_signal_stop
+        false,   // signals ready
         supported_options.size(),
         supported_options.data(),
 };

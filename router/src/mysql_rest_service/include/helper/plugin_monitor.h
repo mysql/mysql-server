@@ -60,7 +60,7 @@ class PluginMonitor {
   }
 
   bool wait_for_services(const Services &services) {
-    log_debug("wait_for_services: %s",
+    log_debug("wait_for_services: '%s'",
               helper::container::to_string(services).c_str());
     bool result{false};
     observer_->wait_for_services_.wait([&services,
@@ -85,7 +85,8 @@ class PluginMonitor {
 
       return result;
     });
-    log_debug("wait_for_services returns %s", (result ? "true" : "false"));
+    log_debug("wait_for_services ended with '%s'",
+              (result ? "success" : "failure"));
 
     return result;
   }

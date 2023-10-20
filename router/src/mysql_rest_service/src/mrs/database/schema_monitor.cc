@@ -66,7 +66,7 @@ SchemaMonitor::~SchemaMonitor() { stop(); }
 
 void SchemaMonitor::start() {
   running_ = true;
-  monitor_thread_ = std::thread([this]() { run(); });
+  run();
 }
 
 void SchemaMonitor::stop() {
@@ -202,6 +202,7 @@ void SchemaMonitor::run() {
                 exc.what());
     }
   } while (wait_until_next_refresh());
+  log_system("Stopping monitor");
 }
 
 bool SchemaMonitor::wait_until_next_refresh() {
