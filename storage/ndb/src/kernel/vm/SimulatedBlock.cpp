@@ -4798,7 +4798,7 @@ void SimulatedBlock::ndbinfo_send_row(Signal *signal, const DbinfoScanReq &req,
                                       const Ndbinfo::Row &row,
                                       Ndbinfo::Ratelimit &rl) const {
   // Check correct number of columns against table
-  assert(row.columns() == Ndbinfo::getTable(req.tableId).columns());
+  assert(row.columns() == Ndbinfo::getTable(req.tableId)->columns());
 
   TransIdAI *tidai = (TransIdAI *)signal->getDataPtrSend();
   tidai->connectPtr = req.resultData;

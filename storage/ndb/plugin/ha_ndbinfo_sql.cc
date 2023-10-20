@@ -22,6 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
+#include <vector>
+
 #include "mysql/service_thd_alloc.h"
 #include "sql/current_thd.h"
 #include "sql/plugin_table.h"
@@ -833,14 +836,6 @@ static struct obsolete_object obsolete_tables[] = {
     {"ndbinfo", "dummy_table"}  // replace this with an actual deleted table
 };
 
-static int compare_names(const void *px, const void *py) {
-  const Ndbinfo::Table *const *x =
-      static_cast<const Ndbinfo::Table *const *>(px);
-  const Ndbinfo::Table *const *y =
-      static_cast<const Ndbinfo::Table *const *>(py);
-  return strcmp((*x)->m.name, (*y)->m.name);
-}
-
 static Plugin_table *ndbinfo_define_table(const Ndbinfo::Table &table) {
   THD *thd = current_thd;  // For string allocation
   BaseString table_name, table_sql, table_options;
@@ -893,19 +888,24 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
     plugin_tables->push_back(
         new Plugin_table(t.schema_name, t.name, nullptr, nullptr, nullptr));
 
-  /* Sort Ndbinfo tables; define Ndbinfo tables as tables in DD */
-  const Ndbinfo::Table **tables =
-      new const Ndbinfo::Table *[Ndbinfo::getNumTables()];
+  /* Sort Ndbinfo tables by name and define them in DD */
+  {
+    std::vector<const Ndbinfo::Table *> tables;
+    for (int i = 0; i < Ndbinfo::getNumTableEntries(); i++) {
+      const Ndbinfo::Table *tbl = Ndbinfo::getTable(i);
+      if (tbl == nullptr) continue;
+      tables.push_back(tbl);
+    }
 
-  for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
-    tables[i] = &Ndbinfo::getTable(i);
+    std::sort(tables.begin(), tables.end(),
+              [](const Ndbinfo::Table *x, const Ndbinfo::Table *y) {
+                return (strcmp(x->m.name, y->m.name) < 0);
+              });
+
+    for (auto *table : tables) {
+      plugin_tables->push_back(ndbinfo_define_table(*table));
+    }
   }
-  qsort(tables, Ndbinfo::getNumTables(), sizeof(tables[0]), compare_names);
-
-  for (int i = 0; i < Ndbinfo::getNumTables(); i++)
-    plugin_tables->push_back(ndbinfo_define_table(*tables[i]));
-
-  delete[] tables;
 
   /* Require virtual tables (lookups) defined above to be sorted by name */
   for (size_t i = 0; i < num_lookups; i++)

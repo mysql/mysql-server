@@ -130,9 +130,10 @@ void Dbinfo::execDUMP_STATE_ORD(Signal *signal) {
     case DumpStateOrd::DbinfoListTables:
       jam();
       g_eventLogger->info("--- BEGIN NDB$INFO.TABLES ---");
-      for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
-        const Ndbinfo::Table &tab = Ndbinfo::getTable(i);
-        g_eventLogger->info("%d,%s", i, tab.m.name);
+      for (int i = 0; i < Ndbinfo::getNumTableEntries(); i++) {
+        const Ndbinfo::Table *tab = Ndbinfo::getTable(i);
+        if (tab == nullptr) continue;
+        g_eventLogger->info("%d,%s", i, tab->m.name);
       }
       g_eventLogger->info("--- END NDB$INFO.TABLES ---");
       break;
@@ -140,12 +141,13 @@ void Dbinfo::execDUMP_STATE_ORD(Signal *signal) {
     case DumpStateOrd::DbinfoListColumns:
       jam();
       g_eventLogger->info("--- BEGIN NDB$INFO.COLUMNS ---");
-      for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
-        const Ndbinfo::Table &tab = Ndbinfo::getTable(i);
+      for (int i = 0; i < Ndbinfo::getNumTableEntries(); i++) {
+        const Ndbinfo::Table *tab = Ndbinfo::getTable(i);
+        if (tab == nullptr) continue;
 
-        for (int j = 0; j < tab.m.ncols; j++)
-          g_eventLogger->info("%d,%d,%s,%d", i, j, tab.col[j].name,
-                              tab.col[j].coltype);
+        for (int j = 0; j < tab->m.ncols; j++)
+          g_eventLogger->info("%d,%d,%s,%d", i, j, tab->col[j].name,
+                              tab->col[j].coltype);
       }
       g_eventLogger->info("--- END NDB$INFO.COLUMNS ---");
       break;
@@ -219,7 +221,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal) {
 
   // Validate tableId
   const Uint32 tableId = req.tableId;
-  if (tableId >= (Uint32)Ndbinfo::getNumTables()) {
+  if (tableId >= (Uint32)Ndbinfo::getNumTableEntries()) {
     jam();
     DbinfoScanRef *ref = (DbinfoScanRef *)signal->getDataPtrSend();
     ref->resultData = resultData;
@@ -263,14 +265,18 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal) {
       Ndbinfo::Ratelimit rl;
       Uint32 tableId = cursor->data[0];
 
-      while (tableId < (Uint32)Ndbinfo::getNumTables()) {
+      while (tableId < (Uint32)Ndbinfo::getNumTableEntries()) {
         jam();
-        const Ndbinfo::Table &tab = Ndbinfo::getTable(tableId);
+        const Ndbinfo::Table *tab = Ndbinfo::getTable(tableId);
+        if (tab == nullptr) {
+          tableId++;
+          continue;
+        }
         Ndbinfo::Row row(signal, req);
         row.write_uint32(tableId);
-        row.write_string(tab.m.name);
-        row.write_string(tab.m.comment);
-        row.write_uint32(tab.m.estimate_rows(counts));
+        row.write_string(tab->m.name);
+        row.write_string(tab->m.comment);
+        row.write_uint32(tab->m.estimate_rows(counts));
         ndbinfo_send_row(signal, req, row, rl);
 
         tableId++;
@@ -297,17 +303,22 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal) {
       Uint32 tableId = cursor->data[0];
       Uint32 columnId = cursor->data[1];
 
-      while (tableId < (Uint32)Ndbinfo::getNumTables()) {
+      while (tableId < (Uint32)Ndbinfo::getNumTableEntries()) {
         jam();
-        const Ndbinfo::Table &tab = Ndbinfo::getTable(tableId);
-        while (columnId < (Uint32)tab.m.ncols) {
+        const Ndbinfo::Table *tab = Ndbinfo::getTable(tableId);
+        if (tab == nullptr) {
+          columnId = 0;
+          tableId++;
+          continue;
+        }
+        while (columnId < (Uint32)tab->m.ncols) {
           jam();
           Ndbinfo::Row row(signal, req);
           row.write_uint32(tableId);
           row.write_uint32(columnId);
-          row.write_string(tab.col[columnId].name);
-          row.write_uint32(tab.col[columnId].coltype);
-          row.write_string(tab.col[columnId].comment);
+          row.write_string(tab->col[columnId].name);
+          row.write_uint32(tab->col[columnId].coltype);
+          row.write_string(tab->col[columnId].comment);
           ndbinfo_send_row(signal, req, row, rl);
 
           assert(columnId < 256);
@@ -380,7 +391,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal) {
   ndbrequire(conf.cursor_sz == Ndbinfo::ScanCursor::Length);
 
   // Validate tableId
-  ndbassert(conf.tableId < (Uint32)Ndbinfo::getNumTables());
+  ndbassert(conf.tableId < (Uint32)Ndbinfo::getNumTableEntries());
 
   const Uint32 resultRef = conf.resultRef;
 

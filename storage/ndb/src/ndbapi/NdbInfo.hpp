@@ -72,7 +72,8 @@ class NdbInfo {
     ~Table();
 
     const char *getName() const;
-    static const Uint32 InvalidTableId = ~0;
+    static constexpr Uint32 InvalidTableId = ~0;
+    static constexpr Uint32 VirtualTableIdBit = 1U << 31;
     Uint32 getTableId() const;
     Uint32 getRowsEstimate() const { return m_rows_estimate; }
     bool rowCountIsExact() const { return m_exact_row_count; }

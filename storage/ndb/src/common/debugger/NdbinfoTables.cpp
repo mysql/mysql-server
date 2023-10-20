@@ -34,7 +34,9 @@
 
 DECLARE_NDBINFO_TABLE(TABLES, 4) = {
     {"tables", 4, 0,
-     [](const Ndbinfo::Counts &) { return Ndbinfo::getNumTables(); },
+     [](const Ndbinfo::Counts &) {
+       return Ndbinfo::getNumTableEntries() /* TODO: reduce to actual tables */;
+     },
      "metadata for tables available through ndbinfo"},
     {{"table_id", Ndbinfo::Number, ""},
 
@@ -1143,7 +1145,12 @@ DECLARE_NDBINFO_TABLE(CPUDATA_20SEC, 10) = {
     }};
 
 #define DBINFOTBL(x) \
-  { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x }
+  [Ndbinfo::x##      \
+      _TABLEID] = {Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x}
+
+#define DBINFOTBL_UNSUPPORTED(x) \
+  [Ndbinfo::unsupported_##x##_TABLEID] = \
+    {Ndbinfo::unsupported_##x##_TABLEID, nullptr}
 
 static struct ndbinfo_table_list_entry {
   Ndbinfo::TableId id;
@@ -1204,16 +1211,16 @@ static struct ndbinfo_table_list_entry {
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);
 
-int Ndbinfo::getNumTables() { return no_ndbinfo_tables; }
+int Ndbinfo::getNumTableEntries() { return no_ndbinfo_tables; }
 
-const Ndbinfo::Table &Ndbinfo::getTable(int i) {
+const Ndbinfo::Table *Ndbinfo::getTable(int i) {
   assert(i >= 0 && i < no_ndbinfo_tables);
   ndbinfo_table_list_entry &entry = ndbinfo_tables[i];
   assert(entry.id == i);
-  return *entry.table;
+  return entry.table;
 }
 
-const Ndbinfo::Table &Ndbinfo::getTable(Uint32 i) { return getTable((int)i); }
+const Ndbinfo::Table *Ndbinfo::getTable(Uint32 i) { return getTable((int)i); }
 
 /**
  * #undef is needed since this file is included by NdbInfoTables.cpp

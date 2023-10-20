@@ -130,9 +130,9 @@ class Ndbinfo {
 
     int columns(void) const { return m.ncols; }
   };
-  static int getNumTables();
-  static const Table &getTable(int i);
-  static const Table &getTable(Uint32 i);
+  static int getNumTableEntries();
+  static const Table *getTable(int i);
+  static const Table *getTable(Uint32 i);
 
   class Row {
     friend class SimulatedBlock;
