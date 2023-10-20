@@ -14544,12 +14544,15 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                      MAX(min_parts_rule3,
                      MAX(min_parts_rule4, min_parts_rule5)));
 
-  if (ERROR_INSERTED(10048) && min_parts_rule4 == 0)
+
+  if (is_partial_lcp_enabled() && ERROR_INSERTED(10048) &&
+      min_parts_rule4 == 0)
   {
     /**
      * We need this in test cases to ensure that we can create a situation
      * with 1 part per LCP and having more than 980 parts and even close to
      * 2048 LCPs to restore a LCP.
+     * If partial LCP is disabled the number of parts per LCP is not changed.
      */
     jam();
     g_eventLogger->info("Set to 1 part by ERROR 10048 injection");
