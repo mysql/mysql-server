@@ -524,9 +524,9 @@ bool TransporterRegistry::connect_server(NdbSocket &&socket, BaseString &msg,
   }
 
   lockMultiTransporters();
-  // Check that transporter is allocated
-  Transporter *t = theNodeIdTransporters[nodeId];
-  if (t == nullptr) {
+  // Check that at least a base-transporter is allocated
+  Transporter *base_trp = get_node_base_transporter(nodeId);
+  if (base_trp == nullptr) {
     unlockMultiTransporters();
     /* Strange, log it */
     msg.assfmt(
@@ -539,15 +539,13 @@ bool TransporterRegistry::connect_server(NdbSocket &&socket, BaseString &msg,
   }
 
   // Check transporter type
-  if (remote_transporter_type != t->m_type &&
-      t->m_type != tt_Multi_TRANSPORTER)  // Checked later
-  {
+  if (remote_transporter_type != base_trp->m_type) {
     unlockMultiTransporters();
     /* Strange, log it */
     msg.assfmt(
         "Connection attempt from client node %u failed as transporter "
         "type %u is not as expected %u.",
-        nodeId, remote_transporter_type, t->m_type);
+        nodeId, remote_transporter_type, base_trp->m_type);
     socket.close_with_reset();
     DBUG_RETURN(false);
   }
@@ -555,120 +553,48 @@ bool TransporterRegistry::connect_server(NdbSocket &&socket, BaseString &msg,
   // Check that the serverNodeId is correct
   if (serverNodeId != -1) {
     /* Check that incoming connection was meant for us */
-    if (serverNodeId != t->getLocalNodeId()) {
+    if (serverNodeId != base_trp->getLocalNodeId()) {
       unlockMultiTransporters();
       /* Strange, log it */
       msg.assfmt(
           "Ignored connection attempt as client "
           "node %u attempting to connect to node %u, "
           "but this is node %u.",
-          nodeId, serverNodeId, t->getLocalNodeId());
+          nodeId, serverNodeId, base_trp->getLocalNodeId());
       DBUG_PRINT("error", ("%s", msg.c_str()));
       socket.close_with_reset();
       DBUG_RETURN(false);
     }
   }
 
-  Transporter *base_trp = get_node_base_transporter(nodeId);
-  TrpId base_trpId = base_trp->getTransporterIndex();
-  bool correct_state = false;
-  Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
-  if (multi_trp != nullptr && multi_transporter_instance > 0) {
-    /* Specific path for non-zero multi transporter instances */
-    DEBUG_FPRINTF((stderr, "connect_server multi trp, node %u instance %u\n",
-                   t->getRemoteNodeId(), multi_transporter_instance));
+  DEBUG_FPRINTF((stderr, "connect_server multi trp, node %u instance %u\n",
+                 base_trp->getRemoteNodeId(), multi_transporter_instance));
 
-    // The base_trp need to be connected first:
-    if (performStates[base_trpId] == CONNECTED) {
-      /**
-       * The connection is ok if the following is true:
-       * 1) The transporter is a Multi_Transporter object
-       * 2) The instance exists as inactive transporter
-       * 3) The inactive instance referred to isn't already
-       *    connected
-       *
-       * If this all are true we will replace the multi transporter
-       * instance with the transporter instance to connect in this
-       * instance.
-       */
-      if ((multi_transporter_instance - 1) <
-          int(multi_trp->get_num_inactive_transporters())) {
-        Transporter *inst_trp =
-            multi_trp->get_inactive_transporter(multi_transporter_instance - 1);
+  // Find the Transporter instance to connect.
+  Transporter *const t =
+      get_node_transporter_instance(nodeId, multi_transporter_instance);
+  assert(t == base_trp || multi_transporter_instance > 0);
+  unlockMultiTransporters();
 
-        /* Check type now that we have the actual instance */
-        if (remote_transporter_type == inst_trp->m_type) {
-          if (!inst_trp->isConnected()) {
-            /**
-             * Continue connection setup with
-             * multi-transporter specific instance
-             */
-            correct_state = true;
-            t = inst_trp;
-          } else {
-            /* Strange, log it */
-            msg.assfmt(
-                "Ignored connection attempt from node %u as multi "
-                "transporter instance %u already connected.",
-                nodeId, multi_transporter_instance);
-          }
-        } else {
-          /* Strange, log it */
-          msg.assfmt(
-              "Ignored multi transporter connection attempt "
-              "from node %u instance %u as transporter "
-              "type %u is not as expected %u",
-              nodeId, multi_transporter_instance, remote_transporter_type,
-              inst_trp->m_type);
-        }
-      } else {
-        /* Strange, log it */
-        msg.assfmt(
-            "Ignored connection attempt from node %u as multi "
-            "transporter instance %u is not in range.",
-            nodeId, multi_transporter_instance);
-      }
-    }
+  bool correct_state = true;
+  if (t == nullptr) {
+    // A non-existing base trp already checked for:
+    assert(multi_transporter_instance > 0);
+    correct_state = false;
+    /* Strange, log it */
+    msg.assfmt(
+        "Ignored connection attempt from node %u as multi "
+        "transporter instance %u is not in range.",
+        nodeId, multi_transporter_instance);
+
   } else {
     /**
-     * Normal connection setup
-     * Sub cases :
-     *   Normal setup for non-multi trp        : multi = 0, instance = 0
-     *   Normal setup from non-multi trp from
-     *     old version                         : multi = 0, instance = -1
-     *   Normal setup for multi trp instance 0 : multi = 1, instance = 0
-     *   Normal setup from for multi trp
-     *     from old version                    : multi = 1, instance = -1
-     *
-     * Not supported :
-     *   multi = 0, instance > 0               : Invalid
-     */
-    if (multi_trp == nullptr) {
-      if (multi_transporter_instance > 0) {
-        unlockMultiTransporters();
-        /* Strange, log it */
-        msg.assfmt(
-            "Ignored connection attempt from node %u as multi "
-            "transporter instance %d specified for non multi-transporter",
-            nodeId, multi_transporter_instance);
-        socket.close_with_reset();
-        DBUG_RETURN(false);
-      }
-    } else {
-      /* multi_trp */
-      require(multi_transporter_instance <= 0);
-
-      /* Continue connection setup with the base transporter */
-      t = base_trp;
-    }
-
-    /**
-     * Normal connection setup requires state to be in CONNECTING
+     * Connection setup requires state to be in CONNECTING
      */
     const TrpId trpId = t->getTransporterIndex();
-    if (performStates[trpId] == CONNECTING) {
-      correct_state = true;
-    } else {
+    if (performStates[trpId] != CONNECTING) {
+      correct_state = false;
+      /* Strange, log it */
       msg.assfmt(
           "Ignored connection attempt as this node "
           "is not expecting a connection from node %u. "
@@ -684,8 +610,6 @@ bool TransporterRegistry::connect_server(NdbSocket &&socket, BaseString &msg,
       DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     }
   }
-  unlockMultiTransporters();
-
   // Check that the transporter should be connecting
   if (!correct_state) {
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state %s", nodeId,
@@ -3252,6 +3176,34 @@ Transporter *TransporterRegistry::get_node_base_transporter(
   }
   assert(t == nullptr || !t->isPartOfMultiTransporter());
   return t;
+}
+
+/**
+ * The multi transporter has the following 'instances':
+ * - instance==0: The base transporter.
+ * - instance>0:  the multi transporters, indexed as (instance-1).
+ *
+ * For convience and compability with older data nodes not supporting
+ * multi transporters, instance==-1 is the base transporter as well.
+ */
+Transporter *TransporterRegistry::get_node_transporter_instance(
+    NodeId nodeId, int instance) const {
+  if (instance <= 0) return get_node_base_transporter(nodeId);
+
+  assert(nodeId <= MAX_NODES);
+  Transporter *t = theNodeIdTransporters[nodeId];
+  if (t != nullptr && t->isMultiTransporter()) {
+    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(t);
+    if (multi_trp->get_num_active_transporters() == 1) {
+      // An 'unswitched' multi transporter
+      if ((instance - 1) < (int)multi_trp->get_num_inactive_transporters())
+        return multi_trp->get_inactive_transporter(instance - 1);
+    } else {
+      if ((instance - 1) < (int)multi_trp->get_num_active_transporters())
+        return multi_trp->get_active_transporter(instance - 1);
+    }
+  }
+  return nullptr;
 }
 
 bool TransporterRegistry::connect_client(NdbMgmHandle *h) {
