@@ -165,6 +165,9 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       for (const auto &c : join->column_mapping) {
         auto ltable = c.first->table.lock();
         auto rtable = c.second->table.lock();
+
+        if (!ltable) continue;
+
         auto lcolumn = ltable->get_column(c.first->name);
         auto rcolumn = rtable->get_column(c.second->name);
 
@@ -318,12 +321,13 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
   row.unserialize_with_converter(&represents_reference_id,
                                  entry::UniversalId::from_raw_optional);
 
-  auto parent_object = m_objects[parent_reference_id];
-  if (!parent_object) {
+  auto parent_object_it = m_objects.find(parent_reference_id);
+  if (parent_object_it == m_objects.end()) {
     log_debug("No parent_object found, refereed by parent_reference_id:%s",
               to_string(parent_reference_id).c_str());
     return;
   }
+  auto parent_object = parent_object_it->second;
 
   auto table = m_tables[parent_reference_id];
   if (!table) {
