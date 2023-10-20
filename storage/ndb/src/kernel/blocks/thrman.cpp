@@ -3641,6 +3641,39 @@ void Thrman::execDBINFO_SCANREQ(Signal *signal) {
       }
       break;
     }
+    case Ndbinfo::THREADBLOCK_DETAILS_TABLEID: {
+      Uint32 arr[MAX_INSTANCES_PER_THREAD];
+      Uint32 len = mt_get_blocklist(this, arr, NDB_ARRAY_SIZE(arr));
+      Uint32 pos = cursor->data[0];
+      ndbrequire(pos < NDB_ARRAY_SIZE(arr));
+      for (;;) {
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(getThreadId());              // thr_no
+        row.write_uint32(blockToMain(arr[pos]));      // block_number
+        row.write_uint32(blockToInstance(arr[pos]));  // block_instance
+#if defined(ERROR_INSERT)
+        SimulatedBlock *block = globalData.getBlockInstance(arr[pos]);
+        row.write_uint32(block->getErrorInsertValue());  // error_insert_value
+        row.write_uint32(block->getErrorInsertExtra());  // error_insert_extra
+#else
+        row.write_null();  // error_insert_value
+        row.write_null();  // error_insert_extra
+#endif
+        ndbinfo_send_row(signal, req, row, rl);
+
+        pos++;
+        if (pos == len) {
+          jam();
+          break;
+        } else if (rl.need_break(req)) {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, pos);
+          return;
+        }
+      }
+      break;
+    }
     case Ndbinfo::THREADSTAT_TABLEID: {
       ndb_thr_stat stat;
       mt_get_thr_stat(this, &stat);

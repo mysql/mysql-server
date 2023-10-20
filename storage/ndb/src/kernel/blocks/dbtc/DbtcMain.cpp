@@ -564,7 +564,8 @@ void Dbtc::execCONTINUEB(Signal *signal) {
       jam();
       if (ERROR_INSERTED(8101)) {
         jam();
-        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
+                            signal->getLength());
       } else {
         TcRollbackRep *const tcRollbackRep =
             (TcRollbackRep *)signal->getDataPtr();
@@ -17489,7 +17490,7 @@ void Dbtc::execTCINDXREQ(Signal *signal) {
       signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
       signal->theData[5] = RS_TCROLLBACKREP;
       signal->theData[6] = 8101;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
       *signal = s;
     }
   } else if (ERROR_INSERTED(8101)) {
