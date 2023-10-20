@@ -7839,8 +7839,6 @@ int runTestStartNode(NDBT_Context *ctx, NDBT_Step *step) {
  * particular for the last one that we are to restore. The number
  * 2058 is somewhat arbitrarily chosen to ensure this.
  *
- * The test case is hardcoded to make those special LCPs in node 2.
- *
  * Between each LCP we perform a random amount of updates to ensure
  * that each part of this table will create a non-empty LCP. We
  * insert a number of random LCPs that are empty as well to ensure
@@ -7848,32 +7846,59 @@ int runTestStartNode(NDBT_Context *ctx, NDBT_Step *step) {
  * many parts in the LCP.
  */
 int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
-  Ndb *pNdb = GETNDB(step);
-  int loops = 2200;
-  int records = ctx->getNumRecords();
-  bool drop_table = (bool)ctx->getProperty("DropTable", 1);
-  HugoTransactions hugoTrans(*ctx->getTab());
   NdbRestarter restarter;
-  const Uint32 nodeCount = restarter.getNumDbNodes();
-  int nodeId = 2;
-  NdbDictionary::Dictionary *pDict = GETNDB(step)->getDictionary();
-  NdbDictionary::Table tab = *ctx->getTab();
-  HugoOperations hugoOps(tab);
+  Config conf;
   NdbMgmd mgmd;
-  if (nodeCount != 2) {
-    g_err << "[SKIPPED] Test skipped.  Needs 2 nodes" << endl;
-    return NDBT_SKIPPED; /* Requires exact 2 nodes to run */
-  }
+
   int node_1 = restarter.getDbNodeId(0);
   int node_2 = restarter.getDbNodeId(1);
   if (node_1 == -1 || node_2 == -1) {
     g_err << "Failed to find node ids of data nodes" << endl;
     return NDBT_FAILED;
   }
+
   if (!mgmd.connect()) {
     g_err << "Failed to connect to ndb_mgmd." << endl;
     return NDBT_FAILED;
   }
+  if (!mgmd.get_config(conf)) {
+    g_err << "Failed to get config from ndb_mgmd." << endl;
+    return NDBT_FAILED;
+  }
+  ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+  if (!iter.openSection(CFG_SECTION_NODE, node_1)) {
+    g_err << "Failed to get data node configuration." << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint32 enabledPartialLCP = 1;
+  if (iter.get(CFG_DB_ENABLE_PARTIAL_LCP, &enabledPartialLCP)) {
+    if (enabledPartialLCP == 0) {
+      g_err << "[SKIPPED] Test skipped.  Needs EnablePartialLcp=1" << endl;
+      iter.closeSection();
+      return NDBT_SKIPPED;
+    }
+  }
+  else {
+    g_err << "Failed to get CFG_DB_ENABLE_PARTIAL_LCP" << endl;
+    return NDBT_FAILED;
+  }
+  iter.closeSection();
+
+  Ndb *pNdb = GETNDB(step);
+  int loops = 2200;
+  int records = ctx->getNumRecords();
+  bool drop_table = (bool)ctx->getProperty("DropTable", 1);
+  HugoTransactions hugoTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  NdbDictionary::Dictionary *pDict = GETNDB(step)->getDictionary();
+  NdbDictionary::Table tab = *ctx->getTab();
+  HugoOperations hugoOps(tab);
+  if (nodeCount != 2) {
+    g_err << "[SKIPPED] Test skipped.  Needs 2 nodes" << endl;
+    return NDBT_SKIPPED; /* Requires exact 2 nodes to run */
+  }
+
   Uint32 gcp_interval = 200;
   Uint32 key = CFG_DB_GCP_INTERVAL;
   if (setConfigValueAndRestartNode(&mgmd, &key, &gcp_interval, 1, node_1, true,
@@ -7896,7 +7921,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   g_err << "Executing " << loops << " loops" << endl;
-  if (restarter.insertErrorInNode(nodeId, 10048) != 0) {
+  if (restarter.insertErrorInNode(node_1, 10048) != 0) {
     g_err << "ERROR: Error insert 10048 failed" << endl;
     return NDBT_FAILED;
   }
@@ -7957,8 +7982,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
    * by restarting node 2 to ensure that we can also recover the
    * complex LCP setup.
    */
-  ndbout << "Restart node 2" << endl;
-  if (restarter.restartOneDbNode(nodeId, false, /* initial */
+  ndbout << "Restart node_1" << endl;
+  if (restarter.restartOneDbNode(node_1, false, /* initial */
                                  true,          /* nostart  */
                                  false,         /* abort */
                                  false /* force */) != 0) {
@@ -7966,14 +7991,14 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
   ndbout << "Wait for NoStart state" << endl;
-  restarter.waitNodesNoStart(&nodeId, 1);
+  restarter.waitNodesNoStart(&node_1, 1);
   ndbout << "Start node" << endl;
-  if (restarter.startNodes(&nodeId, 1) != 0) {
+  if (restarter.startNodes(&node_1, 1) != 0) {
     g_err << "Start failed" << endl;
     return NDBT_FAILED;
   }
   ndbout << "Waiting for node to start" << endl;
-  if (restarter.waitNodesStarted(&nodeId, 1) != 0) {
+  if (restarter.waitNodesStarted(&node_1, 1) != 0) {
     g_err << "Wait node start failed" << endl;
     return NDBT_FAILED;
   }
