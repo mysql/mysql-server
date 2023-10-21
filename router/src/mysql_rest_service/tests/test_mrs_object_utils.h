@@ -48,7 +48,6 @@ using mrs::database::entry::IdGenerationType;
 using mrs::database::entry::JoinedTable;
 using mrs::database::entry::Object;
 using mrs::database::entry::ObjectField;
-using mrs::database::entry::ReducedDataField;
 using mrs::database::entry::ReferenceField;
 using mrs::database::entry::Table;
 
@@ -170,6 +169,15 @@ class ObjectBuilder {
     return *this;
   }
 
+  ObjectBuilder &nest_unnested_list(const std::string &name,
+                                    const ObjectBuilder &join) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    auto j = nest_join(name, join, 0, true);
+    j->unnest = true;
+    return *this;
+  }
+
   ObjectBuilder &unnest(const ObjectBuilder &join) {
     assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
 
@@ -181,59 +189,6 @@ class ObjectBuilder {
     assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
 
     unnest_join(join, true);
-    return *this;
-  }
-
-  ObjectBuilder &reduce_to_field(const std::string &name,
-                                 const ObjectBuilder &join,
-                                 const std::string &field_name) {
-    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
-
-    if (m_serial) fix_recursive(join.m_object);
-
-    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
-    j->unnest = true;
-    j->to_many = true;
-    j->column_mapping = resolve_column_mapping(join, true);
-
-    auto field = make_reduced_field(std::dynamic_pointer_cast<DataField>(
-        join.m_object->get_field(field_name)));
-    field->table = join.m_table;
-    field->name = name;
-    m_object->fields.push_back(field);
-    m_object->base_tables.push_back(field->source->table.lock());
-
-    // auto j = nest_join(name, join, 0, false);
-
-    // j->reduce_to_field = join.m_object->get_field(field_name);
-
-    return *this;
-  }
-
-  ObjectBuilder &reduce_to_field(const ObjectBuilder &join,
-                                 const std::string &field_name) {
-    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
-
-    if (m_serial) fix_recursive(join.m_object);
-
-    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
-    j->unnest = true;
-    j->to_many = true;  // XXX?
-    j->column_mapping = resolve_column_mapping(join, true);
-
-    for (auto t : join.m_object->base_tables) {
-      m_object->base_tables.push_back(t);
-    }
-
-    // for (auto f : join.m_object->fields) {
-    //   m_object->fields.push_back(f);
-    // }
-
-    j->reduce_to_field =
-        make_reduced_field(std::dynamic_pointer_cast<DataField>(
-            join.m_object->get_field(field_name)));
-    assert(j->reduce_to_field);
-
     return *this;
   }
 
@@ -315,7 +270,6 @@ class ObjectBuilder {
     field->enabled = (flags & FieldFlag::DISABLED) == 0;
     field->allow_filtering = (flags & FieldFlag::NOFILTER) == 0;
 
-    field->is_array = to_many;
     field->nested_object = join.m_object;
     m_object->fields.push_back(field);
 
@@ -414,15 +368,6 @@ class ObjectBuilder {
     m_table->columns.push_back(column);
 
     return column;
-  }
-
-  std::shared_ptr<ReducedDataField> make_reduced_field(
-      std::shared_ptr<DataField> field) {
-    auto rfield = std::make_shared<ReducedDataField>();
-
-    *std::static_pointer_cast<DataField>(rfield) = *field;
-
-    return rfield;
   }
 };
 

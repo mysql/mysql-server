@@ -126,15 +126,12 @@ class BaseTable : public Table {
 };
 
 class ObjectField;
-class ReducedDataField;
 
 // tables that are joined to the root table or others
 class JoinedTable : public Table {
  public:
   using ColumnMapping =
       std::vector<std::pair<std::shared_ptr<Column>, std::shared_ptr<Column>>>;
-
-  std::shared_ptr<ReducedDataField> reduce_to_field;
 
   ColumnMapping column_mapping;
   bool to_many = false;
@@ -169,11 +166,7 @@ class DataField : public ObjectField {
   DataField &operator=(const DataField &) = default;
 
   std::shared_ptr<Column> source;
-};
-
-class ReducedDataField : public DataField {
- public:
-  std::shared_ptr<Table> table;
+  bool unnested_array = false;
 };
 
 class Object {
@@ -184,7 +177,8 @@ class Object {
   std::vector<std::shared_ptr<Table>> base_tables;
   std::vector<std::shared_ptr<ObjectField>> fields;
 
-  bool uses_reduce_to = false;
+  // used to determine if object can be updated
+  bool unnests_to_value = false;
 
   inline std::shared_ptr<ObjectField> get_field(std::string_view name) const {
     for (const auto &f : fields) {
@@ -210,13 +204,14 @@ class Object {
 
 class ReferenceField : public ObjectField {
  public:
-  bool is_array = false;
   std::shared_ptr<Object> nested_object;
 
   std::shared_ptr<JoinedTable> ref_table() const {
     return std::dynamic_pointer_cast<JoinedTable>(
         nested_object->base_tables.front());
   }
+
+  bool is_array() const { return ref_table()->to_many; }
 };
 
 }  // namespace entry

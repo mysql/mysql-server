@@ -60,8 +60,6 @@ class QueryEntryObject : private QueryLog {
 
   std::map<entry::UniversalId, std::shared_ptr<entry::Table>> m_tables;
   std::map<entry::UniversalId, std::shared_ptr<entry::Object>> m_objects;
-  std::map<entry::UniversalId, std::vector<std::shared_ptr<entry::JoinedTable>>>
-      m_pending_reduce_to_field;
   int m_alias_count = 0;
 };
 

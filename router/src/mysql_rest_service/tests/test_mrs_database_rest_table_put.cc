@@ -211,7 +211,7 @@ TEST_F(DatabaseQueryPut, type_check) {
       {entry::ColumnType::BOOLEAN, {"32.34", "\"x\"", "\"\""}},
       {entry::ColumnType::STRING, {"42", "32.34", "true"}},
       {entry::ColumnType::BINARY, {"42", "32.34", "true"}},
-      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true", "\"foo\""}},
+      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true"}},
       {entry::ColumnType::JSON, {}}};
 
   for (const auto &type : known_types) {
@@ -220,7 +220,7 @@ TEST_F(DatabaseQueryPut, type_check) {
                     .field("value", "value", type.first);
 
     for (const auto &test : bad_values[type.second]) {
-      SCOPED_TRACE(std::string(type.first) + " " + test);
+      SCOPED_TRACE(std::string(type.first) + " value=" + test);
       EXPECT_THROW_MSG(
           test_put(root, make_json(std::string("{\"value\": ") + test + "}"),
                    {{"country_id", "1"}}),

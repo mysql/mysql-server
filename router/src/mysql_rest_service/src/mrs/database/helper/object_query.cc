@@ -24,6 +24,7 @@
 
 #include "mrs/database/helper/object_query.h"
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -44,6 +45,48 @@ mysqlrouter::sqlstring format_pk(const std::string &table_name,
                                  const std::string &column_name) {
   if (table_name.empty()) return mysqlrouter::sqlstring("!") << column_name;
   return mysqlrouter::sqlstring("!.!") << table_name << column_name;
+}
+
+void dump_table(std::shared_ptr<entry::Table> t, const std::string &indent) {
+  if (auto bt = std::dynamic_pointer_cast<entry::BaseTable>(t)) {
+    std::cout << indent << "- " << t->table << " (" << t->table_alias
+              << "): BaseTable\n";
+  } else if (auto jt = std::dynamic_pointer_cast<entry::JoinedTable>(t)) {
+    std::cout << indent << "- " << t->table << " (" << t->table_alias
+              << "): JoinedTable " << (jt->unnest ? "@unnest\n" : "\n");
+  } else {
+    std::cout << indent << "\t- " << t->table << ": TABLE (" << t->table_alias
+              << ")\n";
+  }
+}
+
+void dump_object(std::shared_ptr<entry::Object> object,
+                 const std::string &indent = "") {
+  std::cout << indent << "# " << object->name << "\n";
+  std::cout << indent << "base tables:\n";
+  for (const auto &t : object->base_tables) {
+    dump_table(t, indent);
+  }
+  std::cout << indent << "fields:\n";
+  for (const auto &f : object->fields) {
+    if (auto rf = std::dynamic_pointer_cast<entry::ReferenceField>(f)) {
+      if (rf->is_array())
+        std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
+                  << ": ReferenceField[]\n";
+      else
+        std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
+                  << ": ReferenceField\n";
+      dump_object(rf->nested_object, indent + "\t");
+    } else if (auto df = std::dynamic_pointer_cast<entry::DataField>(f)) {
+      std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
+                << ": DataField  ";
+      std::cout << df->source->table.lock()->table << "." << df->source->name
+                << "\n";
+    } else {
+      std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
+                << ": FIELD\n";
+    }
+  }
 }
 
 }  // namespace
@@ -145,8 +188,10 @@ mysqlrouter::sqlstring format_left_join(const entry::Table &table,
 }
 
 void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object) {
+  // dump_object(object);
+
   m_object = object;
-  process_object(object, "");
+  process_object(object, "", false);
 
   if (m_select_items.str().empty()) {
     log_debug("%s produced empty query",
@@ -156,19 +201,22 @@ void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object) {
 }
 
 void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object,
-                                      const std::string &path_prefix) {
+                                      const std::string &path_prefix,
+                                      bool unnest_to_first) {
   m_base_tables = object->base_tables;
   m_path_prefix = path_prefix;
 
-  if (auto jtable =
-          std::dynamic_pointer_cast<entry::JoinedTable>(m_base_tables.back());
-      jtable && jtable->reduce_to_field) {
-    add_field_value(jtable->reduce_to_field);
-    return;
-  }
-
-  for (const auto &f : object->fields) {
-    add_field(f);
+  if (unnest_to_first) {
+    for (const auto &f : object->fields) {
+      if (f->enabled) {
+        add_field_value(f);
+        break;
+      }
+    }
+  } else {
+    for (const auto &f : object->fields) {
+      add_field(f);
+    }
   }
 }
 
@@ -239,27 +287,30 @@ mysqlrouter::sqlstring JsonQueryBuilder::make_subquery(
     const entry::ReferenceField &field) const {
   JsonQueryBuilder subquery(m_filter, m_for_update, m_for_checksum);
 
-  subquery.process_object(
-      field.nested_object,
-      m_path_prefix.empty() ? field.name : m_path_prefix + "." + field.name);
-
-  auto nested_table = field.nested_object->base_tables.back();
+  auto nested_table = field.nested_object->base_tables.front();
 
   auto nested_join =
       std::dynamic_pointer_cast<entry::JoinedTable>(nested_table);
 
+  subquery.process_object(
+      field.nested_object,
+      m_path_prefix.empty() ? field.name : m_path_prefix + "." + field.name,
+      nested_join->unnest);
+
   mysqlrouter::sqlstring subq("(");
-  if (nested_join->to_many) {
-    if (nested_join->reduce_to_field)
-      subq.append_preformatted(subquery.subquery_array());
-    else
-      subq.append_preformatted(subquery.subquery_object_array());
+
+  if (nested_join->unnest) {
+    // only unnesting of 1:n (aka reduceto) is expected here, since other cases
+    // will be unnested into DataFields instead of ReferenceFields
+    assert(nested_join->to_many);
+    subq.append_preformatted(subquery.subquery_array());
   } else {
-    if (nested_join->reduce_to_field)
-      subq.append_preformatted(subquery.subquery_value());
+    if (nested_join->to_many)
+      subq.append_preformatted(subquery.subquery_object_array());
     else
       subq.append_preformatted(subquery.subquery_object());
   }
+
   subq.append_preformatted(")");
   return subq;
 }
@@ -296,6 +347,7 @@ void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
   if (m_for_checksum && field->no_check) return;
 
   if (auto rfield = std::dynamic_pointer_cast<entry::ReferenceField>(field)) {
+    log_debug("rfield->name:%s", rfield->name.c_str());
     auto subquery = make_subquery(*rfield);
     auto item = mysqlrouter::sqlstring("?, ");
     item << rfield->name;

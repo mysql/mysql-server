@@ -1309,7 +1309,7 @@ void RefRowDelete::run(MySQLSession *session) {
 TableUpdater::TableUpdater(std::shared_ptr<entry::Object> object,
                            const ObjectRowOwnership &row_ownership_info)
     : m_object(object), m_row_ownership_info(row_ownership_info) {
-  if (object->uses_reduce_to) throw RestError("Object is not updatable");
+  if (object->unnests_to_value) throw RestError("Object is not updatable");
 }
 
 namespace {
@@ -1433,7 +1433,7 @@ void process_post_object_nested_field(const entry::ReferenceField &field,
                                       const rapidjson::Value &value,
                                       std::shared_ptr<RowInsert> insert,
                                       const std::string &jptr) {
-  if (field.is_array) {  // 1:n, the FK is at the referenced table
+  if (field.is_array()) {  // 1:n, the FK is at the referenced table
     if (!value.IsArray())
       throw std::runtime_error(join_json_pointer(jptr, field.name) +
                                " expected to be an Array");
@@ -1509,7 +1509,7 @@ void process_post_object(std::shared_ptr<entry::Object> object,
         process_post_object_nested_field(*rfield, row_ownership, member->value,
                                          insert, jptr);
       } else {
-        if (!rfield->is_array) {
+        if (!rfield->is_array()) {
           static rapidjson::Value k_null(rapidjson::kNullType);
 
           // interpret missing REF value on insert as setting to NULL
@@ -1583,7 +1583,7 @@ void process_put_object_nested_field(const entry::ReferenceField &field,
                                      const rapidjson::Value &value,
                                      std::shared_ptr<RowUpdate> update,
                                      const std::string &jptr) {
-  if (field.is_array) {  // 1:n, the FK is at the referenced table
+  if (field.is_array()) {  // 1:n, the FK is at the referenced table
     if (!value.IsArray())
       throw std::runtime_error(join_json_pointer(jptr, field.name) +
                                " expected to be an Array");
@@ -1736,7 +1736,7 @@ void process_delete_object_nested_field(const entry::ReferenceField &field,
                                         const ObjectRowOwnership &row_ownership,
                                         std::shared_ptr<RowDeleteOperation> del,
                                         const std::string &jptr) {
-  if (field.is_array) {  // 1:n, the FK is at the referenced table
+  if (field.is_array()) {  // 1:n, the FK is at the referenced table
     process_delete_object(field.nested_object, row_ownership,
                           del->add_referencing_delete(field.ref_table()),
                           join_json_pointer(jptr, field.name));

@@ -123,7 +123,7 @@ class JsonQueryBuilder {
   bool m_bigins_as_string = false;
 
   void process_object(std::shared_ptr<entry::Object> object,
-                      const std::string &path_prefix);
+                      const std::string &path_prefix, bool unnest_to_first);
 
   mysqlrouter::sqlstring subquery_value() const;
 

@@ -102,19 +102,18 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   query_ =
       "SELECT"
       " object_reference.id,"
-      " object_reference.reduce_to_value_of_field_id,"
       " object_reference.reference_mapping->>'$.referenced_schema',"
       " object_reference.reference_mapping->>'$.referenced_table',"
       " object_reference.reference_mapping->'$.to_many',"
       " object_reference.reference_mapping->'$.column_mapping',"
-      " object_reference.unnest,"
+      // TODO reduce_to_value_of_field_id will be removed
+      " object_reference.unnest OR "
+      "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
       " CAST(object_reference.crud_operations AS UNSIGNED)"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
-      " WHERE object_field.object_id = ?"
-      "  AND (object_field.enabled"
-      "   OR object_field.db_column->>'$.is_primary'='true')";
+      " WHERE object_field.object_id = ?";
   query_ << object_id;
 
   execute(session);
@@ -126,6 +125,7 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.represents_reference_id,"
       " object_field.name,"
       " object_field.position,"
+      " object_field.enabled,"
       " object_field.db_column->>'$.name',"
       " object_field.db_column->>'$.datatype',"
       " object_field.db_column->>'$.id_generation',"
@@ -134,21 +134,16 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.db_column->>'$.is_unique',"
       " object_field.db_column->>'$.is_generated',"
       " JSON_VALUE(object_field.db_column, '$.srid'),"
-      " object_field.enabled,"  // todo remove
       " object_field.allow_filtering,"
       " object_field.allow_sorting,"
       " object_field.no_check,"
       " object_field.no_update"
       " FROM mysql_rest_service_metadata.object_field"
       " WHERE object_field.object_id = ?"
-      "  AND (object_field.enabled"
-      "   OR object_field.db_column->>'$.is_primary'='true')"
       " ORDER BY object_field.represents_reference_id";
   query_ << object_id;
 
   execute(session);
-
-  assert(m_pending_reduce_to_field.empty());
 
   // post-processing... re-order object fields, resolve placeholders
   for (const auto &o : m_objects) {
@@ -166,7 +161,10 @@ void QueryEntryObject::query_entries(MySQLSession *session,
         auto ltable = c.first->table.lock();
         auto rtable = c.second->table.lock();
 
-        if (!ltable) continue;
+        if (!ltable || !rtable) {
+          log_error("Invalid metadata for JOIN for %s", table->table.c_str());
+          continue;
+        }
 
         auto lcolumn = ltable->get_column(c.first->name);
         auto rcolumn = rtable->get_column(c.second->name);
@@ -251,12 +249,9 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
   auto reference = std::make_shared<entry::JoinedTable>();
 
   entry::UniversalId reference_id;
-  std::optional<entry::UniversalId> reduce_to_field_id;
 
   helper::MySQLRow row(r, metadata_, no_od_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
-  row.unserialize_with_converter(&reduce_to_field_id,
-                                 entry::UniversalId::from_raw_optional);
   row.unserialize(&reference->schema);
   row.unserialize(&reference->table);
   row.unserialize(&reference->to_many);
@@ -273,12 +268,6 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
 
   reference->table_alias = "t" + std::to_string(++m_alias_count);
   m_tables[reference_id] = reference;
-
-  if (reduce_to_field_id) {
-    m_pending_reduce_to_field[*reduce_to_field_id].push_back(reference);
-
-    m_objects[{}]->uses_reduce_to = true;
-  }
 
   auto object = std::make_shared<Object>();
   object->name = reference->table_key();
@@ -307,8 +296,6 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     }
   };
 
-  std::shared_ptr<entry::ObjectField> field;
-
   helper::MySQLRow row(r, metadata_, no_od_metadata_);
 
   entry::UniversalId field_id;
@@ -323,7 +310,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
   auto parent_object_it = m_objects.find(parent_reference_id);
   if (parent_object_it == m_objects.end()) {
-    log_debug("No parent_object found, refereed by parent_reference_id:%s",
+    log_debug("No parent_object found, referenced by parent_reference_id:%s",
               to_string(parent_reference_id).c_str());
     return;
   }
@@ -338,12 +325,11 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
   if (represents_reference_id) {
     auto ofield = std::make_shared<entry::ReferenceField>();
-    field = ofield;
 
     row.unserialize(&ofield->name);
     row.unserialize(&ofield->position);
-    row.skip(8);
     row.unserialize(&ofield->enabled);
+    row.skip(8);
     row.unserialize(&ofield->allow_filtering);
     row.unserialize(&ofield->allow_sorting);
     row.unserialize(&ofield->no_check);
@@ -352,6 +338,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     auto reference = m_tables.at(*represents_reference_id);
 
     bool unnest = false;
+    bool is_array = false;
     if (auto join = std::dynamic_pointer_cast<entry::JoinedTable>(reference);
         join) {
       if (!ofield->enabled) {
@@ -361,7 +348,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
       unnest = join->unnest;
 
       if (join->to_many) {
-        ofield->is_array = true;
+        is_array = true;
       }
 
       for (const auto &c : join->column_mapping) {
@@ -379,43 +366,39 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
         return;
       }
 
-      for (auto f : obj->fields) {
-        parent_object->fields.push_back(f);
+      // if we're unnesting a 1:n (array of objects), we need to keep the field
+      // as a reference, so it gets translated as a subquery with an aggregation
+      if (is_array) {
+        ofield->nested_object = m_objects[*represents_reference_id];
+
+        parent_object->fields.push_back(ofield);
+      } else {
+        for (auto f : obj->fields) {
+          parent_object->fields.push_back(f);
+        }
+        for (auto &t : obj->base_tables) {
+          parent_object->base_tables.push_back(t);
+        }
+        m_objects[*represents_reference_id] = parent_object;
       }
-      for (auto &t : obj->base_tables) {
-        parent_object->base_tables.push_back(t);
-      }
-      m_objects[*represents_reference_id] = parent_object;
     } else {
       ofield->nested_object = m_objects[*represents_reference_id];
 
-      parent_object->fields.push_back(field);
+      parent_object->fields.push_back(ofield);
     }
   } else {
-    std::shared_ptr<entry::DataField> dfield;
-
-    if (auto it = m_pending_reduce_to_field.find(field_id);
-        it != m_pending_reduce_to_field.end()) {
-      auto tmp = std::make_shared<entry::ReducedDataField>();
-      tmp->table = table;
-      dfield = tmp;
-
-      for (const auto &table : it->second) {
-        table->reduce_to_field = tmp;
-      }
-      m_pending_reduce_to_field.erase(it);
-    } else {
-      dfield = std::make_shared<entry::DataField>();
-    }
-    field = dfield;
+    auto dfield = std::make_shared<entry::DataField>();
 
     row.unserialize(&dfield->name);
     row.unserialize(&dfield->position);
+    CONVERT(&dfield->enabled);
 
     auto column = std::make_shared<entry::Column>();
     row.unserialize(&column->name);
     row.unserialize(&column->datatype);
-    column->type = column_datatype_to_type(column->datatype);
+    // disabled fields can come in as NULL
+    if (dfield->enabled || !column->datatype.empty())
+      column->type = column_datatype_to_type(column->datatype);
     row.unserialize_with_converter(&column->id_generation,
                                    IdGenerationTypeConverter());
     row.unserialize(&column->not_null);
@@ -423,7 +406,6 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     row.unserialize(&column->is_unique);
     CONVERT(&column->is_generated);
     CONVERT_WITH_DEFAULT(&column->srid, static_cast<uint32_t>(0));
-    CONVERT(&dfield->enabled);
     row.unserialize(&dfield->allow_filtering);
     row.unserialize(&dfield->no_check);
 
@@ -433,7 +415,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
               table.get());
 
     table->columns.push_back(column);
-    parent_object->fields.push_back(field);
+    parent_object->fields.push_back(dfield);
   }
 }
 
