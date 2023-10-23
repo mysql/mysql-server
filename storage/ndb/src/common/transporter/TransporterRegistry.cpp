@@ -99,12 +99,30 @@ ndb_sockaddr TransporterRegistry::get_connect_address(NodeId node_id) const {
   return theNodeIdTransporters[node_id]->m_connect_address;
 }
 
+// FIXME: Take TrpId argument instead, return sent pr TrpId
 Uint64 TransporterRegistry::get_bytes_sent(NodeId node_id) const {
-  return theNodeIdTransporters[node_id]->get_bytes_sent();
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+
+  Uint64 bytes_sent = 0;
+  for (Uint32 i = 0; i < num_ids; i++) {
+    bytes_sent += allTransporters[trp_ids[i]]->m_bytes_sent;
+  }
+  return bytes_sent;
 }
 
+// FIXME: Take TrpId argument instead, return received pr TrpId
 Uint64 TransporterRegistry::get_bytes_received(NodeId node_id) const {
-  return theNodeIdTransporters[node_id]->get_bytes_received();
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+
+  Uint64 bytes_received = 0;
+  for (Uint32 i = 0; i < num_ids; i++) {
+    bytes_received += allTransporters[trp_ids[i]]->m_bytes_sent;
+  }
+  return bytes_received;
 }
 
 SocketServer::Session *TransporterService::newSession(

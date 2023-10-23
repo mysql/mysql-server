@@ -43,22 +43,6 @@ class Multi_Transporter : public Transporter {
   }
 
  public:
-  Uint64 get_bytes_sent() const override {
-    Uint64 bytes_sent = m_bytes_sent;
-    for (Uint32 i = 0; i < m_num_active_transporters; i++) {
-      bytes_sent += m_active_transporters[i]->m_bytes_sent;
-    }
-    return bytes_sent;
-  }
-
-  Uint64 get_bytes_received() const override {
-    Uint64 bytes_received = m_bytes_received;
-    for (Uint32 i = 0; i < m_num_active_transporters; i++) {
-      bytes_received += m_active_transporters[i]->m_bytes_received;
-    }
-    return bytes_received;
-  }
-
   Transporter *get_send_transporter(Uint32 recBlock,
                                     Uint32 /*sendBlock*/) override {
     /**
