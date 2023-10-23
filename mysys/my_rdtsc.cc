@@ -173,7 +173,7 @@ ulonglong my_timer_cycles(void) {
 #elif defined(__GNUC__) && defined(__s390x__)
   {
     uint64_t result;
-    __asm __volatile__("stck %0" : "=Q"(result) : : "cc");
+    __asm __volatile__("stckf %0" : "=Q"(result) : : "cc");
     return result;
   }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
