@@ -1799,7 +1799,7 @@ enum LO_node_type {
 class LO_class {
  public:
   LO_class(const char *prefix, const char *category, const char *name);
-  virtual ~LO_class() {}
+  virtual ~LO_class() = default;
 
   virtual const char *get_qname() const { return m_class_name; }
 
@@ -1877,7 +1877,7 @@ class LO_node {
 
   LO_node_type get_node_type() const { return m_node_type; }
 
-  virtual ~LO_node() {}
+  virtual ~LO_node() = default;
 
   const char *get_qname() const { return m_qname; }
 
@@ -2002,7 +2002,7 @@ class LO_graph {
                   const LO_file_class *new_file);
 
   void check_cond(LO_thread *thread, const LO_lock *old_lock,
-                  const LO_cond_wait *new_cond);
+                  const LO_cond_wait *new_lock);
 
   void check_common(LO_thread *thread, const char *from_class_name,
                     const char *from_state_name, const LO_node *from_node,
@@ -2027,7 +2027,7 @@ class LO_graph {
   void scc_util(const SCC_visitor *v, int *discovery_time, int *scc_count,
                 LO_node *n, std::stack<LO_node *> *st);
   int compute_scc(const SCC_visitor *v);
-  void compute_scc_girth(int iter_scc, const SCC_visitor *v);
+  void compute_scc_girth(int number_of_scc, const SCC_visitor *v);
   void compute_node_girth(int iter_scc, const SCC_visitor *v, LO_node *start);
   void dump_scc(FILE *out, int number_of_scc, bool print_loop_flag);
   void dump_one_scc(FILE *out, int scc, int number_of_scc,
@@ -2120,7 +2120,7 @@ class LO_thread {
 
   static LO_thread_list g_threads;
 
-  LO_thread(const LO_thread_class *klass)
+  explicit LO_thread(const LO_thread_class *klass)
       : m_runaway(false),
         m_class(klass),
         m_statement_text(nullptr),
@@ -2195,18 +2195,18 @@ class LO_mutex_class : public LO_class {
   static void destroy_all();
 
   LO_mutex_class(const char *category, const char *name, int flags);
-  virtual ~LO_mutex_class() override;
+  ~LO_mutex_class() override;
 
-  virtual unsigned int get_unified_key() const override {
+  unsigned int get_unified_key() const override {
     return m_key + LO_MUTEX_RANGE;
   }
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_node *get_state_node_by_name(const char *name) const override;
+  LO_node *get_state_node_by_name(const char *name) const override;
 
-  virtual LO_node *get_operation_node_by_name(
-      bool recursive, const char *state, const char *operation) const override;
+  LO_node *get_operation_node_by_name(bool recursive, const char *state,
+                                      const char *operation) const override;
 
   LO_node *get_node() const { return m_node; }
 
@@ -2222,17 +2222,17 @@ class LO_mutex : public PSI_mutex {
   static PSI_mutex *to_psi(LO_mutex *lo) { return lo; }
 
   static LO_mutex *from_psi(PSI_mutex *psi) {
-    LO_mutex *lo = reinterpret_cast<LO_mutex *>(psi);
+    auto *lo = reinterpret_cast<LO_mutex *>(psi);
     assert(static_cast<void *>(lo) == static_cast<void *>(psi));
     return lo;
   }
 
-  LO_mutex(const LO_mutex_class *klass)
+  explicit LO_mutex(const LO_mutex_class *klass)
       : m_class(klass), m_lock(nullptr), m_chain(nullptr) {
     m_enabled = true;
   }
 
-  ~LO_mutex() {}
+  ~LO_mutex() = default;
 
   const LO_mutex_class *get_class() const { return m_class; }
 
@@ -2259,7 +2259,7 @@ class LO_mutex_locker {
 
   void end();
 
-  ~LO_mutex_locker() {}
+  ~LO_mutex_locker() = default;
 
   const char *get_src_file() const { return m_src_file; }
 
@@ -2279,13 +2279,13 @@ class LO_mutex_lock : public LO_lock {
  public:
   LO_mutex_lock(LO_mutex *mutex, const char *src_file, int src_line,
                 LO_thread *thread);
-  ~LO_mutex_lock() override {}
+  ~LO_mutex_lock() override = default;
 
-  virtual const char *get_class_name() const override;
+  const char *get_class_name() const override;
 
-  virtual LO_node *get_state_node() const override;
+  LO_node *get_state_node() const override;
 
-  virtual const char *get_state_name() const override;
+  const char *get_state_name() const override;
 
   LO_node *get_node() const;
 
@@ -2315,22 +2315,22 @@ class LO_rwlock_class : public LO_class {
   static bool get_state_by_name(const char *name, PSI_rwlock_operation *state);
   static bool get_operation_by_name(const char *name, PSI_rwlock_operation *op);
 
-  virtual ~LO_rwlock_class() override;
+  ~LO_rwlock_class() override;
 
-  virtual unsigned int get_unified_key() const override {
+  unsigned int get_unified_key() const override {
     return m_key + LO_RWLOCK_RANGE;
   }
 
-  virtual LO_node *get_state_node_by_name(const char *name) const override;
-  virtual LO_node *get_operation_node_by_name(
-      bool recursive, const char *state, const char *operation) const override;
+  LO_node *get_state_node_by_name(const char *name) const override;
+  LO_node *get_operation_node_by_name(bool recursive, const char *state,
+                                      const char *operation) const override;
   virtual LO_node *get_state_node(PSI_rwlock_operation state) const = 0;
   virtual LO_node *get_operation_node(bool recursive,
                                       PSI_rwlock_operation state,
                                       PSI_rwlock_operation op) const = 0;
   virtual const char *get_operation_name(PSI_rwlock_operation op) const = 0;
 
-  virtual void add_to_graph(LO_graph *g) const override = 0;
+  void add_to_graph(LO_graph *g) const override = 0;
 
   virtual LO_rwlock *build_instance() = 0;
 
@@ -2348,18 +2348,16 @@ class LO_rwlock_class_pr : public LO_rwlock_class {
   LO_rwlock_class_pr(const char *category, const char *name, int flags);
   ~LO_rwlock_class_pr() override;
 
-  virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
+  LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
-  virtual LO_node *get_operation_node(bool recursive,
-                                      PSI_rwlock_operation state,
-                                      PSI_rwlock_operation op) const override;
+  LO_node *get_operation_node(bool recursive, PSI_rwlock_operation state,
+                              PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(
-      PSI_rwlock_operation op) const override;
+  const char *get_operation_name(PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance() override;
+  LO_rwlock *build_instance() override;
 
  private:
   /** Node "+R". */
@@ -2377,18 +2375,16 @@ class LO_rwlock_class_rw : public LO_rwlock_class {
   LO_rwlock_class_rw(const char *category, const char *name, int flags);
   ~LO_rwlock_class_rw() override;
 
-  virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
+  LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
-  virtual LO_node *get_operation_node(bool recursive,
-                                      PSI_rwlock_operation state,
-                                      PSI_rwlock_operation op) const override;
+  LO_node *get_operation_node(bool recursive, PSI_rwlock_operation state,
+                              PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(
-      PSI_rwlock_operation op) const override;
+  const char *get_operation_name(PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance() override;
+  LO_rwlock *build_instance() override;
 
  private:
   /** Node "+R". */
@@ -2406,18 +2402,16 @@ class LO_rwlock_class_sx : public LO_rwlock_class {
   LO_rwlock_class_sx(const char *category, const char *name, int flags);
   ~LO_rwlock_class_sx() override;
 
-  virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
+  LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
-  virtual LO_node *get_operation_node(bool recursive,
-                                      PSI_rwlock_operation state,
-                                      PSI_rwlock_operation op) const override;
+  LO_node *get_operation_node(bool recursive, PSI_rwlock_operation state,
+                              PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(
-      PSI_rwlock_operation op) const override;
+  const char *get_operation_name(PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance() override;
+  LO_rwlock *build_instance() override;
 
  private:
   /** Node "+S". */
@@ -2452,16 +2446,17 @@ class LO_rwlock {
     if (psi == nullptr) {
       return nullptr;
     }
-    LO_rwlock_proxy *proxy = reinterpret_cast<LO_rwlock_proxy *>(psi);
+    auto *proxy = reinterpret_cast<LO_rwlock_proxy *>(psi);
     return proxy->m_impl;
   }
 
-  LO_rwlock(const LO_rwlock_class *klass) : m_class(klass), m_chain(nullptr) {
+  explicit LO_rwlock(const LO_rwlock_class *klass)
+      : m_class(klass), m_chain(nullptr) {
     m_proxy.m_enabled = true;
     m_proxy.m_impl = this;
   }
 
-  virtual ~LO_rwlock() {}
+  virtual ~LO_rwlock() = default;
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
                                      LO_thread *thread) = 0;
@@ -2482,29 +2477,29 @@ class LO_rwlock {
 
 class LO_rwlock_pr : public LO_rwlock {
  public:
-  LO_rwlock_pr(const LO_rwlock_class_pr *klass) : LO_rwlock(klass) {}
-  ~LO_rwlock_pr() override {}
+  explicit LO_rwlock_pr(const LO_rwlock_class_pr *klass) : LO_rwlock(klass) {}
+  ~LO_rwlock_pr() override = default;
 
-  virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread) override;
+  LO_rwlock_lock *build_lock(const char *src_file, int src_line,
+                             LO_thread *thread) override;
 };
 
 class LO_rwlock_rw : public LO_rwlock {
  public:
-  LO_rwlock_rw(const LO_rwlock_class_rw *klass) : LO_rwlock(klass) {}
-  ~LO_rwlock_rw() override {}
+  explicit LO_rwlock_rw(const LO_rwlock_class_rw *klass) : LO_rwlock(klass) {}
+  ~LO_rwlock_rw() override = default;
 
-  virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread) override;
+  LO_rwlock_lock *build_lock(const char *src_file, int src_line,
+                             LO_thread *thread) override;
 };
 
 class LO_rwlock_sx : public LO_rwlock {
  public:
-  LO_rwlock_sx(const LO_rwlock_class_sx *klass) : LO_rwlock(klass) {}
-  ~LO_rwlock_sx() override {}
+  explicit LO_rwlock_sx(const LO_rwlock_class_sx *klass) : LO_rwlock(klass) {}
+  ~LO_rwlock_sx() override = default;
 
-  virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread) override;
+  LO_rwlock_lock *build_lock(const char *src_file, int src_line,
+                             LO_thread *thread) override;
 };
 
 class LO_rwlock_locker {
@@ -2516,7 +2511,7 @@ class LO_rwlock_locker {
 
   void end();
 
-  ~LO_rwlock_locker() {}
+  ~LO_rwlock_locker() = default;
 
   const char *get_src_file() const { return m_src_file; }
 
@@ -2537,11 +2532,11 @@ class LO_rwlock_lock : public LO_lock {
  public:
   LO_rwlock_lock(LO_rwlock *rwlock, const char *src_file, int src_line,
                  LO_thread *thread);
-  virtual ~LO_rwlock_lock() override {}
+  ~LO_rwlock_lock() override = default;
 
-  virtual const char *get_class_name() const override;
+  const char *get_class_name() const override;
 
-  virtual LO_node *get_state_node() const override;
+  LO_node *get_state_node() const override;
 
   LO_node *get_operation_node(bool recursive, PSI_rwlock_operation op) const;
 
@@ -2570,19 +2565,19 @@ class LO_rwlock_lock_pr : public LO_rwlock_lock {
  public:
   LO_rwlock_lock_pr(LO_rwlock *rwlock, const char *src_file, int src_line,
                     LO_thread *thread);
-  ~LO_rwlock_lock_pr() override {}
+  ~LO_rwlock_lock_pr() override = default;
 
-  virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void set_locked(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void merge_lock(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op) override;
+  bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const override;
+  PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const override;
+  const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2597,19 +2592,19 @@ class LO_rwlock_lock_rw : public LO_rwlock_lock {
  public:
   LO_rwlock_lock_rw(LO_rwlock *rwlock, const char *src_file, int src_line,
                     LO_thread *thread);
-  ~LO_rwlock_lock_rw() override {}
+  ~LO_rwlock_lock_rw() override = default;
 
-  virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void set_locked(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void merge_lock(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op) override;
+  bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const override;
+  PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const override;
+  const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2624,19 +2619,19 @@ class LO_rwlock_lock_sx : public LO_rwlock_lock {
  public:
   LO_rwlock_lock_sx(LO_rwlock *rwlock, const char *src_file, int src_line,
                     LO_thread *thread);
-  ~LO_rwlock_lock_sx() override {}
+  ~LO_rwlock_lock_sx() override = default;
 
-  virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void set_locked(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line) override;
+  void merge_lock(PSI_rwlock_operation op, const char *src_file,
+                  int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op) override;
+  bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const override;
+  PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const override;
+  const char *get_state_name() const override;
 
  private:
   int m_s_count;
@@ -2658,20 +2653,20 @@ class LO_cond_class : public LO_class {
   static void destroy_all();
 
   LO_cond_class(const char *category, const char *name, int flags);
-  virtual ~LO_cond_class() override;
+  ~LO_cond_class() override;
 
-  virtual unsigned int get_unified_key() const override {
+  unsigned int get_unified_key() const override {
     return m_key + LO_COND_RANGE;
   }
 
   LO_node *get_node() const { return m_node; }
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_node *get_state_node_by_name(const char *name) const override;
+  LO_node *get_state_node_by_name(const char *state) const override;
 
-  virtual LO_node *get_operation_node_by_name(
-      bool recursive, const char *state, const char *operation) const override;
+  LO_node *get_operation_node_by_name(bool recursive, const char *state,
+                                      const char *operation) const override;
 
   const LO_mutex_class *get_mutex_class() const { return m_mutex_class; }
 
@@ -2698,9 +2693,9 @@ class LO_cond : public PSI_cond {
     return reinterpret_cast<LO_cond *>(psi);
   }
 
-  LO_cond(const LO_cond_class *klass);
+  explicit LO_cond(const LO_cond_class *klass);
 
-  ~LO_cond() {}
+  ~LO_cond() = default;
 
   const LO_cond_class *get_class() const { return m_class; }
 
@@ -2722,7 +2717,7 @@ class LO_cond_locker {
 
   LO_mutex *get_mutex() { return m_mutex; }
 
-  ~LO_cond_locker() {}
+  ~LO_cond_locker() = default;
 
   const LO_cond *get_cond() const { return m_cond; }
 
@@ -2746,11 +2741,11 @@ class LO_cond_wait : public LO_lock {
   LO_cond_wait(LO_mutex *mutex, LO_cond *cond, const char *src_file,
                int src_line, LO_thread *thread);
 
-  virtual const char *get_class_name() const override;
+  const char *get_class_name() const override;
 
-  virtual LO_node *get_state_node() const override;
+  LO_node *get_state_node() const override;
 
-  virtual const char *get_state_name() const override;
+  const char *get_state_name() const override;
 
   virtual LO_node *get_node() const;
 
@@ -2760,7 +2755,7 @@ class LO_cond_wait : public LO_lock {
 
   virtual void dump(FILE *out) const;
 
-  ~LO_cond_wait() override {}
+  ~LO_cond_wait() override = default;
 
  private:
   LO_mutex *m_mutex;
@@ -2776,20 +2771,20 @@ class LO_file_class : public LO_class {
   static void destroy_all();
 
   LO_file_class(const char *category, const char *name, int flags);
-  virtual ~LO_file_class() override;
+  ~LO_file_class() override;
 
-  virtual unsigned int get_unified_key() const override {
+  unsigned int get_unified_key() const override {
     return m_key + LO_FILE_RANGE;
   }
 
   LO_node *get_node() const { return m_node; }
 
-  virtual void add_to_graph(LO_graph *g) const override;
+  void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_node *get_state_node_by_name(const char *name) const override;
+  LO_node *get_state_node_by_name(const char *state) const override;
 
-  virtual LO_node *get_operation_node_by_name(
-      bool recursive, const char *state, const char *operation) const override;
+  LO_node *get_operation_node_by_name(bool recursive, const char *state,
+                                      const char *operation) const override;
 
  private:
   static unsigned int m_counter;
@@ -2800,7 +2795,7 @@ class LO_file_class : public LO_class {
 
 class LO_file {
  public:
-  LO_file(const LO_file_class *klass)
+  explicit LO_file(const LO_file_class *klass)
       : m_class(klass), m_chain(nullptr), m_bound(false) {}
 
   ~LO_file() { assert(!m_bound); }
@@ -2817,8 +2812,8 @@ class LO_file {
 
 class LO_file_locker {
  public:
-  LO_file_locker() {}
-  ~LO_file_locker() {}
+  LO_file_locker() = default;
+  ~LO_file_locker() = default;
 
   LO_thread *m_thread;
   const LO_file_class *m_class;
@@ -2831,8 +2826,8 @@ class LO_file_locker {
 
 class SCC_visitor {
  public:
-  SCC_visitor() {}
-  virtual ~SCC_visitor() {}
+  SCC_visitor() = default;
+  virtual ~SCC_visitor() = default;
 
   virtual bool accept_node(LO_node *) const = 0;
   virtual bool accept_arc(LO_arc *) const = 0;
@@ -2840,27 +2835,27 @@ class SCC_visitor {
 
 class SCC_all : public SCC_visitor {
  public:
-  SCC_all() {}
-  virtual ~SCC_all() override {}
+  SCC_all() = default;
+  ~SCC_all() override = default;
 
-  virtual bool accept_node(LO_node *) const override { return true; }
-  virtual bool accept_arc(LO_arc *) const override { return true; }
+  bool accept_node(LO_node *) const override { return true; }
+  bool accept_arc(LO_arc *) const override { return true; }
 };
 
 class SCC_filter : public SCC_visitor {
  public:
-  SCC_filter() {}
-  virtual ~SCC_filter() override {}
+  SCC_filter() = default;
+  ~SCC_filter() override = default;
 
-  virtual bool accept_node(LO_node *node) const override;
-  virtual bool accept_arc(LO_arc *arc) const override;
+  bool accept_node(LO_node *node) const override;
+  bool accept_arc(LO_arc *arc) const override;
 };
 
 class LO_stack_trace {
  public:
   LO_stack_trace();
 
-  ~LO_stack_trace() {}
+  ~LO_stack_trace() = default;
 
   void print(FILE *out) const;
 
@@ -3056,7 +3051,7 @@ LO_graph::~LO_graph() {
 
 void LO_graph::check_mutex(LO_thread *thread, const LO_lock *old_lock,
                            const LO_mutex_lock *new_lock) {
-  const bool recursive = (old_lock == new_lock) ? true : false;
+  const bool recursive = (old_lock == new_lock);
   assert(!recursive);
   const char *from_class_name = old_lock->get_class_name();
   const char *from_class_state = old_lock->get_state_name();
@@ -3071,7 +3066,7 @@ void LO_graph::check_mutex(LO_thread *thread, const LO_lock *old_lock,
 void LO_graph::check_rwlock(LO_thread *thread, const LO_lock *old_lock,
                             const LO_rwlock_lock *new_lock,
                             PSI_rwlock_operation op) {
-  const bool recursive = (old_lock == new_lock) ? true : false;
+  const bool recursive = (old_lock == new_lock);
   const char *from_class_name = old_lock->get_class_name();
   const char *from_class_state = old_lock->get_state_name();
   const LO_node *from_node = old_lock->get_state_node();
@@ -3758,7 +3753,7 @@ void LO_graph::scc_util(const SCC_visitor *v, int *discovery_time,
           n->m_scc.m_low_index =
               std::min(n->m_scc.m_low_index, n2->m_scc.m_low_index);
         } else {
-          if (n2->m_scc.m_on_stack == true) {
+          if (n2->m_scc.m_on_stack) {
             n->m_scc.m_low_index =
                 std::min(n->m_scc.m_low_index, n2->m_scc.m_index);
           }
@@ -4006,11 +4001,7 @@ LO_lock::LO_lock(const char *src_file, int src_line, size_t event_id)
       m_locking_statement_text_length(0),
       m_locking_pthread(my_thread_self()) {}
 
-LO_lock::~LO_lock() {
-  if (m_locking_statement_text != nullptr) {
-    delete[] m_locking_statement_text;
-  }
-}
+LO_lock::~LO_lock() { delete[] m_locking_statement_text; }
 
 void LO_lock::record_stack_trace() { m_stack = new LO_stack_trace(); }
 
@@ -5477,7 +5468,7 @@ bool LO_rwlock_lock_pr::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
-    return (m_read_count == 0 ? true : false);
+    return (m_read_count == 0);
   }
   if (m_write_count > 0) {
     m_write_count--;
@@ -5566,7 +5557,7 @@ bool LO_rwlock_lock_rw::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
-    return (m_read_count == 0 ? true : false);
+    return (m_read_count == 0);
   }
   if (m_write_count > 0) {
     m_write_count--;
@@ -5643,23 +5634,17 @@ bool LO_rwlock_lock_sx::set_unlocked(PSI_rwlock_operation op) {
   if (op == PSI_RWLOCK_SHAREDUNLOCK) {
     assert(m_s_count > 0);
     m_s_count--;
-    return (((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0))
-                ? true
-                : false);
+    return ((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0));
   }
   if (op == PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK) {
     assert(m_sx_count > 0);
     m_sx_count--;
-    return (((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0))
-                ? true
-                : false);
+    return ((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0));
   }
   if (op == PSI_RWLOCK_EXCLUSIVEUNLOCK) {
     assert(m_x_count > 0);
     m_x_count--;
-    return (((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0))
-                ? true
-                : false);
+    return ((m_s_count == 0) && (m_sx_count == 0) && (m_x_count == 0));
   }
   assert(false);
   return false;
@@ -6050,7 +6035,7 @@ static void destroy_string(char *src) {
 }
 
 static LO_authorised_arc *deep_copy_arc(const LO_authorised_arc *src) {
-  LO_authorised_arc *dst = new LO_authorised_arc;
+  auto *dst = new LO_authorised_arc;
   dst->m_from_name = deep_copy_string(src->m_from_name);
   dst->m_from_state = deep_copy_string(src->m_from_state);
   dst->m_to_name = deep_copy_string(src->m_to_name);
@@ -6416,7 +6401,7 @@ static void lo_create_file(PSI_file_key key, const char *name, File file) {
 
   const int index = (int)file;
   if (index >= 0) {
-    LO_file *lo_file = new LO_file(klass);
+    auto *lo_file = new LO_file(klass);
     lo_file_bindings_insert(index, lo_file);
   }
 
@@ -6433,7 +6418,7 @@ class LO_spawn_thread_arg {
 };
 
 void *lo_spawn_thread_fct(void *arg) {
-  LO_spawn_thread_arg *typed_arg = (LO_spawn_thread_arg *)arg;
+  auto *typed_arg = (LO_spawn_thread_arg *)arg;
   void *user_arg;
   void *(*user_start_routine)(void *);
 
@@ -6612,7 +6597,7 @@ static void lo_set_thread_os_id(PSI_thread *thread) {
   }
 }
 
-static PSI_thread *lo_get_thread(void) {
+static PSI_thread *lo_get_thread() {
   LO_thread *lo = get_THR_LO();
   return LO_thread::to_psi(lo);
 }
@@ -6704,7 +6689,6 @@ static void lo_set_thread_peer_port(PSI_thread *thread, uint port) {
       g_thread_chain->set_thread_peer_port(lo->m_chain, port);
     }
   }
-  return;
 }
 
 static void lo_set_thread(PSI_thread *thread) {
@@ -6732,7 +6716,7 @@ static void lo_aggregate_thread_status(PSI_thread *thread) {
   }
 }
 
-static void lo_delete_current_thread(void) {
+static void lo_delete_current_thread() {
   native_mutex_lock(&serialize);
 
   LO_thread *thread = get_THR_LO();
@@ -6788,7 +6772,7 @@ static PSI_file_locker *lo_get_thread_file_name_locker(
   }
   LO_thread *lo_thread = get_THR_LO();
 
-  LO_file_locker *lo_state = new LO_file_locker();
+  auto *lo_state = new LO_file_locker();
 
   lo_state->m_thread = lo_thread; /* may be null */
   lo_state->m_class = klass;
@@ -6810,11 +6794,11 @@ static PSI_file_locker *lo_get_thread_file_name_locker(
 
 static PSI_file_locker *lo_get_thread_file_stream_locker(
     PSI_file_locker_state *state, PSI_file *file, PSI_file_operation op) {
-  LO_file *lo_file = reinterpret_cast<LO_file *>(file);
+  auto *lo_file = reinterpret_cast<LO_file *>(file);
   PSI_file *lo_file_chain = nullptr;
   LO_thread *lo_thread = get_THR_LO();
 
-  LO_file_locker *lo_state = new LO_file_locker();
+  auto *lo_state = new LO_file_locker();
 
   lo_state->m_thread = lo_thread; /* may be null */
   if (lo_file != nullptr) {
@@ -6866,7 +6850,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
     }
   }
 
-  LO_file_locker *lo_state = new LO_file_locker();
+  auto *lo_state = new LO_file_locker();
 
   lo_state->m_thread = lo_thread; /* may be null */
   if (lo_file != nullptr) {
@@ -7010,7 +6994,7 @@ static PSI_mutex_locker *lo_start_mutex_wait(PSI_mutex_locker_state *state,
 
 /* Not static, printed in stack traces. */
 void lo_end_mutex_wait(PSI_mutex_locker *locker, int rc) {
-  LO_mutex_locker *lo_locker = reinterpret_cast<LO_mutex_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_mutex_locker *>(locker);
   assert(lo_locker != nullptr);
 
   native_mutex_lock(&serialize);
@@ -7056,7 +7040,7 @@ static PSI_rwlock_locker *lo_start_rwlock_rdwait(PSI_rwlock_locker_state *state,
 }
 
 static void lo_end_rwlock_rdwait(PSI_rwlock_locker *locker, int rc) {
-  LO_rwlock_locker *lo_locker = reinterpret_cast<LO_rwlock_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_rwlock_locker *>(locker);
   assert(lo_locker != nullptr);
 
   native_mutex_lock(&serialize);
@@ -7100,7 +7084,7 @@ static PSI_rwlock_locker *lo_start_rwlock_wrwait(PSI_rwlock_locker_state *state,
 }
 
 static void lo_end_rwlock_wrwait(PSI_rwlock_locker *locker, int rc) {
-  LO_rwlock_locker *lo_locker = reinterpret_cast<LO_rwlock_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_rwlock_locker *>(locker);
   assert(lo_locker != nullptr);
 
   native_mutex_lock(&serialize);
@@ -7151,7 +7135,7 @@ static PSI_cond_locker *lo_start_cond_wait(PSI_cond_locker_state *state,
 }
 
 static void lo_end_cond_wait(PSI_cond_locker *locker, int rc) {
-  LO_cond_locker *lo_locker = reinterpret_cast<LO_cond_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_cond_locker *>(locker);
   assert(lo_locker != nullptr);
 
   native_mutex_lock(&serialize);
@@ -7454,7 +7438,7 @@ void lo_statement_abort_telemetry(struct PSI_statement_locker *locker) {
 
 static void lo_start_file_open_wait(PSI_file_locker *locker,
                                     const char *src_file, uint src_line) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7464,7 +7448,7 @@ static void lo_start_file_open_wait(PSI_file_locker *locker,
 }
 
 static PSI_file *lo_end_file_open_wait(PSI_file_locker *locker, void *result) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
   PSI_file_locker_state *chain_state = lo_locker->m_chain_state;
@@ -7505,13 +7489,13 @@ static PSI_file *lo_end_file_open_wait(PSI_file_locker *locker, void *result) {
 
 static void lo_end_file_open_wait_and_bind_to_descriptor(
     PSI_file_locker *locker, File file) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
   const int index = (int)file;
   if (index >= 0) {
-    LO_file *lo_file = new LO_file(lo_locker->m_class);
+    auto *lo_file = new LO_file(lo_locker->m_class);
     lo_file_bindings_insert(index, lo_file);
   }
 
@@ -7524,13 +7508,13 @@ static void lo_end_file_open_wait_and_bind_to_descriptor(
 
 static void lo_end_temp_file_open_wait_and_bind_to_descriptor(
     PSI_file_locker *locker, File file, const char *filename) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
   const int index = (int)file;
   if (index >= 0) {
-    LO_file *lo_file = new LO_file(lo_locker->m_class);
+    auto *lo_file = new LO_file(lo_locker->m_class);
     lo_file_bindings_insert(index, lo_file);
   }
 
@@ -7544,7 +7528,7 @@ static void lo_end_temp_file_open_wait_and_bind_to_descriptor(
 
 static void lo_start_file_wait(PSI_file_locker *locker, size_t count,
                                const char *src_file, uint src_line) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7554,7 +7538,7 @@ static void lo_start_file_wait(PSI_file_locker *locker, size_t count,
 }
 
 static void lo_end_file_wait(PSI_file_locker *locker, size_t count) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7567,7 +7551,7 @@ static void lo_end_file_wait(PSI_file_locker *locker, size_t count) {
 
 static void lo_start_file_close_wait(PSI_file_locker *locker,
                                      const char *src_file, uint src_line) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7577,7 +7561,7 @@ static void lo_start_file_close_wait(PSI_file_locker *locker,
 }
 
 static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7586,9 +7570,7 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
   }
 
   if (rc == 0) {
-    if (lo_locker->m_file != nullptr) {
-      delete lo_locker->m_file;
-    }
+    delete lo_locker->m_file;
   }
 
   delete lo_locker;
@@ -7599,7 +7581,7 @@ static void lo_start_file_rename_wait(PSI_file_locker *locker,
                                       const char *old_name,
                                       const char *new_name,
                                       const char *src_file, uint src_line) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7612,7 +7594,7 @@ static void lo_start_file_rename_wait(PSI_file_locker *locker,
 static void lo_end_file_rename_wait(PSI_file_locker *locker,
                                     const char *old_name, const char *new_name,
                                     int rc) {
-  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
   assert(lo_locker != nullptr);
   PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
 
@@ -7663,7 +7645,7 @@ static void lo_get_current_thread_event_id(ulonglong *thread_internal_id,
 static void lo_get_thread_event_id(PSI_thread *psi,
                                    ulonglong *thread_internal_id,
                                    ulonglong *event_id) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(psi);
+  auto *lo = reinterpret_cast<LO_thread *>(psi);
 
   if ((g_thread_chain != nullptr) && (lo != nullptr)) {
     g_thread_chain->get_thread_event_id(lo->m_chain, thread_internal_id,
@@ -7687,7 +7669,7 @@ static int lo_get_thread_system_attrs(PSI_thread_attrs *thread_attrs) {
 static int lo_get_thread_system_attrs_by_id(PSI_thread *thread,
                                             ulonglong thread_id,
                                             PSI_thread_attrs *thread_attrs) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
   int rc = 0;
 
   if (lo != nullptr) {
@@ -7722,7 +7704,7 @@ static int lo_unregister_notification(int handle) {
 }
 
 static void lo_notify_session_connect(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -7732,7 +7714,7 @@ static void lo_notify_session_connect(PSI_thread *thread) {
 }
 
 static void lo_notify_session_disconnect(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -7742,7 +7724,7 @@ static void lo_notify_session_disconnect(PSI_thread *thread) {
 }
 
 static void lo_notify_session_change_user(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -7761,7 +7743,7 @@ static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
 }
 
 static void lo_detect_telemetry(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -7771,7 +7753,7 @@ static void lo_detect_telemetry(PSI_thread *thread) {
 }
 
 static void lo_abort_telemetry(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  auto *lo = reinterpret_cast<LO_thread *>(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -8168,7 +8150,7 @@ void LO_add_node_properties(LO_graph *g, const LO_node_properties *prop) {
     Internally, treat as a special "*" -> "TO" arc,
     so it gets into the unresolved queue.
   */
-  LO_authorised_arc *prop_arc = new LO_authorised_arc();
+  auto *prop_arc = new LO_authorised_arc();
   prop_arc->m_from_name = deep_copy_string("*");
   prop_arc->m_from_state = nullptr;
   prop_arc->m_to_name = deep_copy_string(prop->m_name);
@@ -8235,7 +8217,7 @@ void LO_cleanup() {
 PSI_thread *LO_get_chain_thread(PSI_thread *thread) {
   PSI_thread *chain;
   if (lo_param.m_enabled) {
-    LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+    auto *lo = reinterpret_cast<LO_thread *>(thread);
     if (lo == nullptr) {
       return nullptr;
     }
