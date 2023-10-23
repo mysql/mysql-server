@@ -45,8 +45,7 @@ enum SendStatus {
 
 enum TransporterType {
   tt_TCP_TRANSPORTER = 1,
-  tt_SHM_TRANSPORTER = 3,
-  tt_Multi_TRANSPORTER = 4
+  tt_SHM_TRANSPORTER = 3
 };
 
 enum SB_LevelType {
