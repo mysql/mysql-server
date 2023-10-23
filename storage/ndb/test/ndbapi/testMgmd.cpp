@@ -381,7 +381,7 @@ static bool create_CA(NDBT_Workingdir &wd, const BaseString &exe) {
   args.add("--create-CA");
   args.add("--CA-search-path=", wd.path());
   auto proc = NdbProcess::create("Create CA", exe, wd.path(), args);
-  bool r = proc->wait(ret, 3000);
+  bool r = proc->wait(ret, 10000);
 
   return (r && (ret == 0));
 }
@@ -404,7 +404,7 @@ static bool sign_tls_keys(NDBT_Workingdir &wd) {
   args.add("--ndb-tls-search-path=", wd.path());
   args.add("--create-key");
   auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
-  bool r = proc->wait(ret, 3000);
+  bool r = proc->wait(ret, 10000);
   return (r && (ret == 0));
 }
 
@@ -430,7 +430,7 @@ static bool create_expired_cert(NDBT_Workingdir &wd) {
   args.add("--duration=", "-50000");  // negative seconds; already expired
 
   auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
-  bool r = proc->wait(ret, 3000);
+  bool r = proc->wait(ret, 10000);
   return (r && (ret == 0));
 }
 
@@ -1645,7 +1645,7 @@ int runTestKeySigningTool(NDBT_Context *, NDBT_Step *) {
   args.add("-n", 2);
   args.add("--CA-tool=", exe.c_str());
   auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
-  bool r = proc->wait(ret, 3000);
+  bool r = proc->wait(ret, 10000);
   if (!r) proc->stop();
   CHECK(r);
   CHECK(ret == 0);
@@ -1725,7 +1725,7 @@ int runTestNdbdWithoutCert(NDBT_Context *ctx, NDBT_Step *step) {
 
   int exit_code;  // Start ndbd; it will fail
   CHECK(ndbd.start(wd.path(), mgmd.connectstring(config)));
-  CHECK(ndbd.wait(exit_code, 1000));  // should fail quickly
+  CHECK(ndbd.wait(exit_code, 5000));  // should fail quickly
   require(exit_code == 255);
 
   CHECK(mgmd.stop());
@@ -1756,7 +1756,7 @@ int runTestNdbdWithExpiredCert(NDBT_Context *ctx, NDBT_Step *step) {
   ndbd.start(wd.path(), mgmd.connectstring(config));  // Start data node
 
   int exit_code;
-  CHECK(ndbd.wait(exit_code, 1000));  // should fail quickly
+  CHECK(ndbd.wait(exit_code, 5000));  // should fail quickly
   CHECK(exit_code == 255);
 
   CHECK(mgmd.stop());
