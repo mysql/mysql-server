@@ -538,7 +538,6 @@ class TransporterRegistry {
   NodeId localNodeId;
   unsigned maxTransporters;
   Uint32 nTransporters;
-  Uint32 nMultiTransporters;
   Uint32 nTCPTransporters;
   Uint32 nSHMTransporters;
 
@@ -556,17 +555,21 @@ class TransporterRegistry {
    * Arrays holding all transporters in the order they are created
    */
   Transporter **allTransporters;
-  Multi_Transporter **theMultiTransporters;
   TCP_Transporter **theTCPTransporters;
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   SHM_Transporter **theSHMTransporters;
 #endif
 
   /**
-   * Array, indexed by nodeId, holding all transporters
+   * Array, indexed by nodeId, holding all base transporters
    */
   TransporterType *theTransporterTypes;
   Transporter **theNodeIdTransporters;
+
+  /**
+   * Array, indexed by nodeId for those having a MultiTransporter
+   */
+  Multi_Transporter **theNodeIdMultiTransporters;
 
   /**
    * State arrays, index by Transporter id (TrpId)
