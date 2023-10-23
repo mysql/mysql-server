@@ -88,9 +88,9 @@ class Transporter {
     m_multi_transporter_instance = val;
   }
 
-  virtual Uint64 get_bytes_sent() const { return m_bytes_sent; }
+  Uint64 get_bytes_sent() const { return m_bytes_sent; }
 
-  virtual Uint64 get_bytes_received() const { return m_bytes_received; }
+  Uint64 get_bytes_received() const { return m_bytes_received; }
 
   /**
    * In most cases we use only one transporter per node connection.
