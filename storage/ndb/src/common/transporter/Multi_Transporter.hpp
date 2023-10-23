@@ -72,18 +72,20 @@ class Multi_Transporter : public Transporter {
     return m_active_transporters[index];
   }
 
-  bool isMultiTransporter() override { return true; }
+  Uint32 get_num_active_transporters() const {
+    return m_num_active_transporters;
+  }
 
-  Uint32 get_num_active_transporters() { return m_num_active_transporters; }
+  Uint32 get_num_inactive_transporters() const {
+    return m_num_inactive_transporters;
+  }
 
-  Uint32 get_num_inactive_transporters() { return m_num_inactive_transporters; }
-
-  Transporter *get_active_transporter(Uint32 index) {
+  Transporter *get_active_transporter(Uint32 index) const {
     require(index < m_num_active_transporters);
     return m_active_transporters[index];
   }
 
-  Transporter *get_inactive_transporter(Uint32 index) {
+  Transporter *get_inactive_transporter(Uint32 index) const {
     require(index < m_num_inactive_transporters);
     return m_inactive_transporters[index];
   }

@@ -757,7 +757,6 @@ bool TransporterRegistry::configureTransporter(
   Transporter *t = theNodeIdTransporters[remoteNodeId];
   if (t != nullptr) {
     // Transporter already exist, try to reconfigure it
-    require(!t->isMultiTransporter());
     require(!t->isPartOfMultiTransporter());
     return t->configure(config);
   }
@@ -782,7 +781,6 @@ bool TransporterRegistry::createMultiTransporter(NodeId node_id,
   Multi_Transporter *multi_trp = nullptr;
   lockMultiTransporters();
   Transporter *base_trp = theNodeIdTransporters[node_id];
-  require(!base_trp->isMultiTransporter());
   require(!base_trp->isPartOfMultiTransporter());
   multi_trp = new Multi_Transporter(*this, base_trp);
   theMultiTransporters[nMultiTransporters] = multi_trp;
@@ -1026,7 +1024,6 @@ Transporter *TransporterRegistry::prepareSend_getTransporter(
   Transporter *t;
   t = node_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
                                      signalHeader->theSendersBlockRef);
-  assert(!t->isMultiTransporter());
   trp_id = t->getTransporterIndex();
   if (unlikely(trp_id == 0)) {
     /**
@@ -1097,7 +1094,8 @@ SendStatus TransporterRegistry::prepareSendOverAllLinks(
   require(signalHeader->m_noOfSections == 0);
   const Packer::LinearSectionArg section(nullptr);
 
-  if (!node_trp->isMultiTransporter()) {
+  Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+  if (multi_trp == nullptr) {
     Transporter *t = node_trp;
     // t handling copied from second part of prepareSend_getTransporter
     TrpId trp_id = t->getTransporterIndex();
@@ -1120,8 +1118,6 @@ SendStatus TransporterRegistry::prepareSendOverAllLinks(
     }
     return status;
   } else {
-    Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
-
     SendStatus return_status = SEND_OK;
     Uint32 num_trps = multi_trp->get_num_active_transporters();
     for (Uint32 i = 0; i < num_trps; i++) {
@@ -2072,7 +2068,6 @@ void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
   DBUG_PRINT("info", ("performStates[trp:%u]=CONNECTING", trp_id));
 
   Transporter *t = allTransporters[trp_id];
-  require(!t->isMultiTransporter());
   t->resetBuffers();
   m_error_states[trp_id].m_code = TE_NO_ERROR;
   m_error_states[trp_id].m_info = (const char *)~(UintPtr)0;
@@ -2187,7 +2182,6 @@ bool TransporterRegistry::start_disconnecting(NodeId node_id, int errnum,
 void TransporterRegistry::report_connect(TransporterReceiveHandle &recvdata,
                                          TrpId trp_id) {
   Transporter *t = allTransporters[trp_id];
-  assert(!t->isMultiTransporter());
   DEBUG_FPRINTF((stderr, "(%u)REG:report_connect(node:%u,trp:%u)\n",
                  localNodeId, t->getRemoteNodeId(), trp_id));
   assert((receiveHandle == &recvdata) || (receiveHandle == nullptr));
@@ -2300,10 +2294,8 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
                  localNodeId, trp_id));
 
   bool ready_to_disconnect = true;
-  Transporter *node_trp = theNodeIdTransporters[node_id];
-  if (node_trp->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(node_trp);
-
+  Multi_Transporter *multi_trp = get_node_multi_transporter(node_id);
+  if (multi_trp != nullptr) {
     // Check if all active transporters are DISCONNECTED
     const int num_active = multi_trp->get_num_active_transporters();
     for (int i = 0; i < num_active; i++) {
@@ -3111,7 +3103,7 @@ Transporter *TransporterRegistry::get_node_transporter(NodeId nodeId) const {
 }
 
 Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
-    NodeId nodeId) {
+    NodeId nodeId) const {
   return dynamic_cast<Multi_Transporter *>(get_node_transporter(nodeId));
 }
 
@@ -3123,10 +3115,8 @@ Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
  */
 Transporter *TransporterRegistry::get_node_base_transporter(
     NodeId nodeId) const {
-  assert(nodeId <= MAX_NODES);
-  Transporter *t = theNodeIdTransporters[nodeId];
-  if (t != nullptr && t->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(t);
+  const Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+  if (multi_trp != nullptr) {
     if (multi_trp->get_num_active_transporters() == 1) {
       // An 'unswitched' multi transporter
       return multi_trp->get_active_transporter(0);
@@ -3134,6 +3124,7 @@ Transporter *TransporterRegistry::get_node_base_transporter(
       return multi_trp->get_inactive_transporter(0);
     }
   }
+  Transporter *t = theNodeIdTransporters[nodeId];
   assert(t == nullptr || !t->isPartOfMultiTransporter());
   return t;
 }
@@ -3150,10 +3141,8 @@ Transporter *TransporterRegistry::get_node_transporter_instance(
     NodeId nodeId, int instance) const {
   if (instance <= 0) return get_node_base_transporter(nodeId);
 
-  assert(nodeId <= MAX_NODES);
-  Transporter *t = theNodeIdTransporters[nodeId];
-  if (t != nullptr && t->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = static_cast<Multi_Transporter *>(t);
+  const Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+  if (multi_trp != nullptr) {
     if (multi_trp->get_num_active_transporters() == 1) {
       // An 'unswitched' multi transporter
       if ((instance - 1) < (int)multi_trp->get_num_inactive_transporters())
@@ -3398,30 +3387,30 @@ void TransporterRegistry::get_trps_for_node(NodeId nodeId, TrpId *trp_ids,
   Transporter *t = theNodeIdTransporters[nodeId];
   if (!t) {
     num_ids = 0;
-  } else if (t->isMultiTransporter()) {
-    Multi_Transporter *multi_trp = (Multi_Transporter *)t;
-    num_ids = multi_trp->get_num_active_transporters();
-    num_ids = MIN(num_ids, max_size);
-    for (Uint32 i = 0; i < num_ids; i++) {
-      Transporter *tmp_trp = multi_trp->get_active_transporter(i);
-      trp_ids[i] = tmp_trp->getTransporterIndex();
-      require(trp_ids[i] != 0);
-    }
   } else {
-    num_ids = 1;
-    trp_ids[0] = t->getTransporterIndex();
-    require(trp_ids[0] != 0);
+    Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+    if (multi_trp != nullptr) {
+      num_ids = multi_trp->get_num_active_transporters();
+      num_ids = MIN(num_ids, max_size);
+      for (Uint32 i = 0; i < num_ids; i++) {
+        Transporter *tmp_trp = multi_trp->get_active_transporter(i);
+        trp_ids[i] = tmp_trp->getTransporterIndex();
+        require(trp_ids[i] != 0);
+      }
+    } else {
+      num_ids = 1;
+      trp_ids[0] = t->getTransporterIndex();
+      require(trp_ids[0] != 0);
+    }
   }
   require(max_size >= 1);
 }
 
 void TransporterRegistry::switch_active_trp(Multi_Transporter *t) {
-  require(t->isMultiTransporter());
   t->switch_active_trp();
 }
 
 Uint32 TransporterRegistry::get_num_active_transporters(Multi_Transporter *t) {
-  require(t->isMultiTransporter());
   return t->get_num_active_transporters();
 }
 
