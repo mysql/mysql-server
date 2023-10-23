@@ -283,6 +283,13 @@ class Transporter {
     m_transporter_registry.report_error(m_transporter_index, err, info);
   }
 
+  void lock_send_transporter() {
+    get_callback_obj()->lock_send_transporter(m_transporter_index);
+  }
+  void unlock_send_transporter() {
+    get_callback_obj()->unlock_send_transporter(m_transporter_index);
+  }
+
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 
