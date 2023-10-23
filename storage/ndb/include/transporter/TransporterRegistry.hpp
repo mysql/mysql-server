@@ -523,7 +523,7 @@ class TransporterRegistry {
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
 
-  Multi_Transporter *get_node_multi_transporter(NodeId node_id);
+  Multi_Transporter *get_node_multi_transporter(NodeId node_id) const;
 
  private:
   TransporterCallback *const callbackObj;

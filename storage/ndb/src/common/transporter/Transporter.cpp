@@ -224,7 +224,6 @@ bool Transporter::connect_client() {
   NdbSocket secureSocket;
   DBUG_ENTER("Transporter::connect_client");
 
-  require(!isMultiTransporter());
   if (m_connected) {
     DBUG_RETURN(true);
   }

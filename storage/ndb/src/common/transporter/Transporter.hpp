@@ -83,7 +83,6 @@ class Transporter {
   Uint32 get_multi_transporter_instance() {
     return m_multi_transporter_instance;
   }
-  virtual bool isMultiTransporter() { return false; }
 
   void set_multi_transporter_instance(Uint32 val) {
     m_multi_transporter_instance = val;
