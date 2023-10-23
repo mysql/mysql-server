@@ -46,13 +46,23 @@ Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
 
 Multi_Transporter::~Multi_Transporter() {}
 
-void Multi_Transporter::resetBuffers() { send_checksum_state.init(); }
+void Multi_Transporter::resetBuffers() {
+  require(false);
+  send_checksum_state.init();
+}
 
-bool Multi_Transporter::connect_server_impl(NdbSocket &&) { return true; }
+bool Multi_Transporter::connect_server_impl(NdbSocket &&) {
+  require(false);
+  return true;
+}
 
-bool Multi_Transporter::connect_client_impl(NdbSocket &&) { return true; }
+bool Multi_Transporter::connect_client_impl(NdbSocket &&) {
+  require(false);
+  return true;
+}
 
 bool Multi_Transporter::initTransporter() {
+  require(false);
   m_num_active_transporters = 0;
   m_num_not_used_transporters = 0;
   m_num_inactive_transporters = 0;

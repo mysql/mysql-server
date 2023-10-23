@@ -38,6 +38,7 @@ class Multi_Transporter : public Transporter {
   void resetBuffers() override;
 
   bool configure_derived(const TransporterConfiguration * /*conf*/) override {
+    require(false);
     return true;
   }
 
