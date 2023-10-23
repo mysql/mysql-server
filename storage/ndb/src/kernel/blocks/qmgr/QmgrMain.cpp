@@ -9317,16 +9317,14 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
     jam();
 
     Transporter *current_trp = multi_trp->get_active_transporter(0);
-    TrpId current_trp_id = current_trp->getTransporterIndex();
-    multi_trp->get_callback_obj()->lock_send_transporter(current_trp_id);
+    current_trp->lock_send_transporter();
 
     Uint32 num_inactive_transporters =
         multi_trp->get_num_inactive_transporters();
     for (Uint32 i = 0; i < num_inactive_transporters; i++) {
       jam();
       Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
-      TrpId trp_id = tmp_trp->getTransporterIndex();
-      multi_trp->get_callback_obj()->lock_send_transporter(trp_id);
+      tmp_trp->lock_send_transporter();
     }
 
     ActivateTrpReq *act_trp_req =
@@ -9339,7 +9337,7 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
 
     flush_send_buffers();
     /* Either perform send or insert_trp below TODO */
-    multi_trp->get_callback_obj()->unlock_send_transporter(current_trp_id);
+    current_trp->unlock_send_transporter();
 
     if (ERROR_INSERTED(982)) {
       NdbSleep_MilliSleep(2500);
@@ -9350,8 +9348,7 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
     for (Uint32 i = 0; i < num_active_transporters; i++) {
       jam();
       Transporter *tmp_trp = multi_trp->get_active_transporter(i);
-      TrpId id = tmp_trp->getTransporterIndex();
-      multi_trp->get_callback_obj()->unlock_send_transporter(id);
+      tmp_trp->unlock_send_transporter();
     }
     globalTransporterRegistry.unlockMultiTransporters();
 
