@@ -93,20 +93,6 @@ class Transporter {
   Uint64 get_bytes_received() const { return m_bytes_received; }
 
   /**
-   * In most cases we use only one transporter per node connection.
-   * But in cases where the transporter is heavily loaded we can
-   * have multiple transporters to send for one node connection.
-   * In this case theNodeIdTransporters points to a Multi_Transporter
-   * object that has implemented a hash algorithm for
-   * get_send_transporter based on sending thread and receiving
-   * thread.
-   */
-  virtual Transporter *get_send_transporter(Uint32 recBlock [[maybe_unused]],
-                                            Uint32 sendBlock [[maybe_unused]]) {
-    return this;
-  }
-
-  /**
    * None blocking
    *    Use isConnected() to check status
    */

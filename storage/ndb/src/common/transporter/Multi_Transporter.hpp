@@ -43,8 +43,11 @@ class Multi_Transporter : public Transporter {
   }
 
  public:
-  Transporter *get_send_transporter(Uint32 recBlock,
-                                    Uint32 /*sendBlock*/) override {
+  /**
+   * Get the particular Transporter to send over among
+   * the active multi Transporters.
+   */
+  Transporter *get_send_transporter(Uint32 recBlock, Uint32 /*sendBlock*/) {
     /**
      * We hash on receiver instance to avoid any risk of changed signal order
      * compared to today. In addition each receiver thread will act on behalf
