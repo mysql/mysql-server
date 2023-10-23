@@ -171,7 +171,7 @@ class Transporter {
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
 
   Uint32 get_connect_count() { return m_connect_count; }
-  virtual bool is_encrypted() const { return m_encrypted; }
+  bool is_encrypted() const { return m_encrypted; }
 
   void inc_overload_count() { m_overload_count++; }
   Uint32 get_overload_count() { return m_overload_count; }
