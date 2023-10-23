@@ -798,7 +798,7 @@ bool TransporterRegistry::createMultiTransporter(NodeId node_id,
   lockMultiTransporters();
   Transporter *base_trp = theNodeIdTransporters[node_id];
   require(!base_trp->isPartOfMultiTransporter());
-  multi_trp = new Multi_Transporter(*this, base_trp);
+  multi_trp = new Multi_Transporter();
   theNodeIdMultiTransporters[node_id] = multi_trp;
   TransporterType type = theTransporterTypes[node_id];
   for (Uint32 i = 0; i < num_trps; i++) {

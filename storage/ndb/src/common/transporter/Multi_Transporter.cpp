@@ -25,15 +25,7 @@
 #include <EventLogger.hpp>
 // End of stuff to be moved
 
-Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
-                                     const Transporter *t)
-    : Transporter(t_reg, 0, tt_Multi_TRANSPORTER, t->localHostName,
-                  t->remoteHostName, t->m_s_port, t->isMgmConnection,
-                  t->localNodeId, t->remoteNodeId,
-                  t->isServer ? t->localNodeId : t->remoteNodeId, 0, false,
-                  t->checksumUsed, t->signalIdUsed, t->m_max_send_buffer,
-                  t->check_send_checksum, t->m_spintime) {
-  send_checksum_state.init();
+Multi_Transporter::Multi_Transporter() {
   m_num_active_transporters = 0;
   m_num_inactive_transporters = 0;
   m_num_not_used_transporters = 0;
@@ -45,34 +37,6 @@ Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
 }
 
 Multi_Transporter::~Multi_Transporter() {}
-
-void Multi_Transporter::resetBuffers() {
-  require(false);
-  send_checksum_state.init();
-}
-
-bool Multi_Transporter::connect_server_impl(NdbSocket &&) {
-  require(false);
-  return true;
-}
-
-bool Multi_Transporter::connect_client_impl(NdbSocket &&) {
-  require(false);
-  return true;
-}
-
-bool Multi_Transporter::initTransporter() {
-  require(false);
-  m_num_active_transporters = 0;
-  m_num_not_used_transporters = 0;
-  m_num_inactive_transporters = 0;
-  send_checksum_state.init();
-  return true;
-}
-
-void Multi_Transporter::disconnectImpl() { require(false); }
-
-void Multi_Transporter::releaseAfterDisconnect() { require(false); }
 
 void Multi_Transporter::add_not_used_trp(Transporter *t) {
   require(m_num_not_used_transporters < MAX_NODE_GROUP_TRANSPORTERS);
@@ -120,21 +84,10 @@ void Multi_Transporter::set_num_inactive_transporters(Uint32 num_used) {
 }
 
 void Multi_Transporter::switch_active_trp() {
-  Uint64 bytes_sent = 0;
-  Uint64 bytes_received = 0;
   for (Uint32 i = 0; i < m_num_active_transporters; i++) {
-    bytes_sent += m_active_transporters[i]->m_bytes_sent;
-    m_active_transporters[i]->m_bytes_sent = 0;
-    bytes_received += m_active_transporters[i]->m_bytes_received;
-    m_active_transporters[i]->m_bytes_received = 0;
     m_active_transporters[i]->set_transporter_active(false);
   }
-  m_bytes_sent += bytes_sent;
-  m_bytes_received += bytes_received;
-
   for (Uint32 i = 0; i < m_num_inactive_transporters; i++) {
-    m_inactive_transporters[i]->m_bytes_sent = 0;
-    m_inactive_transporters[i]->m_bytes_received = 0;
     m_inactive_transporters[i]->set_transporter_active(true);
   }
 

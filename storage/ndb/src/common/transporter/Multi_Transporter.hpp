@@ -21,26 +21,14 @@
 #include "Transporter.hpp"
 #include "util/require.h"
 
-class Multi_Transporter : public Transporter {
+class Multi_Transporter {
   friend class TransporterRegistry;
   friend class Qmgr;
 
  private:
   // Initialize member variables
-  Multi_Transporter(TransporterRegistry &, const Transporter *);
-
-  ~Multi_Transporter() override;
-
-  /**
-   * Clear any data buffered in the transporter.
-   * Should only be called in a disconnected state.
-   */
-  void resetBuffers() override;
-
-  bool configure_derived(const TransporterConfiguration * /*conf*/) override {
-    require(false);
-    return true;
-  }
+  Multi_Transporter();
+  ~Multi_Transporter();
 
  public:
   /**
@@ -79,52 +67,10 @@ class Multi_Transporter : public Transporter {
   }
 
  private:
-  /**
-   * Allocate buffers for sending and receiving
-   */
-  bool initTransporter() override;
-
-  /**
-   * Retrieves the contents of the send buffers and writes it on
-   * the external TCP/IP interface.
-   */
-  bool doSend(bool /*need_wakeup*/) override {
-    /* Send only done on real transporters */
-    require(false);
-    return true;
-  }
-
-  bool send_is_possible(int) const override {
-    require(false);
-    return true;
-  }
-
-  bool send_limit_reached(int) override {
-    require(false);
-    return true;
-  }
-
   void add_active_trp(Transporter *);
   void add_not_used_trp(Transporter *);
   void switch_active_trp();
   void set_num_inactive_transporters(Uint32);
-
- protected:
-  /**
-   * Setup client/server and perform connect/accept
-   * Is used both by clients and servers
-   * A client connects to the remote server
-   * A server accepts any new connections
-   */
-  bool connect_server_impl(NdbSocket &&sockfd) override;
-  bool connect_client_impl(NdbSocket &&sockfd) override;
-
-  /**
-   * Disconnects a TCP/IP node, possibly blocking.
-   */
-  void disconnectImpl() override;
-
-  void releaseAfterDisconnect() override;
 
  private:
   Uint32 m_num_active_transporters;
