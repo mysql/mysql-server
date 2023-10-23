@@ -1039,9 +1039,14 @@ Transporter *TransporterRegistry::prepareSend_getTransporter(
     return nullptr;
   }
   assert(!node_trp->isPartOfMultiTransporter());
+  Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
   Transporter *t;
-  t = node_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
-                                     signalHeader->theSendersBlockRef);
+  if (multi_trp != nullptr) {
+    t = multi_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
+                                        signalHeader->theSendersBlockRef);
+  } else {
+    t = node_trp;
+  }
   trp_id = t->getTransporterIndex();
   if (unlikely(trp_id == 0)) {
     /**
