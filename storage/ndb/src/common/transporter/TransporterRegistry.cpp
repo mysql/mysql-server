@@ -305,7 +305,6 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
       localNodeId(0),
       maxTransporters(_maxTransporters),
       nTransporters(0),
-      nMultiTransporters(0),
       nTCPTransporters(0),
       nSHMTransporters(0),
       connectBackoffMaxTime(0),
@@ -324,7 +323,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 #endif
   theTransporterTypes = new TransporterType[MAX_NODES];
   theNodeIdTransporters = new Transporter *[MAX_NODES];
-  theMultiTransporters = new Multi_Transporter *[MAX_NODES];
+  theNodeIdMultiTransporters = new Multi_Transporter *[MAX_NODES];
   performStates = new PerformState[maxTransporters];
   ioStates = new IOState[maxTransporters];
   peerUpIndicators = new bool[maxTransporters];
@@ -347,7 +346,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   ErrorState default_error_state = {TE_NO_ERROR, (const char *)~(UintPtr)0};
   for (unsigned i = 0; i < MAX_NODES; i++) {
     theNodeIdTransporters[i] = nullptr;
-    theMultiTransporters[i] = nullptr;
+    theNodeIdMultiTransporters[i] = nullptr;
     peerUpIndicators[i] = true;  // Assume all nodes are up, will be
                                  // cleared at first connect attempt
     connectingTime[i] = 0;
@@ -420,8 +419,8 @@ TransporterRegistry::~TransporterRegistry() {
   delete[] theSHMTransporters;
 #endif
   delete[] theTransporterTypes;
-  delete[] theMultiTransporters;
   delete[] theNodeIdTransporters;
+  delete[] theNodeIdMultiTransporters;
   delete[] performStates;
   delete[] ioStates;
   delete[] peerUpIndicators;
@@ -445,13 +444,12 @@ void TransporterRegistry::removeAll() {
     // allTransporters[] contain TCP, Loopback and SHM_Transporters
     delete allTransporters[trpId];
   }
-  for (Uint32 i = 0; i < nMultiTransporters; i++) {
-    delete theMultiTransporters[i];
+  for (unsigned i = 0; i < MAX_NODES; i++) {
+    delete theNodeIdMultiTransporters[i];
   }
   nTransporters = 0;
   nTCPTransporters = 0;
   nSHMTransporters = 0;
-  nMultiTransporters = 0;
 }
 
 void TransporterRegistry::disconnectAll() {
@@ -801,10 +799,8 @@ bool TransporterRegistry::createMultiTransporter(NodeId node_id,
   Transporter *base_trp = theNodeIdTransporters[node_id];
   require(!base_trp->isPartOfMultiTransporter());
   multi_trp = new Multi_Transporter(*this, base_trp);
-  theMultiTransporters[nMultiTransporters] = multi_trp;
-  nMultiTransporters++;
-  const NodeId nodeId = base_trp->getRemoteNodeId();
-  TransporterType type = theTransporterTypes[nodeId];
+  theNodeIdMultiTransporters[node_id] = multi_trp;
+  TransporterType type = theTransporterTypes[node_id];
   for (Uint32 i = 0; i < num_trps; i++) {
     Transporter *new_trp = nullptr;
     if (type == tt_TCP_TRANSPORTER) {
@@ -827,7 +823,6 @@ bool TransporterRegistry::createMultiTransporter(NodeId node_id,
     new_trp->set_multi_transporter_instance(i + 1);
   }
   multi_trp->add_active_trp(base_trp);
-  theNodeIdTransporters[node_id] = multi_trp;
   unlockMultiTransporters();
   return true;
 }
@@ -3130,26 +3125,19 @@ Transporter *TransporterRegistry::get_node_transporter(NodeId nodeId) const {
 
 Multi_Transporter *TransporterRegistry::get_node_multi_transporter(
     NodeId nodeId) const {
-  return dynamic_cast<Multi_Transporter *>(get_node_transporter(nodeId));
+  assert(nodeId <= MAX_NODES);
+  return theNodeIdMultiTransporters[nodeId];
 }
 
 /**
  * If a multi transporter is used, the base transporter is the
  * initial transporter being connected, also denoted the instance=0.
- * In case a multi transporter is not used, the normal Transporter
- * is the base transporter.
+ * The base transporter is stored in theNodeIdTransporters[nodeId].
+ * (Thus it is always the same as get_node_transporter().
  */
 Transporter *TransporterRegistry::get_node_base_transporter(
     NodeId nodeId) const {
-  const Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
-  if (multi_trp != nullptr) {
-    if (multi_trp->get_num_active_transporters() == 1) {
-      // An 'unswitched' multi transporter
-      return multi_trp->get_active_transporter(0);
-    } else {
-      return multi_trp->get_inactive_transporter(0);
-    }
-  }
+  assert(nodeId <= MAX_NODES);
   Transporter *t = theNodeIdTransporters[nodeId];
   assert(t == nullptr || !t->isPartOfMultiTransporter());
   return t;
