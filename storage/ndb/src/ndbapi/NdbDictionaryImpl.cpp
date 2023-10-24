@@ -5466,6 +5466,10 @@ NdbEventImpl *NdbDictionaryImpl::getEvent(const char *eventName,
         ((Uint32)tab->m_id != ev->m_table_id) ||
         (table_version_major(tab->m_version) !=
          table_version_major(ev->m_table_version))) {
+      // Table id or version does not match the table in the NdbApi dict cache,
+      // the cached table is invalidated and fetched from NDB again. For NdbApi
+      // user this have the effect that a different version of the table is used
+      // after calling NdbApi event functions.
       DBUG_PRINT("info", ("mismatch on verison in cache"));
       releaseTableGlobal(*tab, 1);
       tab = fetchGlobalTableImplRef(InitTable(ev->getTableName()));
