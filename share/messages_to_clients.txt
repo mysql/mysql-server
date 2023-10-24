@@ -10321,6 +10321,12 @@ ER_LH_AVRO_CANNOT_PARSE_HEADER
 ER_LH_PARQUET_CANT_OPEN_FILE
   eng "Parquet reader cannot open %s. %s"
 
+ER_LH_TOO_LARGE_VALUE_ERR
+   eng "File %.*s: %s"
+
+ER_LH_TOO_LARGE_ROW_ERR
+   eng "File %.*s: %s"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
