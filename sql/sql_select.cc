@@ -4877,7 +4877,8 @@ bool JOIN::make_tmp_tables_info() {
 
         if (change_to_use_tmp_fields(curr_fields, thd, ref_items[widx],
                                      &tmp_fields[widx],
-                                     query_block->m_added_non_hidden_fields))
+                                     query_block->m_added_non_hidden_fields,
+                                     /*windowing*/ true))
           return true;
 
         curr_fields = &tmp_fields[widx];

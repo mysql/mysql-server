@@ -233,7 +233,8 @@ int update_item_cache_if_changed(List<Cached_item> &list);
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *res_fields,
-                              size_t added_non_hidden_fields);
+                              size_t added_non_hidden_fields,
+                              bool windowing = false);
 // Create list for using with temporary table
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
                                           THD *thd, Query_block *select,

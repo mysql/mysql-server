@@ -1223,3 +1223,49 @@ CALL test2();
 
 DROP PROCEDURE test2;
 DROP TABLE table1;
+
+--echo #
+--echo # Bug#35390341 Assertion `m_count > 0 && m_count > m_frame_null_count' failed.
+--echo #
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (NULL), (NULL), (-2128216064);
+SELECT AVG( @A := c1 ) OVER (ROWS 1 PRECEDING) FROM t1;
+SELECT @A;
+DROP TABLE t1;
+
+# Repro from Bug#11764371 decorated with windows to test
+# against possible locking issue mentioned therein.
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+
+# original
+SELECT DISTINCT
+       POW( COUNT(*), @a:=(SELECT 1 FROM t1 LEFT JOIN
+                                         t1 AS t2
+                                         ON @a)
+          ) AS b
+FROM t1 GROUP BY a;
+
+# window func using setvar added in outer layer
+SELECT DISTINCT
+       pow( COUNT(*), @a:=(SELECT 1 FROM t1 LEFT JOIN
+                                         t1 t2
+                                         ON @a)
+          ) AS `pow`,
+       AVG( @a:= a ) OVER (ROWS 1 PRECEDING) AS `avg`
+FROM t1 GROUP BY a;
+SELECT @a;
+# window func using setvar added in subquery
+SELECT DISTINCT
+       pow( COUNT(*), @a:=(SELECT MAX( @a := t1.a) OVER w
+                           FROM t1
+                                LEFT JOIN
+                                t1 t2
+                                ON @a
+                           WINDOW w AS (ROWS 1 PRECEDING)
+                          )
+          ) AS `pow`
+FROM t1 GROUP BY a;
+SELECT @a;
+
+DROP TABLE t1;

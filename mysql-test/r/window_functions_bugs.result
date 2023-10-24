@@ -1773,3 +1773,65 @@ a	a+1	a-1	b	b+1	b-1
 6	7	5	6	7	5
 DROP PROCEDURE test2;
 DROP TABLE table1;
+#
+# Bug#35390341 Assertion `m_count > 0 && m_count > m_frame_null_count' failed.
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (NULL), (NULL), (-2128216064);
+SELECT AVG( @A := c1 ) OVER (ROWS 1 PRECEDING) FROM t1;
+AVG( @A := c1 ) OVER (ROWS 1 PRECEDING)
+NULL
+NULL
+-2128216064.0000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT @A;
+@A
+-2128216064
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT DISTINCT
+POW( COUNT(*), @a:=(SELECT 1 FROM t1 LEFT JOIN
+t1 AS t2
+ON @a)
+) AS b
+FROM t1 GROUP BY a;
+b
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT DISTINCT
+pow( COUNT(*), @a:=(SELECT 1 FROM t1 LEFT JOIN
+t1 t2
+ON @a)
+) AS `pow`,
+AVG( @a:= a ) OVER (ROWS 1 PRECEDING) AS `avg`
+FROM t1 GROUP BY a;
+pow	avg
+1	0.0000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT @a;
+@a
+1
+SELECT DISTINCT
+pow( COUNT(*), @a:=(SELECT MAX( @a := t1.a) OVER w
+FROM t1
+LEFT JOIN
+t1 t2
+ON @a
+WINDOW w AS (ROWS 1 PRECEDING)
+)
+) AS `pow`
+FROM t1 GROUP BY a;
+pow
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT @a;
+@a
+0
+DROP TABLE t1;

@@ -4277,14 +4277,15 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
   @param [out] res_fields            new list of all items
   @param added_non_hidden_fields     number of visible fields added by subquery
                                      to derived transformation
-
+  @param windowing                   true if creating a tmp table for windowing
+                                     materialization
   @returns false if success, true if error
 */
 
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *res_fields,
-                              size_t added_non_hidden_fields) {
+                              size_t added_non_hidden_fields, bool windowing) {
   DBUG_TRACE;
 
   res_fields->clear();
@@ -4304,13 +4305,18 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
     else if (item->type() == Item::FIELD_ITEM)
       new_item = item->get_tmp_table_item(thd);
     else if (item->type() == Item::FUNC_ITEM &&
-             ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC) {
+             ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC &&
+             !windowing) {
       field = item->get_tmp_table_field();
       if (field != nullptr) {
         /*
           Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
           would re-evaluate <expression>, and if expression were a subquery,
           this would access already-unlocked tables.
+          We do not perform the special handling for tmp tables used for
+          windowing, though.
+          TODO: remove this code cf. deprecated setting of variable in
+          expressions when it is finally disallowed.
         */
         Item_func_set_user_var *suv =
             new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
