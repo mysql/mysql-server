@@ -20,50 +20,23 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
-
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#include "mysql/serialization/write_archive_binary.h"
 
 /// @file
-/// Experimental API header
-
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
-
-/// @addtogroup GroupLibsMysqlSerialization
-/// @{
 
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
+Write_archive_binary::Internal_type &Write_archive_binary::get_raw_data() {
+  return m_stream;
+}
 
-  Serialization_error() = default;
+bool Write_archive_binary::can_write(size_t bytes) const {
+  if (is_good() == true && (m_write_pos + bytes <= m_stream_size)) return true;
+  return false;
+}
 
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
-};
+std::size_t Write_archive_binary::get_size_written() const {
+  return m_write_pos;
+}
 
 }  // namespace mysql::serialization
-
-/// @}
-
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H

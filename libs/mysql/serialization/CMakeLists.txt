@@ -21,10 +21,46 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(TARGET_HEADERS
+  archive_binary_field_max_size_calculator.h
+  archive_binary.h
+  archive_binary_impl.hpp
+  archive.h
+  archive_text.h
+  archive_text_impl.hpp
+  byte_order_helpers.h
+  field_definition.h
+  field_definition_helpers.h
+  field_functor.h
+  field_wrapper.h
+  primitive_type_codec.h
+  read_archive_binary.h
+  read_archive_binary_impl.hpp
+  serializable.h
+  serializable_impl.hpp
+  serializable_size_calculator.h
+  serializable_type_tags.h
+  serializable_type_traits.h
+  serialization_error.h
+  serialization_error_type.h
+  serialization_format_version.h
+  serialization_types.h
+  serializer_default.h
+  serializer_default_impl.hpp
+  serializer.h
+  serializer_impl.hpp
+  unknown_field_policy.h
+  variable_length_integers.h
+  write_archive_binary.h
+  write_archive_binary_impl.hpp
 )
 
 SET(TARGET_SRCS
+  archive_binary.cpp
+  archive_text.cpp
   primitive_type_codec.cpp
+  serialization_error.cpp
+  write_archive_binary.cpp
+  read_archive_binary.cpp
 )
 
 LIBS_MYSQL_CREATE_LIBRARY(mysql_serialization

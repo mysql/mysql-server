@@ -20,50 +20,28 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
+#ifndef MYSQL_SERIALIZATION_UNKNOWN_FIELD_POLICY_H
+#define MYSQL_SERIALIZATION_UNKNOWN_FIELD_POLICY_H
 
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#include <cstdint>
 
 /// @file
 /// Experimental API header
-
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
 
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{
 
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
-
-  Serialization_error() = default;
-
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
+/// @brief Represents 'unknown field' policy - decision what needs to be done
+/// in case unknown field is encountered in deserialized data
+enum class Unknown_field_policy : uint8_t {
+  ignore,  ///< Ignore this field
+  error    ///< Return error
 };
 
 }  // namespace mysql::serialization
 
 /// @}
 
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#endif  // MYSQL_SERIALIZATION_UNKNOWN_FIELD_POLICY_H

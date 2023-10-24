@@ -20,50 +20,33 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
+#ifndef MYSQL_SERIALIZATION_FIELD_FUNCTOR_H
+#define MYSQL_SERIALIZATION_FIELD_FUNCTOR_H
 
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#include <assert.h>
+#include <functional>
 
 /// @file
 /// Experimental API header
-
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
 
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{
 
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
+using Field_decode_functor_type = std::function<void(void)>;
+using Field_encode_functor_type = std::function<bool(void)>;
 
-  Serialization_error() = default;
+/// @brief Type of the predicate telling serializer what to do in case field
+/// is not provided. Applicable to optional and required fields
+using Field_missing_functor = Field_decode_functor_type;
 
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
-};
+/// @brief Type of the predicate telling serializer whether field is provided
+/// or not. Applicable only to optional fields
+using Field_encode_predicate = Field_encode_functor_type;
 
 }  // namespace mysql::serialization
 
 /// @}
 
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#endif  // MYSQL_SERIALIZATION_FIELD_FUNCTOR_H

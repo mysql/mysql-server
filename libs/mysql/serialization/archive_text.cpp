@@ -20,50 +20,45 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
-
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#include "mysql/serialization/archive_text.h"
 
 /// @file
-/// Experimental API header
-
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
-
-/// @addtogroup GroupLibsMysqlSerialization
-/// @{
 
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
+std::string Archive_text::get_raw_data() { return m_stream.str(); }
 
-  Serialization_error() = default;
+void Archive_text::put_field_separator() {
+  if (is_good() == true) {
+    m_stream << std::endl;
+    if (m_stream.good() == false) {
+      m_error = Serialization_error(
+          __FILE__, __LINE__, "Unable to write data to the stream",
+          Serialization_error_type::archive_write_error);
+    }
+  }
+}
 
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
+void Archive_text::put_entry_separator() {
+  if (is_good() == true) {
+    m_stream << " ";
+    if (m_stream.good() == false) {
+      m_error = Serialization_error(
+          __FILE__, __LINE__, "Unable to write data to the stream",
+          Serialization_error_type::archive_write_error);
+    }
+  }
+}
 
- private:
-  Serialization_error_type m_type;  ///< Error type
-};
+void Archive_text::put_level_separator() {
+  if (is_good() == true) {
+    m_stream << "  ";
+    if (m_stream.good() == false) {
+      m_error = Serialization_error(
+          __FILE__, __LINE__, "Unable to write data to the stream",
+          Serialization_error_type::archive_write_error);
+    }
+  }
+}
 
 }  // namespace mysql::serialization
-
-/// @}
-
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H

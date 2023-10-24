@@ -31,6 +31,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 SET(TESTS
   bit_operations
   variable_length_integers
+  serializable
 )
 
 FOREACH(test ${TESTS})

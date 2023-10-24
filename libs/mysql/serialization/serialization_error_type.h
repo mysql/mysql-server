@@ -20,50 +20,34 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
+#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_TYPE_H
+#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_TYPE_H
 
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#include <cstdint>
+#include <string>
 
 /// @file
 /// Experimental API header
-
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
 
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{
 
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
-
-  Serialization_error() = default;
-
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
+/// @brief Possible error codes generated in serialization library
+enum class Serialization_error_type : uint64_t {
+  archive_read_error,    ///< Cannot read data from the stream
+  archive_write_error,   ///< Cannot write data to the stream
+  corrupted_field,       ///< cannot read field, corrupted stream
+  out_of_memory,         ///< cannot allocate memory
+  unknown_field,         ///< unknown field found in the data stream
+  field_id_mismatch,     ///< field id read does not match expected field id
+  data_integrity_error,  ///< corrupted data, unexpected value found
+  last
 };
 
 }  // namespace mysql::serialization
 
 /// @}
 
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
+#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_TYPE_H

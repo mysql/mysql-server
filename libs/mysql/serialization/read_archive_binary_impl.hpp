@@ -20,50 +20,35 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
-
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-
 /// @file
 /// Experimental API header
 
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
-
-/// @addtogroup GroupLibsMysqlSerialization
-/// @{
-
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
+template <typename Field_type>
+Read_archive_binary &Read_archive_binary::operator>>(Field_type &&arg) {
+  static constexpr auto value_size = Field_type::value_size;
+  using value_type = typename std::decay_t<Field_type>::value_type;
+  if (is_good() == true) {
+    auto bytes_read =
+        Primitive_type_codec<value_type>::template read_bytes<value_size>(
+            m_stream + read_pos, m_stream_size - read_pos, arg.get());
+    if (bytes_read == 0) {
+      m_error = Serialization_error(
+          __FILE__, __LINE__, "Unable to read data from the stream",
+          Serialization_error_type::archive_read_error);
+      return *this;
+    }
+    read_pos += bytes_read;
+  }
+  return *this;
+}
 
-  Serialization_error() = default;
-
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
-};
+template <class Field_type>
+void Read_archive_binary::peek(Field_type &&field) {
+  auto read_pos_saved = read_pos;
+  this->operator>>(std::forward<Field_type>(field));
+  read_pos = read_pos_saved;
+}
 
 }  // namespace mysql::serialization
-
-/// @}
-
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H

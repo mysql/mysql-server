@@ -29,9 +29,6 @@
 #include <cstdint>
 #include <string>
 
-/// @file
-/// Experimental API header
-
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{
 
@@ -41,7 +38,7 @@ namespace mysql::serialization {
 /// message internal fields are defined
 using Level_type = std::size_t;
 /// @brief Type for field_id assigned to each field in the
-using Field_id_type = uint8_t;
+using Field_id_type = uint64_t;
 using Field_size = std::size_t;
 
 }  // namespace mysql::serialization

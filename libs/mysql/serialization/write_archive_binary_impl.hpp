@@ -20,50 +20,34 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @defgroup GroupLibsMysqlSerialization MySQL Libraries : Serialization
-/// @ingroup GroupLibsMysql
-
-#ifndef MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-#define MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
-
 /// @file
 /// Experimental API header
 
-#include <exception>
-#include <sstream>
-#include <string>
-
-#include "mysql/serialization/serialization_error_type.h"
-#include "mysql/utils/error.h"
-
-/// @addtogroup GroupLibsMysqlSerialization
-/// @{
-
 namespace mysql::serialization {
 
-/// @brief Error used internally in serialization framework
-class Serialization_error : public utils::Error {
- public:
-  /// @brief Constructor
-  /// @param[in] file File name in which exception occurred
-  /// @param[in] line Line number in which exception occurred
-  /// @param[in] message Additional information
-  /// @param[in] error_type Type of error
-  Serialization_error(const char *file, std::size_t line, const char *message,
-                      const Serialization_error_type &error_type);
-
-  Serialization_error() = default;
-
-  /// @brief Error type accessor
-  /// @return Error type
-  const Serialization_error_type &get_type() const;
-
- private:
-  Serialization_error_type m_type;  ///< Error type
-};
+template <typename Field_type>
+Write_archive_binary &Write_archive_binary::operator<<(Field_type &&arg) {
+  static constexpr auto value_size = Field_type::value_size;
+  using value_type = typename std::decay_t<Field_type>::value_type;
+  if (is_good() == true) {
+    bool is_error = true;
+    auto bytes_needed =
+        Byte_count_helper<value_size>::count_write_bytes(arg.get());
+    if (can_write(bytes_needed)) {
+      auto bytes_written =
+          Primitive_type_codec<value_type>::template write_bytes<value_size>(
+              m_stream + m_write_pos, arg.get());
+      is_error = bytes_written == 0;
+      m_write_pos += bytes_written;
+    }
+    if (is_error) {
+      m_error = Serialization_error(
+          __FILE__, __LINE__, "Unable to write data to the stream",
+          Serialization_error_type::archive_write_error);
+      return *this;
+    }
+  }
+  return *this;
+}
 
 }  // namespace mysql::serialization
-
-/// @}
-
-#endif  // MYSQL_SERIALIZATION_SERIALIZATION_ERROR_H
