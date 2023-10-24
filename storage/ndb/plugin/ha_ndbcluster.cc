@@ -6047,6 +6047,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   operations can read directly into the destination row.
 */
 int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
+  DBUG_TRACE;
   assert(src_row != nullptr);
 
   ptrdiff_t dst_offset = dst_row - table->record[0];
@@ -6101,13 +6102,22 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
     }
 
     // Handle Field_bit
+    // Store value in destination even if NULL (i.e. 0)
     if (field->type() == MYSQL_TYPE_BIT) {
       Field_bit *field_bit = down_cast<Field_bit *>(field);
       field->move_field_offset(src_offset);
       longlong value = field_bit->val_int();
       field->move_field_offset(dst_offset - src_offset);
-      field_bit->set_notnull();
-      /* Field_bit in DBUG requires the bit set in write_set for store(). */
+      if (field->is_real_null(src_offset)) {
+        // This sets the uneven highbits, located after the null bit
+        // in the Field_bit ptr, to 0
+        value = 0;
+        // Make sure destination null flag is correct
+        field->set_null(dst_offset);
+      } else {
+        field->set_notnull(dst_offset);
+      }
+      // Field_bit in DBUG requires the bit set in write_set for store().
       my_bitmap_map *old_map =
           dbug_tmp_use_all_columns(table, table->write_set);
       ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
