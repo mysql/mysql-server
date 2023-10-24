@@ -2799,3 +2799,17 @@ ON ra3.k = ra3.k
 WHERE ra3.k <= ra1.k;
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 3.
 DROP TABLE t1;
+#
+# Bug#35049440: Mysqld assert in Item_typecast_signed::val_int
+#
+CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int INT, col_date DATE,
+PRIMARY KEY (pk));
+INSERT INTO t1 (pk, col_int, col_date) VALUES (1, NULL, '1997-04-21');
+CREATE TABLE t2(pk INTEGER AUTO_INCREMENT, PRIMARY KEY (pk));
+INSERT INTO t2 (pk) VALUES (1);
+SELECT DISTINCT t1.col_int
+FROM t2 LEFT OUTER JOIN t1 ON t2.pk = t1.col_int
+WHERE CAST(t2.pk AS SIGNED INTEGER) <> t1.col_date;
+col_int
+DROP TABLE t1;
+DROP TABLE t2;

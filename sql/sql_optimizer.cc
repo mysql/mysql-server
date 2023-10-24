@@ -4826,9 +4826,10 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
       cond_equal = cond_equal->upper_levels;
     return eliminate_item_equal(thd, nullptr, cond_equal, item_equal);
   } else {
-    uchar *dummy = nullptr;
-    if (cond->compile(&Item::visit_all_analyzer, &dummy,
-                      &Item::replace_equal_field, nullptr) == nullptr)
+    Item::Replace_equal replace;
+    uchar *arg = pointer_cast<uchar *>(&replace);
+    if (cond->compile(&Item::replace_equal_field_checker, &arg,
+                      &Item::replace_equal_field, arg) == nullptr)
       return nullptr;
   }
   return cond;

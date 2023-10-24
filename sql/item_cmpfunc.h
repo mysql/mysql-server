@@ -676,6 +676,14 @@ class Item_bool_func2 : public Item_bool_func {
   const Arg_comparator *get_comparator() const { return &cmp; }
   Item *replace_scalar_subquery(uchar *) override;
   friend class Arg_comparator;
+  bool allow_replacement(Item_field *const original,
+                         Item_field *const subst) override {
+    /*
+      If UNKNOWN results can be treated as false (e.g when placed in WHERE, ON
+      or HAVING), a non-nullable field can be replaced with a nullable one.
+    */
+    return ignore_unknown() || original->is_nullable() || !subst->is_nullable();
+  }
 };
 
 /**
@@ -1290,6 +1298,15 @@ class Item_func_opt_neg : public Item_int_func {
     negated = !negated;
     return this;
   }
+  bool allow_replacement(Item_field *const original,
+                         Item_field *const subst) override {
+    /*
+      If UNKNOWN results can be treated as false (e.g when placed in WHERE, ON
+      or HAVING), a non-nullable field can be replaced with a nullable one.
+    */
+    return ignore_unknown() || original->is_nullable() || !subst->is_nullable();
+  }
+
   bool eq(const Item *item, bool binary_cmp) const override;
   bool subst_argument_checker(uchar **) override { return true; }
 

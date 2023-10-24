@@ -1195,6 +1195,7 @@ WHERE t3.pk+6 NOT IN (
     table1s.col_int_unique AS field4 FROM t2 AS table1s);
 
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format = tree $query;
 eval $query;
 

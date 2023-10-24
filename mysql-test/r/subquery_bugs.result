@@ -1458,18 +1458,19 @@ WHERE t3.pk+6 NOT IN (
 SELECT /*+ subquery(materialization) */
 table1s.col_int_unique AS field4 FROM t2 AS table1s);
 EXPLAIN
--> Nested loop left join  (cost=1.1 rows=1.14)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Filter: (<in_optimizer>((t1.col_int_key + 6),(t1.col_int_key + 6) in (select #2) is false) and (t1.col_int_key is not null))  (cost=0.35 rows=1)
-            -> Table scan on t1  (cost=0.35 rows=1)
+-> Nested loop left join  (rows=1.14)
+    -> Nested loop inner join  (rows=1)
+        -> Filter: (t1.col_int_key is not null)  (rows=1)
+            -> Table scan on t1  (rows=1)
+        -> Filter: <in_optimizer>((t3.pk + 6),(t3.pk + 6) in (select #2) is false)  (rows=1)
+            -> Single-row covering index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (rows=1)
             -> Select #2 (subquery in condition; run only once)
-                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))  (cost=3.55..3.55 rows=1)
-                    -> Limit: 1 row(s)  (cost=3.45..3.45 rows=1)
-                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t1.col_int_key + 6))
-                            -> Materialize with deduplication  (cost=3.45..3.45 rows=16)
-                                -> Covering index scan on table1s using col_int_unique  (cost=1.85 rows=16)
-        -> Single-row covering index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (cost=0.35 rows=1)
-    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (cost=0.4 rows=1.14)
+                -> Filter: (((t3.pk + 6) = `<materialized_subquery>`.field4))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t3.pk + 6))
+                            -> Materialize with deduplication  (rows=16)
+                                -> Covering index scan on table1s using col_int_unique  (rows=16)
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (rows=1.14)
 
 SELECT *
 FROM t1

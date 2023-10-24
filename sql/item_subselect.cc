@@ -3682,6 +3682,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
       is UNKNOWN. Do as if searching with all triggered conditions disabled:
       this would surely find a row. The caller will translate this to UNKNOWN.
     */
+    assert(item->left_expr->element_index(0)->is_nullable());
     assert(item->left_expr->cols() == 1);
     item->m_value = true;
     return false;

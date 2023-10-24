@@ -559,6 +559,35 @@ class Item_func : public Item_result_field {
   void traverse_cond(Cond_traverser traverser, void *arg,
                      traverse_order order) override;
 
+  bool replace_equal_field_checker(uchar **arg) override {
+    Replace_equal *replace = pointer_cast<Replace_equal *>(*arg);
+    replace->stack.push_front(this);
+    return true;
+  }
+
+  Item *replace_equal_field(uchar *arg) override {
+    pointer_cast<Replace_equal *>(arg)->stack.pop();
+    return this;
+  }
+
+  /**
+    Check whether a function allows replacement of a field with another:
+    In particular, a replacement that changes the metadata of some Item
+    from non-nullable to nullable is not allowed.
+    Notice that e.g. changing the nullability of an operand of a comparison
+    operator in a WHERE clause that ignores UNKNOWN values is allowed,
+    according to this criterion.
+
+    @param original the field that could be replaced
+    @param subst    the field that could be the replacement
+
+    @returns true if replacement is allowed, false otherwise
+  */
+  virtual bool allow_replacement(Item_field *const original,
+                                 Item_field *const subst) {
+    return original->is_nullable() || !subst->is_nullable();
+  }
+
   /**
      Throw an error if the input double number is not finite, i.e. is either
      +/-INF or NAN.

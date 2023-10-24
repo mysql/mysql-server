@@ -6396,7 +6396,7 @@ Item *Item_default_value::replace_item_field(uchar *argp) {
     - this - otherwise.
 */
 
-Item *Item_field::replace_equal_field(uchar *) {
+Item *Item_field::replace_equal_field(uchar *arg) {
   if (item_equal) {
     Item *const_item = item_equal->const_arg();
     if (const_item) {
@@ -6408,6 +6408,11 @@ Item *Item_field::replace_equal_field(uchar *) {
     assert(table_ref == subst->table_ref ||
            table_ref->table != subst->table_ref->table);
     if (table_ref != subst->table_ref && !field->eq(subst->field)) {
+      Replace_equal *replace = pointer_cast<Replace_equal *>(arg);
+      Item_func *func = replace->stack.head();
+      if (!func->allow_replacement(this, subst)) {
+        return this;
+      }
       // We may have to undo the substitution that is done here when setting up
       // hash join; the new field may be a field from a table that is not
       // reachable from hash join. Store which multi-equality we found the field

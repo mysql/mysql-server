@@ -77,6 +77,7 @@
 
 class Item;
 class Item_field;
+class Item_func;
 class Item_singlerow_subselect;
 class Item_sum;
 class Json_wrapper;
@@ -3024,7 +3025,13 @@ class Item : public Parse_tree_node {
   virtual Item *equal_fields_propagator(uchar *) { return this; }
   // Mark the item to not be part of substitution.
   virtual bool disable_constant_propagation(uchar *) { return false; }
+
+  struct Replace_equal {
+    // Stack of pointers to enclosing functions
+    List<Item_func> stack;
+  };
   virtual Item *replace_equal_field(uchar *) { return this; }
+  virtual bool replace_equal_field_checker(uchar **) { return true; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
     for date functions. Also used by partitioning code to reject
