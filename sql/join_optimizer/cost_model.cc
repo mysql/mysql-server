@@ -121,7 +121,7 @@ void EstimateSortCost(AccessPath *path) {
       sort_items.push_back(*order->item);
     }
 
-    const double aggregate_rows = EstimateAggregateRows(
+    const double aggregate_rows = EstimateDistinctRows(
         num_input_rows, {sort_items.cbegin(), sort_items.size()}, nullptr);
 
     path->set_num_output_rows(std::min(num_output_rows, aggregate_rows));
@@ -512,13 +512,14 @@ string AggregateRowEstimator::Prefix::Print() const {
 }
 
 /**
- Estimate row count for an aggregate operation (except for any rollup rows).
- We use the following data to make a row estimate, in that priority:
+ Estimate the number of distinct tuples in the projection defined by
+ 'terms'.  We use the following data to make a row estimate, in that
+ priority:
 
- 1. (Non-hash) indexes where the aggregation terms form some prefix of the
+ 1. (Non-hash) indexes where the terms form some prefix of the
   index key. The handler can give good estimates for these.
 
- 2. Histograms for aggregation terms that are fields. The histograms
+ 2. Histograms for terms that are fields. The histograms
  give an estimate of the number of unique values.
 
  3. The table size (in rows) for terms that are fields without histograms.
@@ -549,21 +550,22 @@ string AggregateRowEstimator::Prefix::Print() const {
  combined estimate that falls between the two extremes of
  functional dependence and no correlation.
 
-@param terms The aggregation terms.
+@param terms The terms for which we estimate the number of distinct
+             combinations.
 @param child_rows The row estimate for the input path.
 @param trace Append optimizer trace text to this if non-null.
 @returns The row estimate for the aggregate operation.
 */
-double EstimateAggregateNoRollupRows(TermArray terms, double child_rows,
-                                     string *trace) {
+double EstimateDistinctRowsFromStatistics(TermArray terms, double child_rows,
+                                          string *trace) {
   // Estimated number of output rows.
   double output_rows = 1.0;
-  // No of individual estimates (for disjoint subsets of the aggregation terms).
+  // No of individual estimates (for disjoint subsets of the terms).
   size_t estimate_count = 0;
   // The largest individual estimate.
   double top_estimate = 1.0;
 
-  // Make row estimates for sets of aggregation terms that form prefixes
+  // Make row estimates for sets of terms that form prefixes
   // of (non-hash) indexes.
   AggregateRowEstimator index_estimator(terms, trace);
 
@@ -580,7 +582,7 @@ double EstimateAggregateNoRollupRows(TermArray terms, double child_rows,
   size_t remaining_term_cnt =
       terms.size() - PopulationCount(index_estimator.GetConsumedTerms());
 
-  // Loop over the remaining aggregation terms, i.e. those that were not part of
+  // Loop over the remaining terms, i.e. those that were not part of
   // a key prefix. Make row estimates for those that are fields.
   for (TermArray::const_iterator term = terms.cbegin(); term < terms.cend();
        term++) {
@@ -608,8 +610,8 @@ double EstimateAggregateNoRollupRows(TermArray terms, double child_rows,
         distinct_values = histogram->get_num_distinct_values();
 
         if (histogram->get_null_values_fraction() > 0.0) {
-          // If there are NULL values, those will form a separate row in the
-          // aggregate.
+          // If there are NULL values, those will also form distinct
+          // combinations of terms.
           ++distinct_values;
         }
 
@@ -754,7 +756,8 @@ double EstimateRollupRowsAdvanced(double aggregate_rows, TermArray terms,
       *trace += StringPrintf(
           "\nEstimating row count for ROLLUP on %zu terms.\n", terms.size());
     }
-    rollup_rows += EstimateAggregateNoRollupRows(terms, aggregate_rows, trace);
+    rollup_rows +=
+        EstimateDistinctRowsFromStatistics(terms, aggregate_rows, trace);
   }
   return rollup_rows;
 }
@@ -806,8 +809,9 @@ double EstimateAggregateRows(const AccessPath *child,
         terms.push_back(unwrap_rollup_group(*group->item));
       }
     }
+    assert(terms.size() > 0);
 
-    output_rows = ::EstimateAggregateRows(
+    output_rows = EstimateDistinctRows(
         child_rows, TermArray(terms.data(), terms.size()), trace);
   }
 
@@ -832,23 +836,30 @@ double EstimateAggregateRows(const AccessPath *child,
 
 }  // Anonymous namespace.
 
-double EstimateAggregateRows(double child_rows, TermArray aggregate_terms,
-                             string *trace) {
+double EstimateDistinctRows(double child_rows, TermArray terms, string *trace) {
+  assert(terms.size() > 0);
   if (child_rows < 1.0) {
     return child_rows;
-  } else {
-    // Do a simple but fast calculation of the row estimate if child_rows is
-    // less than this.
-    constexpr double simple_limit = 10.0;
-
-    return SmoothTransition(
-        [&](double input_rows) { return std::sqrt(input_rows); },
-        [&](double input_rows) {
-          return EstimateAggregateNoRollupRows(aggregate_terms, input_rows,
-                                               trace);
-        },
-        simple_limit, simple_limit * 1.1, child_rows);
   }
+
+  // Do a simple but fast calculation of the row estimate if child_rows is
+  // less than this.
+  constexpr double simple_limit = 10.0;
+
+  // EstimateDistinctRows() must be a continuous function of
+  // child_rows.  If two alternative access paths have slightly
+  // different child_rows values (e.g. 9.9999 and 10.0001) due to
+  // rounding errors, EstimateDistinctRows() must return estimates
+  // that are very close to each other. If not, cost calculation and
+  // comparison for these two paths would be distorted. Therefore, we
+  // cannot have a discrete jump at child_rows==10.0 (or any other
+  // value). See also bug #34795264.
+  return SmoothTransition(
+      [&](double input_rows) { return std::sqrt(input_rows); },
+      [&](double input_rows) {
+        return EstimateDistinctRowsFromStatistics(terms, input_rows, trace);
+      },
+      simple_limit, simple_limit * 1.1, child_rows);
 }
 
 void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
@@ -962,4 +973,51 @@ void EstimateWindowCost(AccessPath *path) {
   path->set_init_cost(child->init_cost());
   path->set_init_once_cost(child->init_once_cost());
   path->set_cost(child->cost() + kWindowOneRowCost * child->num_output_rows());
+}
+
+double EstimateSemijoinFanOut(double right_rows, const JoinPredicate &edge) {
+  // The fields from edge.expr->right that appear in the join condition.
+  Prealloced_array<const Item *, 6> condition_fields(PSI_NOT_INSTRUMENTED);
+
+  // For any Item_field in the subtree of 'item', add it to condition_fields
+  // if it belongs to any table in edge.expr->right.
+  const auto collect_field = [&](const Item *item) {
+    if (item->type() == Item::FIELD_ITEM &&
+        (item->used_tables() & edge.expr->right->tables_in_subtree) != 0) {
+      const Item_field *const field = down_cast<const Item_field *>(item);
+
+      // Make sure that we do not add the same field twice.
+      if (std::none_of(
+              condition_fields.cbegin(), condition_fields.cend(),
+              [&](const Item *other_field) {
+                return down_cast<const Item_field *>(other_field)->field ==
+                       field->field;
+              })) {
+        condition_fields.push_back(field);
+      }
+    }
+    return false;
+  };
+
+  for (const Item_eq_base *eq : edge.expr->equijoin_conditions) {
+    WalkItem(eq, enum_walk::PREFIX, collect_field);
+  }
+
+  // Non-equijoin conditions.
+  for (const Item *item : edge.expr->join_conditions) {
+    WalkItem(item, enum_walk::PREFIX, collect_field);
+  }
+
+  const double distinct_rows =
+      condition_fields.empty()
+          // If the join condition is independent of the right hand tables,
+          // then all that matters if is the right hand relation is empty
+          // or not. A row from the left hand relation will
+          // thus contribute to the result set if it satisfies the join
+          // predicate and the right hand relation contains at least one row.
+          ? std::min(1.0, right_rows)
+          : EstimateDistinctRows(right_rows, {condition_fields.begin(),
+                                              condition_fields.size()});
+
+  return std::min(1.0, distinct_rows * edge.selectivity);
 }

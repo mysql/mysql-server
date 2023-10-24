@@ -413,45 +413,6 @@ DROP TABLE t1,t2,num;
 
 
 --echo #
---echo # Bug#34764211: Too high row estimate for semijoin
---echo #
-
-CREATE TABLE num16 (n INT);
-INSERT INTO num16 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
-
-CREATE TABLE t1(
-  a INT PRIMARY KEY,
-  b INT,
-  c INT
-);
-
-INSERT INTO t1 SELECT n, n%4, n%4 FROM num16;
-
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
-ANALYZE TABLE t1;
-
-# Semijoin. We estimate the row count as:
-# CARD(x1) * MIN(1.0, CARD(x2 GROUP BY b) * SELECTIVITY(predicate))
-# and use the histogram on 'b' to estimate CARD(x2 GROUP BY b).
-#
-# The 'x2.c<2' term is there to ensure that
-# CARD(x2 GROUP BY b) * SELECTIVITY(predicate) < 1.0
-# (Otherwise, the fix for Bug#34764211 would have no effect on the row estimate
-# for this query.)
---replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE EXISTS
-(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
-
-# Antijoin. We estimate the row count as:
-# CARD(x1) * MAX(0.1, 1.0 - CARD(x2 GROUP BY b) * SELECTIVITY(predicate))
-# and use the histogram on 'b' to estimate CARD(x2 GROUP BY b).
---replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE NOT EXISTS
-(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
-
-DROP TABLE num16, t1;
-
---echo #
 --echo # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
 --echo #
 
@@ -1064,3 +1025,71 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35898221 Hypergraph: too low row estmate for semijoin
+--echo # that is not an equijoin
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT
+);
+
+CREATE TABLE t2 (
+  k INT,
+  l INT,
+  PRIMARY KEY(k)
+);
+
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<29) SELECT n, n FROM qn;
+
+INSERT INTO t2 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<19) SELECT n, n%10 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON l;
+ANALYZE TABLE t1,t2;
+
+# Simple semijoin. The row estimate should be:
+# CARD(t1) * CARD("SELECT DISTINCT l FROM t2") * SELECTIVITY(t1.a=t2.l)
+# = 30 * 10 * 1/30 = 10.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE t1.a IN (SELECT t2.l FROM t2);
+
+# Semijoin that is not an equijoin.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
+
+# Semijoin refering same inner field ('l') multiple times.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t2.l+ABS(t2.l)=t1.a);
+
+# Semijoin refering multiple inner fields.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t2.k+t2.l=t1.a);
+
+# Simple antijoin.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l);
+
+# Antijoin that is not an equijoin.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
+
+# Semijoin with row estimate from inner operand less than one.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN
+(SELECT t2.l FROM t2 WHERE t2.l<0);
+
+# Semijoin with constant inner operand.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
+
+DROP TABLE t1,t2;

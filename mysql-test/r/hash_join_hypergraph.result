@@ -1387,7 +1387,7 @@ sq2_alias1.col_varchar_key != alias2.col_varchar
 AND sq2_alias1.col_int > alias2.pk
 );
 EXPLAIN
--> Hash semijoin (alias1.col_varchar_key = sq2_alias1.col_varchar), extra conditions: (sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk)  (rows=0.00429)
+-> Hash semijoin (alias1.col_varchar_key = sq2_alias1.col_varchar), extra conditions: (sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk)  (rows=0.0635)
     -> Nested loop inner join  (rows=0.2)
         -> Nested loop inner join  (rows=0.01)
             -> Table scan on alias2  (rows=1)
@@ -2387,7 +2387,7 @@ EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
 (SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
 EXPLAIN
 -> Aggregate: sum(t1.col1), sum(t1.col2)  (rows=1)
-    -> Hash semijoin (t1.col1 = t2.col1), extra conditions: (t1.col2 <> t2.col2)  (rows=92.2)
+    -> Hash semijoin (t1.col1 = t2.col1), extra conditions: (t1.col2 <> t2.col2)  (rows=1024)
         -> Table scan on t1  (rows=1024)
         -> Hash
             -> Table scan on t2  (rows=1024)
@@ -3125,7 +3125,7 @@ EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT 
 (SELECT t2.col1 FROM t2);
 EXPLAIN
 -> Aggregate: sum(t1.col1), sum(t1.col2)  (rows=1)
-    -> Hash antijoin (t1.col1 = t2.col1)  (rows=922)
+    -> Hash antijoin (t1.col1 = t2.col1)  (rows=102)
         -> Table scan on t1  (rows=1024)
         -> Hash
             -> Table scan on t2  (rows=1024)
@@ -3138,7 +3138,7 @@ EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT 
 (SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
 EXPLAIN
 -> Aggregate: sum(t1.col1), sum(t1.col2)  (rows=1)
-    -> Hash antijoin (t1.col1 = t2.col1), extra conditions: (t1.col2 < t2.col2)  (rows=990)
+    -> Hash antijoin (t1.col1 = t2.col1), extra conditions: (t1.col2 < t2.col2)  (rows=102)
         -> Table scan on t1  (rows=1024)
         -> Hash
             -> Table scan on t2  (rows=1024)
@@ -3178,7 +3178,7 @@ SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 EXPLAIN
--> Hash antijoin (probe.col1 = build.col1)  (rows=230)
+-> Hash antijoin (probe.col1 = build.col1)  (rows=25.6)
     -> Table scan on probe  (rows=256)
     -> Hash
         -> Table scan on build  (rows=766)

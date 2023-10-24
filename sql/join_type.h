@@ -24,6 +24,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // Used to describe what kind of join an iterator is executing.
-enum class JoinType { INNER, OUTER, ANTI, SEMI, FULL_OUTER };
+enum class JoinType {
+  INNER,
+  /// Left outer join.
+  OUTER,
+
+  /// Left antijoin, i.e.:
+  /// SELECT projection FROM left_releation WHERE NOT EXISTS
+  /// (SELECT 1 FROM right_releation WHERE predicate)
+  ANTI,
+
+  /// Left semijoin, i.e.:
+  /// SELECT projection FROM left_releation WHERE EXISTS
+  /// (SELECT 1 FROM right_releation WHERE predicate)
+  SEMI,
+  FULL_OUTER
+};
 
 #endif  // SQL_JOIN_TYPE_H

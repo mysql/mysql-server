@@ -120,15 +120,17 @@ void EstimateSortCost(AccessPath *path);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
 
 /**
-   Estimate the number of output rows for an aggregate operation.
+   Estimate the number of rows with a distinct combination of values for
+   'terms'. @see EstimateDistinctRowsFromStatistics for additional details.
    @param child_rows The number of input rows.
-   @param aggregate_terms The terms that we aggregate on.
+   @param terms The terms for which we estimate the number of unique
+                combinations.
    @param trace Optimizer trace.
    @returns The estimated number of output rows.
 */
-double EstimateAggregateRows(
-    double child_rows, Bounds_checked_array<const Item *const> aggregate_terms,
-    std::string *trace = nullptr);
+double EstimateDistinctRows(double child_rows,
+                            Bounds_checked_array<const Item *const> terms,
+                            std::string *trace = nullptr);
 /**
    Estimate costs and result row count for an aggregate operation.
    @param[in,out] path The AGGREGATE path.
@@ -149,51 +151,80 @@ void EstimateLimitOffsetCost(AccessPath *path);
 /// Estimate the costs and row count for a WINDOW AccessPath.
 void EstimateWindowCost(AccessPath *path);
 
+/**
+   Estimate the fan out for a left semijoin or a left antijoin. The fan out
+   is defined as the number of result rows, divided by the number of input
+   rows from the left hand relation. For a semijoin, J1:
+
+   SELECT ... FROM t1 WHERE EXISTS (SELECT ... FROM t2 WHERE predicate)
+
+   we know that the fan out of the corresponding inner join J2:
+
+   SELECT ... FROM t1, t2 WHERE predicate
+
+   is: F(J2) = CARD(t2) * SELECTIVITY(predicate) , where CARD(t2)=right_rows,
+   and SELECTIVITY(predicate)=edge.selectivity. If 'predicate' is a
+   deterministic function of t1 and t2 rows, then J1 is equivalent to an inner
+   join J3:
+
+   SELECT ... FROM t1 JOIN (SELECT DISTINCT f1,..fn FROM t2) d ON predicate
+
+   where f1,..fn are those fields from t2 that appear in the predicate.
+
+   Then F(J1) = F(J3) = F(J2) * CARD(d) / CARD(t2)
+        = CARD(d) * SELECTIVITY(predicate).
+
+   This function therefore collects f1..fn and estimates CARD(d). As a special
+   case, 'predicate' may be independent of t2. The query is then equivalent to:
+
+   SELECT ... FROM t1 WHERE predicate AND (SELECT COUNT(*) FROM t2) > 0
+
+   The fan out is then the selectivity of 'predicate' multiplied by the
+   probability of t2 having at least one row.
+
+   @param right_rows The number of input rows from the right hand relation.
+   @param edge Join edge.
+   @returns fan out.
+ */
+double EstimateSemijoinFanOut(double right_rows, const JoinPredicate &edge);
+
+/**
+   Estimate the number of output rows from joining two relations.
+   @param left_rows Number of rows in the left hand relation.
+   @param right_rows Number of rows in the right hand relation.
+   @param edge The join between the two relations.
+*/
 inline double FindOutputRowsForJoin(double left_rows, double right_rows,
                                     const JoinPredicate *edge) {
-  const auto aggregated_right_rows = [&]() {
-    return EstimateAggregateRows(
-        right_rows,
-        {edge->semijoin_group, static_cast<size_t>(edge->semijoin_group_size)});
-  };
+  switch (edge->expr->type) {
+    case RelationalExpression::LEFT_JOIN:
+      // For outer joins, every outer row produces at least one row (if none
+      // are matching, we get a NULL-complemented row).
+      // Note that this can cause inconsistent row counts; see bug #33550360
+      // and/or JoinHypergraph::has_reordered_left_joins.
+      return left_rows * std::max(right_rows * edge->selectivity, 1.0);
 
-  double fanout;
-  if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
-    // For outer joins, every outer row produces at least one row (if none
-    // are matching, we get a NULL-complemented row).
-    // Note that this can cause inconsistent row counts; see bug #33550360
-    // and/or JoinHypergraph::has_reordered_left_joins.
-    fanout = std::max(right_rows * edge->selectivity, 1.0);
-  } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
-    // Semi- and antijoin estimation is pretty tricky, since we want isn't
-    // really selectivity; we want the probability that at least one row
-    // is matching, which is something else entirely. However, given that
-    // we only have selectivity to work with, we don't really have anything
-    // better than to estimate it as a normal join and cap the result
-    // at selectivity 1.0 (ie., each outer row generates at most one inner row).
-    // Note that this can cause inconsistent row counts; see bug #33550360 and
-    // CostingReceiver::has_semijoin_with_possibly_clamped_child.
-    //
-    // Note that 'edge->selecivity' may be too high. For a query like:
-    //
-    // SELECT 1 FROM t1 WHERE EXISTS (SELECT 1 FROM t2 WHERE t1.a=t2.b)
-    //
-    // we calculate the selectivity of the predicate t1.a=t2.b as the highest
-    // of the individual selecivities of t1.a and t2.b (see
-    // EstimateSelectivity(). But the selectivity of t2.b is irrelevant here. So
-    // if we could extract the selectivity of t1.a, we would get a better
-    // estimate.
-    fanout = std::min(1.0, aggregated_right_rows() * edge->selectivity);
-  } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
-    // Antijoin are estimated as simply the opposite of semijoin (see above),
-    // but wrongly estimating 0 rows (or, of course, a negative amount) could be
-    // really bad, so we assume at least 10% coming out as a fudge factor.
-    // It's better to estimate too high than too low here.
-    fanout = std::max(1.0 - aggregated_right_rows() * edge->selectivity, 0.1);
-  } else {
-    fanout = right_rows * edge->selectivity;
+    case RelationalExpression::SEMIJOIN:
+      return left_rows * EstimateSemijoinFanOut(right_rows, *edge);
+
+    case RelationalExpression::ANTIJOIN:
+      // Antijoin are estimated as simply the opposite of semijoin (see above),
+      // but wrongly estimating 0 rows (or, of course, a negative amount) could
+      // be really bad, so we assume at least 10% coming out as a fudge factor.
+      // It's better to estimate too high than too low here.
+      return left_rows *
+             std::max(1.0 - EstimateSemijoinFanOut(right_rows, *edge), 0.1);
+
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+      return left_rows * right_rows * edge->selectivity;
+
+    case RelationalExpression::FULL_OUTER_JOIN:   // Not implemented.
+    case RelationalExpression::MULTI_INNER_JOIN:  // Should not appear here.
+    case RelationalExpression::TABLE:             // Should not appear here.
+      assert(false);
+      return 0;
   }
-  return left_rows * fanout;
 }
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

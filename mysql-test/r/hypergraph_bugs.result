@@ -489,47 +489,6 @@ EXPLAIN
 
 DROP TABLE t1,t2,num;
 #
-# Bug#34764211: Too high row estimate for semijoin
-#
-CREATE TABLE num16 (n INT);
-INSERT INTO num16 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
-CREATE TABLE t1(
-a INT PRIMARY KEY,
-b INT,
-c INT
-);
-INSERT INTO t1 SELECT n, n%4, n%4 FROM num16;
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	status	Histogram statistics created for column 'b'.
-test.t1	histogram	status	Histogram statistics created for column 'c'.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE EXISTS
-(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
-EXPLAIN
--> Hash semijoin (x1.b = x2.b)  (rows=11.3) (actual rows=8 loops=1)
-    -> Table scan on x1  (rows=16) (actual rows=16 loops=1)
-    -> Hash
-        -> Filter: (x2.c < 2)  (rows=8) (actual rows=8 loops=1)
-            -> Table scan on x2  (rows=16) (actual rows=16 loops=1)
-
-Warnings:
-Note	1276	Field or reference 'test.x1.b' of SELECT #2 was resolved in SELECT #1
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE NOT EXISTS
-(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
-EXPLAIN
--> Hash antijoin (x1.b = x2.b)  (rows=4.69) (actual rows=8 loops=1)
-    -> Table scan on x1  (rows=16) (actual rows=16 loops=1)
-    -> Hash
-        -> Filter: (x2.c < 2)  (rows=8) (actual rows=8 loops=1)
-            -> Table scan on x2  (rows=16) (actual rows=16 loops=1)
-
-Warnings:
-Note	1276	Field or reference 'test.x1.b' of SELECT #2 was resolved in SELECT #1
-DROP TABLE num16, t1;
-#
 # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
 #
 CREATE TABLE num10 (n INT);
@@ -1280,3 +1239,107 @@ EXPLAIN
     -> Table scan on t1  (rows=30)
 
 DROP TABLE t1;
+#
+# Bug#35898221 Hypergraph: too low row estmate for semijoin
+# that is not an equijoin
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT
+);
+CREATE TABLE t2 (
+k INT,
+l INT,
+PRIMARY KEY(k)
+);
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<29) SELECT n, n FROM qn;
+INSERT INTO t2 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<19) SELECT n, n%10 FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON l;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'l'.
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE t1.a IN (SELECT t2.l FROM t2);
+EXPLAIN
+-> Hash semijoin (t1.a = t2.l)  (rows=10) (actual rows=10 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
+EXPLAIN
+-> Hash semijoin (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=14.3) (actual rows=10 loops=1)
+    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t2.l+ABS(t2.l)=t1.a);
+EXPLAIN
+-> Hash semijoin (t1.a = (t2.l + abs(t2.l)))  (rows=10) (actual rows=10 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
+(SELECT 1 FROM t2 WHERE t2.k+t2.l=t1.a);
+EXPLAIN
+-> Hash semijoin (t1.a = (t2.k + t2.l))  (rows=14.8) (actual rows=15 loops=1)
+    -> Index scan on t1 using PRIMARY  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l);
+EXPLAIN
+-> Hash antijoin (t1.a = t2.l)  (rows=20) (actual rows=20 loops=1)
+    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
+EXPLAIN
+-> Hash antijoin (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=15.7) (actual rows=20 loops=1)
+    -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
+    -> Hash
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN
+(SELECT t2.l FROM t2 WHERE t2.l<0);
+EXPLAIN
+-> Nested loop inner join  (rows=0.02)
+    -> Remove duplicates from input grouped on t2.l  (rows=0.02)
+        -> Sort: t2.l  (rows=0.02)
+            -> Filter: (t2.l < 0)  (rows=0.02)
+                -> Table scan on t2  (rows=20)
+    -> Single-row index lookup on t1 using PRIMARY (a=t2.l)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
+EXPLAIN
+-> Nested loop inner join  (rows=1)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Table scan on t2  (rows=20)
+    -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
+
+DROP TABLE t1,t2;

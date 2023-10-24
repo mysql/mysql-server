@@ -98,9 +98,22 @@ struct JoinPredicate {
   // indexes have been collected and Build() has been called).
   Mem_root_array<int> functional_dependencies_idx;
 
-  // If this is a suitable semijoin: Contains the grouping given by the
-  // join key. If the rows are in this grouping, then the join optimizer will
-  // consider deduplicating on it and inverting the join. -1 otherwise.
+  // A semijoin on the following format:
+  //
+  // SELECT ... FROM t1 WHERE EXISTS
+  // (SELECT ... FROM t2 WHERE t1.f1=t2.f2 AND t1.f3=t2.f4 ... t1.fn=t2.fm)
+  //
+  // may be transformed into an equivalent inner join:
+  //
+  // SELECT ... FROM (SELECT DISTINCT f2, f4...fm FROM t2) d JOIN t1
+  // ON t1.f1=d.f2 AND t1.f3=d.f4 ... t1.fn=d.fm
+  //
+  // If this is a suitable semijoin: This field will identify the the
+  // grouping given by (f2, f4..fm). (@see
+  // LogicalOrderings::RemapOrderingIndex() for a description of how this
+  // value can be mapped to an actual ordering). The join
+  // optimizer will then consider deduplicating on it and applying the
+  // above transform. If no such grouping was found, this field will be -1.
   int ordering_idx_needed_for_semijoin_rewrite = -1;
 
   // Same as ordering_idx_needed_for_semijoin_rewrite, but given to the

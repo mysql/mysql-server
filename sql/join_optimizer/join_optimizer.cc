@@ -4050,7 +4050,7 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
     dedup_path = NewRemoveDuplicatesAccessPath(thd, path, semijoin_group,
                                                semijoin_group_size);
     CopyBasicProperties(*path, dedup_path);
-    dedup_path->set_num_output_rows(EstimateAggregateRows(
+    dedup_path->set_num_output_rows(EstimateDistinctRows(
         path->num_output_rows(),
         {semijoin_group, static_cast<size_t>(semijoin_group_size)}, trace));
     dedup_path->set_cost(dedup_path->cost() +
@@ -6418,7 +6418,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
 
-        dedup_path->set_num_output_rows(EstimateAggregateRows(
+        dedup_path->set_num_output_rows(EstimateDistinctRows(
             root_path->num_output_rows(),
             {group_items, grouping.GetElements().size()}, trace));
 
