@@ -46,7 +46,7 @@
 
 // returns 1 for success and 0 for failure
 [[nodiscard]] int my_md5_hash(unsigned char *digest, unsigned const char *buf,
-                              int len) {
+                              size_t len) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   /*
     EVP_Digest() is a wrapper around the EVP_DigestInit_ex(),
@@ -71,7 +71,7 @@
                         1 when MD5 hash function doesn't called because of fips
    mode (ON/STRICT)
 */
-int compute_md5_hash(char *digest, const char *buf, int len) {
+int compute_md5_hash(char *digest, const char *buf, size_t len) {
   int retval = 0;
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
