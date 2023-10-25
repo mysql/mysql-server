@@ -2386,8 +2386,12 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
 
     if (!node_trp->isMultiTransporter()) {
       // Transporter was 'shutdown' when we disconnected.
-      // Now we need to release the NdbSocket resources still kept.
-      allTransporters[trp_id]->releaseAfterDisconnect();
+      // Now we may need to release the NdbSocket resources still kept.
+      // If DISCONNECTING was started while in CONNECTING state there may be
+      // no socket to close.
+      if (!allTransporters[trp_id]->isReleased()) {
+        allTransporters[trp_id]->releaseAfterDisconnect();
+      }
     }
 
     if (recvdata.m_transporters.get(trp_id)) {
