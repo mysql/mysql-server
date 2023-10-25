@@ -36,6 +36,7 @@ var common_responses = common_stmts.prepare_statement_responses(
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_insert_into_routers",
+      "router_check_auth_plugin",
     ],
     options);
 

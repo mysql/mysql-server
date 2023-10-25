@@ -51,8 +51,9 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_create_user_if_not_exists",  // \
       "router_grant_on_metadata_db",       //  \
       "router_grant_on_pfs_db",            //   > overwritten by most tests
-      "router_grant_on_routers",           //   /
-      "router_grant_on_v2_routers",        //   /
+      "router_grant_on_routers",           //  /
+      "router_grant_on_v2_routers",        // /
+      "router_check_auth_plugin",
       "router_update_routers_in_metadata",
       "router_update_router_options_in_metadata",
       "router_select_router_id",

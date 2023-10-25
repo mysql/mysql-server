@@ -37,6 +37,7 @@ var common_stmts = require("common_statements");
         [
           "router_insert_into_routers",
           "router_create_user_if_not_exists",
+          "router_check_auth_plugin",
           "router_grant_on_metadata_db",
           "router_grant_on_pfs_db",
           "router_grant_on_routers",

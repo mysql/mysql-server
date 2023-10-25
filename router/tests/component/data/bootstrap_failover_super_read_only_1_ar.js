@@ -38,6 +38,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_delete_old_accounts",
       "router_create_user",
+      "router_check_auth_plugin",
       "router_grant_on_metadata_db",
       "router_grant_on_pfs_db",
       "router_grant_on_routers",

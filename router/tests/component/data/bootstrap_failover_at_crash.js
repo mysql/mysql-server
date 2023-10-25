@@ -24,6 +24,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_select_router_address",
       "router_delete_old_accounts",
+      "router_check_auth_plugin",
     ],
     options);
 

@@ -33,6 +33,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_insert_into_routers_v1",
       "router_select_hosts_v1",
       "router_create_user_if_not_exists",
+      "router_check_auth_plugin",
     ],
     options);
 
