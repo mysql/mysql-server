@@ -38,6 +38,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_insert_into_routers",
       "router_delete_old_accounts",
+      "router_check_auth_plugin",
     ],
     options);
 

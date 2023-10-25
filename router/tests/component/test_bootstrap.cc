@@ -2806,6 +2806,290 @@ INSTANTIATE_TEST_SUITE_P(
             "Configuration error: --password-retries needs value between 1 and "
             "10000 inclusive, was ''"}));
 
+struct AuthPluginTestParam {
+  // what are the host/plugin pairs in the mysql.user table for the bootstrap
+  // user
+  std::vector<std::pair<std::string, std::string>> auth_host_plugins;
+
+  // what is the default authentication plugin on the server we bootstrap
+  // against
+  std::string default_auth_plugin;
+
+  // vector of strings expected on the console after the bootstrap
+  std::vector<std::string> expected_output_strings;
+
+  // vector of strings NOT expected on the console after the bootstrap
+  std::vector<std::string> unexpected_output_strings;
+
+  // describes the test scenario and expectations
+  std::string test_description;
+
+  // should the "select host, plugin.." query fail on the server
+  bool fail_host_plugin_query{false};
+
+  // should the "select @@default_authentication_plugin" query fail on the
+  // server
+  bool fail_default_auth_plugin_query{false};
+
+  // should the "alter user" query fail on the server
+  bool fail_alter_user_query{false};
+};
+
+class BootstrapChangeAuthPluginTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<AuthPluginTestParam> {};
+
+/**
+ * @test
+ *       verify that the functionality that checks if the existing user account
+ * is not using depracated mysql_native_password and tries to upgrade it works
+ * correctly.
+ */
+TEST_P(BootstrapChangeAuthPluginTest, Spec) {
+  RecordProperty("Description", GetParam().test_description);
+
+  TempDirectory bootstrap_directory;
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_change_auth_plugin.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
+
+  {
+    std::string server_globals =
+        MockServerRestClient(http_port).get_globals_as_json_string();
+    JsonDocument globals;
+    if (globals.Parse<0>(server_globals.c_str()).HasParseError()) {
+      FAIL() << "Failed parsing mock server globals";
+    }
+
+    JsonAllocator allocator;
+    JsonValue auth_host_plugins_json(rapidjson::kArrayType);
+
+    for (const auto &auth_host_plugin : GetParam().auth_host_plugins) {
+      JsonValue auth_host_plugin_json(rapidjson::kArrayType);
+
+      auth_host_plugin_json.PushBack(
+          JsonValue(auth_host_plugin.first.c_str(),
+                    auth_host_plugin.first.length(), allocator),
+          allocator);
+
+      auth_host_plugin_json.PushBack(
+          JsonValue(auth_host_plugin.second.c_str(),
+                    auth_host_plugin.second.length(), allocator),
+          allocator);
+
+      auth_host_plugins_json.PushBack(auth_host_plugin_json, allocator);
+    }
+
+    globals.AddMember("auth_host_plugins", auth_host_plugins_json, allocator);
+    globals.AddMember(
+        "default_auth_plugin",
+        JsonValue(GetParam().default_auth_plugin.c_str(),
+                  GetParam().default_auth_plugin.length(), allocator),
+        allocator);
+
+    globals.AddMember("fail_host_plugin_query",
+                      GetParam().fail_host_plugin_query, allocator);
+    globals.AddMember("fail_default_auth_plugin_query",
+                      GetParam().fail_default_auth_plugin_query, allocator);
+    globals.AddMember("fail_alter_user_query", GetParam().fail_alter_user_query,
+                      allocator);
+
+    server_globals = json_to_string(globals);
+    MockServerRestClient(http_port).set_globals(server_globals);
+  }
+
+  std::vector<std::string> bootsrtap_params{
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      bootstrap_directory.name()};
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_SUCCESS);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  const std::string router_console_output = router.get_full_output();
+  for (const auto &expected_output_string :
+       GetParam().expected_output_strings) {
+    EXPECT_TRUE(pattern_found(router_console_output, expected_output_string))
+        << router_console_output;
+  }
+
+  for (const auto &unexpected_output_string :
+       GetParam().unexpected_output_strings) {
+    EXPECT_FALSE(pattern_found(router_console_output, unexpected_output_string))
+        << router_console_output;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, BootstrapChangeAuthPluginTest,
+    ::testing::Values(
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "caching_sha2_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "There is single existing account for our router user but is uses "
+            "caching_sha2_password. There is no need for any auth_plugin "
+            "change."},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "caching_sha2_password"},
+             {"10.20.*.*", "caching_sha2_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "There are 2 existing accounts for our router user but both use "
+            "caching_sha2_password. There is no need for any auth_plugin "
+            "change."},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {"Existing account '.*'@localhost is using authentication plugin "
+             "'mysql_native_password'. Changing the "
+             "authentication plugin to 'caching_sha2_password'",
+             "Successfully changed the authentication plugin for "
+             "'.*'@localhost from mysql_native_password to "
+             "caching_sha2_password"},
+            /*unexpected_output_strings*/
+            {},
+            /*test_description*/
+            "There is single existing account for our user that uses "
+            "mysql_native_password. The default auth_plugin on the server is "
+            "caching_sha2_password. We expect successful change of the "
+            "auth_plugin for our account"},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"%", "mysql_native_password"},
+             {"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {"Account '.*'@% is using depracated 'mysql_native_password' "
+             "authentication plugin. Change the authentication plugin using "
+             "'alter user' SQL statement.",
+             "Account '.*'@localhost is using depracated "
+             "'mysql_native_password' authentication plugin. Change the "
+             "authentication plugin using 'alter user' SQL statement."},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "There is more than one host account for our user. Both use "
+            "mysql_native_password. Since there is more than one we do not "
+            "attempt to change the auth_plugin, only give a warning advising "
+            "the user to do so manually. We expect that warning twice, once "
+            "per each user@host combination."},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"%", "mysql_native_password"},
+             {"localhost", "caching_sha2_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {"Account '.*'@% is using depracated 'mysql_native_password' "
+             "authentication plugin. Change the authentication plugin using "
+             "'alter user' SQL statement."},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*",
+             "Account '.*'@localhost is using depracated "
+             "'mysql_native_password' authentication plugin. Change the "
+             "authentication plugin using 'alter user' SQL statement."},
+            /*test_description*/
+            "There are 2 host accounts for our user. Only one uses "
+            "mysql_native_password. Since there is more than one we do not "
+            "attempt to change the auth_plugin, only give a warning advising "
+            "the user to do so manually. We expect that warning only once, for "
+            "the account that uses mysql_native_password."},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "mysql_native_password",
+            /*expected_output_strings*/
+            {"Failed changing the authentication plugin for account "
+             "'.*'@'localhost':  mysql_native_password which is deprecated is "
+             "the default authentication plugin on this server."},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "There is single existing account for our user that uses "
+            "mysql_native_password. The default auth_plugin on the server is "
+            "mysql_native_password so we can't change the auth_plugin. We are "
+            "only expected to give a warning."},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "",
+            /*expected_output_strings*/
+            {"Failed checking the Router account authentication plugin: Error "
+             "executing MySQL query \"select host, plugin from mysql.user "
+             "where user = '.*'\": Unexpected error .*"},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "Querying for the host, plugin accounts for our user fails. We "
+            "expect a proper warning.",
+            /*fail_host_plugin_query*/ true},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "",
+            /*expected_output_strings*/
+            {"Failed getting default authentication plugin while changing the "
+             "authentication plugin for account "
+             "'.*'@'localhost': Error executing MySQL query \"select "
+             "@@default_authentication_plugin\": Unexpected "
+             "error .*"},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "Querying for the the default auth plugin fails. We expect a "
+            "proper warning.",
+            /*fail_host_plugin_query*/ false,
+            /*fail_default_auth_plugin_query*/ true},
+        AuthPluginTestParam{
+            /* auth_host_plugins */
+            {{"localhost", "mysql_native_password"}},
+            /* default_auth_plugin */
+            "caching_sha2_password",
+            /*expected_output_strings*/
+            {"Existing account '.*'@localhost is using authentication plugin "
+             "'mysql_native_password'. Changing the authentication plugin to "
+             "'caching_sha2_password'",
+             "Failed changing the authentication plugin for account "
+             "'.*'@'localhost': Error executing MySQL query \"alter user "
+             "'.*'@'localhost' identified with `caching_sha2_password` by "
+             "'.*'\": Unexpected error .*"},
+            /*unexpected_output_strings*/
+            {"Successfully changed the authentication plugin for .*"},
+            /*test_description*/
+            "'alter user' statement fails. We expect a proper warning.",
+            /*fail_host_plugin_query*/ false,
+            /*fail_default_auth_plugin_query*/ false,
+            /*fail_alter_user_query*/ true}));
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());

@@ -563,6 +563,17 @@ function get_response(stmt_key, options) {
             options.user_host_pattern + " IDENTIFIED BY '.*'",
         "ok": {}
       };
+    case "router_check_auth_plugin":
+      return {
+        "stmt_regex": "^select host, plugin from mysql.user where user = .*",
+        "result": {
+          "columns": [
+            {"type": "STRING", "name": "host"},
+            {"type": "STRING", "name": "plugin"}
+          ],
+          "rows": [["localhost", "caching_sha2_password"]],
+        }
+      };
     case "router_grant_on_metadata_db":
       return {
         "stmt_regex":

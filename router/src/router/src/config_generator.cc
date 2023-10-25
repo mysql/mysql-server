@@ -76,6 +76,7 @@
 #include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils_sqlstring.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_config.h"
@@ -1752,6 +1753,142 @@ static std::string get_target_cluster_value(
   return "primary";
 }
 
+namespace {
+class ChangeRouterAccountPlugin {
+ public:
+  ChangeRouterAccountPlugin(MySQLSession &mysql, std::ostream &out_stream,
+                            std::ostream &err_stream)
+      : mysql_(mysql), out_stream_(out_stream), err_stream_(err_stream) {}
+
+  /* If the existing Router account is using mysql_native_password
+   * authentication plugin we attempt to change it to the Cluster's default
+   * authentication plugin. We only try that if there is a single user/host
+   * entry in the mysql.users table for our Router user. If there is more, we
+   * only give a warning advising the user to upgrade the account manually.*/
+  void execute(const std::string &username, const std::string &password) {
+    sqlstring query = "select host, plugin from mysql.user where user = ?";
+    query << username << sqlstring::end;
+    std::vector<std::pair<std::string, std::string>> accounts;
+
+    auto result_processor = [&accounts](const MySQLSession::Row &row) -> bool {
+      assert(row.size() == 2);
+      accounts.emplace_back(to_string(row[0]), to_string(row[1]));
+
+      return true;
+    };
+
+    try {
+      mysql_.query(query, result_processor);
+    } catch (const std::exception &e) {
+      log_error_msg(
+          "Failed checking the Router account authentication plugin: "s +
+          e.what());
+      return;
+    }
+
+    if (accounts.size() == 0) {
+      return;
+    }
+
+    if (accounts.size() > 1) {
+      for (const auto &account : accounts) {
+        const std::string &hostname = account.first;
+        const std::string &auth_plugin_name = account.second;
+        if (auth_plugin_name == "mysql_native_password") {
+          log_error_msg(
+              "Account '" + username + "'@" + hostname +
+              " is using depracated 'mysql_native_password' authentication "
+              "plugin. Change the authentication plugin using 'alter user' SQL "
+              "statement.");
+        }
+      }
+      return;
+    }
+
+    const std::string &hostname = accounts[0].first;
+    const std::string &auth_plugin_name = accounts[0].second;
+    if (auth_plugin_name != "mysql_native_password") {
+      // nothing to fix
+      return;
+    }
+
+    const auto result = get_default_auth_plugin();
+    if (!result) {
+      log_error_msg(
+          "Failed getting default authentication plugin while changing "
+          "the authentication plugin for account '" +
+          username + "'@'" + hostname +
+          "': " + result.get_unexpected().value());
+      return;
+    }
+
+    const std::string default_auth_plugin = result.value();
+    if (default_auth_plugin == "mysql_native_password") {
+      log_error_msg("Failed changing the authentication plugin for account '" +
+                    username + "'@'" + hostname + "': " +
+                    " mysql_native_password which is deprecated is the default "
+                    "authentication plugin on this server.");
+      return;
+    }
+
+    log_info_msg("Existing account '" + username + "'@" + hostname +
+                 " is using authentication plugin 'mysql_native_password'. "
+                 "Changing the authentication plugin to '" +
+                 default_auth_plugin + "'");
+
+    sqlstring alter_user_sql = "alter user ?@? identified with ! by ?";
+    alter_user_sql << username << hostname << default_auth_plugin << password
+                   << sqlstring::end;
+
+    try {
+      mysql_.execute(alter_user_sql);
+    } catch (const std::exception &e) {
+      log_error_msg("Failed changing the authentication plugin for account '" +
+                    username + "'@'" + hostname + "': " + e.what());
+      return;
+    }
+
+    log_info_msg("Successfully changed the authentication plugin for '" +
+                 username + "'@" + hostname +
+                 " from mysql_native_password to " + default_auth_plugin);
+  }
+
+ private:
+  stdx::expected<std::string, std::string> get_default_auth_plugin() {
+    const std::string query = "select @@default_authentication_plugin";
+    try {
+      std::unique_ptr<MySQLSession::ResultRow> result(mysql_.query_one(query));
+
+      if (result && result->size() == 1) {
+        return (*result)[0];
+      }
+    } catch (const std::exception &e) {
+      return stdx::make_unexpected(e.what());
+    }
+
+    return stdx::make_unexpected("unexpected resultset");
+  }
+
+  std::string as_string(const char *input_str) {
+    return {input_str == nullptr ? "" : input_str};
+  }
+
+  void log_error_msg(const std::string &msg) {
+    err_stream_ << Vt100::foreground(Vt100::Color::Yellow);
+    err_stream_ << msg;
+    err_stream_ << Vt100::render(Vt100::Render::ForegroundDefault) << "\n";
+  }
+
+  void log_info_msg(const std::string &msg) {
+    out_stream_ << "- " << msg << "\n";
+  }
+
+  MySQLSession &mysql_;
+  std::ostream &out_stream_;
+  std::ostream &err_stream_;
+};
+}  // namespace
+
 std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
     uint32_t &router_id, std::string &username, std::string &password,
     const std::string &router_name, const ClusterInfo &cluster_info,
@@ -1799,6 +1936,11 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
   bool password_change_ok = !user_options.count("account");
   password = create_router_accounts(user_options, hostnames_cmd, username,
                                     password, password_change_ok);
+
+  // Check if our user is not using deprecated mysql_native_password
+  // authentication plugin and try to change it.
+  ChangeRouterAccountPlugin(*mysql_.get(), out_stream_, err_stream_)
+      .execute(username, password);
 
   const std::string rw_endpoint = str(options.rw_endpoint);
   const std::string ro_endpoint = str(options.ro_endpoint);

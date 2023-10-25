@@ -25,6 +25,26 @@ if (mysqld.global.metadata_schema_version === undefined) {
   mysqld.global.metadata_schema_version = [2, 2, 0];
 }
 
+if (mysqld.global.auth_host_plugins === undefined) {
+  mysqld.global.auth_host_plugins = [[]];
+}
+
+if (mysqld.global.default_auth_plugin === undefined) {
+  mysqld.global.default_auth_plugin = "caching_sha2_password";
+}
+
+if (mysqld.global.fail_host_plugin_query === undefined) {
+  mysqld.global.fail_host_plugin_query = false;
+}
+
+if (mysqld.global.fail_default_auth_plugin_query === undefined) {
+  mysqld.global.fail_default_auth_plugin_query = false;
+}
+
+if (mysqld.global.fail_alter_user_query === undefined) {
+  mysqld.global.fail_alter_user_query = false;
+}
+
 if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "cluster-specific-id";
 }
@@ -38,12 +58,6 @@ const online_gr_nodes = members
                             })
                             .length;
 
-const recovering_gr_nodes = members
-                                .filter(function(memb, indx) {
-                                  return (memb[3] === "RECOVERING");
-                                })
-                                .length;
-
 var options = {
   metadata_schema_version: mysqld.global.metadata_schema_version,
   cluster_type: "gr",
@@ -54,7 +68,7 @@ var options = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_members_all: members.length,
   gr_members_online: online_gr_nodes,
-  gr_members_recovering: recovering_gr_nodes,
+  gr_members_recovering: [],
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
@@ -76,11 +90,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       // account verification
       "router_select_metadata_v2_gr_account_verification",
       "router_select_group_membership",
-    ],
-    options);
-
-var common_responses_v2_1 = common_stmts.prepare_statement_responses(
-    [
       "router_clusterset_present",
     ],
     options);
@@ -89,7 +98,6 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_insert_into_routers",
       "router_create_user_if_not_exists",
-      "router_check_auth_plugin",
       "router_grant_on_metadata_db",
       "router_grant_on_pfs_db",
       "router_grant_on_routers",
@@ -110,17 +118,54 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     var res;
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    }
-    // metadata ver 2.1+
-    else if (
-        (mysqld.global.metadata_schema_version[0] >= 2 &&
-         mysqld.global.metadata_schema_version[1] >= 1) &&
-        common_responses_v2_1.hasOwnProperty(stmt)) {
-      return common_responses_v2_1[stmt];
     } else if (
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {
       return res;
+    } else if (stmt.match(
+                   "^select host, plugin from mysql.user where user = .*")) {
+      if (!mysqld.global.fail_host_plugin_query) {
+        return {
+          result: {
+            "columns":
+                [
+                  {"type": "STRING", "name": "host"},
+                  {"type": "STRING", "name": "plugin"}
+                ],
+            "rows": mysqld.global.auth_host_plugins,
+          }
+        }
+      } else {
+        return {
+          error: {code: 1000, sql_state: "HY000", message: "Unexpected error"}
+        }
+      }
+    } else if (stmt === "select @@default_authentication_plugin") {
+      if (!mysqld.global.fail_default_auth_plugin_query) {
+        return {
+          result: {
+            "columns":
+                [{"type": "STRING", "name": "@@default_authentication_plugin"}],
+            "rows": [[mysqld.global.default_auth_plugin]],
+          }
+        }
+      } else {
+        return {
+          error: {code: 1000, sql_state: "HY000", message: "Unexpected error"}
+        }
+      }
+    } else if (stmt.match(
+                   "alter user '.*'@'.*' identified with `" +
+                   mysqld.global.default_auth_plugin + "` by '.*'")) {
+      if (!mysqld.global.fail_alter_user_query) {
+        return {
+          "ok": {}
+        }
+      } else {
+        return {
+          error: {code: 1000, sql_state: "HY000", message: "Unexpected error"}
+        }
+      }
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }
