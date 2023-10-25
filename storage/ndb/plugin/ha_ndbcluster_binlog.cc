@@ -1177,7 +1177,8 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     }
 
     // Check if schema distribution is still ready.
-    if (m_share->have_event_operation() == false) {
+    if (m_share->have_event_operation() == false ||
+        m_result_share->have_event_operation() == false) {
       // This case is unlikely, but there is small race between
       // clients first check for schema distribution ready and schema op
       // registered in the coordinator(since the message is passed
@@ -4272,11 +4273,6 @@ class Ndb_schema_event_handler {
     // take the GSL properly
     assert(!m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    // Sleep here will make other mysql server in same cluster setup to create
-    // the schema result table in NDB before this mysql server. This also makes
-    // the create table in the connection thread to acquire GSL before the
-    // Binlog thread
-    DBUG_EXECUTE_IF("ndb_bi_sleep_before_gsl", sleep(1););
     // Protect the setup with GSL(Global Schema Lock)
     Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
     if (global_schema_lock_guard.lock()) {
