@@ -33,7 +33,7 @@
   Wrapper function for MD5 implementation.
 */
 
-int compute_md5_hash(char *digest, const char *buf, int len);
+extern int compute_md5_hash(char *digest, const char *buf, size_t len);
 
 /*
   Convert an array of bytes to a hexadecimal representation.
