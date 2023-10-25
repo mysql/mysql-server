@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
 
+#include <string>
+
 #include "mrs/database/helper/query.h"
 #include "mrs/interface/state.h"
 
@@ -45,7 +47,7 @@ class QueryState : public Query {
                         MySQLSession::Transaction *transaction);
   State state_{stateOff};
   bool changed_{true};
-  std::string json_data;
+  std::string json_data_;
   uint64_t audit_log_id_{0};
   void on_row(const ResultRow &r) override;
 };

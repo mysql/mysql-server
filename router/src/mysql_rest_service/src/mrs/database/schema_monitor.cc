@@ -65,13 +65,15 @@ SchemaMonitor::SchemaMonitor(
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
 void SchemaMonitor::start() {
-  running_ = true;
+  state_.exchange(k_initializing, k_running);
+  log_debug("State at start:%i", static_cast<int>(state_.get()));
   run();
 }
 
 void SchemaMonitor::stop() {
   waitable_.serialize_with_cv([this](void *, std::condition_variable &cv) {
-    running_ = false;
+    state_.exchange({k_initializing, k_running}, k_stopped);
+    log_debug("State at stop:%i", static_cast<int>(state_.get()));
     cv.notify_all();
   });
   // The thread might be already stopped or even it has never started
@@ -91,6 +93,7 @@ void SchemaMonitor::run() {
       new database::QueryEntriesAuthApp()};
   std::unique_ptr<database::QueryEntriesContentFile> content_file_fetcher{
       new database::QueryEntriesContentFile()};
+  //  int i = 0;
 
   do {
     try {
@@ -102,6 +105,11 @@ void SchemaMonitor::run() {
       authentication_fetcher->query_entries(session.get());
       route_fetcher->query_entries(session.get());
       content_file_fetcher->query_entries(session.get());
+
+      //      log_debug("XXX-%i", i);
+      //      if (++i == 5) {
+      //        throw std::runtime_error("TODO remove me.");
+      //      }
 
       if (turn_state->was_changed()) {
         auto global_json_config = turn_state->get_json_data();
@@ -155,8 +163,7 @@ void SchemaMonitor::run() {
 
       if (!full_fetch_compleated) {
         full_fetch_compleated = true;
-        turn_state.reset(
-            new database::QueryChangesState(turn_state->get_last_update()));
+        turn_state.reset(new database::QueryChangesState(turn_state.get()));
         route_fetcher.reset(new database::QueryChangesDbObject(
             route_fetcher->get_last_update()));
         authentication_fetcher.reset(new database::QueryChangesAuthApp(
@@ -214,8 +221,8 @@ void SchemaMonitor::run() {
 bool SchemaMonitor::wait_until_next_refresh() {
   waitable_.wait_for(
       std::chrono::seconds(configuration_.metadata_refresh_interval_),
-      [this](void *) { return !running_; });
-  return running_;
+      [this](void *) { return !state_.is(k_running); });
+  return state_.is(k_running);
 }
 
 }  // namespace database

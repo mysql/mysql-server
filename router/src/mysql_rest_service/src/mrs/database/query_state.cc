@@ -41,9 +41,9 @@ void QueryState::on_row(const ResultRow &r) {
   auto state_new = atoi(r[0]) ? stateOn : stateOff;
 
   if (r[1])
-    json_data = r[1];
+    json_data_ = r[1];
   else
-    json_data.clear();
+    json_data_.clear();
 
   if (state_ != state_new) {
     changed_ = true;
@@ -53,7 +53,7 @@ void QueryState::on_row(const ResultRow &r) {
 
 bool QueryState::was_changed() const { return changed_; }
 
-std::string QueryState::get_json_data() { return json_data; }
+std::string QueryState::get_json_data() { return json_data_; }
 
 State QueryState::get_state() {
   changed_ = false;

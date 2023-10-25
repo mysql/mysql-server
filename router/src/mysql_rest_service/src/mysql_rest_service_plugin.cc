@@ -114,6 +114,7 @@ struct MrdsModule {
   }
 
   void start() { mrds_monitor.start(); }
+  void stop() { mrds_monitor.stop(); }
 
   const ::mrs::Configuration &configuration;
   const std::string jwt_secret;
@@ -216,6 +217,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 static void stop(mysql_harness::PluginFuncEnv * /* env */) {
   log_debug("stop");
   if (g_mrs_configuration) g_mrs_configuration->service_monitor_.abort();
+  if (g_mrds_module) g_mrds_module->stop();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {

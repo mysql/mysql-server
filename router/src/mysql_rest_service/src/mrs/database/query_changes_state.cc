@@ -29,8 +29,10 @@
 namespace mrs {
 namespace database {
 
-QueryChangesState::QueryChangesState(const uint64_t last_audit_id) {
-  audit_log_id_ = last_audit_id;
+QueryChangesState::QueryChangesState(QueryState *state) {
+  audit_log_id_ = state->get_last_update();
+  state_ = state->get_state();
+  json_data_ = state->get_json_data();
   changed_ = false;
 }
 

@@ -31,6 +31,7 @@
 #include "mysql/harness/stdx/monitor.h"
 
 #include "collector/mysql_cache_manager.h"
+#include "helper/wait_variable.h"
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
@@ -64,6 +65,8 @@ class SchemaMonitor {
     using Parent::WaitableMonitor;
   };
 
+  enum State { k_initializing, k_running, k_stopped };
+
   std::thread monitor_thread_;
   const mrs::Configuration configuration_;
   collector::MysqlCacheManager *cache_;
@@ -71,7 +74,7 @@ class SchemaMonitor {
   mrs::authentication::AuthorizeManager *auth_manager_;
   mrs::observability::EntitiesManager *entities_manager_;
   mrs::GtidManager *gtid_manager_;
-  bool running_{false};
+  WaitableVariable<State> state_{k_initializing};
   Waitable waitable_{this};
 };
 

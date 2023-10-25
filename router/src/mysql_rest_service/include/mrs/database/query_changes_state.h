@@ -32,7 +32,7 @@ namespace database {
 
 class QueryChangesState : public QueryState {
  public:
-  QueryChangesState(const uint64_t last_audit_id);
+  explicit QueryChangesState(QueryState *state);
 
   void query_state(MySQLSession *session) override;
 };
