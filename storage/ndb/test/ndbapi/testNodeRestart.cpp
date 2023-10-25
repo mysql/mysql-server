@@ -1523,7 +1523,7 @@ int runBug18612(NDBT_Context *ctx, NDBT_Step *step) {
 int runBug18612SR(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
 
-  return NDBT_OK; /* Until we fix handling of partitioned clusters */
+  return NDBT_SKIPPED; /* Until we fix handling of partitioned clusters */
 
   if (restarter.getNumReplicas() < 2) {
     g_err << "[SKIPPED] Test requires 2 or more replicas." << endl;
@@ -2182,7 +2182,7 @@ int run_test_multi_socket(NDBT_Context *ctx, NDBT_Step *step) {
   }
   if (index < 2) {
     /* Test requires at least 2 replicas */
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
   int pos = 0;
   int start_index = 1;
@@ -2534,7 +2534,7 @@ int runCommitAck(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   Ndb *pNdb = GETNDB(step);
 
-  if (records < 2) return NDBT_OK;
+  if (records < 2) return NDBT_SKIPPED;
   if (restarter.getNumDbNodes() < 2) {
     g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
     return NDBT_SKIPPED;
@@ -2735,7 +2735,7 @@ int runPnr(NDBT_Context *ctx, NDBT_Step *step) {
        * nodegroup with only 1 member, can't run test
        */
       ctx->stopTest();
-      return NDBT_OK;
+      return NDBT_SKIPPED;
     }
   }
 
@@ -4641,8 +4641,8 @@ int runRestartToDynamicOrder(NDBT_Context *ctx, NDBT_Step *step) {
   Vector<Uint32> evens;
 
   if (numNodes == 2) {
-    ndbout_c("No Dynamic reordering possible with 2 nodes");
-    return NDBT_OK;
+    ndbout_c("[SKIPPED] No Dynamic reordering possible with 2 nodes");
+    return NDBT_SKIPPED;
   }
   if (numNodes & 1) {
     ndbout_c("Non multiple-of-2 number of nodes.  Not supported");
@@ -5664,9 +5664,9 @@ int runTestScanFragWatchdog(NDBT_Context *ctx, NDBT_Step *step) {
   /* Setup an error insert, then start a checkpoint */
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
 
   do {
@@ -5872,9 +5872,9 @@ static Uint32 setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 *keys,
 int runChangeNumLogPartsINR(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
   int node_1 = restarter.getDbNodeId(0);
   if (node_1 == -1) {
@@ -5920,7 +5920,7 @@ int runChangeNumLogPartsINR(NDBT_Context *ctx, NDBT_Step *step) {
 int runChangeNumLDMsNR(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
     return NDBT_SKIPPED;
   }
@@ -6040,9 +6040,9 @@ int runChangeNumLDMsNR(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestScanFragWatchdogDisable(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
   Uint32 lcp_watchdog_limit = 0;
   int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
@@ -6132,9 +6132,9 @@ int runBug16834416(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
 
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
 
   int loops = ctx->getNumLoops();
@@ -6180,9 +6180,9 @@ int runTestLcpFsErr(NDBT_Context *ctx, NDBT_Step *step) {
   /* Setup an error insert, then start a checkpoint */
   NdbRestarter restarter;
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
 
   g_err << "Subscribing to MGMD events..." << endl;
@@ -6409,9 +6409,9 @@ int runBug16944817(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
 
   if (restarter.getNumDbNodes() < 2) {
-    g_err << "Insufficient nodes for test." << endl;
+    g_err << "[SKIPPED] Insufficient nodes for test." << endl;
     ctx->stopTest();
-    return NDBT_OK;
+    return NDBT_SKIPPED;
   }
 
 #ifndef NDEBUG
@@ -8111,8 +8111,8 @@ int run_PLCP_I2(NDBT_Context *ctx, NDBT_Step *step) {
   HugoTransactions hugoTrans(*ctx->getTab());
 
   if (nodeCount < 2) {
-    g_info << "Test skipped, requires at least 2 nodes" << endl;
-    return NDBT_OK; /* Requires at least 2 nodes to run */
+    g_info << "[SKIPPED] Requires at least 2 nodes" << endl;
+    return NDBT_SKIPPED; /* Requires at least 2 nodes to run */
   }
   g_err << "Executing " << loops << " loops" << endl;
   while (++i <= loops && result != NDBT_FAILED) {
