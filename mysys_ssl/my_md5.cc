@@ -39,7 +39,7 @@
 #if defined(HAVE_OPENSSL)
 #include <openssl/md5.h>
 
-static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len)
+static void my_md5_hash(unsigned char* digest, unsigned const char *buf, size_t len)
 {
   MD5_CTX ctx;
   MD5_Init (&ctx);
@@ -58,7 +58,7 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
 
     @return              void
 */
-void compute_md5_hash(char *digest, const char *buf, int len)
+void compute_md5_hash(char *digest, const char *buf, size_t len)
 {
 #if defined(HAVE_OPENSSL)
   my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
