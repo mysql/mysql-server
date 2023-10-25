@@ -350,6 +350,13 @@ class Name_string : public Simple_cstring {
 
 #define NAME_STRING(x) Name_string(STRING_WITH_LEN(x))
 
+/**
+  Max length of an Item string for its use in an error message.
+  This should be kept in sync with MYSQL_ERRMSG_SIZE (which should
+  not be exceeded).
+*/
+#define ITEM_TO_QUERY_SUBSTRING_CHAR_LIMIT (300)
+
 extern const Name_string null_name_string;
 
 /**
@@ -7401,7 +7408,13 @@ extern const String my_null_string;
 void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 
+std::string ItemToString(const Item *item, enum_query_type q_type);
 std::string ItemToString(const Item *item);
+
+std::string ItemToQuerySubstrNoCharLimit(const Item *item);
+std::string ItemToQuerySubstr(
+    const Item *item, const LEX *lex = nullptr,
+    uint32 char_limit = ITEM_TO_QUERY_SUBSTRING_CHAR_LIMIT);
 
 inline size_t CountVisibleFields(const mem_root_deque<Item *> &fields) {
   return std::count_if(fields.begin(), fields.end(),

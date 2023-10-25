@@ -344,3 +344,15 @@ bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
   lex_str->length = length;
   return false;
 }
+
+bool copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
+  const size_t len = src->length();
+  char *copy = static_cast<char *>(mem_root->Alloc(len + 1));
+  if (copy != nullptr) {
+    memcpy(copy, src->ptr(), len);
+    copy[len] = '\0';
+    dst->set(copy, len, src->charset());
+    return false;
+  }
+  return true;
+}

@@ -62,6 +62,7 @@
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/thd_raii.h"
+#include "strfunc.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
@@ -627,17 +628,19 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   // Also do not write a cloned stored procedure variable to query logs.
   thd->lex->reparse_derived_table_condition = true;
   // Get the printout of the expression
-  StringBuffer<1024> str(thd->charset());
+  StringBuffer<1024> str_buf(thd->charset());
   // For printing parameters we need to specify the flag QT_NO_DATA_EXPANSION
   // because for a case when statement gets reprepared during execution, we
   // still need Item_param::print() to print the '?' rather than the actual data
   // specified for the parameter.
   // The flag QT_TO_ARGUMENT_CHARSET is required for printing character string
   // literals with correct character set introducer.
-  item->print(thd, &str,
+  item->print(thd, &str_buf,
               enum_query_type(QT_NO_DATA_EXPANSION | QT_TO_ARGUMENT_CHARSET));
-  str.append('\0');
+  str_buf.append('\0');
 
+  String str;
+  if (copy_string(thd->mem_root, &str, &str_buf)) return nullptr;
   Derived_expr_parser_state parser_state;
   parser_state.init(thd, str.ptr(), str.length());
 

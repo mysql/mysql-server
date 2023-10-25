@@ -11181,16 +11181,57 @@ bool Item_field::strip_db_table_name_processor(uchar *) {
   return false;
 }
 
-string ItemToString(const Item *item) {
+string ItemToString(const Item *item, enum_query_type q_type) {
   if (item == nullptr) return "(none)";
   String str;
   const ulonglong save_bits = current_thd->variables.option_bits;
   current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;
-  item->print(
-      current_thd, &str,
-      enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
+  item->print(current_thd, &str, q_type);
   current_thd->variables.option_bits = save_bits;
   return to_string(str);
+}
+
+string ItemToString(const Item *item) {
+  return ItemToString(
+      item,
+      enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
+}
+
+std::string ItemToQuerySubstrNoCharLimit(const Item *item, const LEX *lex) {
+  if (item == nullptr) return "INVALID";
+  /* item_name is the most concise representation of Item, hence checking it
+   * first */
+  if (item->item_name.length() > 0) {
+    std::string item_str(item->item_name.ptr(), item->item_name.length());
+    if (!item_str.starts_with('<') && !item_str.ends_with('>') &&
+        item_str.find("!hidden!") == std::string::npos)
+      return item_str;
+  }
+  // workaround for Bug#36344673 and Bug#36347508 to skip looking up LEX parser
+  // strings for stored procedures and functions
+  if (lex == nullptr ||
+      (!lex->uses_stored_routines() &&
+       (lex->m_sql_cmd == nullptr || !lex->m_sql_cmd->is_part_of_sp()) &&
+       (lex->thd == nullptr || lex->thd->sp_runtime_ctx == nullptr))) {
+    if (item->m_pos.raw.length() > 0)
+      return std::string(item->m_pos.raw.start, item->m_pos.raw.length());
+    if (item->m_pos.cpp.length() > 0)
+      return std::string(item->m_pos.cpp.start, item->m_pos.cpp.length());
+    if (item->orig_name.length() > 0)
+      return std::string(item->orig_name.ptr(), item->orig_name.length());
+  }
+  return ItemToString(item, enum_query_type(QT_NO_DEFAULT_DB));
+}
+
+std::string ItemToQuerySubstr(const Item *item, const LEX *lex,
+                              uint32 char_limit) {
+  std::string item_str_no_char_limit(ItemToQuerySubstrNoCharLimit(item, lex));
+  if (item_str_no_char_limit.length() > char_limit) {
+    std::string item_str_with_char_limit(item_str_no_char_limit, 0, char_limit);
+    item_str_with_char_limit.append("...");
+    return item_str_with_char_limit;
+  }
+  return item_str_no_char_limit;
 }
 
 Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,

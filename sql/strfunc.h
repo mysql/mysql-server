@@ -33,6 +33,7 @@
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"  // MYSQL_LEX_CSTRING
 #include "mysql/strings/m_ctype.h"
+#include "sql_string.h"
 #include "template_utils.h"
 
 class THD;
@@ -58,6 +59,8 @@ char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
                   uint *errors);
+
+bool copy_string(MEM_ROOT *mem_root, String *dst, const String *src);
 
 /**
   Return a LEX_CSTRING handle to a std::string like (meaning something
