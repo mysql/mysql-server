@@ -702,7 +702,7 @@ X509 *Certificate::open_one(const char *path) {
   STACK_OF(X509) *stack = Certificate::open(path);
   if (stack) {
     c = sk_X509_shift(stack);
-    sk_X509_free(stack);
+    sk_X509_pop_free(stack, X509_free);
   }
   return c;
 }
