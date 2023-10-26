@@ -1032,7 +1032,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
   };
   auto make_partial_db_revoke_stmts = [thd, protocol,
                                        restrictions](ACL_USER *acl_user) {
-    if (mysqld_partial_revokes()) {
+    if (mysqld_partial_revokes() && !restrictions.is_empty()) {
       /*
        Copy the unordered restrictions into an array.
        Send the sorted partial revokes to the client.

@@ -1125,7 +1125,7 @@ ulong Security_context::filter_access(const ulong access,
                                       const std::string &db_name) const {
   ulong access_mask = access;
   auto &db_restrictions = m_restrictions.db();
-  if (db_restrictions.is_not_empty()) {
+  if (!db_restrictions.is_empty()) {
     ulong restrictions_mask;
     if (db_restrictions.find(db_name, restrictions_mask))
       access_mask = (access_mask & restrictions_mask) ^ access;
