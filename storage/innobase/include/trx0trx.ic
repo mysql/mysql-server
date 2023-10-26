@@ -305,3 +305,22 @@ static inline const trx_t *trx_arbitrate(const trx_t *requestor,
 
   return (nullptr);
 }
+
+/** Human readable transaction state, for diagnostic purposes */
+inline const char *trx_state_string(trx_state_t state) {
+  switch (state) {
+    case TRX_STATE_NOT_STARTED:
+      return "not started";
+    case TRX_STATE_FORCED_ROLLBACK:
+      return "forced rollback";
+    case TRX_STATE_ACTIVE:
+      return "ACTIVE";
+    case TRX_STATE_PREPARED:
+      return "ACTIVE (PREPARED)";
+    case TRX_STATE_COMMITTED_IN_MEMORY:
+      return "COMMITTED IN MEMORY";
+    default:
+      ut_d(ut_error);
+      return nullptr;
+  }
+}

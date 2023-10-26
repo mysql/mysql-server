@@ -1,0 +1,125 @@
+#
+# For long-running rollbacks, log messages are emitted every 30s
+#
+
+# Needs "debug" variable
+--source include/have_debug.inc
+
+--source include/not_crashrep.inc
+
+--let $error_name=ER_IB_LONG_ROLLBACK_FULL
+--source include/get_error_id.inc
+--let $msgid_full=$error_id
+--let $error_name=ER_IB_LONG_ROLLBACK
+--source include/get_error_id.inc
+--let $msgid=$error_id
+
+# error log is tested via scannning performance_schema.error_log past a stored timestamp
+let $get_log_from_here= SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
+let $get_log= SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+              FROM performance_schema.error_log
+              WHERE ERROR_CODE IN ('$msgid_full', '$msgid') AND LOGGED > @pfs_errlog_latest
+              ORDER BY LOGGED;
+
+# simulate message delay with debug variable
+SET @@SESSION.debug="+d,log_long_rollback";
+--let old_verbosity = `SELECT @@GLOBAL.log_error_verbosity`
+SET GLOBAL log_error_verbosity=3;
+
+CREATE TABLE t (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, val varchar(12)) ENGINE=InnoDB;
+
+DELIMITER $;
+CREATE PROCEDURE populate (size INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  REPEAT
+    INSERT INTO t (val) VALUES ("test val");
+    SET i = i + 1;
+  UNTIL i >= size END REPEAT;
+END$
+
+DELIMITER ;$
+
+CALL populate(400);
+
+--eval $get_log_from_here
+
+START TRANSACTION;
+
+UPDATE t SET val = "other val";
+
+ROLLBACK;
+
+--replace_result $msgid_full MY-LNGRB1 $msgid MY-LNGRB2
+--replace_regex /transaction \d+/transaction $trxid/ /XID: .*/XID: $XID/
+--eval $get_log
+
+# Test partial rollback
+
+# 600 rows in table now
+CALL populate(200);
+
+--eval $get_log_from_here
+
+START TRANSACTION;
+
+UPDATE t SET val = "abc" WHERE id <= 400;
+
+SAVEPOINT sp;
+
+# 200 rows affected
+UPDATE t SET val = "abc" WHERE id > 400;
+
+ROLLBACK TO SAVEPOINT sp;
+
+COMMIT;
+
+--replace_result $msgid_full MY-LNGRB1 $msgid MY-LNGRB2
+--replace_regex /transaction \d+/transaction $trxid/ /XID: .*/XID: $XID/
+--eval $get_log
+
+# Test rollback XA transaction (known XID)
+--eval $get_log_from_here
+XA START X'616263',X'646566',2;
+UPDATE t SET val = "abc";
+XA END X'616263',X'646566',2;
+XA ROLLBACK X'616263',X'646566',2;
+
+--replace_result $msgid_full MY-LNGRB1 $msgid MY-LNGRB2
+--replace_regex /transaction \d+/transaction $trxid/
+--eval $get_log
+
+--eval $get_log_from_here
+
+# Capture last log time before server shutdown to filter logs after the shutdown
+--let $pfs_errlog_latest= `SELECT @pfs_errlog_latest`
+
+# Test asynchronous rollback on recovery
+SET @@SESSION.debug="+d,crash_after_flush_engine_log";
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+DELETE FROM t;
+
+--let $restart_parameters="restart: --debug=d,log_long_rollback --log-error-verbosity=3"
+--source include/start_mysqld.inc
+
+--disable_query_log
+--eval SET @pfs_errlog_latest = TIMESTAMP '$pfs_errlog_latest'
+--enable_query_log
+
+--replace_result $msgid_full MY-LNGRB1 $msgid MY-LNGRB2
+--replace_regex /transaction \d+/transaction $trxid/ /XID: .*/XID: $XID/
+eval SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+            FROM performance_schema.error_log
+            WHERE ERROR_CODE IN ('MY-013032', 'MY-010232', '$msgid_full', '$msgid')
+            AND LOGGED > @pfs_errlog_latest
+            ORDER BY LOGGED;
+
+# Clean up
+DROP TABLE t;
+DROP PROCEDURE populate;
+SET GLOBAL debug="-d,log_long_rollback";
+--disable_query_log
+eval SET GLOBAL log_error_verbosity=$old_verbosity;
+--enable_query_log

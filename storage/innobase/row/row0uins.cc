@@ -76,7 +76,7 @@ introduced where a call to log_free_check() is bypassed. */
   bool online;
 
   ut_ad(index->is_clustered());
-  ut_ad(node->trx->in_rollback);
+  ut_ad(node->trx.in_rollback);
 
   mtr_start(&mtr);
 
@@ -90,7 +90,7 @@ introduced where a call to log_free_check() is bypassed. */
 
   online = dict_index_is_online_ddl(index);
   if (online) {
-    ut_ad(node->trx->dict_operation_lock_mode != RW_X_LATCH);
+    ut_ad(node->trx.dict_operation_lock_mode != RW_X_LATCH);
     ut_ad(node->table->id != DICT_INDEXES_ID);
     mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   }
@@ -103,7 +103,7 @@ introduced where a call to log_free_check() is bypassed. */
   btr_cur = node->pcur.get_btr_cur();
 
   ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index) ==
-        node->trx->id);
+        node->trx.id);
   ut_ad(!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
                               dict_table_is_comp(btr_cur->index->table)));
 
@@ -133,7 +133,7 @@ retry:
                                         &mtr, UT_LOCATION_HERE);
   ut_a(success);
 
-  btr_cur_pessimistic_delete(&err, false, btr_cur, 0, true, node->trx->id,
+  btr_cur_pessimistic_delete(&err, false, btr_cur, 0, true, node->trx.id,
                              node->undo_no, node->rec_type, &mtr, &node->pcur,
                              nullptr);
 
@@ -469,7 +469,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
   MDL_ticket *mdl = nullptr;
 
   ut_ad(node->state == UNDO_NODE_INSERT);
-  ut_ad(node->trx->in_rollback);
+  ut_ad(node->trx.in_rollback);
   ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
   THD *thd = dd_thd_for_undo(node->trx);

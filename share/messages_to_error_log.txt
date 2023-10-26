@@ -12677,6 +12677,12 @@ ER_LOG_CLIENT_INTERACTION_TIMEOUT
 ER_GRP_RPL_PREEMPTIVE_GARBAGE_COLLECTION_DIFF_FROM_GRP
   eng "The member is configured with a group_replication_preemptive_garbage_collection option value '%d' different from the group '%d'. The member will now exit the group."
 
+ER_IB_LONG_ROLLBACK_FULL
+  eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete). Transaction info: last state: %s"
+
+ER_IB_LONG_ROLLBACK
+  eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete)."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

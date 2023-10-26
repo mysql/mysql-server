@@ -242,7 +242,7 @@ introduced where a call to log_free_check() is bypassed. */
     after it had been completely inserted. Therefore, we
     are passing rollback=false, just like purge does. */
 
-    btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx->id,
+    btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx.id,
                                node->undo_no, node->rec_type, mtr, &node->pcur,
                                nullptr);
 
@@ -267,8 +267,8 @@ introduced where a call to log_free_check() is bypassed. */
   dict_index_t *index;
   bool online;
 
-  ut_ad(thr_get_trx(thr) == node->trx);
-  ut_ad(node->trx->in_rollback);
+  ut_ad(thr_get_trx(thr) == &node->trx);
+  ut_ad(node->trx.in_rollback);
 
   log_free_check();
   pcur = &node->pcur;
@@ -520,7 +520,7 @@ introduced where a call to log_free_check() is bypassed. */
       the distinction only matters when deleting a
       record that contains externally stored columns. */
       ut_ad(!index->is_clustered());
-      btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx->id,
+      btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, node->trx.id,
                                  node->undo_no, node->rec_type, &mtr,
                                  &node->pcur, nullptr);
       /* The delete operation may fail if we have little
@@ -1278,10 +1278,10 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
   ut_ad(node != nullptr);
   ut_ad(thr != nullptr);
   ut_ad(node->state == UNDO_NODE_MODIFY);
-  ut_ad(node->trx->in_rollback);
+  ut_ad(node->trx.in_rollback);
   ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-  ut_ad(thr_get_trx(thr) == node->trx);
+  ut_ad(thr_get_trx(thr) == &node->trx);
 
   THD *thd = dd_thd_for_undo(node->trx);
 

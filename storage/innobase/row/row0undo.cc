@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include <stddef.h>
+#include <type_traits>
 
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
@@ -126,28 +127,40 @@ doing the purge. Similarly, during a rollback, a record can be removed
 if the stored roll ptr in the undo log points to a trx already (being) purged,
 or if the roll ptr is NULL, i.e., it was a fresh insert. */
 
-undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
+using namespace std::literals::chrono_literals;
+
+undo_node_t::undo_node_t(trx_t &trx, que_thr_t *parent, bool partial_rollback)
+    : common{},
+      state{UNDO_NODE_FETCH_NEXT},
+      trx{trx},
+      heap{mem_heap_create(256, UT_LOCATION_HERE)},
+      partial{partial_rollback},
+      long_undo_state(trx) {
+  common.type = QUE_NODE_UNDO;
+  common.parent = parent;
+  pcur.init();
+}
+
+Long_undo_state::Long_undo_state(const trx_t &trx)
+    : throttler(30s),
+      rows_total{trx.undo_no - trx.roll_limit},
+      trx_state{trx.state.load()} {
+  throttler.apply();
+}
+
+undo_node_t *row_undo_node_create(trx_t &trx, que_thr_t *parent,
                                   mem_heap_t *heap, bool partial_rollback) {
   undo_node_t *undo;
 
-  ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE) ||
-        trx_state_eq(trx, TRX_STATE_PREPARED));
+  ut_ad(trx_state_eq(&trx, TRX_STATE_ACTIVE) ||
+        trx_state_eq(&trx, TRX_STATE_PREPARED));
   ut_ad(parent);
 
+  // no destructor call
+  static_assert(std::is_trivially_destructible_v<undo_node_t>);
   undo = static_cast<undo_node_t *>(mem_heap_alloc(heap, sizeof(undo_node_t)));
 
-  undo->common.type = QUE_NODE_UNDO;
-  undo->common.parent = parent;
-
-  undo->state = UNDO_NODE_FETCH_NEXT;
-  undo->trx = trx;
-
-  undo->partial = partial_rollback;
-  undo->pcur.init();
-
-  undo->heap = mem_heap_create(256, UT_LOCATION_HERE);
-
-  return (undo);
+  return new (undo) undo_node_t(trx, parent, partial_rollback);
 }
 
 /** Looks for the clustered index record when node has the row reference.
@@ -191,7 +204,7 @@ bool row_undo_search_clust_to_pcur(
   found = row_get_rec_roll_ptr(rec, clust_index, offsets) == node->roll_ptr;
 
   if (found) {
-    ut_ad(row_get_rec_trx_id(rec, clust_index, offsets) == node->trx->id);
+    ut_ad(row_get_rec_trx_id(rec, clust_index, offsets) == node->trx.id);
 
     if (dict_table_has_atomic_blobs(node->table)) {
       /* There is no prefix of externally stored
@@ -241,6 +254,54 @@ func_exit:
   return (found);
 }
 
+/** Called for every row, prints diagnostics for long running rollbacks */
+static void long_running_diag(undo_node_t &node) {
+  auto &diag = node.long_undo_state;
+
+  /* To minimize risk of impact on performance the throttler,
+  which uses system clock function, will only be called every n rows.
+
+  We arrive at the value of n by estimating risk - on one hand of the clock
+  function affecting performance (e.g. because of making a kernel call, which
+  has been observed in the past with some platforms/toolchains), on the
+  other, of undoing n rows taking up significant time (at least order of tens
+  of seocnds). The value of 100 was chosen based on speculative estimation
+  that both risks are sufficiently small for this value. Should either
+  scenario actually materialize, the value of throttle_interval may be
+  adjusted. */
+  constexpr auto throttler_interval = 100;
+
+  auto const rows_todo = node.trx.undo_no - node.trx.roll_limit;
+  ut_ad(diag.rows_total >= rows_todo);
+  ulonglong const rows_processed{diag.rows_total - rows_todo};
+  if (rows_processed % throttler_interval == 0) {
+    bool do_log = diag.throttler.apply();
+    DBUG_EXECUTE_IF("log_long_rollback", { do_log = true; });
+    if (do_log) {
+      ulonglong const rows_total{diag.rows_total};
+      ulonglong const trx_id{node.trx.id};
+      ulong const pct =
+          rows_total != 0 ? (100ULL * rows_processed / rows_total) : 0UL;
+      if (diag.have_logged) {
+        ib::info(ER_IB_LONG_ROLLBACK, trx_id, rows_processed, rows_total, pct);
+      } else {
+        std::ostringstream desc;
+        if (auto const state_string = trx_state_string(diag.trx_state)) {
+          desc << state_string;
+        } else {
+          desc << "state " << to_int(diag.trx_state);
+        }
+        if (node.trx.xid) {
+          desc << "; XID: " << *node.trx.xid;
+        }
+        ib::info(ER_IB_LONG_ROLLBACK_FULL, trx_id, rows_processed, rows_total,
+                 pct, desc.str().c_str());
+        diag.have_logged = true;
+      }
+    }
+  }
+}
+
 /** Fetches an undo log record and does the undo for the recorded operation.
  If none left, or a partial rollback completed, returns control to the
  parent node, which is always a query thread node.
@@ -250,17 +311,18 @@ func_exit:
     que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
-  trx_t *trx;
   roll_ptr_t roll_ptr;
 
-  ut_ad(node != nullptr);
+  ut_a(node != nullptr);
   ut_ad(thr != nullptr);
 
-  trx = node->trx;
-  ut_ad(trx->in_rollback);
+  trx_t &trx = node->trx;
+  ut_ad(trx.in_rollback);
+
+  long_running_diag(*node);
 
   if (node->state == UNDO_NODE_FETCH_NEXT) {
-    node->undo_rec = trx_roll_pop_top_rec_of_trx(trx, trx->roll_limit,
+    node->undo_rec = trx_roll_pop_top_rec_of_trx(&trx, trx.roll_limit,
                                                  &roll_ptr, node->heap);
 
     if (!node->undo_rec) {
@@ -273,8 +335,8 @@ func_exit:
       and reused later, the roll_limit will remain
       at 0. trx->roll_limit will be nonzero during a
       partial rollback only. */
-      trx->roll_limit = 0;
-      ut_d(trx->in_rollback = false);
+      trx.roll_limit = 0;
+      ut_d(trx.in_rollback = false);
 
       return (DB_SUCCESS);
     }
@@ -323,12 +385,11 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   lock on the record to explicit. When the record is actually
   deleted this lock will be inherited by the next record.  */
 
-  if (!node->partial || (node->trx == nullptr) ||
-      node->trx->isolation_level < trx_t::REPEATABLE_READ) {
+  if (!node->partial || node->trx.isolation_level < trx_t::REPEATABLE_READ) {
     return;
   }
 
-  ut_ad(node->trx->in_rollback);
+  ut_ad(node->trx.in_rollback);
   auto index = cursor->index;
   auto rec = btr_cur_get_rec(cursor);
   auto block = btr_cur_get_block(cursor);

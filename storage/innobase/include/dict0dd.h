@@ -900,12 +900,12 @@ void dd_mdl_release(THD *thd, MDL_ticket **mdl);
 /** Returns thd associated with the trx or current_thd
 @param[in]      trx     transaction
 @return trx->mysql_thd or current_thd */
-THD *dd_thd_for_undo(const trx_t *trx);
+THD *dd_thd_for_undo(const trx_t &trx);
 
 /** Check if current undo needs a MDL or not
 @param[in]      trx     transaction
 @return true if MDL is necessary, otherwise false */
-bool dd_mdl_for_undo(const trx_t *trx);
+bool dd_mdl_for_undo(const trx_t &trx);
 
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]     m_table         InnoDB table handle

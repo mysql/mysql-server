@@ -1612,6 +1612,10 @@ bool trx_is_prepared_in_tc(trx_t const *trx);
 @return DB_SUCCESS or error number */
 dberr_t trx_set_prepared_in_tc_for_mysql(trx_t *trx);
 
+/** Human readable transaction state, for diagnostic purposes.
+@return pointer to static string, nullptr if state is not valid */
+inline const char *trx_state_string(trx_state_t state);
+
 #include "trx0trx.ic"
 #endif /* !UNIV_HOTBACKUP */
 

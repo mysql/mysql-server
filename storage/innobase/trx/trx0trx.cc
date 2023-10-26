@@ -2566,34 +2566,18 @@ void trx_print_low(FILE *f,
 
   const auto trx_state = trx->state.load(std::memory_order_relaxed);
 
-  switch (trx_state) {
-    case TRX_STATE_NOT_STARTED:
-      fputs(", not started", f);
-      break;
-    case TRX_STATE_FORCED_ROLLBACK:
-      fputs(", forced rollback", f);
-      break;
-    case TRX_STATE_ACTIVE:
-      fprintf(f, ", ACTIVE %lu sec",
-              (ulong)std::chrono::duration_cast<std::chrono::seconds>(
-                  std::chrono::system_clock::now() -
-                  trx->start_time.load(std::memory_order_relaxed))
-                  .count());
-      break;
-    case TRX_STATE_PREPARED:
-      fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-              (ulong)std::chrono::duration_cast<std::chrono::seconds>(
-                  std::chrono::system_clock::now() -
-                  trx->start_time.load(std::memory_order_relaxed))
-                  .count());
-      break;
-    case TRX_STATE_COMMITTED_IN_MEMORY:
-      fputs(", COMMITTED IN MEMORY", f);
-      break;
-    default:
-      fprintf(f, ", state %lu", static_cast<ulong>(trx_state));
-      ut_d(ut_error);
-      ut_o(break);
+  if (const char *const state_string = trx_state_string(trx_state)) {
+    fprintf(f, ", %s", state_string);
+  } else {
+    fprintf(f, ", state %d", to_int(trx_state));
+  }
+
+  if (trx_state == TRX_STATE_ACTIVE || trx_state == TRX_STATE_PREPARED) {
+    unsigned long secs = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now() -
+                             trx->start_time.load(std::memory_order_relaxed))
+                             .count();
+    fprintf(f, " %lu sec", secs);
   }
 
   /* prevent a race condition */

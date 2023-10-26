@@ -1044,16 +1044,16 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
 @param[in,out]  trx                     transaction
 @param[in]      partial_rollback        true if partial rollback
 @return the query graph */
-static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
+static que_t *trx_roll_graph_build(trx_t &trx, bool partial_rollback) {
   mem_heap_t *heap;
   que_fork_t *fork;
   que_thr_t *thr;
 
-  ut_ad(trx_mutex_own(trx));
+  ut_ad(trx_mutex_own(&trx));
 
   heap = mem_heap_create(512, UT_LOCATION_HERE);
   fork = que_fork_create(nullptr, nullptr, QUE_FORK_ROLLBACK, heap);
-  fork->trx = trx;
+  fork->trx = &trx;
 
   thr = que_thr_create(fork, heap, nullptr);
 
@@ -1070,29 +1070,29 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
                                  the entire transaction
 @param[in]      partial_rollback true if partial rollback
 @return query graph thread that will perform the UNDO operations. */
-static que_thr_t *trx_rollback_start(trx_t *trx, ib_id_t roll_limit,
+static que_thr_t *trx_rollback_start(trx_t &trx, ib_id_t roll_limit,
                                      bool partial_rollback) {
-  ut_ad(trx_mutex_own(trx));
+  ut_ad(trx_mutex_own(&trx));
 
   /* Initialize the rollback field in the transaction */
 
-  ut_ad(!trx->roll_limit);
-  ut_ad(!trx->in_rollback);
+  ut_ad(!trx.roll_limit);
+  ut_ad(!trx.in_rollback);
 
-  trx->roll_limit = roll_limit;
-  ut_d(trx->in_rollback = true);
+  trx.roll_limit = roll_limit;
+  ut_d(trx.in_rollback = true);
 
-  ut_a(trx->roll_limit <= trx->undo_no);
+  ut_a(trx.roll_limit <= trx.undo_no);
 
-  trx->pages_undone = 0;
+  trx.pages_undone = 0;
 
   /* Build a 'query' graph which will perform the undo operations */
 
   que_t *roll_graph = trx_roll_graph_build(trx, partial_rollback);
 
-  trx->graph = roll_graph;
+  trx.graph = roll_graph;
 
-  trx->lock.que_state = TRX_QUE_ROLLING_BACK;
+  trx.lock.que_state = TRX_QUE_ROLLING_BACK;
 
   return (que_fork_start_command(roll_graph));
 }
@@ -1142,6 +1142,7 @@ que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
     ib_id_t roll_limit;
 
     trx = thr_get_trx(thr);
+    ut_a(trx);
 
     trx_mutex_enter(trx);
 
@@ -1153,7 +1154,7 @@ que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
 
     trx_commit_or_rollback_prepare(trx);
 
-    node->undo_thr = trx_rollback_start(trx, roll_limit, node->partial);
+    node->undo_thr = trx_rollback_start(*trx, roll_limit, node->partial);
 
     trx_mutex_exit(trx);
 

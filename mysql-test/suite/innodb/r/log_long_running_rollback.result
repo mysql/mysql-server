@@ -1,0 +1,78 @@
+SET @@SESSION.debug="+d,log_long_rollback";
+SET GLOBAL log_error_verbosity=3;
+CREATE TABLE t (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, val varchar(12)) ENGINE=InnoDB;
+CREATE PROCEDURE populate (size INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+REPEAT
+INSERT INTO t (val) VALUES ("test val");
+SET i = i + 1;
+UNTIL i >= size END REPEAT;
+END$
+CALL populate(400);
+SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
+START TRANSACTION;
+UPDATE t SET val = "other val";
+ROLLBACK;
+SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+FROM performance_schema.error_log
+WHERE ERROR_CODE IN ('MY-LNGRB1', 'MY-LNGRB2') AND LOGGED > @pfs_errlog_latest
+ORDER BY LOGGED;
+PRIO	ERROR_CODE	SUBSYSTEM	DATA
+Note	MY-LNGRB1	InnoDB	Still rolling back transaction $trxid; 0 undo records rolled back out of 400 total (0% complete). Transaction info: last state: ACTIVE; XID: $XID
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 100 undo records rolled back out of 400 total (25% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 200 undo records rolled back out of 400 total (50% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 300 undo records rolled back out of 400 total (75% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 400 undo records rolled back out of 400 total (100% complete).
+CALL populate(200);
+SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
+START TRANSACTION;
+UPDATE t SET val = "abc" WHERE id <= 400;
+SAVEPOINT sp;
+UPDATE t SET val = "abc" WHERE id > 400;
+ROLLBACK TO SAVEPOINT sp;
+COMMIT;
+SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+FROM performance_schema.error_log
+WHERE ERROR_CODE IN ('MY-LNGRB1', 'MY-LNGRB2') AND LOGGED > @pfs_errlog_latest
+ORDER BY LOGGED;
+PRIO	ERROR_CODE	SUBSYSTEM	DATA
+Note	MY-LNGRB1	InnoDB	Still rolling back transaction $trxid; 0 undo records rolled back out of 200 total (0% complete). Transaction info: last state: ACTIVE; XID: $XID
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 100 undo records rolled back out of 200 total (50% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 200 undo records rolled back out of 200 total (100% complete).
+SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
+XA START X'616263',X'646566',2;
+UPDATE t SET val = "abc";
+XA END X'616263',X'646566',2;
+XA ROLLBACK X'616263',X'646566',2;
+SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+FROM performance_schema.error_log
+WHERE ERROR_CODE IN ('MY-LNGRB1', 'MY-LNGRB2') AND LOGGED > @pfs_errlog_latest
+ORDER BY LOGGED;
+PRIO	ERROR_CODE	SUBSYSTEM	DATA
+Note	MY-LNGRB1	InnoDB	Still rolling back transaction $trxid; 0 undo records rolled back out of 200 total (0% complete). Transaction info: last state: ACTIVE; XID: X'616263',X'646566',2
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 100 undo records rolled back out of 200 total (50% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 200 undo records rolled back out of 200 total (100% complete).
+SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
+SET @@SESSION.debug="+d,crash_after_flush_engine_log";
+DELETE FROM t;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --debug=d,log_long_rollback --log-error-verbosity=3
+SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
+FROM performance_schema.error_log
+WHERE ERROR_CODE IN ('MY-013032', 'MY-010232', 'MY-LNGRB1', 'MY-LNGRB2')
+AND LOGGED > @pfs_errlog_latest
+ORDER BY LOGGED;
+PRIO	ERROR_CODE	SUBSYSTEM	DATA
+Note	MY-013032	InnoDB	Starting recovery for XA transactions...
+Note	MY-LNGRB1	InnoDB	Still rolling back transaction $trxid; 0 undo records rolled back out of 600 total (0% complete). Transaction info: last state: ACTIVE (PREPARED); XID: $XID
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 100 undo records rolled back out of 600 total (16% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 200 undo records rolled back out of 600 total (33% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 300 undo records rolled back out of 600 total (50% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 400 undo records rolled back out of 600 total (66% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 500 undo records rolled back out of 600 total (83% complete).
+Note	MY-LNGRB2	InnoDB	Still rolling back transaction $trxid; 600 undo records rolled back out of 600 total (100% complete).
+System	MY-010232	Server	XA crash recovery finished.
+DROP TABLE t;
+DROP PROCEDURE populate;
+SET GLOBAL debug="-d,log_long_rollback";

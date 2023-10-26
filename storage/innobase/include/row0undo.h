@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0types.h"
 #include "univ.i"
+#include "ut0ut.h"
 
 /** Converts an implicit lock on the record to explicit in case of partial
  rollback.
@@ -56,7 +57,7 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node);
 @param[in]      heap             memory heap where created
 @param[in]      partial_rollback true if partial rollback
 @return         undo node */
-undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
+undo_node_t *row_undo_node_create(trx_t &trx, que_thr_t *parent,
                                   mem_heap_t *heap, bool partial_rollback);
 
 /** Looks for the clustered index record when node has the row reference.
@@ -98,38 +99,89 @@ enum undo_exec {
                             of a table */
 };
 
+/** State of long running undo operation for purpose of writing
+periodic messages to error log */
+struct Long_undo_state {
+  explicit Long_undo_state(const trx_t &);
+  /** timer for printing out log messages for long-running rollbacks */
+  ib::Throttler throttler;
+
+  /** flag which is set when at least one message is logged */
+  bool have_logged{false};
+
+  /** total number of rows to roll back */
+  undo_no_t rows_total;
+
+  /** transaction state before rollback */
+  trx_state_t trx_state;
+};
+
 /** Undo node structure */
 struct undo_node_t {
-  que_common_t common;      /*!< node type: QUE_NODE_UNDO */
-  enum undo_exec state;     /*!< node execution state */
-  trx_t *trx;               /*!< trx for which undo is done */
-  roll_ptr_t roll_ptr;      /*!< roll pointer to undo log record */
-  trx_undo_rec_t *undo_rec; /*!< undo log record */
-  undo_no_t undo_no;        /*!< undo number of the record */
-  ulint rec_type;           /*!< undo log record type: TRX_UNDO_INSERT_REC,
-                           ... */
-  trx_id_t new_trx_id;      /*!< trx id to restore to clustered index
-                        record */
-  btr_pcur_t pcur;          /*!< persistent cursor used in searching the
-                            clustered index record */
-  dict_table_t *table;      /*!< table where undo is done */
-  ulint cmpl_info;          /*!< compiler analysis of an update */
-  upd_t *update;            /*!< update vector for a clustered index
-                            record */
-  dtuple_t *ref;            /*!< row reference to the next row to handle */
-  dtuple_t *row;            /*!< a copy (also fields copied to heap) of the
-                            row to handle */
-  row_ext_t *ext;           /*!< NULL, or prefixes of the externally
-                            stored columns of the row */
-  dtuple_t *undo_row;       /*!< NULL, or the row after undo */
-  row_ext_t *undo_ext;      /*!< NULL, or prefixes of the externally
-                           stored columns of undo_row */
-  dict_index_t *index;      /*!< the next index whose record should be
-                            handled */
-  mem_heap_t *heap;         /*!< memory heap used as auxiliary storage for
-                            row; this must be emptied after undo is tried
-                            on a row */
-  bool partial;             /*!< true if partial rollback */
+  undo_node_t(trx_t &, que_thr_t *parent, bool partial_rollback);
+  /** node type: QUE_NODE_UNDO */
+  que_common_t common;
+
+  /** node execution state */
+  enum undo_exec state;
+
+  /** trx for which undo is done */
+  trx_t &trx;
+
+  /** roll pointer to undo log record */
+  roll_ptr_t roll_ptr;
+
+  /** undo log record */
+  trx_undo_rec_t *undo_rec;
+
+  /** undo number of the record */
+  undo_no_t undo_no;
+
+  /** undo log record type: TRX_UNDO_INSERT_REC, ... */
+  ulint rec_type;
+
+  /** trx id to restore to clustered index record */
+  trx_id_t new_trx_id;
+
+  /**persistent cursor used in searching the clustered index record */
+  btr_pcur_t pcur;
+
+  /** table where undo is done */
+  dict_table_t *table;
+
+  /** compiler analysis of an update */
+  ulint cmpl_info;
+
+  /** update vector for a clustered index record */
+  upd_t *update;
+
+  /** row reference to the next row to handle */
+  dtuple_t *ref;
+
+  /** a copy (also fields copied to heap) of the row to handle */
+  dtuple_t *row;
+
+  /** NULL, or prefixes of the externally stored columns of the row */
+  row_ext_t *ext;
+
+  /** NULL, or the row after undo */
+  dtuple_t *undo_row;
+
+  /** NULL, or prefixes of the externally stored columns of undo_row */
+  row_ext_t *undo_ext;
+
+  /** the next index whose record should be handled */
+  dict_index_t *index;
+
+  /** memory heap used as auxiliary storage for row;
+      this must be emptied after undo is tried on a row */
+  mem_heap_t *heap;
+
+  /** true if partial rollback */
+  bool partial;
+
+  /** state of long-running undo */
+  Long_undo_state long_undo_state;
 };
 
 #endif
