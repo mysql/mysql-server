@@ -3995,7 +3995,7 @@ void Dbspj::releaseGlobal(Signal *signal) {
       signal->theData[0] = 0;  // 0 -> releaseGlobal()
       signal->theData[1] = 1;  // 1 -> Continue release without new sample
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-      break;
+      return;
     }
     Ptr<RowPage> ptr;
     free_list.removeFirst(ptr);
