@@ -3589,6 +3589,11 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers) {
               nullptr);
   }
   /*
+    We don't need this data anymore, lets clear it so it doesn't become a
+    dangling pointer.
+  */
+  my_set_exception_pointers(nullptr);
+  /*
     Return EXCEPTION_CONTINUE_SEARCH to give JIT debugger
     (drwtsn32 or vsjitdebugger) possibility to attach,
     if JIT debugger is configured.
