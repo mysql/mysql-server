@@ -109,6 +109,7 @@ class PluginMonitor {
           [&active_plugins, &stopped_plugins](PluginMonitor *ptr,
                                               [[maybe_unused]] auto &cv) {
             if (!ptr) return;
+
             ptr->active_services_.clear();
             for (auto &p : active_plugins) {
               ptr->active_services_.insert(p);
@@ -125,6 +126,8 @@ class PluginMonitor {
       log_debug("on_plugin_startup %s", name.c_str());
       wait_for_services_.serialize_with_cv(
           [&name](PluginMonitor *ptr, auto &cv) {
+            if (!ptr) return;
+
             ptr->active_services_.insert(name);
             ptr->active_and_stopped_services_.insert(name);
             cv.notify_all();
@@ -135,6 +138,8 @@ class PluginMonitor {
       log_debug("on_plugin_shutdown %s", name.c_str());
       wait_for_services_.serialize_with_cv(
           [&name](PluginMonitor *ptr, auto &cv) {
+            if (!ptr) return;
+
             ptr->active_services_.erase(name);
             ptr->active_and_stopped_services_.insert(name);
             cv.notify_all();

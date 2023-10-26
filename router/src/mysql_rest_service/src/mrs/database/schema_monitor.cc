@@ -106,11 +106,6 @@ void SchemaMonitor::run() {
       route_fetcher->query_entries(session.get());
       content_file_fetcher->query_entries(session.get());
 
-      //      log_debug("XXX-%i", i);
-      //      if (++i == 5) {
-      //        throw std::runtime_error("TODO remove me.");
-      //      }
-
       if (turn_state->was_changed()) {
         auto global_json_config = turn_state->get_json_data();
         auto state = turn_state->get_state();
