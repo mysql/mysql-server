@@ -73,7 +73,7 @@ Pool_context test_context(Uint32 pages) {
 
 void dummy_calls_to_force_some_modules_from_libkernel_needed_by_libsched() {
   globalData.getBlock(0, 0);
-  Ndbinfo::getNumTables();
+  Ndbinfo::getNumTableEntries();
 }
 
 // Some undefined globals needed

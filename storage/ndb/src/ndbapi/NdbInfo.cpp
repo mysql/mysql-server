@@ -25,6 +25,8 @@
 // Implements
 #include "NdbInfo.hpp"
 
+#include <algorithm>
+#include <vector>
 #include "NdbInfoScanNodes.hpp"
 #include "NdbInfoScanVirtual.hpp"
 #include "ndbapi/ndb_cluster_connection.hpp"
@@ -95,6 +97,7 @@ bool NdbInfo::load_hardcoded_tables(void) {
 
   return true;
 }
+
 
 bool NdbInfo::addColumn(Uint32 tableId, Column aCol) {
   // Find the table with correct id
@@ -256,15 +259,13 @@ bool NdbInfo::load_tables() {
 
   // Consistency check the loaded table list
   {
-    Vector<Uint32> m_table_ids;
+    std::vector<Uint32> m_table_ids;
     for (auto &key_and_value : m_tables) {
       Table *const tab = key_and_value.second.get();
       // Table id should be valid
       assert(tab->m_table_id != Table::InvalidTableId);
-      // Save the table id at position "table id" in
-      // list of table ids(for later check)
-      Uint32 invalid = Table::InvalidTableId;
-      m_table_ids.set(tab->m_table_id, tab->m_table_id, invalid);
+      // Save the table ids for later check
+      m_table_ids.push_back(tab->m_table_id);
       // Name should be set
       assert(tab->m_name.length() > 0);
       // There should be columns
@@ -281,10 +282,10 @@ bool NdbInfo::load_tables() {
     // There should be as many table ids as tables
     assert(m_table_ids.size() == m_tables.entries());
 
-    // Table id should be consecutievly increasing
-    for (unsigned i = 0; i < m_table_ids.size(); i++) {
-      assert(m_table_ids[i] != Table::InvalidTableId);
-      assert(m_table_ids[i] == i);
+    // All table ids should be unique
+    std::sort(m_table_ids.begin(), m_table_ids.end());
+    for (unsigned i = 1; i < m_table_ids.size(); i++) {
+      assert(m_table_ids[i-1] != m_table_ids[i]);
     }
   }
 
@@ -533,7 +534,7 @@ bool NdbInfo::load_virtual_tables(void) {
       assert(false);
       return false;
     }
-    tab->m_table_id = m_tables.entries();  // Set increasing table id
+    tab->m_table_id = Table::VirtualTableIdBit | i;
     if (!m_tables.insert(hash_key.c_str(), *tab)) return false;
   }
 
