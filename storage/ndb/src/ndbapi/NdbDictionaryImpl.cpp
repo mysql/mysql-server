@@ -5053,6 +5053,19 @@ int NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl &impl, bool ignoreFKs) {
   ERR_RETURN(getNdbError(), ret);
 }
 
+void NdbDictionaryImpl::invalidateTableGlobal(const char *dbName,
+                                              const char *schemaName,
+                                              const char *tableName) {
+  DBUG_TRACE;
+  if (!m_globalHash) return;
+
+  BaseString internalName(
+      Ndb::internalize_table_name(dbName, schemaName, tableName));
+  m_globalHash->lock();
+  m_globalHash->invalidateTable(internalName);
+  m_globalHash->unlock();
+}
+
 int NdbDictInterface::dropIndex(const NdbTableImpl &timpl) {
   DBUG_ENTER("NdbDictInterface::dropIndex");
   DBUG_PRINT("enter",

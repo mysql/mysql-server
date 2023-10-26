@@ -1240,14 +1240,9 @@ static void ndbcluster_binlog_event_operation_teardown(THD *thd, Ndb *is_ndb,
       Ndb_event_data::get_event_data(pOp->getCustomData());
   NDB_SHARE *const share = event_data->share;
 
-  {
-    // Since table has been dropped or cluster connection lost the NdbApi table
-    // should be invalidated in the global dictionary cache
-    Ndb_table_guard ndbtab_g(is_ndb, share->db, share->table_name);
-    if (ndbtab_g.get_table()) {
-      ndbtab_g.invalidate();
-    }
-  }
+  // Since table has been dropped or cluster connection lost the NdbApi table
+  // should be invalidated in the global dictionary cache
+  Ndb_table_guard::invalidate_table(is_ndb, share->db, share->table_name);
 
   // Close the table in MySQL Server
   ndb_tdc_close_cached_table(thd, share->db, share->table_name);
@@ -2298,8 +2293,7 @@ class Ndb_schema_event_handler {
   void ndbapi_invalidate_table(const char *db_name,
                                const char *table_name) const {
     DBUG_TRACE;
-    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, db_name, table_name);
-    ndbtab_g.invalidate();
+    Ndb_table_guard::invalidate_table(m_thd_ndb->ndb, db_name, table_name);
   }
 
   NDB_SHARE *acquire_reference(const char *db, const char *name,

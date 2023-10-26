@@ -2213,6 +2213,9 @@ class Ndb {
 
   static const char *externalizeTableName(const char *internalTableName,
                                           bool fullyQualifiedNames);
+  static BaseString internalize_table_name(const char *db_name,
+                                           const char *schema,
+                                           const char *table_name);
   const BaseString internalize_table_name(const char *external_name) const;
 
   static const char *externalizeIndexName(const char *internalIndexName,

@@ -3125,6 +3125,12 @@ void NdbDictionary::Dictionary::invalidateDbGlobal(const char *name) {
   }
 }
 
+void NdbDictionary::Dictionary::invalidateTableGlobal(const char *dbName,
+                                                      const char *schemaName,
+                                                      const char *tableName) {
+  m_impl.invalidateTableGlobal(dbName, schemaName, tableName);
+}
+
 int NdbDictionary::Dictionary::beginSchemaTrans() {
   return m_impl.beginSchemaTrans();
 }
