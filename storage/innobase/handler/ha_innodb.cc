@@ -5568,7 +5568,9 @@ static int innodb_init(void *p) {
 
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
+#ifndef _WIN32
   os_file_set_umask(my_umask);
+#endif
 
   /* Setup the memory alloc/free tracing mechanisms before calling
   any functions that could possibly allocate memory. */
