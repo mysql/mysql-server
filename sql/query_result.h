@@ -150,13 +150,16 @@ class Query_result {
   */
   virtual void cleanup() { /* do nothing */
   }
-
   /**
-    Checks if this Query_result intercepts and transforms the result set.
-
-    @return true if it is an interceptor, false otherwise
+    @returns true if an alternative implementation may replace this with
+    a protocol adapter.
   */
-  virtual bool is_interceptor() const { return false; }
+  virtual bool use_protocol_adapter() const { return false; }
+  /**
+    @returns true if an alternative implementation may replace this with
+    a protocol wrapper.
+  */
+  virtual bool use_protocol_wrapper() const { return false; }
 
   /// Only overridden (and non-empty) for Query_result_union, q.v.
   virtual void set_limit(ha_rows) {}
@@ -182,7 +185,6 @@ class Query_result_interceptor : public Query_result {
                                 uint) override {
     return false;
   }
-  bool is_interceptor() const final { return true; }
 };
 
 class Query_result_send : public Query_result {
@@ -202,6 +204,11 @@ class Query_result_send : public Query_result {
   bool check_supports_cursor() const override { return false; }
   void abort_result_set(THD *thd) override;
   void cleanup() override { is_result_set_started = false; }
+  /**
+    An alternative implementation may provide an optimized protocol adapter
+    for this object.
+  */
+  bool use_protocol_adapter() const override { return true; }
 };
 
 class sql_exchange;
@@ -290,6 +297,11 @@ class Query_dumpvar final : public Query_result_interceptor {
   bool send_eof(THD *thd) override;
   bool check_supports_cursor() const override;
   void cleanup() override { row_count = 0; }
+  /**
+    An alternative implementation may provide an optimized protocol wrapper
+    for this object.
+  */
+  bool use_protocol_wrapper() const override { return true; }
 };
 
 /**
