@@ -26,17 +26,15 @@ RESET MASTER;
 --echo # Drop mysql.$util_table_name from NDB
 --exec $NDB_DROP_TABLE -d mysql $util_table_name
 
---connection mysqld1
---echo # mysqld1: Wait until ready again...
---source include/ndb_not_readonly.inc
-
---connection mysqld3
---echo # mysqld3: Wait until ready again...
---source include/ndb_not_readonly.inc
-
---connection mysqld5
---echo # mysqld5: Wait until ready again...
---source include/ndb_not_readonly.inc
+# Wait for all servers connected again
+let $i = 1;
+while($i <= $NUM_MYSQLDS)
+{
+  --connection mysqld$i
+  --echo # mysqld$i: Wait until ready again...
+  --source include/ndb_not_readonly.inc
+  inc $i;
+}
 
 --connection mysqld5
 # NOTE! Neither drop of ndb_schema or ndb_schema_result should have a LOST_EVENT

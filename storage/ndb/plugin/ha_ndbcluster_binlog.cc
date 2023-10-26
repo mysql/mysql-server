@@ -4266,7 +4266,7 @@ class Ndb_schema_event_handler {
 
     // Protect the setup with GSL(Global Schema Lock)
     Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
-    if (global_schema_lock_guard.lock()) {
+    if (!global_schema_lock_guard.try_lock()) {
       ndb_log_info(" - failed to lock GSL");
       return true;
     }
