@@ -1323,19 +1323,21 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   ut_ad(session != nullptr);
 
   /*
-    Create the redo log archive file.
+    Create the redo log archive file. We create it with read-only access rights,
+    however, the returned handle will be open for read-write.
   */
-  ulint os_innodb_umask_saved = os_file_get_umask();
-#ifdef _WIN32
-  os_file_set_umask(_S_IREAD);
-#else  /* _WIN32 */
-  os_file_set_umask(S_IRUSR | S_IRGRP);
-#endif /* _WIN32 */
   bool success;
+#ifndef _WIN32
+  pfs_os_file_t file_handle =
+      os_file_create_simple_no_error_handling_with_umask(
+          redo_log_archive_file_key, file_pathname.c_str(), OS_FILE_CREATE,
+          OS_FILE_READ_WRITE, /*read_only*/ false, S_IRUSR | S_IRGRP, &success);
+
+#else
   pfs_os_file_t file_handle = os_file_create_simple_no_error_handling(
       redo_log_archive_file_key, file_pathname.c_str(), OS_FILE_CREATE,
       OS_FILE_READ_WRITE, /*read_only*/ false, &success);
-  os_file_set_umask(os_innodb_umask_saved);
+#endif
   if (!success) {
     int os_errno = errno;
     char errbuf[MYSYS_STRERROR_SIZE];

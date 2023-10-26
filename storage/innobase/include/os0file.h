@@ -772,11 +772,17 @@ null-terminated string
                                 OS_FILE_READ_ALLOW_DELETE; the last option
                                 is used by a backup program reading the file
 @param[in]      read_only       if true read only mode checks are enforced
+@param[in]      umask           UNIX access permission to be set when creating a
+                                file. Use os_umask_default to use global default
+                                umask.
 @param[out]     success         true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] pfs_os_file_t os_file_create_simple_no_error_handling_func(
     const char *name, ulint create_mode, ulint access_type, bool read_only,
+#ifndef _WIN32
+    mode_t umask,
+#endif
     bool *success);
 
 /** Tries to disable OS caching on an opened file descriptor.
@@ -957,10 +963,24 @@ The wrapper functions have the prefix of "innodb_". */
   pfs_os_file_create_simple_func(key, name, create, access, read_only,       \
                                  success, UT_LOCATION_HERE)
 
+#ifndef _WIN32
+#define os_file_create_simple_no_error_handling(key, name, create_mode,     \
+                                                access, read_only, success) \
+  pfs_os_file_create_simple_no_error_handling_func(                         \
+      key, name, create_mode, access, read_only, os_innodb_umask_default,   \
+      success, UT_LOCATION_HERE)
+
+#define os_file_create_simple_no_error_handling_with_umask(                  \
+    key, name, create_mode, access, read_only, umask, success)               \
+  pfs_os_file_create_simple_no_error_handling_func(key, name, create_mode,   \
+                                                   access, read_only, umask, \
+                                                   success, UT_LOCATION_HERE)
+#else
 #define os_file_create_simple_no_error_handling(key, name, create_mode,     \
                                                 access, read_only, success) \
   pfs_os_file_create_simple_no_error_handling_func(                         \
       key, name, create_mode, access, read_only, success, UT_LOCATION_HERE)
+#endif
 
 #define os_file_close_pfs(file) pfs_os_file_close_func(file, UT_LOCATION_HERE)
 
@@ -1039,6 +1059,9 @@ monitor file creation/open.
                                 OS_FILE_READ_ALLOW_DELETE; the last option is
                                 used by a backup program reading the file
 @param[in]      read_only       if true read only mode checks are enforced
+@param[in]      umask           UNIX access permission to be set when creating a
+                                file. Use os_umask_default to use global default
+                                umask.
 @param[out]     success         true if succeeded
 @param[in]      src_location    location where func invoked
 @return own: handle to the file, not defined if error, error number
@@ -1046,7 +1069,11 @@ monitor file creation/open.
 [[nodiscard]] static inline pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, ut::Location src_location);
+    bool read_only,
+#ifndef _WIN32
+    mode_t umask,
+#endif
+    bool *success, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
 this function!
@@ -1298,10 +1325,26 @@ to original un-instrumented file I/O APIs */
                               success)                                   \
   os_file_create_simple_func(name, create_mode, access, read_only, success)
 
+#ifndef _WIN32
+
+#define os_file_create_simple_no_error_handling(key, name, create_mode,     \
+                                                access, read_only, success) \
+  os_file_create_simple_no_error_handling_func(                             \
+      name, create_mode, access, read_only, os_innodb_umask_default, success)
+
+#define os_file_create_simple_no_error_handling_with_umask(               \
+    key, name, create_mode, access, read_only, umask, success)            \
+  os_file_create_simple_no_error_handling_func(name, create_mode, access, \
+                                               read_only, umask, success)
+
+#else
+
 #define os_file_create_simple_no_error_handling(key, name, create_mode,     \
                                                 access, read_only, success) \
   os_file_create_simple_no_error_handling_func(name, create_mode, access,   \
                                                read_only, success)
+
+#endif
 
 #define os_file_close_pfs(file) os_file_close_func(file)
 
@@ -1745,13 +1788,20 @@ ulint os_file_compressed_page_size(const byte *buf);
         of the original data + footer if it is a compressed page */
 ulint os_file_original_page_size(const byte *buf);
 
-/** Set the file create umask
-@param[in]      umask           The umask to use for file creation. */
-void os_file_set_umask(ulint umask);
+#ifndef _WIN32
+/** Set the global file create umask. This value is to be set once, at startup
+and never modified.
+@param[in]      umask           The umask to use for all InnoDB file creation.
+*/
+void os_file_set_umask(mode_t umask);
 
-/** Get the file create umask
-@return the umask to use for file creation. */
-ulint os_file_get_umask();
+/** A magic constant for the umask parameter that indicates caller wants the
+`os_innodb_umask` value to be used. The `os_innodb_umask` is a static value,
+private to this module, and to the file creation methods, so it should not be
+used directly. */
+constexpr mode_t os_innodb_umask_default = std::numeric_limits<mode_t>::max();
+
+#endif
 
 /** Free storage space associated with a section of the file.
 @param[in]      fh              Open file handle
