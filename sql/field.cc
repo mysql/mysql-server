@@ -10498,10 +10498,9 @@ Create_field *generate_create_field(THD *thd, Item *source_item,
     assert(table);
     const dd::Table *table_obj =
         table->s->tmp_table ? table->s->tmp_table_def : nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
     if (!table_obj && table->s->table_category != TABLE_UNKNOWN_CATEGORY) {
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
       if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
                                     &table_obj)) {
         return nullptr; /* purecov: inspected */
