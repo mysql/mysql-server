@@ -146,6 +146,7 @@ class Query_result_explain : public Query_result_send {
       : Query_result_send(), interceptor(interceptor_arg) {
     unit = unit_arg;
   }
+  bool use_protocol_adapter() const override { return false; }
 
  protected:
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,

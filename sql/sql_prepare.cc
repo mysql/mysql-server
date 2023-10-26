@@ -220,6 +220,7 @@ class Query_fetch_protocol_binary final : public Query_result_send {
                                 uint flags) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
+  bool use_protocol_adapter() const override { return false; }
 };
 
 }  // namespace
