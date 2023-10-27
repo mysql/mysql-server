@@ -258,6 +258,10 @@ struct PFS_instr_class {
     return m_enforced_flags & PSI_FLAG_MEM_COLLECT;
   }
 
+  bool is_disabled() const { return m_flags & PSI_FLAG_DISABLED; }
+
+  bool is_untimed() const { return m_flags & PSI_FLAG_UNTIMED; }
+
   void set_enforced_flags(uint flags) { m_enforced_flags = flags; }
 
   void enforce_valid_flags(uint allowed_flags) {

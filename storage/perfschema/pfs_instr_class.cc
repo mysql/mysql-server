@@ -1533,10 +1533,27 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
                      0, /* statements have no volatility */
                      info->m_documentation, PFS_CLASS_STATEMENT);
     entry->m_event_name_index = index;
-    entry->m_enabled = true; /* enabled by default */
-    entry->m_timed = true;
 
-    entry->enforce_valid_flags(PSI_FLAG_MUTABLE);
+    entry->enforce_valid_flags(PSI_FLAG_MUTABLE | PSI_FLAG_DISABLED |
+                               PSI_FLAG_UNTIMED);
+
+    if (entry->is_disabled()) {
+      /*
+        The instrumentation is PSI_FLAG_DISABLED.
+      */
+      entry->m_enabled = false;
+    } else {
+      entry->m_enabled = true;
+    }
+
+    if (entry->is_untimed()) {
+      /*
+        The instrumentation is PSI_FLAG_UNTIMED.
+      */
+      entry->m_timed = false;
+    } else {
+      entry->m_timed = true;
+    }
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
