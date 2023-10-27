@@ -35,15 +35,18 @@
 --echo
 --let $rpl_skip_group_replication_start = 1
 --source include/group_replication.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Force server1 to use MURMUR32 write set extraction algorithm.
+SET @@GLOBAL.DEBUG= '+d,group_replication_write_set_extraction_algorithm_murmur32';
 --source include/start_and_bootstrap_group_replication.inc
---let $group_hash_algorithm = `SELECT @@GLOBAL.transaction_write_set_extraction`
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --echo
 --echo #########################################################################
---echo # 1) Relaunch M2 with a different hash algorithm from M1.
+--echo # 1) Relaunch M2 with a different hash algorithm (XXHASH64) from M1.
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
@@ -53,17 +56,11 @@
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 
-# Choose a hash algorithm that clashes with the group
---let $hash_algorithm = XXHASH64
-if ($group_hash_algorithm == 'XXHASH64')
-{
-  --let $hash_algorithm = MURMUR32
-}
-
 # Restart the server with group_replication_start_on_boot enabled
 --let $allow_rpl_inited = 1
---let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --transaction-write-set-extraction=$hash_algorithm --loose-debug="+d,group_replication_wait_before_leave_on_error"
---replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $hash_algorithm HASH_ALGORITHM
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --loose-debug="+d,group_replication_wait_before_leave_on_error"
+
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 
 # Reestablish the connection to the server
@@ -106,7 +103,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 
 --echo
 --echo #########################################################################
---echo # 3) Relaunch M2 with a different hash algorithm from M1 and with
+--echo # 3) Relaunch M2 with a different hash algorithm from (XXHASH64) M1 and with
 --echo # exit_state_action set to ABORT_SERVER.
 --echo #########################################################################
 --echo
@@ -115,8 +112,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 # Restart the server again with group_replication_start_on_boot enabled and with
 # group_replication_exit_state_action set to ABORT_SERVER
 --let $allow_rpl_inited = 1
---let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --transaction-write-set-extraction=$hash_algorithm --group_replication_exit_state_action=ABORT_SERVER
---replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $hash_algorithm HASH_ALGORITHM
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_exit_state_action=ABORT_SERVER
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 
 --echo
@@ -151,10 +148,19 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --echo # The server should start normally and be able to join the group.
 --echo #########################################################################
 --echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Revert server1 to use XXHASH64 write set extraction algorithm.
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_write_set_extraction_algorithm_murmur32';
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 # Restart server 2 again, now with group_replication_start_on_boot disabled
 --let $allow_rpl_inited=1
 --let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name
---replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $hash_algorithm HASH_ALGORITHM
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

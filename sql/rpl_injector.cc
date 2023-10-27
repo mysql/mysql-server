@@ -188,10 +188,7 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
 
-  if (m_calc_writeset_hash &&
-      // Currently not allowed to call add_pke() when algo is OFF
-      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
-      !tbl.skip_hash()) {
+  if (m_calc_writeset_hash && !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, record)) {
         return HA_ERR_RBR_LOGGING_FAILED;
@@ -222,10 +219,7 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
 
-  if (m_calc_writeset_hash &&
-      // Currently not allowed to call add_pke() when algo is OFF
-      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
-      !tbl.skip_hash()) {
+  if (m_calc_writeset_hash && !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, record)) {
         return HA_ERR_RBR_LOGGING_FAILED;
@@ -258,10 +252,7 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, before_cols, after_cols);
 
-  if (m_calc_writeset_hash &&
-      // Currently not allowed to call add_pke() when algo is OFF
-      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
-      !tbl.skip_hash()) {
+  if (m_calc_writeset_hash && !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, before)) {
         return HA_ERR_RBR_LOGGING_FAILED;

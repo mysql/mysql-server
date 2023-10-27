@@ -48,8 +48,7 @@
 # 3. Test global variables that might change in runtime and which values are
 #    not allowed in GR. Following settings are tested with DML operation on
 #    auxiliary table:
-#    binlog_format=STATEMENT,
-#    transaction_write_set_extraction=OFF
+#    binlog_format=STATEMENT
 #
 # 4. Stop GR on member. Now, check following must succeed or fail with other
 #    errors that not related to GR:
@@ -205,13 +204,6 @@ SET SESSION binlog_format= STATEMENT;
 INSERT INTO tn VALUES ('a');
 
 --eval SET SESSION binlog_format= "$binlog_format_backup"
-
-#Test the value of transaction_write_set_extraction cannot be changed
-
---let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
-
---error ER_GROUP_REPLICATION_RUNNING
-SET SESSION transaction_write_set_extraction=OFF;
 
 INSERT INTO tn VALUES ('hash');
 

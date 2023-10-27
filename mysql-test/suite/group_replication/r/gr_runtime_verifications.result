@@ -242,8 +242,6 @@ ERROR HY000: The table does not comply with the requirements by an external plug
 SET SESSION binlog_format= "ROW";
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-SET SESSION transaction_write_set_extraction=OFF;
-ERROR HY000: The write set algorithm cannot be changed when Group replication is running.
 INSERT INTO tn VALUES ('hash');
 #
 # Now, lets repeat all the tests with group replication stopped.

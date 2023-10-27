@@ -54,30 +54,6 @@
 
 #define HASH_STRING_SEPARATOR "½"
 
-const char *transaction_write_set_hashing_algorithms[] = {"OFF", "MURMUR32",
-                                                          "XXHASH64", nullptr};
-
-const char *get_write_set_algorithm_string(unsigned int algorithm) {
-  switch (algorithm) {
-    case HASH_ALGORITHM_OFF:
-      return "OFF";
-    case HASH_ALGORITHM_MURMUR32:
-      return "MURMUR32";
-    case HASH_ALGORITHM_XXHASH64:
-      return "XXHASH64";
-    default:
-      return "UNKNOWN ALGORITHM";
-  }
-}
-
-template <class type>
-uint64 calc_hash(ulong algorithm, type T, size_t len) {
-  if (algorithm == HASH_ALGORITHM_MURMUR32)
-    return (murmur3_32((const uchar *)T, len, 0));
-  else
-    return (MY_XXH64((const uchar *)T, len, 0));
-}
-
 #ifndef NDEBUG
 static void debug_check_for_write_sets(
     std::vector<std::string> &key_list_to_hash,
@@ -704,10 +680,8 @@ static bool generate_hash_pke(const std::string &pke, THD *thd
 #endif
 ) {
   DBUG_TRACE;
-  assert(thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF);
 
-  uint64 hash = calc_hash<const char *>(
-      thd->variables.transaction_write_set_extraction, pke.c_str(), pke.size());
+  uint64 hash = MY_XXH64(pke.c_str(), pke.size(), 0);
   if (thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(
           hash))
     return true;

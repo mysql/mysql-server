@@ -590,6 +590,19 @@ uint Group_member_info::get_write_set_extraction_algorithm() {
   return write_set_extraction_algorithm;
 }
 
+const char *Group_member_info::get_write_set_extraction_algorithm_name() {
+  switch (get_write_set_extraction_algorithm()) {
+    case HASH_ALGORITHM_OFF:
+      return "OFF";
+    case HASH_ALGORITHM_MURMUR32:
+      return "MURMUR32";
+    case HASH_ALGORITHM_XXHASH64:
+      return "XXHASH64";
+    default:
+      return "UNKNOWN ALGORITHM";
+  }
+}
+
 ulonglong Group_member_info::get_gtid_assignment_block_size() {
   MUTEX_LOCK(lock, &update_lock);
   return gtid_assignment_block_size;

@@ -1980,10 +1980,8 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
       result = 1;
       LogPluginErr(
           ERROR_LEVEL, ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP,
-          get_write_set_algorithm_string(
-              local_member_info->get_write_set_extraction_algorithm()),
-          get_write_set_algorithm_string(
-              (*all_members_it)->get_write_set_extraction_algorithm()));
+          local_member_info->get_write_set_extraction_algorithm_name(),
+          (*all_members_it)->get_write_set_extraction_algorithm_name());
       goto cleaning;
     }
 

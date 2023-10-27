@@ -6618,11 +6618,6 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
   // No effect unless statement-based binary logging
   // thd->variables.binlog_direct_non_trans_update
 
-  // Setup writeset extraction based on --ndb-log-transaction-dependency
-  thd->variables.transaction_write_set_extraction =
-      opt_ndb_log_trans_dependency ? HASH_ALGORITHM_XXHASH64
-                                   : HASH_ALGORITHM_OFF;
-
   // Charset setting
   thd->variables.character_set_client = &my_charset_latin1;
 }

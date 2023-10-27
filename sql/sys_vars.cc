@@ -118,12 +118,11 @@
 #include "sql/rpl_info_factory.h"       // Rpl_info_factory
 #include "sql/rpl_info_handler.h"       // INFO_REPOSITORY_TABLE
 #include "sql/rpl_log_encryption.h"
-#include "sql/rpl_mi.h"                 // Master_info
-#include "sql/rpl_msr.h"                // channel_map
-#include "sql/rpl_mta_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
-#include "sql/rpl_replica.h"            // SLAVE_THD_TYPE
-#include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_write_set_handler.h"  // transaction_write_set_hashing_algorithms
+#include "sql/rpl_mi.h"           // Master_info
+#include "sql/rpl_msr.h"          // channel_map
+#include "sql/rpl_mta_submode.h"  // MTS_PARALLEL_TYPE_DB_NAME
+#include "sql/rpl_replica.h"      // SLAVE_THD_TYPE
+#include "sql/rpl_rli.h"          // Relay_log_info
 #include "sql/server_component/log_builtins_filter_imp.h"  // until we have pluggable variables
 #include "sql/server_component/log_builtins_imp.h"
 #include "sql/session_tracker.h"
@@ -2287,69 +2286,6 @@ static Sys_var_bool Sys_log_bin("log_bin", "Whether the binary log is enabled",
                                 READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log),
                                 NO_CMD_LINE, DEFAULT(true));
 
-static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
-  if (check_session_admin(self, thd, var)) return true;
-  // Can't change the algorithm when group replication is enabled.
-  if (is_group_replication_running()) {
-    my_message(
-        ER_GROUP_REPLICATION_RUNNING,
-        "The write set algorithm cannot be changed when Group replication"
-        " is running.",
-        MYF(0));
-    return true;
-  }
-
-  if ((var->is_global_persist()) &&
-      global_system_variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
-    return true;
-  }
-
-  if (var->type == OPT_SESSION &&
-      thd->variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
-    return true;
-  }
-  /*
-    if in a stored function/trigger, it's too late to change
-  */
-  if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
-    return true;
-  }
-  /*
-    Make the session variable 'transaction_write_set_extraction' read-only
-    inside a transaction.
-  */
-  if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
-    return true;
-  }
-  /*
-    Disallow changing variable 'transaction_write_set_extraction' while
-    binlog_transaction_dependency_tracking is different from COMMIT_ORDER.
-  */
-  if (mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode !=
-      DEPENDENCY_TRACKING_COMMIT_ORDER) {
-    my_error(ER_WRONG_USAGE, MYF(0),
-             "transaction_write_set_extraction (changed)",
-             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)");
-    return true;
-  }
-
-  return false;
-}
-
-static Sys_var_enum Sys_extract_write_set(
-    "transaction_write_set_extraction",
-    "This option is used to let the server know when to "
-    "extract the write set which will be used for various purposes. ",
-    SESSION_VAR(transaction_write_set_extraction),
-    CMD_LINE(OPT_ARG, OPT_TRANSACTION_WRITE_SET_EXTRACTION),
-    transaction_write_set_hashing_algorithms, DEFAULT(HASH_ALGORITHM_XXHASH64),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(transaction_write_set_check),
-    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
-
 static Sys_var_ulong Sys_rpl_stop_replica_timeout(
     "rpl_stop_replica_timeout",
     "Timeout in seconds to wait for replication threads to stop, before "
@@ -4060,20 +3996,6 @@ static Sys_var_enum Sys_replica_parallel_type(
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);
 
-static bool check_binlog_transaction_dependency_tracking(sys_var *, THD *,
-                                                         set_var *var) {
-  if (global_system_variables.transaction_write_set_extraction ==
-          HASH_ALGORITHM_OFF &&
-      var->save_result.ulonglong_value != DEPENDENCY_TRACKING_COMMIT_ORDER) {
-    my_error(ER_WRONG_USAGE, MYF(0),
-             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)",
-             "transaction_write_set_extraction (= OFF)");
-
-    return true;
-  }
-  return false;
-}
-
 static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
                                                           enum_var_type) {
   /*
@@ -4100,7 +4022,7 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
     CMD_LINE(REQUIRED_ARG, OPT_BINLOG_TRANSACTION_DEPENDENCY_TRACKING),
     opt_binlog_transaction_dependency_tracking_names,
     DEFAULT(DEPENDENCY_TRACKING_WRITESET), &PLock_slave_trans_dep_tracker,
-    NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(update_binlog_transaction_dependency_tracking),
     DEPRECATED_VAR(""));
 static Sys_var_ulong Binlog_transaction_dependency_history_size(

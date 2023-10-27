@@ -7005,17 +7005,6 @@ int init_common_variables() {
     return 1;
   }
 
-  if (global_system_variables.transaction_write_set_extraction ==
-          HASH_ALGORITHM_OFF &&
-      mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode !=
-          DEPENDENCY_TRACKING_COMMIT_ORDER) {
-    LogErr(ERROR_LEVEL,
-           ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING,
-           "XXHASH64 or MURMUR32", "WRITESET or WRITESET_SESSION");
-    return 1;
-  } else
-    mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
-
 #define FIX_LOG_VAR(VAR, ALT) \
   if (!VAR || !*VAR) VAR = ALT;
 
@@ -12713,10 +12702,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_SLAVE_ROWS_SEARCH_ALGORITHMS:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--slave-rows-search-algorithms");
-      break;
-    case OPT_TRANSACTION_WRITE_SET_EXTRACTION:
-      push_deprecated_warn_no_replacement(nullptr,
-                                          "--transaction-write-set-extraction");
       break;
     case OPT_REPLICA_PARALLEL_TYPE:
       push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");

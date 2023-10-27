@@ -23,7 +23,6 @@
 #     for instance:
 #
 #     let $sysvars_to_save = [
-#         "GLOBAL.transaction_write_set_extraction",
 #         "GLOBAL.replica_preserve_commit_order",
 #         "SESSION.binlog_row_image"
 #     ];

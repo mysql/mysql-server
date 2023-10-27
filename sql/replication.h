@@ -102,8 +102,6 @@ typedef struct Trans_context_info {
   ulong binlog_checksum_options;  // enum values in enum
                                   // enum_binlog_checksum_alg
   ulong binlog_format;            // enum values in enum enum_binlog_format
-  // enum values in enum_transaction_write_set_hashing_algorithm
-  ulong transaction_write_set_extraction;
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;

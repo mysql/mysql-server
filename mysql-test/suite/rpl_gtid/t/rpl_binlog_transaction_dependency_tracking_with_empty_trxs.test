@@ -21,7 +21,6 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
---source include/have_transaction_write_set_extraction.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

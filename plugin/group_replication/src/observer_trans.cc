@@ -123,14 +123,6 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
     return 0;
   }
 
-  if ((out += (param->trans_ctx_info.transaction_write_set_extraction ==
-               HASH_ALGORITHM_OFF))) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET);
-    return 0;
-    /* purecov: end */
-  }
-
   if (local_member_info->has_enforces_update_everywhere_checks() &&
       (out += (param->trans_ctx_info.tx_isolation == ISO_SERIALIZABLE))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNSUPPORTED_TRANS_ISOLATION);

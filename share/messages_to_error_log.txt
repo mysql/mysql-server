@@ -2921,7 +2921,7 @@ ER_CANNOT_SET_LOG_ERROR_SERVICES
 ER_PERFSCHEMA_TABLES_INIT_FAILED
   eng "Performance schema tables initialization failed."
 
-ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING
+OBSOLETE_ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY
   eng "The transaction_write_set_extraction must be set to %s when binlog_transaction_dependency_tracking is %s."
 
 OBSOLETE_ER_INVALID_REPLICATION_TIMESTAMPS
@@ -4847,7 +4847,7 @@ ER_GRP_RPL_INVALID_BINLOG_FORMAT
 OBSOLETE_ER_GRP_RPL_BINLOG_CHECKSUM_SET
   eng "binlog_checksum should be NONE for Group Replication"
 
-ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET
+OBSOLETE_ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET
   eng "A transaction_write_set_extraction algorithm should be selected when running Group Replication"
 
 ER_GRP_RPL_UNSUPPORTED_TRANS_ISOLATION
@@ -5090,7 +5090,7 @@ ER_GRP_RPL_GTID_MODE_OFF
 ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET
   eng "LOG_REPLICA_UPDATES should be ON for Group Replication"
 
-ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
+OBSOLETE_ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
   eng "Extraction of transaction write sets requires an hash algorithm configuration. Please, double check that the parameter transaction-write-set-extraction is set to a valid algorithm."
 
 ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE

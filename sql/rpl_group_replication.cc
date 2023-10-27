@@ -490,8 +490,6 @@ void get_server_startup_prerequirements(Trans_context_info &requirements) {
   requirements.binlog_checksum_options = binlog_checksum_options;
   requirements.gtid_mode = global_gtid_mode.get();
   requirements.log_replica_updates = opt_log_replica_updates;
-  requirements.transaction_write_set_extraction =
-      global_system_variables.transaction_write_set_extraction;
   requirements.parallel_applier_type = mts_parallel_option;
   requirements.parallel_applier_workers = opt_mts_replica_parallel_workers;
   requirements.parallel_applier_preserve_commit_order =

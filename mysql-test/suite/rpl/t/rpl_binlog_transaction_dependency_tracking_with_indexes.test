@@ -89,7 +89,6 @@
 # WL#9556: Writeset-based MTS dependency tracking on master
 
 --source include/have_binlog_format_row.inc
---source include/have_transaction_write_set_extraction.inc
 --source include/master-slave.inc
 
 --echo #### INITIALIZE ####

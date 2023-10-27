@@ -998,10 +998,17 @@ int configure_group_member_manager() {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
   };);
 
+  int write_set_extraction_algorithm =
+      Group_member_info::HASH_ALGORITHM_XXHASH64;
+  // Fake a old write set extraction algorithm.
+  DBUG_EXECUTE_IF("group_replication_write_set_extraction_algorithm_murmur32", {
+    write_set_extraction_algorithm = Group_member_info::HASH_ALGORITHM_MURMUR32;
+  };);
+
   // Initialize or update local_member_info.
   if (local_member_info != nullptr) {
     local_member_info->update(
-        hostname, port, uuid, lv.write_set_extraction_algorithm,
+        hostname, port, uuid, write_set_extraction_algorithm,
         gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
         local_member_plugin_version, ov.gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, ov.single_primary_mode_var,
@@ -1011,7 +1018,7 @@ int configure_group_member_manager() {
         get_allow_single_leader());
   } else {
     local_member_info = new Group_member_info(
-        hostname, port, uuid, lv.write_set_extraction_algorithm,
+        hostname, port, uuid, write_set_extraction_algorithm,
         gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
         local_member_plugin_version, ov.gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, ov.single_primary_mode_var,
@@ -2900,15 +2907,6 @@ static int check_if_server_properly_configured() {
   if (startup_pre_reqs.log_replica_updates != true) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET);
     return 1;
-  }
-
-  if (startup_pre_reqs.transaction_write_set_extraction == HASH_ALGORITHM_OFF) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE);
-    return 1;
-  } else {
-    lv.write_set_extraction_algorithm =
-        startup_pre_reqs.transaction_write_set_extraction;
   }
 
   if (startup_pre_reqs.parallel_applier_workers > 0) {

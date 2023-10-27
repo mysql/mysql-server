@@ -1,7 +1,4 @@
 # Tests for WL#12217
-
-# Because of transaction_write_set_extraction not being settable
-# with other binlog formats.
 --source include/have_binlog_format_row.inc
 
 # to allow setting transaction_write_set_extraction
@@ -66,8 +63,6 @@ SET SESSION pseudo_replica_mode = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION pseudo_thread_id = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION transaction_write_set_extraction = DEFAULT;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION sql_log_off = DEFAULT;
@@ -97,7 +92,6 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
-SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -139,7 +133,6 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
-SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -181,7 +174,6 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
-SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;

@@ -26,17 +26,20 @@ if (!$have_windows) {
   SET @auto_increment_offset_save= @@SESSION.auto_increment_offset;
   SET @@SESSION.auto_increment_increment= 1;
   SET @@SESSION.auto_increment_offset= 1;
-  CREATE TABLE test.r_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(256));
+  CREATE TABLE test.r_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64) UNIQUE KEY, var_value VARCHAR(256));
   INSERT INTO test.r_vars (var_name, var_value)
    SELECT * FROM performance_schema.global_variables
    WHERE VARIABLE_NAME LIKE 'replica_parallel_workers'
    OR VARIABLE_NAME LIKE 'replica_parallel_type'
    OR VARIABLE_NAME LIKE 'replica_preserve_commit_order'
    OR VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking'
-   OR VARIABLE_NAME LIKE 'transaction_write_set_extraction'
    OR VARIABLE_NAME LIKE 'enforce_gtid_consistency'
    OR VARIABLE_NAME LIKE 'gtid_mode'
    ORDER BY VARIABLE_NAME;
+
+  # Ensure that next auto_increment values are consecutive.
+  --let $r_vars_auto_inc = `SELECT MAX(id)+1 FROM test.r_vars`
+  --eval ALTER TABLE test.r_vars AUTO_INCREMENT = $r_vars_auto_inc
 
   if(!$rpl_group_replication) {
     INSERT INTO test.r_vars (var_name, var_value)
@@ -45,6 +48,10 @@ if (!$have_windows) {
      OR VARIABLE_NAME LIKE 'rpl_semi_sync_replica_enabled'
      OR VARIABLE_NAME LIKE 'rpl_semi_sync_source_enabled'
      ORDER BY VARIABLE_NAME;
+
+    # Ensure that next auto_increment values are consecutive.
+    --let $r_vars_auto_inc = `SELECT MAX(id)+1 FROM test.r_vars`
+    --eval ALTER TABLE test.r_vars AUTO_INCREMENT = $r_vars_auto_inc
   }
 
   if($rpl_group_replication)
@@ -57,6 +64,10 @@ if (!$have_windows) {
          OR VARIABLE_NAME LIKE 'ssl_cert'
          OR VARIABLE_NAME LIKE 'ssl_key'
          ORDER BY VARIABLE_NAME;
+
+      # Ensure that next auto_increment values are consecutive.
+      --let $r_vars_auto_inc = `SELECT MAX(id)+1 FROM test.r_vars`
+      --eval ALTER TABLE test.r_vars AUTO_INCREMENT = $r_vars_auto_inc
     }
 
     INSERT INTO test.r_vars (var_name, var_value)
@@ -68,6 +79,10 @@ if (!$have_windows) {
      OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_cert'
      OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_key'
      ORDER BY VARIABLE_NAME;
+
+    # Ensure that next auto_increment values are consecutive.
+    --let $r_vars_auto_inc = `SELECT MAX(id)+1 FROM test.r_vars`
+    --eval ALTER TABLE test.r_vars AUTO_INCREMENT = $r_vars_auto_inc
   }
   --let $suite_mysqld_settings=
   --let $count_vars= `SELECT COUNT(*) FROM test.r_vars`

@@ -219,8 +219,7 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
 
   /*
     Check if this transaction has a writeset, if the writeset will overflow the
-    history size, if the transaction_write_set_extraction is consistent
-    between session and global or if changes in the tables referenced in this
+    history size, or if changes in the tables referenced in this
     transaction cascade to other tables. If that happens revert to using the
     COMMIT_ORDER and clear the history to keep data consistent.
   */
@@ -232,10 +231,6 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
          they can be executed in parallel.
        */
        is_empty_transaction_in_binlog_cache(thd)) &&
-      // hashing algorithm for the session must be the same as used by other
-      // rows in history
-      (global_system_variables.transaction_write_set_extraction ==
-       thd->variables.transaction_write_set_extraction) &&
       // must not use foreign keys
       !write_set_ctx->get_has_related_foreign_keys() &&
       // it did not broke past the capacity already

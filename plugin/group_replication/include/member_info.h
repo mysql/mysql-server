@@ -185,6 +185,17 @@ class Group_member_info : public Plugin_gcs_message {
   } Group_member_role;
 
   /*
+    Values of the old transaction_write_set_extraction sysvar.
+    This enum is only used on Group Replication plugin for
+    compatibility purposes.
+  */
+  enum enum_transaction_write_set_hashing_algorithm_compatibility {
+    HASH_ALGORITHM_OFF = 0,
+    HASH_ALGORITHM_MURMUR32 = 1,
+    HASH_ALGORITHM_XXHASH64 = 2
+  };
+
+  /*
     Allocate memory on the heap with instrumented memory allocation, so
     that memory consumption can be tracked.
 
@@ -418,6 +429,11 @@ class Group_member_info : public Plugin_gcs_message {
     @return the member algorithm for extracting write sets
   */
   uint get_write_set_extraction_algorithm();
+
+  /**
+    @return the member algorithm name for extracting write sets
+  */
+  const char *get_write_set_extraction_algorithm_name();
 
   /**
     @return the member gtid assignment block size

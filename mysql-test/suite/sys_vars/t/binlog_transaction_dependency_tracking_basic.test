@@ -10,7 +10,6 @@
 #              * Scope & Access type
 #              * Valid & Default value
 #              * Invalid values
-#              * Dependency on transaction_write_set_extraction
 #
 # Reference: WL#9556
 ###############################################################################
@@ -19,11 +18,9 @@
 
 # Save initial value
 --let $saved_binlog_transaction_dependency_tracking= `SELECT @@global.binlog_transaction_dependency_tracking`
---let $saved_transaction_write_set_extraction= `SELECT @@global.transaction_write_set_extraction`
 
 # Set initial values to test further
 SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
-SET GLOBAL transaction_write_set_extraction= 'XXHASH64';
 
 #
 # Scope: Global only
@@ -111,44 +108,7 @@ SET GLOBAL binlog_transaction_dependency_tracking= 3;
 --echo Expect value still set to "WRITESET"
 SELECT @@global.binlog_transaction_dependency_tracking;
 
-#
-# Test usage: Dependency on transaction_write_set_extraction
-#
---echo Case1 a): "When binlog_transaction_dependency_tracking != COMMIT_ORDER,
---echo  transaction_write_set_extraction cannot be changed."
-SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
---error ER_WRONG_USAGE
-SET GLOBAL transaction_write_set_extraction= OFF;
---error ER_WRONG_USAGE
-SET GLOBAL transaction_write_set_extraction= MURMUR32;
---echo Expect value still set to XXHASH64
-SELECT @@global.transaction_write_set_extraction;
-
---echo Case1 b): "When binlog_transaction_dependency_tracking != COMMIT_ORDER,
---echo  transaction_write_set_extraction cannot be changed."
-SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
---error ER_WRONG_USAGE
-SET GLOBAL transaction_write_set_extraction= OFF;
---error ER_WRONG_USAGE
-SET GLOBAL transaction_write_set_extraction= MURMUR32;
---echo Expect value still set to XXHASH64
-SELECT @@global.transaction_write_set_extraction;
-
---echo Case2: "When transaction_write_set_extraction = OFF,
---echo  binlog_transaction_dependency_tracking cannot be set to WRITESET%"
-SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
-SET GLOBAL transaction_write_set_extraction= OFF;
---error ER_WRONG_USAGE
-SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
---error ER_WRONG_USAGE
-SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
---echo Expect value still set to COMMIT_ORDER
-SELECT @@global.binlog_transaction_dependency_tracking;
-
-SET GLOBAL transaction_write_set_extraction= XXHASH64;
-
 # Clean up
 --disable_query_log
---eval SET GLOBAL transaction_write_set_extraction= '$saved_transaction_write_set_extraction';
 --eval SET GLOBAL binlog_transaction_dependency_tracking= '$saved_binlog_transaction_dependency_tracking';
 --enable_query_log

@@ -25,19 +25,8 @@
 
 #include "my_inttypes.h"
 
-extern const char *transaction_write_set_hashing_algorithms[];
-
 class THD;
 struct TABLE;
-
-/**
-  Function that returns the write set extraction algorithm name.
-
-  @param[in] algorithm  The algorithm value
-
-  @return the algorithm name
-*/
-const char *get_write_set_algorithm_string(unsigned int algorithm);
 
 /**
   Function to add the hash of the PKE to the transaction context object.

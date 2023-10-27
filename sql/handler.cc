@@ -7893,43 +7893,43 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
   THD *const thd = table->in_use;
 
   if (check_table_binlog_row_based(thd, table)) {
-    if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) {
-      try {
-        MY_BITMAP save_read_set;
-        MY_BITMAP save_write_set;
-        if (bitmap_init(&save_read_set, nullptr, table->s->fields) ||
-            bitmap_init(&save_write_set, nullptr, table->s->fields)) {
-          my_error(ER_OUT_OF_RESOURCES, MYF(0));
-          return HA_ERR_RBR_LOGGING_FAILED;
-        }
-
-        const Binlog_log_row_cleanup cleanup_sentry(*table, save_read_set,
-                                                    save_write_set);
-
-        if (thd->variables.binlog_row_image == 0) {
-          for (uint key_number = 0; key_number < table->s->keys; ++key_number) {
-            if (((table->key_info[key_number].flags & (HA_NOSAME)) ==
-                 HA_NOSAME)) {
-              table->mark_columns_used_by_index_no_reset(key_number,
-                                                         table->read_set);
-              table->mark_columns_used_by_index_no_reset(key_number,
-                                                         table->write_set);
-            }
-          }
-        }
-        std::array<const uchar *, 2> records{after_record, before_record};
-        for (auto rec : records) {
-          if (rec != nullptr) {
-            assert(rec == table->record[0] || rec == table->record[1]);
-            bool res = add_pke(table, thd, rec);
-            if (res) return HA_ERR_RBR_LOGGING_FAILED;
-          }
-        }
-      } catch (const std::bad_alloc &) {
+    // Transacction write-set extraction.
+    try {
+      MY_BITMAP save_read_set;
+      MY_BITMAP save_write_set;
+      if (bitmap_init(&save_read_set, nullptr, table->s->fields) ||
+          bitmap_init(&save_write_set, nullptr, table->s->fields)) {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
         return HA_ERR_RBR_LOGGING_FAILED;
       }
+
+      const Binlog_log_row_cleanup cleanup_sentry(*table, save_read_set,
+                                                  save_write_set);
+
+      if (thd->variables.binlog_row_image == 0) {
+        for (uint key_number = 0; key_number < table->s->keys; ++key_number) {
+          if (((table->key_info[key_number].flags & (HA_NOSAME)) ==
+               HA_NOSAME)) {
+            table->mark_columns_used_by_index_no_reset(key_number,
+                                                       table->read_set);
+            table->mark_columns_used_by_index_no_reset(key_number,
+                                                       table->write_set);
+          }
+        }
+      }
+      std::array<const uchar *, 2> records{after_record, before_record};
+      for (auto rec : records) {
+        if (rec != nullptr) {
+          assert(rec == table->record[0] || rec == table->record[1]);
+          bool res = add_pke(table, thd, rec);
+          if (res) return HA_ERR_RBR_LOGGING_FAILED;
+        }
+      }
+    } catch (const std::bad_alloc &) {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      return HA_ERR_RBR_LOGGING_FAILED;
     }
+
     if (table->in_use->is_error()) return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
 
     DBUG_DUMP("read_set 10", (uchar *)table->read_set->bitmap,

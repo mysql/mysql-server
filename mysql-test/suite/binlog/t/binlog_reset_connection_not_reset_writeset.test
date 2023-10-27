@@ -11,22 +11,18 @@
 #                                                                             #
 # Steps to reproduce:                                                         #
 #                                                                             #
-# 1) Set the variable transaction_write_set_extraction to 'XXHASH64' which is #
-#    necessary to be able to change the value of the variable                 #
-#    binlog_transaction_dependency_tracking to WRITESET or WRITESET_SESSION   #
-#                                                                             #
-# 2) Set the variable binlog_transaction_dependency_tracking to WRITESET for  #
+# 1) Set the variable binlog_transaction_dependency_tracking to WRITESET for  #
 #    few coming transactions.                                                 #
 #                                                                             #
-# 3) Create a sample table and do few inserts.                                #
+# 2) Create a sample table and do few inserts.                                #
 #                                                                             #
-# 4) Change the value of binlog_transaction_dependency_tracking to            #
+# 3) Change the value of binlog_transaction_dependency_tracking to            #
 #    WRITESET_SESSION, to check if the write set session history is cleared   #
 #    or not after calling reset_connection.                                   #
 #                                                                             #
-# 5) Call reset_connection.                                                   #
+# 4) Call reset_connection.                                                   #
 #                                                                             #
-# 6) Check if the logical timestamp has the correct entry after the reset     #
+# 5) Check if the logical timestamp has the correct entry after the reset     #
 #    connection. This will mean that the write set history is cleared after a #
 #    to reset_connection.                                                     #
 ###############################################################################

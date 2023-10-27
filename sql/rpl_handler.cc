@@ -743,10 +743,6 @@ static void prepare_transaction_context(THD *thd,
   // Extracting the global mutable value of binlog checksum
   ctx_info.binlog_checksum_options = binlog_checksum_options;
 
-  // Extracting the session value of transaction_write_set_extraction
-  ctx_info.transaction_write_set_extraction =
-      thd->variables.transaction_write_set_extraction;
-
   // Extracting transaction isolation level
   ctx_info.tx_isolation = thd->tx_isolation;
 }

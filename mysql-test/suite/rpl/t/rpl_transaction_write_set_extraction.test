@@ -7,12 +7,7 @@
 
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
---source include/have_transaction_write_set_extraction.inc
 --source include/master-slave.inc
-
---let $assert_text= The value for transaction_write_set_extraction must be XXHASH64
---let $assert_cond= "[SELECT @@SESSION.transaction_write_set_extraction]" = "XXHASH64"
---source include/assert.inc
 
 # Table with a primary key consisting of a single column with insert and update.
 

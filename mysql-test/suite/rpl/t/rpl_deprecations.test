@@ -9,9 +9,7 @@
 # default, so skip the test if they are set on the command line while
 # invoking mtr.
 --source include/have_binlog_format_row.inc
-let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order',
-'replica_parallel_type', 'replica_transaction_retries', 'slave_rows_search_algorithms','transaction_write_set_extraction',
-'binlog_transaction_dependency_tracking';
+let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order', 'replica_parallel_type', 'replica_transaction_retries', 'slave_rows_search_algorithms', 'binlog_transaction_dependency_tracking';
 --source include/skip_by_command_line_option.inc
 
 #####################################################################
@@ -35,13 +33,6 @@ let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order
 SELECT @@global.relay_log_info_file;
 --replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
 SELECT @@global.slave_rows_search_algorithms;
-
-# assert deprecation warning (WRITESET), deprecation warning (MURMUR32) and revert
-SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET @@global.transaction_write_set_extraction='XXHASH64';
-SET @@global.transaction_write_set_extraction='MURMUR32';
-SET @@session.transaction_write_set_extraction='XXHASH64';
-SET @@session.transaction_write_set_extraction='MURMUR32';
 
 # assert deprecation warning replica_parallel_type
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
@@ -84,14 +75,12 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-file=$mi_file --skip-replica-start --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-file=$mi_file --skip-replica-start --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
   }
 
   if ($i == 1)
   {
     # check that warnings are emited when setting persist_only as well
-    SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
-    SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
     SET PERSIST_ONLY replica_parallel_type='DATABASE';
     SET PERSIST_ONLY replica_parallel_type='LOGICAL_CLOCK';
     SET PERSIST_ONLY binlog_transaction_dependency_tracking=WRITESET_SESSION;
@@ -105,8 +94,6 @@ while($i > 0) {
     # check that warnings are emited when setting persist as well
     SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
     SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
-    SET PERSIST transaction_write_set_extraction='MURMUR32';
-    SET PERSIST transaction_write_set_extraction='XXHASH64';
     SET PERSIST replica_parallel_type='DATABASE';
     SET PERSIST replica_parallel_type='LOGICAL_CLOCK';
     SET PERSIST replica_parallel_workers=0;
@@ -136,7 +123,6 @@ while($i > 0) {
     The syntax '--master-info-file' is deprecated and will be removed in a future release.
     The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
     The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
-    The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.
@@ -154,7 +140,6 @@ while($i > 0) {
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     '@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-    '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
     '@@binlog_format' is deprecated and will be removed in a future release.
     '@@sync_relay_log_info' is deprecated and will be removed in a future release.
     '@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.

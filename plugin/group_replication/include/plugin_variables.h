@@ -60,7 +60,6 @@ struct plugin_local_variables {
   bool plugin_is_waiting_to_set_server_read_mode;
   bool server_shutdown_status;
   bool wait_on_engine_initialization;
-  int write_set_extraction_algorithm;
   enum_wait_on_start_process_result wait_on_start_process;
   bool recovery_timeout_issue_on_stop;
   // The first argument indicates whether or not to use the value stored in this
@@ -102,7 +101,6 @@ struct plugin_local_variables {
     plugin_is_waiting_to_set_server_read_mode = false;
     server_shutdown_status = false;
     wait_on_engine_initialization = false;
-    write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
     wait_on_start_process = WAIT_ON_START_PROCESS_SUCCESS;
     allow_single_leader_latch.first = false;
     recovery_timeout_issue_on_stop = false;

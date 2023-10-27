@@ -3001,8 +3001,7 @@ bool THD::is_current_stmt_binlog_enabled_and_caches_empty() const {
 }
 
 bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
-  return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
-          is_current_stmt_binlog_format_row() &&
+  return (is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
 }
 
