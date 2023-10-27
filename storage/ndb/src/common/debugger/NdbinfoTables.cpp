@@ -1175,12 +1175,10 @@ DECLARE_NDBINFO_TABLE(CERTIFICATES, 5) = {
      {"expires", Ndbinfo::Number, "Certificate expiration date"}}};
 
 #define DBINFOTBL(x) \
-  [Ndbinfo::x##      \
-      _TABLEID] = {Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x}
+  { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table *)&ndbinfo_##x }
 
 #define DBINFOTBL_UNSUPPORTED(x) \
-  [Ndbinfo::unsupported_##x##_TABLEID] = \
-    {Ndbinfo::unsupported_##x##_TABLEID, nullptr}
+  { Ndbinfo::unsupported_##x##_TABLEID, nullptr }
 
 static struct ndbinfo_table_list_entry {
   Ndbinfo::TableId id;
