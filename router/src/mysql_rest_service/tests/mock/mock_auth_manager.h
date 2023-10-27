@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ class MockAuthManager : public mrs::interface::AuthorizeManager {
               (override));
   MOCK_METHOD(void, update, (const Entries &entries), (override));
 
+  MOCK_METHOD(void, configure, (const std::string &), (override));
   MOCK_METHOD(bool, authorize,
               (ServiceId id, mrs::rest::RequestContext &ctxt,
                AuthUser *out_user),

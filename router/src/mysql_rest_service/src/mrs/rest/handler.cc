@@ -462,6 +462,7 @@ class RestRequestHandler : public BaseRequestHandler {
 
   template <typename Err>
   void handle_error(RequestContext *ctxt, const Err &err) {
+    log_debug("void handle_error(RequestContext *ctxt, const Err &err)");
     const http::Error &e = err_to_http_error(err);
     if (!rest_handler_->request_error(ctxt, e)) {
       switch (e.status) {

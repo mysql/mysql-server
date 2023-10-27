@@ -73,6 +73,7 @@ class AuthorizeManager {
   virtual bool is_authorized(ServiceId id, rest::RequestContext &ctxt,
                              AuthUser *user) = 0;
   virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
+  virtual void configure(const std::string &options) = 0;
   virtual std::string get_jwt_token(ServiceId service_id, Session *s) = 0;
   virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                        http::Cookie *cookies) = 0;

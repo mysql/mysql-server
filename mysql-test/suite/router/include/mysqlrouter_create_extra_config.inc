@@ -90,6 +90,11 @@ if ($extra_mrs_meta_user) {
         --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"mysql_read_only_route=$extra_mrs_read_only_route\n");
     }
     
+    if ($extra_mrs_metadata_refresh_interval)
+    {
+        --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"metadata_refresh_interval=$extra_mrs_metadata_refresh_interval\n");
+    }
+
     --echo #  * MySQL Rest Service
 }
 

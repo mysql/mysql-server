@@ -57,6 +57,28 @@ class ErrorChangeResponse {
   virtual Error change_response(HttpRequest *request) const = 0;
 };
 
+class ErrorWithHttpHeaders : public ErrorChangeResponse {
+ public:
+  using Headers = std::vector<std::pair<std::string, std::string>>;
+
+  ErrorWithHttpHeaders(HttpStatusCode::key_type status_code, Headers headers)
+      : status_code_{status_code}, headers_{headers} {}
+
+  const char *name() const override { return "ErrorWithHttpHeaders"; }
+  bool retry() const override { return false; }
+  Error change_response(HttpRequest *request) const override {
+    for (auto [k, v] : headers_) {
+      request->get_output_headers().add(k.c_str(), v.c_str());
+    }
+
+    return Error(status_code_);
+  }
+
+ private:
+  HttpStatusCode::key_type status_code_;
+  Headers headers_;
+};
+
 class ErrorRedirect : public ErrorChangeResponse {
  public:
   ErrorRedirect(const std::string &redirect) : redirect_{redirect} {}

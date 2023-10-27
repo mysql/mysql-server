@@ -40,15 +40,17 @@ class AuthHandlerFactory : public interface::AuthHandlerFactory {
 
  public:
   AuthHandlerPtr create_basic_auth_handler(
-      const AuthApp &entry, MysqlCacheManager *cache_manager) const override;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+      MysqlCacheManager *cache_manager) const override;
   AuthHandlerPtr create_facebook_auth_handler(
-      const AuthApp &entry) const override;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const override;
   AuthHandlerPtr create_twitter_auth_handler(
-      const AuthApp &entry) const override;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const override;
   AuthHandlerPtr create_google_auth_handler(
-      const AuthApp &entry) const override;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const override;
   AuthHandlerPtr create_scram_auth_handler(
-      const AuthApp &entry, const std::string &rd) const override;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+      const std::string &rd) const override;
 };
 
 }  // namespace authentication

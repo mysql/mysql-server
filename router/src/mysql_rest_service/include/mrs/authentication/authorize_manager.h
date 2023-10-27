@@ -28,11 +28,13 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include "helper/mysql_time.h"
 #include "helper/token/jwt.h"
 #include "mrs/authentication/authorize_handler_callbacks.h"
+#include "mrs/authentication/rate_control_for.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/interface/auth_handler_factory.h"
 #include "mrs/interface/authorize_manager.h"
@@ -73,6 +75,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
                    AuthHandlerFactoryPtr factory);
 
   void update(const Entries &entries) override;
+  void configure(const std::string &options) override;
 
   bool unauthorize(ServiceId id, http::Cookie *cookies) override;
   bool authorize(ServiceId id, rest::RequestContext &ctxt,
@@ -96,6 +99,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
                          AuthorizeHandlerPtr &out_it);
   void remove_unreferenced_service_authorizators();
   void fill_service(const AuthApp &e, ServiceAuthorize &sa);
+  AuthorizeHandlerPtr choose_authentication_handler(
+      ServiceId service_id, const std::string &app_name);
 
   /**
    * Validate the jwt tokent, and get/create session_id for it.
@@ -107,6 +112,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
  private:  // AuthorizeHandlerCallbacks
   void acquire(interface::AuthorizeHandler *) override;
   void destroy(interface::AuthorizeHandler *) override;
+  void pre_authorize_account(interface::AuthorizeHandler *handler,
+                             const std::string &account) override;
 
   std::mutex service_authorize_mutext_;
   MapOfServices service_authorize_;
@@ -116,6 +123,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   Container container_;
   std::string jwt_secret_;
   AuthHandlerFactoryPtr factory_;
+  RateControlFor<std::string> accounts_rate_;
+  RateControlFor<std::string> hosts_rate_;
 
   /*
    * Random data, created at `authorization_manager` creation.
@@ -130,6 +139,11 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
    * (even if the user doesn't exists).
    */
   const std::string random_data_;
+
+  // TODO(lkotula): Take it from configuration structure (Shouldn't be in
+  // review)
+  std::optional<uint64_t> host_autentication_rate_rps_;
+  std::optional<uint64_t> account_autentication_rate_rps_;
 };
 
 }  // namespace authentication

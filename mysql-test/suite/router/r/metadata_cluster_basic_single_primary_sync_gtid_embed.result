@@ -33,9 +33,11 @@ include/rpl_sync.inc
 
 #
 ## 1. GTID synchronization using WHERE WAIT_FOR..
+START TRANSACTION;
 # Registred DB_SCHEMA at path: /svc/basic_where
 # Registred DB_OBJECT at path: /svc/basic_where/t1
 # Registred DB_OBJECT at path: /svc/basic_where/t2
+COMMIT;
 GET /svc/basic_where/t1
 {
     "items": [

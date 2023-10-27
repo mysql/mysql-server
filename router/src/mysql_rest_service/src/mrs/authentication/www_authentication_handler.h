@@ -59,7 +59,7 @@ class WwwAuthenticationHandler : public interface::AuthorizeHandler {
     return auth_schema == schema;
   }
 
-  void add_www_authenticate(const char *schema);
+  void throw_add_www_authenticate(const char *schema);
 
   bool redirects() const override;
   bool is_authorized(Session *session, AuthUser *user) override;

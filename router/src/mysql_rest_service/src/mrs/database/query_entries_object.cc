@@ -157,7 +157,7 @@ void QueryEntryObject::query_entries(MySQLSession *session,
     auto join = std::dynamic_pointer_cast<entry::JoinedTable>(table);
     if (join && join->enabled) {
       entry::JoinedTable::ColumnMapping fixed_mapping;
-      for (const auto &c : join->column_mapping) {
+      for (auto &c : join->column_mapping) {
         auto ltable = c.first->table.lock();
         auto rtable = c.second->table.lock();
 

@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_AUTHORIZE_HANDLER_CALLBACKS_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_AUTHORIZE_HANDLER_CALLBACKS_H_
 
+#include <string>
+
 #include "mrs/interface/authorize_handler.h"
 
 namespace helper {
@@ -35,6 +37,8 @@ class AuthorizeHandlerCallbakcs {
 
   virtual void acquire(mrs::interface::AuthorizeHandler *) = 0;
   virtual void destroy(mrs::interface::AuthorizeHandler *) = 0;
+  virtual void pre_authorize_account(mrs::interface::AuthorizeHandler *handler,
+                                     const std::string &account) = 0;
 };
 
 }  // namespace helper

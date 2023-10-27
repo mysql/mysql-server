@@ -44,12 +44,6 @@ OK
 
 #
 # I.2
-SELECT @object_changes;;
-@object_changes
-1
-SELECT @object_changes;;
-@object_changes
-2
 GET /svc/basic/t/1
 {
     "id": 1,
@@ -67,15 +61,6 @@ GET /svc/basic/t/1
     }
 }
 OK
-SELECT @object_changes;;
-@object_changes
-2
-SELECT sleep(3);
-sleep(3)
-0
-SELECT @object_changes;;
-@object_changes
-2
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;

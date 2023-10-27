@@ -29,6 +29,7 @@
 #include "mrs/authentication/oauth2_google_handler.h"
 #include "mrs/authentication/oauth2_twitter_handler.h"
 #include "mrs/authentication/scram_handler.h"
+#include "mrs/authentication/track_authorize_handler.h"
 
 namespace mrs {
 namespace authentication {
@@ -36,28 +37,38 @@ namespace authentication {
 using AuthHandlerPtr = AuthHandlerFactory::AuthHandlerPtr;
 
 AuthHandlerPtr AuthHandlerFactory::create_basic_auth_handler(
-    const AuthApp &entry, MysqlCacheManager *cache_manager) const {
-  return std::make_shared<BasicHandler>(entry, cache_manager);
+    AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+    MysqlCacheManager *cache_manager) const {
+  using Obj = TrackAuthorizeHandler<AuthorizeHandlerCallbakcs, BasicHandler>;
+  return std::make_shared<Obj>(cb, entry, cache_manager);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_facebook_auth_handler(
-    const AuthApp &entry) const {
-  return std::make_shared<Oauth2FacebookHandler>(entry);
+    AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const {
+  using Obj =
+      TrackAuthorizeHandler<AuthorizeHandlerCallbakcs, Oauth2FacebookHandler>;
+  return std::make_shared<Obj>(cb, entry);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_twitter_auth_handler(
-    const AuthApp &entry) const {
-  return std::make_shared<Oauth2TwitterHandler>(entry);
+    AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const {
+  using Obj =
+      TrackAuthorizeHandler<AuthorizeHandlerCallbakcs, Oauth2TwitterHandler>;
+  return std::make_shared<Obj>(cb, entry);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_google_auth_handler(
-    const AuthApp &entry) const {
-  return std::make_shared<Oauth2GoogleHandler>(entry);
+    AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const {
+  using Obj =
+      TrackAuthorizeHandler<AuthorizeHandlerCallbakcs, Oauth2GoogleHandler>;
+  return std::make_shared<Obj>(cb, entry);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_scram_auth_handler(
-    const AuthApp &entry, const std::string &rd) const {
-  return std::make_shared<ScramHandler>(entry, rd);
+    AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+    const std::string &rd) const {
+  using Obj = TrackAuthorizeHandler<AuthorizeHandlerCallbakcs, ScramHandler>;
+  return std::make_shared<Obj>(cb, entry, rd);
 }
 
 }  // namespace authentication

@@ -185,7 +185,9 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
     url.get_if_query_parameter("onCompletionClose",
                                &session->users_on_complete_timeout);
   }
-  if (error.status == HttpStatusCode::TemporaryRedirect) return false;
+  if (error.status == HttpStatusCode::TemporaryRedirect ||
+      error.status == HttpStatusCode::TooManyRequests)
+    return false;
 
   // Redirect to original/first page that redirected to us.
   auto uri = append_status_parameters(ctxt, error);

@@ -493,6 +493,30 @@ std::vector<uint8_t> HttpBuffer::copy(size_t len) {
 HttpBuffer::HttpBuffer() = default;
 HttpBuffer::~HttpBuffer() = default;
 
+// wrap evhttp_connection
+
+struct HttpConnectionImpl::impl {
+  std::unique_ptr<evhttp_connection, std::function<void(evhttp_connection *)>>
+      conn;
+};
+
+HttpConnectionImpl::HttpConnectionImpl(std::unique_ptr<impl> &&impl)
+    : pImpl_(std::move(impl)) {}
+
+std::string HttpConnectionImpl::get_peer_address() const {
+  char *result_address;
+  uint16_t result_port{0};
+  evhttp_connection_get_peer(pImpl_->conn.get(), &result_address, &result_port);
+  return result_address;
+}
+
+uint16_t HttpConnectionImpl::get_peer_port() const {
+  char *result_address;
+  uint16_t result_port{0};
+  evhttp_connection_get_peer(pImpl_->conn.get(), &result_address, &result_port);
+  return result_port;
+}
+
 // wrap evkeyvalq
 
 struct HttpHeaders::impl {
@@ -700,6 +724,21 @@ HttpUri &HttpRequestImpl::get_uri() const {
     uri_.reset(new HttpUri(std::move(uri_impl)));
   }
   return *uri_;
+}
+
+HttpConnection &HttpRequestImpl::get_connection() {
+  if (!connection_) {
+    auto *ev_req = pImpl_->req.get();
+
+    if (nullptr == ev_req) {
+      throw std::logic_error("request is null");
+    }
+    // wrap a non-owned pointer
+    connection_.reset(new HttpConnectionImpl(impl_new<HttpConnectionImpl::impl>(
+        evhttp_request_get_connection(ev_req), [](evhttp_connection *) {})));
+  }
+
+  return *connection_;
 }
 
 HttpHeaders &HttpRequestImpl::get_output_headers() {

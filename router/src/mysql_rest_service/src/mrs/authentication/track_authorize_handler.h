@@ -32,39 +32,48 @@
 namespace mrs {
 namespace authentication {
 
-template <typename Ctxt, typename Callback>
-class TrackAuthorizeHandler : public interface::AuthorizeHandler {
+template <typename Callback, typename Handler>
+class TrackAuthorizeHandler : public Handler {
  public:
-  using AuthorizeHandlerPtr = std::shared_ptr<interface::AuthorizeHandler>;
-  TrackAuthorizeHandler(AuthorizeHandlerPtr handler, Ctxt ctxt, Callback cb)
-      : handler_{handler}, ctxt_{ctxt}, cb_{cb} {
+  using AuthApp = typename Handler::AuthApp;
+  using Session = typename Handler::Session;
+  using AuthUser = typename Handler::AuthUser;
+  using RequestContext = typename Handler::RequestContext;
+  using AuthorizeHandler = mrs::interface::AuthorizeHandler;
+
+  template <typename... T>
+  TrackAuthorizeHandler(Callback *cb, T... t) : Handler(t...), cb_{cb} {
     cb_->acquire(this);
   }
 
   ~TrackAuthorizeHandler() override { cb_->destroy(this); }
 
   UniversalId get_service_id() const override {
-    return handler_->get_service_id();
+    return Handler::get_service_id();
   }
 
-  bool redirects() const override { return handler_->redirects(); }
-  UniversalId get_id() const override { return handler_->get_id(); }
+  bool redirects() const override { return Handler::redirects(); }
+  UniversalId get_id() const override { return Handler::get_id(); }
 
-  const AuthApp &get_entry() const override { return handler_->get_entry(); }
+  const AuthApp &get_entry() const override { return Handler::get_entry(); }
 
   bool is_authorized(Session *session, AuthUser *user) override {
-    return handler_->is_authorized(session, user);
+    return Handler::is_authorized(session, user);
   }
 
   bool authorize(RequestContext &ctxt, Session *session,
                  AuthUser *out_user) override {
-    return handler_->authorize(ctxt, session, out_user);
+    return Handler::authorize(ctxt, session, out_user);
+  }
+
+  void pre_authorize_account(AuthorizeHandler *handler,
+                             const std::string &account) override {
+    cb_->pre_authorize_account(handler, account);
+    Handler::pre_authorize_account(handler, account);
   }
 
  private:
-  AuthorizeHandlerPtr handler_;
-  Ctxt ctxt_;
-  Callback cb_;
+  Callback *cb_;
 };
 
 }  // namespace authentication

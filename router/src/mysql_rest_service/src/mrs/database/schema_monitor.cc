@@ -110,6 +110,7 @@ void SchemaMonitor::run() {
         auto global_json_config = turn_state->get_json_data();
         auto state = turn_state->get_state();
         dbobject_manager_->turn(state, global_json_config);
+        auth_manager_->configure(global_json_config);
         gtid_manager_->configure(global_json_config);
 
         log_debug("route turn=%s, changed=%s",

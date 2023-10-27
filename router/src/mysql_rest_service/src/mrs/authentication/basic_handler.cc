@@ -71,6 +71,12 @@ bool BasicHandler::www_authorize(const std::string &token,
     if (!extract_user_credentials_from_token(token, &auth_user, &auth_password))
       throw std::runtime_error("extraction failed");
 
+    // The MySQL account may be different for different host,
+    // even if they use the same user-name.
+    //
+    // This potential problem should be documented.
+    pre_authorize_account(this, auth_user);
+
     auto default_auth_user =
         out_cache->get()->get_connection_parameters().conn_opts;
     out_cache->get()->change_user(auth_user, auth_password, "");

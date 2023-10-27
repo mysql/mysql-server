@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,16 +30,22 @@
 class MockAuthHandlerFactory : public mrs::interface::AuthHandlerFactory {
  public:
   MOCK_METHOD(AuthHandlerPtr, create_basic_auth_handler,
-              (const AuthApp &entry, MysqlCacheManager *cache_manager),
+              (AuthorizeHandlerCallbakcs * cb, const AuthApp &entry,
+               MysqlCacheManager *cache_manager),
               (const, override));
   MOCK_METHOD(AuthHandlerPtr, create_facebook_auth_handler,
-              (const AuthApp &entry), (const, override));
+              (AuthorizeHandlerCallbakcs * cb, const AuthApp &entry),
+              (const, override));
   MOCK_METHOD(AuthHandlerPtr, create_twitter_auth_handler,
-              (const AuthApp &entry), (const, override));
+              (AuthorizeHandlerCallbakcs * cb, const AuthApp &entry),
+              (const, override));
   MOCK_METHOD(AuthHandlerPtr, create_google_auth_handler,
-              (const AuthApp &entry), (const, override));
+              (AuthorizeHandlerCallbakcs * cb, const AuthApp &entry),
+              (const, override));
   MOCK_METHOD(AuthHandlerPtr, create_scram_auth_handler,
-              (const AuthApp &entry, const std::string &rd), (const, override));
+              (AuthorizeHandlerCallbakcs * cb, const AuthApp &entry,
+               const std::string &rd),
+              (const, override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_HANDLER_FACTORY_H_

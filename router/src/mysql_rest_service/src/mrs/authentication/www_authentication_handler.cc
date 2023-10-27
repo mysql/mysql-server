@@ -82,7 +82,7 @@ bool WwwAuthenticationHandler::authorize(RequestContext &ctxt, Session *session,
   auto authorization_cstr = ctxt.get_in_headers().get(kAuthorization);
   if (nullptr == authorization_cstr) {
     log_debug("WwwAuth: no authorization selected, retry?");
-    add_www_authenticate(kBasicSchema);
+    throw_add_www_authenticate(kBasicSchema);
   }
   std::string authorization = authorization_cstr ? authorization_cstr : "";
   auto args = mysql_harness::split_string(authorization, ' ', false);
@@ -95,14 +95,14 @@ bool WwwAuthenticationHandler::authorize(RequestContext &ctxt, Session *session,
     session->state = Session::kUserVerified;
     return true;
   }
-  add_www_authenticate(kBasicSchema);
+  throw_add_www_authenticate(kBasicSchema);
 
   return false;
 }
 
 const AuthApp &WwwAuthenticationHandler::get_entry() const { return entry_; }
 
-void WwwAuthenticationHandler::add_www_authenticate(const char *schema) {
+void WwwAuthenticationHandler::throw_add_www_authenticate(const char *schema) {
   class ErrorAddWwwBasicAuth : public http::ErrorChangeResponse {
    public:
     ErrorAddWwwBasicAuth(const std::string &schema) : schema_{schema} {}

@@ -45,7 +45,6 @@
 --echo #
 --echo # I.2
 --source ../include/mrs/changes/fetch_object.inc
---eval SELECT $mrs_sql_changes_variable;
 
 --let $mrs_add_db_object_table_filter= (COLUMN_NAME like "name") 
 --let $mrs_add_db_object=table2
@@ -53,12 +52,8 @@
 # By default waits until, number of changes is grater,
 # than it was checked last time
 --source ../include/mrs/changes/wait_object.inc
---eval SELECT $mrs_sql_changes_variable;
 
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t/1
---eval SELECT $mrs_sql_changes_variable;
-SELECT sleep(3);
---eval SELECT $mrs_sql_changes_variable;
 
 
 # Cleanup

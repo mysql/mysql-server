@@ -36,6 +36,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_database_rest_sp.cc
     ./test_database_entries.cc
     ./test_database_content_files_options.cc
+    ./test_mrs_authentication_rate_control.cc
     ./test_mrs_database_rest_table.cc
     ./test_mrs_database_rest_table_get.cc
     ./test_mrs_database_rest_table_put.cc

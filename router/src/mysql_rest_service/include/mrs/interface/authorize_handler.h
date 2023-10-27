@@ -39,6 +39,8 @@ struct RequestContext;
 
 namespace interface {
 
+class AuthorizeHandler;
+
 class AuthorizeHandler {
  public:
   using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
@@ -58,6 +60,10 @@ class AuthorizeHandler {
   virtual bool is_authorized(Session *session, AuthUser *user) = 0;
   virtual bool authorize(RequestContext &ctxt, Session *session,
                          AuthUser *out_user) = 0;
+
+  virtual void pre_authorize_account(
+      [[maybe_unused]] AuthorizeHandler *handler,
+      [[maybe_unused]] const std::string &account) {}
 };
 
 }  // namespace interface

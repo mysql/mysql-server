@@ -27,8 +27,10 @@
 #include <time.h>
 
 #include <cassert>
+#include <chrono>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string_view>
 
@@ -48,6 +50,8 @@
 
 #include "helper/container/generic.h"
 #include "helper/container/map.h"
+#include "helper/json/rapid_json_to_struct.h"
+#include "helper/json/text_to.h"
 #include "helper/make_shared_ptr.h"
 #include "helper/string/random.h"
 #include "helper/string/replace.h"
@@ -61,6 +65,8 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace authentication {
 
+using milliseconds = std::chrono::milliseconds;
+using seconds = std::chrono::seconds;
 using JwtHolder = helper::JwtHolder;
 using Jwt = helper::Jwt;
 using Handlers = AuthorizeManager::AuthHandlers;
@@ -71,6 +77,78 @@ const UniversalId k_vendor_mysql{{0x31, 0}};
 const UniversalId k_vendor_facebook{{0x32, 0}};
 const UniversalId k_vendor_twitter{{0x33, 0}};
 const UniversalId k_vendor_google{{0x34, 0}};
+
+namespace {
+
+class AuthenticationOptions {
+ public:
+  std::optional<uint64_t> host_requests_per_minute_{};
+  std::optional<milliseconds> host_minimum_time_between_requests{};
+  std::optional<uint64_t> account_requests_per_minute_{};
+  std::optional<milliseconds> account_minimum_time_between_requests;
+  seconds block_for{60};
+};
+
+class ParseAuthenticationOptions
+    : public helper::json::RapidReaderHandlerToStruct<AuthenticationOptions> {
+ public:
+  template <typename ValueType>
+  uint64_t to_uint(const ValueType &value) {
+    return std::stoull(value.c_str());
+  }
+
+  template <typename ValueType>
+  void handle_object_value(const std::string &key, const ValueType &vt) {
+    using std::to_string;
+    if (key ==
+        "authentication.throttling.perAccount.minimumTimeBetweenRequestsInMs") {
+      result_.account_minimum_time_between_requests = milliseconds{to_uint(vt)};
+    } else if (key ==
+               "authentication.throttling.perAccount."
+               "maximumAttemptsPerMinute") {
+      result_.account_requests_per_minute_ = to_uint(vt);
+    } else if (key ==
+               "authentication.throttling.perHost."
+               "minimumTimeBetweenRequestsInMs") {
+      result_.host_minimum_time_between_requests = milliseconds{to_uint(vt)};
+    } else if (key ==
+               "authentication.throttling.perHost."
+               "maximumAttemptsPerMinute") {
+      result_.host_requests_per_minute_ = to_uint(vt);
+    } else if (key ==
+               "authentication.throttling.blockWhenAttemptsExceededInSeconds") {
+      result_.block_for = seconds{to_uint(vt)};
+    }
+  }
+
+  template <typename ValueType>
+  void handle_value(const ValueType &vt) {
+    const auto &key = get_current_key();
+    if (is_object_path()) {
+      handle_object_value(key, vt);
+    }
+  }
+
+  bool String(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool RawNumber(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool Bool(bool v) override {
+    const static std::string k_true{"true"}, k_false{"false"};
+    handle_value(v ? k_true : k_false);
+    return true;
+  }
+};
+
+auto parse_json_options(const std::string &options) {
+  return helper::json::text_to_handler<ParseAuthenticationOptions>(options);
+}
 
 class UserIdContainer {
  public:
@@ -85,7 +163,20 @@ class UserIdContainer {
   uint64_t push_index_{0};
 };
 
-static Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
+void throw_max_rate_exceeded(milliseconds ms) {
+  std::string v;
+  auto s = std::chrono::duration_cast<seconds>(ms);
+  v = (s.count() == 0) ? "1" : std::to_string(s.count());
+
+  throw http::ErrorWithHttpHeaders(HttpStatusCode::TooManyRequests,
+                                   {{"Retry-After", v}});
+}
+
+std::string get_peer_host(rest::RequestContext &ctxt) {
+  return ctxt.request->get_connection().get_peer_address();
+}
+
+Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
   auto authorization = headers.get(WwwAuthenticationHandler::kAuthorization);
 
   if (!authorization) return {};
@@ -108,11 +199,12 @@ static Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
   return {};
 }
 
-static std::string get_session_cookie_key_name(
-    const AuthorizeManager::ServiceId id) {
+std::string get_session_cookie_key_name(const AuthorizeManager::ServiceId id) {
   using namespace std::literals::string_literals;
   return "session_"s + id.to_string();
 }
+
+}  // namespace
 
 AuthorizeManager::AuthorizeManager(collector::MysqlCacheManager *cache_manager,
                                    const std::string &jwt_secret,
@@ -130,6 +222,16 @@ AuthorizeManager::AuthorizeManager(collector::MysqlCacheManager *cache_manager,
     : cache_manager_{cache_manager},
       jwt_secret_{jwt_secret},
       factory_{std::make_shared<AuthHandlerFactory>()} {}
+
+void AuthorizeManager::configure(const std::string &options) {
+  auto cnf = parse_json_options(options);
+  accounts_rate_ = RateControlFor<std::string>(
+      cnf.account_requests_per_minute_, cnf.block_for,
+      cnf.account_minimum_time_between_requests);
+  hosts_rate_ =
+      RateControlFor<std::string>(cnf.host_requests_per_minute_, cnf.block_for,
+                                  cnf.host_minimum_time_between_requests);
+}
 
 void AuthorizeManager::update(const Entries &entries) {
   Container::iterator it;
@@ -198,22 +300,15 @@ AuthorizeHandlerPtr AuthorizeManager::make_auth(const AuthApp &entry) {
   if (!entry.active) return {};
 
   if (entry.vendor_id == k_vendor_mysql)
-    result = factory_->create_basic_auth_handler(entry, cache_manager_);
+    result = factory_->create_basic_auth_handler(this, entry, cache_manager_);
   else if (entry.vendor_id == k_vendor_facebook)
-    result = factory_->create_facebook_auth_handler(entry);
+    result = factory_->create_facebook_auth_handler(this, entry);
   else if (entry.vendor_id == k_vendor_twitter)
-    result = factory_->create_twitter_auth_handler(entry);
+    result = factory_->create_twitter_auth_handler(this, entry);
   else if (entry.vendor_id == k_vendor_google)
-    result = factory_->create_google_auth_handler(entry);
+    result = factory_->create_google_auth_handler(this, entry);
   else if (entry.vendor_id == k_vendor_mrs)
-    result = factory_->create_scram_auth_handler(entry, random_data_);
-
-  if (result) {
-    helper::AuthorizeHandlerCallbakcs *callbacks = this;
-    result = std::make_shared<TrackAuthorizeHandler<
-        AuthorizeManager *, helper::AuthorizeHandlerCallbakcs *>>(result, this,
-                                                                  callbacks);
-  }
+    result = factory_->create_scram_auth_handler(this, entry, random_data_);
 
   return result;
 }
@@ -281,6 +376,19 @@ void AuthorizeManager::destroy(interface::AuthorizeHandler *handler) {
 
   if (0 == --el->references_) {
     service_authorize_.erase(handler->get_service_id());
+  }
+}
+
+void AuthorizeManager::pre_authorize_account(
+    interface::AuthorizeHandler *handler, const std::string &account) {
+  auto unique_account_name = handler->get_id().to_string() + account;
+  AcceptInfo ac;
+  if (!accounts_rate_.allow(unique_account_name, &ac)) {
+    if (ac.reason == BlockReason::kRateExceeded) {
+      log_debug("Too many requests from user: '%s' for handler:%s.",
+                account.c_str(), handler->get_id().to_string().c_str());
+    }
+    throw_max_rate_exceeded(ac.next_request_allowed_after);
   }
 }
 
@@ -454,6 +562,31 @@ std::string AuthorizeManager::authorize(const UniversalId service_id,
   return {};
 }
 
+AuthorizeHandlerPtr AuthorizeManager::choose_authentication_handler(
+    ServiceId service_id, const std::string &app_name) {
+  auto handlers = get_handlers_by_service_id(service_id);
+  if (handlers.empty())
+    throw http::Error{
+        HttpStatusCode::BadRequest,
+        "Bad request - there is no authorization application available"};
+
+  if (app_name.empty() && handlers.size() == 1) {
+    return handlers[0];
+  }
+
+  AuthorizeHandlerPtr result;
+  if (!helper::container::get_if(
+          handlers,
+          [&app_name](const auto &handler) {
+            return (app_name == handler->get_entry().app_name);
+          },
+          &result))
+    throw http::Error{
+        HttpStatusCode::BadRequest,
+        "Bad request - chosen authorization application no available"};
+  return result;
+}
+
 bool AuthorizeManager::authorize(ServiceId service_id,
                                  rest::RequestContext &ctxt,
                                  AuthUser *out_user) {
@@ -486,29 +619,15 @@ bool AuthorizeManager::authorize(ServiceId service_id,
                       "Bad request - bearer not allowed."};
   }
 
-  {
-    auto handlers = get_handlers_by_service_id(service_id);
-    if (handlers.empty())
-      throw http::Error{
-          HttpStatusCode::BadRequest,
-          "Bad request - there is no authorization application available"};
-
-    auto selected_app = url.get_query_parameter("app");
-
-    if (selected_app.empty() && handlers.size() == 1) {
-      selected_handler = handlers[0];
-    } else {
-      if (!helper::container::get_if(
-              handlers,
-              [&selected_app](const auto &handler) {
-                return (selected_app == handler->get_entry().app_name);
-              },
-              &selected_handler))
-        throw http::Error{
-            HttpStatusCode::BadRequest,
-            "Bad request - chosen authorization application no available"};
-    }
+  AcceptInfo ac;
+  auto peer_host = get_peer_host(ctxt);
+  if (!hosts_rate_.allow(peer_host, &ac)) {
+    if (ac.reason == BlockReason::kRateExceeded)
+      log_warning("Too many requests from host: '%s'.", peer_host.c_str());
+    throw_max_rate_exceeded(ac.next_request_allowed_after);
   }
+  selected_handler =
+      choose_authentication_handler(service_id, url.get_query_parameter("app"));
 
   // Ensure that all code paths, had selected the handlers.
   assert(nullptr != selected_handler.get());

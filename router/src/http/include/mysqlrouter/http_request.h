@@ -447,10 +447,20 @@ class HTTP_COMMON_EXPORT HttpUri {
   friend class HttpRequestImpl;
 };
 
+class HTTP_COMMON_EXPORT HttpConnection {
+ public:
+  virtual ~HttpConnection() = default;
+
+ public:
+  virtual std::string get_peer_address() const = 0;
+  virtual uint16_t get_peer_port() const = 0;
+};
+
 class HTTP_COMMON_EXPORT HttpRequest {
  public:
   virtual ~HttpRequest() = default;
 
+  virtual HttpConnection &get_connection() = 0;
   virtual HttpHeaders &get_output_headers() = 0;
   virtual HttpHeaders &get_input_headers() const = 0;
   virtual HttpBuffer &get_output_buffer() = 0;
@@ -496,6 +506,21 @@ class HTTP_COMMON_EXPORT HttpRequest {
   virtual bool add_last_modified(time_t last_modified) = 0;
 };
 
+class HTTP_COMMON_EXPORT HttpConnectionImpl : public HttpConnection {
+ public:
+  std::string get_peer_address() const override;
+  uint16_t get_peer_port() const override;
+
+ private:
+  friend class HttpRequestImpl;
+
+  class impl;
+
+  HttpConnectionImpl(std::unique_ptr<impl> &&impl);
+
+  std::unique_ptr<impl> pImpl_;
+};
+
 /**
  * a HTTP request and response.
  *
@@ -509,6 +534,7 @@ class HTTP_COMMON_EXPORT HttpRequestImpl : public HttpRequest {
   HttpRequestImpl(HttpRequestImpl &&);
   ~HttpRequestImpl() override;
 
+  HttpConnection &get_connection() override;
   HttpHeaders &get_output_headers() override;
   HttpHeaders &get_input_headers() const override;
   HttpBuffer &get_output_buffer() override;
@@ -570,7 +596,9 @@ class HTTP_COMMON_EXPORT HttpRequestImpl : public HttpRequest {
   mutable std::unique_ptr<HttpBuffer> output_buffer_;
   mutable std::unique_ptr<HttpBuffer> input_buffer_;
   mutable std::unique_ptr<HttpUri> uri_;
+  mutable std::unique_ptr<HttpConnection> connection_;
 
+  friend class HttpConnectionImpl;
   friend class HttpClientConnectionBase;
   friend class HttpUri;
   friend class EventHttp;

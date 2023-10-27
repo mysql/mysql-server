@@ -147,6 +147,7 @@ SaslResult ScramHandler::client_initial_response(RequestContext &ctxt,
   auto ireq = session_data->scram->set_initial_request(auth_data);
   session_data->nonce = ireq.nonce;
 
+  pre_authorize_account(this, ireq.user);
   session->user = AuthUser();
   session->user.name = ireq.user;
   session->user.app_id = entry_.id;

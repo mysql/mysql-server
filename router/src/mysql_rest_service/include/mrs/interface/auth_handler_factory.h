@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "collector/mysql_cache_manager.h"
+#include "mrs/authentication/authorize_handler_callbacks.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/interface/authorize_handler.h"
 
@@ -39,20 +40,23 @@ class AuthHandlerFactory {
   using MysqlCacheManager = collector::MysqlCacheManager;
   using AuthApp = mrs::database::entry::AuthApp;
   using AuthHandlerPtr = std::shared_ptr<AuthorizeHandler>;
+  using AuthorizeHandlerCallbakcs = helper::AuthorizeHandlerCallbakcs;
 
  public:
   virtual ~AuthHandlerFactory() = default;
 
   virtual AuthHandlerPtr create_basic_auth_handler(
-      const AuthApp &entry, MysqlCacheManager *cache_manager) const = 0;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+      MysqlCacheManager *cache_manager) const = 0;
   virtual AuthHandlerPtr create_facebook_auth_handler(
-      const AuthApp &entry) const = 0;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_twitter_auth_handler(
-      const AuthApp &entry) const = 0;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_google_auth_handler(
-      const AuthApp &entry) const = 0;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_scram_auth_handler(
-      const AuthApp &entry, const std::string &rd) const = 0;
+      AuthorizeHandlerCallbakcs *cb, const AuthApp &entry,
+      const std::string &rd) const = 0;
 };
 
 }  // namespace interface

@@ -63,9 +63,11 @@ Result Authentication::do_basic_flow(HttpClientRequest &request,
 
   if (result.status == HttpStatusCode::NotFound) return result;
 
-  if (result.status != HttpStatusCode::TemporaryRedirect)
-    throw std::runtime_error(
-        "Expected redirection flow, received other status code.");
+  if (result.status != HttpStatusCode::TemporaryRedirect) {
+    return result;
+    //    throw std::runtime_error(
+    //        "Expected redirection flow, received other status code.");
+  }
 
   auto location = find_in_headers(result.headers, "Location");
   if (location.empty())

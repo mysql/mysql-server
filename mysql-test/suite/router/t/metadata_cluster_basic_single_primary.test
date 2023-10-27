@@ -1,10 +1,12 @@
 --source include/have_router.inc
 --source include/have_group_replication_plugin.inc
 
+--let $extra_mrs_metadata_refresh_interval=1
 --source ../include/predefined_setup/configure_router_mrs_root_with_gr_single.inc
 --source ../include/schema/basic_schema.sql
 
 
+START TRANSACTION;
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -22,7 +24,7 @@
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/t2
 --source ../include/mrs/db_object/add.inc
-
+COMMIT;
 
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
