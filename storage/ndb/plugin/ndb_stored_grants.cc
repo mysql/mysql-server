@@ -38,6 +38,7 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_retry.h"
+#include "storage/ndb/plugin/ndb_rpl_filter.h"
 #include "storage/ndb/plugin/ndb_sql_metadata_table.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
@@ -286,6 +287,9 @@ void ThreadContext::deserialize_users(std::string &str) {
 
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
+  // Disable rpl_filter as otherwise the non-updating query fail in the applier
+  Ndb_rpl_filter_disable disable_filter(m_thd);
+
   assert(m_closed);
   /* execute_query_iso() returns false on success */
   m_closed = execute_query_iso(statement, nullptr);

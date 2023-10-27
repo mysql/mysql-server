@@ -112,6 +112,7 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_index_stat_sample_table.cc
     plugin/ndb_applier.cc
     plugin/ndb_replica.cc
+    plugin/ndb_rpl_filter.cc
   )
 
   # Include directories used when building ha_ndbcluster
