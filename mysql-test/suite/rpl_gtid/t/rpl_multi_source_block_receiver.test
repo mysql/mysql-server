@@ -16,8 +16,6 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 --let $rpl_skip_start_slave=1
 --let $rpl_gtid_utils=1

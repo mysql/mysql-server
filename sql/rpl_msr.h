@@ -621,12 +621,7 @@ extern Rpl_channel_filters rpl_channel_filters;
 static bool inline is_slave_configured() {
   /* Server was started with server_id == 0
      OR
-     failure to load slave info repositories because of repository
-     mismatch i.e Assume slave had a multisource replication with several
-     channels setup with TABLE repository. Then if the slave is restarted
-     with FILE repository, we fail to load any of the slave repositories,
-     including the default channel one.
-     Hence, channel_map.get_default_channel_mi() will return NULL.
+     failure to load applier metadata repositories
   */
   return (channel_map.get_default_channel_mi() != nullptr);
 }

@@ -6,8 +6,6 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
-# Test requires relay-log-info-repository = TABLE
---source include/not_relay_log_info_file.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc

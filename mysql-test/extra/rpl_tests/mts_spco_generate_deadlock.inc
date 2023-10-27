@@ -101,7 +101,6 @@
 #
 
 --source include/have_debug_sync.inc
---source include/have_slave_repository_type_table.inc
 
 if ($mts_spco_gd_trx_blocking_worker_1 == '')
 {

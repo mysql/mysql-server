@@ -2,8 +2,6 @@
 # Smaller version of rpl_*mts*_crash_safe test
 #
 --source include/have_binlog_format_mixed.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --source include/have_replica_parallel_type_database.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc

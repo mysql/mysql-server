@@ -48,18 +48,6 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 #
 # Configuration options associated with the REPLICA.
 #
---disable_warnings
---let $saved= `SELECT @@GLOBAL.master_info_repository`
-SET @@GLOBAL.master_info_repository= "TABLE";
---disable_query_log
---eval SET @@GLOBAL.master_info_repository= "$saved"
---enable_query_log
---let $saved= `SELECT @@GLOBAL.relay_log_info_repository`
-SET @@GLOBAL.relay_log_info_repository= "TABLE";
---disable_query_log
---eval SET @@GLOBAL.relay_log_info_repository= "$saved"
---enable_query_log
---enable_warnings
 --let $saved= `SELECT @@GLOBAL.max_relay_log_size`
 SET @@GLOBAL.max_relay_log_size= 536870912;
 --eval SET @@GLOBAL.max_relay_log_size= $saved

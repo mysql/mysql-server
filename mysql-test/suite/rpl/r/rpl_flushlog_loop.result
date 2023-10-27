@@ -11,7 +11,6 @@ relay_log	master-relay-bin
 relay_log_basename	MYSQLD_DATADIR/master-relay-bin
 relay_log_index	MYSQLD_DATADIR/master-relay-bin.index
 relay_log_info_file	relay-log.info
-relay_log_info_repository	FILE
 relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0

@@ -1,6 +1,6 @@
 #
-# TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not
-#      configured
+# TC1. Upgrade from TABLE with PRIVILEGE_CHECKS_USER not configured
+#
 # --------------------------------------------------------------
 #
 include/master-slave.inc
@@ -12,18 +12,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t (c INT);
 INSERT INTO t VALUES (1), (2);
 include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression("Error writing relay log configuration");
 include/stop_slave.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_username;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 include/assert.inc [Configured PRIVILEGE_CHECKS_USER appears in PFS table with NULL value]
-include/assert.inc [Table mysql.slave_relay_log_info has no information since --relay-log-info-repository=FILE]
 include/assert.inc [Table mysql.slave_relay_log_info has no columns regarding PRIVILEGE_CHECKS_USER]
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_start_server.inc [server_number=2 parameters: --upgrade=FORCE]
 include/start_slave.inc
 [connection slave]
 include/assert.inc [Table mysql.slave_relay_log_info has columns for PRIVILEGE_CHECKS_USER]
-include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER since --relay-log-info-repository=TABLE]
+include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER]
 include/stop_slave.inc
 CREATE USER 'u1'@'localhost';;
 GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
@@ -36,8 +36,5 @@ include/sync_slave_sql_with_master.inc
 DROP USER 'u1'@'localhost';;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
-SET GLOBAL relay_log_info_repository="FILE";
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/rpl_end.inc

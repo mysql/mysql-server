@@ -28,7 +28,6 @@
 
 
 --source include/have_binlog_format_row.inc
---source include/have_slave_repository_type_table.inc
 
 # This line sets GTID_ONLY on the replica channel.
 # When GTID_ONLY is enabled we don't sync the replica info repositories unless an

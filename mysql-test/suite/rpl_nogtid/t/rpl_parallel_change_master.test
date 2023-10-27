@@ -116,14 +116,7 @@ SELECT @@global.relay_log_recovery as 'must be ON';
 call mtr.add_suppression("MTA recovery: automatic recovery failed.*");
 call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
-#
-# the following suppression applies to either restart.
-# The reason it was not required when the test run "normally" with the default
-# --relay-log-info-repository=FILE is here:
-# Bug #15858271 MTR INCORRECTLY PROPAGATES A SERVER OPTION FROM A PREVIOUS TEST TO THE CURRENT
-# todo: The suppression should be removed after the bug is fixed.
-#
-call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
+
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-replica-start
 --source include/rpl_restart_server.inc
@@ -163,8 +156,6 @@ DROP DATABASE d2;
 --source include/stop_slave.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
-SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
-SET @@global.relay_log_info_repository='TABLE';
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -224,7 +215,6 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER
 
 --disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
-SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
 --enable_warnings
 --source include/start_slave.inc
 #

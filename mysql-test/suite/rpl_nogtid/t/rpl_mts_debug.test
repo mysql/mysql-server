@@ -216,7 +216,7 @@ set @@global.replica_parallel_workers= 2;
 --source include/start_slave.inc
 --source include/stop_slave.inc
 
-call mtr.add_suppression("Error creating applier metadata: Failed to initialize the worker info structure.");
+call mtr.add_suppression("Error creating applier metadata: Failed to create the worker metadata repository structure");
 
 set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 --error ER_CONNECTION_METADATA

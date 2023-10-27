@@ -95,7 +95,7 @@ set @@global.debug= @save.debug;
 set @@global.replica_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
-call mtr.add_suppression("Error creating applier metadata: Failed to initialize the worker info structure.");
+call mtr.add_suppression("Error creating applier metadata: Failed to create the worker metadata repository structure");
 set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 start slave sql_thread;
 ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log

@@ -28,8 +28,6 @@
 # Bug#28815555: HEARTBEATS/FAKEROTATE CAUSE A FORCED SYNC_SOURCE_INFO
 #
 
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc

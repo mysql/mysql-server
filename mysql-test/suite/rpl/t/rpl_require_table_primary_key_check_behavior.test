@@ -82,7 +82,6 @@
 --echo # 0. Setup replica with 2 sources where the channels have a privilege user
 
 --source include/have_binlog_format_row_or_statement.inc
---source include/have_slave_repository_type_table.inc
 --source include/force_restart.inc
 --let $rpl_topology= 1->2,3->2
 --let $applier_user = 'u'@'localhost'

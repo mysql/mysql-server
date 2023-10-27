@@ -49,16 +49,6 @@ SELECT MEMBER_STATE FROM performance_schema.replication_group_members;
 --let $assert_cond= "[SELECT @@GLOBAL.log_replica_updates]" = 1
 --source include/assert.inc
 
-# master_info_repository
---let $assert_text= GR compatible value of master_info_repository is TABLE
---let $assert_cond= "[SELECT @@GLOBAL.master_info_repository]" = "TABLE"
---source include/assert.inc
-
-# relay_log_info_repository
---let $assert_text= GR compatible value of relay_log_info_repository is TABLE
---let $assert_cond= "[SELECT @@GLOBAL.relay_log_info_repository]" = "TABLE"
---source include/assert.inc
-
 # transaction_write_set_extraction
 --let $assert_text= GR compatible values of transaction_write_set_extraction are XXHASH64 and MURMUR32
 --let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction IN (\'XXHASH64\', \'MURMUR32\')]" = 1

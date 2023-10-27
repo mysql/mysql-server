@@ -12,8 +12,6 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc

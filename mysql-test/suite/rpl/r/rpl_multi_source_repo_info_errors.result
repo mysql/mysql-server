@@ -40,7 +40,6 @@ include/rpl_restart_server.inc [server_number=2]
 call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Recovery from source pos");
-call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

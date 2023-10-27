@@ -1,7 +1,5 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --source include/only_mts_replica_parallel_workers.inc
 
 --let $save_replica_parallel_workers=`SELECT @@global.replica_parallel_workers`
@@ -104,7 +102,6 @@ RESET SLAVE ALL;
 call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Recovery from source pos");
-call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 SET @@global.replica_parallel_workers=5;

@@ -163,9 +163,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -174,8 +172,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #8
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 495, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#8):
@@ -192,9 +190,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -203,8 +199,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #8
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 495, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#8):
@@ -221,9 +217,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -232,8 +226,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #10
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 699, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#10):
@@ -250,9 +244,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -261,8 +253,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #11
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 778, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#11):
@@ -279,9 +271,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -290,8 +280,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #11
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 778, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#11):
@@ -308,9 +298,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -319,8 +307,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #13
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -337,9 +325,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -348,8 +334,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #19
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -366,9 +352,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -377,8 +361,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #13
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -395,9 +379,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -406,8 +388,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #19
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -424,9 +406,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -435,8 +415,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #13
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -453,9 +433,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -464,8 +442,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #19
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -482,9 +460,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -493,8 +469,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #26
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2038, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#26):
@@ -511,9 +487,7 @@ include/stop_slave.inc
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
 # Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
 include/wait_for_slave_io_to_stop.inc
@@ -522,8 +496,8 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
-# Restoring a master.info.backup to start asking events at event #26
 include/rpl_start_server.inc [server_number=2]
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2038, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#26):
@@ -547,6 +521,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
+DROP TABLE saved_positions;
 [connection master]
 DROP TABLE t1, t2;
 DROP EVENT ev1;

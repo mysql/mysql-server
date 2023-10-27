@@ -1,0 +1,37 @@
+#  1. Setup replication
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#  2. Prepare data and stop replication threads
+[connection master]
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+INSERT INTO t1 (c1) VALUES (2);
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+#  3. Delete connection metadata
+TRUNCATE mysql.slave_master_info;
+#  4. Restart the server
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1]
+#  5. Observe that replication threads cannot be started
+START REPLICA;
+ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
+#  6. Restore connection metadata and start replication
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+START REPLICA;
+[connection master]
+include/sync_slave_sql_with_master.inc
+#  7. Check data consistency
+include/diff_tables.inc [master:t1, slave:t1]
+#  8. Cleanup
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

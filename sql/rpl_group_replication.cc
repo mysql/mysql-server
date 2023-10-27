@@ -65,8 +65,6 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 class THD;
 
-extern ulong opt_mi_repository_id;
-extern ulong opt_rli_repository_id;
 std::atomic_flag start_stop_executing = ATOMIC_FLAG_INIT;
 
 /*
@@ -494,8 +492,6 @@ void get_server_startup_prerequirements(Trans_context_info &requirements) {
   requirements.log_replica_updates = opt_log_replica_updates;
   requirements.transaction_write_set_extraction =
       global_system_variables.transaction_write_set_extraction;
-  requirements.mi_repository_type = opt_mi_repository_id;
-  requirements.rli_repository_type = opt_rli_repository_id;
   requirements.parallel_applier_type = mts_parallel_option;
   requirements.parallel_applier_workers = opt_mts_replica_parallel_workers;
   requirements.parallel_applier_preserve_commit_order =

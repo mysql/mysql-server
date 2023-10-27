@@ -1619,100 +1619,6 @@ static Sys_var_bool Sys_explicit_defaults_for_timestamp(
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_explicit_defaults_for_timestamp));
 
-static bool repository_check(sys_var *self, THD *thd, set_var *var,
-                             SLAVE_THD_TYPE thread_mask) {
-  bool ret = false;
-  if (check_session_admin_outside_trx_outside_sf(self, thd, var)) return true;
-  Master_info *mi;
-  int running = 0;
-  const char *msg = nullptr;
-  const bool rpl_info_option =
-      static_cast<uint>(var->save_result.ulonglong_value);
-
-  /* don't convert if the repositories are same */
-  if (rpl_info_option ==
-      (0 != (thread_mask == SLAVE_THD_IO ? opt_mi_repository_id
-                                         : opt_rli_repository_id)))
-    return false;
-
-  channel_map.wrlock();
-
-  /* Repository conversion not possible, when multiple channels exist */
-  if (channel_map.get_num_instances(true) > 1) {
-    msg = "Repository conversion is possible when only default channel exists";
-    my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-    channel_map.unlock();
-    return true;
-  }
-
-  mi = channel_map.get_default_channel_mi();
-
-  if (mi != nullptr) {
-    mi->channel_wrlock();
-    lock_slave_threads(mi);
-    init_thread_mask(&running, mi, false);
-    if (!running) {
-      bool is_pos_info_invalid{false};
-      switch (thread_mask) {
-        case SLAVE_THD_IO:
-          is_pos_info_invalid = mi->is_receiver_position_info_invalid();
-          mysql_mutex_lock(&mi->data_lock);
-          mi->flush_info(true);
-          mysql_mutex_unlock(&mi->data_lock);
-          if (Rpl_info_factory::change_mi_repository(
-                  mi, static_cast<uint>(var->save_result.ulonglong_value),
-                  &msg)) {
-            ret = true;
-            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-          }
-          mi->set_receiver_position_info_invalid(is_pos_info_invalid);
-          break;
-        case SLAVE_THD_SQL:
-          mts_recovery_groups(mi->rli);
-          if (!mi->rli->is_mts_recovery()) {
-            is_pos_info_invalid =
-                mi->rli->is_applier_source_position_info_invalid();
-            if (Rpl_info_factory::reset_workers(mi->rli) ||
-                mi->rli->flush_info(
-                    Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT |
-                    Relay_log_info::RLI_FLUSH_IGNORE_GTID_ONLY) ||
-                Rpl_info_factory::change_rli_repository(
-                    mi->rli,
-                    static_cast<uint>(var->save_result.ulonglong_value),
-                    &msg)) {
-              ret = true;
-              my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-            }
-            mi->rli->set_applier_source_position_info_invalid(
-                is_pos_info_invalid);
-          } else
-            LogErr(WARNING_LEVEL, ER_RPL_REPO_HAS_GAPS);
-          break;
-        default:
-          assert(0);
-          break;
-      }
-    } else {
-      ret = true;
-      my_error(ER_REPLICA_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
-    }
-    unlock_slave_threads(mi);
-    mi->channel_unlock();
-  }
-  channel_map.unlock();
-  return ret;
-}
-
-static bool relay_log_info_repository_check(sys_var *self, THD *thd,
-                                            set_var *var) {
-  return repository_check(self, thd, var, SLAVE_THD_SQL);
-}
-
-static bool master_info_repository_check(sys_var *self, THD *thd,
-                                         set_var *var) {
-  return repository_check(self, thd, var, SLAVE_THD_IO);
-}
-
 static bool replica_parallel_workers_update(sys_var *, THD *thd,
                                             enum_var_type) {
   if (opt_mts_replica_parallel_workers == 0) {
@@ -1722,33 +1628,6 @@ static bool replica_parallel_workers_update(sys_var *, THD *thd,
   }
   return false;
 }
-
-static const char *repository_names[] = {"FILE", "TABLE",
-#ifndef NDEBUG
-                                         "DUMMY",
-#endif
-                                         nullptr};
-
-ulong opt_mi_repository_id = INFO_REPOSITORY_TABLE;
-static Sys_var_enum Sys_mi_repository(
-    "master_info_repository",
-    "The repository format for the replication connection configuration.",
-    GLOBAL_VAR(opt_mi_repository_id),
-    CMD_LINE(REQUIRED_ARG, OPT_MASTER_INFO_REPOSITORY), repository_names,
-    DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(master_info_repository_check), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
-
-ulong opt_rli_repository_id = INFO_REPOSITORY_TABLE;
-static Sys_var_enum Sys_rli_repository(
-    "relay_log_info_repository",
-    "Defines the type of the repository for the relay log information "
-    "and associated workers.",
-    GLOBAL_VAR(opt_rli_repository_id),
-    CMD_LINE(REQUIRED_ARG, OPT_RELAY_LOG_INFO_REPOSITORY), repository_names,
-    DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(relay_log_info_repository_check), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
 
 static Sys_var_bool Sys_binlog_rows_query(
     "binlog_rows_query_log_events",

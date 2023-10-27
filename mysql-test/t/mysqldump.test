@@ -1633,7 +1633,7 @@ DROP TABLE t1,t2;
 --exec $MYSQL_DUMP test
 
 --echo #
---echo # Bug #42635: mysqldump includes views that were excluded using 
+--echo # Bug #42635: mysqldump includes views that were excluded using
 --echo #   the --ignore-table option
 --echo #
 
@@ -1713,7 +1713,7 @@ use first;
 set time_zone = 'UTC';
 
 ## prove one works (with spaces and tabs on the end)
-create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;    	 	
+create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;
 show events;
 show create event ee1;
 --exec $MYSQL_DUMP --events first > $MYSQLTEST_VARDIR/tmp/bug16853-1.sql
@@ -1729,7 +1729,7 @@ show create event ee1;
 ## prove three works (with spaces and tabs on the end)
 # start with one from the previous restore
 create event ee2 on schedule at '2029-12-31 21:01:23' do set @a=5;
-create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;    		
+create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
 show events;
 --exec $MYSQL_DUMP --events second > $MYSQLTEST_VARDIR/tmp/bug16853-2.sql
 drop database second;
@@ -2078,7 +2078,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 --echo ##################################################
 TRUNCATE t2;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET latin1 
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET latin1
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
@@ -2649,28 +2649,6 @@ SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
 
 DROP DATABASE bug25717383;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug25717383.sql
-
---echo #
---echo # Bug #25469161: MYSQLDUMP SHOULD EXCLUDE REPLICATION
---echo #                REPOSITORY METADATA TABLES
---echo #
-
-SHOW VARIABLES LIKE "master_info_repository";
-SHOW VARIABLES LIKE "relay_log_info_repository";
-
-SET GLOBAL master_info_repository= 'FILE';
-SET GLOBAL relay_log_info_repository= 'FILE';
-
-SHOW VARIABLES LIKE "master_info_repository";
-SHOW VARIABLES LIKE "relay_log_info_repository";
-
---exec $MYSQL_DUMP --skip-comments mysql slave_master_info slave_relay_log_info 2>&1
-
-SET GLOBAL master_info_repository= 'TABLE';
-SET GLOBAL relay_log_info_repository= 'TABLE';
-
-SHOW VARIABLES LIKE "master_info_repository";
-SHOW VARIABLES LIKE "relay_log_info_repository";
 
 --echo #
 --echo # Dump a table that has column statistics

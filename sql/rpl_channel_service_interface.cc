@@ -90,13 +90,6 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout);
 int initialize_channel_service_interface() {
   DBUG_TRACE;
 
-  // master info and relay log repositories must be TABLE
-  if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
-      opt_rli_repository_id != INFO_REPOSITORY_TABLE) {
-    LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES);
-    return 1;
-  }
-
   // server id must be different from 0
   if (server_id == 0) {
     LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID);

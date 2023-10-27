@@ -1,0 +1,73 @@
+# ====Purpose====
+#
+# Check that starting replication threads fails with an appropriate error
+# in case connection metadata is missing
+#
+# ====Requirements====
+#
+# Replication threads must not start because of missing connection metadata
+# information
+#
+# ====Implementation====
+#
+#  1. Setup replication
+#  2. Prepare data and stop replication threads
+#  3. Delete connection metadata
+#  4. Restart the server
+#  5. Observe that replication threads cannot be started
+#  6. Restore connection metadata and start replication
+#  7. Check data consistency
+#  8. Cleanup
+
+--echo #  1. Setup replication
+
+# Using GTID_ONLY to avoid synchronization and preserve repository state
+--let $rpl_gtid_only=2:1
+--source include/master-slave.inc
+
+--echo #  2. Prepare data and stop replication threads
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+--source include/rpl_connection_master.inc
+INSERT INTO t1 (c1) VALUES (2);
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave.inc
+
+--echo #  3. Delete connection metadata
+
+TRUNCATE mysql.slave_master_info;
+
+--echo #  4. Restart the server
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip_slave_start=1
+--source include/rpl_restart_server.inc
+
+--echo #  5. Observe that replication threads cannot be started
+
+# Start replica must fail because of missing connection metadata
+--error ER_BAD_REPLICA
+START REPLICA;
+
+--echo #  6. Restore connection metadata and start replication
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+START REPLICA;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo #  7. Check data consistency
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo #  8. Cleanup
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

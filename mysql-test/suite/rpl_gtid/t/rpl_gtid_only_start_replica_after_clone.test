@@ -26,8 +26,6 @@
 --source include/have_binlog_format_row.inc
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

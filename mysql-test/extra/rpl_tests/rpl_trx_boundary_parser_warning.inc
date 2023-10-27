@@ -68,7 +68,7 @@ RESET SLAVE;
 # Get the master.info file path (the $MYSQLD_SLAVE_DATADIR)
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 # Start the IO thread to start receiving events from master
-START SLAVE IO_THREAD;
+--source include/start_slave_io.inc
 --let $event_counter= 2
 --let $master_pos= $master_2nd_event_pos
 # Disabling query log during queue event counting
@@ -114,24 +114,28 @@ while ($event_counter <= $_stop_after)
 --enable_query_log
 
 ###
-### Restart the slave changing the master.info file
+### Restart the replica changing the start point
 ###
-# Stop the slave server
+# Stop the replica server
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 0
 --source include/rpl_stop_server.inc
-# Remove the current master.info
---remove_file $MYSQLD_SLAVE_DATADIR./master.info
---echo # Restoring a master.info.backup to start asking events at event #$restart_at
---copy_file $MYSQLD_SLAVE_DATADIR./master.backup.$_restart_at $MYSQLD_SLAVE_DATADIR./master.info
-# Start the slave again
+# Start the replica again
 --source include/rpl_start_server.inc
+--let $start_after = $restart_at - 1
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+--let $saved_pos = query_get_value(SELECT pos AS value FROM saved_positions WHERE id = $start_after, value, 1)
+# Set relay log file to prevent server from purging relay logs, which would
+# reset the state of the transaction boundary parser
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = $saved_pos, RELAY_LOG_FILE = '$relay_log_file'
+
 # Start the IO thread to receive the events from the $restart_at point
 --source include/start_slave_io.inc
 --source include/rpl_connection_master.inc
 
 --let $use_gtids= 0
 --source include/sync_slave_io_with_master.inc
+
 --echo # Restarted queuing the following event (#$restart_at):
 --replace_result $master_uuid MASTER_UUID
 --let $binlog_start=

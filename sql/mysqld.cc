@@ -12714,13 +12714,6 @@ bool mysqld_get_one_option(int optid,
       push_deprecated_warn_no_replacement(nullptr,
                                           "--slave-rows-search-algorithms");
       break;
-    case OPT_MASTER_INFO_REPOSITORY:
-      push_deprecated_warn_no_replacement(nullptr, "--master-info-repository");
-      break;
-    case OPT_RELAY_LOG_INFO_REPOSITORY:
-      push_deprecated_warn_no_replacement(nullptr,
-                                          "--relay-log-info-repository");
-      break;
     case OPT_TRANSACTION_WRITE_SET_EXTRACTION:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--transaction-write-set-extraction");
@@ -13963,7 +13956,7 @@ PSI_stage_info stage_executing= { 0, "executing", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_explaining= { 0, "explaining", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_flushing_relay_log_and_source_info_repository= { 0, "Flushing relay log and source info repository.", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_flushing_applier_and_connection_metadata= { 0, "Flushing relay log and source info repository.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_freeing_items= { 0, "freeing items", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0, PSI_DOCUMENT_ME};
@@ -14067,7 +14060,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_execution_of_init_command,
     &stage_explaining,
     &stage_finished_reading_one_binlog_switching_to_next_binlog,
-    &stage_flushing_relay_log_and_source_info_repository,
+    &stage_flushing_applier_and_connection_metadata,
     &stage_flushing_relay_log_info_file,
     &stage_freeing_items,
     &stage_fulltext_initialization,

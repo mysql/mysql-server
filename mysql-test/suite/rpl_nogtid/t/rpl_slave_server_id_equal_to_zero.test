@@ -27,8 +27,6 @@
 #
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 # This test case does not depend on GTID
 --source include/master-slave.inc
 

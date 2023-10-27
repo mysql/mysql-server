@@ -28,8 +28,6 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --source include/master-slave.inc
 # Restrict the test runs to only debug builds, since we set DEBUG point in the test.
 --source include/have_debug.inc
@@ -40,6 +38,7 @@ call mtr.add_suppression("Failed to add a replication filter into filter map for
 call mtr.add_suppression("Replica: failed in creating filter for channel 'ch1'");
 call mtr.add_suppression(".*Failed to allocate memory for connection metadata repositories..*");
 call mtr.add_suppression(".*Failed to allocate memory for the applier metadata structure.*");
+call mtr.add_suppression(".*Error creating applier metadata.*");
 
 STOP SLAVE SQL_THREAD FOR CHANNEL '';
 SET @saved_debug= @@GLOBAL.debug;

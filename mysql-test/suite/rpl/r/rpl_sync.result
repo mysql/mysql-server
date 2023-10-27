@@ -28,20 +28,6 @@ include/rpl_reconnect.inc
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
-=====Corrupting the master.info=======;
-include/stop_slave.inc
-FLUSH LOGS;
-insert into t1(a) values(7);
-insert into t1(a) values(8);
-insert into t1(a) values(9);
-SET SESSION debug="+d,crash_before_rotate_relaylog";
-FLUSH LOGS;
-ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
-=====Dumping and comparing tables=======;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-include/diff_tables.inc [master:t1,slave:t1]
 =====Clean up=======;
 drop table t1;
 include/rpl_end.inc

@@ -21,7 +21,6 @@
 #
 
 --source include/only_mts_replica_parallel_workers.inc
---source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # set up source server_1 and server_3 with server_2 being a replica.

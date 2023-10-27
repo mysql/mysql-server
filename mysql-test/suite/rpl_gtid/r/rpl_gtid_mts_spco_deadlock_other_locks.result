@@ -16,13 +16,17 @@ CREATE TABLE t2(a INT PRIMARY KEY);
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave_sql.inc
+set session sql_log_bin=0;
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Deadlock found when trying to get lock.*");
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Can not lock user management caches for processing.*");
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
 CALL mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CALL mtr.add_suppression(".*Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+set session sql_log_bin=1;
 SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_preserve_commit_order = ON;
 SET GLOBAL replica_transaction_retries = REPLICA_TRANSACTION_RETRIES;
@@ -574,6 +578,8 @@ DROP TABLE t2;
 include/rpl_end.inc
 [connection slave]
 SET GLOBAL replica_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = SAVED_REPLICA_PARALLEL_WORKERS;
 SET GLOBAL replica_preserve_commit_order = SAVED_REPLICA_PRESERVE_COMMIT_ORDER;
 SET GLOBAL replica_transaction_retries = SAVED_REPLICA_TRANSACTION_RETRIES;

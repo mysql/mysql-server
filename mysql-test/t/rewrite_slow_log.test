@@ -11,8 +11,6 @@
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.slow_log;
 
-SET @old_master_info_repository = @@GLOBAL.master_info_repository;
-SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -42,9 +40,6 @@ disconnect con1;
 connection default;
 
 # 1.1.1.2
-# need TABLE so we can test FOR CHANNEL
-SET GLOBAL master_info_repository = 'TABLE';
-SET GLOBAL relay_log_info_repository = 'TABLE';
 
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3',
@@ -66,8 +61,6 @@ CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3',
 --enable_warnings
 
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository = DEFAULT;
-SET GLOBAL relay_log_info_repository = DEFAULT;
 
 # 1.1.1.3
 CREATE USER 'test_user4'@'localhost';
@@ -145,7 +138,3 @@ SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
 TRUNCATE TABLE mysql.slow_log;
 TRUNCATE TABLE mysql.general_log;
---disable_warnings
-SET GLOBAL  master_info_repository= @old_master_info_repository;
-SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;
---enable_warnings

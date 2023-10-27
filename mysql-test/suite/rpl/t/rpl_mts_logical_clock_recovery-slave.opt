@@ -1,3 +1,2 @@
 --replica-transaction-retries=0
---relay-log-info-repository=FILE
---master-info-repository=FILE
+--sync-source-info=1

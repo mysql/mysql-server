@@ -32,7 +32,6 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/have_slave_repository_type_table.inc
 
 # Procedure that checks if the PFS data regarding `PRIVILEGE_CHECKS_USER` is
 # updated.
