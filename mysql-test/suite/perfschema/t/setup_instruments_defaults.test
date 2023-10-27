@@ -63,3 +63,13 @@ SHOW VARIABLES LIKE "%/wait/synch/mutex%";
 --echo #
 SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";
+
+--echo #
+--echo # Verify that stored programs micro instructions are documented
+--echo #
+
+# Note, we don't test ENABLED and TIMED, because the test suite
+# enables all instruments anyway in default_mysqld.cnf.
+
+SELECT NAME, DOCUMENTATION FROM performance_schema.setup_instruments
+WHERE NAME like "statement/sp/%" ORDER BY NAME;

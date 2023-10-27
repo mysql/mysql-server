@@ -139,6 +139,16 @@ static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
 */
 #define PSI_FLAG_MEM_COLLECT (1 << 12)
 
+/**
+  Instrument is disabled by default.
+*/
+#define PSI_FLAG_DISABLED (1 << 13)
+
+/**
+  Instrument is not timed by default.
+*/
+#define PSI_FLAG_UNTIMED (1 << 14)
+
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2

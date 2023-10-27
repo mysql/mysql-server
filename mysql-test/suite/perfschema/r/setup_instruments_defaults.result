@@ -60,3 +60,25 @@ SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";
 NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
 wait/io/table/sql/handler	YES	YES		NULL	0	NULL
+#
+# Verify that stored programs micro instructions are documented
+#
+SELECT NAME, DOCUMENTATION FROM performance_schema.setup_instruments
+WHERE NAME like "statement/sp/%" ORDER BY NAME;
+NAME	DOCUMENTATION
+statement/sp/cclose	Stored Program: CLOSE cursor
+statement/sp/cfetch	Stored Program: FETCH cursor
+statement/sp/copen	Stored Program: OPEN cursor
+statement/sp/cpop	Stored Program: uninstall a DECLARE CURSOR microcode instruction
+statement/sp/cpush	Stored Program: install a DECLARE CURSOR microcode instruction
+statement/sp/error	Stored Program: CASE WHEN not found microcode instruction
+statement/sp/freturn	Stored Program: RETURN from STORED FUNCTION
+statement/sp/hpop	Stored Program: uninstall a DECLARE HANDLER microcode instruction
+statement/sp/hpush_jump	Stored Program: install a DECLARE HANDLER microcode instruction
+statement/sp/hreturn	Stored Program: return from a DECLARE HANDLER microcode instruction
+statement/sp/jump	Stored Program: jump microcode instruction
+statement/sp/jump_if_not	Stored Program: jump if false microcode instruction
+statement/sp/set	Stored Program: SET statement
+statement/sp/set_case_expr	Stored Program: CASE microcode instruction
+statement/sp/set_trigger_field	Stored Program: SET NEW.<field> in TRIGGER
+statement/sp/stmt	Stored Program: SQL statement
