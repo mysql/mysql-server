@@ -30,8 +30,8 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql/handler.h"  // ts_command_type
-#include "sql/sql_cmd.h"  // Sql_cmd
+#include "sql/handler.h"      // ts_command_type
+#include "sql/sql_cmd_ddl.h"  // Sql_cmd_ddl
 
 class THD;
 
@@ -95,7 +95,7 @@ bool validate_tablespace_name(ts_command_type ts_cmd,
   Base class for tablespace execution classes including
   CREATE/ALTER/DROP TABLESPACE and LOGFILE GROUP commands.
  */
-class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
+class Sql_cmd_tablespace : public Sql_cmd_ddl /* purecov: inspected */
 {
  protected:
   const LEX_STRING m_tablespace_name;

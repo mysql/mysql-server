@@ -41,8 +41,21 @@ class Get_running_transactions : public Do_THD_Impl {
   void operator()(THD *thd) override {
     if (thd->is_killed() || thd->is_error()) return;
 
-    MUTEX_LOCK(lock_thd_data, &thd->LOCK_thd_data);
-    if (thd->is_being_disposed()) return;
+    {
+      MUTEX_LOCK(lock_thd_data, &thd->LOCK_thd_data);
+      if (thd->is_being_disposed()) return;
+    }
+
+    /*
+      LOCK_thd_data doesn't protect all the thd's data,
+      and unfortunately not those we're interested in.
+      Therefore, we're now taking LOCK_thd_query to
+      prevent the THD from being reset while we're
+      inspecting it. This prevents a race below between
+      when we're doing a sanity check on l->sql_command
+      and when we're dereferencing l->m_sql_cmd.
+    */
+    MUTEX_LOCK(lock_thd_data, &thd->LOCK_thd_query);
 
     LEX *l = thd->lex;
 
@@ -73,12 +86,61 @@ class Get_running_transactions : public Do_THD_Impl {
     int blocked_by_sql_command = 0;
 
     /*
+      If an attachable transaction is active, we consider that
+      blocking. Crucially, we also can't trust sql_command / m_sql_cmd
+      while this is the case, as they will reflect the attached transaction,
+      not the enclosing command (which we're interested in).
+
+      Example:
+
+        CREATE USER itself will rightfully block (as a result of the
+        sql_command_flags that we get from its sql_command,
+        SQLCOM_CREATE_USER).
+
+        However, we internally run e.g. check_orphaned_definers() which
+        temporarily sets the lex to SQLCOM_SELECT, which would not be
+        considered a blocking statement in this method. Thus, if we
+        went by the attached sql_command (SQLCOM_SELECT, rather than
+        SQLCOM_CREATE_USER), the following scenario would be possible:
+
+      - CREATE USER starts. The lex info is set to SQLCOM_CREATE_USER.
+
+      - mysql_create_user() runs check_ophaned_definers(), which changes
+        the lex.
+
+      - This function is run, sees SQLCOM_SELECT on the lex (rather
+        than seeing SQLCOM_CREATE_USER as would be warranted by the
+        enclosing statement).
+
+      - This function reports no blocking statements / transactions
+        being underway.
+
+      - This function's caller stops waiting and proceeds when it
+        shouldn't, e.g. trying to change the primary in a group
+        replication scenario.
+
+      - An error is thrown because the caller prematurely sets
+        @@global.read_only while CREATE USER is still running;
+        CREATE USER needlessly fails (which is the exact case
+        we're trying to prevent here).
+
+      Therefore, if we detect an attachable transaction, we mark
+      the enclosing command as blocking for the time being, even
+      if the enclosing command might not warrant this. We do this
+      a) because we can not easily detect the enclosing command;
+      b) by setting all flags on the "blocked" bit vector (as we
+         do not know which apply, and this renders the correct
+         results).
+    */
+    if (thd->is_attachable_transaction_active()) blocked_by_sql_command = -1;
+
+    /*
       Get command code set on the lex.
       If we get something valid, we'll inspect the flags for that command
       to see whether the command auto-commits. DDL commands should match
       this pattern.
     */
-    if ((l != nullptr) && ((sql_command = l->sql_command) != SQLCOM_END)) {
+    else if ((l != nullptr) && ((sql_command = l->sql_command) != SQLCOM_END)) {
       /*
         If we got something better than SQLCOM_END from the lex,
         the lex was set up.
@@ -99,7 +161,8 @@ class Get_running_transactions : public Do_THD_Impl {
 
       blocked_by_sql_command =
           sql_command_flags[sql_command] &
-          (CF_CHANGES_DATA | CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END);
+          (CF_CHANGES_DATA | CF_REQUIRE_ACL_CACHE | CF_IMPLICIT_COMMIT_BEGIN |
+           CF_IMPLICIT_COMMIT_END);
     }
 
     /*
@@ -135,7 +198,7 @@ class Get_running_transactions : public Do_THD_Impl {
       Now add this thread to the list of showstoppers for change-primary
       if we found a reason to.
     */
-    if ((blocked_by_sql_command > 0) || (blocked_by_trx_tracker > 0)) {
+    if ((blocked_by_sql_command != 0) || (blocked_by_trx_tracker != 0)) {
       thread_ids.push_back(thd->thread_id());
     }
   }

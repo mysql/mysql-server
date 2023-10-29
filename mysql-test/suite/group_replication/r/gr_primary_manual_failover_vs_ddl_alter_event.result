@@ -1,0 +1,78 @@
+#
+# WL#15752: Add more DDL statements to transaction tracking facility
+#
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode.  server1 is the
+#    primary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+# The set-up statement for our later test statement:
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 11 HOUR DO SELECT 1;
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Start a DDL statement on server1, but do not let it complete yet.
+[connection server_1_1]
+SET DEBUG_SYNC= 'execute_command_before_main_switch SIGNAL ddl_running WAIT_FOR ddl_resume';
+# The statement to test with that should hold up switching the primary:
+ALTER EVENT ev1 COMMENT "eventful";
+[connection server1]
+SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
+
+############################################################
+# 3. Set server2 as primary. The primary change must wait
+#    until the DDL statement has completed.
+[connection server_1]
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+
+############################################################
+# 4. Assert that server1 continues to be the primary, as the
+#    primary-change can not go ahead until the DDL statement
+#    finishes. (And that statement of course can not finish
+#    yet as it is hanging on DEBUG_SYNC.)
+[connection server1]
+include/assert.inc ['server1 continue to be primary']
+
+############################################################
+# 5. Let the DDL statement finish.
+[connection server1]
+SET DEBUG_SYNC= 'now SIGNAL ddl_resume';
+[connection server_1_1]
+SET DEBUG_SYNC= 'RESET';
+
+############################################################
+# 6. server2 should now be primary.
+[connection server_1]
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 7. Validate that the DDL was applied on server2 through
+#    the 'group_replication_applier' channel.
+[connection server2]
+include/show_relaylog_events.inc [FOR CHANNEL 'group_replication_applier']
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-relay-log-group_replication_applier.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+server-relay-log-group_replication_applier.000002	#	Query	#	#	use `test`; ALTER EVENT ev1 COMMENT "eventful"
+
+############################################################
+# 8. Clean up.
+[connection server2]
+# The clean-up statement for our earlier test statement:
+DROP EVENT ev1;
+include/rpl_sync.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+include/group_replication_end.inc

@@ -33,6 +33,7 @@
 #include "sql/histograms/histogram.h"
 #include "sql/mem_root_allocator.h"
 #include "sql/sql_cmd.h"            // Sql_cmd
+#include "sql/sql_cmd_dcl.h"        // ACL/DCL commands
 #include "sql/sql_cmd_ddl_table.h"  // Sql_cmd_ddl_table
 #include "sql/sql_plugin_ref.h"
 
@@ -239,9 +240,9 @@ class Sql_cmd_shutdown : public Sql_cmd {
 enum class role_enum { ROLE_NONE, ROLE_DEFAULT, ROLE_ALL, ROLE_NAME };
 
 /**
-  Sql_cmd_set_role represetns the SET ROLE ... statement.
+  Sql_cmd_set_role represents the SET ROLE ... statement.
 */
-class Sql_cmd_set_role : public Sql_cmd {
+class Sql_cmd_set_role : public Sql_cmd_dcl {
   friend class PT_set_role;
 
   const role_enum role_type;
@@ -267,9 +268,9 @@ class Sql_cmd_set_role : public Sql_cmd {
 };
 
 /**
-  Sql_cmd_create_role represetns the CREATE ROLE ... statement.
+  Sql_cmd_create_role represents the CREATE ROLE ... statement.
 */
-class Sql_cmd_create_role : public Sql_cmd {
+class Sql_cmd_create_role : public Sql_cmd_dcl {
   friend class PT_create_role;
 
   const bool if_not_exists;
@@ -287,9 +288,9 @@ class Sql_cmd_create_role : public Sql_cmd {
 };
 
 /**
-  Sql_cmd_drop_role represetns the DROP ROLE ... statement.
+  Sql_cmd_drop_role represents the DROP ROLE ... statement.
 */
-class Sql_cmd_drop_role : public Sql_cmd {
+class Sql_cmd_drop_role : public Sql_cmd_dcl {
   friend class PT_drop_role;
 
   bool ignore_errors;
@@ -309,7 +310,7 @@ class Sql_cmd_drop_role : public Sql_cmd {
 /**
   Sql_cmd_grant_roles represents the GRANT role-list TO ... statement.
 */
-class Sql_cmd_grant_roles : public Sql_cmd {
+class Sql_cmd_grant_roles : public Sql_cmd_dcl {
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
   const bool with_admin_option;
@@ -331,7 +332,7 @@ class Sql_cmd_grant_roles : public Sql_cmd {
 /**
   Sql_cmd_revoke_roles represents the REVOKE [role list] TO ... statement.
 */
-class Sql_cmd_revoke_roles : public Sql_cmd {
+class Sql_cmd_revoke_roles : public Sql_cmd_dcl {
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
 
@@ -349,7 +350,7 @@ class Sql_cmd_revoke_roles : public Sql_cmd {
 /**
   Sql_cmd_alter_user_default_role ALTER USER ... DEFAULT ROLE ... statement.
 */
-class Sql_cmd_alter_user_default_role : public Sql_cmd {
+class Sql_cmd_alter_user_default_role : public Sql_cmd_dcl {
   friend class PT_alter_user_default_role;
 
   const bool if_exists;

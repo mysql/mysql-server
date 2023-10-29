@@ -1,0 +1,16 @@
+--echo #
+--echo # WL#15752: Add more DDL statements to transaction tracking facility
+--echo #
+
+# https://dev.mysql.com/doc/refman/8.0/en/sql-data-definition-statements.html
+
+#############################################################
+# Validate that `group_replication_set_as_primary()` does   #
+# wait for ongoing DCL to complete before actually changing #
+# the primary.                                              #
+#############################################################
+
+--let $ddl_preparation_statement= CREATE USER wl15752
+--let $ddl_statement= RENAME USER wl15752 TO wl15752_2
+--let $ddl_cleanup_statement= DROP USER wl15752_2
+--source ../include/gr_primary_manual_failover_vs_ddl.inc

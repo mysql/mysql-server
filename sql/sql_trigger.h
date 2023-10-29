@@ -39,9 +39,9 @@
 
 #include "lex_string.h"
 #include "my_psi_config.h"
-#include "my_sqlcommand.h"  // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
-#include "sql/mdl.h"        // enum_mdl_type
-#include "sql/sql_cmd.h"    // Sql_cmd
+#include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
+#include "sql/mdl.h"          // enum_mdl_type
+#include "sql/sql_cmd_ddl.h"  // Sql_cmd_ddl
 
 class THD;
 struct TABLE;
@@ -164,7 +164,7 @@ void remove_all_triggers_from_perfschema(const char *schema_name,
   This class has common code for CREATE/DROP TRIGGER statements.
 */
 
-class Sql_cmd_ddl_trigger_common : public Sql_cmd {
+class Sql_cmd_ddl_trigger_common : public Sql_cmd_ddl {
  public:
   /**
     Set a table associated with a trigger.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_CMD_DDL_INCLUDED
-#define SQL_CMD_DDL_INCLUDED
+#ifndef SQL_CMD_DCL_INCLUDED
+#define SQL_CMD_DCL_INCLUDED
 
 #include "sql/sql_cmd.h"
 
-class Sql_cmd_ddl : public Sql_cmd {
+/**
+  A base class for DCL/ACL statements.
+*/
+class Sql_cmd_dcl : public Sql_cmd {
  public:
   enum enum_sql_cmd_type sql_cmd_type() const override {
     /*
-      Somewhat unsurprisingly, anything sub-classed to Sql_cmd_ddl
-      identifies as DDL by default.
+      Somewhat unsurprisingly, anything sub-classed to Sql_cmd_dcl
+      identifies as DCL by default.
     */
-    return SQL_CMD_DDL;
+    return SQL_CMD_DCL;
   }
 };
 
@@ -42,7 +45,7 @@ class Sql_cmd_ddl : public Sql_cmd {
   solely to provide a correct sql_cmd_type() for the command; it does nothing
   else.
 */
-class Sql_cmd_ddl_dummy final : public Sql_cmd_ddl {
+class Sql_cmd_dcl_dummy final : public Sql_cmd_dcl {
  private:
   enum_sql_command my_sql_command{SQLCOM_END};
 
@@ -64,4 +67,4 @@ class Sql_cmd_ddl_dummy final : public Sql_cmd_ddl {
   }
 };
 
-#endif  // SQL_CMD_DDL_INCLUDED
+#endif  // SQL_CMD_DCL_INCLUDED

@@ -435,7 +435,6 @@ Sql_cmd_tablespace::Sql_cmd_tablespace(const LEX_STRING &name,
 
 /* purecov: begin inspected */
 enum_sql_command Sql_cmd_tablespace::sql_command_code() const {
-  assert(false);
   return SQLCOM_ALTER_TABLESPACE;
 }
 /* purecov: end */

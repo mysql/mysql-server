@@ -40,7 +40,7 @@ struct MYSQL_LEX_STRING;
 struct MYSQL_LEX_CSTRING;
 
 /**
-  What type of Sql_cmd we're dealing with (DML, DDL, other).
+  What type of Sql_cmd we're dealing with (DML, DDL, ...).
 
   "Other" may be used for commands that are neither DML or DDL, such as
   shutdown.
@@ -53,7 +53,8 @@ enum enum_sql_cmd_type {
   SQL_CMD_UNDETERMINED = 0,
   SQL_CMD_DDL = 1,
   SQL_CMD_DML = 2,
-  SQL_CMD_OTHER = 4
+  SQL_CMD_DCL = 4,
+  SQL_CMD_OTHER = 8
 };
 
 /**
