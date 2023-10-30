@@ -942,14 +942,13 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DUSE_LD_LLD=0 \
 %if 0%{?ssl_default}
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
            -DWITH_AUTHENTICATION_KERBEROS=0 \
            -DWITH_AUTHENTICATION_LDAP=0 \
            -DWITH_AUTHENTICATION_OCI=0 \
@@ -959,9 +958,7 @@ mkdir release
            -DWITH_KEYRING_OCI=0 \
 %endif # ssl_default
            -DWITH_CURL=system \
-%if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
-%endif
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDB=1 \
