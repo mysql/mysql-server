@@ -57,7 +57,8 @@ assert ($mt1 == $mt2);
 ## tell users that upgrading will cause password timestamps to get bumped.
 
 set print_identified_with_as_hex = true;
-replace_regex /0x[0123456789ABCDEF]*/0x_hashed_password_/;
+replace_regex /0x[0123456789ABCDEF]*/'0x_hashed_password_'/
+              /AS '.*'/AS 'encrypted_password'/;
 query_vertical SHOW CREATE USER t331@localhost;
 set print_identified_with_as_hex = false;
 

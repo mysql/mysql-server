@@ -22,7 +22,7 @@ result_format: 2
 ## tell users that upgrading will cause password timestamps to get bumped.
 set print_identified_with_as_hex = true;
 SHOW CREATE USER t331@localhost;
-CREATE USER for t331@localhost	CREATE USER `t331`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS 0x_hashed_password_ REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER for t331@localhost	CREATE USER `t331`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS 'encrypted_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 set print_identified_with_as_hex = false;
 
 ## Cleanup
