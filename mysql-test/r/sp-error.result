@@ -611,9 +611,6 @@ ERROR 0A000: RESET is not allowed in stored function or trigger
 create function bug8409() returns int begin reset slave;
 return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
-create function bug8409() returns int begin flush hosts;
-return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin flush privileges;
 return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger

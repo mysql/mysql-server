@@ -10,22 +10,17 @@ GRANTEE	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'localhost'	FLUSH_STATUS	YES
 'root'@'localhost'	FLUSH_TABLES	YES
 'root'@'localhost'	FLUSH_USER_RESOURCES	YES
-# FR1: FLUSH HOSTS is deprecated
-# Success criteria: deprecation warning
-FLUSH HOSTS;
-Warnings:
-Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 # Success criteria: no warning
 TRUNCATE TABLE performance_schema.host_cache;
+# Success criteria: Parse error
+FLUSH HOSTS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'HOSTS' at line 1
 # FR2: FLUSH_OPTIMIZER_COSTS should allow FLUSH OPTIMIZER_COSTS
 CREATE USER wl14303@localhost;
 GRANT FLUSH_OPTIMIZER_COSTS ON *.* TO  wl14303@localhost;
 connect FLUSH_OPTIMIZER_COSTS_con,localhost,wl14303,,;
 # Success criteria: should work
 FLUSH OPTIMIZER_COSTS;
-# Success criteria: should fail
-FLUSH HOSTS;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
 connection default;
 disconnect FLUSH_OPTIMIZER_COSTS_con;
 DROP USER wl14303@localhost;
@@ -35,9 +30,6 @@ GRANT FLUSH_STATUS ON *.* TO  wl14303@localhost;
 connect FLUSH_STATUS_con,localhost,wl14303,,;
 # Success criteria: should work
 FLUSH STATUS;
-# Success criteria: should fail
-FLUSH HOSTS;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
 connection default;
 disconnect FLUSH_STATUS_con;
 DROP USER wl14303@localhost;
@@ -47,9 +39,6 @@ GRANT FLUSH_USER_RESOURCES ON *.* TO  wl14303@localhost;
 connect FLUSH_USER_RESOURCES_con,localhost,wl14303,,;
 # Success criteria: should work
 FLUSH USER_RESOURCES;
-# Success criteria: should fail
-FLUSH HOSTS;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
 connection default;
 disconnect FLUSH_USER_RESOURCES_con;
 DROP USER wl14303@localhost;
@@ -72,9 +61,6 @@ UNLOCK TABLES;
 # Success criteria: should work
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
-# Success criteria: should fail
-FLUSH HOSTS;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
 connection default;
 disconnect FLUSH_TABLES_con;
 REVOKE ALL PRIVILEGES ON t1 FROM wl14303@localhost;
@@ -85,9 +71,6 @@ CREATE USER wl14303@localhost;
 GRANT RELOAD ON *.* TO wl14303@localhost;
 connect RELOAD_con,localhost,wl14303,,;
 # Success criteria: should work
-FLUSH HOSTS;
-Warnings:
-Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 FLUSH OPTIMIZER_COSTS;
 FLUSH STATUS;
 FLUSH USER_RESOURCES;

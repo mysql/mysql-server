@@ -3862,11 +3862,10 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
           int not_used;
-          handle_reload_request(
-              nullptr,
-              (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT |
-               REFRESH_THREADS | REFRESH_HOSTS),
-              nullptr, &not_used);  // Flush logs
+          handle_reload_request(nullptr,
+                                (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+                                 REFRESH_GRANT | REFRESH_THREADS),
+                                nullptr, &not_used);  // Flush logs
           // Re-enable query logs after the options were reloaded.
           query_logger.set_handlers(log_output_options);
         }

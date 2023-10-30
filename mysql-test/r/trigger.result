@@ -543,8 +543,6 @@ create trigger t1_ai after insert on t1 for each row reset binary logs and gtids
 ERROR 0A000: RESET is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row reset slave;
 ERROR 0A000: RESET is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush hosts;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush tables with read lock;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush logs;
@@ -571,10 +569,6 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 insert into t1 values (0);
 ERROR 0A000: RESET is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush hosts;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush privileges;
 insert into t1 values (0);

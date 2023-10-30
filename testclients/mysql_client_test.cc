@@ -18581,8 +18581,8 @@ static void test_bug13001491() {
   mysql_free_result(mysql_store_result(c));
 
   /* Check that mysql_refresh() succeeds without REFRESH_LOG. */
-  rc = mysql_refresh(c, REFRESH_GRANT | REFRESH_TABLES | REFRESH_HOSTS |
-                            REFRESH_STATUS | REFRESH_THREADS);
+  rc = mysql_refresh(
+      c, REFRESH_GRANT | REFRESH_TABLES | REFRESH_STATUS | REFRESH_THREADS);
   myquery(rc);
 
   /*

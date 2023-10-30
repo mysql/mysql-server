@@ -125,11 +125,6 @@ PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
 }
 
 int table_host_cache::delete_all_rows() {
-  /*
-    TRUNCATE TABLE performance_schema.host_cache
-    is an alternate syntax for
-    FLUSH HOSTS
-  */
   hostname_cache_refresh();
   return 0;
 }

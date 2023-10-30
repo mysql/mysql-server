@@ -72,11 +72,6 @@
 bool is_reload_request_denied(THD *thd, unsigned long op_type) {
   DBUG_TRACE;
   Security_context *sctx = thd->security_context();
-
-  if ((op_type & REFRESH_HOSTS)) {
-    push_deprecated_warn(thd, "FLUSH HOSTS",
-                         "TRUNCATE TABLE performance_schema.host_cache");
-  }
   /*
     First check RELOAD and stop if it's granted.
     No need to pass DB since it's a global priv
@@ -339,7 +334,6 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
       }
     }
   }
-  if (options & REFRESH_HOSTS) hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS)) refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();

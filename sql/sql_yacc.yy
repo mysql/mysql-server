@@ -14374,8 +14374,6 @@ flush_option:
             if (Lex->set_channel_name($3))
               MYSQL_YYABORT;  // OOM
           }
-        | HOSTS_SYM
-          { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
           { Lex->type|= REFRESH_GRANT; }
         | LOGS_SYM

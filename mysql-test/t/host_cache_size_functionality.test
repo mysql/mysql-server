@@ -164,10 +164,6 @@ SELECT Host_Cache_Size;
 
 #--disable_warnings
 
-# The below check is hashed until the BUG14689561# is fixed
-#
-#flush hosts;
-
 #connect (con2,$bind_ip,binduser,,);
 #select count(IP) from performance_schema.host_cache;
 #--echo 1 Expected

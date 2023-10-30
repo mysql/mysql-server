@@ -335,10 +335,6 @@ FLUSH GENERAL LOGS;
 --let $gtid_step_count = 1
 --source include/gtid_step_assert.inc
 
-FLUSH HOSTS;
---let $gtid_step_count = 1
---source include/gtid_step_assert.inc
-
 FLUSH PRIVILEGES;
 --let $gtid_step_count = 1
 --source include/gtid_step_assert.inc
@@ -380,10 +376,6 @@ FLUSH NO_WRITE_TO_BINLOG ERROR LOGS;
 --source include/gtid_step_assert.inc
 
 FLUSH NO_WRITE_TO_BINLOG GENERAL LOGS;
---let $gtid_step_count = 0
---source include/gtid_step_assert.inc
-
-FLUSH NO_WRITE_TO_BINLOG HOSTS;
 --let $gtid_step_count = 0
 --source include/gtid_step_assert.inc
 

@@ -136,10 +136,6 @@ FLUSH ERROR LOGS;
 include/gtid_step_assert.inc [count=1, only_count=0]
 FLUSH GENERAL LOGS;
 include/gtid_step_assert.inc [count=1, only_count=0]
-FLUSH HOSTS;
-Warnings:
-Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
-include/gtid_step_assert.inc [count=1, only_count=0]
 FLUSH PRIVILEGES;
 include/gtid_step_assert.inc [count=1, only_count=0]
 FLUSH OPTIMIZER_COSTS;
@@ -160,10 +156,6 @@ include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH NO_WRITE_TO_BINLOG ERROR LOGS;
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH NO_WRITE_TO_BINLOG GENERAL LOGS;
-include/gtid_step_assert.inc [count=0, only_count=0]
-FLUSH NO_WRITE_TO_BINLOG HOSTS;
-Warnings:
-Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH NO_WRITE_TO_BINLOG LOGS;
 include/gtid_step_assert.inc [count=0, only_count=0]
