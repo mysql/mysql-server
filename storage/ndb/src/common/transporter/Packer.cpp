@@ -251,7 +251,7 @@ Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
   Uint32 loop_count = 0;
   bool doStopReceiving = false;
 
-  if (likely(state == NoHalt || state == HaltOutput)) {
+  if (likely(!(state & HaltInput))) {
     while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
            (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false &&
            unpack_one(readPtr, eodPtr, eodPtr, prio, signalHeader, signalData,
@@ -266,7 +266,7 @@ Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
     }  // while
   } else {
-    /** state = HaltIO || state == HaltInput */
+    /** state has 'HaltInput' */
 
     while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
            (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false &&
@@ -276,7 +276,7 @@ Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
 
-      if (rBlockNum == QMGR) {
+      if (rBlockNum == QMGR) {  // QMGR==252
         Uint32 sBlockNum = signalHeader.theSendersBlockRef;
         sBlockNum = numberToRef(sBlockNum, remoteNodeId);
         signalHeader.theSendersBlockRef = sBlockNum;
@@ -326,7 +326,7 @@ Uint32 *TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
    * We will read past the endPtr, but never beyond the eodPtr. We will only
    * read one signal beyond the end and then we stop.
    */
-  if (likely(state == NoHalt || state == HaltOutput)) {
+  if (likely(!(state & HaltInput))) {
     while ((readPtr < endPtr) &&
            (eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
            (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false &&
@@ -343,7 +343,7 @@ Uint32 *TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
     }  // while
   } else {
-    /** state = HaltIO || state == HaltInput */
+    /** state has 'HaltInput' */
 
     while ((readPtr < endPtr) &&
            (eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
@@ -354,7 +354,7 @@ Uint32 *TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
 
-      if (rBlockNum == 252) {
+      if (rBlockNum == QMGR) {  // QMGR==252
         Uint32 sBlockNum = signalHeader.theSendersBlockRef;
         sBlockNum = numberToRef(sBlockNum, remoteNodeId);
         signalHeader.theSendersBlockRef = sBlockNum;

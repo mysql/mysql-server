@@ -76,7 +76,14 @@
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
 // sending or receiving.
-enum IOState { NoHalt = 0, HaltInput = 1, HaltOutput = 2, HaltIO = 3 };
+// Note that the Halt states are a bitmask.
+// Also note that only NoHalt and HaltIO seems to be used.
+enum IOState {
+  NoHalt = 0,
+  HaltInput = 1,
+  HaltOutput = 2,
+  HaltIO = HaltInput | HaltOutput
+};
 
 static const char *performStateString[] = {
     "is connected", "is trying to connect", "does nothing",
@@ -457,7 +464,7 @@ class TransporterRegistry {
   /**
    * prepareSend
    *
-   * When IOState is HaltOutput or HaltIO do not send or insert any
+   * When IOState has the HaltOutput bit set, do not send or insert any
    * signals in the SendBuffer, unless it is intended for the remote
    * QMGR block (blockno 252)
    * Perform prepareSend on the transporter.
