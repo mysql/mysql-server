@@ -136,7 +136,6 @@ static constexpr unsigned kMaxPasswordRetries = 10000;
 
 static const std::string kDefaultMetadataCacheSectionKey = "bootstrap";
 
-using mysql_harness::DIM;
 using mysql_harness::get_from_map;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
@@ -996,8 +995,9 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
 
   options.client_ssl_mode =
       get_opt(user_options, "client_ssl_mode", "PREFERRED");
-  options.server_ssl_mode =
-      get_opt(user_options, "server_ssl_mode", "AS_CLIENT");
+  options.server_ssl_mode = get_opt(
+      user_options, "server_ssl_mode",
+      options.client_ssl_mode == "PASSTHROUGH" ? "AS_CLIENT" : "PREFERRED");
 
   // default depends on client-ssl-mode and server-ssl-mode
   std::string default_client_ssl_cert;

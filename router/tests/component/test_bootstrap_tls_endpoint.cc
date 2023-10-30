@@ -376,7 +376,7 @@ const BootstrapTlsEndpointParams
                config_file_lines,
                ::testing::IsSupersetOf({
                    "client_ssl_mode=PREFERRED",
-                   "server_ssl_mode=AS_CLIENT",
+                   "server_ssl_mode=PREFERRED",
                    "client_ssl_cert=" SSL_TEST_DATA_DIR "server-cert.pem",
                    "client_ssl_key=" SSL_TEST_DATA_DIR "server-key.pem",
                    "server_ssl_verify=DISABLED",
@@ -401,7 +401,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({"client_ssl_mode=DISABLED",
-                                                "server_ssl_mode=AS_CLIENT"}));
+                                                "server_ssl_mode=PREFERRED"}));
          }},
 
         {"client_ssl_mode_disabled_disabled",  // BS_MODES_07
@@ -438,7 +438,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({"client_ssl_mode=PREFERRED",
-                                                "server_ssl_mode=AS_CLIENT"}));
+                                                "server_ssl_mode=PREFERRED"}));
          }},
         {"client_ssl_mode_preferred_disabled",  // BS_MODES_12
          {"--client-ssl-mode", "Preferred", "--server-ssl-mode", "Disabled"},
@@ -473,7 +473,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({"client_ssl_mode=REQUIRED",
-                                                "server_ssl_mode=AS_CLIENT"}));
+                                                "server_ssl_mode=PREFERRED"}));
          }},
         {"client_ssl_mode_required_disabled",  // BS_MODES_17
          {"--client-ssl-mode", "ReQuired", "--server-ssl-mode", "Disabled"},
@@ -552,7 +552,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines, ::testing::IsSupersetOf({
                                               "client_ssl_mode=PREFERRED",
-                                              "server_ssl_mode=AS_CLIENT",
+                                              "server_ssl_mode=PREFERRED",
                                               "server_ssl_verify=DISABLED",
                                           }));
          }},
@@ -562,7 +562,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "server_ssl_verify=VERIFY_IDENTITY",
                        }));
          }},
@@ -571,7 +571,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines, ::testing::IsSupersetOf({
                                               "client_ssl_mode=PREFERRED",
-                                              "server_ssl_mode=AS_CLIENT",
+                                              "server_ssl_mode=PREFERRED",
                                               "server_ssl_verify=VERIFY_CA",
                                           }));
          }},
@@ -581,7 +581,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "client_ssl_cipher=some-cipher-string",
                        }));
          }},
@@ -591,7 +591,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "client_ssl_curves=some-curves-string",
                        }));
          }},
@@ -601,7 +601,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "client_ssl_dh_params=some-dh-param-string",
                        }));
          }},
@@ -611,7 +611,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "server_ssl_cipher=some-cipher-string",
                        }));
          }},
@@ -621,7 +621,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "server_ssl_curves=some-curves-string",
                        }));
          }},
@@ -630,7 +630,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines, ::testing::IsSupersetOf({
                                               "client_ssl_mode=PREFERRED",
-                                              "server_ssl_mode=AS_CLIENT",
+                                              "server_ssl_mode=PREFERRED",
                                               "server_ssl_ca=some-ca-string",
                                           }));
          }},
@@ -640,7 +640,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "server_ssl_capath=some-capath-string",
                        }));
          }},
@@ -649,7 +649,7 @@ const BootstrapTlsEndpointParams
          [](const std::vector<std::string> &config_file_lines) {
            ASSERT_THAT(config_file_lines, ::testing::IsSupersetOf({
                                               "client_ssl_mode=PREFERRED",
-                                              "server_ssl_mode=AS_CLIENT",
+                                              "server_ssl_mode=PREFERRED",
                                               "server_ssl_crl=some-crl-string",
                                           }));
          }},
@@ -659,7 +659,7 @@ const BootstrapTlsEndpointParams
            ASSERT_THAT(config_file_lines,
                        ::testing::IsSupersetOf({
                            "client_ssl_mode=PREFERRED",
-                           "server_ssl_mode=AS_CLIENT",
+                           "server_ssl_mode=PREFERRED",
                            "server_ssl_crlpath=some-crlpath-string",
                        }));
          }},
@@ -1055,12 +1055,12 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
                       // BS_CERT_KEY_CONFIG_PERSISTS_10
      {},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_generated(config_file_lines, "PREFERRED", "AS_CLIENT");
+       check_cert_generated(config_file_lines, "PREFERRED", "PREFERRED");
      }},
     {"client_ssl_mode_preferred_cert_gen",  // BS_MODES_02, BS_CERT_KEY_MODE_02
      {"--client-ssl-mode", "PREFERRED"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_generated(config_file_lines, "PREFERRED", "AS_CLIENT");
+       check_cert_generated(config_file_lines, "PREFERRED", "PREFERRED");
      }},
     {"client_ssl_mode_required_cert_gen",  // BS_MODES_03, BS_CERT_KEY_MODE_03,
                                            // BS_CERT_KEY_CONFIG_PERSISTS_02
@@ -1069,7 +1069,7 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
                                            // BS_CERT_KEY_CONFIG_PERSISTS_11
      {"--client-ssl-mode", "REQUIRED"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_generated(config_file_lines, "REQUIRED", "AS_CLIENT");
+       check_cert_generated(config_file_lines, "REQUIRED", "PREFERRED");
      }},
     {"client_ssl_mode_passthrough_no_cert_gen",  // BS_MODES_04,
                                                  // BS_CERT_KEY_MODE_04
@@ -1091,7 +1091,7 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
                                               // BS_CERT_KEY_MODE_05
      {"--client-ssl-mode", "DISABLED"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_no_cert_generated(config_file_lines, "DISABLED", "AS_CLIENT");
+       check_no_cert_generated(config_file_lines, "DISABLED", "PREFERRED");
 
        // not specified at command-line, no set in config
        ASSERT_THAT(config_file_lines,
@@ -1111,28 +1111,28 @@ const BootstrapTlsEndpointParams bootstrap_tls_endpoint_params[] = {
                                  // BS_CERT_KEY_ARGS_01
      {"--client-ssl-cert", "some-ssl-cert", "--client-ssl-key", "some-ssl-key"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_specified(config_file_lines, "PREFERRED", "AS_CLIENT",
+       check_cert_specified(config_file_lines, "PREFERRED", "PREFERRED",
                             "some-ssl-cert", "some-ssl-key");
      }},
     {"client_ssl_cert_key_and_mode_disabled",  // BS_CERT_KEY_ARGS_??
      {"--client-ssl-cert", "some-ssl-cert", "--client-ssl-key", "some-ssl-key",
       "--client-ssl-mode", "disabled"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_specified(config_file_lines, "DISABLED", "AS_CLIENT",
+       check_cert_specified(config_file_lines, "DISABLED", "PREFERRED",
                             "some-ssl-cert", "some-ssl-key");
      }},
     {"client_ssl_cert_key_and_mode_preferred",  // BS_CERT_KEY_ARGS_??
      {"--client-ssl-cert", "some-ssl-cert", "--client-ssl-key", "some-ssl-key",
       "--client-ssl-mode", "preferred"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_specified(config_file_lines, "PREFERRED", "AS_CLIENT",
+       check_cert_specified(config_file_lines, "PREFERRED", "PREFERRED",
                             "some-ssl-cert", "some-ssl-key");
      }},
     {"client_ssl_cert_key_and_mode_required",  // BS_CERT_KEY_ARGS_??
      {"--client-ssl-cert", "some-ssl-cert", "--client-ssl-key", "some-ssl-key",
       "--client-ssl-mode", "REQUIRED"},
      [](const std::vector<std::string> &config_file_lines) {
-       check_cert_specified(config_file_lines, "REQUIRED", "AS_CLIENT",
+       check_cert_specified(config_file_lines, "REQUIRED", "PREFERRED",
                             "some-ssl-cert", "some-ssl-key");
      }},
 
