@@ -232,7 +232,7 @@ class Acl_credential {
   LEX_CSTRING m_auth_string;
   /**
     The salt variable is used as the password hash for
-    native_password_authetication.
+    native_password_authentication.
   */
   uint8 m_salt[SCRAMBLE_LENGTH + 1];  // scrambled password in binary form
   /**
