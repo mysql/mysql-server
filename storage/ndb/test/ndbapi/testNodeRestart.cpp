@@ -2202,6 +2202,7 @@ int run_test_multi_socket(NDBT_Context *ctx, NDBT_Step *step) {
 
     res.startNodes(&nodegroup_nodes[start_index], index - 1);
     if (res.waitClusterStarted()) return NDBT_FAILED;
+    if (res.insertErrorInAllNodes(0)) return NDBT_FAILED;
     pos++;
   }
   pos = 0;
@@ -2222,6 +2223,7 @@ int run_test_multi_socket(NDBT_Context *ctx, NDBT_Step *step) {
     res.startNodes(&nodegroup_nodes[start_index],
                    index - 1);  // Expect crash
     if (res.waitClusterStarted()) return NDBT_FAILED;
+    if (res.insertErrorInAllNodes(0)) return NDBT_FAILED;
     pos++;
   }
   return NDBT_OK;
