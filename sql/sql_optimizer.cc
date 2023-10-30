@@ -3057,7 +3057,13 @@ bool JOIN::get_best_combination() {
       1? + // For aggregation functions aggregated in outer query
            // when used with distinct
       1? + // For ORDER BY
-      1?   // buffer result
+      1? + // buffer result
+      # of windows +
+      1?   // The presence of windows may increase need for grouping tmp tables,
+           // cf. de-optimization in make_tmp_tables_info, but there are other
+           // cases where we may need another tmp table as well (ROLLUP, full
+           // text search). For details, see computation of
+           // JOIN::need_tmp_before_win.
 
     Up to 2 tmp tables + N window output tmp are allocated (NOTE: windows also
     have frame buffer tmp tables, but those are not relevant here).
@@ -3072,10 +3078,8 @@ bool JOIN::get_best_combination() {
                (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)
            ? 1
            : 0) +
-      m_windows.elements + 1; /* the presence of windows may increase need for
-                                 grouping tmp tables, cf. de-optimization
-                                 in make_tmp_tables_info
-                               */
+      m_windows.elements + 1;
+
   if (num_tmp_tables > (2 + m_windows.elements))
     num_tmp_tables = 2 + m_windows.elements;
 
