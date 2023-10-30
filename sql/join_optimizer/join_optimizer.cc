@@ -7611,6 +7611,12 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       *trace += "Applying aggregation for GROUP BY\n";
     }
 
+    // AggregateIterator and EstimateAggregateRows() need join->group_fields to
+    // find the grouping columns.
+    if (make_group_fields(join, join)) {
+      return nullptr;
+    }
+
     // Reuse this, so that we do not have to recalculate it for each
     // alternative aggregate path.
     double aggregate_rows = kUnknownRowCount;
@@ -7677,10 +7683,6 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       }
     }
     root_candidates = std::move(new_root_candidates);
-
-    if (make_group_fields(join, join)) {
-      return nullptr;
-    }
 
     // Final setup will be done in FinalizePlanForQueryBlock(),
     // when we have all materialization done.

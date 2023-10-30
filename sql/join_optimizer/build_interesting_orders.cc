@@ -258,15 +258,21 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
   }
 }
 
-static Ordering::Elements CollectInterestingOrder(THD *thd, ORDER *order,
-                                                  int order_len,
+static size_t CountOrderElements(const ORDER *order) {
+  size_t count = 0;
+  for (const ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
+    ++count;
+  }
+  return count;
+}
+
+static Ordering::Elements CollectInterestingOrder(THD *thd, const ORDER *order,
                                                   bool unwrap_rollup,
                                                   LogicalOrderings *orderings) {
   Ordering::Elements elements =
-      Ordering::Elements::Alloc(thd->mem_root, order_len);
+      Ordering::Elements::Alloc(thd->mem_root, CountOrderElements(order));
 
-  int i = 0;
-  for (; order != nullptr; order = order->next, ++i) {
+  for (int i = 0; order != nullptr; order = order->next, ++i) {
     Item *item = *order->item;
     if (unwrap_rollup) {
       item = unwrap_rollup_group(item);
@@ -275,14 +281,6 @@ static Ordering::Elements CollectInterestingOrder(THD *thd, ORDER *order,
     elements[i].direction = order->direction;
   }
   return elements;
-}
-
-// A convenience form of the above.
-static Ordering::Elements CollectInterestingOrder(
-    THD *thd, const SQL_I_List<ORDER> &order_list, bool unwrap_rollup,
-    LogicalOrderings *orderings) {
-  return CollectInterestingOrder(thd, order_list.first, order_list.size(),
-                                 unwrap_rollup, orderings);
 }
 
 ORDER *BuildSortAheadOrdering(THD *thd, const LogicalOrderings *orderings,
@@ -458,10 +456,12 @@ void BuildInterestingOrders(
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
     Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
     Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
+  JOIN *const join = query_block->join;
+
   // Collect ordering from ORDER BY.
-  if (query_block->is_ordered()) {
+  if (join->order.order != nullptr) {
     Ordering::Elements elements =
-        CollectInterestingOrder(thd, query_block->order_list,
+        CollectInterestingOrder(thd, join->order.order,
                                 /*unwrap_rollup=*/false, orderings);
 
     *order_by_ordering_idx =
@@ -472,10 +472,10 @@ void BuildInterestingOrders(
   // Collect grouping from GROUP BY.
   if (query_block->is_explicitly_grouped()) {
     Ordering::Elements elements =
-        CollectInterestingOrder(thd, query_block->group_list,
+        CollectInterestingOrder(thd, join->group_list.order,
                                 /*unwrap_rollup=*/true, orderings);
 
-    if (query_block->join->rollup_state == JOIN::RollupState::NONE) {
+    if (join->rollup_state == JOIN::RollupState::NONE) {
       CanonicalizeGrouping(&elements);
       *group_by_ordering_idx =
           AddOrdering(thd, Ordering(elements, Ordering::Kind::kGroup),
@@ -505,7 +505,7 @@ void BuildInterestingOrders(
   // However, since we don't support hybrid groupings/orderings,
   // just pure groupings or pure orderings, we only accept #1 here.
   // For PARTITION BY with no ORDER BY, we use a grouping as usual.
-  for (Window &window : query_block->join->m_windows) {
+  for (Window &window : join->m_windows) {
     ORDER *order = window.sorting_order(thd);
     if (order == nullptr) {
       window.m_ordering_idx = 0;
@@ -514,16 +514,14 @@ void BuildInterestingOrders(
 
     const bool mixed_grouping = (window.effective_order_by() != nullptr &&
                                  window.effective_partition_by() != nullptr);
-    int order_len = 0;
     for (ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
       if (mixed_grouping && ptr->direction == ORDER_NOT_RELEVANT) {
         ptr->direction = ORDER_ASC;
       }
-      ++order_len;
     }
 
     Ordering::Elements elements =
-        CollectInterestingOrder(thd, order, order_len,
+        CollectInterestingOrder(thd, order,
                                 /*unwrap_rollup=*/false, orderings);
     Ordering::Kind kind;
     if (window.effective_order_by() == nullptr) {
@@ -544,23 +542,18 @@ void BuildInterestingOrders(
   // ordering was able to also satisfy the ORDER BY); group coverings will be
   // dealt with by the more general intesting order framework, which can also
   // combine e.g. GROUP BY groupings with ORDER BY.
-  if (query_block->join->select_distinct) {
+  if (join->select_distinct) {
     bool all_order_fields_used = false;
     ORDER *order = create_order_from_distinct(
-        thd, Ref_item_array(), /*order=*/nullptr, query_block->join->fields,
+        thd, Ref_item_array(), /*order=*/nullptr, join->fields,
         /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
         &all_order_fields_used);
 
     if (order == nullptr) {
       *distinct_ordering_idx = 0;  // 0 is the empty ordering.
     } else {
-      int order_len = 0;
-      for (ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
-        ++order_len;
-      }
-
       Ordering::Elements elements =
-          CollectInterestingOrder(thd, order, order_len,
+          CollectInterestingOrder(thd, order,
                                   /*unwrap_rollup=*/false, orderings);
 
       CanonicalizeGrouping(&elements);
@@ -800,16 +793,15 @@ void BuildInterestingOrders(
   // AddFDsFromAggregateItems() later.
   if (query_block->is_explicitly_grouped()) {
     auto head = Bounds_checked_array<ItemHandle>::Alloc(
-        thd->mem_root, query_block->group_list.size());
+        thd->mem_root, CountOrderElements(join->group_list.order));
     int idx = 0;
-    for (ORDER *group = query_block->group_list.first; group != nullptr;
+    for (ORDER *group = join->group_list.order; group != nullptr;
          group = group->next, ++idx) {
       head[idx] = orderings->GetHandle(*group->item);
     }
     orderings->SetHeadForAggregates(head);
   }
-  orderings->SetRollup(query_block->join->rollup_state !=
-                       JOIN::RollupState::NONE);
+  orderings->SetRollup(join->rollup_state != JOIN::RollupState::NONE);
 
   orderings->Build(thd, trace);
 
@@ -821,11 +813,12 @@ void BuildInterestingOrders(
     // ORDER BY clause. If so, store the reduced ordering in join->order.
     if (const Ordering reduced_ordering =
             ReduceFinalOrdering(thd, *orderings, *order_by_ordering_idx);
-        reduced_ordering.size() < query_block->order_list.elements) {
-      query_block->join->order = ORDER_with_src(
-          RemoveRedundantOrderElements(query_block->join->order.order,
-                                       reduced_ordering, *orderings),
-          query_block->join->order.src);
+        reduced_ordering.size() < CountOrderElements(join->order.order)) {
+      join->order =
+          ORDER_with_src(RemoveRedundantOrderElements(
+                             join->order.order, reduced_ordering, *orderings),
+                         join->order.src,
+                         /*const_optimized_arg=*/true);
     }
   }
   if (*group_by_ordering_idx != -1) {
@@ -836,7 +829,7 @@ void BuildInterestingOrders(
     *distinct_ordering_idx =
         orderings->RemapOrderingIndex(*distinct_ordering_idx);
   }
-  for (Window &window : query_block->join->m_windows) {
+  for (Window &window : join->m_windows) {
     if (window.m_ordering_idx != -1) {
       window.m_ordering_idx =
           orderings->RemapOrderingIndex(window.m_ordering_idx);
@@ -901,8 +894,7 @@ void BuildInterestingOrders(
       const Item *real_item = item->real_item();
       sort_ahead_only =
           sort_ahead_only ||
-          std::none_of(query_block->join->fields->cbegin(),
-                       query_block->join->fields->cend(),
+          std::none_of(join->fields->cbegin(), join->fields->cend(),
                        [real_item](const Item *field) {
                          return real_item->eq(field->real_item(),
                                               /*binary_cmp=*/true);

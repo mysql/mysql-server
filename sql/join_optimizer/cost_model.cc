@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <bit>
+#include <iterator>
 
 #include "mem_root_deque.h"
 #include "my_base.h"
@@ -511,6 +512,23 @@ string AggregateRowEstimator::Prefix::Print() const {
   return result;
 }
 
+TermArray GetAggregationTerms(const JOIN &join) {
+  auto terms = Bounds_checked_array<const Item *>::Alloc(
+      join.thd->mem_root, join.group_fields.size());
+
+  // JOIN::group_fields contains the grouping expressions in reverse order.
+  // While the order does not matter for regular GROUP BY, it may affect the
+  // number of output rows for ROLLUP. Reverse the order again so that the terms
+  // have the same order as in the query text.
+  transform(join.group_fields.cbegin(), join.group_fields.cend(),
+            std::make_reverse_iterator(terms.end()),
+            [](const Cached_item &cached) {
+              return unwrap_rollup_group(cached.get_item());
+            });
+
+  return {terms.data(), terms.size()};
+}
+
 /**
  Estimate the number of distinct tuples in the projection defined by
  'terms'.  We use the following data to make a row estimate, in that
@@ -774,59 +792,36 @@ double EstimateRollupRowsAdvanced(double aggregate_rows, TermArray terms,
 double EstimateAggregateRows(const AccessPath *child,
                              const Query_block *query_block, bool rollup,
                              string *trace) {
-  const double child_rows = child->num_output_rows();
-  // 'path' may represent 'GROUP BY' or (if not using Hypergraph) 'DISTINCT'. In
-  // the latter case, we fetch the aggregation terms from
-  // query_block->join->group_fields.
-  const bool distinct = query_block->group_list.first == nullptr;
-  const size_t term_count = distinct ? query_block->join->group_fields.size()
-                                     : query_block->group_list.size();
+  if (query_block->is_implicitly_grouped()) {
+    // For implicit grouping there will be 1 output row.
+    return 1.0;
+  }
 
-  if (trace != nullptr && !query_block->is_implicitly_grouped()) {
-    *trace += StringPrintf(
-        "\nEstimating row count for aggregation on %zu terms.\n", term_count);
+  const double child_rows = child->num_output_rows();
+  if (child_rows < 1.0) {
+    // No rows in the input gives no groups.
+    return child_rows;
   }
 
   // The aggregation terms.
-  Mem_root_array<const Item *> terms(current_thd->mem_root);
-  double output_rows;
-
-  if (query_block->is_implicitly_grouped()) {
-    // For implicit grouping there will be 1 output row.
-    output_rows = 1.0;
-
-  } else if (child_rows < 1.0) {
-    output_rows = child_rows;
-
-  } else {
-    if (distinct) {
-      for (Cached_item &cached : query_block->join->group_fields) {
-        terms.push_back(cached.get_item());
-      }
-    } else {
-      for (ORDER *group = query_block->group_list.first; group;
-           group = group->next) {
-        terms.push_back(unwrap_rollup_group(*group->item));
-      }
-    }
-    assert(terms.size() > 0);
-
-    output_rows = EstimateDistinctRows(
-        child_rows, TermArray(terms.data(), terms.size()), trace);
+  TermArray terms = GetAggregationTerms(*query_block->join);
+  if (trace != nullptr) {
+    *trace += StringPrintf(
+        "\nEstimating row count for aggregation on %zu terms.\n", terms.size());
   }
+
+  double output_rows = EstimateDistinctRows(child_rows, terms, trace);
 
   if (rollup) {
     // Do a simple and cheap calculation for small result sets.
     constexpr double simple_rollup_limit = 50.0;
 
     output_rows += SmoothTransition(
-        [&](double aggregate_rows) {
+        [terms](double aggregate_rows) {
           return EstimateRollupRowsPrimitively(aggregate_rows, terms.size());
         },
-        [&](double aggregate_rows) {
-          assert(terms.size() == term_count);
-          return EstimateRollupRowsAdvanced(
-              aggregate_rows, TermArray(terms.data(), terms.size()), trace);
+        [terms, trace](double aggregate_rows) {
+          return EstimateRollupRowsAdvanced(aggregate_rows, terms, trace);
         },
         simple_rollup_limit, simple_rollup_limit * 1.1, output_rows);
   }
@@ -837,7 +832,10 @@ double EstimateAggregateRows(const AccessPath *child,
 }  // Anonymous namespace.
 
 double EstimateDistinctRows(double child_rows, TermArray terms, string *trace) {
-  assert(terms.size() > 0);
+  if (terms.empty()) {
+    // DISTINCT/GROUP BY on a constant gives at most one row.
+    return min(1.0, child_rows);
+  }
   if (child_rows < 1.0) {
     return child_rows;
   }
@@ -1008,16 +1006,8 @@ double EstimateSemijoinFanOut(double right_rows, const JoinPredicate &edge) {
     WalkItem(item, enum_walk::PREFIX, collect_field);
   }
 
-  const double distinct_rows =
-      condition_fields.empty()
-          // If the join condition is independent of the right hand tables,
-          // then all that matters if is the right hand relation is empty
-          // or not. A row from the left hand relation will
-          // thus contribute to the result set if it satisfies the join
-          // predicate and the right hand relation contains at least one row.
-          ? std::min(1.0, right_rows)
-          : EstimateDistinctRows(right_rows, {condition_fields.begin(),
-                                              condition_fields.size()});
+  const double distinct_rows = EstimateDistinctRows(
+      right_rows, {condition_fields.begin(), condition_fields.size()});
 
   return std::min(1.0, distinct_rows * edge.selectivity);
 }

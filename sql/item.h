@@ -6527,7 +6527,7 @@ class Cached_item {
              return value should be ignored.
   */
   virtual bool cmp() = 0;
-  Item *get_item() { return item; }
+  Item *get_item() const { return item; }
   Item **get_item_ptr() { return &item; }
 };
 

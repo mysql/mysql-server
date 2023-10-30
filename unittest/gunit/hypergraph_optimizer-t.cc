@@ -7247,8 +7247,10 @@ TEST_F(HypergraphSecondaryEngineTest, DontCallCostHookForEmptyJoins) {
   EXPECT_STREQ("t2", paths[0].table_scan().table->alias);
 }
 
-TEST_F(HypergraphSecondaryEngineTest,
-       SecondaryEngineGraphSimplificationRestart) {
+// An alias for better naming.
+using SecondaryEngineGraphSimplificationTest = HypergraphSecondaryEngineTest;
+
+TEST_F(SecondaryEngineGraphSimplificationTest, Restart) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
@@ -7292,8 +7294,7 @@ TEST_F(HypergraphSecondaryEngineTest,
   ASSERT_NE(pos_of_construct_after_reset, std::string::npos);
 }
 
-TEST_F(HypergraphSecondaryEngineTest,
-       SecondaryEngineGraphSimplificationTriggered) {
+TEST_F(SecondaryEngineGraphSimplificationTest, Triggered) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
@@ -7343,9 +7344,55 @@ TEST_F(HypergraphSecondaryEngineTest,
   size_t pos_of_simplification_after_trigger =
       trace.find("doing heuristic graph simplification.",
                  /* pos= */ pos_of_trigger_keyword);
-  // Ensure hypergraph triggered simplidication after the requested by secondary
-  // engine
+  // Ensure hypergraph triggered simplification after the request by secondary
+  // engine.
   ASSERT_NE(pos_of_simplification_after_trigger, std::string::npos);
+}
+
+TEST_F(SecondaryEngineGraphSimplificationTest, RedundantOrderElements) {
+  // Query with redundant elements in ORDER BY used to fail if the secondary
+  // engine requested a restart of the optimization. In this query, one of the
+  // columns in the ORDER BY can be removed because the WHERE clause ensures the
+  // two columns have the same value.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x = t2.x ORDER BY t1.x, t2.x",
+      /*nullable=*/true);
+
+  thread_local bool was_restarted;
+  was_restarted = false;
+
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+  hton->secondary_engine_check_optimizer_request =
+      [](THD *, const JoinHypergraph &, const AccessPath *, int, int,
+         bool is_root_access_path,
+         std::string *) -> SecondaryEngineGraphSimplificationRequestParameters {
+    if (is_root_access_path && !was_restarted) {
+      was_restarted = true;
+      return {SecondaryEngineGraphSimplificationRequest::kRestart, 100};
+    }
+    return {SecondaryEngineGraphSimplificationRequest::kContinue, 0};
+  };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  EXPECT_TRUE(was_restarted);
+
+  // We don't care which exact plan is chosen. But verify that the sort key does
+  // not include a redundant column.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  const ORDER *order = root->sort().order;
+  // Sort on exactly one column.
+  ASSERT_NE(nullptr, order);
+  EXPECT_EQ(nullptr, order->next);
+  // The result should be sorted on t1.x or on t2.x. We don't care which.
+  EXPECT_THAT(ItemToString(*order->item), AnyOf("t1.x", "t2.x"));
 }
 
 /*
