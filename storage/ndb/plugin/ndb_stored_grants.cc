@@ -292,7 +292,18 @@ bool ThreadContext::exec_sql(const std::string &statement) {
 
   assert(m_closed);
   /* execute_query_iso() returns false on success */
-  m_closed = execute_query_iso(statement, nullptr);
+  if (execute_query_iso(statement, nullptr)) {
+    // Query failed
+    return true;
+  }
+
+  if (get_results() == nullptr) {
+    // Query reported sucess but no result set, this indicates failure
+    ndb_log_error("No result set for query '%s'", statement.c_str());
+    assert(false);
+  }
+
+  m_closed = false;
   return m_closed;
 }
 
@@ -1037,6 +1048,11 @@ Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
     THD *thd, const Acl_change_notification *notice, std::string *user_list,
     bool *schema_dist_use_db, bool *must_refresh) {
   ThreadContext context(thd);
+
+  if (notice == nullptr) {
+    ndb_log_error("stored grants: no Acl_change_notification");
+    return Strategy::ERROR;
+  }
 
   if (!metadata_table.isInitialized()) {
     ndb_log_error("stored grants: not intialized.");
