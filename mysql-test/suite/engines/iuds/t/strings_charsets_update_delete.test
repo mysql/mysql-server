@@ -80,12 +80,12 @@ SELECT t7a.a, t7b.a FROM t7 as t7a, t7 as t7b WHERE t7a.a=t7b.a ORDER BY BINARY 
  UPDATE t7 SET a=CHAR(ASCII(a)+32) WHERE ASCII(a) >= 65 AND ASCII(a) <= 90;
  UPDATE t7 SET a=CHAR(ASCII(a)-32) WHERE ASCII(a) >= 97 AND ASCII(a) <= 122;
 SELECT a,HEX(a) FROM t7;  
-#Tests for utf8 character set 
-CREATE TABLE t8 (a char(10) character set utf8 not null);
+#Tests for utf8mb3 character set 
+CREATE TABLE t8 (a char(10) character set utf8mb3 not null);
 INSERT INTO t8 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t8;
 DROP TABLE t8;
-CREATE TABLE t8(a VARCHAR(255), KEY(a)) DEFAULT CHARSET=utf8;
+CREATE TABLE t8(a VARCHAR(255), KEY(a)) DEFAULT CHARSET=utf8mb3;
 eval INSERT INTO t8 VALUES('uUABCDEFGHIGKLMNOPRSTUVWXYZbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t8 VALUES('uu');
 check table t8;
@@ -113,20 +113,20 @@ check table t8;
 UPDATE t8 SET a=REPEAT('Z',255) WHERE a LIKE 'uu%';
 SELECT a,LENGTH(a) FROM t8;
 drop table t8;                                  
-SET collation_connection = 'utf8_general_ci';
---character_set utf8mb4
-CREATE TABLE t8 (c1 TEXT character set utf8 collate utf8_general_ci);
+SET collation_connection = 'utf8mb3_general_ci';
+--character_set utf8mb3
+CREATE TABLE t8 (c1 TEXT character set utf8mb3 collate utf8mb3_general_ci);
 insert into t8 values (repeat('बांग्लादे',1200));
 insert into t8 values ('রবীন্দ্রনাথ ঠাকুর'); 
 insert into t8 values (LOAD_FILE('$MYSQLTEST_VARDIR/hindi.txt'));
-ALTER TABLE t8 ADD c2 TEXT CHARACTER SET utf8 collate utf8_general_ci DEFAULT NULL; 
+ALTER TABLE t8 ADD c2 TEXT CHARACTER SET utf8mb3 collate utf8mb3_general_ci DEFAULT NULL; 
 INSERT INTO t8 values (repeat('রবীন্দ্রনাথ ঠাকুর',1300),'');
 ALTER TABLE t8 ADD INDEX(c1(18)); 
 UPDATE t8 SET c2='यह हिन्दी में एक अलग वाक्य है. यह एक अलग कॉलम में जोड़ा जा रहा है' WHERE c2=NULL;
 SELECT length(c1),c1, length(c2),c2 FROM t8; 
-SELECT length(c1),c1, length(c2),c2 FROM t8 WHERE c1 LIKE _utf8 'রবীন%' COLLATE utf8_general_ci ; 
+SELECT length(c1),c1, length(c2),c2 FROM t8 WHERE c1 LIKE _utf8mb3 'রবীন%' COLLATE utf8mb3_general_ci ; 
 ALTER TABLE t8 ADD INDEX(c1(18),c2(10));
-SELECT length(c1),c1, length(c2),c2 FROM t8 WHERE c1  LIKE _utf8 'রবীন%' COLLATE utf8_general_ci OR c2 LIKE _utf8 'जग' COLLATE utf8_general_ci;
+SELECT length(c1),c1, length(c2),c2 FROM t8 WHERE c1  LIKE _utf8mb3 'রবীন%' COLLATE utf8mb3_general_ci OR c2 LIKE _utf8mb3 'जग' COLLATE utf8mb3_general_ci;
 UPDATE t8 SET c1= REPEAT('৯',12000);
 SELECT length(c1),length(c2) FROM t8;
 DROP TABLE t8;

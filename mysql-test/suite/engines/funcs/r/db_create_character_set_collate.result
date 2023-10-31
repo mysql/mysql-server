@@ -1,7 +1,7 @@
 DROP DATABASE IF EXISTS d13;
-CREATE DATABASE d13 CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE d13 CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
@@ -35,9 +35,9 @@ def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d13;
-CREATE SCHEMA d13 CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE SCHEMA d13 CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
