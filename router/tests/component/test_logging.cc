@@ -64,6 +64,9 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 class RouterLoggingTest : public RouterComponentBootstrapTest {
+ public:
+  RouterLoggingTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   std::string create_config_file(
       const std::string &directory, const std::string &sections,

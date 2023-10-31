@@ -63,6 +63,8 @@ using mysql_harness::utility::string_format;
 
 class TestRestApiEnable : public RouterComponentBootstrapTest {
  public:
+  TestRestApiEnable() : RouterComponentBootstrapTest(false) {}
+
   void SetUp() override {
     RouterComponentBootstrapTest::SetUp();
 

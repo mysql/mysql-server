@@ -71,6 +71,9 @@ MATCHER_P(FileContentNotEqual, master_key, "") {
 }
 
 class MasterKeyReaderWriterTest : public RouterComponentBootstrapTest {
+ public:
+  MasterKeyReaderWriterTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();

@@ -889,6 +889,17 @@ void MySQLRouterConf::prepare_command_options(
       });
 
   arg_handler.add_option(
+      OptionNames({"--disable-rw-split"}),
+      "Do not generate routing section for RW Split endpoint",
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) {
+        this->bootstrap_options_["disable-rw-split"] = "1";
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--disable-rw-split");
+      });
+
+  arg_handler.add_option(
       OptionNames({"--disable-rest"}),
       "Disable REST web service for Router monitoring", CmdOptionValueReq::none,
       "",

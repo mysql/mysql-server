@@ -656,7 +656,6 @@ class SharedRestartableRouter {
 };
 
 using TestEnv = MySQLServerTestEnv<4, SharedServer>;
-        s->setup_mysqld_accounts();
 
 TestEnv *test_env{};
 

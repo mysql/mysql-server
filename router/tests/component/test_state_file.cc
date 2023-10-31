@@ -76,6 +76,9 @@ constexpr auto kTTL = 100ms;
 }  // namespace
 
 class StateFileTest : public RouterComponentBootstrapTest {
+ public:
+  StateFileTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();

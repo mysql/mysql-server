@@ -866,17 +866,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this](const std::string &) {
         this->assert_not_bootstrap_mode("--pid-file");
       });
-      });
 
-  arg_handler_.add_option(
-      OptionNames({"--disable-rw-split"}),
-      "Do not generate routing section for RW Split endpoint",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) {
-        this->bootstrap_options_["disable-rw-split"] = "1";
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--disable-rw-split");
 #ifndef _WIN32
   arg_handler_.add_option(
       OptionNames({"-u", "--user"}),

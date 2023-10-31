@@ -340,8 +340,8 @@ bool ConfigGenerator::check_target(
               << get_metadata_schema_deprecated_msg(schema_version_)
               << Vt100::render(Vt100::Render::ForegroundDefault) << "\n\n";
   }
-  
-    metadata_ =
+
+  metadata_ =
       mysqlrouter::create_metadata(schema_version_, mysql_, bootstrap_options);
 
   // at this point we know the cluster type so let's do additional verifications
@@ -830,9 +830,9 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     if (use_sockets) {
       options.rw_x_endpoint.socket = kRWXSocketName;
       options.ro_x_endpoint.socket = kROXSocketName;
-    if (!options.disable_rw_split_endpoint) {
-      options.rw_split_endpoint.socket = kRWSplitSocketName;
-    }
+      if (!options.disable_rw_split_endpoint) {
+        options.rw_split_endpoint.socket = kRWSplitSocketName;
+      }
     }
     if (!skip_tcp) {
       // if "base-port" param was not provided AND we are overwriting an
@@ -2515,7 +2515,7 @@ void ConfigGenerator::create_config(
           config_file, false, false, options.ro_x_endpoint, options,
           kDefaultMetadataCacheSectionKey, destination_x, config_cmdln_options);
   } else {
-    auto add_mdc_rt_sect = [&](bool is_classic,  EndpointMode endpoint_mode,
+    auto add_mdc_rt_sect = [&](bool is_classic, EndpointMode endpoint_mode,
                                Options::Endpoint endpoint) {
       add_metadata_cache_routing_section(
           config_file, is_classic, endpoint_mode, endpoint, options,
@@ -2527,9 +2527,12 @@ void ConfigGenerator::create_config(
     if (!options.disable_rw_split_endpoint) {
       add_mdc_rt_sect(true, EndpointMode::kEndpointModeRWSplit,
                       options.rw_split_endpoint);
+    }
+    add_mdc_rt_sect(false, EndpointMode::kEndpointModeRW,
+                    options.rw_x_endpoint);
+    add_mdc_rt_sect(false, EndpointMode::kEndpointModeRO,
+                    options.ro_x_endpoint);
   }
-  add_mdc_rt_sect(false, EndpointMode::kEndpointModeRW, options.rw_x_endpoint);
-  add_mdc_rt_sect(false, EndpointMode::kEndpointModeRO, options.ro_x_endpoint);
 
   if (!options.disable_rest) {
     add_rest_section(config_file, options, default_paths, config_cmdln_options,

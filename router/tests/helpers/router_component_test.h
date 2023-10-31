@@ -255,6 +255,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     }
 
     return ProcessManager::launch_router_bootstrap(
+        params, expected_exit_code, catch_stderr, /*with_sudo=*/false,
         /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
   }
 
