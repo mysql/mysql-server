@@ -30,10 +30,10 @@ drop table t1;
 # stored procedure.
 #
 reset binary logs and gtids;
-CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci;
 USE bug39182;
-CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
-  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8mb3_unicode_ci)
+  DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 
 DELIMITER //;
 
@@ -44,11 +44,11 @@ BEGIN
   CREATE TEMPORARY TABLE tmp1
     SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
   SELECT
-    COLLATION(NAME_CONST('s1', _utf8'test')) c1,
-    COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+    COLLATION(NAME_CONST('s1', _utf8mb3'test')) c1,
+    COLLATION(NAME_CONST('s1', _utf8mb3'test' COLLATE utf8mb3_unicode_ci)) c2,
     COLLATION(s1) c3,
-    COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
-    COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+    COERCIBILITY(NAME_CONST('s1', _utf8mb3'test')) d1,
+    COERCIBILITY(NAME_CONST('s1', _utf8mb3'test' COLLATE utf8mb3_unicode_ci)) d2,
     COERCIBILITY(s1) d3;
   DROP TEMPORARY TABLE tmp1;
 END//

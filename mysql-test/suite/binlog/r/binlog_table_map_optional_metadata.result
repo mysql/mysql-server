@@ -107,9 +107,9 @@ RESET BINARY LOGS AND GTIDS;
 #
 CREATE TABLE t1(c_char CHAR(10), c_varchar VARCHAR(500),
 c_tinytext TINYTEXT, c_text TEXT,
-c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8);
+c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_char) VALUES("1");
 Matching lines are:
@@ -151,18 +151,18 @@ RESET BINARY LOGS AND GTIDS;
 #
 # Charsets can be printed correctly
 #
-CREATE TABLE t1(c_char_utf8 CHAR(10) CHARSET utf8,
-c_varchar_utf8 VARCHAR(10) CHARSET utf8,
-c_text_utf8 TEXT CHARSET utf8);
+CREATE TABLE t1(c_char_utf8mb3 CHAR(10) CHARSET utf8mb3,
+c_varchar_utf8mb3 VARCHAR(10) CHARSET utf8mb3,
+c_text_utf8mb3 TEXT CHARSET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES("1", "2", "3");
 Matching lines are:
-# Columns(`c_char_utf8` CHAR(10) CHARSET utf8mb3 COLLATE utf8mb3_general_ci,
-#         `c_varchar_utf8` VARCHAR(10) CHARSET utf8mb3 COLLATE utf8mb3_general_ci,
-#         `c_text_utf8` TEXT CHARSET utf8mb3 COLLATE utf8mb3_general_ci)
+# Columns(`c_char_utf8mb3` CHAR(10) CHARSET utf8mb3 COLLATE utf8mb3_general_ci,
+#         `c_varchar_utf8mb3` VARCHAR(10) CHARSET utf8mb3 COLLATE utf8mb3_general_ci,
+#         `c_text_utf8mb3` TEXT CHARSET utf8mb3 COLLATE utf8mb3_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 3
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;

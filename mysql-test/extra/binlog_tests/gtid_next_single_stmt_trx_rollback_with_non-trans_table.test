@@ -140,7 +140,7 @@ CREATE DATABASE db1;
 #--replace_result $master_uuid MASTER_UUID
 #--eval SET SESSION GTID_NEXT='$master_uuid:11'
 #--error 1
-#ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+#ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 #--let $assert_text= rollback gtid MASTER_UUID:11
 #--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 #--source include/assert.inc

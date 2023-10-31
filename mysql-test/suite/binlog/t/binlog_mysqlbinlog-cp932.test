@@ -6,10 +6,10 @@
 RESET BINARY LOGS AND GTIDS;
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
-create table t3 (f text character set utf8);
+create table t3 (f text character set utf8mb3);
 create table t4 (f text character set cp932);
---character_set utf8
---execw $MYSQL --default-character-set=utf8 test -e "insert into t3 values(_utf8'ソ')"
+--character_set utf8mb3
+--execw $MYSQL --default-character-set=utf8mb3 test -e "insert into t3 values(_utf8mb3'ソ')"
 --character_set cp932
 --execw $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'�\');"
 flush logs;
@@ -20,7 +20,7 @@ rename table t3 to t03, t4 to t04;
 # Reset GTIDs
 RESET BINARY LOGS AND GTIDS;
 
---exec $MYSQL_BINLOG --short-form $datadir/binlog.saved | $MYSQL --default-character-set=utf8
+--exec $MYSQL_BINLOG --short-form $datadir/binlog.saved | $MYSQL --default-character-set=utf8mb3
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;

@@ -103,7 +103,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 CREATE TABLE t1(c_char CHAR(10), c_varchar VARCHAR(500),
   c_tinytext TINYTEXT, c_text TEXT,
-  c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8);
+  c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8mb3);
 
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_char) VALUES("1");
@@ -136,9 +136,9 @@ RESET BINARY LOGS AND GTIDS;
 --echo #
 --echo # Charsets can be printed correctly
 --echo #
-CREATE TABLE t1(c_char_utf8 CHAR(10) CHARSET utf8,
-  c_varchar_utf8 VARCHAR(10) CHARSET utf8,
-  c_text_utf8 TEXT CHARSET utf8);
+CREATE TABLE t1(c_char_utf8mb3 CHAR(10) CHARSET utf8mb3,
+  c_varchar_utf8mb3 VARCHAR(10) CHARSET utf8mb3,
+  c_text_utf8mb3 TEXT CHARSET utf8mb3);
 
 INSERT INTO t1 VALUES("1", "2", "3");
 

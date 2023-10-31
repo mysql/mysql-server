@@ -17,7 +17,7 @@
 
 --source include/have_log_bin.inc
 
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 #SHOW VARIABLES LIKE 'character_set%';
 
 
@@ -270,10 +270,10 @@ INSERT INTO t1 VALUES (
   '',                           -- c34
   x'ff',                        -- c35
   REPEAT(x'ff',255),            -- c36
-  _utf8 x'efbfbf',              -- c37
+  _utf8mb3 x'efbfbf',           -- c37
   '',                           -- c38
-  _utf8 x'efbfbf',              -- c39
-  REPEAT(_utf8 x'efbfbf',255),  -- c40
+  _utf8mb3 x'efbfbf',           -- c39
+  REPEAT(_utf8mb3 x'efbfbf',255),-- c40
   _ucs2 x'ffff',                -- c41
   '',                           -- c42
   _ucs2 x'ffff',                -- c43
@@ -284,9 +284,9 @@ INSERT INTO t1 VALUES (
   REPEAT(x'ff',255),            -- c47
   REPEAT(x'ff',261),            -- c48
   '',                           -- c49
-  _utf8 x'efbfbf',              -- c50
-  REPEAT(_utf8 x'efbfbf',255),  -- c51
-  REPEAT(_utf8 x'efbfbf',261),  -- c52
+  _utf8mb3 x'efbfbf',           -- c50
+  REPEAT(_utf8mb3 x'efbfbf',255),-- c51
+  REPEAT(_utf8mb3 x'efbfbf',261),-- c52
   '',                           -- c53
   _ucs2 x'ffff',                -- c54
   REPEAT(_ucs2 x'ffff',255),    -- c55
@@ -451,10 +451,10 @@ INSERT INTO t1 VALUES (
   '',                           -- c34
   'e',                          -- c35
   REPEAT('i',255),              -- c36
-  _utf8 x'c3a4',                -- c37
+  _utf8mb3 x'c3a4',             -- c37
   '',                           -- c38
-  _utf8 x'c3b6',                -- c39
-  REPEAT(_utf8 x'c3bc',255),    -- c40
+  _utf8mb3 x'c3b6',             -- c39
+  REPEAT(_utf8mb3 x'c3bc',255), -- c40
   _ucs2 x'00e4',                -- c41
   '',                           -- c42
   _ucs2 x'00f6',                -- c43
@@ -465,9 +465,9 @@ INSERT INTO t1 VALUES (
   REPEAT('e',255),              -- c47
   REPEAT('i',261),              -- c48
   '',                           -- c49
-  _utf8 x'c3a4',                -- c50
-  REPEAT(_utf8 x'c3b6',255),    -- c51
-  REPEAT(_utf8 x'c3bc',261),    -- c52
+  _utf8mb3 x'c3a4',             -- c50
+  REPEAT(_utf8mb3 x'c3b6',255), -- c51
+  REPEAT(_utf8mb3 x'c3bc',261), -- c52
   '',                           -- c53
   _ucs2 x'00e4',                -- c54
   REPEAT(_ucs2 x'00f6',255),    -- c55
@@ -560,10 +560,10 @@ UPDATE t1 SET
   c34 = '',
   c35 = x'ff',
   c36 = REPEAT(x'ff',255),
-  c37 = _utf8 x'efbfbf',
+  c37 = _utf8mb3 x'efbfbf',
   c38 = '',
-  c39 = _utf8 x'efbfbf',
-  c40 = REPEAT(_utf8 x'efbfbf',255),
+  c39 = _utf8mb3 x'efbfbf',
+  c40 = REPEAT(_utf8mb3 x'efbfbf',255),
   c41 = _ucs2 x'ffff',
   c42 = '',
   c43 = _ucs2 x'ffff',
@@ -574,9 +574,9 @@ UPDATE t1 SET
   c47 = REPEAT(x'ff',255),
   c48 = REPEAT(x'ff',261),
   c49 = '',
-  c50 = _utf8 x'efbfbf',
-  c51 = REPEAT(_utf8 x'efbfbf',255),
-  c52 = REPEAT(_utf8 x'efbfbf',261),
+  c50 = _utf8mb3 x'efbfbf',
+  c51 = REPEAT(_utf8mb3 x'efbfbf',255),
+  c52 = REPEAT(_utf8mb3 x'efbfbf',261),
   c53 = '',
   c54 = _ucs2 x'ffff',
   c55 = REPEAT(_ucs2 x'ffff',255),
@@ -833,10 +833,10 @@ UPDATE t1 SET
   c34 = '' AND
   c35 = x'ff' AND
   c36 = REPEAT(x'ff',255) AND
-  c37 = _utf8 x'efbfbf' AND
+  c37 = _utf8mb3 x'efbfbf' AND
   c38 = '' AND
-  c39 = _utf8 x'efbfbf' AND
-  c40 = REPEAT(_utf8 x'efbfbf',255) AND
+  c39 = _utf8mb3 x'efbfbf' AND
+  c40 = REPEAT(_utf8mb3 x'efbfbf',255) AND
   c41 = _ucs2 x'ffff' AND
   c42 = '' AND
   c43 = _ucs2 x'ffff' AND
@@ -847,9 +847,9 @@ UPDATE t1 SET
   c47 = REPEAT(x'ff',255) AND
   c48 = REPEAT(x'ff',261) AND
   c49 = '' AND
-  c50 = _utf8 x'efbfbf' AND
-  c51 = REPEAT(_utf8 x'efbfbf',255) AND
-  c52 = REPEAT(_utf8 x'efbfbf',261) AND
+  c50 = _utf8mb3 x'efbfbf' AND
+  c51 = REPEAT(_utf8mb3 x'efbfbf',255) AND
+  c52 = REPEAT(_utf8mb3 x'efbfbf',261) AND
   c53 = '' AND
   c54 = _ucs2 x'ffff' AND
   c55 = REPEAT(_ucs2 x'ffff',255) AND
@@ -925,10 +925,10 @@ UPDATE t1 SET
   c34 = '',
   c35 = 'e',
   c36 = REPEAT('i',255),
-  c37 = _utf8 x'c3a4',
+  c37 = _utf8mb3 x'c3a4',
   c38 = '',
-  c39 = _utf8 x'c3b6',
-  c40 = REPEAT(_utf8 x'c3bc',255),
+  c39 = _utf8mb3 x'c3b6',
+  c40 = REPEAT(_utf8mb3 x'c3bc',255),
   c41 = _ucs2 x'00e4',
   c42 = '',
   c43 = _ucs2 x'00f6',
@@ -939,9 +939,9 @@ UPDATE t1 SET
   c47 = REPEAT('e',255),
   c48 = REPEAT('i',261),
   c49 = '',
-  c50 = _utf8 x'c3a4',
-  c51 = REPEAT(_utf8 x'c3b6',255),
-  c52 = REPEAT(_utf8 x'c3bc',261),
+  c50 = _utf8mb3 x'c3a4',
+  c51 = REPEAT(_utf8mb3 x'c3b6',255),
+  c52 = REPEAT(_utf8mb3 x'c3bc',261),
   c53 = '',
   c54 = _ucs2 x'00e4',
   c55 = REPEAT(_ucs2 x'00f6',255),
@@ -1198,10 +1198,10 @@ UPDATE t1 SET
   c34 = '' AND
   c35 = 'e' AND
   c36 = REPEAT('i',255) AND
-  c37 = _utf8 x'c3a4' AND
+  c37 = _utf8mb3 x'c3a4' AND
   c38 = '' AND
-  c39 = _utf8 x'c3b6' AND
-  c40 = REPEAT(_utf8 x'c3bc',255) AND
+  c39 = _utf8mb3 x'c3b6' AND
+  c40 = REPEAT(_utf8mb3 x'c3bc',255) AND
   c41 = _ucs2 x'00e4' AND
   c42 = '' AND
   c43 = _ucs2 x'00f6' AND
@@ -1212,9 +1212,9 @@ UPDATE t1 SET
   c47 = REPEAT('e',255) AND
   c48 = REPEAT('i',261) AND
   c49 = '' AND
-  c50 = _utf8 x'c3a4' AND
-  c51 = REPEAT(_utf8 x'c3b6',255) AND
-  c52 = REPEAT(_utf8 x'c3bc',261) AND
+  c50 = _utf8mb3 x'c3a4' AND
+  c51 = REPEAT(_utf8mb3 x'c3b6',255) AND
+  c52 = REPEAT(_utf8mb3 x'c3bc',261) AND
   c53 = '' AND
   c54 = _ucs2 x'00e4' AND
   c55 = REPEAT(_ucs2 x'00f6',255) AND
@@ -1300,10 +1300,10 @@ DELETE FROM t1 WHERE
   c34 = '' AND
   c35 = x'ff' AND
   c36 = REPEAT(x'ff',255) AND
-  c37 = _utf8 x'efbfbf' AND
+  c37 = _utf8mb3 x'efbfbf' AND
   c38 = '' AND
-  c39 = _utf8 x'efbfbf' AND
-  c40 = REPEAT(_utf8 x'efbfbf',255) AND
+  c39 = _utf8mb3 x'efbfbf' AND
+  c40 = REPEAT(_utf8mb3 x'efbfbf',255) AND
   c41 = _ucs2 x'ffff' AND
   c42 = '' AND
   c43 = _ucs2 x'ffff' AND
@@ -1314,9 +1314,9 @@ DELETE FROM t1 WHERE
   c47 = REPEAT(x'ff',255) AND
   c48 = REPEAT(x'ff',261) AND
   c49 = '' AND
-  c50 = _utf8 x'efbfbf' AND
-  c51 = REPEAT(_utf8 x'efbfbf',255) AND
-  c52 = REPEAT(_utf8 x'efbfbf',261) AND
+  c50 = _utf8mb3 x'efbfbf' AND
+  c51 = REPEAT(_utf8mb3 x'efbfbf',255) AND
+  c52 = REPEAT(_utf8mb3 x'efbfbf',261) AND
   c53 = '' AND
   c54 = _ucs2 x'ffff' AND
   c55 = REPEAT(_ucs2 x'ffff',255) AND
@@ -1487,10 +1487,10 @@ DELETE FROM t1 WHERE
   c34 = '' AND
   c35 = 'e' AND
   c36 = REPEAT('i',255) AND
-  c37 = _utf8 x'c3a4' AND
+  c37 = _utf8mb3 x'c3a4' AND
   c38 = '' AND
-  c39 = _utf8 x'c3b6' AND
-  c40 = REPEAT(_utf8 x'c3bc',255) AND
+  c39 = _utf8mb3 x'c3b6' AND
+  c40 = REPEAT(_utf8mb3 x'c3bc',255) AND
   c41 = _ucs2 x'00e4' AND
   c42 = '' AND
   c43 = _ucs2 x'00f6' AND
@@ -1501,9 +1501,9 @@ DELETE FROM t1 WHERE
   c47 = REPEAT('e',255) AND
   c48 = REPEAT('i',261) AND
   c49 = '' AND
-  c50 = _utf8 x'c3a4' AND
-  c51 = REPEAT(_utf8 x'c3b6',255) AND
-  c52 = REPEAT(_utf8 x'c3bc',261) AND
+  c50 = _utf8mb3 x'c3a4' AND
+  c51 = REPEAT(_utf8mb3 x'c3b6',255) AND
+  c52 = REPEAT(_utf8mb3 x'c3bc',261) AND
   c53 = '' AND
   c54 = _ucs2 x'00e4' AND
   c55 = REPEAT(_ucs2 x'00f6',255) AND

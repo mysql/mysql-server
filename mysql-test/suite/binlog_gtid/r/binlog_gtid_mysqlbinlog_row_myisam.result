@@ -1,6 +1,6 @@
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Preparatory cleanup.
 #
@@ -275,10 +275,10 @@ x'ff',                        -- c33
 '',                           -- c34
 x'ff',                        -- c35
 REPEAT(x'ff',255),            -- c36
-_utf8 x'efbfbf',              -- c37
+_utf8mb3 x'efbfbf',           -- c37
 '',                           -- c38
-_utf8 x'efbfbf',              -- c39
-REPEAT(_utf8 x'efbfbf',255),  -- c40
+_utf8mb3 x'efbfbf',           -- c39
+REPEAT(_utf8mb3 x'efbfbf',255),-- c40
 _ucs2 x'ffff',                -- c41
 '',                           -- c42
 _ucs2 x'ffff',                -- c43
@@ -289,9 +289,9 @@ x'ff',                        -- c46
 REPEAT(x'ff',255),            -- c47
 REPEAT(x'ff',261),            -- c48
 '',                           -- c49
-_utf8 x'efbfbf',              -- c50
-REPEAT(_utf8 x'efbfbf',255),  -- c51
-REPEAT(_utf8 x'efbfbf',261),  -- c52
+_utf8mb3 x'efbfbf',           -- c50
+REPEAT(_utf8mb3 x'efbfbf',255),-- c51
+REPEAT(_utf8mb3 x'efbfbf',261),-- c52
 '',                           -- c53
 _ucs2 x'ffff',                -- c54
 REPEAT(_ucs2 x'ffff',255),    -- c55
@@ -326,15 +326,15 @@ REPEAT(x'ff',261),            -- c64
 2                             -- crn -- row number
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -468,10 +468,10 @@ true,                         -- c06
 '',                           -- c34
 'e',                          -- c35
 REPEAT('i',255),              -- c36
-_utf8 x'c3a4',                -- c37
+_utf8mb3 x'c3a4',             -- c37
 '',                           -- c38
-_utf8 x'c3b6',                -- c39
-REPEAT(_utf8 x'c3bc',255),    -- c40
+_utf8mb3 x'c3b6',             -- c39
+REPEAT(_utf8mb3 x'c3bc',255), -- c40
 _ucs2 x'00e4',                -- c41
 '',                           -- c42
 _ucs2 x'00f6',                -- c43
@@ -482,9 +482,9 @@ REPEAT(_ucs2 x'00fc',255),    -- c44
 REPEAT('e',255),              -- c47
 REPEAT('i',261),              -- c48
 '',                           -- c49
-_utf8 x'c3a4',                -- c50
-REPEAT(_utf8 x'c3b6',255),    -- c51
-REPEAT(_utf8 x'c3bc',261),    -- c52
+_utf8mb3 x'c3a4',             -- c50
+REPEAT(_utf8mb3 x'c3b6',255), -- c51
+REPEAT(_utf8mb3 x'c3bc',261), -- c52
 '',                           -- c53
 _ucs2 x'00e4',                -- c54
 REPEAT(_ucs2 x'00f6',255),    -- c55
@@ -519,15 +519,15 @@ REPEAT('\'',261),             -- c64
   4                             -- crn -- row number
   );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -901,10 +901,10 @@ c33 = x'ff',
 c34 = '',
 c35 = x'ff',
 c36 = REPEAT(x'ff',255),
-c37 = _utf8 x'efbfbf',
+c37 = _utf8mb3 x'efbfbf',
 c38 = '',
-c39 = _utf8 x'efbfbf',
-c40 = REPEAT(_utf8 x'efbfbf',255),
+c39 = _utf8mb3 x'efbfbf',
+c40 = REPEAT(_utf8mb3 x'efbfbf',255),
 c41 = _ucs2 x'ffff',
 c42 = '',
 c43 = _ucs2 x'ffff',
@@ -915,9 +915,9 @@ c46 = x'ff',
 c47 = REPEAT(x'ff',255),
 c48 = REPEAT(x'ff',261),
 c49 = '',
-c50 = _utf8 x'efbfbf',
-c51 = REPEAT(_utf8 x'efbfbf',255),
-c52 = REPEAT(_utf8 x'efbfbf',261),
+c50 = _utf8mb3 x'efbfbf',
+c51 = REPEAT(_utf8mb3 x'efbfbf',255),
+c52 = REPEAT(_utf8mb3 x'efbfbf',261),
 c53 = '',
 c54 = _ucs2 x'ffff',
 c55 = REPEAT(_ucs2 x'ffff',255),
@@ -1043,15 +1043,15 @@ crn = 1;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 12
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1188,10 +1188,10 @@ c33 = x'ff' AND
 c34 = '' AND
 c35 = x'ff' AND
 c36 = REPEAT(x'ff',255) AND
-c37 = _utf8 x'efbfbf' AND
+c37 = _utf8mb3 x'efbfbf' AND
 c38 = '' AND
-c39 = _utf8 x'efbfbf' AND
-c40 = REPEAT(_utf8 x'efbfbf',255) AND
+c39 = _utf8mb3 x'efbfbf' AND
+c40 = REPEAT(_utf8mb3 x'efbfbf',255) AND
 c41 = _ucs2 x'ffff' AND
 c42 = '' AND
 c43 = _ucs2 x'ffff' AND
@@ -1202,9 +1202,9 @@ c46 = x'ff' AND
 c47 = REPEAT(x'ff',255) AND
 c48 = REPEAT(x'ff',261) AND
 c49 = '' AND
-c50 = _utf8 x'efbfbf' AND
-c51 = REPEAT(_utf8 x'efbfbf',255) AND
-c52 = REPEAT(_utf8 x'efbfbf',261) AND
+c50 = _utf8mb3 x'efbfbf' AND
+c51 = REPEAT(_utf8mb3 x'efbfbf',255) AND
+c52 = REPEAT(_utf8mb3 x'efbfbf',261) AND
 c53 = '' AND
 c54 = _ucs2 x'ffff' AND
 c55 = REPEAT(_ucs2 x'ffff',255) AND
@@ -1240,15 +1240,15 @@ crn = 2;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 12
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1294,10 +1294,10 @@ c33 = 'a',
 c34 = '',
 c35 = 'e',
 c36 = REPEAT('i',255),
-c37 = _utf8 x'c3a4',
+c37 = _utf8mb3 x'c3a4',
 c38 = '',
-c39 = _utf8 x'c3b6',
-c40 = REPEAT(_utf8 x'c3bc',255),
+c39 = _utf8mb3 x'c3b6',
+c40 = REPEAT(_utf8mb3 x'c3bc',255),
 c41 = _ucs2 x'00e4',
 c42 = '',
 c43 = _ucs2 x'00f6',
@@ -1308,9 +1308,9 @@ c46 = 'a',
 c47 = REPEAT('e',255),
 c48 = REPEAT('i',261),
 c49 = '',
-c50 = _utf8 x'c3a4',
-c51 = REPEAT(_utf8 x'c3b6',255),
-c52 = REPEAT(_utf8 x'c3bc',261),
+c50 = _utf8mb3 x'c3a4',
+c51 = REPEAT(_utf8mb3 x'c3b6',255),
+c52 = REPEAT(_utf8mb3 x'c3bc',261),
 c53 = '',
 c54 = _ucs2 x'00e4',
 c55 = REPEAT(_ucs2 x'00f6',255),
@@ -1436,15 +1436,15 @@ c64 = REPEAT('\'',261),
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 12
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1581,10 +1581,10 @@ c33 = 'a' AND
 c34 = '' AND
 c35 = 'e' AND
 c36 = REPEAT('i',255) AND
-c37 = _utf8 x'c3a4' AND
+c37 = _utf8mb3 x'c3a4' AND
 c38 = '' AND
-c39 = _utf8 x'c3b6' AND
-c40 = REPEAT(_utf8 x'c3bc',255) AND
+c39 = _utf8mb3 x'c3b6' AND
+c40 = REPEAT(_utf8mb3 x'c3bc',255) AND
 c41 = _ucs2 x'00e4' AND
 c42 = '' AND
 c43 = _ucs2 x'00f6' AND
@@ -1595,9 +1595,9 @@ c46 = 'a' AND
 c47 = REPEAT('e',255) AND
 c48 = REPEAT('i',261) AND
 c49 = '' AND
-c50 = _utf8 x'c3a4' AND
-c51 = REPEAT(_utf8 x'c3b6',255) AND
-c52 = REPEAT(_utf8 x'c3bc',261) AND
+c50 = _utf8mb3 x'c3a4' AND
+c51 = REPEAT(_utf8mb3 x'c3b6',255) AND
+c52 = REPEAT(_utf8mb3 x'c3bc',261) AND
 c53 = '' AND
 c54 = _ucs2 x'00e4' AND
 c55 = REPEAT(_ucs2 x'00f6',255) AND
@@ -1633,15 +1633,15 @@ c64 = REPEAT('\'',261) AND
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 12
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -2012,10 +2012,10 @@ c33 = x'ff' AND
 c34 = '' AND
 c35 = x'ff' AND
 c36 = REPEAT(x'ff',255) AND
-c37 = _utf8 x'efbfbf' AND
+c37 = _utf8mb3 x'efbfbf' AND
 c38 = '' AND
-c39 = _utf8 x'efbfbf' AND
-c40 = REPEAT(_utf8 x'efbfbf',255) AND
+c39 = _utf8mb3 x'efbfbf' AND
+c40 = REPEAT(_utf8mb3 x'efbfbf',255) AND
 c41 = _ucs2 x'ffff' AND
 c42 = '' AND
 c43 = _ucs2 x'ffff' AND
@@ -2026,9 +2026,9 @@ c46 = x'ff' AND
 c47 = REPEAT(x'ff',255) AND
 c48 = REPEAT(x'ff',261) AND
 c49 = '' AND
-c50 = _utf8 x'efbfbf' AND
-c51 = REPEAT(_utf8 x'efbfbf',255) AND
-c52 = REPEAT(_utf8 x'efbfbf',261) AND
+c50 = _utf8mb3 x'efbfbf' AND
+c51 = REPEAT(_utf8mb3 x'efbfbf',255) AND
+c52 = REPEAT(_utf8mb3 x'efbfbf',261) AND
 c53 = '' AND
 c54 = _ucs2 x'ffff' AND
 c55 = REPEAT(_ucs2 x'ffff',255) AND
@@ -2063,15 +2063,15 @@ c78 = 'a,b,c' AND
 crn = 1;
 affected rows: 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -2212,10 +2212,10 @@ c33 = 'a' AND
 c34 = '' AND
 c35 = 'e' AND
 c36 = REPEAT('i',255) AND
-c37 = _utf8 x'c3a4' AND
+c37 = _utf8mb3 x'c3a4' AND
 c38 = '' AND
-c39 = _utf8 x'c3b6' AND
-c40 = REPEAT(_utf8 x'c3bc',255) AND
+c39 = _utf8mb3 x'c3b6' AND
+c40 = REPEAT(_utf8mb3 x'c3bc',255) AND
 c41 = _ucs2 x'00e4' AND
 c42 = '' AND
 c43 = _ucs2 x'00f6' AND
@@ -2226,9 +2226,9 @@ c46 = 'a' AND
 c47 = REPEAT('e',255) AND
 c48 = REPEAT('i',261) AND
 c49 = '' AND
-c50 = _utf8 x'c3a4' AND
-c51 = REPEAT(_utf8 x'c3b6',255) AND
-c52 = REPEAT(_utf8 x'c3bc',261) AND
+c50 = _utf8mb3 x'c3a4' AND
+c51 = REPEAT(_utf8mb3 x'c3b6',255) AND
+c52 = REPEAT(_utf8mb3 x'c3bc',261) AND
 c53 = '' AND
 c54 = _ucs2 x'00e4' AND
 c55 = REPEAT(_ucs2 x'00f6',255) AND
@@ -2263,15 +2263,15 @@ c64 = REPEAT('\'',261) AND
   crn = 3;
 affected rows: 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
