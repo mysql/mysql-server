@@ -285,8 +285,6 @@ SET @@persist_only.log_bin_basename= "/";
 ERROR HY000: Variable 'log_bin_basename' is a non persistent read only variable
 SET @@persist_only.log_bin_index= "/";
 ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
-SET @@persist_only.relay_log_info_file= "/";
-ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 SET @@persist_only.bind_address= "";
 ERROR HY000: Variable 'bind_address' is a non persistent read only variable
 SET @@persist_only.port= "";

@@ -13,7 +13,6 @@ let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order
 --source include/skip_by_command_line_option.inc
 
 #####################################################################
-# WL#11031: Deprecate --relay-log-info-file and --master-info-file  #
 # WL#12892: Deprecate --slave_rows_search_algorithms                #
 # WL#13968 : Deprecate sync_relay_log_info                          #
 # WL#13964: Deprecate binlog_transaction_dependency_tracking        #
@@ -26,11 +25,8 @@ let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order
 --let $rpl_omit_print_server_parameters=1
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let $rli_file=$MYSQLD_DATADIR/relay-log.info
---let $mi_file=$MYSQLD_DATADIR/master.info
 
 # check reading deprecated system variables
-SELECT @@global.relay_log_info_file;
 --replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
 SELECT @@global.slave_rows_search_algorithms;
 
@@ -75,7 +71,7 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-file=$mi_file --skip-replica-start --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --skip-replica-start --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
   }
 
   if ($i == 1)
@@ -103,10 +99,6 @@ while($i > 0) {
     SET PERSIST binlog_transaction_dependency_tracking=WRITESET;
     SET PERSIST binlog_transaction_dependency_tracking=COMMIT_ORDER;
 
-    --replace_result $rli_file RLI_FILE
-    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-
-    --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
     --let $rpl_server_parameters= --binlog_format=ROW --binlog-transaction-dependency-tracking=COMMIT_ORDER
   }
 
@@ -120,8 +112,6 @@ while($i > 0) {
     # Check that the warnings are logged in the Error log if the deprecated variables were passed on the command line.
     let $error_pattern = 'binlog_format' is deprecated and will be removed in a future release.
     '--sync-relay-log-info' is deprecated and will be removed in a future release.
-    The syntax '--master-info-file' is deprecated and will be removed in a future release.
-    The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
     The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.

@@ -62,7 +62,7 @@ CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
   ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
   ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
-  ('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
+  ('relay_log_index'), ('replica_load_tmpdir'),
   ('slave_load_tmpdir');
 
 CREATE TABLE aliases (
@@ -84,7 +84,7 @@ INSERT INTO aliases(name) VALUES
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $expected = 111
+--let $expected = 110
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc

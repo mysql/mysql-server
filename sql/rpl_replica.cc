@@ -1721,9 +1721,9 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       return error;
     }
 
-    DBUG_PRINT("info", ("Flushing relay-log info file."));
+    DBUG_PRINT("info", ("Flushing applier metadata."));
     if (current_thd)
-      THD_STAGE_INFO(current_thd, stage_flushing_relay_log_info_file);
+      THD_STAGE_INFO(current_thd, stage_flushing_applier_metadata);
 
     /*
       Flushes the relay log info regardless of the sync_relay_log_info option.
@@ -3658,7 +3658,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   // Master_Server_id
   protocol->store((uint32)mi->master_id);
   protocol->store(mi->master_uuid, &my_charset_bin);
-  // Master_Info_File
+  // Master_info_file
   protocol->store(mi->get_description_info(), &my_charset_bin);
   // SQL_Delay
   protocol->store((uint32)mi->rli->get_sql_delay());

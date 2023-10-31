@@ -321,8 +321,6 @@ SET @@persist_only.log_bin_basename= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.log_bin_index= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.relay_log_info_file= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.bind_address= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.port= "";

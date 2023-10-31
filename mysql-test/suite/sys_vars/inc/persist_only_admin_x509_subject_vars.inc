@@ -38,8 +38,6 @@ SET PERSIST_ONLY port = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY relay_log = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY relay_log_info_file = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY secure_file_priv = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY skip_networking = DEFAULT;

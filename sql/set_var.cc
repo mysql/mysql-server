@@ -1460,7 +1460,6 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
           "lc_messages_dir",
           "plugin_dir",
           "relay_log",
-          "relay_log_info_file",
           "replica_load_tmpdir",
           "socket",
           "tmpdir",

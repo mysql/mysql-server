@@ -355,8 +355,6 @@ extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
 extern char *replica_load_tmpdir;
-extern const char *master_info_file;
-extern const char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern bool opt_relaylog_index_name_supplied;
 extern bool opt_relay_logname_supplied;
@@ -639,8 +637,6 @@ bool net_request_file(NET *net, const char *fname);
 extern bool replicate_same_server_id;
 /* the master variables are defaults read from my.cnf or command line */
 extern uint report_port;
-extern const char *master_info_file;
-extern const char *relay_log_info_file;
 extern char *report_user;
 extern char *report_host, *report_password;
 

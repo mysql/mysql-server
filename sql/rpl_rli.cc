@@ -1983,7 +1983,7 @@ enum_return_check Relay_log_info::check_if_info_was_cleared(
     int lines = strtoul(number_of_lines, &first_non_digit, 10);
 
     if (number_of_lines[0] != '\0' && *first_non_digit == '\0' &&
-        lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+        lines >= APPLIER_METADATA_LINES_WITH_REQUIRE_ROW_FORMAT) {
       char log_name[FN_REFLEN] = {0};
 
       if (this->handler->get_info(log_name, sizeof(log_name), "") ==
@@ -2000,7 +2000,7 @@ bool Relay_log_info::clear_info() {
   this->handler->init_info();
 
   if (this->handler->prepare_info_for_write() ||
-      this->handler->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
+      this->handler->set_info((int)MAXIMUM_APPLIER_METADATA_LINES) ||
       this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
       this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
       this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
@@ -2098,7 +2098,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     from. We can't simply count the lines in the file, since
     versions before 5.1.x could generate files with more lines than
     needed. If first line doesn't contain a number, or if it
-    contains a number less than LINES_IN_RELAY_LOG_INFO_WITH_DELAY,
+    contains a number less than APPLIER_METADATA_LINES_WITH_DELAY,
     then the file is treated like a file from pre-5.1.x version.
     There is no ambiguity when reading an old master.info: before
     5.1.x, the first line contained the binlog's name, which is
@@ -2121,7 +2121,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   lines = strtoul(group_relay_log_name, &first_non_digit, 10);
 
   if (group_relay_log_name[0] != '\0' && *first_non_digit == '\0' &&
-      lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
+      lines >= APPLIER_METADATA_LINES_WITH_DELAY) {
     /* Seems to be new format => read group relay log name */
     status =
         from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "");
@@ -2144,22 +2144,22 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   status = from->get_info(&temp_group_master_log_pos, 0UL);
   if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_DELAY) {
     status = from->get_info(&temp_sql_delay, 0);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_WORKERS) {
     status = from->get_info(&recovery_parallel_workers, 0UL);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_ID) {
     status = from->get_info(&temp_internal_id, 1);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_CHANNEL) {
     /* the default value is empty string"" */
     if (!!from->get_info(channel, sizeof(channel), "")) return true;
   }
@@ -2170,7 +2170,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
    */
   char temp_privilege_checks_username[PRIV_CHECKS_USERNAME_LENGTH + 4] = {0};
   char *username = nullptr;
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_USERNAME) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_PRIV_CHECKS_USERNAME) {
     status = from->get_info(temp_privilege_checks_username,
                             PRIV_CHECKS_USERNAME_LENGTH + 1, nullptr);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
@@ -2184,7 +2184,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
    */
   char temp_privilege_checks_hostname[PRIV_CHECKS_HOSTNAME_LENGTH + 4] = {0};
   char *hostname = nullptr;
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_PRIV_CHECKS_HOSTNAME) {
     status = from->get_info(temp_privilege_checks_hostname,
                             PRIV_CHECKS_HOSTNAME_LENGTH + 1, nullptr);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
@@ -2192,7 +2192,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
       hostname = temp_privilege_checks_hostname;
   }
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_REQUIRE_ROW_FORMAT) {
     if (!!from->get_info(&temp_require_row_format, 0)) return true;
   } else {
     if (channel_map.is_group_replication_channel_name(channel))
@@ -2200,7 +2200,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   }
   m_require_row_format = temp_require_row_format;
 
-  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK) {
+  if (lines >= APPLIER_METADATA_LINES_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK) {
     if (!!from->get_info(&temp_require_table_primary_key_check, 1)) return true;
   }
   if (temp_require_table_primary_key_check < Relay_log_info::PK_CHECK_STREAM ||
@@ -2219,7 +2219,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
           temp_require_table_primary_key_check);
 
   if (lines >=
-      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE) {
+      APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE) {
     const ulong off = static_cast<ulong>(
         Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF);
     const ulong manual = static_cast<ulong>(
@@ -2240,7 +2240,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   }
 
   if (lines >=
-      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE) {
+      APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE) {
     char temp_assign_gtids_to_anonymous_transactions_value
         [mysql::gtid::Uuid::TEXT_LENGTH + 1] = {0};
     status = from->get_info(temp_assign_gtids_to_anonymous_transactions_value,
@@ -2269,7 +2269,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   } else {
     // If the file contains the TYPE, then the VALUE is mandatory.
     if (lines >=
-        LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE)
+        APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE)
       return true;
   }
 
@@ -2307,7 +2307,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
 bool Relay_log_info::set_info_search_keys(Rpl_info_handler *to) {
   DBUG_TRACE;
 
-  if (to->set_info(LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL, channel)) return true;
+  if (to->set_info(APPLIER_METADATA_LINES_WITH_CHANNEL, channel)) return true;
 
   return false;
 }
@@ -2321,7 +2321,7 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
   */
   // assert(!belongs_to_client());
   if (to->prepare_info_for_write() ||
-      to->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
+      to->set_info((int)MAXIMUM_APPLIER_METADATA_LINES) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong)group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
