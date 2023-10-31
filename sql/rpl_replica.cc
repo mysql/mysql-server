@@ -5811,6 +5811,7 @@ extern "C" void *handle_slave_io(void *arg) {
             thd->clear_active_vio();
             mysql_close(mysql);
             mi->mysql = nullptr;
+            mysql = nullptr;
           }
           goto connect_init;
         }
@@ -5846,6 +5847,7 @@ extern "C" void *handle_slave_io(void *arg) {
       thd->clear_active_vio();
       mysql_close(mysql);
       mi->mysql = nullptr;
+      mysql = nullptr;
     }
     write_ignored_events_info_to_relay_log(thd, mi);
     THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);
