@@ -1,3 +1,5 @@
+source include/full_result_diff.inc;
+
 --perl
 use strict;
 use lib "lib/";

@@ -4,6 +4,8 @@ if (!$NDBT_BINARIES_AVAILABLE) {
   die Should be autoskipped when NDB test binaries not available;
 }
 
+source include/full_result_diff.inc;
+
 --perl
 use strict;
 use lib "lib/";
