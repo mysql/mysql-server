@@ -328,9 +328,9 @@ bool has_rollup_result(Item *item) {
   return false;
 }
 
-bool is_rollup_group_wrapper(Item *item) {
+bool is_rollup_group_wrapper(const Item *item) {
   return item->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(item)->functype() ==
+         down_cast<const Item_func *>(item)->functype() ==
              Item_func::ROLLUP_GROUP_ITEM_FUNC;
 }
 
