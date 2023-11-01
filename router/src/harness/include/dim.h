@@ -540,8 +540,7 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   T &get_external_generic(UniquePtr<T> &object,
                           const std::function<T *()> &factory,
                           const std::function<void(T *)> &deleter) {
-    mtx_.lock();
-    std::shared_ptr<void> exit_trigger(nullptr, [&](void *) { mtx_.unlock(); });
+    std::lock_guard lk(mtx_);
 
     if (!object) object = new_generic(factory, deleter);
 
@@ -550,8 +549,7 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
 
   template <typename T>
   void reset_generic(UniquePtr<T> &object) {
-    mtx_.lock();
-    std::shared_ptr<void> exit_trigger(nullptr, [&](void *) { mtx_.unlock(); });
+    std::lock_guard lk(mtx_);
 
     object.reset();
   }
