@@ -525,8 +525,21 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             set_names_sysvar.set(3);
           }
 
+          auto value_from_kv = [](auto kv) -> Value {
+            // the session tracker can't report NULL. Instead it reports "".
+            //
+            // In the case of 'character_set_results' setting "" leads to an
+            // error which means "" needs to be converted back to NULL again.
+            if (kv.value().empty() &&
+                (kv.key() == "character_set_results" ||
+                 kv.key() == "innodb_ft_user_stopword_table")) {
+              return {std::nullopt};
+            }
+            return {std::string(kv.value())};
+          };
+
           exec_ctx_.system_variables().set(std::string(kv.key()),
-                                           Value(std::string(kv.value())));
+                                           value_from_kv(kv));
 
           if (auto &tr = tracer()) {
             std::ostringstream oss;

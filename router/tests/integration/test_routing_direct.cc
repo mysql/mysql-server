@@ -35,6 +35,7 @@
 #include <system_error>
 #include <thread>
 #include <type_traits>
+#include <unordered_set>
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock-more-matchers.h>
@@ -3529,6 +3530,875 @@ TEST_P(ConnectionTest, classic_protocol_query_attribute_router_trace_ignored) {
     auto warning_count_res = cli.warning_count();
     ASSERT_NO_ERROR(warning_count_res);
     EXPECT_EQ(*warning_count_res, 0);
+  }
+}
+
+// 1238
+static const std::unordered_set<std::string_view> read_only_sys_vars{
+    "admin_address",
+    "admin_port",
+    "auto_generate_certs",
+    "back_log",
+    "basedir",
+    "bind_address",
+    "binlog_gtid_simple_recovery",
+    "binlog_rotate_encryption_master_key_at_startup",
+    "binlog_row_event_max_size",
+    "build_id",
+    "caching_sha2_password_auto_generate_rsa_keys",
+    "caching_sha2_password_digest_rounds",
+    "caching_sha2_password_private_key_path",
+    "caching_sha2_password_public_key_path",
+    "character_set_system",
+    "character_sets_dir",
+    "core_file",
+    "create_admin_listener_thread",
+    "datadir",
+    "default_authentication_plugin",
+    "disabled_storage_engines",
+    "disconnect_on_expired_password",
+    "error_count",
+    "external_user",
+    "ft_max_word_len",
+    "ft_min_word_len",
+    "ft_query_expansion_limit",
+    "ft_stopword_file",
+    "gtid_executed",
+    "gtid_owned",
+    "have_compress",
+    "have_dynamic_loading",
+    "have_geometry",
+    "have_openssl",
+    "have_profiling",
+    "have_query_cache",
+    "have_rtree_keys",
+    "have_ssl",
+    "have_statement_timeout",
+    "have_symlink",
+    "hostname",
+    "init_file",
+    "innodb_adaptive_hash_index_parts",
+    "innodb_api_disable_rowlock",
+    "innodb_api_enable_binlog",
+    "innodb_api_enable_mdl",
+    "innodb_autoinc_lock_mode",
+    "innodb_buffer_pool_chunk_size",
+    "innodb_buffer_pool_instances",
+    "innodb_buffer_pool_load_at_startup",
+    "innodb_data_file_path",
+    "innodb_data_home_dir",
+    "innodb_dedicated_server",
+    "innodb_directories",
+    "innodb_doublewrite_batch_size",
+    "innodb_doublewrite_dir",
+    "innodb_doublewrite_files",
+    "innodb_doublewrite_pages",
+    "innodb_flush_method",
+    "innodb_force_load_corrupted",
+    "innodb_force_recovery",
+    "innodb_ft_cache_size",
+    "innodb_ft_max_token_size",
+    "innodb_ft_min_token_size",
+    "innodb_ft_sort_pll_degree",
+    "innodb_ft_total_cache_size",
+    "innodb_log_file_size",
+    "innodb_log_files_in_group",
+    "innodb_log_group_home_dir",
+    "innodb_numa_interleave",
+    "innodb_open_files",
+    "innodb_page_cleaners",
+    "innodb_page_size",
+    "innodb_purge_threads",
+    "innodb_read_io_threads",
+    "innodb_read_only",
+    "innodb_rollback_on_timeout",
+    "innodb_sort_buffer_size",
+    "innodb_sync_array_size",
+    "innodb_temp_data_file_path",
+    "innodb_temp_tablespaces_dir",
+    "innodb_undo_directory",
+    "innodb_use_native_aio",
+    "innodb_validate_tablespace_paths",
+    "innodb_write_io_threads",
+    "innodb_version",
+    "large_files_support",
+    "large_page_size",
+    "large_pages",
+    "lc_messages_dir",
+    "license",
+    "locked_in_memory",
+    "log_bin",
+    "log_bin_basename",
+    "log_bin_index",
+    "log_error",
+    "log_replica_updates",
+    "log_slave_updates",
+    "lower_case_file_system",
+    "lower_case_table_names",
+    "max_digest_length",
+    "myisam_mmap_size",
+    "myisam_recover_options",
+    "mysqlx_bind_address",
+    "mysqlx_port",
+    "mysqlx_port_open_timeout",
+    "mysqlx_socket",
+    "mysqlx_ssl_ca",
+    "mysqlx_ssl_capath",
+    "mysqlx_ssl_cert",
+    "mysqlx_ssl_cipher",
+    "mysqlx_ssl_crl",
+    "mysqlx_ssl_crlpath",
+    "mysqlx_ssl_key",
+    "ngram_token_size",
+    "named_pipe",
+    "old",
+    "open_files_limit",
+    "performance_schema",
+    "performance_schema_accounts_size",
+    "performance_schema_digests_size",
+    "performance_schema_error_size",
+    "performance_schema_events_stages_history_long_size",
+    "performance_schema_events_stages_history_size",
+    "performance_schema_events_statements_history_long_size",
+    "performance_schema_events_statements_history_size",
+    "performance_schema_events_transactions_history_long_size",
+    "performance_schema_events_transactions_history_size",
+    "performance_schema_events_waits_history_long_size",
+    "performance_schema_events_waits_history_size",
+    "performance_schema_hosts_size",
+    "performance_schema_max_cond_classes",
+    "performance_schema_max_cond_instances",
+    "performance_schema_max_digest_length",
+    "performance_schema_max_file_classes",
+    "performance_schema_max_file_handles",
+    "performance_schema_max_file_instances",
+    "performance_schema_max_index_stat",
+    "performance_schema_max_memory_classes",
+    "performance_schema_max_metadata_locks",
+    "performance_schema_max_meter_classes",
+    "performance_schema_max_metric_classes",
+    "performance_schema_max_mutex_classes",
+    "performance_schema_max_mutex_instances",
+    "performance_schema_max_prepared_statements_instances",
+    "performance_schema_max_program_instances",
+    "performance_schema_max_rwlock_classes",
+    "performance_schema_max_rwlock_instances",
+    "performance_schema_max_socket_classes",
+    "performance_schema_max_socket_instances",
+    "performance_schema_max_sql_text_length",
+    "performance_schema_max_stage_classes",
+    "performance_schema_max_statement_classes",
+    "performance_schema_max_statement_stack",
+    "performance_schema_max_table_handles",
+    "performance_schema_max_table_instances",
+    "performance_schema_max_table_lock_stat",
+    "performance_schema_max_thread_classes",
+    "performance_schema_max_thread_instances",
+    "performance_schema_session_connect_attrs_size",
+    "performance_schema_setup_actors_size",
+    "performance_schema_setup_objects_size",
+    "performance_schema_users_size",
+    "persist_only_admin_x509_subject",
+    "persist_sensitive_variables_in_plaintext",
+    "persisted_globals_load",
+    "pid_file",
+    "plugin_dir",
+    "port",
+    "protocol_version",
+    "proxy_user",
+    "relay_log",
+    "relay_log_basename",
+    "relay_log_index",
+    "relay_log_recovery",
+    "relay_log_space_limit",
+    "replica_load_tmpdir",
+    "replica_skip_errors",
+    "report_host",
+    "report_password",
+    "report_port",
+    "report_user",
+    "sha256_password_auto_generate_rsa_keys",
+    "sha256_password_private_key_path",
+    "sha256_password_public_key_path",
+    "shared_memory",
+    "shared_memory_base_name",
+    "secure_file_priv",
+    "server_uuid",
+    "skip_external_locking",
+    "skip_networking",
+    "skip_name_resolve",
+    "skip_replica_start",
+    "skip_show_database",
+    "skip_slave_start",
+    "slave_load_tmpdir",
+    "slave_skip_errors",
+    "socket",
+    "ssl_fips_mode",
+    "statement_id",
+    "system_time_zone",
+    "table_open_cache_instances",
+    "thread_handling",
+    "thread_stack",
+    "tls_certificates_enforced_validation",
+    "tmpdir",
+    "version",
+    "version_comment",
+    "version_compile_machine",
+    "version_compile_os",
+    "version_compile_zlib",
+    "warning_count",
+};
+
+// 1229
+static const std::unordered_set<std::string_view> global_sys_vars{
+    "activate_all_roles_on_login",
+    "admin_ssl_ca",
+    "admin_ssl_capath",
+    "admin_ssl_cert",
+    "admin_ssl_cipher",
+    "admin_ssl_crl",
+    "admin_ssl_crlpath",
+    "admin_ssl_key",
+    "admin_tls_ciphersuites",
+    "admin_tls_version",
+    "authentication_policy",
+    "automatic_sp_privileges",
+    "avoid_temporal_upgrade",
+    "binlog_cache_size",
+    "binlog_checksum",
+    "binlog_encryption",
+    "binlog_error_action",
+    "binlog_expire_logs_auto_purge",
+    "binlog_expire_logs_seconds",
+    "binlog_group_commit_sync_delay",
+    "binlog_group_commit_sync_no_delay_count",
+    "binlog_max_flush_queue_time",
+    "binlog_order_commits",
+    "binlog_row_metadata",
+    "binlog_stmt_cache_size",
+    "binlog_transaction_dependency_history_size",
+    "binlog_transaction_dependency_tracking",
+    "check_proxy_users",
+    "concurrent_insert",
+    "connect_timeout",
+    "default_password_lifetime",
+    "delay_key_write",
+    "delayed_insert_limit",
+    "delayed_insert_timeout",
+    "delayed_queue_size",
+    "enforce_gtid_consistency",
+    "event_scheduler",
+    "flush",
+    "flush_time",
+    "ft_boolean_syntax",
+    "general_log",
+    "general_log_file",
+    "global_connection_memory_limit",
+    "gtid_executed_compression_period",
+    "gtid_mode",
+    "gtid_purged",
+    "host_cache_size",
+    "init_connect",
+    "init_replica",
+    "init_slave",
+    "innodb_adaptive_flushing",
+    "innodb_adaptive_flushing_lwm",
+    "innodb_adaptive_hash_index",
+    "innodb_adaptive_max_sleep_delay",
+    "innodb_api_bk_commit_interval",
+    "innodb_api_trx_level",
+    "innodb_autoextend_increment",
+    "innodb_buffer_pool_dump_at_shutdown",
+    "innodb_buffer_pool_dump_now",
+    "innodb_buffer_pool_dump_pct",
+    "innodb_buffer_pool_filename",
+    "innodb_buffer_pool_in_core_file",
+    "innodb_buffer_pool_load_abort",
+    "innodb_buffer_pool_load_now",
+    "innodb_buffer_pool_size",
+    "innodb_change_buffer_max_size",
+    "innodb_change_buffering",
+    "innodb_checksum_algorithm",
+    "innodb_cmp_per_index_enabled",
+    "innodb_commit_concurrency",
+    "innodb_compression_failure_threshold_pct",
+    "innodb_compression_level",
+    "innodb_compression_pad_pct_max",
+    "innodb_concurrency_tickets",
+    "innodb_deadlock_detect",
+    "innodb_default_row_format",
+    "innodb_disable_sort_file_cache",
+    "innodb_doublewrite",
+    "innodb_extend_and_initialize",
+    "innodb_fast_shutdown",
+    "innodb_file_per_table",
+    "innodb_fill_factor",
+    "innodb_flush_log_at_timeout",
+    "innodb_flush_log_at_trx_commit",
+    "innodb_flush_neighbors",
+    "innodb_flush_sync",
+    "innodb_flushing_avg_loops",
+    "innodb_fsync_threshold",
+    "innodb_ft_aux_table",
+    "innodb_ft_enable_diag_print",
+    "innodb_ft_num_word_optimize",
+    "innodb_ft_result_cache_limit",
+    "innodb_ft_server_stopword_table",
+    "innodb_idle_flush_pct",
+    "innodb_io_capacity",
+    "innodb_io_capacity_max",
+    "innodb_log_buffer_size",
+    "innodb_log_checksums",
+    "innodb_log_compressed_pages",
+    "innodb_log_spin_cpu_abs_lwm",
+    "innodb_log_spin_cpu_pct_hwm",
+    "innodb_log_wait_for_flush_spin_hwm",
+    "innodb_log_write_ahead_size",
+    "innodb_log_writer_threads",
+    "innodb_lru_scan_depth",
+    "innodb_max_dirty_pages_pct",
+    "innodb_max_dirty_pages_pct_lwm",
+    "innodb_max_purge_lag",
+    "innodb_max_purge_lag_delay",
+    "innodb_max_undo_log_size",
+    "innodb_monitor_disable",
+    "innodb_monitor_enable",
+    "innodb_monitor_reset",
+    "innodb_monitor_reset_all",
+    "innodb_old_blocks_pct",
+    "innodb_old_blocks_time",
+    "innodb_online_alter_log_max_size",
+    "innodb_optimize_fulltext_only",
+    "innodb_print_all_deadlocks",
+    "innodb_print_ddl_logs",
+    "innodb_purge_batch_size",
+    "innodb_purge_rseg_truncate_frequency",
+    "innodb_random_read_ahead",
+    "innodb_read_ahead_threshold",
+    "innodb_redo_log_archive_dirs",
+    "innodb_redo_log_capacity",
+    "innodb_redo_log_encrypt",
+    "innodb_replication_delay",
+    "innodb_rollback_segments",
+    "innodb_segment_reserve_factor",
+    "innodb_spin_wait_delay",
+    "innodb_spin_wait_pause_multiplier",
+    "innodb_stats_auto_recalc",
+    "innodb_stats_include_delete_marked",
+    "innodb_stats_method",
+    "innodb_stats_on_metadata",
+    "innodb_stats_persistent",
+    "innodb_stats_persistent_sample_pages",
+    "innodb_stats_transient_sample_pages",
+    "innodb_status_output",
+    "innodb_status_output_locks",
+    "innodb_sync_spin_loops",
+    "innodb_thread_concurrency",
+    "innodb_thread_sleep_delay",
+    "innodb_undo_log_encrypt",
+    "innodb_undo_log_truncate",
+    "innodb_undo_tablespaces",
+    "innodb_use_fdatasync",
+    "key_buffer_size",
+    "key_cache_age_threshold",
+    "key_cache_block_size",
+    "key_cache_division_limit",
+    "keyring_operations",
+    "local_infile",
+    "log_bin_trust_function_creators",
+    "log_error_services",
+    "log_error_suppression_list",
+    "log_error_verbosity",
+    "log_output",
+    "log_queries_not_using_indexes",
+    "log_raw",
+    "log_slow_admin_statements",
+    "log_slow_extra",
+    "log_slow_replica_statements",
+    "log_slow_slave_statements",
+    "log_statements_unsafe_for_binlog",
+    "log_throttle_queries_not_using_indexes",
+    "log_timestamps",
+    "mandatory_roles",
+    "master_verify_checksum",
+    "max_binlog_cache_size",
+    "max_binlog_size",
+    "max_binlog_stmt_cache_size",
+    "max_connect_errors",
+    "max_connections",
+    "max_prepared_stmt_count",
+    "max_relay_log_size",
+    "max_write_lock_count",
+    "myisam_data_pointer_size",
+    "myisam_max_sort_file_size",
+    "myisam_use_mmap",
+    "mysql_native_password_proxy_users",
+    "mysqlx_compression_algorithms",
+    "mysqlx_connect_timeout",
+    "mysqlx_deflate_default_compression_level",
+    "mysqlx_deflate_max_client_compression_level",
+    "mysqlx_document_id_unique_prefix",
+    "mysqlx_enable_hello_notice",
+    "mysqlx_idle_worker_thread_timeout",
+    "mysqlx_interactive_timeout",
+    "mysqlx_lz4_default_compression_level",
+    "mysqlx_lz4_max_client_compression_level",
+    "mysqlx_max_allowed_packet",
+    "mysqlx_max_connections",
+    "mysqlx_min_worker_threads",
+    "mysqlx_zstd_default_compression_level",
+    "mysqlx_zstd_max_client_compression_level",
+    "named_pipe_full_access_group",
+    "offline_mode",
+    "partial_revokes",
+    "password_history",
+    "password_require_current",
+    "password_reuse_interval",
+    "performance_schema_max_digest_sample_age",
+    "performance_schema_show_processlist",
+    "protocol_compression_algorithms",
+    "read_only",
+    "regexp_stack_limit",
+    "regexp_time_limit",
+    "relay_log_purge",
+    "replica_allow_batching",
+    "replica_checkpoint_group",
+    "replica_checkpoint_period",
+    "replica_compressed_protocol",
+    "replica_exec_mode",
+    "replica_max_allowed_packet",
+    "replica_net_timeout",
+    "replica_parallel_type",
+    "replica_parallel_workers",
+    "replica_pending_jobs_size_max",
+    "replica_preserve_commit_order",
+    "replica_sql_verify_checksum",
+    "replica_transaction_retries",
+    "replica_type_conversions",
+    "replication_optimize_for_static_plugin_config",
+    "replication_sender_observe_commit_only",
+    "require_secure_transport",
+    "rpl_read_size",
+    "rpl_stop_replica_timeout",
+    "rpl_stop_slave_timeout",
+    "schema_definition_cache",
+    "server_id",
+    "server_id_bits",
+    "sha256_password_proxy_users",
+    "slave_allow_batching",
+    "slave_checkpoint_group",
+    "slave_checkpoint_period",
+    "slave_compressed_protocol",
+    "slave_exec_mode",
+    "slave_max_allowed_packet",
+    "slave_net_timeout",
+    "slave_parallel_type",
+    "slave_parallel_workers",
+    "slave_pending_jobs_size_max",
+    "slave_preserve_commit_order",
+    "slave_rows_search_algorithms",
+    "slave_sql_verify_checksum",
+    "slave_transaction_retries",
+    "slave_type_conversions",
+    "slow_launch_time",
+    "slow_query_log",
+    "slow_query_log_file",
+    "source_verify_checksum",
+    "sql_replica_skip_counter",
+    "sql_slave_skip_counter",
+    "ssl_ca",
+    "ssl_capath",
+    "ssl_cert",
+    "ssl_cipher",
+    "ssl_crl",
+    "ssl_crlpath",
+    "ssl_key",
+    "ssl_session_cache_mode",
+    "ssl_session_cache_timeout",
+    "stored_program_cache",
+    "stored_program_definition_cache",
+    "super_read_only",
+    "sync_binlog",
+    "sync_master_info",
+    "sync_relay_log",
+    "sync_relay_log_info",
+    "sync_source_info",
+    "table_definition_cache",
+    "table_encryption_privilege_check",
+    "table_open_cache",
+    "tablespace_definition_cache",
+    "temptable_max_mmap",
+    "temptable_max_ram",
+    "temptable_use_mmap",
+    "thread_cache_size",
+    "tls_ciphersuites",
+    "tls_version",
+};
+
+// 1227
+static const std::unordered_set<std::string_view> super_sys_vars{
+    "binlog_direct_non_transactional_updates",
+    "binlog_format",
+    "binlog_row_image",
+    "binlog_row_value_options",
+    "binlog_rows_query_log_events",
+    "binlog_transaction_compression",
+    "binlog_transaction_compression_level_zstd",
+    "bulk_insert_buffer_size",
+    "character_set_database",
+    "character_set_filesystem",
+    "connection_memory_chunk_size",
+    "connection_memory_limit",
+    "global_connection_memory_tracking",
+    "gtid_executed",
+    "gtid_next",
+    "histogram_generation_max_mem_size",
+    "innodb_strict_mode",
+    "innodb_tmpdir",
+    "internal_tmp_mem_storage_engine",
+    "immediate_server_version",
+    "max_error_count",
+    "max_delayed_threads",
+    "max_examined_row_limit",
+    "min_examined_row_limit",
+    "max_insert_delayed_threads",
+    "low_priority_updates",
+    "pseudo_replica_mode",
+    "pseudo_slave_mode",
+    "pseudo_thread_id",
+    "original_server_version",
+    "original_commit_timestamp",
+    "preload_buffer_size",
+    "select_into_disk_sync_delay",
+    "select_into_buffer_size",
+    "show_old_temporals",
+    "sql_generate_invisible_primary_key",
+    "sql_require_primary_key",
+    "sql_log_bin",
+    "sql_log_off",
+    "sql_required_primary",
+    "xa_detach_on_prepare",
+};
+
+// 1621
+static const std::unordered_set<std::string_view> read_only_super_sys_vars{
+    "max_allowed_packet",
+    "max_user_connections",
+    "net_buffer_length",
+};
+
+TEST_P(ConnectionTest, classic_protocol_replay_session_trackers) {
+  RecordProperty("Description", "check if system-variables can be replayed.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  auto session_vars_res =
+      query_one_result(cli,
+                       "SELECT * "
+                       "  FROM performance_schema.session_variables "
+                       " ORDER BY VARIABLE_NAME");
+  ASSERT_NO_ERROR(session_vars_res);
+  auto session_vars = *session_vars_res;
+
+  for (auto var : session_vars) {
+    std::ostringstream oss;
+    oss << "SET @@SESSION." << std::quoted(var[0], '`') << "=";
+
+    if (var[1].empty()) {
+      if (var[0] == "innodb_ft_user_stopword_table") {
+        oss << "NULL";
+      } else {
+        oss << "''";
+      }
+    } else {
+      // check if the string needs to be replayed as number or as string.
+      auto needs_quotation = [](std::string_view s) -> bool {
+        if (s.empty()) return true;  // -> ""
+
+        // std::from_chars(double) would have worked here, but GCC 10 doesn't
+        // provide that.
+        const char *start = s.data();
+        const char *const end = start + s.size();
+
+        // skip initial sign as the number may be a uint64_t or a int64_t
+        if (*start == '-' || *start == '+') ++start;
+
+        uint64_t num;
+        auto is_numeric = std::from_chars(start, end, num);
+
+        if (is_numeric.ec == std::errc{}) {
+          if (is_numeric.ptr == end) return false;  // 10 -> 10
+
+          if (*is_numeric.ptr != '.') return true;  // 10abc -> "10abc"
+
+          start = is_numeric.ptr + 1;
+          is_numeric = std::from_chars(start, end, num);
+
+          if (is_numeric.ec == std::errc{} && is_numeric.ptr == end) {
+            return false;  // 10.12 -> 10.12
+          }
+        }
+
+        return true;  // abc -> "abc"
+      };
+
+      if (needs_quotation(var[1])) {
+        oss << std::quoted(var[1]);
+      } else {
+        oss << var[1];
+      }
+    }
+
+    SCOPED_TRACE("// " + oss.str());
+
+    auto set_var_res = query_one_result(cli, oss.str());
+
+    if (read_only_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      // is a read only variable
+      EXPECT_EQ(set_var_res.error().value(), 1238) << set_var_res.error();
+    } else if (global_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1229) << set_var_res.error();
+    } else if (super_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1227) << set_var_res.error();
+    } else if (read_only_super_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1621) << set_var_res.error();
+    } else {
+      EXPECT_NO_ERROR(set_var_res);
+    }
+  }
+}
+
+// 1231
+static const std::unordered_set<std::string_view> not_nullable_sys_vars{
+    "autocommit",
+    "big_tables",
+    "binlog_direct_non_transactional_updates",
+    "binlog_format",
+    "binlog_row_image",
+    "binlog_row_value_options",
+    "binlog_rows_query_log_events",
+    "binlog_transaction_compression",
+    "block_encryption_mode",
+    "character_set_client",
+    "character_set_connection",
+    "character_set_server",
+    "collation_connection",
+    "collation_database",
+    "collation_server",
+    "completion_type",
+    "default_collation_for_utf8mb4",
+    "default_storage_engine",
+    "default_table_encryption",
+    "default_tmp_storage_engine",
+    "end_markers_in_json",
+    "explain_format",
+    "explicit_defaults_for_timestamp",
+    "foreign_key_checks",
+    "global_connection_memory_tracking",
+    "group_replication_consistency",
+    "innodb_ft_enable_stopword",
+    "innodb_table_locks",
+    "internal_tmp_mem_storage_engine",
+    "keep_files_on_create",
+    "lc_messages",
+    "lc_time_names",
+    "low_priority_updates",
+    "myisam_stats_method",
+    "new",
+    "old_alter_table",
+    "optimizer_switch",
+    "optimizer_trace",
+    "optimizer_trace_features",
+    "print_identified_with_as_hex",
+    "profiling",
+    "pseudo_replica_mode",
+    "pseudo_slave_mode",
+    "rbr_exec_mode",
+    "require_row_format",
+    "resultset_metadata",
+    "select_into_disk_sync",
+    "session_track_gtids",
+    "session_track_schema",
+    "session_track_state_change",
+    "session_track_transaction_info",
+    "show_create_table_skip_secondary_engine",
+    "show_create_table_verbosity",
+    "show_gipk_in_create_table_and_information_schema",
+    "show_old_temporals",
+    "sql_auto_is_null",
+    "sql_big_selects",
+    "sql_buffer_result",
+    "sql_generate_invisible_primary_key",
+    "sql_log_bin",
+    "sql_log_off",
+    "sql_mode",
+    "sql_notes",
+    "sql_quote_show_create",
+    "sql_require_primary_key",
+    "sql_safe_updates",
+    "sql_warnings",
+    "terminology_use_previous",
+    "time_zone",
+    "transaction_allow_batching",
+    "transaction_isolation",
+    "transaction_read_only",
+    "unique_checks",
+    "updatable_views_with_limit",
+    "use_secondary_engine",
+    "windowing_use_high_precision",
+    "xa_detach_on_prepare",
+};
+
+// 1232 Incorrect argument type.
+static const std::unordered_set<std::string_view>
+    null_is_invalid_argument_sys_vars{
+        "auto_increment_increment",
+        "auto_increment_offset",
+        "binlog_transaction_compression_level_zstd",
+        "bulk_insert_buffer_size",
+        "connection_memory_chunk_size",
+        "connection_memory_limit",
+        "cte_max_recursion_depth",
+        "default_week_format",
+        "div_precision_increment",
+        "eq_range_index_dive_limit",
+        "generated_random_password_length",
+        "group_concat_max_len",
+        "histogram_generation_max_mem_size",
+        "identity",
+        "immediate_server_version",
+        "information_schema_stats_expiry",
+        "innodb_ddl_buffer_size",
+        "innodb_ddl_threads",
+        "innodb_lock_wait_timeout",
+        "innodb_parallel_read_threads",
+        "insert_id",
+        "interactive_timeout",
+        "join_buffer_size",
+        "last_insert_id",
+        "lock_wait_timeout",
+        "long_query_time",
+        "max_allowed_packet",
+        "max_delayed_threads",
+        "max_error_count",
+        "max_execution_time",
+        "max_heap_table_size",
+        "max_insert_delayed_threads",
+        "max_join_size",
+        "max_length_for_sort_data",
+        "max_points_in_geometry",
+        "max_seeks_for_key",
+        "max_sort_length",
+        "max_sp_recursion_depth",
+        "max_user_connections",
+        "min_examined_row_limit",
+        "myisam_sort_buffer_size",
+        "mysqlx_read_timeout",
+        "mysqlx_wait_timeout",
+        "mysqlx_write_timeout",
+        "net_buffer_length",
+        "net_read_timeout",
+        "net_retry_count",
+        "net_write_timeout",
+        "optimizer_max_subgraph_pairs",
+        "optimizer_prune_level",
+        "optimizer_search_depth",
+        "optimizer_trace_limit",
+        "optimizer_trace_max_mem_size",
+        "optimizer_trace_offset",
+        "original_commit_timestamp",
+        "original_server_version",
+        "parser_max_mem_size",
+        "preload_buffer_size",
+        "profiling_history_size",
+        "pseudo_thread_id",
+        "query_alloc_block_size",
+        "query_prealloc_size",
+        "rand_seed1",
+        "rand_seed2",
+        "range_alloc_block_size",
+        "range_optimizer_max_mem_size",
+        "read_buffer_size",
+        "read_rnd_buffer_size",
+        "secondary_engine_cost_threshold",
+        "select_into_buffer_size",
+        "select_into_disk_sync_delay",
+        "set_operations_buffer_size",
+        "sort_buffer_size",
+        "sql_select_limit",
+        "timestamp",
+        "tmp_table_size",
+        "transaction_alloc_block_size",
+        "transaction_prealloc_size",
+        "wait_timeout",
+    };
+
+TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
+  RecordProperty("Description", "check if system-variables can be replayed.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  auto session_vars_res =
+      query_one_result(cli,
+                       "SELECT * "
+                       "  FROM performance_schema.session_variables "
+                       " ORDER BY VARIABLE_NAME");
+  ASSERT_NO_ERROR(session_vars_res);
+  auto session_vars = *session_vars_res;
+
+  for (auto var : session_vars) {
+    std::ostringstream oss;
+    oss << "SET @@SESSION." << std::quoted(var[0], '`') << "="
+        << "NULL";
+
+    SCOPED_TRACE("// " + oss.str());
+
+    auto set_var_res = query_one_result(cli, oss.str());
+
+    if (read_only_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      // is a read only variable
+      EXPECT_EQ(set_var_res.error().value(), 1238) << set_var_res.error();
+    } else if (global_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1229) << set_var_res.error();
+    } else if (null_is_invalid_argument_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1232) << set_var_res.error();
+    } else if (not_nullable_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1231) << set_var_res.error();
+    } else if (super_sys_vars.contains(var[0])) {
+      ASSERT_ERROR(set_var_res);
+      EXPECT_EQ(set_var_res.error().value(), 1227) << set_var_res.error();
+    } else {
+      EXPECT_NO_ERROR(set_var_res);
+
+      // ensure that no new nullable sys-vars are added.
+      EXPECT_THAT(var[0], testing::AnyOf("character_set_results",
+                                         "innodb_ft_user_stopword_table",
+                                         "session_track_system_variables"));
+    }
   }
 }
 

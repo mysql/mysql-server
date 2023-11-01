@@ -27,6 +27,7 @@
 #include <chrono>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <ratio>
 #include <sstream>
 
@@ -53,16 +54,20 @@ namespace {
 
 class FailedQueryHandler : public QuerySender::Handler {
  public:
-  FailedQueryHandler(LazyConnector &processor) : processor_(processor) {}
+  FailedQueryHandler(LazyConnector &processor, std::string stmt)
+      : processor_(processor), stmt_(std::move(stmt)) {}
 
   void on_error(const classic_protocol::message::server::Error &err) override {
-    log_warning("%s", err.message().c_str());
+    log_warning("Executing %s failed: %s", stmt_.c_str(),
+                err.message().c_str());
 
     processor_.failed(err);
   }
 
  private:
   LazyConnector &processor_;
+
+  std::string stmt_;
 };
 
 class IsTrueHandler : public QuerySender::Handler {
@@ -548,7 +553,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
     }
 
     connection()->push_processor(std::make_unique<QuerySender>(
-        connection(), stmt, std::make_unique<FailedQueryHandler>(*this)));
+        connection(), stmt, std::make_unique<FailedQueryHandler>(*this, stmt)));
   } else {
     stage(Stage::SetServerOption);
   }
@@ -902,7 +907,8 @@ LazyConnector::set_trx_characteristics() {
     }
 
     connection()->push_processor(std::make_unique<QuerySender>(
-        connection(), trx_stmt, std::make_unique<FailedQueryHandler>(*this)));
+        connection(), trx_stmt,
+        std::make_unique<FailedQueryHandler>(*this, trx_stmt)));
   } else {
     stage(Stage::Done);  // skip set_trx_characteristics_done
   }
