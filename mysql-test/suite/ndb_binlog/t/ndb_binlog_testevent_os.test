@@ -1,0 +1,11 @@
+--source include/have_ndb.inc
+--source include/have_lowercase0.inc  # Case sensitive
+# Test generates various MySQLD warnings and errors
+call mtr.add_suppression("Detected event buffer full");
+
+let NDBAPITEST_NAME=test_event_mysqld;
+let NDBAPITEST_ARGS=-nMySQLDEventsEventBufferOverloadDDL -v T1;
+let NDBAPITEST_MAXLINES=10000;     # More context on failure
+--source suite/ndb/include/run_ndbapitest.inc
+
+
