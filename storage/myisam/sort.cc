@@ -26,6 +26,7 @@
 */
 
 #include <algorithm>
+#include <functional>
 
 #include "fulltext.h"
 #if defined(_WIN32)
