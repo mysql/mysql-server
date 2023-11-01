@@ -4043,6 +4043,7 @@ void Qmgr::execUPGRADE_PROTOCOL_ORD(Signal *signal) {
 }
 
 void Qmgr::api_failed(Signal *signal, Uint32 nodeId) {
+  jam();
   NodeRecPtr failedNodePtr;
   /**------------------------------------------------------------------------
    *   A COMMUNICATION LINK HAS BEEN DISCONNECTED. WE MUST TAKE SOME ACTION
@@ -4053,10 +4054,34 @@ void Qmgr::api_failed(Signal *signal, Uint32 nodeId) {
   failedNodePtr.p->m_secret = 0;  // Not yet Uint64(rand()) << 32 + rand();
 
   if (failedNodePtr.p->phase == ZFAIL_CLOSING) {
+    jam();
+    if (unlikely(failedNodePtr.p->failState == NORMAL &&
+                 getNodeState().startLevel < NodeState::SL_STARTED &&
+                 getNodeInfo(failedNodePtr.i).getType() == NodeInfo::API)) {
+      jam();
+
+      /* Perform node failure handling (apart from disconnect)
+       * as during node restart we may receive state for disconnected API
+       * nodes from a nodegroup peer, that must be cleaned up
+       */
+      failedNodePtr.p->failState = WAITING_FOR_CLOSECOMCONF_NOTACTIVE;
+
+      /* No connection to close, proceed to failure handling */
+      CloseComReqConf *ccconf = (CloseComReqConf *)signal->theData;
+      ccconf->xxxBlockRef = reference();
+      ccconf->requestType = CloseComReqConf::RT_API_FAILURE;
+      ccconf->failNo = RNIL;
+      ccconf->noOfNodes = 1;
+      ccconf->failedNodeId = nodeId;
+
+      handleApiCloseComConf(signal);
+      return;
+    }
+
     /**
+     * Normal ZFAIL_CLOSING path
      * Failure handling already in progress
      */
-    jam();
     return;
   }
 

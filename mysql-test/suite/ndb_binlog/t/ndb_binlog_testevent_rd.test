@@ -1,0 +1,15 @@
+--source include/have_ndb.inc
+--source include/have_lowercase0.inc  # Case sensitive
+# Test generates various MySQLD warnings and errors
+call mtr.add_suppression("cluster disconnect An incident event");
+call mtr.add_suppression("Failed to release global schema lock");
+call mtr.add_suppression("Node failure caused abort of transaction");
+
+let NDBAPITEST_NAME=test_event_mysqld;
+let NDBAPITEST_ARGS=-nMySQLDEventsRestartsDisconnects -v T1;
+# let NDBAPITEST_ARGS=-nMySQLDEventsRestarts -v T1;
+# let NDBAPITEST_ARGS=-nMySQLDEventsDisconnects -v T1;
+let NDBAPITEST_MAXLINES=10000;     # More context on failure
+--source suite/ndb/include/run_ndbapitest.inc
+
+
