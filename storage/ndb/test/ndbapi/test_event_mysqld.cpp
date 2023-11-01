@@ -287,6 +287,86 @@ static int limitRuntime(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+static int setEventBufferMaxImpl(NDBT_Context *ctx, NDBT_Step *step,
+                                 const Uint32 maxBytes) {
+  /* Create a client for talking to MySQLD 1 */
+  SqlClient::ThreadScopeGuard g;
+  SqlClient sqlClient("TEST_DB");
+
+  if (!sqlClient.waitConnected()) {
+    ndbout << "Failed to connect to SQL" << endl;
+    return NDBT_FAILED;
+  }
+
+  BaseString stmt;
+  stmt.assfmt("SET GLOBAL ndb_eventbuffer_max_alloc=%u", maxBytes);
+
+  if (!sqlClient.doQuery(stmt)) {
+    ndbout << "Failed to execute change of eventbuffer size" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Set ndb_eventbuffer_max to %u bytes", maxBytes);
+
+  return NDBT_OK;
+}
+
+static int setEventBufferMax(NDBT_Context *ctx, NDBT_Step *step) {
+  const Uint32 maxBytes =
+      ctx->getProperty("EventBufferMaxBytes", Uint32(10 * 1024 * 1024));
+
+  return setEventBufferMaxImpl(ctx, step, maxBytes);
+}
+
+static int clearEventBufferMax(NDBT_Context *ctx, NDBT_Step *step) {
+  return setEventBufferMaxImpl(ctx, step, 0);
+}
+
+static int runLockUnlockBinlogIndex(NDBT_Context *ctx, NDBT_Step *step) {
+  /* Create a client for talking to MySQLD 1 */
+  SqlClient::ThreadScopeGuard g;
+  SqlClient sqlClient("TEST_DB");
+
+  if (!sqlClient.waitConnected()) {
+    ndbout << "Failed to connect to SQL" << endl;
+    return NDBT_FAILED;
+  }
+
+  const Uint32 lockMillis = ctx->getProperty("LockMillis", (Uint32)1000);
+  const Uint32 unlockMillis = ctx->getProperty("UnLockMillis", (Uint32)100);
+
+  const char *tab_to_lock = "mysql.ndb_binlog_index";
+
+  ndbout << "Performing lock(" << lockMillis << " millis) unlock ("
+         << unlockMillis << " millis) cycle on table " << tab_to_lock
+         << " until test stops." << endl;
+
+  BaseString lockQuery;
+  lockQuery.assfmt("LOCK TABLES %s WRITE", tab_to_lock);
+
+  while (!ctx->isTestStopped()) {
+    // ndbout << "Locking " << tab_to_lock << endl;
+    if (!sqlClient.doQuery(lockQuery.c_str())) {
+      ndbout << "Failed to lock tables with " << lockQuery << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Locked " << tab_to_lock << endl;
+
+    NdbSleep_MilliSleep(lockMillis);
+
+    // ndbout << "Unlocking " << tab_to_lock << endl;
+    if (!sqlClient.doQuery("UNLOCK TABLES")) {
+      ndbout << "Failed to unlock tables" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Unlocked " << tab_to_lock << endl;
+
+    NdbSleep_MilliSleep(unlockMillis);
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event_mysqld);
 
 /**
@@ -305,11 +385,17 @@ NDBT_TESTSUITE(test_event_mysqld);
  *       Randome data node restarts, with + without abort
  *   D : Asynchronous MySQLD disconnects
  *       Binlogging MySQLD disconnected by data nodes
+ *   O : Event buffer overflow
+ *       Event buffer limited, lag built up causing discard
  *
  * MySQLDEvents*
  *   Restarts                                   ER
  *   Disconnects                                ED
  *   RestartsDisconnects                        ERD
+ *   EventBufferOverload                        EO
+ *   EventBufferOverloadRestarts                EOR
+ *   EventBufferOverloadDisconnects             EOD
+ *   EventBufferOverloadRestartDisconnects      EORD
  *
  * Todo
  *   - Have tests check that MySQLD has Binlogging
@@ -340,6 +426,55 @@ TESTCASE("MySQLDEventsRestartsDisconnects",
   STEPS(runUpdates, 10);
   STEP(runNodeRestarts);
   STEP(runMySQLDDisconnects);
+  FINALIZER(dropT1Sql);
+}
+TESTCASE("MySQLDEventsEventBufferOverload",
+         "Test event handling with event buffer overload") {
+  INITIALIZER(setupT1Sql);
+  INITIALIZER(runLoad);
+  INITIALIZER(setEventBufferMax);
+  STEPS(runUpdates, 10);
+  STEP(runLockUnlockBinlogIndex);
+  STEP(limitRuntime);
+  FINALIZER(clearEventBufferMax);
+  FINALIZER(dropT1Sql);
+}
+TESTCASE(
+    "MySQLDEventsEventBufferOverloadRestarts",
+    "Test event handling with event buffer overload and data node restarts ") {
+  INITIALIZER(setupT1Sql);
+  INITIALIZER(runLoad);
+  INITIALIZER(setEventBufferMax);
+  STEPS(runUpdates, 10);
+  STEP(runLockUnlockBinlogIndex);
+  STEP(runNodeRestarts);
+  FINALIZER(clearEventBufferMax);
+  FINALIZER(dropT1Sql);
+}
+TESTCASE(
+    "MySQLDEventsEventBufferOverloadDisconnects",
+    "Test event handling with event buffer overload and MySQLD Disconnects") {
+  INITIALIZER(setupT1Sql);
+  INITIALIZER(runLoad);
+  INITIALIZER(setEventBufferMax);
+  STEPS(runUpdates, 10);
+  STEP(runLockUnlockBinlogIndex);
+  STEP(runMySQLDDisconnects);
+  STEP(limitRuntime);
+  FINALIZER(clearEventBufferMax);
+  FINALIZER(dropT1Sql);
+}
+TESTCASE("MySQLDEventsEventBufferOverloadRestartsDisconnects",
+         "Test event handling with event buffer overload, data node restarts "
+         "and MySQLD Disconnects") {
+  INITIALIZER(setupT1Sql);
+  INITIALIZER(runLoad);
+  INITIALIZER(setEventBufferMax);
+  STEPS(runUpdates, 10);
+  STEP(runLockUnlockBinlogIndex);
+  STEP(runNodeRestarts);
+  STEP(runMySQLDDisconnects);
+  FINALIZER(clearEventBufferMax);
   FINALIZER(dropT1Sql);
 }
 
