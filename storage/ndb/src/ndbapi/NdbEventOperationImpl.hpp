@@ -783,9 +783,10 @@ class EventBufferManager {
    */
   ReportReason onEpochCompleted(Uint64 completed_epoch, bool &gap_begins);
 
-  // Check whether the received SUB_GCP_COMPLETE can be discarded
-  // Discard-criteria: m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
-  bool isGcpCompleteToBeDiscarded(Uint64 completed_epoch);
+  /* Check whether the epoch is in an out-of-memory gap where event
+   * data is being discarded
+   */
+  bool isEpochInOOMGap(Uint64 completed_epoch);
 };
 
 class NdbEventBuffer {

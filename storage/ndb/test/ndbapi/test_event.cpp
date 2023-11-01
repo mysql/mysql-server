@@ -4099,57 +4099,36 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-// Waits until the event buffer is filled up to fill_percent
-// or #retries exhaust.
-bool wait_to_fill_buffer(Ndb *ndb, Uint32 fill_percent) {
+/* Fill buffer to some stable level > 95% full */
+bool wait_to_fill_buffer(Ndb *ndb, int maxSeconds = 180) {
   Ndb::EventBufferMemoryUsage mem_usage;
-  Uint32 usage_before_wait = 0;
-  Uint64 prev_gci = 0;
-  Uint32 retries = 10;
+  Uint32 prev_usage_percent = 0;
 
-  do {
+  ndbout_c("wait_to_fill_buffer to >= 95 percent");
+
+  ndb->get_event_buffer_memory_usage(mem_usage);
+  prev_usage_percent = mem_usage.usage_percent;
+
+  ndbout_c("  start percent : %u", prev_usage_percent);
+
+  while (maxSeconds--) {
+    NdbSleep_MilliSleep(1000);
+
     ndb->get_event_buffer_memory_usage(mem_usage);
-    usage_before_wait = mem_usage.usage_percent;
-    if (fill_percent < 100 && usage_before_wait >= fill_percent) {
+    const Uint32 usage_percent = mem_usage.usage_percent;
+
+    ndbout_c("  usage percent : %u", usage_percent);
+
+    if (usage_percent > 95 && usage_percent == prev_usage_percent) {
       return true;
     }
 
-    // Assume that latestGCI will increase in this sleep time
-    // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_MilliSleep(1000);
+    prev_usage_percent = usage_percent;
+  };
 
-    const Uint64 latest_gci = ndb->getLatestGCI();
+  ndbout_c("  Timeout waiting for fill");
 
-    /* fill_percent == 100 :
-     * It is not enough to test usage_after_wait >= 100 to decide
-     * whether a gap has occurred, because a gap can occur
-     * at a fill_percent < 100, eg at 99%, when there is no space
-     * for a new epoch. Therefore, we have to wait until the
-     * latest_gci (and usage) becomes stable, because epochs are
-     * discarded during a gap.
-     */
-    if (prev_gci == latest_gci) {
-      /* No new epoch is buffered despite waiting with continuous
-       * load generation. A gap must have occurred. Enough waiting.
-       * Check usage is unchanged as well.
-       */
-      ndb->get_event_buffer_memory_usage(mem_usage);
-      const Uint32 usage_after_wait = mem_usage.usage_percent;
-      if (usage_before_wait == usage_after_wait) {
-        return true;
-      }
-      if (retries-- == 0) {
-        g_err << "wait_to_fill_buffer failed : prev_gci " << prev_gci
-              << "latest_gci " << latest_gci << " usage before wait "
-              << usage_before_wait << " usage after wait " << usage_after_wait
-              << endl;
-        return false;
-      }
-    }
-    prev_gci = latest_gci;
-  } while (true);
-
-  assert(false);  // Should not reach here
+  return false;
 }
 
 /*********************************************************
@@ -4174,7 +4153,7 @@ int runPollBCOverflowEB(NDBT_Context *ctx, NDBT_Step *step) {
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
   // Wait until event buffer get filled 100%, to get a gap event
-  if (!wait_to_fill_buffer(ndb, 100)) return NDBT_FAILED;
+  if (!wait_to_fill_buffer(ndb)) return NDBT_FAILED;
 
   g_err << endl
         << "The test is expected to crash with"
@@ -5045,7 +5024,7 @@ int runTardyEventListener(NDBT_Context *ctx, NDBT_Step *step) {
      *  - First time : to speed up the test,
      *  - then fill (~ free_percent) after resuming buffering
      */
-    if (!wait_to_fill_buffer(ndb, 100)) {
+    if (!wait_to_fill_buffer(ndb)) {
       goto end_test;
     }
 

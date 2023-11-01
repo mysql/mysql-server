@@ -1251,33 +1251,29 @@ ReportReason EventBufferManager::onEpochCompleted(Uint64 completed_epoch,
   return report_reason;
 }
 
-bool EventBufferManager::isGcpCompleteToBeDiscarded(Uint64 completed_epoch) {
-  DBUG_ENTER_EVENT("EventBufferManager::isGcpCompleteToBeDiscarded");
-  /* Discard SUB_GCP_COMPLETE during gap period,
-   * m_begin_gap_epoch > 0 : gap has started at m_begin_gap_epoch
+bool EventBufferManager::isEpochInOOMGap(const Uint64 epoch) {
+  DBUG_ENTER_EVENT("EventBufferManager::isEpochInOOMGap");
+  /* OOM Gap span is after m_pre_gap_epoch to m_end_gap_epoch inclusive.
+   * m_pre_gap_epoch is the last pre-gap epoch
+   * m_begin_gap_epoch is the first gap epoch
    * m_end_gap_epoch == 0 : gap has not ended
-   * received_epoch <= m_end_gap_epoch : gap has ended at m_end_gap_epoch
+   * m_end_gap_epoch : gap has ended at m_end_gap_epoch
    */
+  const bool inGap = (m_pre_gap_epoch > 0 && epoch > m_pre_gap_epoch &&
+                      (m_end_gap_epoch == 0 || epoch <= m_end_gap_epoch));
 
-  // for m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
+  assert(!inGap || isInDiscardingState());
 
-  if (m_begin_gap_epoch > 0 && completed_epoch > m_begin_gap_epoch &&
-      (m_end_gap_epoch == 0 || completed_epoch <= m_end_gap_epoch)) {
-    assert(isInDiscardingState());
-    DBUG_PRINT_EVENT("info",
-                     ("Discarding SUB_GCP_COMPLETE_REP for epoch %u/%u (%llu) "
-                      "> begin_gap epoch %u/%u (%llu)",
-                      Uint32(completed_epoch >> 32), Uint32(completed_epoch),
-                      completed_epoch, Uint32(m_begin_gap_epoch >> 32),
-                      Uint32(m_begin_gap_epoch), m_begin_gap_epoch));
-    if (m_end_gap_epoch > 0) {
-      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)",
-                                Uint32(m_end_gap_epoch >> 32),
-                                Uint32(m_end_gap_epoch), m_end_gap_epoch));
-    }
-    DBUG_RETURN_EVENT(true);
+  if (m_pre_gap_epoch) {
+    DBUG_PRINT_EVENT(
+        "info",
+        ("Epoch %u/%u (%llu) is %s gap (%u/%u (%llu) -> %u/%u (%llu)]",
+         Uint32(epoch >> 32), Uint32(epoch), epoch, (inGap ? "in" : "not in"),
+         Uint32(m_pre_gap_epoch >> 32), Uint32(m_pre_gap_epoch),
+         m_pre_gap_epoch, Uint32(m_end_gap_epoch >> 32),
+         Uint32(m_end_gap_epoch), m_end_gap_epoch));
   }
-  DBUG_RETURN_EVENT(false);
+  DBUG_RETURN_EVENT(inGap);
 }
 
 /*
@@ -1948,10 +1944,6 @@ Gci_container *NdbEventBuffer::find_bucket_chained(Uint64 gci) {
     return nullptr;
   }
 
-  if (m_event_buffer_manager.isGcpCompleteToBeDiscarded(gci)) {
-    return nullptr;  // gci belongs to a gap
-  }
-
   if (unlikely(m_total_buckets == 0)) {
     return nullptr;
   }
@@ -2178,6 +2170,8 @@ void NdbEventBuffer::complete_bucket(Gci_container *bucket) {
   verify_known_gci(false);
 #endif
 
+  const bool epochInGap = m_event_buffer_manager.isEpochInOOMGap(gci);
+
   /*
    * There could be a error condition, causing the bucket
    * to be missing data, probably due to kernel running out
@@ -2190,16 +2184,26 @@ void NdbEventBuffer::complete_bucket(Gci_container *bucket) {
     completed_epoch = create_empty_exceptional_epoch(
         gci, NdbDictionary::Event::_TE_INCONSISTENT);
   } else if (unlikely(bucket->m_state & Gci_container::GC_OUT_OF_MEMORY)) {
+    assert(epochInGap);
+    /* State flag set only on first epoch in gap */
     completed_epoch = create_empty_exceptional_epoch(
         gci, NdbDictionary::Event::_TE_OUT_OF_MEMORY);
   } else if (bucket->is_empty()) {
     assert(bucket->m_gci_op_count == 0);
-    if (m_queue_empty_epoch) {
+
+    /* If we are generating events for empty epochs
+     * and not in an out-of-memory gap,
+     * then generate an event
+     */
+    if (m_queue_empty_epoch && !epochInGap) {
       completed_epoch =
           create_empty_exceptional_epoch(gci, NdbDictionary::Event::_TE_EMPTY);
     }
   } else {
     // Bucket is complete and consistent: Create the epoch
+    // In out-of-memory case, may still have some metadata events to deliver
+    // Metadata events are delivered using NdbEventOperations so there can
+    // be GCI Ops etc, but should be no data events (I/U/D)
     completed_epoch = bucket->createEpochData(gci);
   }
 
@@ -2878,7 +2882,14 @@ int NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       m_event_buffer_manager.onEventDataReceived(memory_usage, gci);
   if (reason_to_report != NO_REPORT) reportStatus(reason_to_report);
 
-  if (m_event_buffer_manager.isEventDataToBeDiscarded(gci)) {
+  /**
+   * In memory overload state we discard data events
+   * Non data events are processed as normal as this data is
+   * required for understanding the state of the system.
+   * Therefore buffer usage can still increase in overload state,
+   * but the rate should be attenuated
+   */
+  if (is_data_event && m_event_buffer_manager.isEventDataToBeDiscarded(gci)) {
     DBUG_RETURN_EVENT(0);
   }
 

@@ -1,0 +1,7 @@
+call mtr.add_suppression("cluster disconnect An incident event");
+call mtr.add_suppression("Failed to release global schema lock");
+call mtr.add_suppression("Node failure caused abort of transaction");
+call mtr.add_suppression("Detected event buffer full");
+Running command
+Result of command: 0
+Test program success!
