@@ -21,8 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
- * Only memory barriers *must* be ported
- * if XCNG (x86-sematics) is provided, spinlocks will be enabled
+ * If XCNG (x86-sematics) is provided, spinlocks will be enabled.
  */
 #ifndef NDB_MT_ASM_H
 #define NDB_MT_ASM_H
@@ -124,21 +123,13 @@ static inline int xcng(volatile unsigned *addr, int val) {
 }
 
 #elif defined(__aarch64__)
-#include <atomic>
-#define NDB_HAVE_MB
-#define NDB_HAVE_RMB
-#define NDB_HAVE_WMB
+/**
+ * Use generic defaults for mb(), rmb(), wmb() see further down.
+ */
 //#define NDB_HAVE_XCNG
 #define NDB_HAVE_CPU_PAUSE
-
-#define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
-#define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
-#define wmb() std::atomic_thread_fence(std::memory_order_seq_cst)
-
 #define cpu_pause() __asm__ __volatile__("yield")
 
-#else
-#define NDB_NO_ASM "Unsupported architecture (gcc)"
 #endif
 
 #elif defined(_MSC_VER)
@@ -174,8 +165,27 @@ static inline int xcng(volatile unsigned *addr, int val) {
 }
 
 static inline void cpu_pause() { YieldProcessor(); }
-#else
-#define NDB_NO_ASM "Unsupported compiler"
+#endif
+
+/**
+ * Generic fallback implementation of mandatory memory barriers.
+ */
+
+#ifndef NDB_HAVE_MB
+#define NDB_HAVE_MB
+#include <atomic>
+#define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
+#endif
+
+#ifndef NDB_HAVE_RMB
+#define NDB_HAVE_RMB
+#define rmb() mb()
+#endif
+
+#ifndef NDB_HAVE_WMB
+#define NDB_HAVE_WMB
+#define wmb() mb()
+
 #endif
 
 #endif
