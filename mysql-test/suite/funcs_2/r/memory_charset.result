@@ -17482,15 +17482,15 @@ a_ascii	a_len
 DROP TABLE test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -20031,15 +20031,15 @@ FF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -22580,15 +22580,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -25129,15 +25129,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -27678,15 +27678,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -30227,15 +30227,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -32776,15 +32776,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -35325,15 +35325,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -37874,15 +37874,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -40423,15 +40423,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -42972,15 +42972,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -45521,15 +45521,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -48070,15 +48070,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -50619,15 +50619,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -53168,15 +53168,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -55717,15 +55717,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -58266,15 +58266,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -60815,15 +60815,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -63364,15 +63364,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -65913,15 +65913,15 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3) ENGINE=Memory CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
@@ -68462,13 +68462,13 @@ B5	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_bin) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_bin;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -71006,13 +71006,13 @@ E4BFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_czech_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_czech_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_czech_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_czech_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -73550,13 +73550,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_danish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_danish_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_danish_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_danish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -76094,13 +76094,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_estonian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_estonian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_estonian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_estonian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -78638,13 +78638,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_general_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -81182,13 +81182,13 @@ E4BFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_hungarian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_hungarian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_hungarian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_hungarian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -83726,13 +83726,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_icelandic_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_icelandic_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_icelandic_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_icelandic_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -86270,13 +86270,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_latvian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_latvian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_latvian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_latvian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -88814,13 +88814,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_lithuanian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_lithuanian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_lithuanian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_lithuanian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -91358,13 +91358,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_persian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_persian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_persian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_persian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -93902,13 +93902,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_polish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_polish_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_polish_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_polish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -96446,13 +96446,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_roman_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_roman_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_roman_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_roman_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -98990,13 +98990,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_romanian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_romanian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_romanian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_romanian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -101534,13 +101534,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovak_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_slovak_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_slovak_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_slovak_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -104078,13 +104078,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovenian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_slovenian_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_slovenian_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_slovenian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -106622,13 +106622,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish2_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_spanish2_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -109166,13 +109166,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_spanish_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -111710,13 +111710,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_swedish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_swedish_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_swedish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -114254,13 +114254,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_turkish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_turkish_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_turkish_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_turkish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -116798,13 +116798,13 @@ DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t1;
 DROP DATABASE test;
-CREATE DATABASE test CHARACTER SET utf8;
+CREATE DATABASE test CHARACTER SET utf8mb3;
 USE test;
-CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_unicode_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci) ENGINE=Memory CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment

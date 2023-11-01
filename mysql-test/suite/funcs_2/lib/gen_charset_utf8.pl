@@ -1,18 +1,15 @@
 #!/usr/bin/perl
 
-#################################################################################
-# Author:  Serge Kozlov								#	
-# Date:    09/21/2005								#
-# Purpose: The script produces a text file ../data/charset_utf8.txt		#
-#	   in UTF8 format. Each line contains one UTF8 character 		#
-#	   between 20 and 07FF							#
-#################################################################################
+#########################################################################
+# Author:  Serge Kozlov							#	
+# Date:    09/21/2005							#
+# Purpose: The script produces a text file ../data/charset_utf8.txt	#
+#	   in UTF8MB3 format. Each line contains one UTF8MB3 character 	#
+#	   between 20 and 07FF						#
+#########################################################################
 
-genfile("../data/charset_utf8.txt", 33, 2047, "utf8");
-genfile(">../data/charset_utf8.txt", 19968, 20479,"utf8");
-
-
-#genfile("../data/charset_utf8.txt", 33, 2047, "utf8");
+genfile("../data/charset_utf8.txt", 33, 2047, "utf8mb3");
+genfile(">../data/charset_utf8.txt", 19968, 20479,"utf8mb3");
 
 sub genfile ($$$$)
 {
@@ -25,7 +22,7 @@ sub genfile ($$$$)
     {	
 	if (($i > 32) && ($i < 65533) && ($i != 65279))
 	{
-	    if ($typ eq "utf8")
+	    if ($typ eq "utf8mb3")
 	    {
 		if ($i < 128) 
 		{

@@ -625,86 +625,86 @@ let $coll= ucs2_unicode_ci;
 if ($check_utf8_csets)
 {
 
-# utf8
+# utf8mb3
 
-let $cset= utf8;
-let $coll= utf8_bin; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_bin;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_czech_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_czech_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_danish_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_danish_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_estonian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_estonian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_general_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_general_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_hungarian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_hungarian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_icelandic_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_icelandic_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_latvian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_latvian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_lithuanian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_lithuanian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_persian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_persian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_polish_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_polish_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_roman_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_roman_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_romanian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_romanian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_slovak_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_slovak_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_slovenian_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_slovenian_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_spanish2_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_spanish2_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_spanish_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_spanish_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_swedish_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_swedish_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_turkish_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_turkish_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
-let $cset= utf8;
-let $coll= utf8_unicode_ci; 
+let $cset= utf8mb3;
+let $coll= utf8mb3_unicode_ci;
 --source suite/funcs_2/include/check_charset_utf8.inc
 
 }
