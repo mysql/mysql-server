@@ -80,6 +80,7 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_config.h"
+#include "scope_guard.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/
 IMPORT_LOG_FUNCTIONS()
 
@@ -563,8 +564,7 @@ void ConfigGenerator::bootstrap_system_deployment(
   }
 
   // on bootstrap failure, DROP USER for all created accounts
-  std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
-      (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
+  Scope_guard create_user_undo([&]() { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
       program_name, config_files[0], config_files[1], config_file_path,
@@ -608,7 +608,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     set_file_owner(options, path);
   }
   auto_clean.clear();
-  create_user_undo.release();
+  create_user_undo.commit();
   out_stream_ << bootstrap_report_text;
 }
 
@@ -770,8 +770,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
   set_keyring_info_real_paths(options, path);
 
   // on bootstrap failure, DROP USER for all created accounts
-  std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
-      (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
+  Scope_guard create_user_undo([&]() { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
       program_name, config_files[0], config_files[1], config_files_names[0],
@@ -856,7 +855,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 #endif
 
   auto_clean.clear();
-  create_user_undo.release();
+  create_user_undo.commit();
   out_stream_ << bootstrap_report_text;
 }
 

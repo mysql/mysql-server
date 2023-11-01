@@ -46,6 +46,7 @@
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/stdx/process.h"
 #include "mysql/harness/utility/string.h"  // string_format()
+#include "scope_guard.h"
 #include "test/helpers.h"
 #include "test/temp_directory.h"
 
@@ -385,7 +386,7 @@ TEST_F(LoggingTest, FileHandler) {
   // Windows as well.
   Path log_file(g_here.join(
       "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+  Scope_guard exit_guard([&]() {
     std::error_code ec;
     stdx::filesystem::remove(log_file.str(), ec);
   });
@@ -430,7 +431,7 @@ TEST_F(LoggingTest, FileHandlerRotate) {
       "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
   Path renamed_log_file(g_here.join(
       "rotated-log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+  Scope_guard exit_guard([&]() {
     std::error_code ec;
     stdx::filesystem::remove(log_file.str(), ec);
     stdx::filesystem::remove(renamed_log_file.str(), ec);

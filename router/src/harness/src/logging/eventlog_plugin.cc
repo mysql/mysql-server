@@ -29,6 +29,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/plugin.h"
+#include "scope_guard.h"
 
 #include <Windows.h>
 #include <cstdarg>
@@ -107,8 +108,7 @@ static void create_eventlog_registry_entry(
 
   // make sure to close the registry key no matter what error we enconter from
   // here
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { RegCloseKey(hRegKey); });
+  Scope_guard exit_guard([&]() { RegCloseKey(hRegKey); });
 
   /* Name of the PE module that contains the message resource */
   GetModuleFileName(nullptr, szPath, MAX_PATH);

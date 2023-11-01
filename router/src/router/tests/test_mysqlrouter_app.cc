@@ -547,8 +547,8 @@ TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
   const char *user = "mysqlrouter";
 
   std::string tmp_dir = mysql_harness::get_tmp_dir("AppTest");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(tmp_dir); });
+  Scope_guard exit_guard(
+      [&]() { mysql_harness::delete_dir_recursive(tmp_dir); });
 
   // copy config file and add user option to [DEFAULT] section
   {

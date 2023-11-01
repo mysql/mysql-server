@@ -37,6 +37,7 @@
 
 #include "filesystem_utils.h"
 #include "router_test_helpers.h"  // EXPECT_THROW_LIKE
+#include "scope_guard.h"
 
 // these tests are Windows-specific
 #ifdef _WIN32
@@ -271,8 +272,7 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_dir_is_not_a_dir) {
       "' specified (or implied) by configuration file '" +
       path_to_conf_file_.str() + "' does not point to a valid directory";
   std::ofstream of(erased_log_dir);
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_file(erased_log_dir); });
+  Scope_guard exit_guard([&]() { mysql_harness::delete_file(erased_log_dir); });
   ASSERT_TRUE(Path{erased_log_dir}.is_regular());
 
   // test with file in place of log dir

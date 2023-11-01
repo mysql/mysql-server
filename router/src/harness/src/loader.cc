@@ -528,7 +528,7 @@ const Plugin *Loader::load(const std::string &plugin_name) {
 
 void Loader::start() {
   // unload plugins on exit
-  std::shared_ptr<void> exit_guard(nullptr, [this](void *) { unload_all(); });
+  Scope_guard exit_guard([this]() { unload_all(); });
 
   // check if there is anything to load; if not we currently treat is as an
   // error, not letting the user to run "idle" router that would close right

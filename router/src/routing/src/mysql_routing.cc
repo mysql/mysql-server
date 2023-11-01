@@ -827,7 +827,7 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
       destination_->register_allowed_nodes_change_callback(
           allowed_nodes_changed);
 
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+  Scope_guard exit_guard([&]() {
     destination_->unregister_allowed_nodes_change_callback(
         allowed_nodes_list_iterator_);
     destination_->unregister_start_router_socket_acceptor();
