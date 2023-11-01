@@ -367,6 +367,64 @@ static int runLockUnlockBinlogIndex(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+static int runSqlDDL(NDBT_Context *ctx, NDBT_Step *step) {
+  /* Create a client for talking to MySQLD 1 */
+  SqlClient::ThreadScopeGuard g;
+  SqlClient sqlClient("TEST_DB");
+
+  const bool ignoreErrors =
+      (ctx->getProperty("SqlDDLIgnoreErrors", Uint32(1)) == 1);
+
+  while (!ctx->isTestStopped()) {
+    ndbout << "Drop DDL_VICTIM" << endl;
+    if (!sqlClient.doQuery("DROP TABLE IF EXISTS TEST_DB.DDL_VICTIM")) {
+      ndbout << "Failed drop table" << endl;
+      if (ignoreErrors) {
+        continue;
+      }
+      return NDBT_FAILED;
+    }
+
+    ndbout << "Create DDL_VICTIM" << endl;
+    if (!sqlClient.doQuery("CREATE TABLE TEST_DB.DDL_VICTIM ("
+                           "a varchar(20), "
+                           "b varchar(30), "
+                           "c blob, "
+                           "d text, "
+                           "e int, "
+                           "primary key(a,b), unique(e)) "
+                           "engine=ndb")) {
+      ndbout << "Failed to create table" << endl;
+      if (ignoreErrors) {
+        continue;
+      }
+      return NDBT_FAILED;
+    }
+
+    ndbout << "ALTER ADD COLUMN DDL_VICTIM" << endl;
+    if (!sqlClient.doQuery("ALTER TABLE TEST_DB.DDL_VICTIM "
+                           "ADD COLUMN f bigint DEFAULT 20")) {
+      ndbout << "Failed ALTER add column" << endl;
+      if (ignoreErrors) {
+        continue;
+      }
+      return NDBT_FAILED;
+    }
+
+    ndbout << "ALTER DROP COLUMN DDL_VICTIM" << endl;
+    if (!sqlClient.doQuery("ALTER TABLE TEST_DB.DDL_VICTIM "
+                           "DROP COLUMN f")) {
+      ndbout << "Failed ALTER drop column" << endl;
+      if (ignoreErrors) {
+        continue;
+      }
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event_mysqld);
 
 /**
@@ -387,6 +445,8 @@ NDBT_TESTSUITE(test_event_mysqld);
  *       Binlogging MySQLD disconnected by data nodes
  *   O : Event buffer overflow
  *       Event buffer limited, lag built up causing discard
+ *   S : Concurrent DDL
+ *       DDL + schema distribution on separate table
  *
  * MySQLDEvents*
  *   Restarts                                   ER
@@ -396,6 +456,7 @@ NDBT_TESTSUITE(test_event_mysqld);
  *   EventBufferOverloadRestarts                EOR
  *   EventBufferOverloadDisconnects             EOD
  *   EventBufferOverloadRestartDisconnects      EORD
+ *   EventBufferOverloadDDL                     EOS
  *
  * Todo
  *   - Have tests check that MySQLD has Binlogging
@@ -474,6 +535,18 @@ TESTCASE("MySQLDEventsEventBufferOverloadRestartsDisconnects",
   STEP(runLockUnlockBinlogIndex);
   STEP(runNodeRestarts);
   STEP(runMySQLDDisconnects);
+  FINALIZER(clearEventBufferMax);
+  FINALIZER(dropT1Sql);
+}
+TESTCASE("MySQLDEventsEventBufferOverloadDDL",
+         "Test event handling with event buffer overload and DDL") {
+  INITIALIZER(setupT1Sql);
+  INITIALIZER(runLoad);
+  INITIALIZER(setEventBufferMax);
+  STEPS(runUpdates, 10);
+  STEP(runLockUnlockBinlogIndex);
+  STEP(runSqlDDL);
+  STEP(limitRuntime);
   FINALIZER(clearEventBufferMax);
   FINALIZER(dropT1Sql);
 }

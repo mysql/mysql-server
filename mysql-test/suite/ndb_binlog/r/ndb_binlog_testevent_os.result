@@ -1,0 +1,4 @@
+call mtr.add_suppression("Detected event buffer full");
+Running command
+Result of command: 0
+Test program success!
