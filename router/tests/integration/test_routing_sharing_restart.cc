@@ -1155,11 +1155,14 @@ TEST_P(ShareConnectionTestWithRestartedServer,
       int expected_error_code = 1835;  // malformed packet
       switch (ndx) {
         case 0:   // sleep
+        case 4:   // list-fields
         case 5:   // create-db
         case 6:   // drop-db
+        case 7:   // refresh
         case 8:   // deprecated
         case 10:  // process-info
         case 11:  // connect
+        case 12:  // process-kill
         case 15:  // time
         case 16:  // delayed insert
         case cmd_byte<classic_protocol::message::client::ChangeUser>():  // 17
