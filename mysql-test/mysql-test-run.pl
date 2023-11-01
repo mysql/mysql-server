@@ -7341,8 +7341,13 @@ sub start_mysqltest ($) {
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
-  # Number of lines of resut to include in failure report
-  mtr_add_arg($args, "--tail-lines=20");
+  my $tail_lines = 20;
+  if ($tinfo->{'full_result_diff'}) {
+    # Use 1G as an approximation for infinite output.
+    $tail_lines = 1000000000;
+  }
+  # Number of lines of result to include in failure report
+  mtr_add_arg($args, "--tail-lines=${tail_lines}");
 
   if (defined $tinfo->{'result_file'}) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});

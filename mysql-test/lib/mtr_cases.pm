@@ -1626,13 +1626,14 @@ my @tags = (
   # An empty file to use test that needs myisam engine.
   [ "include/force_myisam_default.inc", "myisam_test", 1 ],
 
-  [ "include/big_test.inc",        "big_test",        1 ],
-  [ "include/asan_have_debug.inc", "asan_need_debug", 1 ],
-  [ "include/have_backup.inc",     "need_backup",     1 ],
-  [ "include/have_debug.inc",      "need_debug",      1 ],
-  [ "include/have_ndb.inc",        "ndb_test",        1 ],
-  [ "include/have_multi_ndb.inc",  "ndb_test",        1 ],
-  [ "run_ndbapitest.inc",          "ndbt_test",       1 ],
+  [ "include/big_test.inc",         "big_test",         1 ],
+  [ "include/asan_have_debug.inc",  "asan_need_debug",  1 ],
+  [ "include/have_backup.inc",      "need_backup",      1 ],
+  [ "include/have_debug.inc",       "need_debug",       1 ],
+  [ "include/have_ndb.inc",         "ndb_test",         1 ],
+  [ "include/have_multi_ndb.inc",   "ndb_test",         1 ],
+  [ "include/full_result_diff.inc", "full_result_diff", 1 ],
+  [ "run_ndbapitest.inc",           "ndbt_test",        1 ],
 
   # Any test sourcing the below inc file is considered to be an NDB
   # test not having its corresponding result file.
