@@ -20073,9 +20073,11 @@ static xa_status_code innobase_commit_by_xid(
   trx_t *trx = trx_get_trx_by_xid(xid);
 
   if (trx != nullptr) {
-    TrxInInnoDB trx_in_innodb(trx);
+    {
+      TrxInInnoDB trx_in_innodb(trx);
 
-    innobase_commit_low(trx);
+      innobase_commit_low(trx);
+    }
     ut_ad(trx->mysql_thd == nullptr);
     /* use cases are: disconnected xa, slave xa, recovery */
     trx_deregister_from_2pc(trx);
@@ -20101,9 +20103,12 @@ static xa_status_code innobase_rollback_by_xid(
   trx_t *trx = trx_get_trx_by_xid(xid);
 
   if (trx != nullptr) {
-    TrxInInnoDB trx_in_innodb(trx);
+    int ret;
+    {
+      TrxInInnoDB trx_in_innodb(trx);
 
-    int ret = innobase_rollback_trx(trx);
+      ret = innobase_rollback_trx(trx);
+    }
 
     trx_deregister_from_2pc(trx);
     ut_ad(!trx->will_lock);

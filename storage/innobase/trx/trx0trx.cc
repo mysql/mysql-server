@@ -265,6 +265,9 @@ struct TrxFactory {
 
     trx->dict_operation_lock_mode = 0;
 
+    ut_a(trx->in_innodb == 0);
+    ut_a(trx->in_depth == 0);
+
     trx->xid = ut::new_withkey<xid_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     trx->detailed_error = reinterpret_cast<char *>(
@@ -501,11 +504,12 @@ static void trx_free(trx_t *&trx) {
 
   ut_ad(trx->read_view == nullptr);
   ut_ad(trx->is_dd_trx == false);
+  ut_ad(trx->in_depth == 0);
 
   /* trx locking state should have been reset before returning trx
   to pool */
   ut_ad(trx->will_lock == 0);
-
+  trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
   trx_pools->mem_free(trx);
 
   trx = nullptr;
@@ -620,6 +624,7 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
   trx->will_lock = 0;
 
+  trx_validate_state_before_free(trx);
   trx_free(trx);
 }
 
