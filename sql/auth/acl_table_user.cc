@@ -177,36 +177,39 @@ bool Acl_user_attributes::consume_user_attributes_json(Json_dom_ptr json) {
 void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
     DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
     ulonglong errcode) {
-  for (auto &itr : db_restrictions()) {
-    ulong privs = itr.second;
-    if (privs != (privs & mask)) {
-      std::string invalid_privs;
-      std::string separator(", ");
-      bool second = false;
-      ulong filtered_privs = privs & ~mask;
-      if (filtered_privs)
-        db_restrictions.remove(itr.first.c_str(), filtered_privs);
-      while (filtered_privs != 0) {
-        std::string one_priv = get_one_priv(filtered_privs);
-        if (one_priv.length()) {
-          if (second) invalid_privs.append(separator);
-          invalid_privs.append(one_priv);
-          if (!second) second = true;
+  if (!db_restrictions.is_empty()) {
+    for (auto &itr : db_restrictions()) {
+      ulong privs = itr.second;
+      if (privs != (privs & mask)) {
+        std::string invalid_privs;
+        std::string separator(", ");
+        bool second = false;
+        ulong filtered_privs = privs & ~mask;
+        if (filtered_privs)
+          db_restrictions.remove(itr.first.c_str(), filtered_privs);
+        while (filtered_privs != 0) {
+          std::string one_priv = get_one_priv(filtered_privs);
+          if (one_priv.length()) {
+            if (second) invalid_privs.append(separator);
+            invalid_privs.append(one_priv);
+            if (!second) second = true;
+          }
         }
-      }
-      if (!invalid_privs.length()) invalid_privs.append("<unknown_privileges>");
-      std::string auth_id;
-      m_auth_id.auth_str(&auth_id);
+        if (!invalid_privs.length())
+          invalid_privs.append("<unknown_privileges>");
+        std::string auth_id;
+        m_auth_id.auth_str(&auth_id);
 
-      LogErr(level, errcode, auth_id.c_str(), invalid_privs.c_str(),
-             itr.first.length() ? itr.first.c_str() : "<invalid_database>");
+        LogErr(level, errcode, auth_id.c_str(), invalid_privs.c_str(),
+               itr.first.length() ? itr.first.c_str() : "<invalid_database>");
+      }
     }
+    /*
+      Now, remove the databases with no restrictions without invalidating
+      the internal container of DB_restrictions
+    */
+    db_restrictions.remove(0);
   }
-  /*
-    Now, remove the databases with no restrictions without invalidating
-    the internal container of DB_restrictions
-  */
-  db_restrictions.remove(0);
 }
 
 bool Acl_user_attributes::deserialize_multi_factor(
@@ -326,7 +329,7 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
         attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD]);
   }
 
-  if (m_restrictions.db().is_not_empty()) {
+  if (!m_restrictions.db().is_empty()) {
     Json_array restrictions_array;
     m_restrictions.db().get_as_json(restrictions_array);
     if (json_object.add_clone(

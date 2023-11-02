@@ -54,19 +54,19 @@ Abstract_restrictions::~Abstract_restrictions() = default;
 /**
   DB Restrictions constructor
 */
-DB_restrictions::DB_restrictions()
-    : Abstract_restrictions(), m_restrictions() {}
+DB_restrictions::DB_restrictions() : Abstract_restrictions() {}
 
 /**
   Copy constructor for DB Restrictions
 
   @param [in] other Source DB restrictions
 */
-DB_restrictions::DB_restrictions(const DB_restrictions &other)
-    : m_restrictions(other.m_restrictions) {}
+DB_restrictions::DB_restrictions(const DB_restrictions &other) {
+  copy_restrictions(other);
+}
 
 /** Destructor */
-DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
+DB_restrictions::~DB_restrictions() { clear(); }
 
 /**
   Assignment operator
@@ -75,7 +75,8 @@ DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
 */
 DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
   if (this != &other) {
-    m_restrictions = other.m_restrictions;
+    clear();
+    copy_restrictions(other);
   }
   return *this;
 }
@@ -87,8 +88,8 @@ DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
 */
 DB_restrictions &DB_restrictions::operator=(DB_restrictions &&restrictions) {
   if (this != &restrictions) {
-    this->clear();
-    this->add(restrictions);
+    clear();
+    add(restrictions);
   }
   return *this;
 }
@@ -102,7 +103,9 @@ DB_restrictions &DB_restrictions::operator=(DB_restrictions &&restrictions) {
 
 */
 bool DB_restrictions::operator==(const DB_restrictions &restrictions) const {
-  return (m_restrictions == restrictions.m_restrictions);
+  if (is_empty() && restrictions.is_empty()) return true;
+  if (is_empty() || restrictions.is_empty()) return false;
+  return (*m_restrictions == *restrictions.m_restrictions);
 }
 
 /**
@@ -113,12 +116,13 @@ bool DB_restrictions::operator==(const DB_restrictions &restrictions) const {
 */
 void DB_restrictions::add(const std::string &db_name,
                           const ulong revoke_privs) {
-  if (m_restrictions.find(db_name) != m_restrictions.end()) {
+  auto restrictions = create_restrictions_if_needed();
+  if (restrictions->find(db_name) != restrictions->end()) {
     /* Partial revokes already exists on this DB so update them */
-    m_restrictions[db_name] |= (revoke_privs);
+    (*restrictions)[db_name] |= (revoke_privs);
   } else {
     /* Partial revokes do not exist on this DB so add them */
-    m_restrictions.emplace(db_name, revoke_privs);
+    restrictions->emplace(db_name, revoke_privs);
   }
 }
 
@@ -128,7 +132,10 @@ void DB_restrictions::add(const std::string &db_name,
   @param [in] restrictions List of <database, privileges>
 */
 void DB_restrictions::add(const DB_restrictions &restrictions) {
-  for (auto &itr : restrictions.m_restrictions)
+  if (!restrictions.m_restrictions) {
+    return;
+  }
+  for (auto &itr : *(restrictions.m_restrictions))
     add(itr.first.c_str(), itr.second);
 }
 
@@ -194,9 +201,11 @@ bool DB_restrictions::add(const Json_object &json_object) {
 */
 void DB_restrictions::remove(const std::string &db_name,
                              const ulong revoke_privs) {
-  auto rest_itr = m_restrictions.find(db_name);
-  if (rest_itr != m_restrictions.end()) {
-    remove(revoke_privs, rest_itr->second);
+  if (m_restrictions != nullptr) {
+    auto rest_itr = m_restrictions->find(db_name);
+    if (rest_itr != m_restrictions->end()) {
+      remove(revoke_privs, rest_itr->second);
+    }
   }
 }
 
@@ -210,13 +219,15 @@ void DB_restrictions::remove(const std::string &db_name,
   @param [in] revoke_privs Privileges to be removed
 */
 void DB_restrictions::remove(const ulong revoke_privs) {
-  for (auto rest_itr = m_restrictions.begin();
-       rest_itr != m_restrictions.end();) {
-    remove(revoke_privs, rest_itr->second);
-    if (rest_itr->second == 0)
-      rest_itr = m_restrictions.erase(rest_itr);
-    else
-      ++rest_itr;
+  if (m_restrictions != nullptr) {
+    for (auto rest_itr = m_restrictions->begin();
+         rest_itr != m_restrictions->end();) {
+      remove(revoke_privs, rest_itr->second);
+      if (rest_itr->second == 0)
+        rest_itr = m_restrictions->erase(rest_itr);
+      else
+        ++rest_itr;
+    }
   }
 }
 
@@ -243,30 +254,35 @@ void DB_restrictions::remove(const ulong remove_restrictions,
     @retval false Entry not found. Do not rely on access.
 */
 bool DB_restrictions::find(const std::string &db_name, ulong &access) const {
-  const auto &itr = m_restrictions.find(db_name);
-  if (itr != m_restrictions.end()) {
-    access = itr->second;
-    return true;
+  if (!is_empty()) {
+    const auto &itr = m_restrictions->find(db_name);
+    if (itr != m_restrictions->end()) {
+      access = itr->second;
+      return true;
+    }
   }
   return false;
 }
 
-/** Status function to check if restriction list is empty */
-bool DB_restrictions::is_empty() const { return m_restrictions.empty(); }
-
-/** Status function to check if restriction list is non-empty */
-bool DB_restrictions::is_not_empty() const { return !is_empty(); }
+/**
+  Status function to check if restriction list is empty.
+  m_restrictions may not be initialized yet, that also indicates that the
+  restrictions are empty.
+*/
+bool DB_restrictions::is_empty() const {
+  return (m_restrictions != nullptr ? m_restrictions->empty() : true);
+}
 
 /** Status function to get number of entries in restriction list */
-size_t DB_restrictions::size() const { return m_restrictions.size(); }
+size_t DB_restrictions::size() const {
+  if (is_empty()) return 0;
+  return m_restrictions->size();
+}
 
 /** Clear restriction list */
 void DB_restrictions::clear() {
-  /*
-    we use swap (with temporary object) trick here to force the container to
-    return the memory
-  */
-  db_revocations().swap(m_restrictions);
+  delete m_restrictions;
+  m_restrictions = nullptr;
 }
 
 /**
@@ -275,7 +291,8 @@ void DB_restrictions::clear() {
   This is used while storing restriction list in ACL table.
 */
 void DB_restrictions::get_as_json(Json_array &restrictions_array) const {
-  for (auto &revocations_itr : m_restrictions) {
+  assert(m_restrictions != nullptr);
+  for (auto &revocations_itr : *m_restrictions) {
     Json_array privileges;
     Json_object revocations_obj;
     Json_string db_name(revocations_itr.first.c_str());
@@ -732,7 +749,7 @@ void DB_restrictions_aggregator::set_if_db_level_operation(
 */
 void DB_restrictions_aggregator::aggregate_restrictions(
     SQL_OP sql_op, const Db_access_map *db_map, DB_restrictions &restrictions) {
-  if (m_grantor_rl.is_not_empty()) {
+  if (!m_grantor_rl.is_empty()) {
     if (test_all_bits(m_grantee_global_access, m_requested_access) &&
         m_grantee_rl.is_empty()) {
       /*
@@ -812,7 +829,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
        (2) Restrictions in grantee's schemas which are not relevant with
            the requested access. Grantee must retain these restrictions.
       */
-      if (grantee_rl.is_not_empty()) {
+      if (!grantee_rl.is_empty()) {
         for (auto &grantee_rl_itr : grantee_rl()) {
           grantee_rl_itr.second &=
               ~(m_grantor_global_access & m_requested_access);
@@ -822,7 +839,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
         restrictions.add(grantee_rl);
       }
     }
-  } else if (m_grantee_rl.is_not_empty()) {
+  } else if (!m_grantee_rl.is_empty()) {
     restrictions = m_grantee_rl;
     for (auto &grantee_rl_itr : restrictions()) {
       restrictions.remove(grantee_rl_itr.first.c_str(), m_requested_access);
@@ -938,7 +955,7 @@ void DB_restrictions_aggregator_set_role::aggregate(
     DB_restrictions &db_restrictions) {
   assert(m_status == Status::Validated);
 
-  if (m_grantee_rl.is_not_empty()) {
+  if (!m_grantee_rl.is_empty()) {
     /*
       At this point, we already have aggregated DB privileges and grantee's
       restrictions. Therefore, negate the restrictions with the DB privileges.
@@ -1005,18 +1022,20 @@ DB_restrictions_aggregator_global_grant::
 */
 Restrictions_aggregator::Status
 DB_restrictions_aggregator_global_grant::validate() {
-  for (auto &grantee_rl_itr : m_grantee_rl()) {
-    ulong grantee_db_access =
-        get_grantee_db_access(grantee_rl_itr.first.c_str());
-    /*
-      Remove the restrictions from grantor's restrictions for which
-      grantee already has DB level privileges.
-    */
-    if (check_db_access_and_restrictions_collision(
-            grantee_db_access, grantee_rl_itr.second,
-            grantee_rl_itr.first.c_str())) {
-      return (m_status = Status::Error);
-      break;
+  if (!m_grantee_rl.is_empty()) {
+    for (auto &grantee_rl_itr : m_grantee_rl()) {
+      ulong grantee_db_access =
+          get_grantee_db_access(grantee_rl_itr.first.c_str());
+      /*
+        Remove the restrictions from grantor's restrictions for which
+        grantee already has DB level privileges.
+      */
+      if (check_db_access_and_restrictions_collision(
+              grantee_db_access, grantee_rl_itr.second,
+              grantee_rl_itr.first.c_str())) {
+        return (m_status = Status::Error);
+        break;
+      }
     }
   }
   /*
@@ -1094,9 +1113,9 @@ DB_restrictions_aggregator_global_revoke::validate() {
       revoke from grantee.
     */
     return (m_status = Status::No_op);
-  } else if (m_grantee_rl.is_not_empty()) {
+  } else if (!m_grantee_rl.is_empty()) {
     return validate_if_grantee_rl_not_empty();
-  } else if (m_grantor_rl.is_not_empty()) {
+  } else if (!m_grantor_rl.is_empty()) {
     for (auto &itr : m_grantor_rl.get()) {
       /*
         Grantor cannot revoke the privileges from grantee which are in
@@ -1204,9 +1223,9 @@ Restrictions_aggregator::Status
 DB_restrictions_aggregator_global_revoke_all::validate() {
   if (m_grantor_rl == m_grantee_rl) {
     return (m_status = Status::No_op);
-  } else if (m_grantee_rl.is_not_empty()) {
+  } else if (!m_grantee_rl.is_empty()) {
     return validate_if_grantee_rl_not_empty();
-  } else if (m_grantor_rl.is_not_empty()) {
+  } else if (!m_grantor_rl.is_empty()) {
     for (auto &itr : m_grantor_rl.get()) {
       /*
         Grantor cannot revoke the privileges from grantee which are in

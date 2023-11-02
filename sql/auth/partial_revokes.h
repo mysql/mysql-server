@@ -60,13 +60,20 @@ class Abstract_restrictions {
 
 /**
   DB Restrictions representation in memory.
-  It uses memroot based, collation aware map to store
-  (\<dbname\>, \<restricted_access\>) mapping.
 
-  Each object created in the MEM_ROOT has to be destroyed manually.
-  It will be the client's responsibility that create the objects.
+  Note that an instance of this class is owned by the security context.
+  Many of the usage pattern of the security context has complex life cycle, it
+  may be using memory allocated through MEM_ROOT. That may lead to an
+  unwarranted memory growth in some circumstances. Therefore, we wish to own the
+  life cycle of the non POD type members in this class. Please allocate them
+  dynamically otherwise you may cause some difficult to find memory leaks.
 
-  It also provides functions to:
+  @@note : non POD members are allocated when needed but not in constructor to
+  avoid unnecessary memory allocations since it is frequently accessed code
+  path. Onus is on the user to call the APIs safely that is to make sure that if
+  the accessed member in the API is allocated if it was supposed to be.
+
+  DB_restrictions also provides functions to:
   - Manage DB restrictions
   - Status functions
   - Transformation of in memory db restrictions
@@ -91,22 +98,52 @@ class DB_restrictions final : public Abstract_restrictions {
 
   bool find(const std::string &db_name, ulong &access) const;
   bool is_empty() const override;
-  bool is_not_empty() const;
   size_t size() const override;
   void clear() override;
   void get_as_json(Json_array &restrictions_array) const;
-  const db_revocations &get() const { return m_restrictions; }
+  const db_revocations &get() const;
   bool has_more_restrictions(const DB_restrictions &, ulong) const;
 
  private:
-  db_revocations &db_restrictions() { return m_restrictions; }
+  db_revocations &db_restrictions();
   void remove(const ulong remove_restrictions,
               ulong &restrictions_mask) const noexcept;
+  db_revocations *create_restrictions_if_needed();
+  void copy_restrictions(const DB_restrictions &other);
 
  private:
-  /** Database restrictions */
-  db_revocations m_restrictions;
+  /**
+    Database restrictions.
+    Dynamically allocating the memory everytime in constructor would be
+    expensive because this is frequently accessed code path. Therefore, we shall
+    allocate the memory when needed later on.
+  */
+  db_revocations *m_restrictions = nullptr;
 };
+
+inline const db_revocations &DB_restrictions::get() const {
+  assert(m_restrictions != nullptr);
+  return *m_restrictions;
+}
+
+inline db_revocations *DB_restrictions::create_restrictions_if_needed() {
+  if (!m_restrictions) {
+    m_restrictions = new db_revocations();
+  }
+  return m_restrictions;
+}
+
+inline db_revocations &DB_restrictions::db_restrictions() {
+  assert(m_restrictions != nullptr);
+  return *m_restrictions;
+}
+
+inline void DB_restrictions::copy_restrictions(const DB_restrictions &other) {
+  assert(m_restrictions == nullptr);
+  if (other.m_restrictions) {
+    m_restrictions = new db_revocations(*other.m_restrictions);
+  }
+}
 
 /**
   Container of all restrictions for a given user.
