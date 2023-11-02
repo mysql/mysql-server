@@ -1054,9 +1054,8 @@ void CommandInterpreter::startEventThread(const char * host,
       return;
     }
   } else {  // Test whether server requires TLS
-    ndb_mgm_severity dummy;
-    if (ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv2, &dummy,
-                                               sizeof(dummy))) {
+    ndb_mgm_severity dummy {NDB_MGM_EVENT_SEVERITY_ON, 0};
+    if (ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv2, &dummy, 1)) {
       int err = ndb_mgm_get_latest_error(m_mgmsrv2);
       if ((err == NDB_MGM_NOT_AUTHORIZED) ||
           (err == NDB_MGM_AUTH_REQUIRES_TLS) ||
