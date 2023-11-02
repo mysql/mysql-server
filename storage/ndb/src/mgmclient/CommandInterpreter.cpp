@@ -269,9 +269,7 @@ static const char *helpText =
     "SHOW                                   Print information about cluster\n"
     "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
     "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
-    "START TLS                              Start TLS on connection\n"
-    "TLS INFO                               Display TLS connection "
-    "certificates\n"
+    "TLS INFO                               Print cluster TLS information\n"
     "START BACKUP [<backup id>] [ENCRYPT [PASSWORD='<password>']] "
     "[SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
     "                                       Start backup "
@@ -413,6 +411,20 @@ static const char *helpTextAbortBackup =
     "                   The backup id can be seen in the cluster log or in "
     "the\n"
     "                   output of the START BACKUP command.\n";
+
+static const char *helpTextTlsInfo =
+    "--------------------------------------------------------------------------"
+    "-\n"
+    " NDB Cluster -- Management Client -- Help for TLS INFO command\n"
+    "--------------------------------------------------------------------------"
+    "-\n"
+    "TLS INFO  Print cluster TLS information\n\n"
+    "TLS INFO           Report whether the current connection is using TLS,\n"
+    "                   display a list of all TLS certificates currently\n"
+    "                   known to the management node, and report the\n"
+    "                   management node's counts of total connections,\n"
+    "                   connections upgraded to TLS, and authorization failures"
+    ".\n";
 
 static const char *helpTextShutdown =
     "--------------------------------------------------------------------------"
@@ -730,6 +742,7 @@ struct st_cmd_help {
 } help_items[] = {{"SHOW", helpTextShow, NULL},
                   {"HELP", helpTextHelp, NULL},
                   {"BACKUP", helpTextBackup, NULL},
+                  {"TLS INFO", helpTextTlsInfo, NULL},
                   {"START BACKUP", helpTextStartBackup, NULL},
                   {"START BACKUP NOWAIT", helpTextStartBackup, NULL},
                   {"START BACKUP WAIT STARTED", helpTextStartBackup, NULL},
