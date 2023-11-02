@@ -4689,6 +4689,7 @@ bool udf_handler::call_init_func() {
   *init_msg_buff = '\0';
   char *to = num_buffer;
   f_args.extension = &m_args_extension;
+  THD *thd = current_thd;
 
   for (uint i = 0; i < f_args.arg_count; i++) {
     /*
@@ -4708,16 +4709,19 @@ bool udf_handler::call_init_func() {
         case STRING_RESULT:
         case DECIMAL_RESULT: {
           get_string(i);
+          if (thd->is_error()) return true;
           break;
         }
         case INT_RESULT:
           *((longlong *)to) = args[i]->val_int();
+          if (thd->is_error()) return true;
           if (args[i]->null_value) continue;
           f_args.args[i] = to;
           to += ALIGN_SIZE(sizeof(longlong));
           break;
         case REAL_RESULT:
           *((double *)to) = args[i]->val_real();
+          if (thd->is_error()) return true;
           if (args[i]->null_value) continue;
           f_args.args[i] = to;
           to += ALIGN_SIZE(sizeof(double));

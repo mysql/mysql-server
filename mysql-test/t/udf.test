@@ -868,9 +868,7 @@ let $query =
 DROP TABLE t1;
 DROP FUNCTION my_median;
 
-#
-# Bug#34666531: Mysqld failure - String::ptr()
-#
+--echo # Bug#34666531: Mysqld failure - String::ptr()
 
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
@@ -883,4 +881,21 @@ SELECT a FROM (SELECT sequence() AS seq, a FROM t1) AS dt WHERE a = seq;
 DROP FUNCTION sequence;
 DROP TABLE t1;
 
---echo # End of the 8.0 tests
+--echo # Bug#35963172: HLL query crashes mysqld at setup_fields(assertion)
+
+INSTALL COMPONENT "file://component_hll";
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT HLL(1000000000000*1000000000000);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT HLL(CAST(1000000000000*1000000000000 AS DOUBLE));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT HLL(CAST(1000000000000*1000000000000 AS DECIMAL));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT HLL(CAST(1000000000000*1000000000000 AS CHAR(100)));
+
+UNINSTALL COMPONENT "file://component_hll";
+
