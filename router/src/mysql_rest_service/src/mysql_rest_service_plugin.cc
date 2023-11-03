@@ -195,8 +195,9 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     auto routing_plugins =
         g_mrs_configuration->get_waiting_for_routing_plugins();
 
-    for (const auto &el : routing_plugins)
-      service_names.insert("routing:" + el);
+    for (const auto &el : routing_plugins) {
+      service_names.insert(el.empty() ? "routing" : "routing:" + el);
+    }
 
     if (g_mrs_configuration->service_monitor_.wait_for_services(
             service_names) &&

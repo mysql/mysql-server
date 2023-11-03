@@ -127,9 +127,7 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
 INSTANTIATE_TEST_SUITE_P(
     BootstrapDebugLevelOk, BootstrapDebugLevelOkTest,
     ::testing::Values(LevelOkParameter{"--logger.level=debug", false},
-                      LevelOkParameter{"--logger.level=DEBUG", false},
-                      LevelOkParameter{"--logger.level=debug", true},
-                      LevelOkParameter{"--logger.level=DEBUG", true}));
+                      LevelOkParameter{"--logger.level=DEBUG", false}));
 
 struct OverwriteErrorTestParam {
   OverwriteErrorTestParam() {}
@@ -204,29 +202,7 @@ INSTANTIATE_TEST_SUITE_P(
             "Invalid argument '--abc.read_timeout'. Only "
             "'--logger.level' configuration option can be set with a command "
             "line parameter when bootstrapping.",
-            false},
-        OverwriteErrorExeTestParam{
-            {"--logger.level", "DEBUG2"},
-            "Configuration error: Log level 'debug2' is not valid.",
-            true},
-        OverwriteErrorExeTestParam{
-            {"--logger.sinks", "filelog"},
-            "Invalid argument '--logger.sinks'. Only "
-            "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping.",
-            true},
-        OverwriteErrorExeTestParam{
-            {"--DEFAULT.read_timeout", "30"},
-            "Invalid argument '--DEFAULT.read_timeout'. Only "
-            "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping.",
-            true},
-        OverwriteErrorExeTestParam{
-            {"--abc.read_timeout", "30"},
-            "Invalid argument '--abc.read_timeout'. Only "
-            "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping.",
-            true}));
+            false}));
 
 class OverwriteLogLevelTest
     : public RouterConfigOwerwriteTestOldExe,

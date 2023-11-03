@@ -203,6 +203,8 @@ mysqlrouter_bootstrap [--mrs]
         Path to private key for client SSL certificate, to be used if
         client certificate verification is required when connecting to
         metadata-servers.
+  --disable-rw-split
+        Do not generate routing section for RW Split endpoint
   --disable-rest
         Disable REST web service for Router monitoring
   --https-port <https-port>

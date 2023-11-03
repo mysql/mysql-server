@@ -17,13 +17,13 @@ eval CREATE OR REPLACE SQL SECURITY INVOKER VIEW
     mysql_rest_service_metadata.schema_version (major, minor, patch)
     AS SELECT $mrs_schema_version;
 
-let $_bootstrap_paths_and_ports_replace = / Bootstrapping MySQL Router instance at \'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
+let $_bootstrap_paths_and_ports_replace = / Bootstrapping MySQL Router.* instance at \'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
    /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
    /\\\$ .*mysqlrouter -c .*mysqlrouter.conf/\$ mysqlrouter -c ...\/mysqlrouter.conf/
    /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
    /\(mysql_router1_[^)]+\)/(mysql_router1_RANDOM)/
    / Using existing certificates from the '.*' directory/Using existing certificates from the 'TEMP_DIRECTORY' directory/
-   /Reconfiguring MySQL Router instance at \'.*\'/Reconfiguring MySQL Router instance at 'DIRECTORY'/;
+   /Reconfiguring MySQL Router.* instance at \'.*\'/Reconfiguring MySQL Router instance at 'DIRECTORY'/;
 --replace_regex $_bootstrap_paths_and_ports_replace;
 --error 1,2,256
 exec $MYSQLROUTER_BOOTSTRAP 

@@ -9,7 +9,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
 
---replace_regex / Bootstrapping MySQL Router instance at '.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/ /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/ /\$ .*mysqlrouter -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/ /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
+--replace_regex / Bootstrapping MySQL Router.* instance at '.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/ /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/ /\$ .*mysqlrouter -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/ /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
 exec $MYSQLROUTER_BOOTSTRAP 
    -B admin:admin_pass@127.0.0.1:$port
    --directory $MYSQL_TMP_DIR/bootstrap_folder/

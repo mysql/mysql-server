@@ -240,8 +240,8 @@ std::shared_ptr<collector::DestinationProvider> create_destination(
   if (destiantions_state->is_dynamic()) {
     auto name = destiantions_state->get_dynamic_plugin_name();
     log_debug("Waiting for destination-provider:%s", name.c_str());
-    out_wait_for_dynamic_destination_providers.insert("metadata_cache:"s +
-                                                      name);
+    out_wait_for_dynamic_destination_providers.insert(
+        name.empty() ? "metadata_cache" : "metadata_cache:"s + name);
 
     return std::make_shared<DestinationDynamic>(routing_name, ssl);
     //    destiantions_state->register_allowed_nodes_change_callback(clb);

@@ -28,6 +28,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 
@@ -61,6 +62,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 
@@ -94,6 +96,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 
@@ -127,6 +130,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 
@@ -160,6 +164,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 

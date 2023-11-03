@@ -24,6 +24,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 - Read/Write Connections: localhost:6446
 - Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
 
 ## MySQL X protocol
 
@@ -55,6 +56,7 @@ client_ssl_mode=PREFERRED
 server_ssl_mode=AS_CLIENT
 server_ssl_verify=DISABLED
 unknown_config_option=error
+max_idle_server_connections=64
 
 [logger]
 level=INFO
@@ -81,6 +83,17 @@ bind_port=6447
 destinations=metadata-cache://my_cluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
+
+[routing:bootstrap_rw_split]
+bind_address=0.0.0.0
+bind_port=6450
+destinations=metadata-cache://my_cluster/?role=PRIMARY_AND_SECONDARY
+routing_strategy=round-robin
+protocol=classic
+connection_sharing=1
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+access_mode=auto
 
 [routing:bootstrap_x_rw]
 bind_address=0.0.0.0
