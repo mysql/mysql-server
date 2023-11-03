@@ -266,11 +266,6 @@ IF(NOT LINUX_RHEL AND MY_HOST_SYSTEM_NAME MATCHES "Linux")
       SET(LINUX_DEBIAN 1)
     ELSEIF(MY_OS_RELEASE MATCHES "Ubuntu")
       SET(LINUX_UBUNTU 1)
-      IF(MY_OS_RELEASE MATCHES "16.04")
-        SET(LINUX_UBUNTU_16_04 1)
-      ELSEIF(MY_OS_RELEASE MATCHES "18.04")
-        SET(LINUX_UBUNTU_18_04 1)
-      ENDIF()
       # /etc/os-release contains a line like
       # VERSION_ID="20.04"
       # Match the numeric value, including the dot, ignore the rest:
@@ -901,7 +896,7 @@ ENDIF()
 #   authentication_fido_client.so
 # The WEBAUTHN client authentication plugin
 #   authentication_webauthn_client.so
-# The OCI client authentication plubin
+# The OCI client authentication plugin
 #   authentication_oci_client.so
 OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
