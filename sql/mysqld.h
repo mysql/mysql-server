@@ -109,10 +109,9 @@ typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #define TEST_NO_TEMP_TABLES \
   8192 /**< No temp table engine is loaded, so use dummy costs. */
 
-#define SPECIAL_NO_NEW_FUNC 2     /* Skip new functions */
-#define SPECIAL_SKIP_SHOW_DB 4    /* Don't allow 'show db' */
-#define SPECIAL_NO_RESOLVE 64     /* Don't use gethostname */
-#define SPECIAL_NO_HOST_CACHE 512 /* Don't cache hosts */
+#define SPECIAL_NO_NEW_FUNC 2  /* Skip new functions */
+#define SPECIAL_SKIP_SHOW_DB 4 /* Don't allow 'show db' */
+#define SPECIAL_NO_RESOLVE 64  /* Don't use gethostname */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 extern bool dynamic_plugins_are_initialized;

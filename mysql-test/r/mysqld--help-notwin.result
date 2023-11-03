@@ -1371,7 +1371,6 @@ The following options may be given as the first argument:
  version. Use show-replica-auth-info instead.
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
- --skip-host-cache   Don't cache host names.
  --skip-name-resolve Don't resolve hostnames. All hostnames are IP's or
  'localhost'.
  --skip-networking   Don't allow connection with TCP/IP

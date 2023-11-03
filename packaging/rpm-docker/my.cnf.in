@@ -22,7 +22,7 @@
 # this will increase compatibility with older clients. For background, see:
 # https://dev.mysql.com/doc/refman/@MYSQL_BASE_VERSION@/en/server-system-variables.html#sysvar_default_authentication_plugin
 # default-authentication-plugin=mysql_native_password
-skip-host-cache
+host-cache-size=0
 skip-name-resolve
 datadir=@INSTALL_MYSQLDATADIR@
 socket=@MYSQL_UNIX_ADDR@

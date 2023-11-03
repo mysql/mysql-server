@@ -332,8 +332,6 @@ static void add_hostname(const char *ip_string, const char *hostname,
                          bool validated, Host_errors *errors) {
   mysql_mutex_assert_not_owner(&hostname_cache_mutex);
 
-  if (specialflag & SPECIAL_NO_HOST_CACHE) return;
-
   const ulonglong now = my_micro_time();
 
   MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
@@ -470,39 +468,39 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   }
 
   /* Check first if we have host name in the cache. */
-
-  if (!(specialflag & SPECIAL_NO_HOST_CACHE)) {
-    const ulonglong now = my_micro_time();
-
+  {
     MUTEX_LOCK(hostname_lock, &hostname_cache_mutex);
 
-    Host_entry *entry = hostname_cache_search(ip_string);
+    if (hostname_cache_size() > 0) {
+      Host_entry *entry = hostname_cache_search(ip_string);
 
-    if (entry) {
-      entry->m_last_seen = now;
-      *connect_errors = entry->m_errors.m_connect;
+      if (entry) {
+        const ulonglong now = my_micro_time();
+        entry->m_last_seen = now;
+        *connect_errors = entry->m_errors.m_connect;
 
-      if (entry->m_errors.m_connect >= max_connect_errors) {
-        entry->m_errors.m_host_blocked++;
-        entry->set_error_timestamps(now);
-        return RC_BLOCKED_HOST;
-      }
+        if (entry->m_errors.m_connect >= max_connect_errors) {
+          entry->m_errors.m_host_blocked++;
+          entry->set_error_timestamps(now);
+          return RC_BLOCKED_HOST;
+        }
 
-      /*
-        If there is an IP -> HOSTNAME association in the cache,
-        but for a hostname that was not validated,
-        do not return that hostname: perform the network validation again.
-      */
-      if (entry->m_host_validated) {
-        if (entry->m_hostname_length)
-          *hostname = my_strdup(key_memory_host_cache_hostname,
-                                entry->m_hostname, MYF(0));
+        /*
+          If there is an IP -> HOSTNAME association in the cache,
+          but for a hostname that was not validated,
+          do not return that hostname: perform the network validation again.
+        */
+        if (entry->m_host_validated) {
+          if (entry->m_hostname_length)
+            *hostname = my_strdup(key_memory_host_cache_hostname,
+                                  entry->m_hostname, MYF(0));
 
-        DBUG_PRINT("info", ("IP (%s) has been found in the cache. "
-                            "Hostname: '%s'",
-                            ip_string, (*hostname ? *hostname : "null")));
+          DBUG_PRINT("info", ("IP (%s) has been found in the cache. "
+                              "Hostname: '%s'",
+                              ip_string, (*hostname ? *hostname : "null")));
 
-        return 0;
+          return 0;
+        }
       }
     }
   }
