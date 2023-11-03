@@ -11062,9 +11062,19 @@ void Dblqh::execCOMMIT(Signal *signal) {
     TcConnectionrec *const regTcPtr = tcConnectptr.p;
     TRACE_OP(regTcPtr, "COMMIT");
 
-    CRASH_INSERTION(5048);
-    if (ERROR_INSERTED(5049)) {
-      SET_ERROR_INSERT_VALUE(5048);
+    if (ERROR_INSERTED(5048) || ERROR_INSERTED(5049)) {
+      jam();
+      TablerecPtr tablePtr;
+      tablePtr.i = tcConnectptr.p->tableref;
+      ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+      if (tcConnectptr.p->operation == ZUPDATE &&
+          tablePtr.p->tableType == DictTabInfo::UserTable) {
+        g_eventLogger->info("COMMIT an UPDATE on table:%u", tablePtr.i);
+        CRASH_INSERTION(5048);
+        if (ERROR_INSERTED(5049)) {
+          SET_ERROR_INSERT_VALUE(5048);
+        }
+      }
     }
     if (ERROR_INSERTED(5093)) {
       if (tcConnectptr.p->operation == ZREAD) {
