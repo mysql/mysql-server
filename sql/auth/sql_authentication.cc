@@ -4489,13 +4489,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
            acl_user->user_resource.conn_per_hour ||
            acl_user->user_resource.user_conn ||
            global_system_variables.max_user_connections) &&
-          get_or_create_user_conn(
-              thd,
-              (opt_old_style_user_limits ? sctx->user().str
-                                         : sctx->priv_user().str),
-              (opt_old_style_user_limits ? sctx->host_or_ip().str
-                                         : sctx->priv_host().str),
-              &acl_user->user_resource))
+          get_or_create_user_conn(thd, sctx->priv_user().str,
+                                  sctx->priv_host().str,
+                                  &acl_user->user_resource))
         goto end;  // The error is set by get_or_create_user_conn()
 
       /*

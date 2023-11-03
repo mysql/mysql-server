@@ -1294,7 +1294,7 @@ mysql_mutex_t LOCK_partial_revokes;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-bool opt_old_style_user_limits = false, trust_function_creators = false;
+bool trust_function_creators = false;
 bool check_proxy_users = false, mysql_native_password_proxy_users = false,
      sha256_password_proxy_users = false;
 /*
@@ -10861,12 +10861,6 @@ struct my_option my_long_options[] = {
     {"memlock", 0, "Lock mysqld in memory.", &locked_in_memory,
      &locked_in_memory, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"old-style-user-limits", OPT_OLD_STYLE_USER_LIMITS,
-     "Enable old-style user limits (before 5.0.3, user resources were counted "
-     "for each user + host vs. per account). "
-     "This option is deprecated and will be removed in a future version.",
-     &opt_old_style_user_limits, &opt_old_style_user_limits, nullptr, GET_BOOL,
-     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port-open-timeout", 0,
      "Maximum time in seconds to wait for the port to become free. "
      "(Default: No wait).",
@@ -12668,9 +12662,6 @@ bool mysqld_get_one_option(int optid,
         push_deprecated_warn(nullptr, "--replica-parallel-workers=0",
                              "'--replica-parallel-workers=1'");
       }
-      break;
-    case OPT_OLD_STYLE_USER_LIMITS:
-      push_deprecated_warn_no_replacement(nullptr, "--old-style-user-limits");
       break;
     case OPT_SYNC_RELAY_LOG_INFO:
       LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,

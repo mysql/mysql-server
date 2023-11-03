@@ -220,7 +220,7 @@ extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
 extern bool opt_log_slow_admin_statements, opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
-extern bool opt_old_style_user_limits, trust_function_creators;
+extern bool trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
 #ifdef _WIN32

@@ -70,8 +70,7 @@ typedef struct user_conn {
   /*
      Pointer to user+host key (pair separated by '\0') defining the entity
      for which resources are counted (By default it is user account thus
-     priv_user/priv_host pair is used. If --old-style-user-limits option
-     is enabled, resources are counted for each user+host separately).
+     priv_user/priv_host pair is used).
   */
   char *user;
   /* Pointer to host part of the key. */
