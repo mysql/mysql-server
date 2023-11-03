@@ -3,30 +3,58 @@
 call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("Corrupted page .* of datafile .*  could not be found in the doublewrite buffer");
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 CHAR(255), c3 CHAR(255),
-      c4 CHAR(255), c5 CHAR(255)) CHARACTER SET latin1 ENGINE=INNODB;
+let MYSQLD_DATADIR =`SELECT @@datadir`;
 
-CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 TEXT)
+# Have enough disk space for redo logs the tests are going to produce
+SET GLOBAL innodb_redo_log_capacity=52428800;
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT)
       CHARACTER SET latin1 ENGINE=INNODB;
 
---echo #
---echo # Prepare the table and flush dirty pages to ensure it doesn't
---echo # produce MLOG_FILE_EXTEND log records later
---echo #
+--echo
+--echo # Prepare the table t1 and flush dirty pages
+--echo
 --disable_query_log
-INSERT INTO t1 VALUES(1, repeat(1, 255), repeat(1, 255),
-    repeat(1, 255), repeat(1, 255));
 SET @records = 1;
-while(`SELECT @records <= 16`) {
-  INSERT INTO t1 SELECT c1 + @records, c2, c3, c4, c5 from t1;
+INSERT INTO t1 VALUES(@records, REPEAT(@records, 1600));
+SET @records = @records + 1;
+while(`SELECT @records <= 128`) {
+  INSERT INTO t1 SELECT c1 + @records, REPEAT(@records, 1600) from t1;
   SET @records = @records*2;
 }
+--enable_query_log
+SELECT COUNT(*) FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 
---enable_query_log
+--echo
+--echo # Take the backup of the double-write buffer. It may have pages
+--echo # from tablespace t1
+--copy_files_wildcard $MYSQLD_DATADIR $MYSQLTEST_VARDIR/tmp *.dblwr
+--echo # Done
+--echo
 
-let MYSQLD_DATADIR =`SELECT @@datadir`;
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 CHAR(255), c3 CHAR(255),
+      c4 CHAR(255), c5 CHAR(255)) CHARACTER SET latin1 ENGINE=INNODB;
+
+--disable_query_log
+
+--echo
+--echo # Prepare the table t2 and flush dirty pages to ensure it doesn't
+--echo # produce MLOG_FILE_EXTEND log records later
+--echo
+
+INSERT INTO t2 VALUES(1, repeat(1, 255), repeat(1, 255),
+    repeat(1, 255), repeat(1, 255));
+SET @records = 1;
+while(`SELECT @records <= 16`) {
+  INSERT INTO t2 SELECT c1 + @records, c2, c3, c4, c5 from t2;
+  SET @records = @records*2;
+}
+FLUSH TABLES t2 FOR EXPORT;
+UNLOCK TABLES;
+
+--enable_query_log
 
 --echo #
 --echo # Stop the page cleaner and other background threads
@@ -35,36 +63,34 @@ let MYSQLD_DATADIR =`SELECT @@datadir`;
 
 --disable_query_log
 
---echo #
---echo # Produce the log records without extending the tablespace t1
---echo # size by simply updating the rows in the table
---echo #
-SET @records = 1;
-while(`SELECT @records <= 32`) {
-  UPDATE t1 SET c2 = REPEAT(2, 255), c3 = REPEAT(3, 255),
-    c4 = REPEAT(4, 255), c5 = REPEAT(5, 255) WHERE c1 = @records;
- SET @records = @records +1;
+--echo
+--echo # Produce the log records such that size of hash table of log records
+--echo # could exceed max size of the hash table.
+--echo
+# It is important to note that tablespace t2 must not produce log records
+# of MLOG_FILE_EXTEND type because this log type has platform specific
+# handling. Therefore, it may not meet objective of this test on some
+# platforms. Thus produce redo logs by simply update the records in the table.
+SET @counter = 1;
+SELECT count(*) INTO @records FROM t2;
+while(`SELECT @counter <= @records`) {
+  UPDATE t2 SET c2 = REPEAT(2, 255), c3 = REPEAT(3, 255),
+    c4 = REPEAT(4, 255), c5 = REPEAT(5, 255) WHERE c1 = @counter;
+ SET @counter = @counter + 1;
 }
 
---echo #
---echo # Insert enough rows to another table t2 so that :
---echo # (1) Size of hash table of log records could exceed max size of the hash table
---echo # (2) Corrupt page of table t1 move out of the double-write buffer
---echo #
-SET @records = 1;
-INSERT INTO t2 VALUES(@records, REPEAT(@records, 16000));
-  SET @records = @records + 1;
-while(`SELECT @records <= 512`) {
-   INSERT INTO t2 SELECT c1 + @records, REPEAT(@records, 16000) from t2;
-  SET @records = @records*2;
+SET @counter = 1;
+SELECT count(*) INTO @records FROM t1;
+while(`SELECT @counter <= @records`) {
+  UPDATE t1 SET c2 = REPEAT(@counter+1, 1600) where c1 = @counter;
+  SET @counter = @counter + 1;
 }
-
 --enable_query_log
 
 # Set parameters for corrupt_page.inc script
 let INNODB_PAGE_SIZE=`SELECT @@innodb_page_size`;
 let PAGE_NUM = '0';
-let IBD_FILE = $MYSQLD_DATADIR/test/t1.ibd;
+let IBD_FILE = $MYSQLD_DATADIR/test/t2.ibd;
 
 --echo
 # Kill the server to trigger recovery on start
@@ -72,26 +98,34 @@ let IBD_FILE = $MYSQLD_DATADIR/test/t1.ibd;
 --echo
 
 --echo
---echo # Copy the tablespace file t1.ibd before corrupting the page
---copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLTEST_VARDIR/t1.ibd
+--echo # Copy the tablespace file t2.ibd before corrupting the page
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLTEST_VARDIR/tmp/t2.ibd
 
 --echo
---echo # Corrupt page: $PAGE_NUM in t1.ibd
+--echo # Corrupt page: $PAGE_NUM in t2.ibd
 --echo
 # Required parameters are set above ^
 --source ../include/corrupt_page.inc
 
 --error 1
---diff_files  $MYSQLD_DATADIR/test/t1.ibd $MYSQLTEST_VARDIR/t1.ibd
+--diff_files  $MYSQLD_DATADIR/test/t2.ibd $MYSQLTEST_VARDIR/tmp/t2.ibd
 
-let $error_log = $MYSQLTEST_VARDIR/log/my_restart.err;
+let $error_log = $MYSQLTEST_VARDIR/tmp/my_restart.err;
 
---echo #
+--echo
+--echo # To simulate the situation reliably that double-write buffer does not
+--echo # have corrupt page from tablespace t2, restore the backup of
+--echo # double-write buffer files that was taken before creating tablespace t2
+--echo
+--remove_files_wildcard $MYSQLD_DATADIR  *.dblwr
+--copy_files_wildcard $MYSQLTEST_VARDIR/tmp $MYSQLD_DATADIR  *.dblwr
+
+--echo
 --echo # Start the server with reduced buffer pool size to have smaller batch.
 --echo # Crash recovery must detect the tablespace page is corrupt and abort
---echo #
---error 2
---exec $MYSQLD_CMD --nocore  --console --innodb_buffer_pool_size=5M > $error_log 2>&1
+--echo
+--error 2,-2147483645
+--exec $MYSQLD_CMD --log-error=$error_log --innodb_buffer_pool_size=5M
 
 let SEARCH_FILE = $error_log;
 
@@ -112,9 +146,9 @@ let SEARCH_PATTERN = $error_id;
 --source include/search_pattern.inc
 
 --echo
---echo # Restore the tablespace file t1.ibd and start the server as usual
+--echo # Restore the tablespace file t2.ibd and start the server as usual
 --echo
---move_file $MYSQLTEST_VARDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQLTEST_VARDIR/tmp/t2.ibd $MYSQLD_DATADIR/test/t2.ibd
 --let restart_parameters="restart:"
 --source include/start_mysqld.inc
 
@@ -122,6 +156,7 @@ let SEARCH_PATTERN = $error_id;
 --echo # cleanup
 --echo
 --remove_file $error_log
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp  *.dblwr
 let IBD_FILE=;
 let PAGE_NUM=;
 let INNODB_PAGE_SIZE=;
