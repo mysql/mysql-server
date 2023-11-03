@@ -165,23 +165,11 @@ void Transporter::use_tls_client_auth() {
 
 Transporter::~Transporter() { delete m_socket_client; }
 
-bool Transporter::do_disconnect(int err, bool send_source) {
-  if (m_is_active) {
-    DEB_MULTI_TRP(("Disconnect trp_id %u for node %u in active mode",
-                   getTransporterIndex(), remoteNodeId));
-    return m_transporter_registry.do_disconnect(remoteNodeId, err, send_source);
-  } else {
-    if (theSocket.is_valid()) {
-      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
-                     getTransporterIndex()));
-      // Communication inactive -> can close directly without a 'shutdown'
-      theSocket.close();
-    } else {
-      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket invalid",
-                     getTransporterIndex()));
-    }
-    return true;
-  }
+bool Transporter::start_disconnecting(int err, bool send_source) {
+  DEB_MULTI_TRP(("Disconnecting trp_id %u for node %u", getTransporterIndex(),
+                 remoteNodeId));
+  return m_transporter_registry.start_disconnecting_trp(getTransporterIndex(),
+                                                        err, send_source);
 }
 
 bool Transporter::configure(const TransporterConfiguration *conf) {
@@ -415,7 +403,7 @@ bool Transporter::connect_client(NdbSocket &&socket) {
   }
 
   DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
-  DEBUG_FPRINTF((stderr, "Sending hello : %s\n"));
+  DEBUG_FPRINTF((stderr, "Sending hello : %s\n", helloBuf));
 
   SocketOutputStream s_output(socket);
   if (s_output.println("%s", helloBuf) < 0) {
@@ -514,40 +502,10 @@ void Transporter::disconnectImpl() {
  * Transporter in the DISCONNECTED state -> There are no other concurrent
  * send/receive activity on it, thus held resources can be released without
  * lock and concerns for thread safety.
- *
- * The exception is (unfortunately) when it 'isPartOfMultiTransporter'
- * which 'forceUnsafeDisconnect()' on it - See further below.
  */
 void Transporter::releaseAfterDisconnect() {
   assert(!isConnected());
   theSocket.close();
-}
-
-/**
- * Bug#35750394 MultiTranporter should follow the DISCONNECT protocol:
- *
- * forceUnsafeDisconnect() Is only intended to be used when disconnecting
- * a Transporter which 'isPartOfMultiTransporter'. The Multi_Transporter
- * breaks the disconnect 'protocol' by disconnecting these Transporters
- * directly from report_disconnect(), instead of just setting DISONNECTING
- * state and let start_client_thread() -> doDisconnect(), and finally let
- * report_disconnect() set DISCONNECTED state.
- *
- * It is intended as a temporary fix for this protocol breach.
- * Longer term a refactoring effort is needed.
- */
-void Transporter::forceUnsafeDisconnect() {
-  assert(isPartOfMultiTransporter());
-
-  if (m_connected) {
-    update_connect_state(false);
-    disconnectImpl();
-  }
-
-  // Release of resources need locks as we not really DISCONNECTED.
-  get_callback_obj()->lock_transporter(m_transporter_index);
-  if (!isReleased()) releaseAfterDisconnect();
-  get_callback_obj()->unlock_transporter(m_transporter_index);
 }
 
 void Transporter::resetCounters() {

@@ -1,3 +1,27 @@
+/*
+   Copyright (c) 2023, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 Transporter.
 
 Common code in TransporterRegistry class and sources in
@@ -36,9 +60,9 @@ kernel, update_connections() is called perodically from the receive loop.
 
 The sequence for getting a transporter into the CONNECTED state in the kernel
 is this:
-  1. CMVMI calls TransporterRegistry::do_connect() when it decides to
+  1. CMVMI calls TransporterRegistry::start_connecting() when it decides to
      initiate a connection.
-  2. do_connect() sets the performStates[node] entry to CONNECTING as
+  2. start_connecting() sets the performStates[node] entry to CONNECTING as
      a flag for start_clients_thread.
   3. The thread running in start_clients_thread() notices the change of
      state, and does the actual socket connect and initial connection
@@ -52,10 +76,10 @@ is this:
      the CMVMI block, completing the connection process.
 
 The sequence for disconnect is this:
-  1. CMVMI calls TransporterRegistry::do_disconnect() when it decides to
+  1. CMVMI calls TransporterRegistry::start_disconnecting() when it decides to
      initiate disconnection. The TCP transporter may also call
-     do_disconnect() if an I/O error occurs on the socket.
-  2. do_disconnect() sets the performStates[node] entry to DISCONNECTING
+     start_disconnecting() if an I/O error occurs on the socket.
+  2. start_disconnecting() sets the performStates[node] entry to DISCONNECTING
      as a flag for start_clients_thread.
   3. The thread running in start_clients_thread() notices the change of
      state, closes the socket, and sets Transporter::m_connected to false
@@ -70,7 +94,7 @@ The sequence for disconnect is this:
 Locking
 -------
 
-Certain parts of the traporters must be protected for multi-threaded use
+Certain parts of the transporters must be protected for multi-threaded use
 cases.
 
 The TransporterRegistry::performReceive() function must be protected by a

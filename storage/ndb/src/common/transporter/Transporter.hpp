@@ -61,9 +61,9 @@ class Transporter {
   virtual ~Transporter();
 
   /**
-   * Disconnect node/socket
+   * Initiate the asynch disconnecting protocol of node/socket
    */
-  bool do_disconnect(int err, bool send_source);
+  bool start_disconnecting(int err, bool send_source);
 
   /**
    * Clear any data buffered in the transporter.
@@ -128,8 +128,6 @@ class Transporter {
    */
   void doDisconnect();
 
-  void forceUnsafeDisconnect();
-
   /**
    * Are we currently connected
    */
@@ -187,14 +185,6 @@ class Transporter {
   Uint32 get_recv_thread_idx() { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
-
-  /**
-   * Only applies to TCP transporter, abort on any other object.
-   * Used as part of shutting down transporter when switching to
-   * multi socket setup.
-   * Shut down only for writes when all data have been sent.
-   */
-  virtual void shutdown() { abort(); }
 
  protected:
   Transporter(TransporterRegistry &, TrpId transporter_index, TransporterType,
@@ -305,7 +295,7 @@ class Transporter {
     return m_transporter_registry.callbackObj;
   }
   void report_error(enum TransporterError err, const char *info = nullptr) {
-    m_transporter_registry.report_error(remoteNodeId, err, info);
+    m_transporter_registry.report_error(m_transporter_index, err, info);
   }
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);

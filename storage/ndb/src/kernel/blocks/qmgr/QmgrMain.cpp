@@ -7160,12 +7160,13 @@ void Qmgr::execNODE_FAILREP(Signal *signal) {
       bool switch_required = false;
       Multi_Transporter *multi_trp =
           globalTransporterRegistry.get_node_multi_transporter(nodePtr.i);
-      if (multi_trp && globalTransporterRegistry.get_num_active_transporters(
-                           multi_trp) > 1) {
+      if (multi_trp != nullptr &&
+          globalTransporterRegistry.get_num_active_transporters(multi_trp) >
+              1) {
         /**
          * The timing of the NODE_FAILREP signal is such that the transporter
          * haven't had time to switch the active transporters yet, we know
-         * this will happen, so we switch now to use the old transporter for
+         * this will happen, so we switch now to use the base transporter for
          * the neighbour node. The node is currently down, so will have to
          * be setup before it can be used again.
          *
@@ -8910,9 +8911,11 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
   /**
    * Connect a multi-transporter.
    * For clients this happens by moving the transporters inside the
-   * multi-transporter into the allTransporters array. This leads to
-   * that they are checked in start_clients_thread. These transporters
-   * are special in that they only connect in the CONNECTED state.
+   * multi-transporter into the allTransporters array and initiate the
+   * CONNECTING protocol with start_connecting_trp(). The multiTransporter parts
+   * then connects as any other transporter and finally report_connect'ed.
+   * QMGR will wait until all parts of the MultiTransporter has CONNECTED,
+   * then 'switch' the MultiTransporter.
    *
    * To differentiate between normal transporters and these transporters
    * that are part of a multi-transporter we have a method called
@@ -8922,50 +8925,25 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
    * By replacing the position in theNodeIdTransporters with a
    * multi transporter we ensure that connect_server will handle the
    * connection properly.
-   *
-   * By placing the transporters in the allTransporters array ensures
-   * that we connect as clients in start_clients_thread.
    */
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);
-  ndbrequire(multi_trp != 0);
+  ndbrequire(multi_trp != nullptr);
 
   globalTransporterRegistry.lockMultiTransporters();
   multi_trp->set_num_inactive_transporters(nodePtr.p->m_used_num_multi_trps);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
-  Transporter *current_trp =
-      globalTransporterRegistry.get_node_transporter(node_id);
-  if (current_trp->isMultiTransporter()) {
-    jam();
-    DEB_MULTI_TRP(("Get current trp from multi transporter"));
-    ndbrequire(current_trp == multi_trp);
-    current_trp = multi_trp->get_active_transporter(0);
-    ndbrequire(multi_trp->get_num_active_transporters() == 1);
-  }
-  DEB_MULTI_TRP(
-      ("Base transporter has trp_id: %u", current_trp->getTransporterIndex()));
-  int trp_port = current_trp->get_s_port();
 
   for (Uint32 i = 0; i < num_inactive_transporters; i++) {
-    /**
-     * It is vital that we set the port number in the transporters used
-     * by the multi transporter. It is possible that the node comes up
-     * with a different port number after a restart. For the first
-     * transporter this port number is set in start_clients_thread.
-     * Thus before we connect using these transporters we update the
-     * port number of those transporters to be the same port number as
-     * used by the first transporter.
-     */
     jam();
     Transporter *t = multi_trp->get_inactive_transporter(i);
-    t->set_s_port(trp_port);
     globalTransporterRegistry.insert_allTransporters(t);
     assign_recv_thread_new_trp(t->getTransporterIndex());
     DEB_MULTI_TRP(
-        ("Insert trp id %u for node %u, mti = %u, server: %u"
-         ", port: %d",
+        ("Start connecting trp id %u for node %u, mti = %u, server: %u",
          t->getTransporterIndex(), node_id, t->get_multi_transporter_instance(),
-         t->isServer, trp_port));
+         t->isServer));
+    globalTransporterRegistry.start_connecting_trp(t->getTransporterIndex());
   }
   globalTransporterRegistry.unlockMultiTransporters();
   signal->theData[0] = ZCHECK_MULTI_TRP_CONNECT;
@@ -8988,7 +8966,8 @@ void Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id) {
     for (Uint32 i = 0; i < num_inactive_transporters; i++) {
       jam();
       Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
-      bool is_connected = tmp_trp->isConnected();
+      const TrpId trpId = tmp_trp->getTransporterIndex();
+      const bool is_connected = globalTransporterRegistry.is_connected(trpId);
       if (!is_connected) {
         jam();
         connected = false;
@@ -9040,6 +9019,7 @@ void Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id) {
       jam();
       return;
     }
+    // Done as part of switch_multi_transporter as well:
     assign_multi_trps_to_send_threads();
     send_switch_multi_transporter(signal, node_id, false);
     return;
@@ -9372,9 +9352,7 @@ void Qmgr::execFREEZE_ACTION_REQ(Signal *signal) {
       Transporter *tmp_trp = multi_trp->get_active_transporter(i);
       TrpId id = tmp_trp->getTransporterIndex();
       multi_trp->get_callback_obj()->unlock_send_transporter(id);
-      multi_trp->get_callback_obj()->enable_send_buffer(id);
     }
-    globalTransporterRegistry.insert_node_transporter(node_id, multi_trp);
     globalTransporterRegistry.unlockMultiTransporters();
 
     if (ERROR_INSERTED(983)) {
@@ -9583,27 +9561,22 @@ void Qmgr::check_switch_completed(Signal *signal, NodeId node_id) {
     return;
   }
 
+  /**
+   * When switch has completed the now 'inactive_transporter' will not be
+   * needed any more and is disconnected.
+   */
   globalTransporterRegistry.lockMultiTransporters();
   Multi_Transporter *multi_trp =
       globalTransporterRegistry.get_node_multi_transporter(node_id);
-  ndbrequire(multi_trp && multi_trp->isMultiTransporter());
+  ndbrequire(multi_trp != nullptr);
   Uint32 num_inactive_transporters = multi_trp->get_num_inactive_transporters();
-  Transporter *array_trp[MAX_NODE_GROUP_TRANSPORTERS];
   for (Uint32 i = 0; i < num_inactive_transporters; i++) {
     jam();
     Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
-    array_trp[i] = tmp_trp;
+    TrpId trp_id = tmp_trp->getTransporterIndex();
+    globalTransporterRegistry.start_disconnecting_trp(trp_id);
   }
   globalTransporterRegistry.unlockMultiTransporters();
-  for (Uint32 i = 0; i < num_inactive_transporters; i++) {
-    jam();
-    Transporter *tmp_trp = array_trp[i];
-    TrpId trp_id = tmp_trp->getTransporterIndex();
-    tmp_trp->get_callback_obj()->lock_transporter(trp_id);
-    tmp_trp->shutdown();
-    tmp_trp->get_callback_obj()->unlock_transporter(trp_id);
-    multi_trp->get_callback_obj()->disable_send_buffer(trp_id);
-  }
   /**
    * We have now completed the switch to new set of transporters, the
    * old set is inactive and will be put back if the node fails. We

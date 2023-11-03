@@ -1084,7 +1084,7 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (getNodeInfo(i).m_type == NodeInfo::MGM) {
         jam();
-        globalTransporterRegistry.do_connect(i);
+        globalTransporterRegistry.start_connecting(i);
       }
     }
     g_eventLogger->info("First START_ORD executed to connect MGM servers");
@@ -1116,7 +1116,7 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
     // without any connected nodes.
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM) {
-        globalTransporterRegistry.do_disconnect(i);
+        globalTransporterRegistry.start_disconnecting(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
@@ -1497,9 +1497,14 @@ void Cmvmi::execDUMP_STATE_ORD(Signal *signal) {
   DumpStateOrd *const &dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg = dumpState->args[0];
   if (arg == DumpStateOrd::CmvmiDumpConnections) {
-    for (unsigned int i = 1; i < MAX_NODES; i++) {
+    for (TrpId trpId = 1; trpId <= globalTransporterRegistry.get_num_trps();
+         trpId++) {
       const char *nodeTypeStr = "";
-      switch (getNodeInfo(i).m_type) {
+      const NodeId nodeId =
+          globalTransporterRegistry.get_transporter_node_id(trpId);
+      if (nodeId == 0) continue;
+
+      switch (getNodeInfo(nodeId).m_type) {
         case NodeInfo::DB:
           nodeTypeStr = "DB";
           break;
@@ -1515,11 +1520,9 @@ void Cmvmi::execDUMP_STATE_ORD(Signal *signal) {
         default:
           nodeTypeStr = "<UNKNOWN>";
       }
-
-      if (nodeTypeStr == 0) continue;
-
-      infoEvent("Connection to %d (%s) %s", i, nodeTypeStr,
-                globalTransporterRegistry.getPerformStateString(i));
+      infoEvent("Connection to %u (%s), transporter %u is %s", nodeId,
+                nodeTypeStr, trpId,
+                globalTransporterRegistry.getPerformStateString(trpId));
     }
   }
 

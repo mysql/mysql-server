@@ -132,7 +132,7 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
         goto done;
       }
 
-      globalTransporterRegistry.do_connect(tStartingNode);
+      globalTransporterRegistry.start_connecting(tStartingNode);
       globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
 
       //-----------------------------------------------------
@@ -156,7 +156,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
             c_error_9000_nodes_mask.get(i))
           continue;
 #endif
-        globalTransporterRegistry.do_connect(i);
+
+        globalTransporterRegistry.start_connecting(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
 
         signal->theData[0] = NDB_LE_CommunicationOpened;
@@ -218,7 +219,7 @@ void Trpman::close_com_failed_node(Signal *signal, Uint32 nodeId) {
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
     globalTransporterRegistry.setIOState(nodeId, HaltIO);
-    globalTransporterRegistry.do_disconnect(nodeId);
+    globalTransporterRegistry.start_disconnecting(nodeId);
   }
 }
 
@@ -470,8 +471,19 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
             Ndbinfo::Row row(signal, req);
             row.write_uint32(getOwnNodeId());  // Node id
             row.write_uint32(rnode);           // Remote node id
-            row.write_uint32(
-                globalTransporterRegistry.getPerformState(rnode));  // State
+            /**
+             * FIXME: We should include all the seperate (multi-)Transporters
+             * in the ndbinfo.transporters table. For now we just pick the
+             * first active transporter and report the state for that one
+             * as representative for the 'node-connect-state':
+             */
+            TrpId trpId;
+            Uint32 num_ids;
+            globalTransporterRegistry.lockMultiTransporters();
+            globalTransporterRegistry.get_trps_for_node(rnode, &trpId, num_ids,
+                                                        1);
+            globalTransporterRegistry.unlockMultiTransporters();
+            row.write_uint32(globalTransporterRegistry.getPerformState(trpId));
 
             ndb_sockaddr conn_addr =
                 globalTransporterRegistry.get_connect_address(rnode);
@@ -649,28 +661,41 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
       if (!handles_this_node(nodeId, true)) continue;
 
       if ((nodeId > 0) && (nodeId < MAX_NODES)) {
-        if (block) {
-          if (!globalTransporterRegistry.isBlocked(nodeId)) {
-            g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
-                                instance(), nodeId);
-            globalTransporterRegistry.blockReceive(*recvdata, nodeId);
-          } else {
-            g_eventLogger->info(
-                "TRPMAN : Ignoring dump %u"
-                " for node %u (receive link already blocked)",
-                arg, nodeId);
-          }
-        } else {
-          if (globalTransporterRegistry.isBlocked(nodeId)) {
-            g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
-                                instance(), nodeId);
+        TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+        Uint32 num_ids;
+        globalTransporterRegistry.lockMultiTransporters();
+        globalTransporterRegistry.get_trps_for_node(
+            nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+        globalTransporterRegistry.unlockMultiTransporters();
 
-            globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
+        for (unsigned i = 0; i < num_ids; i++) {
+          if (block) {
+            if (!globalTransporterRegistry.isBlocked(trp_ids[i])) {
+              g_eventLogger->info(
+                  "(%u)TRPMAN : Blocking receive"
+                  " on transporter %u from node %u",
+                  instance(), trp_ids[i], nodeId);
+              globalTransporterRegistry.blockReceive(*recvdata, trp_ids[i]);
+            } else {
+              g_eventLogger->info(
+                  "TRPMAN : Ignoring dump %u for transporter %u"
+                  " (receive link already blocked)",
+                  arg, trp_ids[i]);
+            }
           } else {
-            g_eventLogger->info(
-                "TRPMAN : Ignoring dump %u"
-                " for node %u (receive link is not blocked)",
-                arg, nodeId);
+            if (globalTransporterRegistry.isBlocked(trp_ids[i])) {
+              g_eventLogger->info(
+                  "(%u)TRPMAN : Unblocking receive"
+                  " on transporter %u from node %u",
+                  instance(), trp_ids[i], nodeId);
+
+              globalTransporterRegistry.unblockReceive(*recvdata, trp_ids[i]);
+            } else {
+              g_eventLogger->info(
+                  "TRPMAN : Ignoring dump %u for transporter %u"
+                  " (receive link is not blocked)",
+                  arg, trp_ids[i]);
+            }
           }
         }
       } else {
@@ -694,27 +719,40 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     for (Uint32 node = 1; node < MAX_NDB_NODES; node++) {
       if (node == getOwnNodeId()) continue;
       if (!handles_this_node(node, true)) continue;
-      if (globalTransporterRegistry.is_connected(node)) {
-        if (getNodeInfo(node).m_type == NodeInfo::DB) {
-          if (!globalTransporterRegistry.isBlocked(node)) {
-            switch (pattern) {
-              case 1: {
-                /* Match if given node is on 'other side' of
-                 * 2-replica cluster
-                 */
-                if ((getOwnNodeId() & 1) != (node & 1)) {
-                  /* Node is on the 'other side', match */
-                  break;
+
+      // Get all node (multi-)Transporters, block all/some
+      TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+      Uint32 num_ids;
+      globalTransporterRegistry.lockMultiTransporters();
+      globalTransporterRegistry.get_trps_for_node(node, trp_ids, num_ids,
+                                                  MAX_NODE_GROUP_TRANSPORTERS);
+      globalTransporterRegistry.unlockMultiTransporters();
+
+      for (unsigned i = 0; i < num_ids; i++) {
+        if (globalTransporterRegistry.is_connected(trp_ids[i])) {
+          if (getNodeInfo(node).m_type == NodeInfo::DB) {
+            if (!globalTransporterRegistry.isBlocked(trp_ids[i])) {
+              switch (pattern) {
+                case 1: {
+                  /* Match if given node is on 'other side' of
+                   * 2-replica cluster
+                   */
+                  if ((getOwnNodeId() & 1) != (node & 1)) {
+                    /* Node is on the 'other side', match */
+                    break;
+                  }
+                  /* Node is on 'my side', don't match */
+                  continue;
                 }
-                /* Node is on 'my side', don't match */
-                continue;
+                default:
+                  break;
               }
-              default:
-                break;
+              g_eventLogger->info(
+                  "(%u)TRPMAN : Blocking receive on transporter %u"
+                  " from node %u",
+                  instance(), trp_ids[i], node);
+              globalTransporterRegistry.blockReceive(*recvdata, trp_ids[i]);
             }
-            g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
-                                instance(), node);
-            globalTransporterRegistry.blockReceive(*recvdata, node);
           }
         }
       }
@@ -727,10 +765,23 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     for (Uint32 node = 1; node < MAX_NODES; node++) {
       if (node == getOwnNodeId()) continue;
       if (!handles_this_node(node, true)) continue;
-      if (globalTransporterRegistry.isBlocked(node)) {
-        g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
-                            instance(), node);
-        globalTransporterRegistry.unblockReceive(*recvdata, node);
+
+      // Get all node (multi-)Transporters, unblock all
+      TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+      Uint32 num_ids;
+      globalTransporterRegistry.lockMultiTransporters();
+      globalTransporterRegistry.get_trps_for_node(node, trp_ids, num_ids,
+                                                  MAX_NODE_GROUP_TRANSPORTERS);
+      globalTransporterRegistry.unlockMultiTransporters();
+
+      for (unsigned i = 0; i < num_ids; i++) {
+        if (globalTransporterRegistry.isBlocked(trp_ids[i])) {
+          g_eventLogger->info(
+              "(%u)TRPMAN : Unblocking receive on transporter %u"
+              " from node %u",
+              instance(), trp_ids[i], node);
+          globalTransporterRegistry.unblockReceive(*recvdata, trp_ids[i]);
+        }
       }
     }
   }
@@ -745,16 +796,34 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
       if (!handles_this_node(nodeId)) continue;
 
       if ((nodeId > 0) && (nodeId < MAX_NODES)) {
-        g_eventLogger->info(
-            "TRPMAN : Send to %u is %sblocked", nodeId,
-            (globalTransporterRegistry.isSendBlocked(nodeId) ? "" : "not "));
-        if (block) {
-          g_eventLogger->info("TRPMAN : Blocking send to node %u", nodeId);
-          globalTransporterRegistry.blockSend(*recvdata, nodeId);
-        } else {
-          g_eventLogger->info("TRPMAN : Unblocking send to node %u", nodeId);
+        TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+        Uint32 num_ids;
+        globalTransporterRegistry.lockMultiTransporters();
+        globalTransporterRegistry.get_trps_for_node(
+            nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+        globalTransporterRegistry.unlockMultiTransporters();
 
-          globalTransporterRegistry.unblockSend(*recvdata, nodeId);
+        for (unsigned i = 0; i < num_ids; i++) {
+          g_eventLogger->info(
+              "TRPMAN : Send on transporter %u to node %u"
+              " is %sblocked",
+              trp_ids[i], nodeId,
+              (globalTransporterRegistry.isSendBlocked(trp_ids[i]) ? ""
+                                                                   : "not "));
+          if (block) {
+            g_eventLogger->info(
+                "TRPMAN : Blocking send on transporter %u"
+                " to node %u",
+                trp_ids[i], nodeId);
+            globalTransporterRegistry.blockSend(*recvdata, trp_ids[i]);
+          } else {
+            g_eventLogger->info(
+                "TRPMAN : Unblocking send on transporter %u"
+                " to node %u",
+                trp_ids[i], nodeId);
+
+            globalTransporterRegistry.unblockSend(*recvdata, trp_ids[i]);
+          }
         }
       } else {
         g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
@@ -808,8 +877,13 @@ void Trpman::execACTIVATE_TRP_REQ(Signal *signal) {
   Uint32 node_id = req->nodeId;
   Uint32 trp_id = req->trpId;
   BlockReference ret_ref = req->senderRef;
+  /**
+   * Note similarity with ::enable_com_node(), which enable the
+   * *node* communication. Now we enable an addition transporter
+   * to an already enabled node.
+   */
   if (is_recv_thread_for_new_trp(trp_id)) {
-    epoll_add_trp(trp_id);
+    globalTransporterRegistry.setIOState_trp(trp_id, NoHalt);
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)", instance(),
                    node_id, trp_id));
     ActivateTrpConf *conf = CAST_PTR(ActivateTrpConf, signal->getDataPtrSend());

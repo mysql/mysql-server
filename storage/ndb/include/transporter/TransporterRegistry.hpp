@@ -160,14 +160,8 @@ struct TransporterReceiveData {
   /**
    * Bitmask of transporters having received corrupted or unsupported
    * message. No more unpacking and delivery of messages allowed.
-   *
-   * OJA FIXME:
-   *    Documented as 'Bitmask of transporters' (TrpBitmask)
-   *    Declared and used(!) as a NodeBitMask!
-   *
-   * Could it possibly be the root cause of the multiTransporter checksum bug?
    */
-  NodeBitmask m_bad_data_transporters;
+  TrpBitmask m_bad_data_transporters;
 
   /**
    * Last transporter received from if unable to complete all transporters
@@ -280,14 +274,12 @@ class TransporterRegistry {
    * Multi_Transporter changes. There is a mutex protecting changes
    * to those data structures.
    */
-  void lockMultiTransporters();
-  void unlockMultiTransporters();
+  void lockMultiTransporters() const;
+  void unlockMultiTransporters() const;
   void insert_allTransporters(Transporter *);
   void remove_allTransporters(Transporter *);
-  void insert_node_transporter(NodeId, Transporter *);
-  bool isMultiTransporter(Transporter *);
-  void switch_active_trp(Multi_Transporter *);
-  Uint32 get_num_active_transporters(Multi_Transporter *);
+  static void switch_active_trp(Multi_Transporter *);
+  static Uint32 get_num_active_transporters(Multi_Transporter *);
 
  private:
   NdbMutex *theMultiTransporterMutex;
@@ -351,46 +343,51 @@ class TransporterRegistry {
     DISCONNECTED = 2,
     DISCONNECTING = 3
   };
-  const char *getPerformStateString(NodeId nodeId) const {
-    return performStateString[(unsigned)performStates[nodeId]];
-  }
-
-  PerformState getPerformState(NodeId nodeId) const {
-    return performStates[nodeId];
-  }
-
   /**
    * Get and set methods for PerformState
    */
-  void do_connect(NodeId node_id);
+  const char *getPerformStateString(TrpId trpId) const {
+    return performStateString[(unsigned)performStates[trpId]];
+  }
+  PerformState getPerformState(TrpId trpId) const {
+    return performStates[trpId];
+  }
   /**
-   * do_disconnect can be issued both from send and recv, it is possible to
-   * specify from where it is called in send_source parameter, this enables
-   * us to provide more detailed information for disconnects.
+   * Initiate asynch connecting 'protocol' for node and transporters
    */
-  bool do_disconnect(NodeId node_id, int errnum = 0, bool send_source = true);
-  bool is_connected(NodeId node_id) const {
-    return performStates[node_id] == CONNECTED;
+  void start_connecting(NodeId node_id);
+  void start_connecting_trp(TrpId trpId);
+  /**
+   * start_disconnecting can be issued both from send and recv.
+   * It is possible to specify from where it is called
+   * in send_source parameter, this enables us to provide more
+   * detailed information for disconnects.
+   */
+  bool start_disconnecting(NodeId node_id, int errnum = 0,
+                           bool send_source = true);
+  bool start_disconnecting_trp(TrpId trpId, int errnum = 0,
+                               bool send_source = true);
+  bool is_connected(TrpId trpId) const {
+    return performStates[trpId] == CONNECTED;
   }
 
  private:
-  void report_connect(TransporterReceiveHandle &, NodeId node_id);
-  void report_disconnect(TransporterReceiveHandle &, NodeId node_id,
-                         int errnum);
-  void report_error(NodeId nodeId, TransporterError errorCode,
+  void report_connect(TransporterReceiveHandle &, TrpId trpId);
+  void report_disconnect(TransporterReceiveHandle &, TrpId trpId, int errnum);
+  void report_error(TrpId trpId, TransporterError errorCode,
                     const char *errorInfo = nullptr);
   void dump_and_report_bad_message(const char file[], unsigned line,
                                    TransporterReceiveHandle &recvHandle,
                                    Uint32 *readPtr, size_t sizeOfData,
-                                   NodeId remoteNodeId, IOState state,
-                                   TransporterError errorCode);
+                                   NodeId remoteNodeId, TrpId trpId,
+                                   IOState state, TransporterError errorCode);
 
  public:
   /**
-   * Get and set methods for IOState
+   * Set IOState on all Transporters to NodeId
    */
-  IOState ioState(NodeId nodeId) const;
   void setIOState(NodeId nodeId, IOState state);
+  void setIOState_trp(TrpId trpId, IOState state);
 
   /**
    * Methods to handle backoff of connection attempts when attempt fails
@@ -477,8 +474,8 @@ class TransporterRegistry {
   template <typename AnySectionArg>
   SendStatus prepareSendTemplate(TransporterSendBufferHandle *sendHandle,
                                  const SignalHeader *signalHeader, Uint8 prio,
-                                 const Uint32 *signalData, NodeId nodeId,
-                                 Transporter *t, AnySectionArg section);
+                                 const Uint32 *signalData, Transporter *t,
+                                 AnySectionArg section);
 
   Transporter *prepareSend_getTransporter(const SignalHeader *signalHeader,
                                           NodeId nodeId, TrpId &trp_id,
@@ -524,17 +521,18 @@ class TransporterRegistry {
                                  int s_port, bool requireTls);
 
   int get_transporter_count() const;
+  NodeId get_transporter_node_id(TrpId id) const;
   Transporter *get_transporter(TrpId id) const;
   Transporter *get_node_transporter(NodeId nodeId) const;
-  bool is_shm_transporter(NodeId nodeId);
+  Transporter *get_node_base_transporter(NodeId nodeId) const;
+  Transporter *get_node_transporter_instance(NodeId nodeId, int inst) const;
+  bool is_shm_transporter(TrpId trp_id);
   ndb_sockaddr get_connect_address(NodeId node_id) const;
   bool is_encrypted_link(NodeId) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
 
-  Uint32 get_num_multi_transporters();
-  Multi_Transporter *get_multi_transporter(Uint32 index);
   Multi_Transporter *get_node_multi_transporter(NodeId node_id);
 
  private:
@@ -557,12 +555,11 @@ class TransporterRegistry {
   int m_mgm_tls_req;
 
 #ifdef ERROR_INSERT
-  NodeBitmask m_blocked;
-  TrpBitmask m_blocked_trp;
-  NodeBitmask m_blocked_disconnected;
+  TrpBitmask m_blocked;
+  TrpBitmask m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
 
-  NodeBitmask m_sendBlocked;
+  TrpBitmask m_sendBlocked;
 
   Uint32 m_mixology_level;
 #endif
@@ -584,7 +581,7 @@ class TransporterRegistry {
   Transporter **theNodeIdTransporters;
 
   /**
-   * State arrays, index by host id
+   * State arrays, index by Transporter id (TrpId)
    */
   PerformState *performStates;
   int *m_disconnect_errnum;
@@ -619,6 +616,7 @@ class TransporterRegistry {
   /**
    * Overloaded bits, for fast check.
    * Similarly slowdown bits for fast check.
+   * TODO: Should be TrpBitmask's
    */
   NodeBitmask m_status_overloaded;
   NodeBitmask m_status_slowdown;
@@ -628,11 +626,12 @@ class TransporterRegistry {
    *
    * Defined in Packer.cpp.
    */
+
   Uint32 unpack(TransporterReceiveHandle &, Uint32 *readPtr, Uint32 bufferSize,
-                NodeId remoteNodeId, IOState state, bool &stopReceiving);
+                NodeId remoteNodeId, TrpId trpId, bool &stopReceiving);
 
   Uint32 *unpack(TransporterReceiveHandle &, Uint32 *readPtr, Uint32 *eodPtr,
-                 Uint32 *endPtr, NodeId remoteNodeId, IOState state,
+                 Uint32 *endPtr, NodeId remoteNodeId, TrpId trpId,
                  bool &stopReceiving);
 
   static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords,
@@ -676,7 +675,7 @@ class TransporterRegistry {
   void inc_slowdown_count(NodeId nodeId);
 
   void get_trps_for_node(NodeId nodeId, TrpId *trp_ids, Uint32 &num_trp_ids,
-                         Uint32 max_trp_ids);
+                         Uint32 max_trp_ids) const;
 
   Uint32 get_num_trps();
   TlsKeyManager *getTlsKeyManager() { return &m_tls_keys; }
@@ -716,17 +715,16 @@ class TransporterRegistry {
   Uint32 get_total_spintime() const;
   void reset_total_spintime() const;
 
-  TrpId getTransporterIndex(Transporter *t);
-  void set_recv_thread_idx(Transporter *t, Uint32 recv_thread_idx);
+  static void set_recv_thread_idx(Transporter *t, Uint32 recv_thread_idx);
 
 #ifdef ERROR_INSERT
   /* Utils for testing latency issues */
-  bool isBlocked(NodeId nodeId);
-  void blockReceive(TransporterReceiveHandle &, NodeId nodeId);
-  void unblockReceive(TransporterReceiveHandle &, NodeId nodeId);
-  bool isSendBlocked(NodeId nodeId) const;
-  void blockSend(TransporterReceiveHandle &recvdata, NodeId nodeId);
-  void unblockSend(TransporterReceiveHandle &recvdata, NodeId nodeId);
+  bool isBlocked(TrpId trpId) const;
+  void blockReceive(TransporterReceiveHandle &, TrpId trpId);
+  void unblockReceive(TransporterReceiveHandle &, TrpId trpId);
+  bool isSendBlocked(TrpId trpId) const;
+  void blockSend(TransporterReceiveHandle &recvdata, TrpId trpId);
+  void unblockSend(TransporterReceiveHandle &recvdata, TrpId trpId);
 
   /* Testing interleaving of signal processing */
   Uint32 getMixologyLevel() const;

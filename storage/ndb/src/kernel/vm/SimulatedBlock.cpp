@@ -768,15 +768,6 @@ void SimulatedBlock::assign_multi_trps_to_send_threads() {
 #endif
 }
 
-bool SimulatedBlock::epoll_add_trp(TrpId trp_id) {
-#ifdef NDBD_MULTITHREADED
-  return mt_epoll_add_trp(m_threadId, trp_id);
-#else
-  require(false);
-  return false;
-#endif
-}
-
 bool SimulatedBlock::is_recv_thread_for_new_trp(TrpId trp_id) {
 #ifdef NDBD_MULTITHREADED
   return mt_is_recv_thread_for_new_trp(m_threadId, trp_id);

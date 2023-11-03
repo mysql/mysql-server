@@ -25,8 +25,6 @@
 #include <ndb_global.h>
 #include "util/require.h"
 
-#include <NdbSleep.h>
-#include <NdbOut.hpp>
 #include "TCP_Transporter.hpp"
 
 #include <EventLogger.hpp>
@@ -260,8 +258,7 @@ bool TCP_Transporter::send_is_possible(ndb_socket_t fd,
   return true;
 }
 
-bool TCP_Transporter::doSend(bool need_wakeup) {
-  (void)need_wakeup;
+bool TCP_Transporter::doSend(bool need_wakeup [[maybe_unused]]) {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
   Uint32 init_cnt = cnt;
@@ -368,8 +365,8 @@ bool TCP_Transporter::doSend(bool need_wakeup) {
           ndb_socket_errno(), (char *)ndbstrerror(err));
 #endif
       if ((DISCONNECT_ERRNO(err, nBytesSent))) {
-        remain = 0;                     // Will stop retries of this send.
-        if (!do_disconnect(err, true))  // Initiate pending disconnect
+        remain = 0;                           // Will stop retries of this send.
+        if (!start_disconnecting(err, true))  // Initiate pending disconnect
         {
           // We are 'DISCONNECTING' asynch -> We may still attempt more sends.
           // -> The send buffers still need to be maintained with the 'sum_sent'
@@ -380,7 +377,7 @@ bool TCP_Transporter::doSend(bool need_wakeup) {
     }
   }
 
-  if (sum_sent > 0) {
+  if (likely(sum_sent > 0)) {
     iovec_data_sent(sum_sent);
   }
   sendCount += send_cnt;
@@ -400,16 +397,6 @@ bool TCP_Transporter::doSend(bool need_wakeup) {
   }
 
   return (remain > 0);  // false if nothing remains or disconnected, else true
-}
-
-void TCP_Transporter::shutdown() {
-  if (theSocket.is_valid()) {
-    DEB_MULTI_TRP(("Close socket for trp %u", getTransporterIndex()));
-    theSocket.close();
-  } else {
-    DEB_MULTI_TRP(("Socket already closed for trp %u", getTransporterIndex()));
-  }
-  m_connected = false;
 }
 
 int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
@@ -462,8 +449,8 @@ int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
           /**
            * According to documentation of recv on a socket, returning 0 means
            * that the peer has closed the connection. Not likely that the
-           * errno is set in this case, so we set it ourselves to
-           * 0, do_disconnect will write special message for this situation.
+           * errno is set in this case, so we set it ourselves to 0,
+           * start_disconnecting will write special message for this situation.
            */
           err = 0;
         } else {
@@ -477,7 +464,7 @@ int TCP_Transporter::doReceive(TransporterReceiveHandle &recvdata) {
             (char *)ndbstrerror(err));
 #endif
         if (DISCONNECT_ERRNO(err, nBytesRead)) {
-          if (!do_disconnect(err, false)) {
+          if (!start_disconnecting(err, false)) {
             return 0;
           }
         }

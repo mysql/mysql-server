@@ -40,9 +40,9 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 
 void TransporterRegistry::dump_and_report_bad_message(
     const char file[], unsigned line, TransporterReceiveHandle &recvHandle,
-    Uint32 *readPtr, size_t sizeInWords, NodeId remoteNodeId, IOState state,
-    TransporterError errorCode) {
-  report_error(remoteNodeId, errorCode);
+    Uint32 *readPtr, size_t sizeInWords, NodeId remoteNodeId, TrpId trpId,
+    IOState state, TransporterError errorCode) {
+  report_error(trpId, errorCode);
 
   char msg[MAX_LOG_MESSAGE_SIZE];
   const size_t sz = sizeof(msg);
@@ -72,13 +72,13 @@ void TransporterRegistry::dump_and_report_bad_message(
     if (nb < 0) goto log_it;
     offs += nb;
 
-    const bool bad_data = recvHandle.m_bad_data_transporters.get(remoteNodeId);
+    const bool bad_data = recvHandle.m_bad_data_transporters.get(trpId);
     nb = BaseString::snprintf(msg + offs, sz - offs,
                               "\n"
                               "PerformState %u: IOState %u: bad_data %u\n"
                               "ptr %p: size %u bytes\n",
-                              performStates[remoteNodeId], state, bad_data,
-                              readPtr, (unsigned)(sizeInWords * 4));
+                              performStates[trpId], state, bad_data, readPtr,
+                              (unsigned)(sizeInWords * 4));
     if (nb < 0) goto log_it;
     offs += nb;
     size_t reserve;
@@ -121,7 +121,7 @@ void TransporterRegistry::dump_and_report_bad_message(
 
 log_it:
   g_eventLogger->error("%s", msg);
-  recvHandle.m_bad_data_transporters.set(remoteNodeId);
+  recvHandle.m_bad_data_transporters.set(trpId);
 }
 
 static inline bool unpack_one(Uint32 *(&readPtr), Uint32 *eodPtr,
@@ -231,12 +231,14 @@ static inline bool unpack_one(Uint32 *(&readPtr), Uint32 *eodPtr,
 
 Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
                                    Uint32 *readPtr, Uint32 sizeOfData,
-                                   NodeId remoteNodeId, IOState state,
+                                   NodeId remoteNodeId, TrpId trpId,
                                    bool &stopReceiving) {
   assert(stopReceiving == false);
-  // If bad data detected in  previous run
+  const IOState state = ioStates[trpId];
+
+  // If bad data detected in previous run
   // skip all further data
-  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId))) {
+  if (unlikely(recvHandle.m_bad_data_transporters.get(trpId))) {
     return sizeOfData;
   }
 
@@ -292,7 +294,7 @@ Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
   if (errorCode != TE_NO_ERROR) {
     dump_and_report_bad_message(__FILE__, __LINE__, recvHandle, readPtr,
-                                eodPtr - readPtr, remoteNodeId, state,
+                                eodPtr - readPtr, remoteNodeId, trpId, state,
                                 errorCode);
     g_eventLogger->info("Loop count:%u", loop_count);
   }
@@ -304,12 +306,13 @@ Uint32 TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 Uint32 *TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
                                     Uint32 *readPtr, Uint32 *eodPtr,
                                     Uint32 *endPtr, NodeId remoteNodeId,
-                                    IOState state, bool &stopReceiving) {
+                                    TrpId trpId, bool &stopReceiving) {
   assert(stopReceiving == false);
+  const IOState state = ioStates[trpId];
 
   // If bad data detected in previous run
   // skip all further data
-  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId))) {
+  if (unlikely(recvHandle.m_bad_data_transporters.get(trpId))) {
     return eodPtr;
   }
 
@@ -370,7 +373,7 @@ Uint32 *TransporterRegistry::unpack(TransporterReceiveHandle &recvHandle,
 
   if (errorCode != TE_NO_ERROR) {
     dump_and_report_bad_message(__FILE__, __LINE__, recvHandle, readPtr,
-                                eodPtr - readPtr, remoteNodeId, state,
+                                eodPtr - readPtr, remoteNodeId, trpId, state,
                                 errorCode);
   }
 

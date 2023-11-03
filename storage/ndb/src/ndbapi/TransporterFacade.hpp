@@ -156,9 +156,9 @@ class TransporterFacade : public TransporterCallback,
 
   void connected();
 
-  void doConnect(NodeId NodeId);
+  void startConnecting(NodeId NodeId);
   void reportConnected(NodeId NodeId);
-  void doDisconnect(NodeId NodeId);
+  void startDisconnecting(NodeId NodeId);
   void reportDisconnected(NodeId NodeId);
 
   NodeId get_an_alive_node();
