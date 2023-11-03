@@ -1055,6 +1055,9 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
     - Server finishes the @ref page_protocol_connection_phase with an
       @ref page_protocol_basic_ok_packet.
 
+   If both ::CLIENT_COMPRESS and ::CLIENT_ZSTD_COMPRESSION_ALGORITHM are set
+   then zlib is used.
+
    @subpage page_protocol_basic_compression_packet
 */
 
@@ -1079,6 +1082,9 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   <td>compressed sequence id</td>
   <td>Sequence ID of the compressed packets, reset in the same way as the
      @ref sect_protocol_basic_packets_packet, but incremented independently</td></tr>
+  <tr><td>@ref a_protocol_type_int3 "int&lt;3&gt;"</td>
+  <td>length of uncompressed payload</td>
+  <td>Length of payload before compression</td></tr>
   </table>
 
   @section sect_protocol_basic_compression_packet_compressed_payload Compressed Payload
@@ -1087,10 +1093,11 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   @ref sect_protocol_basic_compression_packet_header is followed by the
   compressed payload.
 
-  It uses the *deflate* algorithm as described in
+  Depending on which capability flags are set it uses the *deflate* algorithm as described in
   [RFC 1951](http://tools.ietf.org/html/rfc1951.html) and implemented in
-  [zlib](http://zlib.org/). The header of the compressed packet has the
-  parameters of the `uncompress()` function in mind:
+  [zlib](http://zlib.org/) or [Zstandard](https://facebook.github.io/zstd/).
+
+  When using zlib, the header of the compressed packet has the parameters of the `uncompress()` function in mind:
 
   ~~~~~~~~~~~~~
   ZEXTERN int ZEXPORT uncompress OF((Bytef *dest,   uLongf *destLen,
