@@ -1781,10 +1781,10 @@ struct thr_send_thread_instance {
   Uint32 m_awake;
 
   /* First trp that has data to be sent */
-  Uint32 m_first_trp;
+  TrpId m_first_trp;
 
   /* Last trp in list of trps with data available for sending */
-  Uint32 m_last_trp;
+  TrpId m_last_trp;
 
   /* Which list should I get trp from next time. */
   bool m_next_is_high_prio_trp;
@@ -1827,7 +1827,7 @@ struct thr_send_trps {
    * 'm_next' implements a list of 'send_trps' with PENDING'
    * data, not yet assigned to a send thread. 0 means NULL.
    */
-  Uint16 m_next;
+  TrpId m_next;
 
   /**
    * m_data_available are incremented/decremented by each
@@ -2049,15 +2049,20 @@ class thr_send_threads {
     NdbMutex_Unlock(m_send_threads[send_instance].send_thread_mutex);
   }
   void startChangeNeighbourNode() {
+    for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++) {
+      m_trp_state[i].m_neighbour_trp = false;
+    }
     for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++) {
       NdbMutex_Lock(m_send_threads[i].send_thread_mutex);
-      for (Uint32 j = 0; j < MAX_NEIGHBOURS; j++) {
+      for (Uint32 j = 0; j < m_send_threads[i].m_num_neighbour_trps; j++) {
+        const TrpId trp_id = m_send_threads[i].m_neighbour_trps[j];
+        if (m_trp_state[trp_id].m_data_available > 0) {
+          // Was a neighbour with pending sends, add to send-queue.
+          insert_trp(m_send_threads[i].m_neighbour_trps[j], &m_send_threads[i]);
+        }
         m_send_threads[i].m_neighbour_trps[j] = 0;
       }
       m_send_threads[i].m_num_neighbour_trps = 0;
-    }
-    for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++) {
-      m_trp_state[i].m_neighbour_trp = false;
     }
   }
   void setNeighbourNode(NodeId nodeId) {
@@ -2355,8 +2360,10 @@ void thr_send_threads::insert_trp(
 
   if (trp_state.m_neighbour_trp) return;
 
-  Uint32 first_trp = send_instance->m_first_trp;
+  TrpId first_trp = send_instance->m_first_trp;
   struct thr_send_trps &last_trp_state = m_trp_state[send_instance->m_last_trp];
+  assert(trp_state.m_next == 0); // Not already inserted
+  assert(send_instance->m_last_trp != trp_id); // Not already inserted
   trp_state.m_next = 0;
   send_instance->m_last_trp = trp_id;
   assert(trp_state.m_data_available > 0);
@@ -2466,16 +2473,16 @@ static const Uint64 MAX_SEND_BUFFER_SIZE_TO_DELAY = (20 * 1024);
  *
  * Called under mutex protection of send_thread_mutex
  */
-#define DELAYED_PREV_NODE_IS_NEIGHBOUR UINT_MAX32
+static constexpr TrpId DELAYED_PREV_NODE_IS_NEIGHBOUR = UINT_MAX16;
 TrpId thr_send_threads::get_trp(
     Uint32 instance_no, NDB_TICKS now,
     struct thr_send_thread_instance *send_instance) {
-  Uint32 next;
+  TrpId next;
   TrpId trp_id;
   bool retry = false;
-  Uint32 prev = 0;
-  Uint32 delayed_trp = 0;
-  Uint32 delayed_prev_trp = 0;
+  TrpId prev = 0;
+  TrpId delayed_trp = 0;
+  TrpId delayed_prev_trp = 0;
   Uint32 min_wait_usec = UINT_MAX32;
   do {
     if (send_instance->m_next_is_high_prio_trp) {
