@@ -25,7 +25,7 @@
 #
 # Default is "bundled".
 # The default should be "system" on non-windows platforms,
-# but we need at least version 1.2.11, and that's not available on
+# but we need at least version 1.2.13, and that's not available on
 # all the platforms we need to support.
 
 # Security bug fixes required from:
@@ -51,6 +51,7 @@ FUNCTION(FIND_ZLIB_VERSION ZLIB_INCLUDE_DIR)
 ENDFUNCTION(FIND_ZLIB_VERSION)
 
 FUNCTION(FIND_SYSTEM_ZLIB)
+  # Will set ZLIB_INCLUDE_DIRS ZLIB_LIBRARIES ZLIB_FOUND
   FIND_PACKAGE(ZLIB)
   IF(ZLIB_FOUND)
     SET(ZLIB_FOUND 1 CACHE INTERNAL "")
@@ -64,6 +65,8 @@ FUNCTION(FIND_SYSTEM_ZLIB)
     FIND_ZLIB_VERSION(${ZLIB_INCLUDE_DIR})
     SET(ZLIB_FOUND ${ZLIB_FOUND} PARENT_SCOPE)
     SET(ZLIB_VERSION ${ZLIB_VERSION} PARENT_SCOPE)
+    # For EXTRACT_LINK_LIBRARIES
+    SET(zlib_SYSTEM_LINK_FLAGS "-lz" CACHE STRING "Link flag for zlib")
   ENDIF()
 ENDFUNCTION(FIND_SYSTEM_ZLIB)
 

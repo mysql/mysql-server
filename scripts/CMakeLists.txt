@@ -309,6 +309,11 @@ SET(LIBS "")
 # Returned string in ${var} is can be passed to linker's command line
 MACRO(EXTRACT_LINK_LIBRARIES target var)
   GET_TARGET_PROPERTY(TARGET_LIB_DEPENDS ${target} LINK_LIBRARIES)
+  # Uncomment to debug:
+  # MESSAGE(STATUS "xxx ${target} ${TARGET_LIB_DEPENDS}")
+  # Depending on platform, and whether "system" or "bundled" has been used,
+  # this will typically be:
+  # ext::zlib  ext::zstd  <ssl>  <crypto>  /usr/lib64/libresolv.so  m
   IF(TARGET_LIB_DEPENDS)
     LIST(REMOVE_DUPLICATES TARGET_LIB_DEPENDS)
     FOREACH(lib ${TARGET_LIB_DEPENDS})
@@ -317,7 +322,12 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
       ELSEIF (lib MATCHES "^ext::")
         STRING(REGEX MATCH "ext::([a-z]+)" MATCH_LIB "${lib}")
         SET(SYSTEM_LIB ${CMAKE_MATCH_1})
-        SET(${var} "${${var}} -l${SYSTEM_LIB} ")
+        SET(SYSTEM_LINK_FLAG ${${SYSTEM_LIB}_SYSTEM_LINK_FLAGS})
+        IF(NOT SYSTEM_LINK_FLAG)
+          MESSAGE(WARNING "Missing link flag for ${lib}")
+        ELSE()
+          SET(${var} "${${var}} ${SYSTEM_LINK_FLAG} ")
+        ENDIF()
       ELSEIF(lib MATCHES "OpenSSL::SSL")
         SET(${var} "${${var}} -lssl ")
       ELSEIF(lib MATCHES "OpenSSL::Crypto")
