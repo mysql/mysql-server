@@ -1944,4 +1944,17 @@ class Json_scalar_holder {
   }
 };
 
+/**
+  Check if one Json_wrapper contains all the elements of another
+  Json_wrapper.
+
+  @param[in]  doc_wrapper   the containing document
+  @param[in]  containee_wr  the possibly contained document
+  @param[out] result        true if doc_wrapper contains containee_wr,
+                            false otherwise
+  @retval false on success
+  @retval true on failure
+*/
+bool json_wrapper_contains(const Json_wrapper &doc_wrapper,
+                           const Json_wrapper &containee_wr, bool *result);
 #endif /* JSON_DOM_INCLUDED */

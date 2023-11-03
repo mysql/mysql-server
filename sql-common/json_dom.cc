@@ -97,6 +97,8 @@
 
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
 
+using Sorted_index_array = Prealloced_array<size_t, 16>;
+
 #ifdef MYSQL_SERVER
 /**
   Auto-wrap a dom in an array if it is not already an array. Delete
@@ -1770,7 +1772,6 @@ enum_field_types Json_wrapper::field_type() const {
   return m_value.field_type();
 }
 
-#ifdef MYSQL_SERVER
 Json_wrapper Json_wrapper::lookup(const MYSQL_LEX_CSTRING &key) const {
   assert(type() == enum_json_type::J_OBJECT);
   if (m_is_dom) {
@@ -1782,7 +1783,6 @@ Json_wrapper Json_wrapper::lookup(const MYSQL_LEX_CSTRING &key) const {
 
   return Json_wrapper(m_value.lookup(key.str, key.length));
 }
-#endif  // ifdef MYSQL_SERVER
 
 Json_wrapper Json_wrapper::operator[](size_t index) const {
   // Non-arrays can be accessed only as the first element of array
@@ -3690,3 +3690,166 @@ void Json_wrapper::remove_duplicates(const CHARSET_INFO *cs) {
   down_cast<Json_array *>(m_dom.m_value)->remove_duplicates(cs);
 }
 #endif  // ifdef MYSQL_SERVER
+
+/**
+  Sort the elements of a JSON array and remove duplicates.
+
+  @param[in]  orig  the original JSON array
+  @param[out] v     vector that will be filled with the indexes of the array
+                    elements in increasing order
+  @return false on success, true on error
+*/
+static bool sort_and_remove_dups(const Json_wrapper &orig,
+                                 Sorted_index_array *v) {
+  if (v->reserve(orig.length())) return true; /* purecov: inspected */
+
+  for (size_t i = 0; i < orig.length(); i++) v->push_back(i);
+
+  // Sort the array...
+  const auto less = [&orig](size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) < 0;
+  };
+  std::sort(v->begin(), v->end(), less);
+
+  // ... and remove duplicates.
+  const auto equal = [&orig](size_t idx1, size_t idx2) {
+    return orig[idx1].compare(orig[idx2]) == 0;
+  };
+  v->erase(std::unique(v->begin(), v->end(), equal), v->end());
+
+  return false;
+}
+
+bool json_wrapper_contains(const Json_wrapper &doc_wrapper,
+                           const Json_wrapper &containee_wr, bool *result) {
+  if (doc_wrapper.type() == enum_json_type::J_OBJECT) {
+    if (containee_wr.type() != enum_json_type::J_OBJECT ||
+        containee_wr.length() > doc_wrapper.length()) {
+      *result = false;
+      return false;
+    }
+
+    for (const auto &c_oi : Json_object_wrapper(containee_wr)) {
+      Json_wrapper d_wr = doc_wrapper.lookup(c_oi.first);
+
+      if (d_wr.type() == enum_json_type::J_ERROR) {
+        // No match for this key. Give up.
+        *result = false;
+        return false;
+      }
+
+      // key is the same, now compare values
+      if (json_wrapper_contains(d_wr, c_oi.second, result))
+        return true; /* purecov: inspected */
+
+      if (!*result) {
+        // Value didn't match, give up.
+        return false;
+      }
+    }
+
+    // All members in containee_wr found a match in doc_wrapper.
+    *result = true;
+    return false;
+  }
+
+  if (doc_wrapper.type() == enum_json_type::J_ARRAY) {
+    const Json_wrapper *wr = &containee_wr;
+    Json_wrapper a_wr;
+
+    if (containee_wr.type() != enum_json_type::J_ARRAY) {
+      // auto-wrap scalar or object in an array for uniform treatment later
+      const Json_wrapper scalar = containee_wr;
+      Json_array_ptr array(new (std::nothrow) Json_array());
+      if (array == nullptr || array->append_alias(scalar.clone_dom()))
+        return true; /* purecov: inspected */
+      a_wr = Json_wrapper(std::move(array));
+      wr = &a_wr;
+    }
+
+    // Indirection vectors containing the original indices
+    Sorted_index_array d(key_memory_JSON);
+    Sorted_index_array c(key_memory_JSON);
+
+    // Sort both vectors, so we can compare efficiently
+    if (sort_and_remove_dups(doc_wrapper, &d) || sort_and_remove_dups(*wr, &c))
+      return true; /* purecov: inspected */
+
+    size_t doc_i = 0;
+
+    for (size_t c_i = 0; c_i < c.size(); c_i++) {
+      Json_wrapper candidate = (*wr)[c[c_i]];
+      if (candidate.type() == enum_json_type::J_ARRAY) {
+        bool found = false;
+        /*
+          We do not increase doc_i here, use a tmp. We might need to check again
+          against doc_i: this allows duplicates in the candidate.
+        */
+        for (size_t tmp = doc_i; tmp < d.size(); tmp++) {
+          auto d_wr = doc_wrapper[d[tmp]];
+          const auto dtype = d_wr.type();
+
+          // Skip past all non-arrays.
+          if (dtype < enum_json_type::J_ARRAY) {
+            /*
+              Remember the position so that we don't need to skip past
+              these elements again for the next candidate.
+            */
+            doc_i = tmp;
+            continue;
+          }
+
+          /*
+            No more potential matches for this candidate if we've
+            moved past all the arrays.
+          */
+          if (dtype > enum_json_type::J_ARRAY) break;
+
+          if (json_wrapper_contains(d_wr, candidate, result))
+            return true; /* purecov: inspected */
+          if (*result) {
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          *result = false;
+          return false;
+        }
+      } else {
+        bool found = false;
+        size_t tmp = doc_i;
+
+        while (tmp < d.size()) {
+          auto d_wr = doc_wrapper[d[tmp]];
+          const auto dtype = d_wr.type();
+          if (dtype == enum_json_type::J_ARRAY ||
+              dtype == enum_json_type::J_OBJECT) {
+            if (json_wrapper_contains(d_wr, candidate, result))
+              return true; /* purecov: inspected */
+            if (*result) {
+              found = true;
+              break;
+            }
+          } else if (d_wr.compare(candidate) == 0) {
+            found = true;
+            break;
+          }
+          tmp++;
+        }
+
+        if (doc_i == d.size() || !found) {
+          *result = false;
+          return false;
+        }
+      }
+    }
+
+    *result = true;
+    return false;
+  }
+
+  *result = (doc_wrapper.compare(containee_wr) == 0);
+  return false;
+}

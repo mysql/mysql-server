@@ -1270,9 +1270,6 @@ bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
 enum_json_diff_status apply_json_diffs(Field_json *field,
                                        const Json_diff_vector *diffs);
 
-typedef Prealloced_array<size_t, 16> Sorted_index_array;
-bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
-
 bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
                         bool no_error);
 #endif /* ITEM_JSON_FUNC_INCLUDED */

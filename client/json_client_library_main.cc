@@ -179,5 +179,34 @@ int main() {
     std::cout << "5.2. val[" << std_string << "]" << std::endl;
   }
 
+  // Test if contains_wr is exposed
+  {
+    const std::string json_1{"[{\"key\":123},146]"};
+    Json_dom_ptr dom1(Json_dom::parse(
+        json_1.c_str(), json_1.length(),
+        [](const char *, size_t) { assert(false); }, [] { assert(false); }));
+    Json_wrapper json_wrapper = Json_wrapper(std::move(dom1));
+
+    const std::string json_2{"{\"key\":123}"};
+    Json_dom_ptr dom2(Json_dom::parse(
+        json_2.c_str(), json_2.length(),
+        [](const char *, size_t) { assert(false); }, [] { assert(false); }));
+    Json_wrapper json_containee = Json_wrapper(std::move(dom2));
+
+    bool result;
+    if (json_wrapper_contains(json_wrapper, json_containee, &result)) {
+      assert(false);
+    } else {
+      std::cout << "6.1. it is: " << std::boolalpha << result
+                << " that json_1 contains json_2\n";
+    }
+    if (json_wrapper_contains(json_containee, json_wrapper, &result)) {
+      assert(false);
+    } else {
+      std::cout << "6.2. it is: " << std::boolalpha << result
+                << " that json_2 contains json_1\n";
+    }
+  }
+
   return 0;
 }
