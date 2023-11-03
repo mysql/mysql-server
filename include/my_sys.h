@@ -898,7 +898,7 @@ extern bool resolve_collation(const char *cl_name,
                               const CHARSET_INFO *default_cl,
                               const CHARSET_INFO **cl);
 extern char *get_charsets_dir(char *buf);
-extern bool init_compiled_charsets(myf flags);
+
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);

@@ -32,6 +32,7 @@
 
 #include "sql/parse_tree_items.h"
 #include "sql/regexp/regexp_engine.h"
+#include "sql/regexp/regexp_facade.h"
 
 namespace regexp_engine_unittest {
 

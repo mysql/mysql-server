@@ -485,9 +485,6 @@ extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb3_unicode_ci;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb3_bin;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
-// TODO(tdidriks) check name rather than address:
-extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_gb18030_chinese_ci;
-extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf16le_general_ci;
 
 /**
   @note Deprecated function, please call cs->coll->wildcmp(cs...) instead.

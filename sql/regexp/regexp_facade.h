@@ -38,10 +38,9 @@
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
 
-extern int32_t opt_regexp_time_limit;
-extern int32_t opt_regexp_stack_limit;
-
 namespace regexp {
+
+extern CHARSET_INFO *regexp_lib_charset;
 
 /**
   This class handles

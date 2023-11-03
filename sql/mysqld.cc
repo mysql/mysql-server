@@ -816,6 +816,7 @@ MySQL clients support the protocol:
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
 #include "sql/reference_caching_setup.h"  // Event_reference_caching_channels
+#include "sql/regexp/regexp_facade.h"     // regexp::regexp_lib_charset
 #include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
 #ifdef _WIN32
@@ -6965,6 +6966,13 @@ int init_common_variables() {
                                character_set_filesystem_name,
                                "--character-set-filesystem");
   global_system_variables.character_set_filesystem = character_set_filesystem;
+
+#ifdef WORDS_BIGENDIAN
+  regexp::regexp_lib_charset = get_charset_by_name("utf16_general_ci", MYF(0));
+#else
+  regexp::regexp_lib_charset =
+      get_charset_by_name("utf16le_general_ci", MYF(0));
+#endif
 
   while (!(my_default_lc_time_names = my_locale_by_name(
                nullptr, lc_time_names_name, strlen(lc_time_names_name)))) {

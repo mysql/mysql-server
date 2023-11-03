@@ -27,15 +27,16 @@
 #include <tuple>
 
 #include "my_pointer_arithmetic.h"
+#include "mysql/strings/m_ctype.h"  // CHARSET_INFO.
 #include "sql/item_func.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
-struct CHARSET_INFO;
-
 namespace regexp {
+
+CHARSET_INFO *regexp_lib_charset = nullptr;
 
 /**
   When dealing with the binary character set, we tell ICU that we're using

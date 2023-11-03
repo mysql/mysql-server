@@ -30,28 +30,16 @@
 #include <string>
 #include <utility>
 
-#include "my_config.h"              // WORDS_BIGENDIAN
-#include "mysql/strings/m_ctype.h"  // CHARSET_INFO.
 #include "sql/current_thd.h"
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD
 #include "template_utils.h"
-
-extern CHARSET_INFO my_charset_utf16le_general_ci;
-extern CHARSET_INFO my_charset_utf16_general_ci;
 
 namespace regexp_engine_unittest {
 class Mock_regexp_engine;
 }
 
 namespace regexp {
-
-static constexpr CHARSET_INFO *regexp_lib_charset =
-#ifdef WORDS_BIGENDIAN
-    &::my_charset_utf16_general_ci;
-#else
-    &::my_charset_utf16le_general_ci;
-#endif
 
 const char *icu_version_string();
 
