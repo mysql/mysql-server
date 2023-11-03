@@ -11056,15 +11056,6 @@ struct my_option my_long_options[] = {
      "Multiple --plugin-load-add are supported.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-
-    {"innodb", OPT_SKIP_INNODB,
-     "Deprecated option. Provided for backward compatibility only. "
-     "The option has no effect on the server behaviour. InnoDB is always "
-     "enabled. "
-     "The option will be removed in a future release.",
-     nullptr, nullptr, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
-
     {"upgrade", 0,
      "Set server upgrade mode. NONE to abort server if automatic upgrade of "
      "the server is needed; MINIMAL to start the server, but skip upgrade "
@@ -12631,9 +12622,6 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_TABLE_DEFINITION_CACHE:
       table_definition_cache_specified = true;
-      break;
-    case OPT_SKIP_INNODB:
-      LogErr(WARNING_LEVEL, ER_INNODB_MANDATORY);
       break;
     case OPT_AVOID_TEMPORAL_UPGRADE:
       push_deprecated_warn_no_replacement(nullptr, "avoid_temporal_upgrade");
