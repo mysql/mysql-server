@@ -167,10 +167,16 @@ int main() {
       std::cout << "ERRROR!!" << std::endl;
 
     json_binary::Value v = json_binary::parse_binary(buf.ptr(), buf.length());
+
+    // Test call to get_free_space.
+    size_t free_space;
+    v.get_free_space(CoutSerializationErrorHandler(), &free_space);
+    std::cout << "5.1. free space: " << free_space << std::endl;
+
     std::string std_string;
     if (v.to_pretty_std_string(&std_string, CoutDefaultDepthHandler))
       std::cout << "ERRROR!!" << std::endl;
-    std::cout << "5. val[" << std_string << "]" << std::endl;
+    std::cout << "5.2. val[" << std_string << "]" << std::endl;
   }
 
   return 0;

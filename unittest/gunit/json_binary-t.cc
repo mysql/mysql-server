@@ -825,7 +825,8 @@ static void check_corrupted_binary(THD *thd, const char *data, size_t length) {
     */
     Invalid_binary_handler handler(thd);
     size_t space;
-    bool err = val.get_free_space(thd, &space);
+    JsonSerializationDefaultErrorHandler error_handler{thd};
+    bool err = val.get_free_space(error_handler, &space);
     // If it returns true, an error should have been raised.
     EXPECT_EQ(err, handler.is_called());
   }

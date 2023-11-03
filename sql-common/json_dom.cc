@@ -3448,17 +3448,17 @@ ulonglong Json_wrapper::make_hash_key(ulonglong hash_val) const {
   return result;
 }
 
-#ifdef MYSQL_SERVER
-
-bool Json_wrapper::get_free_space(size_t *space) const {
+bool Json_wrapper::get_free_space(
+    const JsonSerializationErrorHandler &error_handler, size_t *space) const {
   if (m_is_dom) {
     *space = 0;
     return false;
   }
 
-  return m_value.get_free_space(current_thd, space);
+  return m_value.get_free_space(error_handler, space);
 }
 
+#ifdef MYSQL_SERVER
 bool Json_wrapper::attempt_binary_update(const Field_json *field,
                                          const Json_seekable_path &path,
                                          Json_wrapper *new_value, bool replace,

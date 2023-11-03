@@ -1978,15 +1978,17 @@ bool Value::remove_in_shadow(const Field_json *field, size_t pos,
   return field->table->add_binary_diff(field, m_data - original,
                                        offset_size(m_large));
 }
+#endif  // ifdef MYSQL_SERVER
 
 /**
   Get the amount of unused space in the binary representation of this value.
 
-  @param      thd    THD handle
+  @param[out] error_handler the handler that is invoked if an error occurs
   @param[out] space  the amount of free space
-  @return false on success, true on error
+  @return false on success, true if the JSON is invalid or the stack si overrun
 */
-bool Value::get_free_space(const THD *thd, size_t *space) const {
+bool Value::get_free_space(const JsonSerializationErrorHandler &error_handler,
+                           size_t *space) const {
   *space = 0;
 
   switch (m_type) {
@@ -2006,7 +2008,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
     for (size_t i = 0; i < m_element_count; ++i) {
       Value key = this->key(i);
       if (key.type() == ERROR) {
-        my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+        error_handler.InvalidJson();
         return true;
       }
       *space += key.get_data() - next_key;
@@ -2016,7 +2018,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
 
   size_t next_value_offset;
   if (first_value_offset(&next_value_offset)) {
-    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    error_handler.InvalidJson();
     return true;
   }
 
@@ -2026,14 +2028,14 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
     size_t elt_end;
     bool inlined;
     if (element_offsets(i, &elt_start, &elt_end, &inlined)) {
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      error_handler.InvalidJson();
       return true;
     }
 
     if (inlined) continue;
 
     if (elt_start < next_value_offset || elt_end > m_length) {
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      error_handler.InvalidJson();
       return true;
     }
 
@@ -2045,16 +2047,17 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
       case ARRAY:
       case OBJECT: {
         // Recursively process nested arrays or objects.
-        if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+        if (error_handler.CheckStack()) {
           return true; /* purecov: inspected */
+        }
         size_t elt_space;
-        if (elt.get_free_space(thd, &elt_space)) return true;
+        if (elt.get_free_space(error_handler, &elt_space)) return true;
         *space += elt_space;
         break;
       }
       case ERROR:
         /* purecov: begin inspected */
-        my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+        error_handler.InvalidJson();
         return true;
         /* purecov: end */
       default:
@@ -2066,6 +2069,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
   return false;
 }
 
+#ifdef MYSQL_SERVER
 /**
   Check whether two binary JSON scalars are equal. This function is used by
   multi-valued index updating code. Unlike JSON comparator implemented in
@@ -2077,7 +2081,6 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
   Since MV index doesn't support indexing of arrays/objects in arrays, these
   two aren't supported and cause assert.
 */
-
 int Value::eq(const Value &val) const {
   assert(is_valid() && val.is_valid());
 
@@ -2121,6 +2124,7 @@ int Value::eq(const Value &val) const {
   }
   return -1;
 }
+
 #endif  // ifdef MYSQL_SERVER
 
 bool Value::to_std_string(std::string *buffer,

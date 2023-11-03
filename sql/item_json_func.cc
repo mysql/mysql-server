@@ -3515,8 +3515,10 @@ longlong Item_func_json_storage_free::val_int() {
   if (null_value) return 0;
 
   size_t space;
-  if (wrapper.get_free_space(&space))
+  if (wrapper.get_free_space(JsonSerializationDefaultErrorHandler(current_thd),
+                             &space)) {
     return error_int(); /* purecov: inspected */
+  }
 
   return space;
 }

@@ -346,8 +346,10 @@ class Value {
   EXPORT_JSON_FUNCTION
   bool raw_binary(const JsonSerializationErrorHandler &error_handler,
                   String *buf) const;
+  EXPORT_JSON_FUNCTION
+  bool get_free_space(const JsonSerializationErrorHandler &error_handler,
+                      size_t *space) const;
 #ifdef MYSQL_SERVER
-  bool get_free_space(const THD *thd, size_t *space) const;
   bool update_in_shadow(const Field_json *field, size_t pos,
                         Json_wrapper *new_value, size_t data_offset,
                         size_t data_length, const char *original,

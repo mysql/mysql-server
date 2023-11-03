@@ -1702,11 +1702,13 @@ class Json_wrapper {
   /**
     Calculate the amount of unused space inside a JSON binary value.
 
+    @param[in] error_handler the handler that is invoked if an error occurs
     @param[out] space  the amount of unused space, or zero if this is a DOM
     @return false on success
     @return true if the JSON binary value was invalid
   */
-  bool get_free_space(size_t *space) const;
+  bool get_free_space(const JsonSerializationErrorHandler &error_handler,
+                      size_t *space) const;
 
   /**
     Attempt a binary partial update by replacing the value at @a path with @a
