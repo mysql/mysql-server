@@ -3310,6 +3310,36 @@ void Item_func_make_set::fix_length_and_dec()
   with_sum_func= with_sum_func || item->with_sum_func;
 }
 
+bool Item_func_make_set::fix_fields(THD *thd, Item **ref) {
+  assert(!fixed);
+  if (!item->fixed && item->fix_fields(thd, &item)) {
+    return true;
+  }
+  if (item->check_cols(1)) {
+    return true;
+  }
+  if (Item_func::fix_fields(thd, ref)) {
+    return true;
+  }
+  if (item->maybe_null) {
+    maybe_null = true;
+  }
+
+  used_tables_cache|=     item->used_tables();
+  not_null_tables_cache|= item->not_null_tables();
+  const_item_cache&=      item->const_item();
+
+  return false;
+}
+
+void Item_func_make_set::fix_after_pullout(st_select_lex *parent_select,
+                                           st_select_lex *removed_select) {
+  Item_func::fix_after_pullout(parent_select, removed_select);
+  item->fix_after_pullout(parent_select, removed_select);
+  used_tables_cache|=     item->used_tables();
+  not_null_tables_cache|= item->not_null_tables();
+  const_item_cache&=      item->const_item();
+}
 
 void Item_func_make_set::update_used_tables()
 {
