@@ -723,13 +723,9 @@ class Item_func_make_set final : public Item_str_func {
 
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
-  bool fix_fields(THD *thd, Item **ref) override {
-    assert(fixed == 0);
-    bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
-                item->check_cols(1) || Item_func::fix_fields(thd, ref));
-    set_nullable(is_nullable() || item->is_nullable());
-    return res;
-  }
+  bool fix_fields(THD *thd, Item **ref) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   bool resolve_type(THD *) override;

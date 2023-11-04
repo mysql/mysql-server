@@ -2388,6 +2388,35 @@ void Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
   Item_str_func::split_sum_func(thd, ref_item_array, fields);
 }
 
+bool Item_func_make_set::fix_fields(THD *thd, Item **ref) {
+  assert(!fixed);
+  if (!item->fixed && item->fix_fields(thd, &item)) {
+    return true;
+  }
+  if (item->check_cols(1)) {
+    return true;
+  }
+  if (Item_func::fix_fields(thd, ref)) {
+    return true;
+  }
+  if (item->is_nullable()) {
+    set_nullable(true);
+  }
+  used_tables_cache |= item->used_tables();
+  if (null_on_null) not_null_tables_cache |= item->not_null_tables();
+  add_accum_properties(item);
+
+  return false;
+}
+
+void Item_func_make_set::fix_after_pullout(Query_block *parent_query_block,
+                                           Query_block *removed_query_block) {
+  Item_func::fix_after_pullout(parent_query_block, removed_query_block);
+  item->fix_after_pullout(parent_query_block, removed_query_block);
+  used_tables_cache |= item->used_tables();
+  if (null_on_null) not_null_tables_cache |= item->not_null_tables();
+}
+
 bool Item_func_make_set::resolve_type(THD *thd) {
   if (item->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 0, -1)) return true;
@@ -2399,9 +2428,6 @@ bool Item_func_make_set::resolve_type(THD *thd) {
   for (uint i = 0; i < arg_count; i++)
     char_length += args[i]->max_char_length();
   set_data_type_string(char_length);
-  used_tables_cache |= item->used_tables();
-  not_null_tables_cache &= item->not_null_tables();
-  add_accum_properties(item);
 
   return false;
 }
