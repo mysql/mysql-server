@@ -834,15 +834,9 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *str);
-  bool fix_fields(THD *thd, Item **ref)
-  {
-    assert(fixed == 0);
-    bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
-               item->check_cols(1) ||
-               Item_func::fix_fields(thd, ref));
-    maybe_null|= item->maybe_null;
-    return res;
-  }
+  bool fix_fields(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select);
   void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                       List<Item> &fields);
   void fix_length_and_dec();
