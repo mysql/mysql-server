@@ -3443,7 +3443,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   /* If the setting for innodb_validate_tablespace_paths is NO and we are
   not in recovery, then only validate undo tablespaces. */
   const bool ibd_validate =
-      srv_validate_tablespace_paths || recv_needed_recovery;
+      srv_validate_tablespace_paths || recv_needed_recovery || !ibuf_is_empty();
 
   std::string prefix;
   if (m_n_threads > 0) {
@@ -3781,7 +3781,8 @@ dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
   m_n_threads = fil_get_scan_threads(m_n_to_check);
   m_start_time = std::chrono::steady_clock::now();
 
-  if (!srv_validate_tablespace_paths && !recv_needed_recovery) {
+  if (!srv_validate_tablespace_paths && !recv_needed_recovery &&
+      ibuf_is_empty()) {
     ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
   }
 
