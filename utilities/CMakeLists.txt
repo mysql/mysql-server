@@ -53,6 +53,8 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
 MY_ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
+ADD_DEPENDENCIES(clang_tidy_prerequisites GenClientError)
+
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 
 # Create localized error message files, <language>/errmsg.sys

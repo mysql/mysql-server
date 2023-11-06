@@ -6,17 +6,12 @@ tags
 TAGS
 TAGS_sorted_by_file
 
-# googletest files
-source_downloads
-
 # Vim swap files
 [._]*.s[a-v][a-z]
 [._]*.sw[a-p]
 [._]s[a-rt-v][a-z]
 [._]ss[a-gi-z]
 [._]sw[a-p]
-
-.clang-tidy
 
 # Configuration files for Visual Studio Code
 .vscode/
