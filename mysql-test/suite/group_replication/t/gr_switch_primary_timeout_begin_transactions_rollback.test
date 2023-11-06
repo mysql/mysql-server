@@ -47,10 +47,21 @@ CREATE TABLE t1(c1 int primary key);
 --echo
 --echo # 2. Execute change primary from server2(secondary) and block the operation.
 
---let $rpl_connection_name= server2
+--let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+# Block the transaction, it will block change of primary.
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+--send INSERT INTO t1 values(0);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 --replace_result $server2_uuid SERVER2_UUID
 --send_eval SELECT group_replication_set_as_primary("$server2_uuid", 1);
@@ -102,9 +113,14 @@ SELECT COUNT(*)=1 FROM sys.version;
 --echo
 --echo # 5. Unblock change primary from server2 and reap the operation.
 
---let $rpl_connection_name= server_2
+--let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -139,8 +155,18 @@ SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
 --echo
 --echo # 7. Execute change primary from server2(primary) and block the operation.
 
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+
+# Block the transaction, it will block change of primary.
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+--send INSERT INTO t1 values(100);
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
 
 --replace_result $server1_uuid SERVER1_UUID
 --send_eval SELECT group_replication_set_as_primary("$server1_uuid", 1);
@@ -191,7 +217,11 @@ SELECT COUNT(*)=1 FROM sys.version;
 --echo
 --echo # 10. Unblock change primary from server2 and reap the operation.
 
-SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+--reap
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

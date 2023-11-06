@@ -11,8 +11,13 @@ include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 
 # 2. Execute change primary from server2(secondary) and block the operation.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+INSERT INTO t1 values(0);;
+[connection server1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
 [connection server2]
-SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 SELECT group_replication_set_as_primary("SERVER2_UUID", 1);;
 [connection server1]
 
@@ -42,7 +47,7 @@ COUNT(*)
 2
 SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
 COUNT(*)=0
-1
+0
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT COUNT(*)=1 FROM sys.version;
@@ -50,8 +55,9 @@ COUNT(*)=1
 1
 
 # 5. Unblock change primary from server2 and reap the operation.
-[connection server_2]
-SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+[connection server1]
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+[connection server_1]
 [connection server2]
 group_replication_set_as_primary("SERVER2_UUID", 1)
 Primary server switched to: SERVER2_UUID
@@ -67,7 +73,12 @@ include/assert.inc ['Check table t2 does not exist.']
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 
 # 7. Execute change primary from server2(primary) and block the operation.
+[connection server_2_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+INSERT INTO t1 values(100);;
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
 SELECT group_replication_set_as_primary("SERVER1_UUID", 1);;
 [connection server_2]
 
@@ -96,7 +107,7 @@ COUNT(*)
 2
 SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
 COUNT(*)=0
-1
+0
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT COUNT(*)=1 FROM sys.version;
@@ -104,7 +115,8 @@ COUNT(*)=1
 1
 
 # 10. Unblock change primary from server2 and reap the operation.
-SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+[connection server_2_1]
 [connection server2]
 group_replication_set_as_primary("SERVER1_UUID", 1)
 Primary server switched to: SERVER1_UUID
