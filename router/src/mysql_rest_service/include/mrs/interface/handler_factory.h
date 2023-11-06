@@ -45,6 +45,8 @@ class HandlerFactory {
 
   virtual ~HandlerFactory() = default;
 
+  virtual std::unique_ptr<Handler> create_function_handler(
+      Route *r, AuthManager *auth_manager) = 0;
   virtual std::unique_ptr<Handler> create_file_handler(
       Route *r, AuthManager *auth_manager) = 0;
   virtual std::unique_ptr<Handler> create_sp_handler(

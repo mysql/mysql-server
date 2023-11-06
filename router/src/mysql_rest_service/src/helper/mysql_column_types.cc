@@ -187,7 +187,8 @@ std::string txt_from_mysql_column_type(const MYSQL_FIELD *field) {
 }
 
 JsonType from_mysql_column_type(const MYSQL_FIELD *field) {
-  log_debug("field->type:%i", (int)field->type);
+  log_debug("field->type:%i, field->length:%i", (int)field->type,
+            (int)field->length);
   log_debug("field->charsetnr:%i", (int)field->charsetnr);
   switch (field->type) {
     case MYSQL_TYPE_DECIMAL:

@@ -123,7 +123,9 @@ void QueryEntryDbObject::on_row(const ResultRow &row) {
   entries.emplace_back();
 
   static std::map<std::string, DbObject::PathType> path_types{
-      {"TABLE", DbObject::typeTable}, {"PROCEDURE", DbObject::typeProcedure}};
+      {"TABLE", DbObject::typeTable},
+      {"PROCEDURE", DbObject::typeProcedure},
+      {"FUNCTION", DbObject::typeFunction}};
 
   static std::map<std::string, DbObject::Format> format_types{
       {"FEED", DbObject::formatFeed},

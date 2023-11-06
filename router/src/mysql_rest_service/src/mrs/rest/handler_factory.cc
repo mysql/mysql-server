@@ -24,6 +24,7 @@
 
 #include "mrs/rest/handler_factory.h"
 #include "mrs/rest/handler_file.h"
+#include "mrs/rest/handler_function.h"
 #include "mrs/rest/handler_object_metadata.h"
 #include "mrs/rest/handler_schema_metadata.h"
 #include "mrs/rest/handler_sp.h"
@@ -37,6 +38,11 @@ using HandlerPtr = std::unique_ptr<HandlerFactory::Handler>;
 HandlerPtr HandlerFactory::create_file_handler(Route *r,
                                                AuthManager *auth_manager) {
   return HandlerPtr{new HandlerFile(r, auth_manager)};
+}
+
+HandlerPtr HandlerFactory::create_function_handler(Route *r,
+                                                   AuthManager *auth_manager) {
+  return HandlerPtr{new HandlerFunction(r, auth_manager)};
 }
 
 HandlerPtr HandlerFactory::create_sp_handler(Route *r,

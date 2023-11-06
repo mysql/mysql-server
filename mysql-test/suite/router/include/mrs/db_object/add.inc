@@ -55,6 +55,14 @@ if (!$mrs_add_db_object_table_filter)
   --let $mrs_add_db_object_table_filter=
 }
 
+if ($mrs_add_db_object_type==FUNCTION)
+{
+  if ($mrs_add_db_object_format==FEED)
+  {
+    --die Function doesn't support FEED, please set \$mrs_add_db_object_format.;
+  }
+}
+
 --disable_query_log
 --disable_result_log
 eval SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
@@ -85,8 +93,19 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
    --disable_query_log
    --disable_result_log
  }
-
+ 
+ let $_is_procedure_or_function=0;
  if ($mrs_add_db_object_type=="PROCEDURE")
+ {
+   let $_is_procedure_or_function=1;
+ }
+ 
+ if ($mrs_add_db_object_type=="FUNCTION")
+ {
+   let $_is_procedure_or_function=1;
+ }
+
+ if ($_is_procedure_or_function==1)
  {
     --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
     eval SET @_proc_id=(SELECT mysql_rest_service_metadata.get_sequence_id());
@@ -104,7 +123,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
              "$.in", PARAMETER_MODE like "%IN%",
              "$.out", PARAMETER_MODE like "%OUT%") as js
      FROM information_schema.PARAMETERS
-     WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name";
+     WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name" and PARAMETER_NAME is not NULL;
  }
 }
 

@@ -35,6 +35,8 @@ class MockHandlerFactory : public mrs::interface::HandlerFactory {
 
   MOCK_METHOD(std::unique_ptr<Handler>, create_file_handler,
               (Route * r, AuthManager *auth_manager), (override));
+  MOCK_METHOD(std::unique_ptr<Handler>, create_function_handler,
+              (Route * r, AuthManager *auth_manager), (override));
   MOCK_METHOD(std::unique_ptr<Handler>, create_sp_handler,
               (Route * r, AuthManager *auth_manager), (override));
   MOCK_METHOD(std::unique_ptr<Handler>, create_object_handler,

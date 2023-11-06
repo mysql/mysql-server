@@ -78,6 +78,9 @@ void Object::turn(const State state) {
     case EntryDbObject::typeProcedure:
       handlers_for_sp();
       break;
+    case EntryDbObject::typeFunction:
+      handlers_for_function();
+      break;
   }
 }
 
@@ -93,6 +96,16 @@ void Object::handlers_for_table() {
 
 void Object::handlers_for_sp() {
   auto handler_obj = handler_factory_->create_sp_handler(this, auth_manager_);
+  auto handler_meta =
+      handler_factory_->create_object_metadata_handler(this, auth_manager_);
+
+  handle_object_ = std::move(handler_obj);
+  handle_metadata_ = std::move(handler_meta);
+}
+
+void Object::handlers_for_function() {
+  auto handler_obj =
+      handler_factory_->create_function_handler(this, auth_manager_);
   auto handler_meta =
       handler_factory_->create_object_metadata_handler(this, auth_manager_);
 

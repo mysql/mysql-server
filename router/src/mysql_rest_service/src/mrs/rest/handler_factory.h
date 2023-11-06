@@ -36,6 +36,8 @@ class HandlerFactory : public mrs::interface::HandlerFactory {
  public:
   std::unique_ptr<Handler> create_file_handler(
       Route *r, AuthManager *auth_manager) override;
+  std::unique_ptr<Handler> create_function_handler(
+      Route *r, AuthManager *auth_manager) override;
   std::unique_ptr<Handler> create_sp_handler(
       Route *r, AuthManager *auth_manager) override;
   std::unique_ptr<Handler> create_object_handler(

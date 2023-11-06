@@ -54,6 +54,7 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/query_rest_table.cc
   mrs/database/query_rest_table_single_row.cc
   mrs/database/query_rest_sp.cc
+  mrs/database/query_rest_function.cc
   mrs/database/query_rest_sp_media.cc
   mrs/database/query_rest_table_updater.cc
   mrs/database/query_state.cc
@@ -127,6 +128,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_authorize_ok.cc
   mrs/rest/handler_factory.cc
   mrs/rest/handler_file.cc
+  mrs/rest/handler_function.cc
   mrs/rest/handler_user.cc
   mrs/rest/handler_table.cc
   mrs/rest/handler_string.cc

@@ -268,6 +268,14 @@ class SerializerToText {
     return *this;
   }
 
+  template <typename Str1>
+  SerializerToText &member_add_value(const Str1 &key, const char *str,
+                                     uint32_t len, JsonType ct) {
+    writer_.Key(key);
+    add_value(str, len, ct);
+    return *this;
+  }
+
  private:
   const char *get_raw(const char *value) { return value; }
   const char *get_raw(const std::string &value) { return value.c_str(); }

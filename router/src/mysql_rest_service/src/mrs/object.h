@@ -98,6 +98,7 @@ class Object : public std::enable_shared_from_this<Object>,
   bool is_active() const;
   void handlers_for_table();
   void handlers_for_sp();
+  void handlers_for_function();
   void update_variables();
   void cache_object();
   void cache_columns();

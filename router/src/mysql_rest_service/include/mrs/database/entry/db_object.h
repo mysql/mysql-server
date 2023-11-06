@@ -43,7 +43,7 @@ namespace entry {
 class DbObject {
  public:
   enum Format : uint32_t { formatFeed = 1, formatItem = 2, formatMedia = 3 };
-  enum PathType { typeTable, typeProcedure };
+  enum PathType { typeTable, typeProcedure, typeFunction };
   EntryKey get_key() const { return {key_rest, id}; }
 
   UniversalId id;
