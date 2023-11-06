@@ -185,7 +185,7 @@ fallback:
 }
 
 bool TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]]) {
-  TrpId trp_id = t->getTransporterIndex();
+  TrpId trp_id [[maybe_unused]] = t->getTransporterIndex();
   assert(m_transporters.get(trp_id));
 
 #if defined(HAVE_EPOLL_CREATE)
