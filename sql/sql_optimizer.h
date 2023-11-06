@@ -856,13 +856,14 @@ class JOIN {
     @param save_sum_fields  If true, do not replace Item_sum items in
                             @c tmp_fields list with Item_field items referring
                             to fields in temporary table.
-
+    @param alias            alias name for temporary file
     @returns false on success, true on failure
   */
   bool create_intermediate_table(QEP_TAB *tab,
                                  const mem_root_deque<Item *> &tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
-                                 bool save_sum_fields);
+                                 bool save_sum_fields,
+                                 const char *alias = nullptr);
 
   /**
     Optimize distinct when used on a subset of the tables.

@@ -16622,7 +16622,7 @@ join_optimization": {
               {
                 "creating_tmp_table": {
                   "tmp_table_info": {
-                    "table": "intermediate_tmp_table",
+                    "table": "window frame buffer",
                     "columns": 6,
                     "row_length": 29,
                     "key_length": 0,
@@ -16635,11 +16635,11 @@ join_optimization": {
               },
               {
                 "filesort": {
-                  "adding_sort_to_table": ""
+                  "adding_sort_to_table": "window output buffer"
                 }
               },
               {
-                "adding_sort_to_table": ""
+                "adding_sort_to_table": "window output buffer"
               }
             ]
           }

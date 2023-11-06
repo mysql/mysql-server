@@ -334,7 +334,7 @@ trace
                     {
                       "creating_tmp_table": {
                         "tmp_table_info": {
-                          "table": "intermediate_tmp_table",
+                          "table": "window frame buffer",
                           "columns": 3,
                           "row_length": 13,
                           "key_length": 0,
@@ -1610,7 +1610,7 @@ trace
                     {
                       "creating_tmp_table": {
                         "tmp_table_info": {
-                          "table": "intermediate_tmp_table",
+                          "table": "window frame buffer",
                           "columns": 2,
                           "row_length": 9,
                           "key_length": 0,

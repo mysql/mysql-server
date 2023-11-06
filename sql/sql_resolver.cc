@@ -511,10 +511,12 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   */
   if (m_having_cond && (m_having_cond->has_aggregation() ||
                         m_having_cond->has_grouping_func())) {
+    resolve_place = RESOLVE_HAVING;
     if (m_having_cond->split_sum_func2(thd, base_ref_items, &fields,
                                        &m_having_cond, true)) {
       return true;
     }
+    resolve_place = RESOLVE_NONE;
     added_new_sum_funcs = true;
   }
   // Move aggregation functions and window functions present in

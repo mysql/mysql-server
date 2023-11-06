@@ -2261,6 +2261,42 @@ class Item_aggregate_ref : public Item_ref {
   }
 };
 
+static bool subquery_split(Item *item) {
+  assert(item->type() == Item::SUBQUERY_ITEM);
+  Item_subselect *subq = down_cast<Item_subselect *>(item);
+  switch (subq->subquery_type()) {
+    case Item_subselect::SCALAR_SUBQUERY:
+      return subq->is_single_column_scalar_subquery();
+    case Item_subselect::EXISTS_SUBQUERY:
+      // Can safely always be evaluated before any window function; it has empty
+      // left_expr.
+      return true;
+    case Item_subselect::IN_SUBQUERY:
+    case Item_subselect::ANY_SUBQUERY:
+    case Item_subselect::ALL_SUBQUERY: {
+      // If left has a wf, we must wait with evaluation. In such a case, if the
+      // subquery is correlated, we need to handle outer references: a priori
+      // they point to the windowing input tables, but need to point to
+      // fields in the out table/frame buffer, which need adding FIXME.
+      // E.g. : table with rows (1),(2) gives 0,1 for the below (correct: 1,1)
+      //
+      //   SELECT AVG(f1) OVER (PARTITION BY f1) IN
+      //          (SELECT outer_t.f1 FROM t1) FROM t1 AS outer_t;
+      //
+      // 'having' check below: we must check that we are not in a HAVING
+      // context, in which case we do not have window functions anyway.
+      Item_in_subselect *iis = down_cast<Item_in_subselect *>(subq);
+      return !iis->left_expr->has_wf() &&
+             (current_thd->lex->current_query_block()->resolve_place !=
+              Query_block::RESOLVE_HAVING);
+    }
+    default:
+      assert(false);
+  }
+
+  return false;
+}
+
 /**
   1. Replace set function and window function items with a reference.
 
@@ -2401,15 +2437,12 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     if (split_sum_func(thd, ref_item_array, fields)) {
       return true;
     }
-  } else if (!const_for_execution() &&                                // (1)
-             (type() != REF_ITEM ||                                   // (2)
-              down_cast<Item_ref *>(this)->ref_type() ==              //
-                  Item_ref::VIEW_REF) &&                              //
-             (type() != SUBQUERY_ITEM ||                              // (3)
-              (down_cast<Item_subselect *>(this)->subquery_type() ==  //
-                   Item_subselect::SCALAR_SUBQUERY &&
-               down_cast<Item_subselect *>(this)
-                   ->is_single_column_scalar_subquery()))) {
+  } else if (!const_for_execution() &&                    // (1)
+             (type() != REF_ITEM ||                       // (2)
+              down_cast<Item_ref *>(this)->ref_type() ==  //
+                  Item_ref::VIEW_REF) &&                  //
+             (type() != SUBQUERY_ITEM ||                  //
+              subquery_split(this))) {                    // (3)
     /*
       (1) Replace non-constant item with a reference so that we can easily
       calculate it (in case of aggregate functions, grouping functions or
@@ -2419,15 +2452,15 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       Item_ref to allow fields from view being stored in tmp table.
 
       (3) In order to handle queries like:
-        SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
-      we need to move scalar subqueries to hidden fields too. But since window
-      functions accept only scalar and row subqueries, other types are excluded.
-      Indeed, a subquery of another type is wrapped in Item_in_optimizer at this
-      stage, so when splitting Item_in_optimizer, if we added the underlying
-      Item_subselect to "fields" below it would be later evaluated by
-      copy_funcs() (in tmp table processing), which would be incorrect as the
-      Item_subselect cannot be evaluated - as it must always be evaluated
-      through its parent Item_in_optimizer.
+           SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
+        and queries like
+           SELECT (expression) FROM t
+                     /   \
+               subquery   wf
+
+      we need to move subqueries to hidden fields too. Note that IN/ALL/ANY
+      subqueries are wrapped as functions at this point so they will often
+      have been split already.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 

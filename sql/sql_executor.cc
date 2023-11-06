@@ -179,7 +179,7 @@ string RefToString(const Index_lookup &ref, const KEY &key,
 
 bool JOIN::create_intermediate_table(
     QEP_TAB *const tab, const mem_root_deque<Item *> &tmp_table_fields,
-    ORDER_with_src &tmp_table_group, bool save_sum_fields) {
+    ORDER_with_src &tmp_table_group, bool save_sum_fields, const char *alias) {
   DBUG_TRACE;
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
   const bool windowing = m_windows.elements > 0;
@@ -206,10 +206,10 @@ bool JOIN::create_intermediate_table(
       (!windowing || (tab->tmp_table_param->m_window &&
                       tab->tmp_table_param->m_window->is_last()));
 
-  TABLE *table =
-      create_tmp_table(thd, tab->tmp_table_param, tmp_table_fields,
-                       tmp_table_group.order, distinct_arg, save_sum_fields,
-                       query_block->active_options(), tmp_rows_limit, "");
+  TABLE *table = create_tmp_table(
+      thd, tab->tmp_table_param, tmp_table_fields, tmp_table_group.order,
+      distinct_arg, save_sum_fields, query_block->active_options(),
+      tmp_rows_limit, (alias != nullptr ? alias : ""));
   if (!table) return true;
   tmp_table_param.using_outer_summary_function =
       tab->tmp_table_param->using_outer_summary_function;

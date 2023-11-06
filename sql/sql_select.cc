@@ -4313,9 +4313,9 @@ bool CreateFramebufferTable(
                   fb_fields.end());
   count_field_types(&query_block, par, fb_fields, false, false);
 
-  TABLE *table =
-      create_tmp_table(thd, par, fb_fields, nullptr, false, false,
-                       query_block.active_options(), HA_POS_ERROR, "");
+  TABLE *table = create_tmp_table(thd, par, fb_fields, nullptr, false, false,
+                                  query_block.active_options(), HA_POS_ERROR,
+                                  "window frame buffer");
   if (table == nullptr) return true;
 
   window->set_frame_buffer_param(par);
@@ -4852,8 +4852,8 @@ bool JOIN::make_tmp_tables_info() {
             .add("adding_tmp_table_in_plan_at_position", curr_tmp_table)
             .add_alnum("cause", "output_for_window_functions")
             .add("with_buffer", m_windows[wno]->needs_buffering());
-
-        if (create_intermediate_table(tab, *curr_fields, dummy, false))
+        if (create_intermediate_table(tab, *curr_fields, dummy, false,
+                                      "window output buffer"))
           return true;
 
         if (alloc_ref_item_slice(thd, widx)) return true;

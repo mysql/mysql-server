@@ -1909,3 +1909,105 @@ WHERE cmp > 0 WINDOW w AS (ORDER BY cmp);
 i	COUNT(*) OVER w
 2	1
 DROP TABLE t;
+#
+# Bug#35855294 Inconsistent results of SELECT statement with EXISTS clause
+#
+CREATE TABLE t1 (vkey INT, pkey INT, c5 INT, c7 VARCHAR(200));
+INSERT INTO t1 VALUES (20, 30000, 59, NULL);
+INSERT INTO t1 VALUES (59, 69000, NULL, NULL);
+SELECT ref_0.c5 >=
+( CASE
+WHEN (EXISTS
+( SELECT ref_2.pkey as c_3
+FROM t1 AS ref_2
+WHERE ref_2.vkey BETWEEN ref_0.c5 AND
+ref_0.c5))
+THEN NULL
+ELSE ( CASE
+WHEN (FIRST_VALUE(1) OVER ( PARTITION BY ref_0.c7
+ORDER BY ref_0.vkey ASC,
+ref_0.pkey DESC) >= NULL)
+THEN NULL
+ELSE ref_0.pkey
+END )
+END
+) as c_6
+FROM
+t1 AS ref_0;
+c_6
+NULL
+NULL
+SELECT ref_0.c5 >=
+( CASE
+WHEN (1 IN
+( SELECT 1 as c_3
+FROM t1 AS ref_2
+WHERE ref_2.vkey
+BETWEEN ref_0.c5 AND ref_0.c5))
+THEN NULL
+ELSE ( CASE
+WHEN (FIRST_VALUE(1) OVER ( PARTITION BY ref_0.c7
+ORDER BY ref_0.vkey ASC,
+ref_0.pkey DESC) >= NULL)
+THEN NULL
+ELSE ref_0.pkey
+END )
+END
+) as c_6
+FROM
+t1 AS ref_0;
+c_6
+NULL
+NULL
+SELECT ref_0.c5 >=
+( CASE
+WHEN ( ref_0.vkey > ANY
+( SELECT ref_2.vkey as c_3
+FROM t1 AS ref_2
+WHERE ref_2.vkey
+BETWEEN ref_0.c5 AND ref_0.c5))
+THEN NULL
+ELSE ( CASE
+WHEN (FIRST_VALUE(1) OVER ( PARTITION BY ref_0.c7
+ORDER BY ref_0.vkey ASC,
+ref_0.pkey DESC) >= NULL)
+THEN NULL
+ELSE ref_0.pkey
+END )
+END
+) as c_6
+FROM
+t1 AS ref_0;
+c_6
+0
+NULL
+SELECT ref_0.c5 >=
+( CASE
+WHEN ( ref_0.vkey > ALL
+( SELECT ref_2.vkey as c_3
+FROM t1 AS ref_2
+WHERE ref_2.vkey
+BETWEEN ref_0.c5 AND ref_0.c5))
+THEN NULL
+ELSE ( CASE
+WHEN (FIRST_VALUE(1) OVER ( PARTITION BY ref_0.c7
+ORDER BY ref_0.vkey ASC,
+ref_0.pkey DESC) >= NULL)
+THEN NULL
+ELSE ref_0.pkey
+END )
+END
+) as c_6
+FROM
+t1 AS ref_0;
+c_6
+0
+NULL
+# Still wrong FIXME
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT outer_t.vkey FROM t1) FROM t1 AS outer_t;
+AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT outer_t.vkey FROM t1)
+0
+1
+DROP TABLE t1;
