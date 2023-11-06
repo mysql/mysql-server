@@ -607,7 +607,7 @@ void BootstrapConfigurator::check_mrs_metadata(
     mysqlrouter::MySQLSession *session) const {
   try {
     mrs::database::QueryVersion q;
-    const int k_current_major{2}, k_current_minor{1};
+    const int k_current_major{2}, k_current_minor{2};
 
     auto version = q.query_version(session);
 
