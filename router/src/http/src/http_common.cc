@@ -495,13 +495,16 @@ HttpBuffer::~HttpBuffer() = default;
 
 // wrap evhttp_connection
 
-struct HttpConnectionImpl::impl {
+class HttpConnectionImpl::impl {
+ public:
   std::unique_ptr<evhttp_connection, std::function<void(evhttp_connection *)>>
       conn;
 };
 
 HttpConnectionImpl::HttpConnectionImpl(std::unique_ptr<impl> &&impl)
     : pImpl_(std::move(impl)) {}
+
+HttpConnectionImpl::~HttpConnectionImpl() = default;
 
 std::string HttpConnectionImpl::get_peer_address() const {
   char *result_address;

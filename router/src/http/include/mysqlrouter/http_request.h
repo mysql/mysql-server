@@ -508,6 +508,8 @@ class HTTP_COMMON_EXPORT HttpRequest {
 
 class HTTP_COMMON_EXPORT HttpConnectionImpl : public HttpConnection {
  public:
+  ~HttpConnectionImpl() override;
+
   std::string get_peer_address() const override;
   uint16_t get_peer_port() const override;
 
