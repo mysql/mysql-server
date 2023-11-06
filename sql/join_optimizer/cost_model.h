@@ -224,6 +224,10 @@ inline double FindOutputRowsForJoin(double left_rows, double right_rows,
     case RelationalExpression::TABLE:             // Should not appear here.
       assert(false);
       return 0;
+
+    default:
+      assert(false);
+      return 0;
   }
 }
 
