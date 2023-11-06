@@ -3102,9 +3102,12 @@ bool TransporterRegistry::is_shm_transporter(TrpId trp_id) {
 
 // FIXME: Take a TrpId argument instead
 bool TransporterRegistry::is_encrypted_link(NodeId nodeId) const {
-  Transporter *base_trp = get_node_base_transporter(nodeId);
-  if (base_trp != nullptr) return base_trp->is_encrypted();
-  return false;
+  Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+  if (multi_trp != nullptr) {
+    return multi_trp->get_active_transporter(0)->is_encrypted();
+  } else {
+    return theNodeIdTransporters[nodeId]->is_encrypted();
+  }
 }
 
 NodeId TransporterRegistry::get_transporter_node_id(TrpId trp_id) const {
