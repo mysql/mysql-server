@@ -1472,3 +1472,16 @@ eval EXECUTE stmt USING @a1;
 SET optimizer_switch=default;
 
 DROP TABLE t1;
+
+--echo # Bug#35211828: Derived condition pushdown with rollup gives wrong
+--echo #               results
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES(1,2);
+INSERT INTO t1 VALUES (2,2);
+
+SELECT f1, f2 FROM (SELECT f1, f2 FROM t1 GROUP BY f1, f2 WITH ROLLUP) as dt
+WHERE f2 IS NULL;
+
+DROP TABLE t1;

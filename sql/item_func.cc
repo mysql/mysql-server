@@ -754,10 +754,11 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
   /* Assume we don't have rtti */
   if (this == item) return true;
   if (item->type() != FUNC_ITEM) return false;
+  const Item_func::Functype func_type = functype();
   const Item_func *item_func = down_cast<const Item_func *>(item);
-  Item_func::Functype func_type;
-  if ((func_type = functype()) != item_func->functype() ||
-      arg_count != item_func->arg_count ||
+
+  if ((func_type != item_func->functype()) ||
+      (arg_count != item_func->arg_count) ||
       (func_type != Item_func::FUNC_SP &&
        strcmp(func_name(), item_func->func_name()) != 0) ||
       (func_type == Item_func::FUNC_SP &&
