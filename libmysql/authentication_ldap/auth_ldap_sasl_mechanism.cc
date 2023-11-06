@@ -108,7 +108,7 @@ bool Sasl_mechanism_kerberos::preauthenticate(const char *user,
 }
 const char *Sasl_mechanism_kerberos::get_ldap_host() {
   return m_ldap_server_host.empty() ? nullptr : m_ldap_server_host.c_str();
-};
+}
 
 #endif  // KERBEROS_LIB_CONFIGURED
 
