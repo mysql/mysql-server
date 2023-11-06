@@ -44,12 +44,13 @@
 --let $rpl_connection_name= source.1
 --source include/rpl_connection.inc
 CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
---save_master_pos
 INSERT INTO t1 VALUES (1, 'a');
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 --let $rpl_connection_name= source.2
 --source include/rpl_connection.inc
 INSERT INTO t1 VALUES (2, 'b');
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 --let $rpl_connection_name= source.4
 --source include/rpl_connection.inc
@@ -57,11 +58,12 @@ SET sql_log_bin= OFF;
 INSERT INTO t1 VALUES (3, 'c');
 SET sql_log_bin= ON;
 INSERT INTO t1 VALUES (4, 'd');
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 --let $rpl_connection_name= source.5
 --source include/rpl_connection.inc
 INSERT INTO t1 VALUES (5, 'e');
---save_master_pos
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 # Verify replica.3
 --let $rpl_connection_name= replica.3
