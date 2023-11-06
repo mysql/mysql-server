@@ -6052,7 +6052,7 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
   ptrdiff_t dst_offset = dst_row - table->record[0];
   ptrdiff_t src_offset = src_row - table->record[0];
 
-  /* Initialize the NULL bitmap. */
+  // Set the NULL flags for all fields
   memset(dst_row, 0xff, table->s->null_bytes);
 
   uchar *blob_ptr = m_blobs_buffer.get_ptr(0);
@@ -6063,34 +6063,8 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
     Field *field = table->field[i];
     if (!field->stored_in_db) continue;
 
-    if (likely(!field->is_flag_set(BLOB_FLAG))) {
-      if (field->is_real_null(src_offset)) {
-        /* NULL bits already set -> no further action needed. */
-      } else if (likely(field->type() != MYSQL_TYPE_BIT)) {
-        /*
-          A normal, non-NULL field (not blob or bit type).
-          Only copy actually used bytes if varstrings.
-        */
-        const uint32 actual_length = field_used_length(field, src_offset);
-        field->set_notnull(dst_offset);
-        memcpy(field->field_ptr() + dst_offset, field->field_ptr() + src_offset,
-               actual_length);
-      } else  // MYSQL_TYPE_BIT
-      {
-        Field_bit *field_bit = down_cast<Field_bit *>(field);
-        field->move_field_offset(src_offset);
-        longlong value = field_bit->val_int();
-        field->move_field_offset(dst_offset - src_offset);
-        field_bit->set_notnull();
-        /* Field_bit in DBUG requires the bit set in write_set for store(). */
-        my_bitmap_map *old_map =
-            dbug_tmp_use_all_columns(table, table->write_set);
-        ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
-        dbug_tmp_restore_column_map(table->write_set, old_map);
-        field->move_field_offset(-dst_offset);
-      }
-    } else  // BLOB_FLAG
-    {
+    // Handle Field_blob (BLOB, JSON, GEOMETRY)
+    if (field->is_flag_set(BLOB_FLAG)) {
       Field_blob *field_blob = (Field_blob *)field;
       NdbBlob *ndb_blob = m_value[i].blob;
       /* unpack_record *only* called for scan result processing
@@ -6123,8 +6097,35 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
       field_blob->set_ptr((uint32)len64, blob_ptr);
       field_blob->move_field_offset(-dst_offset);
       blob_ptr += (len64 + 7) & ~((Uint64)7);
+      continue;
     }
-  }  // for(...
+
+    // Handle Field_bit
+    if (field->type() == MYSQL_TYPE_BIT) {
+      Field_bit *field_bit = down_cast<Field_bit *>(field);
+      field->move_field_offset(src_offset);
+      longlong value = field_bit->val_int();
+      field->move_field_offset(dst_offset - src_offset);
+      field_bit->set_notnull();
+      /* Field_bit in DBUG requires the bit set in write_set for store(). */
+      my_bitmap_map *old_map =
+          dbug_tmp_use_all_columns(table, table->write_set);
+      ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
+      dbug_tmp_restore_column_map(table->write_set, old_map);
+      field->move_field_offset(-dst_offset);
+      continue;
+    }
+
+    // A normal field (not blob or bit type).
+    if (field->is_real_null(src_offset)) {
+      // Field is NULL and the null flags are already set
+      continue;
+    }
+    const uint32 actual_length = field_used_length(field, src_offset);
+    field->set_notnull(dst_offset);
+    memcpy(field->field_ptr() + dst_offset, field->field_ptr() + src_offset,
+           actual_length);
+  }
 
   if (unlikely(!m_cond.check_condition())) {
     return HA_ERR_KEY_NOT_FOUND;  // False condition
