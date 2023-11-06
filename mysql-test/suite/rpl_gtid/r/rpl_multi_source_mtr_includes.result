@@ -56,8 +56,14 @@ include/start_slave.inc [FOR CHANNEL '']
 #
 include/show_relaylog_events.inc [FOR CHANNEL '']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=POS
-slave-relay-bin.000003	#	Rotate	#	#	slave-relay-bin.000004;pos=POS
+slave-relay-bin.000004	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000004	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000004	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB
+slave-relay-bin.000004	#	Query	#	#	BEGIN
+slave-relay-bin.000004	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1)
+slave-relay-bin.000004	#	Xid	#	#	COMMIT /* XID */
+slave-relay-bin.000004	#	Rotate	#	#	slave-relay-bin.000005;pos=POS
 include/show_relaylog_events.inc [FOR CHANNEL 'ch1']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin-ch1.000003	#	Rotate	#	#	master-bin.000001;pos=POS
