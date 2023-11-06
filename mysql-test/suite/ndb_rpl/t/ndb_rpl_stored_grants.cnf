@@ -23,6 +23,7 @@ replica-allow-batching
 ndb-log-orig
 ndb-log-bin=1
 replica-parallel-workers=1
+replicate-ignore-table=test.abc
 
 [mysqld.1.cluster1]
 server_id=            1
