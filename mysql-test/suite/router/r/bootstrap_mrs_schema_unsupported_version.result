@@ -104,10 +104,10 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 - Read/Only Connections:  localhost:6449
 
 Error: Unsupported MRS metadata version (1.1.0)
-# Checking that version=2,2,0 is incompatible for bootstrap
+# Checking that version=2,3,0 is incompatible for bootstrap
 CREATE OR REPLACE SQL SECURITY INVOKER VIEW
 mysql_rest_service_metadata.schema_version (major, minor, patch)
-AS SELECT 2,2,0;
+AS SELECT 2,3,0;
 # Reconfiguring MySQL Router instance at 'DIRECTORY'...
 
 - Fetching password for current account (mysql_router1_RANDOM) from keyring
@@ -137,11 +137,11 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 - Read/Write Connections: localhost:6448
 - Read/Only Connections:  localhost:6449
 
-Error: Unsupported MRS metadata version (2.2.0)
-# Checking that version=2,2,1 is incompatible for bootstrap
+Error: Unsupported MRS metadata version (2.3.0)
+# Checking that version=2,3,1 is incompatible for bootstrap
 CREATE OR REPLACE SQL SECURITY INVOKER VIEW
 mysql_rest_service_metadata.schema_version (major, minor, patch)
-AS SELECT 2,2,1;
+AS SELECT 2,3,1;
 # Reconfiguring MySQL Router instance at 'DIRECTORY'...
 
 - Fetching password for current account (mysql_router1_RANDOM) from keyring
@@ -171,7 +171,7 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 - Read/Write Connections: localhost:6448
 - Read/Only Connections:  localhost:6449
 
-Error: Unsupported MRS metadata version (2.2.1)
+Error: Unsupported MRS metadata version (2.3.1)
 DROP USER 'admin'@'%';
 # Removed bootstraped users: 1
 DROP SCHEMA mysql_rest_service_metadata;

@@ -17,10 +17,10 @@ FLUSH PRIVILEGES;
 --let $mrs_schema_version=1,1,0
 --source ../include/test/bootstrap_mrs_schema_version.inc
 
---let $mrs_schema_version=2,2,0
+--let $mrs_schema_version=2,3,0
 --source ../include/test/bootstrap_mrs_schema_version.inc
 
---let $mrs_schema_version=2,2,1
+--let $mrs_schema_version=2,3,1
 --source ../include/test/bootstrap_mrs_schema_version.inc
 
 # Cleanup
