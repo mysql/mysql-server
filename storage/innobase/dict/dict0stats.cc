@@ -2183,14 +2183,17 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
 @param[in]      only_for_index  if this is non-NULL, then stats for indexes
 that are not equal to it will not be saved, if NULL, then all indexes' stats
 are saved
+@param[in]      trx  Save stats using this transaction.  If nullptr, then
+create a transaction and use that.
 @return DB_SUCCESS or error code */
 static dberr_t dict_stats_save(dict_table_t *table_orig,
-                               const index_id_t *only_for_index) {
+                               const index_id_t *only_for_index, trx_t *trx) {
   pars_info_t *pinfo;
   dberr_t ret;
   dict_table_t *table;
   char db_utf8mb3[dict_name::MAX_DB_UTF8MB3_LEN];
   char table_utf8mb3[dict_name::MAX_TABLE_UTF8MB3_LEN];
+  const bool local_trx = (trx == nullptr);
 
   table = dict_stats_snapshot_create(table_orig);
 
@@ -2237,7 +2240,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                             ":sum_of_other_index_sizes\n"
                             ");\n"
                             "END;",
-                            nullptr);
+                            trx);
 
   if (ret != DB_SUCCESS) {
     ib::error(ER_IB_MSG_223) << "Cannot save table statistics for table "
@@ -2250,12 +2253,14 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
     return (ret);
   }
 
-  trx_t *trx = trx_allocate_for_background();
+  if (local_trx) {
+    trx = trx_allocate_for_background();
 
-  if (srv_read_only_mode) {
-    trx_start_internal_read_only(trx, UT_LOCATION_HERE);
-  } else {
-    trx_start_internal(trx, UT_LOCATION_HERE);
+    if (srv_read_only_mode) {
+      trx_start_internal_read_only(trx, UT_LOCATION_HERE);
+    } else {
+      trx_start_internal(trx, UT_LOCATION_HERE);
+    }
   }
 
   dict_index_t *index;
@@ -2342,10 +2347,14 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
     }
   }
 
-  trx_commit_for_mysql(trx);
+  if (local_trx) {
+    trx_commit_for_mysql(trx);
+  }
 
 end:
-  trx_free_for_background(trx);
+  if (local_trx) {
+    trx_free_for_background(trx);
+  }
 
   rw_lock_x_unlock(dict_operation_lock);
 
@@ -2802,7 +2811,7 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     dict_stats_analyze_index(index);
     dict_table_stats_unlock(index->table, RW_X_LATCH);
     index_id_t index_id(index->space, index->id);
-    dict_stats_save(index->table, &index_id);
+    dict_stats_save(index->table, &index_id, nullptr);
     return;
   }
 
@@ -2811,16 +2820,9 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
   dict_table_stats_unlock(index->table, RW_X_LATCH);
 }
 
-/** Calculates new estimates for table and index statistics. The statistics
- are used in query optimization.
- @return DB_SUCCESS or error code */
-dberr_t dict_stats_update(dict_table_t *table, /*!< in/out: table */
-                          dict_stats_upd_option_t stats_upd_option)
-/*!< in: whether to (re) calc
-the stats or to fetch them from
-the persistent statistics
-storage */
-{
+dberr_t dict_stats_update(dict_table_t *table,
+                          dict_stats_upd_option_t stats_upd_option,
+                          trx_t *trx) {
   ut_ad(!dict_sys_mutex_own());
 
   if (table->ibd_file_missing) {
@@ -2869,7 +2871,7 @@ storage */
         return (err);
       }
 
-      return (dict_stats_save(table, nullptr));
+      return (dict_stats_save(table, nullptr, trx));
 
     case DICT_STATS_RECALC_TRANSIENT:
       break;
@@ -2882,7 +2884,7 @@ storage */
       then save the stats on disk */
 
       if (dict_stats_is_persistent_enabled(table)) {
-        return (dict_stats_save(table, nullptr));
+        return (dict_stats_save(table, nullptr, trx));
       }
 
       return (DB_SUCCESS);
@@ -3679,7 +3681,7 @@ void test_dict_stats_save() {
   index2_stat_n_sample_sizes[2] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
   index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
-  ret = dict_stats_save(&table, NULL);
+  ret = dict_stats_save(&table, NULL, nullptr);
 
   ut_a(ret == DB_SUCCESS);
 

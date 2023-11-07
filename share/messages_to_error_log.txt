@@ -12568,6 +12568,9 @@ ER_RPL_ASYNC_GET_GROUP_MEMBERSHIP_DETAILS_ERROR
 ER_IB_ERR_CORRUPT_TABLESPACE_UNRECOVERABLE
   eng "Tablespace '%u' mentioned in the redo log is corrupted in a way it is unrecoverable by double-write buffer, so further redo log recovery is not possible!"
 
+ER_IB_BULK_LOAD_STATS_WARN
+  eng "%s: Failed to save statistics for table=%s err=%zu"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

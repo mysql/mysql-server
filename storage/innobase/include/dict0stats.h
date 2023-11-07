@@ -99,13 +99,15 @@ static inline void dict_stats_init(dict_table_t *table); /*!< in/out: table */
 static inline void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
 
 /** Calculates new estimates for table and index statistics. The statistics
- are used in query optimization.
- @return DB_* error code or DB_SUCCESS */
-dberr_t dict_stats_update(dict_table_t *table, /*!< in/out: table */
-                          dict_stats_upd_option_t stats_upd_option);
-/*!< in: whether to (re) calc
-the stats or to fetch them from
-the persistent storage */
+are used in query optimization.
+@param[in]  table  table for which statistics are to be updated.
+@param[in]  stats_upd_option  statistics update option (persistent, etc).
+@param[in]  trx  statistics update will be done as part of this transaction.
+                 if null, a new transaction will be internally created.
+@return DB_* error code or DB_SUCCESS */
+dberr_t dict_stats_update(dict_table_t *table,
+                          dict_stats_upd_option_t stats_upd_option,
+                          trx_t *trx = nullptr);
 
 /** Removes the information for a particular index's stats from the persistent
  storage if it exists and if there is data stored for this index.
