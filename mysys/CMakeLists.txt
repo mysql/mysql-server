@@ -198,6 +198,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   OpenSSL::SSL OpenSSL::Crypto
   )
 
+IF(WITH_EXT_BACKTRACE)
+  TARGET_LINK_LIBRARIES(mysys ext::backtrace)
+  TARGET_LINK_LIBRARIES(mysys_objlib ext::backtrace)
+ENDIF()
+
 # For targets that link with mysys, and are independent of other targets.
 IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(mysys copy_openssl_dlls)
