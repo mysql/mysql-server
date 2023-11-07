@@ -5196,7 +5196,7 @@ static int do_save_master_pos() {
         mysql_error(mysql));
 
   if (!(res = mysql_store_result_wrapper(mysql)))
-    die("mysql_store_result() retuned NULL for '%s'", query);
+    die("mysql_store_result() returned NULL for '%s'", query);
   if (!(row = mysql_fetch_row_wrapper(res)))
     die("empty result in SHOW BINARY LOG STATUS");
   my_stpnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);

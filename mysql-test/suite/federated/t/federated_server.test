@@ -137,7 +137,7 @@ SELECT * FROM federated.whatever;
 
 ALTER SERVER 'server_one' options(DATABASE 'second_db');
 
-# FLUSH TABLES is now unneccessary
+# FLUSH TABLES is now unnecessary
 
 INSERT INTO federated.t1 (id, name) values (1, 'server_two, new scheme, second_db.t1');
 SELECT * FROM federated.t1;
