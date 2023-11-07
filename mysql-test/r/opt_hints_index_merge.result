@@ -574,7 +574,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 EXPLAIN
--> Aggregate: count(0)  (cost=13.4 rows=1) (actual rows=1 loops=1)
+-> Aggregate: count(0)  (cost=15.8 rows=1) (actual rows=1 loops=1)
     -> Filter: (((t1.f3 = 'b') and (t1.f2 = 2) and (t1.f4 = 'h')) or ((t1.f6 = 'e') and (t1.f7 = 'd')))  (cost=11.5 rows=18.5) (actual rows=0 loops=1)
         -> Deduplicate rows sorted by row ID  (cost=11.5 rows=57) (actual rows=128 loops=1)
             -> Intersect rows sorted by row ID  (cost=1.6 rows=56.9) (actual rows=128 loops=1)

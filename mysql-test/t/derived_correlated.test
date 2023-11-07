@@ -1,3 +1,4 @@
+--source include/elide_costs.inc
 --source include/have_optimizer_trace.inc
 set optimizer_trace_max_mem_size=10000000,@@session.optimizer_trace="enabled=on";
 let $show_trace=
@@ -23,6 +24,7 @@ let $query=
 select * from t1 where
  (select count(*) from (select * from (select * from t1 t2
     where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -32,6 +34,7 @@ let $query=
 select * from t1 where
  (select count(*) from (select * from (select * from t1 t2
     where 2=(select 2 from (select 42) dt1))dt3)dt4);
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -46,6 +49,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -58,6 +62,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -75,6 +80,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -92,6 +98,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -102,6 +109,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -114,6 +122,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -127,6 +136,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -139,6 +149,7 @@ select
 as subq
 from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -201,8 +212,10 @@ from t1;
 let $query=
 select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;  # Demonstrates printing of CTEs printed multiple times.
 eval $query;
 
@@ -210,6 +223,7 @@ eval $query;
 let $query=
 select (with dt as (select t2.a as a from t2 having t1.a=t2.a limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -233,6 +247,7 @@ let $query=
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -244,6 +259,7 @@ let $query=
 select * from t1
 where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
 
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -408,6 +424,7 @@ select (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) f
 
 let $query=
 select a from t1 where a in (select a from (select t1.a) dt);
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -425,6 +442,7 @@ analyze table t3;
 
 let $query=
 select min(a),max(a) from t3 where a in (select /*+ no_merge() */ a from (select t3.a from t1) dt);
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -439,7 +457,9 @@ let $query=
 select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;  # Demonstrates Materialize -> Temporary table (forced rematerialization always).
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -452,6 +472,7 @@ lateral
 (select dt3.* from t1, lateral (select * from (select * from (select t0.a
 from t2) as dt limit 1) dt2) dt3) dt4;
 
+--replace_regex $elide_costs
 eval explain $query;
 --sorted_result
 eval $query;
@@ -465,6 +486,7 @@ lateral
 (select dt3.* from t1, lateral (select * from (select * from (select t0.a
 from t2) as dt limit 1) dt2) dt3) dt4;
 
+--replace_regex $elide_costs
 eval explain $query;
 --sorted_result
 eval $query;
@@ -481,6 +503,7 @@ eval $query;
 
 let $query=
 select * from t1, lateral (select * from (select 42) t1, (select t1.a) dt2) dt3;
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -490,6 +513,7 @@ eval $query;
 
 let $query=
 select a from t1 where a in (select /*+ no_semijoin() */ a from (select t1.a) dt);
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -504,6 +528,7 @@ select a from t1 where a in (with cte as (select t1.a)
 --echo # rematerialize only when necessary (when row of t1 changes)
 let $query=
 select straight_join * from t1, t2, lateral (select t1.a) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 eval $query;
@@ -514,6 +539,7 @@ show status like "handler_write";
 
 let $query=
 select straight_join * from t1, lateral (select t1.a) as dt, t2;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 --sorted_result
@@ -523,6 +549,7 @@ show status like "handler_write";
 
 let $query=
 select straight_join * from t2, t1, lateral (select t1.a) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 --sorted_result
@@ -552,6 +579,7 @@ show status like "handler_write";
 
 let $query=
 select * from t1, t2, lateral (select t1.a) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 eval $query;
@@ -569,6 +597,7 @@ show status like "handler_write";
 --echo # If prune_level=0, all 3 variants here produce this plan.
 let $query=
 select * from t1, lateral (select t1.a) as dt, t2;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 --sorted_result
@@ -581,6 +610,7 @@ show status like "handler_write";
 
 let $query=
 select * from t2, t1, lateral (select t1.a) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 --sorted_result
@@ -591,6 +621,7 @@ show status like "handler_write";
 --echo # Show the trace of planning of lateral derived tables
 let $query=
 select * from t1, lateral (select t1.a from t2 as t3, t2 as t4) as dt, t2;
+--replace_regex $elide_costs
 eval explain $query;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 select trace from information_schema.optimizer_trace;
@@ -602,6 +633,7 @@ insert into t3 values(3);
 analyze table t3;
 let $query=
 select * from t3, lateral (select t3.a+1) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 drop table t3;
@@ -611,6 +643,7 @@ drop table t3;
 let $query=
 select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t2.a) as dt2;
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 
@@ -619,6 +652,7 @@ eval $query;
 let $query=
 select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t1.a+1) as dt2;
+--replace_regex $elide_costs
 eval explain $query;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
@@ -630,6 +664,7 @@ eval $query;
 
 let $query=
 select * from t2, t1, lateral (select t1.a+t2.a) as dt;
+--replace_regex $elide_costs
 eval explain $query;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
@@ -649,6 +684,7 @@ ANALYZE TABLE t11,t12;
 let $query=
 SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
 JOIN LATERAL (SELECT t12a) dt;
+--replace_regex $elide_costs
 eval explain $query;
 flush status;
 --sorted_result
@@ -671,6 +707,7 @@ select * from t1, lateral (select t3.b from t3 where t3.a=t1.a) dt
  where dt.b=t1.a+9;
 --echo # Note the auto_key with "Using index", to test the index as
 --echo # much as possible.
+--replace_regex $elide_costs
 eval explain $query;
 eval $query;
 drop table t3;
@@ -742,7 +779,8 @@ WHERE grandparent1.col_int_key IN
 )
 GROUP BY grandparent1.col_int;
 
-eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval explain $query;
 # Different warnings in the hypergraph optimizer.
 --disable_warnings
 eval $query;
@@ -965,6 +1003,7 @@ CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t
 # a query block which is also itself outer-correlated.
 #
 --skip_if_hypergraph  # Depends on query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 
 DROP TABLE t1, t2;

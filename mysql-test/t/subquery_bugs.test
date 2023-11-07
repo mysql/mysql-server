@@ -457,6 +457,7 @@ INSERT INTO t1 VALUES (5, 'E');
 
 ANALYZE TABLE t1, t2;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 
 DROP TABLE t1, t2;
@@ -651,6 +652,7 @@ CREATE TABLE t1 ( pk integer, f1 varchar(1) );
 INSERT INTO t1 VALUES (1,'D'), (20,'G');
 ANALYZE TABLE t1;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 --partially_sorted_result 1
 SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
@@ -970,6 +972,7 @@ WHERE d.c IN (
 # cannot handle when the LooseScan driving table (b) is not
 # inner-joined with the next table in nest (c).
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE b, c, d;
@@ -1123,6 +1126,7 @@ ANALYZE TABLE t1, t2, t3, t4;
 # even though we have substituted t3 with t1 elsewhere when re-resolving
 # multi-equalities for the hash join condition.
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM
     t1

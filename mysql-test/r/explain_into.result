@@ -39,7 +39,7 @@ SELECT @v1, JSON_VALID(@v1);
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.10"
+      "query_cost": "elided"
     },
     "nested_loop": [
       {
@@ -53,9 +53,9 @@ SELECT @v1, JSON_VALID(@v1);
           "rows_produced_per_join": 1,
           "filtered": "33.33",
           "cost_info": {
-            "read_cost": "0.45",
-            "eval_cost": "0.10",
-            "prefix_cost": "0.55",
+            "read_cost": "elided",
+            "eval_cost": "elided",
+            "prefix_cost": "elided",
             "data_read_per_join": "16"
           },
           "used_columns": [
@@ -74,9 +74,9 @@ SELECT @v1, JSON_VALID(@v1);
           "filtered": "33.33",
           "using_join_buffer": "hash join",
           "cost_info": {
-            "read_cost": "0.25",
-            "eval_cost": "0.10",
-            "prefix_cost": "1.10",
+            "read_cost": "elided",
+            "eval_cost": "elided",
+            "prefix_cost": "elided",
             "data_read_per_join": "16"
           },
           "used_columns": [
@@ -174,7 +174,7 @@ SELECT @v1, JSON_VALID(@v1);
       "estimated_rows": 3.0,
       "actual_last_row_ms": "elided",
       "actual_first_row_ms": "elided",
-      "estimated_total_cost": 0.3500085756182673
+      "estimated_total_cost": "elided"
     },
     {
       "inputs": [
@@ -192,7 +192,7 @@ SELECT @v1, JSON_VALID(@v1);
           "estimated_rows": 3.0,
           "actual_last_row_ms": "elided",
           "actual_first_row_ms": "elided",
-          "estimated_total_cost": 0.55
+          "estimated_total_cost": "elided"
         }
       ],
       "heading": "Hash",
@@ -207,7 +207,7 @@ SELECT @v1, JSON_VALID(@v1);
       ],
       "actual_last_row_ms": "elided",
       "actual_first_row_ms": "elided",
-      "estimated_total_cost": 0.55
+      "estimated_total_cost": "elided"
     }
   ],
   "join_type": "inner join",
@@ -227,7 +227,7 @@ SELECT @v1, JSON_VALID(@v1);
   "join_algorithm": "hash",
   "actual_last_row_ms": "elided",
   "actual_first_row_ms": "elided",
-  "estimated_total_cost": 1.1000085920098002
+  "estimated_total_cost": "elided"
 }	1
 
 # User variable is overwritten on successful execution.

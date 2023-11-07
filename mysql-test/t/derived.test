@@ -3,6 +3,7 @@
 # All tests are required to run with Myisam.
 # Hence MTR starts mysqld with MyISAM as default
 
+--source include/elide_costs.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
@@ -456,6 +457,7 @@ FROM C table1
 
 # Test EXPLAIN on MaterializeIterator.
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT table1 . o1
 FROM C table1
   JOIN ( C table2

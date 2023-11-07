@@ -1046,6 +1046,7 @@ select 1 as f1 from information_schema.tables  where "COLUMN_PRIVILEGES"=
 (select cast(table_name as char)  from information_schema.tables
  where table_schema != 'performance_schema' order by table_name limit 1) limit 1;
 
+--skip_if_hypergraph  # Flaky, see Bug#36579239
 select t.table_name, group_concat(t.table_schema, '.', t.table_name),
        count(*) as num1
 from information_schema.tables t

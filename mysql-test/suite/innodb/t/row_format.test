@@ -3,6 +3,7 @@
 --echo # Bug#31479542 : MYSQL 8 ORPHANED TABLE DUE TO UNCHECKED NON-EXISTENT ROW FORMAT CHECK.
 --echo #
 
+--source include/not_hypergraph.inc  # Fails, see Bug#36578613
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
 

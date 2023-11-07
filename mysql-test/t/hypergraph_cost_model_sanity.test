@@ -1,0 +1,135 @@
+--source include/have_hypergraph.inc
+--source include/elide_costs.inc
+--disable_warnings
+
+--echo # We test that the hypergraph optimizer makes sane plan choices.
+CREATE TABLE ten (x INT);
+INSERT INTO ten VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+CREATE TABLE hundred(x INT);
+INSERT INTO hundred SELECT 10*a.x + b.x FROM ten AS a, ten AS b;
+
+CREATE TABLE thousand(x INT);
+INSERT INTO thousand SELECT 10*a.x + b.x FROM hundred AS a, ten AS b;
+
+CREATE TABLE t0(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t0 VALUES (0, 0, 0);
+ANALYZE TABLE t0;
+
+CREATE TABLE t1(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t1 SELECT a.x, a.x, a.x FROM ten AS a;
+ANALYZE TABLE t1;
+
+CREATE TABLE t2(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t2 SELECT a.x, a.x, a.x FROM hundred AS a;
+ANALYZE TABLE t2;
+
+CREATE TABLE t3(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t3 SELECT a.x, a.x, a.x FROM thousand AS a;
+ANALYZE TABLE t3;
+
+--echo # Should use a table scan.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t0;
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t2;
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3;
+
+--echo # Should read from the covering index on s instead of reading the entire table.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT s FROM t3;
+
+--echo # Should use a non-covering index range scan.
+--echo # Even though it has to pay for a few lookups into the primary table it should
+--echo # still be cheaper than a full table scan combined with a filter.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 10;
+
+--echo # Should use a full table scan with a filter rather than a non-covering index range scan
+--echo # because it is cheaper than performing 500 lookups into the clustered index.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 500;
+
+--echo # Should use a covering index range scan over an explicit sort (elide the sort).
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT s FROM t3 ORDER BY s;
+
+--echo # Should choose to sort rather than eliding the sort with a non-covering index scan
+--echo # since lookups into the primary index are quite expensive compared to sorting.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s;
+
+--echo # With a small limit we should prefer the non-covering index scan over sorting the entire table.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s LIMIT 10;
+
+--echo # Should use an index lookup.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE p = 0;
+
+--echo # Should choose a hash join and hash the smaller table t2.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
+
+--echo # Should choose a nested loop join with table scans.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t0 WHERE t3.c = t0.c;
+
+--echo # Should choose a nested loop join with t1 as the outer table and index lookups into t3.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.p = t1.p;
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.s = t1.c;
+
+--echo # Create a wide table to test effects on table width on plan choices.
+CREATE TABLE t_wide(p INT PRIMARY KEY, s INT,
+c0 INT, c1 INT, c2 INT, c3 INT, c4 INT, c5 INT, c6 INT, c7 INT,
+c8 INT, c9 INT, c10 INT, c11 INT, c12 INT, c13 INT, c14 INT, c15 INT,
+KEY(s));
+
+INSERT INTO t_wide SELECT a.x, a.x,
+a.x, a.x, a.x, a.x, a.x, a.x, a.x, a.x,
+a.x, a.x, a.x, a.x, a.x, a.x, a.x, a.x
+FROM hundred AS a;
+ANALYZE TABLE t_wide;
+
+--echo # When the optimizer has a choice between a non-covering index range scan and a filtered table scan
+--echo # the width of the table (and also the number of fields in the read set)
+--echo # has an effect. As we increase the width of the table (and the number of fields we read)
+--echo # the cost of a filtered table scan will become more expensive relative to a non-covering
+--echo # index range scan with the same number of matching rows.
+
+--echo # Narrow table: Filtered table scan should be chosen.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS t WHERE t.s < 33;
+
+--echo # Wide table: Non-covering index range scan should be chosen.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t_wide AS t WHERE t.s < 33;
+
+DROP TABLE t_wide;
+
+--echo # Create a table with 1000 rows with indexes that have a different number of records per key.
+--echo # Index s{i} has 10^i records per key.
+CREATE TABLE t(s0 INT, s1 INT, s2 INT, s3 INT, KEY(s0), KEY(s1), KEY(s2), KEY(s3));
+INSERT INTO t SELECT a.x, a.x DIV 10, a.x DIV 100, a.x DIV 1000 FROM thousand AS a;
+ANALYZE TABLE t;
+
+--echo # Should use an index lookup.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s0 = 0;
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s1 = 0;
+
+--echo # Should use a table scan and filter over a non-covering index lookup
+--echo # with a large number of matching rows.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s3 = 0;
+DROP TABLE t;
+
+DROP TABLE ten, hundred, thousand, t0, t1, t2, t3;
+--enable_warnings
+--source include/disable_hypergraph.inc

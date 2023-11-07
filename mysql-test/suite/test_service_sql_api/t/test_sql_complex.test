@@ -1,3 +1,4 @@
+--source include/not_hypergraph.inc  # Depends on plan choices.
 --source include/not_valgrind.inc
 
 --echo ------ Run plugin ------------------------------------------------

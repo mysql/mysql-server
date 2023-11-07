@@ -28,28 +28,32 @@ FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6, t1 t7, t1 t8, t1 t9,
 ANALYZE TABLE t1;
 
 # Some queries with different costs.
+
+# Cheap queries.
 let $q1 = SELECT * FROM t1;
 let $q2 = SELECT (SELECT y FROM t1 WHERE x = 1);
-let $q3 = SELECT * FROM v1;
-let $q4 = SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-let $q5 = SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+let $q3 = SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+
+# Expensive queries.
+let $q4 = SELECT * FROM v1;
+let $q5 = SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 
 # When debugging, the statements below can be uncommented to see what
 # their estimated cost is in the primary storage engine. The actual
 # cost is different in the old optimizer and in the hypergraph join
 # optimizer, so they are commented out to allow testing against both
 # optimizers. At the time of writing, the first three queries have
-# costs less than 100 in both optimizers, and the last two queries
-# have cost greater than 100.
-#--eval EXPLAIN $q1
+# costs less than 10000 in both optimizers, and the last two queries
+# have cost greater than 10000.
+#--eval EXPLAIN FORMAT=TREE $q1
 #SHOW STATUS LIKE 'Last_query_cost';
-#--eval EXPLAIN $q2
+#--eval EXPLAIN FORMAT=TREE $q2
 #SHOW STATUS LIKE 'Last_query_cost';
-#--eval EXPLAIN $q3
+#--eval EXPLAIN FORMAT=TREE $q3
 #SHOW STATUS LIKE 'Last_query_cost';
-#--eval EXPLAIN $q4
+#--eval EXPLAIN FORMAT=TREE $q4
 #SHOW STATUS LIKE 'Last_query_cost';
-#--eval EXPLAIN $q5
+#--eval EXPLAIN FORMAT=TREE $q5
 #SHOW STATUS LIKE 'Last_query_cost';
 
 ALTER TABLE t1 SECONDARY_ENGINE MOCK;
@@ -71,7 +75,7 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 # Increase the threshold. Only the two most expensive queries are offloaded.
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 SELECT @@secondary_engine_cost_threshold,
        @@global.secondary_engine_cost_threshold;
 
@@ -88,7 +92,7 @@ SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 # Increase the threshold even more. All the queries should be executed
 # in the primary storage engine.
-SET @@secondary_engine_cost_threshold = 1000000;
+SET @@secondary_engine_cost_threshold = 10000000;
 SELECT @@secondary_engine_cost_threshold,
        @@global.secondary_engine_cost_threshold;
 FLUSH STATUS;
@@ -110,13 +114,13 @@ SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 FLUSH STATUS;
 --sorted_result
-SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 100) */ * FROM t1;
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 10000) */ * FROM t1;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 --echo # The use_secondary_engine variable overrides the threshold.
 
 FLUSH STATUS;
-SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 1000000)
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 10000000)
            SET_VAR(use_secondary_engine = FORCED) */
   * FROM t1;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
@@ -134,13 +138,13 @@ FLUSH STATUS;
 SET @@secondary_engine_cost_threshold = 0;
 EXECUTE ps;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 EXECUTE ps;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 SET @@secondary_engine_cost_threshold = 0;
 EXECUTE ps;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 EXECUTE ps;
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;

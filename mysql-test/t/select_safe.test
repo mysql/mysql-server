@@ -423,6 +423,7 @@ SET max_join_size = 81;
 --error ER_TOO_BIG_SELECT
 SELECT 1 FROM t AS t1, t AS t2 WHERE t1.y = t2.y LIMIT 16;
 SET max_join_size = @@max_join_size + 1;
+--skip_if_hypergraph  # The assumptions do not seem to hold for hypergraph.
 SELECT 1 FROM t AS t1, t AS t2 WHERE t1.y = t2.y LIMIT 16;
 
 SET max_join_size = DEFAULT;

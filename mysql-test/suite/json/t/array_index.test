@@ -517,15 +517,17 @@ analyze table t1;
 select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 explain select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 
+--skip_if_hypergraph  # Produces different warnings for hypergraph.
 select * from t1 force index(i1) where cast('01-01-12' as date) member of (f1->"$");
+--skip_if_hypergraph  # Produces different warnings for hypergraph.
 update t1 set f1=
   json_array(cast('01-01-14' as date), cast('01-01-12' as date)) where 
   cast('01-01-12' as date) member of (f1->"$");
+--skip_if_hypergraph  # Produces different warnings for hypergraph.
 select * from t1 force index(i1) where
   cast('01-01-14' as date) member of (f1->"$");
 explain select * from t1 force index(i1) where
   cast('01-01-14' as date) member of (f1->"$");
-
 delete from t1;
 drop table t1;
 

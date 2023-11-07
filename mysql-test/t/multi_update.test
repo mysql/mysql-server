@@ -176,9 +176,12 @@ UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 unlock tables;
 LOCK TABLES t1 write, t2 write;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t2;
 unlock tables;
 drop table t1,t2;
@@ -222,7 +225,9 @@ create table t2 (n int(10), d int(10));
 insert into t1 values(1,1),(1,2);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t2;
 drop table t1,t2;
 create table t1 (n int(10), d int(10));
@@ -234,13 +239,19 @@ UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 # in which order the rows from t2 are read, so for n=1 the value of d
 # can end up as 10, 20 or 30, depending on the plan chosen.
 --replace_result 20 10 30 10
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t2;
 UPDATE t1 a ,t2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t2;
 DELETE a, b  FROM t1 a,t2 b where a.n=b.n;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t1;
+--skip_if_hypergraph  # Result depends on previous plan choice.
 select * from t2;
 drop table t1,t2;
 

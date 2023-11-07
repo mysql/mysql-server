@@ -285,16 +285,16 @@ EXPLAIN FORMAT=tree SELECT 1
 FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
 LEFT JOIN t1 AS t3 ON (t2.f2 = t1.f2 AND t2.f2 IN (SELECT f1 FROM t1 AS t4));
 EXPLAIN
--> Left hash join (no condition), extra conditions: (t2.f2 = t1.f2) and <in_optimizer>(t2.f2,<exists>(select #2))  (rows=0.1)
+-> Nested loop left join  (rows=0.1)
     -> Nested loop inner join  (rows=0.1)
         -> Table scan on t1  (rows=1)
         -> Filter: (t2.f1 = t1.f1)  (rows=0.1)
             -> Table scan on t2  (rows=1)
-    -> Hash
+    -> Filter: ((t2.f2 = t1.f2) and <in_optimizer>(t2.f2,<exists>(select #2)))  (rows=0.1)
         -> Table scan on t3  (rows=1)
-    -> Select #2 (subquery in extra conditions; dependent)
-        -> Filter: (<cache>(t2.f2) = t4.f1)  (rows=0.1)
-            -> Table scan on t4  (rows=1)
+        -> Select #2 (subquery in condition; dependent)
+            -> Filter: (<cache>(t2.f2) = t4.f1)  (rows=0.1)
+                -> Table scan on t4  (rows=1)
 
 SELECT 1
 FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)

@@ -751,7 +751,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	i1	1	NULL	A	2	NULL	NULL		BTREE			YES	find_in_set(_utf8mb4\'Admin\',`roles`)
 SET explain_json_format_version = 2;
 EXPLAIN FORMAT=JSON INTO @explain
-SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+SELECT id FROM t1 FORCE INDEX (i1) WHERE FIND_IN_SET('Admin', roles)>0;
 SET explain_json_format_version = DEFAULT;
 SELECT COALESCE(JSON_EXTRACT(@explain, '$.inputs[0].operation'),
 JSON_EXTRACT(@explain, '$.operation')) AS scan;

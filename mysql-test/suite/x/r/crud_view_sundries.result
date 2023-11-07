@@ -99,10 +99,10 @@ view_c	COLLECTION_VIEW
 view_d	VIEW
 command ok
 TABLE_NAME	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	VIEW_DEFINITION
-view_a	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id`,`xtest`.`coll_a`.`_json_schema` AS `_json_schema` from `xtest`.`coll_a`
 view_b	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc` from `xtest`.`coll_a`
-view_c	NONE	NO	x_root@localhost	DEFINER	select `xtest`.`view_a`.`doc` AS `doc` from `xtest`.`view_a`
+view_a	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id`,`xtest`.`coll_a`.`_json_schema` AS `_json_schema` from `xtest`.`coll_a`
 view_d	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`tab_a`.`second` AS `doc` from `xtest`.`tab_a`
+view_c	NONE	NO	x_root@localhost	DEFINER	select `xtest`.`view_a`.`doc` AS `doc` from `xtest`.`view_a`
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

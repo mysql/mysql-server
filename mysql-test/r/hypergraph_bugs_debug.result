@@ -15,13 +15,13 @@ SET @old_join_buffer_size = @@join_buffer_size;
 SET SESSION join_buffer_size = 128;
 EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t2.x = t3.x;
 EXPLAIN
--> [0x4851cb7a4071c70b] Nested loop inner join  (cost=12.2..19050 rows=10000)
-    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0025..0.25 rows=100)
-    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=12.1..191 rows=100)
-        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=10.3..90.5 rows=1000)
-            -> [0x079e429c703ec298] Table scan on t2  (cost=0.0025..0.25 rows=100)
+-> [0x4851cb7a4071c70b] Nested loop inner join  (cost=184..42564 rows=10000)
+    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.295..29.5 rows=100)
+    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=182..425 rows=100)
+        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=179..368 rows=1000)
+            -> [0x079e429c703ec298] Table scan on t2  (cost=0.295..29.5 rows=100)
             -> Hash
-                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.0025..0.25 rows=100)
+                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.295..29.5 rows=100)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0xfc0c3330f16b65b0,force_subplan_0x8ab90bde1dd6f68c,force_subplan_0xd2475c90e2c07330,force_subplan_0x4851cb7a4071c70b';
@@ -29,13 +29,13 @@ SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x07
 SET SESSION join_buffer_size = 1024;
 EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t2.x = t3.x;
 EXPLAIN
--> [0x4851cb7a4071c70b] Nested loop inner join  (cost=12.2..19050 rows=10000)
-    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0025..0.25 rows=100)
-    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=12.1..191 rows=100)
-        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=10.3..90.5 rows=1000)
-            -> [0x079e429c703ec298] Table scan on t2  (cost=0.0025..0.25 rows=100)
+-> [0x4851cb7a4071c70b] Nested loop inner join  (cost=184..42564 rows=10000)
+    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.295..29.5 rows=100)
+    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=182..425 rows=100)
+        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=179..368 rows=1000)
+            -> [0x079e429c703ec298] Table scan on t2  (cost=0.295..29.5 rows=100)
             -> Hash
-                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.0025..0.25 rows=100)
+                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.295..29.5 rows=100)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0xfc0c3330f16b65b0,force_subplan_0x8ab90bde1dd6f68c,force_subplan_0xd2475c90e2c07330,force_subplan_0x4851cb7a4071c70b';
@@ -43,13 +43,13 @@ SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x07
 SET SESSION join_buffer_size = 8192;
 EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t2.x = t3.x;
 EXPLAIN
--> [0x4851cb7a4071c70b] Nested loop inner join  (cost=12.1..18154 rows=10000)
-    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0025..0.25 rows=100)
-    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=12.1..191 rows=100)
-        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=10.3..90.5 rows=1000)
-            -> [0x079e429c703ec298] Table scan on t2  (cost=0.0025..0.25 rows=100)
+-> [0x4851cb7a4071c70b] Nested loop inner join  (cost=182..26890 rows=10000)
+    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.295..29.5 rows=100)
+    -> [0xd2475c90e2c07330] Filter: (t1.x = t3.x)  (cost=182..425 rows=100)
+        -> [0x8ab90bde1dd6f68c] Inner hash join (t2.x = t3.x)  (cost=179..368 rows=1000)
+            -> [0x079e429c703ec298] Table scan on t2  (cost=0.295..29.5 rows=100)
             -> Hash
-                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.0025..0.25 rows=100)
+                -> [0xfc0c3330f16b65b0] Table scan on t3  (cost=0.295..29.5 rows=100)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0xfc0c3330f16b65b0,force_subplan_0x8ab90bde1dd6f68c,force_subplan_0xd2475c90e2c07330,force_subplan_0x4851cb7a4071c70b';

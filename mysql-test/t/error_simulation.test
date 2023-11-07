@@ -26,6 +26,7 @@ set tmp_table_size=1024;
 # tmp table in query is converted from heap to myisam
 set session debug="d,raise_error";
 
+--skip_if_hypergraph  # Does not fail for some plan choices with hypergraph.
 --replace_regex /in table '[^']+'/in table 'tmp_table'/
 --error ER_DUP_KEY
 SELECT MAX(a) FROM t1 GROUP BY a,b;

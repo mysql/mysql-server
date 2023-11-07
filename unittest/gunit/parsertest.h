@@ -47,31 +47,36 @@ static Query_block *parse(const Server_initializer *initializer,
   size_t length = strlen(query);
   char *mutable_query = const_cast<char *>(query);
 
-  state.init(initializer->thd(), mutable_query, length);
+  THD *thd = initializer->thd();
+
+  state.init(thd, mutable_query, length);
 
   /*
     This tricks the server to parse the query and then stop,
     without executing.
   */
   initializer->set_expected_error(ER_MUST_CHANGE_PASSWORD);
-  initializer->thd()->security_context()->set_password_expired(true);
+  thd->security_context()->set_password_expired(true);
 
-  Mock_error_handler handler(initializer->thd(), expected_error_code);
-  lex_start(initializer->thd());
+  Mock_error_handler handler(thd, expected_error_code);
+  lex_start(thd);
 
-  if (initializer->thd()->db().str == nullptr) {
+  if (thd->db().str == nullptr) {
     // The THD DTOR will do my_free() on this.
     char *db = static_cast<char *>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
     sprintf(db, "db");
     LEX_CSTRING db_lex_cstr = {db, strlen(db)};
-    initializer->thd()->reset_db(db_lex_cstr);
+    thd->reset_db(db_lex_cstr);
   }
 
-  lex_start(initializer->thd());
-  mysql_reset_thd_for_next_command(initializer->thd());
-  parse_sql(initializer->thd(), &state, nullptr);
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+  parse_sql(thd, &state, nullptr);
 
-  return initializer->thd()->lex->current_query_block();
+  thd->lex->set_using_hypergraph_optimizer(
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
+
+  return thd->lex->current_query_block();
 }
 
 /*

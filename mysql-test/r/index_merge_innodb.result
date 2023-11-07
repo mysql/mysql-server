@@ -1691,7 +1691,7 @@ drop table t1;
 # BUG#21277: Index Merge/sort_union: wrong query results
 create table t1
 (
-key1 int not null, 
+key1 int not null,
 key2 int not null default 0,
 key3 int not null default 0
 );
@@ -1755,8 +1755,8 @@ SELECT a
 FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
 EXPLAIN
--> Filter: (t1.c = 1)  (cost=0.7 rows=2)
-    -> Index lookup on t1 using bd (b=1, d=1)  (cost=0.7 rows=2)
+-> Filter: (t1.c = 1)  (rows=2)
+    -> Index lookup on t1 using bd (b=1, d=1)  (rows=2)
 
 CREATE TABLE t2 ( a INT )
 SELECT a
@@ -1806,17 +1806,17 @@ INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
 EXPLAIN
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 EXPLAIN
--> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=0.45 rows=1.56)
-    -> Covering index scan on t1 using col_varchar_key  (cost=0.45 rows=2)
+-> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (rows=1.56)
+    -> Covering index scan on t1 using col_varchar_key  (rows=2)
 
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 col_int_key
 DROP TABLE t1;
@@ -2145,7 +2145,7 @@ f1
 EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -2312,12 +2312,12 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 );
 EXPLAIN
 -> Update t1 (immediate)
-    -> Nested loop semijoin  (cost=2.17 rows=6)
-        -> Table scan on t1  (cost=0.45 rows=2)
-        -> Filter: (((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7))) and (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (cost=1.97 rows=3)
-            -> Intersect rows sorted by row ID  (cost=1.97 rows=3.5)
-                -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.0181..0.253 rows=14)
-                -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.0106..0.255 rows=24)
+    -> Nested loop semijoin  (rows=6)
+        -> Table scan on t1  (rows=2)
+        -> Filter: (((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7))) and (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (rows=3)
+            -> Intersect rows sorted by row ID  (rows=3.5)
+                -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (rows=14)
+                -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (rows=24)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
@@ -2345,8 +2345,8 @@ INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
 INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
 EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 EXPLAIN
--> Aggregate: count(0)  (cost=3.46 rows=1)
-    -> Covering index lookup on t1 using covering_index (id2=7, id3=0)  (cost=1.86 rows=16)
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index lookup on t1 using covering_index (id2=7, id3=0)  (rows=16)
 
 DROP TABLE t1;
 #

@@ -1,0 +1,169 @@
+# We test that the hypergraph optimizer makes sane plan choices.
+CREATE TABLE ten (x INT);
+INSERT INTO ten VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE hundred(x INT);
+INSERT INTO hundred SELECT 10*a.x + b.x FROM ten AS a, ten AS b;
+CREATE TABLE thousand(x INT);
+INSERT INTO thousand SELECT 10*a.x + b.x FROM hundred AS a, ten AS b;
+CREATE TABLE t0(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t0 VALUES (0, 0, 0);
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+CREATE TABLE t1(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t1 SELECT a.x, a.x, a.x FROM ten AS a;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t2 SELECT a.x, a.x, a.x FROM hundred AS a;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+CREATE TABLE t3(p INT PRIMARY KEY, s INT, c INT, KEY(s));
+INSERT INTO t3 SELECT a.x, a.x, a.x FROM thousand AS a;
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+# Should use a table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t0;
+EXPLAIN
+-> Table scan on t0
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1
+
+EXPLAIN FORMAT=TREE SELECT * FROM t2;
+EXPLAIN
+-> Table scan on t2
+
+EXPLAIN FORMAT=TREE SELECT * FROM t3;
+EXPLAIN
+-> Table scan on t3
+
+# Should read from the covering index on s instead of reading the entire table.
+EXPLAIN FORMAT=TREE SELECT s FROM t3;
+EXPLAIN
+-> Covering index scan on t3 using s
+
+# Should use a non-covering index range scan.
+# Even though it has to pay for a few lookups into the primary table it should
+# still be cheaper than a full table scan combined with a filter.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 10;
+EXPLAIN
+-> Index range scan on t3 using s over (NULL < s < 10)
+
+# Should use a full table scan with a filter rather than a non-covering index range scan
+# because it is cheaper than performing 500 lookups into the clustered index.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE s < 500;
+EXPLAIN
+-> Filter: (t3.s < 500)
+    -> Table scan on t3
+
+# Should use a covering index range scan over an explicit sort (elide the sort).
+EXPLAIN FORMAT=TREE SELECT s FROM t3 ORDER BY s;
+EXPLAIN
+-> Covering index scan on t3 using s
+
+# Should choose to sort rather than eliding the sort with a non-covering index scan
+# since lookups into the primary index are quite expensive compared to sorting.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s;
+EXPLAIN
+-> Sort: t3.s
+    -> Table scan on t3
+
+# With a small limit we should prefer the non-covering index scan over sorting the entire table.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 ORDER BY s LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Index scan on t3 using s
+
+# Should use an index lookup.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE p = 0;
+EXPLAIN
+-> Single-row index lookup on t3 using PRIMARY (p=0)
+
+# Should choose a hash join and hash the smaller table t2.
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
+EXPLAIN
+-> Inner hash join (t3.c = t2.c)
+    -> Table scan on t3
+    -> Hash
+        -> Table scan on t2
+
+# Should choose a nested loop join with table scans.
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t0 WHERE t3.c = t0.c;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t0
+    -> Filter: (t3.c = t0.c)
+        -> Table scan on t3
+
+# Should choose a nested loop join with t1 as the outer table and index lookups into t3.
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.p = t1.p;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Single-row index lookup on t3 using PRIMARY (p=t1.p)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.s = t1.c;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Index lookup on t3 using s (s=t1.c)
+
+# Create a wide table to test effects on table width on plan choices.
+CREATE TABLE t_wide(p INT PRIMARY KEY, s INT,
+c0 INT, c1 INT, c2 INT, c3 INT, c4 INT, c5 INT, c6 INT, c7 INT,
+c8 INT, c9 INT, c10 INT, c11 INT, c12 INT, c13 INT, c14 INT, c15 INT,
+KEY(s));
+INSERT INTO t_wide SELECT a.x, a.x,
+a.x, a.x, a.x, a.x, a.x, a.x, a.x, a.x,
+a.x, a.x, a.x, a.x, a.x, a.x, a.x, a.x
+FROM hundred AS a;
+ANALYZE TABLE t_wide;
+Table	Op	Msg_type	Msg_text
+test.t_wide	analyze	status	OK
+# When the optimizer has a choice between a non-covering index range scan and a filtered table scan
+# the width of the table (and also the number of fields in the read set)
+# has an effect. As we increase the width of the table (and the number of fields we read)
+# the cost of a filtered table scan will become more expensive relative to a non-covering
+# index range scan with the same number of matching rows.
+# Narrow table: Filtered table scan should be chosen.
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS t WHERE t.s < 33;
+EXPLAIN
+-> Filter: (t.s < 33)
+    -> Table scan on t
+
+# Wide table: Non-covering index range scan should be chosen.
+EXPLAIN FORMAT=TREE SELECT * FROM t_wide AS t WHERE t.s < 33;
+EXPLAIN
+-> Index range scan on t using s over (NULL < s < 33)
+
+DROP TABLE t_wide;
+# Create a table with 1000 rows with indexes that have a different number of records per key.
+# Index s{i} has 10^i records per key.
+CREATE TABLE t(s0 INT, s1 INT, s2 INT, s3 INT, KEY(s0), KEY(s1), KEY(s2), KEY(s3));
+INSERT INTO t SELECT a.x, a.x DIV 10, a.x DIV 100, a.x DIV 1000 FROM thousand AS a;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Should use an index lookup.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s0 = 0;
+EXPLAIN
+-> Index lookup on t using s0 (s0=0)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s1 = 0;
+EXPLAIN
+-> Index lookup on t using s1 (s1=0)
+
+# Should use a table scan and filter over a non-covering index lookup
+# with a large number of matching rows.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s3 = 0;
+EXPLAIN
+-> Filter: (t.`s3` = 0)
+    -> Table scan on t
+
+DROP TABLE t;
+DROP TABLE ten, hundred, thousand, t0, t1, t2, t3;

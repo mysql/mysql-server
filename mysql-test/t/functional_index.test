@@ -654,7 +654,7 @@ SHOW INDEXES FROM t1 WHERE key_name="i1";
 
 SET explain_json_format_version = 2;
 EXPLAIN FORMAT=JSON INTO @explain
-SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+SELECT id FROM t1 FORCE INDEX (i1) WHERE FIND_IN_SET('Admin', roles)>0;
 SET explain_json_format_version = DEFAULT;
 # Expect an index range scan. The old optimizer puts a redundant
 # filter on top of the range scan, whereas the hypergraph optimizer

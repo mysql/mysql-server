@@ -31,15 +31,15 @@ END|
 SET debug = '+d,handlerton_supports_distance_scan';
 call proc_gis();
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is disabled
 ## Always return result set because below query chooses full table scan
 SET debug = '-d,handlerton_supports_distance_scan';
 call proc_gis();
 EXPLAIN
--> Sort: d  (cost=6.98..6.98 rows=14)
-    -> Table scan on cafe  (cost=0.0179..0.25 rows=14)
+-> Sort: d  (rows=14)
+    -> Table scan on cafe  (rows=14)
 
 ## Test partition tables are not supported in GIS
 CREATE TABLE tab(

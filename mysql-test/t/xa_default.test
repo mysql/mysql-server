@@ -184,7 +184,15 @@ XA COMMIT 'a';
 # BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
 #
 CREATE TABLE t1(a INT, KEY(a));
-INSERT INTO t1 VALUES(1),(2);
+# We insert 100 rows into t1 as otherwise the hypergraph optimizer chooses 
+# table scans for the update statements resulting in deadlocks.
+INSERT INTO t1
+WITH RECURSIVE t(i) AS (
+    SELECT 0 AS i UNION ALL
+    SELECT i + 1 FROM t WHERE i + 1 < 100
+)
+SELECT i FROM t;
+ANALYZE TABLE t1;
 --connect(con1,localhost,root,,)
 
 # Part 1: Prepare to test XA START after regular transaction deadlock

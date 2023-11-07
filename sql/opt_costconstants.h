@@ -32,6 +32,7 @@
 #include "lex_string.h"
 
 #include "prealloced_array.h"
+#include "sql/join_optimizer/cost_constants.h"
 
 class THD;
 struct TABLE;
@@ -86,13 +87,18 @@ class Server_cost_constants {
         m_disk_temptable_create_cost = 20.0;
         m_disk_temptable_row_cost = 0.5;
         break;
+      // The hypergraph cost constants here are deprecated. Where possible, the
+      // hypergraph optimizer should use constants calibrated for specific
+      // operations defined in sql/join_optimizer/cost_constants.h. The
+      // constants here have been given a rough ad-hoc adjustment to use the new
+      // cost unit, but have not been properly calibrated.
       case Optimizer::kHypergraph:
-        m_row_evaluate_cost = 0.1;
-        m_key_compare_cost = 0.05;
-        m_memory_temptable_create_cost = 1.0;
-        m_memory_temptable_row_cost = 0.1;
-        m_disk_temptable_create_cost = 20.0;
-        m_disk_temptable_row_cost = 0.5;
+        m_row_evaluate_cost = 0.1 / kUnitCostInMicroseconds;
+        m_key_compare_cost = 0.05 / kUnitCostInMicroseconds;
+        m_memory_temptable_create_cost = 1.0 / kUnitCostInMicroseconds;
+        m_memory_temptable_row_cost = 0.1 / kUnitCostInMicroseconds;
+        m_disk_temptable_create_cost = 20.0 / kUnitCostInMicroseconds;
+        m_disk_temptable_row_cost = 0.5 / kUnitCostInMicroseconds;
         break;
     }
   }
@@ -221,9 +227,14 @@ class SE_cost_constants {
         m_io_block_read_cost = 1.0;
         m_memory_block_read_cost = 0.25;
         break;
+      // The hypergraph cost constants here are deprecated. Where possible, the
+      // hypergraph optimizer should use constants calibrated for specific
+      // operations defined in sql/join_optimizer/cost_constants.h. The
+      // constants here have been given a rough ad-hoc adjustment to use the new
+      // cost unit, but have not been properly calibrated.
       case Optimizer::kHypergraph:
-        m_io_block_read_cost = 1.0;
-        m_memory_block_read_cost = 0.25;
+        m_io_block_read_cost = 1.0 / kUnitCostInMicroseconds;
+        m_memory_block_read_cost = 0.25 / kUnitCostInMicroseconds;
         break;
     }
   }

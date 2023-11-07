@@ -325,8 +325,10 @@ key1	key2	key3	key4	key5	key6	key7	key8
 explain
 select * from t0 where key1 < 3 or key8 < 2 order by key1;
 EXPLAIN
--> Filter: ((t0.key1 < 3) or (t0.key8 < 2))  (rows=569)
-    -> Index scan on t0 using i1  (rows=1024)
+-> Sort: t0.key1  (rows=569)
+    -> Sort-deduplicate by row ID  (rows=569)
+        -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
+        -> Index range scan on t0 using i8 over (key8 < 2)  (rows=3)
 
 # 9. Check that index_merge cost is compared to 'index' where possible
 create table t2 like t0;
@@ -347,7 +349,7 @@ EXPLAIN
 explain select key3 from t2 where key1 <100 or key2 < 100;
 EXPLAIN
 -> Filter: ((t2.key1 < 100) or (t2.key2 < 100))  (rows=569)
-    -> Table scan on t2  (rows=1024)
+    -> Covering index scan on t2 using i321  (rows=1024)
 
 #   index_merge vs 'all', index_merge is better.
 explain select key7 from t2 where key1 <100 or key2 < 100;
@@ -856,13 +858,15 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Hash semijoin (t1.a = t2.a)  (rows=0.283)
-    -> Table scan on t1  (rows=2)
-    -> Hash
+-> Nested loop inner join  (rows=0.283)
+    -> Remove duplicates from input grouped on t2.a  (rows=1.41)
         -> Nested loop inner join  (rows=2004)
-            -> Table scan on t2  (rows=2)
+            -> Sort: t2.a  (rows=2)
+                -> Table scan on t2  (rows=2)
             -> Filter: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=1002)
                 -> Table scan on t3  (rows=1002)
+    -> Filter: (t1.a = t2.a)  (rows=0.2)
+        -> Table scan on t1  (rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1322,31 +1326,33 @@ key1	key2	key3	key4	filler1
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
 explain select * from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=0.945..3597 rows=3808)
-    -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
-    -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
+-> Intersect rows sorted by row ID  (rows=3808)
+    -> Index range scan on t1 using st_a over (st_a = 1)  (rows=15093)
+    -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
 
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=0.0423..161 rows=3808)
-    -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
-    -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
+-> Intersect rows sorted by row ID  (rows=3808)
+    -> Index range scan on t1 using st_a over (st_a = 1)  (rows=15093)
+    -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
 
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 EXPLAIN
--> Filter: (t1.st_b = 1)  (cost=3.74..14258 rows=3808)
-    -> Index lookup on t1 using sta_swt12a (st_a=1)  (cost=1..12962 rows=12961)
+-> Filter: (t1.st_a = 1)  (rows=3808)
+    -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
 
 # Do many tests
 # Check that keys that don't improve selectivity are skipped.
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 EXPLAIN
--> Index lookup on t1 using sta_swt21a (st_a=1, swt1a=1, swt2a=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+    -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
 
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
-    -> Index lookup on t1 using stb_swt1a_2b (st_b=1, swt1b=1)  (...)
+    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1596,9 +1602,9 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Intersect rows sorted by row ID  (rows=2.46)
+    -> Intersect rows sorted by row ID  (rows=2.48)
         -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
-        -> Index range scan on t1 using i2 over (key2a = 2 AND key2b = NULL)  (rows=113)
+        -> Index range scan on t1 using i2 over (key2a = 2 AND key2b = NULL)  (rows=114)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
@@ -1608,9 +1614,9 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Intersect rows sorted by row ID  (rows=2.46)
+    -> Intersect rows sorted by row ID  (rows=2.48)
         -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
-        -> Index range scan on t1 using i3 over (key3a = 2 AND key3b = NULL)  (rows=113)
+        -> Index range scan on t1 using i3 over (key3a = 2 AND key3b = NULL)  (rows=114)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -1794,7 +1800,7 @@ drop table t1;
 # BUG#21277: Index Merge/sort_union: wrong query results
 create table t1
 (
-key1 int not null, 
+key1 int not null,
 key2 int not null default 0,
 key3 int not null default 0
 );
@@ -1857,8 +1863,9 @@ SELECT a
 FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
 EXPLAIN
--> Filter: (t1.c = 1)  (cost=0.214..0.321 rows=1.5)
-    -> Index lookup on t1 using bd (b=1, d=1)  (cost=0.25..0.25 rows=0.707)
+-> Intersect rows sorted by row ID  (rows=1.5)
+    -> Index range scan on t1 using bd over (b = 1 AND d = 1)  (rows=2)
+    -> Index range scan on t1 using c over (c = 1)  (rows=3)
 
 CREATE TABLE t2 ( a INT )
 SELECT a
@@ -1908,17 +1915,17 @@ INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
 EXPLAIN
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 EXPLAIN
--> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=0.527..0.702 rows=1.33)
-    -> Table scan on t1  (cost=0.251..0.502 rows=2)
+-> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (rows=1.33)
+    -> Table scan on t1  (rows=2)
 
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 col_int_key
 DROP TABLE t1;
@@ -2138,13 +2145,13 @@ pk1	pk2
 explain select * from t1 where badkey=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.badkey = 1)  (rows=9.1)
-    -> Index lookup on t1 using key1 (key1=10)  (rows=99)
+    -> Index range scan on t1 using key1 over (key1 = 10)  (rows=91)
 
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 EXPLAIN
 -> Filter: (t1.pk1 < 7500)  (rows=91)
-    -> Index lookup on t1 using key1 (key1=10)  (rows=99)
+    -> Index range scan on t1 using key1 over (key1 = 10)  (rows=91)
 
 # Verify that keys with 'tails' of PK members are ok.
 explain select * from t1 where pktail1ok=1 and key1=10;
@@ -2154,8 +2161,8 @@ EXPLAIN
 
 explain select * from t1 where pktail2ok=1 and key1=10;
 EXPLAIN
--> Filter: (t1.pktail2ok = 1)  (...)
-    -> Index lookup on t1 using key1 (key1=10)  (...)
+-> Filter: (t1.key1 = 10)  (...)
+    -> Index range scan on t1 using pktail2ok over (pktail2ok = 1)  (...)
 
 # Note: The following is actually a deficiency, it uses sort_union currently.
 #       This comment refers to InnoDB and is probably not valid for other engines.
@@ -2173,8 +2180,8 @@ EXPLAIN
 
 explain select * from t1 where pktail4bad=1 and key1=10;
 EXPLAIN
--> Filter: (t1.pktail4bad = 1)  (...)
-    -> Index lookup on t1 using key1 (key1=10)  (...)
+-> Filter: (t1.key1 = 10)  (...)
+    -> Index range scan on t1 using pktail4bad over (pktail4bad = 1)  (...)
 
 explain select * from t1 where pktail5bad=1 and key1=10;
 EXPLAIN
@@ -2241,12 +2248,12 @@ f1
 EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 EXPLAIN
--> Filter: ((select #2) = 0)  (cost=1.45..1.45 rows=1)
-    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (cost=0.25..0.25 rows=1)
+-> Filter: ((select #2) = 0)  (rows=1)
+    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (rows=1)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: count(0)  (cost=1.1..1.1 rows=1)
-            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (cost=0.45..0.9 rows=2)
-                -> Index lookup on t2 using f3 (f3='h')  (cost=0.25..0.5 rows=2)
+        -> Aggregate: count(0)  (rows=1)
+            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (rows=2)
+                -> Table scan on t2  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -2412,14 +2419,16 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 )
 );
 EXPLAIN
--> Update t1 (buffered)  (cost=1.41..1.41 rows=0.01)
-    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (cost=1.41..1.41 rows=0.01)
-        -> Table scan on t1  (cost=0.252..0.505 rows=2)
-        -> Hash
-            -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (cost=0.683..0.683 rows=0.192)
-                -> Intersect rows sorted by row ID  (cost=0.663..0.663 rows=0.192)
-                    -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.0223..0.312 rows=14)
-                    -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.0146..0.351 rows=24)
+-> Update t1 (buffered)  (rows=0.01)
+    -> Nested loop inner join  (rows=0.01)
+        -> Remove duplicates from input grouped on t2.col_int_key  (rows=0.192)
+            -> Sort: t2.col_int_key  (rows=0.192)
+                -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (rows=0.192)
+                    -> Intersect rows sorted by row ID  (rows=0.192)
+                        -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (rows=14)
+                        -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (rows=24)
+        -> Filter: ((cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (rows=2)
+            -> Table scan on t1  (rows=2)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
@@ -2496,165 +2505,177 @@ select @@optimizer_switch;
 index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t1 (a int, b int, c int, filler char(100), 
+analyze table t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+create table t1 (a int, b int, c int, filler char(100),
 key(a), key(b), key(c));
-insert into t1 select 
-A.a * B.a*10 + C.a*100, 
+insert into t1 select
 A.a * B.a*10 + C.a*100,
-A.a, 
+A.a * B.a*10 + C.a*100,
+A.a,
 'filler'
 from t0 A, t0 B, t0 C;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 This should use union:
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
-    -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
-    -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
+-> Deduplicate rows sorted by row ID  (rows=14)
+    -> Index range scan on t1 using a over (a = 1)  (rows=1)
+    -> Index range scan on t1 using b over (b = 1)  (rows=1)
 
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Filter: ((t1.a = 1) or (t1.b = 1))  (cost=9.01..126 rows=14)
-    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
+-> Filter: ((t1.a = 1) or (t1.b = 1))  (rows=14)
+    -> Table scan on t1  (rows=1000)
 
 This should use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Sort-deduplicate by row ID  (cost=1.01..1.47 rows=14)
-    -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
-    -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
+-> Sort-deduplicate by row ID  (rows=14)
+    -> Index range scan on t1 using a over (a = 1)  (rows=1)
+    -> Index range scan on t1 using b over (b = 1)  (rows=1)
 
 This will use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Sort-deduplicate by row ID  (cost=19.9..27.9 rows=556)
-    -> Index range scan on t1 using a over (NULL < a < 1)  (cost=0.119..2.26 rows=19)
-    -> Index range scan on t1 using b over (NULL < b < 1)  (cost=0.119..2.26 rows=19)
+-> Sort-deduplicate by row ID  (rows=556)
+    -> Index range scan on t1 using a over (NULL < a < 1)  (rows=19)
+    -> Index range scan on t1 using b over (NULL < b < 1)  (rows=19)
 
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Filter: ((t1.a < 1) or (t1.b < 1))  (cost=0.226..126 rows=556)
-    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
+-> Filter: ((t1.a < 1) or (t1.b < 1))  (rows=556)
+    -> Table scan on t1  (rows=1000)
 
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Filter: ((t1.a < 1) or (t1.b < 1))  (cost=0.226..126 rows=556)
-    -> Table scan on t1  (cost=0.0257..25.7 rows=1000)
+-> Filter: ((t1.a < 1) or (t1.b < 1))  (rows=556)
+    -> Table scan on t1  (rows=1000)
 
 This will use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a<1 or b <1;
 EXPLAIN
--> Sort-deduplicate by row ID  (cost=19.9..27.9 rows=556)
-    -> Index range scan on t1 using a over (NULL < a < 1)  (cost=0.119..2.26 rows=19)
-    -> Index range scan on t1 using b over (NULL < b < 1)  (cost=0.119..2.26 rows=19)
+-> Sort-deduplicate by row ID  (rows=556)
+    -> Index range scan on t1 using a over (NULL < a < 1)  (rows=19)
+    -> Index range scan on t1 using b over (NULL < b < 1)  (rows=19)
 
 alter table t1 add d int, add key(d);
 update t1 set d=a;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 This will use sort_union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where (a=3 or b in (1,2)) and (c=3 or d=4);
 EXPLAIN
--> Filter: ((t1.c = 3) or (t1.d = 4))  (cost=1.33..2.32 rows=20.7)
-    -> Sort-deduplicate by row ID  (cost=1.33..2.02 rows=3)
-        -> Index range scan on t1 using a over (a = 3)  (cost=0.36..0.36 rows=1)
-        -> Index range scan on t1 using b over (b = 1) OR (b = 2)  (cost=0.233..0.466 rows=2)
+-> Filter: ((t1.c = 3) or (t1.d = 4))  (rows=21.9)
+    -> Sort-deduplicate by row ID  (rows=3)
+        -> Index range scan on t1 using a over (a = 3)  (rows=1)
+        -> Index range scan on t1 using b over (b = 1) OR (b = 2)  (rows=2)
 
 And if we disable sort_union, union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where (a=3 or b in (1,2)) and (c=3 or d=4);
 EXPLAIN
--> Filter: ((t1.a = 3) or (t1.b in (1,2)))  (cost=1.65..34.1 rows=20.7)
-    -> Deduplicate rows sorted by row ID  (cost=1.55..32.1 rows=20.7)
-        -> Index range scan on t1 using c over (c = 3)  (cost=0.108..10.7 rows=99)
-        -> Index range scan on t1 using d over (d = 4)  (cost=0.36..0.36 rows=1)
+-> Filter: ((t1.a = 3) or (t1.b in (1,2)))  (rows=21.9)
+    -> Deduplicate rows sorted by row ID  (rows=21.9)
+        -> Index range scan on t1 using c over (c = 3)  (rows=99)
+        -> Index range scan on t1 using d over (d = 4)  (rows=1)
 
 drop table t1;
 create table t1 (
 a int, b int, c int,
-filler1 char(200), filler2 char(200), 
+filler1 char(200), filler2 char(200),
 key(a),key(b),key(c)
 );
-insert into t1 
-select A.a+10*B.a, A.a+10*B.a, A.a+10*B.a+100*C.a, 'foo', 'bar' 
+insert into t1
+select A.a+10*B.a, A.a+10*B.a, A.a+10*B.a+100*C.a, 'foo', 'bar'
 from t0 A, t0 B, t0 C, t0 D where D.a<5;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 This should be intersect:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Intersect rows sorted by row ID  (rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
 No intersect when index_merge is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=17.5..17.5 rows=0.48)
-    -> Index lookup on t1 using a (a=10)  (cost=0.25..12.5 rows=50)
+-> Filter: (t1.b = 10)  (rows=0.48)
+    -> Index lookup on t1 using a (a=10)  (rows=50)
 
 No intersect if it is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=17.5..17.5 rows=0.48)
-    -> Index lookup on t1 using a (a=10)  (cost=0.25..12.5 rows=50)
+-> Filter: (t1.b = 10)  (rows=0.48)
+    -> Index lookup on t1 using a (a=10)  (rows=50)
 
 Do intersect when union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Intersect rows sorted by row ID  (rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
 Do intersect when sort_union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
+-> Intersect rows sorted by row ID  (rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
 This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
-        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
-            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
-        -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (rows=5.5)
+    -> Deduplicate rows sorted by row ID  (rows=5.5)
+        -> Intersect rows sorted by row ID  (rows=1)
+            -> Index range scan on t1 using a over (a = 10)  (rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (rows=49)
+        -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
 Should be only union left:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
-        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
-            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
-            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
-        -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (rows=5.5)
+    -> Deduplicate rows sorted by row ID  (rows=5.5)
+        -> Intersect rows sorted by row ID  (rows=1)
+            -> Index range scan on t1 using a over (a = 10)  (rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (rows=49)
+        -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
 This will switch to sort-union (intersection will be gone, too,
 thats a known limitation:
@@ -2662,10 +2683,10 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=33..44.4 rows=5.5)
-    -> Sort-deduplicate by row ID  (cost=32.5..43.8 rows=5.5)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.111..5.44 rows=49)
-        -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (rows=5.5)
+    -> Sort-deduplicate by row ID  (rows=5.5)
+        -> Index range scan on t1 using b over (b = 10)  (rows=49)
+        -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
 set optimizer_switch=@default_optimizer_switch;
 show variables like 'optimizer_switch';

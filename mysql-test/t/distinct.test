@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
@@ -653,6 +655,7 @@ SELECT c1, c2, COUNT(*) FROM t1 GROUP BY c1 LIMIT 4;
 
 # The actual test case
 --skip_if_hypergraph  # Chooses a different query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 
@@ -841,6 +844,7 @@ ANALYZE TABLE t1;
 
 SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 --skip_if_hypergraph  # Chooses a different query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 
 DROP TABLE t1;
@@ -876,6 +880,7 @@ SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTE
 
 # Demonstrate that we get the expected plan, with only one LIMIT 1.
 --skip_if_hypergraph  # Doesn't do const tables, so gets a fairly different query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 
 DROP TABLE t1, t2, t3;
@@ -899,6 +904,7 @@ INSERT INTO t1 SELECT RAND() FROM t1;  # 7224 rows; enough to fill a few sort ch
 ANALYZE TABLE t1;
 
 --skip_if_hypergraph  # Chooses a different query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 
@@ -925,6 +931,7 @@ INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
 ANALYZE TABLE t1;
 let $query = SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 --skip_if_hypergraph  # Doesn't get the redundant sort!
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;  # Verify that we have a sort, with DESC. Note that we currently have two, which is redundant.
 eval $query;
 DROP TABLE t1;

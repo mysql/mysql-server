@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 #
 # Initialization
 --disable_warnings
@@ -1305,6 +1307,7 @@ let query=
                left join t t3 on t3.a>t2.a-t1.a)
  from t t1;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1316,6 +1319,7 @@ let query=
  from t t1
  group by t1.a;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1327,6 +1331,7 @@ let query=
                left join t t3 on t3.a>t2.a-v1.a)
  from v1;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 drop view v1;
@@ -1340,6 +1345,7 @@ let query=
                  left join t t3 on t3.a>t2.a-t1.a) as dt)
  from t t1;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1364,6 +1370,7 @@ let query=
   from t t2
   left join t t3 on t3.a>t2.a-t1.a) as dt;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1377,6 +1384,7 @@ let query=
   from t t2
   left join t t3 on t3.a>t2.a-t1.a) as dt;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1389,6 +1397,7 @@ let query=
   left join t t3 on t3.a>t2.a-t1.a) as dt
  on true;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1437,6 +1446,7 @@ let query=
                 left join (select * from t t3 where t3.a>t1.a) dt
                 on true);
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 

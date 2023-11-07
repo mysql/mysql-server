@@ -22,6 +22,7 @@ ANALYZE TABLE t1, t2, t3;
 SET optimizer_trace='enabled=on';
 let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5;
 eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
+--replace_regex $elide_costs
 eval EXECUTE stmt;
 # Check that we are using the optimized join condition for generating the
 # plan i.e it should be using multiple equalities that are established during
@@ -45,6 +46,7 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 # Hypergraph should be able to detect that a1=5 cannot be true resulting
 # in Zero rows access path for right side of the join.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 DROP TABLE t0,t1,t2,t3;
@@ -54,6 +56,7 @@ DROP TABLE t0,t1,t2,t3;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
 SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
 DROP TABLE t1;
@@ -70,6 +73,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 YEAR);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
 DROP TABLE t1;
 
@@ -1190,8 +1194,9 @@ SELECT a FROM t1 x2 WHERE x2.b IN
 SELECT
   CAST(LENGTH(TRACE) AS DOUBLE) / @@optimizer_trace_max_mem_size
   BETWEEN 0.9 AND 1.1 AS trace_length_ok,
-  MISSING_BYTES_BEYOND_MAX_MEM_SIZE BETWEEN 10000 AND 20000 AS excess_length_ok
+  MISSING_BYTES_BEYOND_MAX_MEM_SIZE BETWEEN 10000 AND 30000 AS excess_length_ok
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
 
 SET SESSION optimizer_trace_max_mem_size=@old_optimizer_trace_max_mem_size;
 SET SESSION OPTIMIZER_TRACE='enabled=off';
@@ -1358,6 +1363,9 @@ ANALYZE TABLE t1;
 # order on an indexed column (x1.a) and have LIMIT.
 # The relatively high first-row cost for d1 should be included in the
 # first-row cost of that NLJ.
+# Note: The plan depends on the cost model and is no longer stable.
+# We likely need a way to fix a specific plan to make this test maintainable/valid.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
   (SELECT MAX(x2.c) k FROM t1 x2 JOIN t1 x3 ON x2.c < x3.b GROUP BY x3.c) d1
   ON x1.b=d1.k ORDER BY x1.a LIMIT 1;

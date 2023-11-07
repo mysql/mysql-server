@@ -118,7 +118,15 @@ xa end 'a';
 xa prepare 'a';
 xa commit 'a';
 CREATE TABLE t1(a INT, KEY(a)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t1
+WITH RECURSIVE t(i) AS (
+SELECT 0 AS i UNION ALL
+SELECT i + 1 FROM t WHERE i + 1 < 100
+)
+SELECT i FROM t;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 BEGIN;
 UPDATE t1 SET a=3 WHERE a=1;
 BEGIN;

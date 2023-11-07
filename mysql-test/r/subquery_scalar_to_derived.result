@@ -3967,23 +3967,23 @@ FROM cc,a
 FROM cc STRAIGHT_JOIN bb ON bb.col_varchar = cc.col_varchar_key
 WHERE cc.col_varchar <> 'w';
 EXPLAIN
--> Left hash join (no condition)  (cost=6.23 rows=1)
-    -> Table scan on derived_1_3  (cost=3.51..3.51 rows=1)
-        -> Materialize  (cost=1..1 rows=1)
-            -> Aggregate: avg(cc.col_varchar_key)  (cost=0.9 rows=1)
-                -> Inner hash join (bb.col_varchar = cc.col_varchar_key)  (cost=0.8 rows=1)
-                    -> Table scan on bb  (cost=0.35 rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Table scan on derived_1_3  (rows=1)
+        -> Materialize  (rows=1)
+            -> Aggregate: avg(cc.col_varchar_key)  (rows=1)
+                -> Inner hash join (bb.col_varchar = cc.col_varchar_key)  (rows=1)
+                    -> Table scan on bb  (rows=1)
                     -> Hash
-                        -> Filter: (cc.col_varchar <> 'w')  (cost=0.45 rows=1)
-                            -> Table scan on cc  (cost=0.45 rows=2)
+                        -> Filter: (cc.col_varchar <> 'w')  (rows=1)
+                            -> Table scan on cc  (rows=2)
     -> Hash
-        -> Table scan on derived_1_4  (cost=3.61..3.61 rows=1)
-            -> Materialize  (cost=1.1..1.1 rows=1)
-                -> Aggregate: sum(cc.col_int_key)  (cost=1 rows=1)
-                    -> Inner hash join (no condition)  (cost=0.8 rows=2)
-                        -> Table scan on cc  (cost=0.45 rows=2)
+        -> Table scan on derived_1_4  (rows=1)
+            -> Materialize  (rows=1)
+                -> Aggregate: sum(cc.col_int_key)  (rows=1)
+                    -> Inner hash join (no condition)  (rows=2)
+                        -> Table scan on cc  (rows=2)
                         -> Hash
-                            -> Table scan on a  (cost=0.35 rows=1)
+                            -> Table scan on a  (rows=1)
 
 DROP TABLE a, bb, cc;
 #
@@ -4085,28 +4085,28 @@ table1.col_varchar_key < 'O'
 ORDER BY table1.col_varchar ASC, field2, field1
 LIMIT 1000 OFFSET 2;
 EXPLAIN
--> Limit/Offset: 1000/2 row(s)  (cost=177 rows=0)
-    -> Left hash join (no condition)  (cost=177 rows=1)
-        -> Table scan on derived_1_4  (cost=9.11..9.11 rows=1)
-            -> Materialize  (cost=6.6..6.6 rows=1)
-                -> Aggregate: avg(table2.col_int)  (cost=6.5 rows=1)
-                    -> Inner hash join (no condition)  (cost=4.5 rows=20)
-                        -> Table scan on table2  (cost=2.25 rows=20)
+-> Limit/Offset: 1000/2 row(s)  (rows=0)
+    -> Left hash join (no condition)  (rows=1)
+        -> Table scan on derived_1_4  (rows=1)
+            -> Materialize  (rows=1)
+                -> Aggregate: avg(table2.col_int)  (rows=1)
+                    -> Inner hash join (no condition)  (rows=20)
+                        -> Table scan on table2  (rows=20)
                         -> Hash
-                            -> Filter: ((((table1.pk = 1) and ((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key))) or (table1.col_varchar_key < 'O')) and (table1.col_varchar_key = table1.col_varchar_key))  (cost=2.25 rows=1)
-                                -> Table scan on table1  (cost=2.25 rows=20)
+                            -> Filter: ((((table1.pk = 1) and ((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key))) or (table1.col_varchar_key < 'O')) and (table1.col_varchar_key = table1.col_varchar_key))  (rows=1)
+                                -> Table scan on table1  (rows=20)
         -> Hash
-            -> Table scan on derived_1_5  (cost=175..175 rows=1)
-                -> Materialize  (cost=172..172 rows=1)
-                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (cost=172 rows=1)
-                        -> Nested loop inner join  (cost=169 rows=36)
-                            -> Filter: (subquery1_t1.col_varchar_key <> subquery1_t2.col_varchar)  (cost=42.5 rows=360)
-                                -> Inner hash join (no condition)  (cost=42.5 rows=360)
-                                    -> Table scan on subquery1_t2  (cost=0.103 rows=20)
+            -> Table scan on derived_1_5  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (rows=1)
+                        -> Nested loop inner join  (rows=36)
+                            -> Filter: (subquery1_t1.col_varchar_key <> subquery1_t2.col_varchar)  (rows=360)
+                                -> Inner hash join (no condition)  (rows=360)
+                                    -> Table scan on subquery1_t2  (rows=20)
                                     -> Hash
-                                        -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (cost=2.25 rows=20)
-                            -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (cost=0.25 rows=0.1)
-                                -> Index lookup on cc using idx_cc_col_int_key (col_int_key=subquery1_t2.col_int)  (cost=0.25 rows=1)
+                                        -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (rows=20)
+                            -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (rows=0.1)
+                                -> Index lookup on cc using idx_cc_col_int_key (col_int_key=subquery1_t2.col_int)  (rows=1)
 
 DROP VIEW view_cc;
 DROP TABLE cc;
@@ -4791,12 +4791,12 @@ SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN FORMAT=tree SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 EXPLAIN
--> Nested loop inner join  (cost=0.8 rows=2)
-    -> Table scan on t  (cost=0.35 rows=1)
-    -> Constant row from derived_1_2  (cost=0.55..0.55 rows=1)
-        -> Union materialize with deduplication  (cost=0.2..0.2 rows=2)
-            -> Rows fetched before execution  (cost=0..0 rows=1)
-            -> Rows fetched before execution  (cost=0..0 rows=1)
+-> Nested loop inner join  (rows=2)
+    -> Table scan on t  (rows=1)
+    -> Constant row from derived_1_2  (rows=1)
+        -> Union materialize with deduplication  (rows=2)
+            -> Rows fetched before execution  (rows=1)
+            -> Rows fetched before execution  (rows=1)
 
 DROP TABLE t;
 #

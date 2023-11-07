@@ -26,31 +26,6 @@ test.x	analyze	status	OK
 test.y	analyze	status	OK
 test.z	analyze	status	OK
 set optimizer_switch='hypergraph_optimizer=on';
-explain format=tree SELECT
-table1.pk, table2.pk
-FROM m AS table1
-LEFT JOIN r AS table2 ON table2.col_int IN (4)
-WHERE table1.pk = ANY (
-SELECT table2s.col_int AS field2
-FROM r AS table1s
-LEFT JOIN p AS table2s ON table1s.col_int_unique = table2s.col_int_key
-GROUP BY field2
-);
-EXPLAIN
--> Left hash join (no condition)
-    -> Nested loop inner join
-        -> Remove duplicates from input grouped on table2s.col_int
-            -> Sort: table2s.col_int
-                -> Nested loop inner join
-                    -> Table scan on table1s, activating pushed join of 2 tables
-                    -> Index lookup on table2s using col_int_key (col_int_key=table1s.col_int_unique), child of table1s in pushed join
-        -> Single-row index lookup on table1 using PRIMARY (pk=table2s.col_int)
-    -> Hash
-        -> Index range scan on table2 using PRIMARY over (col_int = 4)
-
-Warnings:
-Note	1003	Can't push table 'table1' as child of 'table1s', it is in a sorted-branch which can't be referred.
-Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
 SELECT
 table1.pk, table2.pk
 FROM m AS table1
@@ -65,42 +40,6 @@ pk	pk
 1	NULL
 2	NULL
 3	NULL
-explain format=tree SELECT
-table1.pk, table2.pk, table3.pk
-FROM t AS table1
-LEFT JOIN g AS table2 ON table1.pk = table2.col_int
-LEFT JOIN z AS table3 ON table2.col_int_key = table3.col_int_key
-WHERE CHAR_LENGTH(table2.col_varchar_10_unique) IN (
-SELECT STRAIGHT_JOIN
-table3s.col_int AS field3
-FROM m AS table1s JOIN (
-p AS table2s JOIN l AS table3s ON table2s.pk = table3s.pk
-) ON table1s.col_int_unique = table2s.col_int_unique
-);
-EXPLAIN
--> Inner hash join (table1.pk = table2.col_int)
-    -> Nested loop left join
-        -> Filter: <in_optimizer>(char_length(table2.col_varchar_10_unique),char_length(table2.col_varchar_10_unique) in (select #2))
-            -> Table scan on table2, activating pushed join of 2 tables
-            -> Select #2 (subquery in condition; run only once)
-                -> Filter: ((char_length(table2.col_varchar_10_unique) = `<materialized_subquery>`.field3))
-                    -> Limit: 1 row(s)
-                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field3=char_length(table2.col_varchar_10_unique))
-                            -> Materialize with deduplication
-                                -> Inner hash join (table1s.col_int_unique = table2s.col_int_unique)
-                                    -> Table scan on table1s
-                                    -> Hash
-                                        -> Nested loop inner join
-                                            -> Table scan on table3s, activating pushed join of 2 tables
-                                            -> Single-row index lookup on table2s using PRIMARY (pk=table3s.pk), child of table3s in pushed join
-        -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join
-    -> Hash
-        -> Table scan on table1
-
-Warnings:
-Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
-Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM t AS table1
@@ -114,27 +53,6 @@ p AS table2s JOIN l AS table3s ON table2s.pk = table3s.pk
 ) ON table1s.col_int_unique = table2s.col_int_unique
 );
 pk	pk	pk
-explain format=tree SELECT
-table1.pk
-FROM y AS table1
-WHERE table1.col_int IN (
-SELECT STRAIGHT_JOIN
-table2s.col_int_unique
-FROM r AS table1s
-JOIN z AS table2s ON table1s.pk = table2s.col_int_key
-);
-EXPLAIN
--> Filter: <in_optimizer>(table1.col_int,table1.col_int in (select #2))
-    -> Table scan on table1
-    -> Select #2 (subquery in condition; run only once)
-        -> Filter: ((table1.col_int = `<materialized_subquery>`.col_int_unique))
-            -> Limit: 1 row(s)
-                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (col_int_unique=table1.col_int)
-                    -> Materialize with deduplication
-                        -> Nested loop inner join
-                            -> Table scan on table1s, activating pushed join of 2 tables
-                            -> Index lookup on table2s using col_int_key (col_int_key=table1s.pk), child of table1s in pushed join
-
 SELECT
 table1.pk
 FROM y AS table1
@@ -161,24 +79,6 @@ pk
 30
 33
 4
-explain format=tree SELECT
-table1.pk, table2.pk
-FROM c AS table1
-JOIN c AS table2 ON table1.col_int = table2.col_int_key
-WHERE EXISTS (
-SELECT * FROM d
-);
-EXPLAIN
--> Nested loop inner join
-    -> Limit: 1 row(s)
-        -> Table scan on d
-    -> Nested loop inner join
-        -> Table scan on table2, activating pushed join of 2 tables
-        -> Index lookup on table1 using PRIMARY (col_int=table2.col_int_key), child of table2 in pushed join
-
-Warnings:
-Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table1' as child of 'd', column 'table2.col_int_key' refers a table which was not pushed
 SELECT
 table1.pk, table2.pk
 FROM c AS table1
@@ -196,26 +96,6 @@ pk	pk
 5	1
 5	2
 5	5
-explain format=tree SELECT
-table1.pk, table2.pk, table3.pk, table4.pk
-FROM b AS table1
-LEFT JOIN s AS table2
-LEFT JOIN x AS table3 ON table2.col_int = table3.col_int
-ON table1.col_int_key = table2.col_int_key AND
-table1.col_int_unique = table2.pk
-LEFT JOIN e AS table4 ON table2.col_int_key = table4.pk;
-EXPLAIN
--> Left hash join (table2.col_int_key = table4.pk)
-    -> Nested loop left join
-        -> Nested loop left join
-            -> Table scan on table1, activating pushed join of 3 tables
-            -> Single-row index lookup on table2 using PRIMARY (pk=table1.col_int_unique), child of table1 in pushed join, with pushed condition: (table1.col_int_key = table2.col_int_key)
-        -> Index lookup on table3 using PRIMARY (col_int=table2.col_int), child of table2 in pushed join
-    -> Hash
-        -> Table scan on table4
-
-Warnings:
-Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM b AS table1
@@ -226,21 +106,6 @@ table1.col_int_unique = table2.pk
 LEFT JOIN e AS table4 ON table2.col_int_key = table4.pk;
 pk	pk	pk	pk
 1	NULL	NULL	NULL
-explain format=tree SELECT DISTINCT
-table1.col_char_16_key AS field1
-FROM m AS table1
-JOIN k AS table2 ON table1.col_int_key = table2.col_int AND
-table1.col_int_unique = table2.col_int_unique
-WHERE table2.col_int_key <> 5;
-EXPLAIN
--> Sort with duplicate removal: table1.col_char_16_key
-    -> Inner hash join (table1.col_int_key = table2.col_int), (table1.col_int_unique = table2.col_int_unique)
-        -> Index scan on table1 using col_char_16_key
-        -> Hash
-            -> Index range scan on table2 using col_int_key over (NULL < col_int_key < 5) OR (5 < col_int_key)
-
-Warnings:
-Note	1003	Can't push table 'table1' as child, can't provide rows in index order
 SELECT DISTINCT
 table1.col_char_16_key AS field1
 FROM m AS table1
@@ -249,18 +114,6 @@ table1.col_int_unique = table2.col_int_unique
 WHERE table2.col_int_key <> 5;
 field1
 will
-explain format=tree SELECT DISTINCT
-'auq' AS field1, table1.col_varchar_10_unique AS field2
-FROM j AS table1
-LEFT JOIN r AS table2 ON table1.pk = table2.col_int_key
-WHERE table1.col_int BETWEEN 6 AND 7 OR table2.pk <= 7;
-EXPLAIN
--> Remove duplicates from input grouped on table1.col_varchar_10_unique
-    -> Filter: ((table1.col_int between 6 and 7) or (table2.pk <= 7))
-        -> Nested loop left join
-            -> Index scan on table1 using col_varchar_10_unique, activating pushed join of 2 tables
-            -> Index lookup on table2 using col_int_key (col_int_key=table1.pk), child of table1 in pushed join
-
 SELECT DISTINCT
 'auq' AS field1, table1.col_varchar_10_unique AS field2
 FROM j AS table1
@@ -270,30 +123,6 @@ field1	field2
 auq	qqjwasfkve
 auq	tfobocgpft
 auq	this
-explain format=tree SELECT
-table1.col_int_key AS field1, table2.pk AS field2
-FROM h AS table1
-LEFT OUTER JOIN w AS table2 ON  table1.col_int_key =  table2.col_int_key
-WHERE #table1.col_int = 8 AND
-EXISTS (
-SELECT *
-#table1s.col_int_key AS field3, table1s.col_int_unique AS field4, table1s.pk AS field5
-FROM a AS table1s
-WHERE table1.pk = table1s.col_int_key)
-GROUP BY field1, field2;
-EXPLAIN
--> Group (no aggregates)
-    -> Sort: table1.col_int_key, table2.pk
-        -> Nested loop left join
-            -> Nested loop inner join
-                -> Remove duplicates from input grouped on table1s.col_int_key
-                    -> Index scan on table1s using col_int_key, activating pushed join of 2 tables
-                -> Single-row index lookup on table1 using PRIMARY (pk=table1s.col_int_key), child of table1s in pushed join
-            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key)
-
-Warnings:
-Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
-Note	1003	Can't push table 'table2' as scan-child of 'table1s', depends on tables being 'skip-read'
 SELECT
 table1.col_int_key AS field1, table2.pk AS field2
 FROM h AS table1
@@ -306,31 +135,6 @@ FROM a AS table1s
 WHERE table1.pk = table1s.col_int_key)
 GROUP BY field1, field2;
 field1	field2
-explain format=tree SELECT
-table1.col_int_unique
-FROM q AS table1
-JOIN j AS table2 ON table1.pk = table2.col_int_unique
-WHERE EXISTS (
-SELECT
-table1s.col_int_unique
-FROM s AS table1s
-JOIN p AS table2s ON table1s.col_int_key = table2s.col_int_key
-WHERE table1s.col_int_unique = table1.col_int_unique
-);
-EXPLAIN
--> Hash semijoin (table1.col_int_unique = table1s.col_int_unique)
-    -> Nested loop inner join
-        -> Table scan on table2, activating pushed join of 2 tables
-        -> Single-row index lookup on table1 using PRIMARY (pk=table2.col_int_unique), child of table2 in pushed join
-    -> Hash
-        -> Nested loop inner join
-            -> Table scan on table2s, activating pushed join of 2 tables
-            -> Index lookup on table1s using ix2 (col_int_key=table2s.col_int_key), child of table2s in pushed join
-
-Warnings:
-Note	1276	Field or reference 'test.table1.col_int_unique' of SELECT #2 was resolved in SELECT #1
-Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table1s' as child of 'table2', it is in a hash-probe-branch which can't be referred.
 SELECT
 table1.col_int_unique
 FROM q AS table1
@@ -348,18 +152,6 @@ col_int_unique
 2
 4
 9
-explain format=tree SELECT
-table1.pk, table2.pk
-FROM i AS table1
-JOIN d AS table2 ON table1.pk = table2.col_int
-WHERE table1.col_int_key BETWEEN 5 AND 5+4;
-EXPLAIN
--> Nested loop inner join
-    -> Table scan on table2
-    -> Index range scan on table1 using col_int_key over (5 <= col_int_key <= 9), with pushed condition: ((table1.col_int_key between 5 and <cache>((5 + 4))) and (table1.pk = table2.col_int))
-
-Warnings:
-Note	1003	Can't push table 'table1' as child, access type 'Range-scan' not implemented
 SELECT
 table1.pk, table2.pk
 FROM i AS table1

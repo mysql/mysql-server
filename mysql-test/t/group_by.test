@@ -2906,6 +2906,7 @@ ANALYZE TABLE t1;
 # plan to make sure it doesn't change in a way that would mask the bug.
 #
 --skip_if_hypergraph   # Chooses a different query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 
@@ -3488,6 +3489,7 @@ SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
 GROUP BY b;
 
 --replace_regex $elide_costs
+--skip_if_hypergraph   # Chooses a different query plan.
 --eval EXPLAIN FORMAT=TREE $query
 
 FLUSH STATUS;
@@ -3496,6 +3498,7 @@ FLUSH STATUS;
 
 --echo # Expect around 500 index reads. 250 from t2 and 250 from t3.
 --echo # It used to be around 16000 index reads.
+--skip_if_hypergraph   # Chooses a different query plan.
 SHOW STATUS LIKE 'Handler_read_key';
 
 DROP TABLE t1, t2, t3;

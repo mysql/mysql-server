@@ -194,6 +194,7 @@ set optimizer_switch="subquery_to_derived=on";
 # it not possible to create a hash joinable plan.
 # This could possibly be addressed as part of solution to
 # Bug#34448532.
+# Note: Plan change after cost model update.
 let $query=
 SELECT 1
 FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)

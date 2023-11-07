@@ -26,6 +26,7 @@ select * from performance_schema.pfs_example_continent;
 
 INSTALL COMPONENT "file://component_pfs_example_component_population";
 
+--skip_if_hypergraph  # Bug#36578613, see comment.
 select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
   from INFORMATION_SCHEMA.tables
   where TABLE_NAME like "pfs_example_%"
@@ -79,6 +80,7 @@ select * from performance_schema.pfs_example_continent;
 
 INSTALL COMPONENT "file://component_pfs_example_component_population";
 
+--skip_if_hypergraph  # Bug#36578613, see comment.
 select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
   from INFORMATION_SCHEMA.tables
   where TABLE_NAME like "pfs_example_%"
@@ -96,6 +98,7 @@ select * from performance_schema.pfs_example_continent;
 
 --source include/restart_mysqld.inc
 
+--skip_if_hypergraph  # Bug#36578613, see comment.
 select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
   from INFORMATION_SCHEMA.tables
   where TABLE_NAME like "pfs_example_%"

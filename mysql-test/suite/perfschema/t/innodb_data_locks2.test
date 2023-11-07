@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Seems to depend on plan choices, causing timeout.
+
 # This test is a continuation of innodb_data_locks.test
 # However it requires DEBUG_SYNC support and
 # setting --innodb-autoinc-lock-mode=0 both of which are

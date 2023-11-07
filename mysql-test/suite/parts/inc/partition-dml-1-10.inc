@@ -56,10 +56,12 @@ SET @var1= 'p0-29-upd-2';
 EXECUTE st2 USING @var1;
 
 connection session1;
+--sorted_result  # Different order for hypergraph.
 SELECT * FROM t1 PARTITION (`p0-29`);
 DEALLOCATE PREPARE st1;
 
 connection session2;
+--sorted_result  # Different order for hypergraph.
 SELECT * FROM t1 PARTITION (`p0-29`);
 COMMIT WORK;
 DEALLOCATE PREPARE st2;
@@ -68,6 +70,7 @@ connection default;
 disconnect session1;
 disconnect session2;
 
+--sorted_result  # Different order for hypergraph.
 SELECT * FROM t1 PARTITION (`p0-29`);
 
 DROP TABLE t1;

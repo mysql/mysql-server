@@ -110,7 +110,7 @@ Mysqlx.Crud.CreateView {
 -->recvresult
 -->sql
 SELECT table_name,check_option,is_updatable,definer,security_type,view_definition
-FROM information_schema.views WHERE table_schema = 'xtest';
+FROM information_schema.views WHERE table_schema = 'xtest' ORDER BY view_definition;
 -->endsql
 EOF
 

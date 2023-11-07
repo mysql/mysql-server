@@ -3,6 +3,7 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/elide_costs.inc
 
 set end_markers_in_json=on;
 

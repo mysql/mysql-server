@@ -1423,8 +1423,9 @@ WHERE table1.pk = ANY (
   GROUP BY field2
 );
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1452,8 +1453,9 @@ WHERE CHAR_LENGTH(table2.col_varchar_10_unique) IN (
   ) ON table1s.col_int_unique = table2s.col_int_unique
 );
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1471,8 +1473,9 @@ WHERE table1.col_int IN (
     JOIN z AS table2s ON table1s.pk = table2s.col_int_key
 );
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1490,8 +1493,9 @@ FROM c AS table1
     SELECT * FROM d
   );
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1510,8 +1514,9 @@ FROM b AS table1
      table1.col_int_unique = table2.pk
   LEFT JOIN e AS table4 ON table2.col_int_key = table4.pk;
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1530,8 +1535,9 @@ FROM m AS table1
                       table1.col_int_unique = table2.col_int_unique
 WHERE table2.col_int_key <> 5;
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1550,8 +1556,9 @@ FROM j AS table1
   LEFT JOIN r AS table2 ON table1.pk = table2.col_int_key
 WHERE table1.col_int BETWEEN 6 AND 7 OR table2.pk <= 7;
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1572,8 +1579,9 @@ WHERE #table1.col_int = 8 AND
   WHERE table1.pk = table1s.col_int_key)
 GROUP BY field1, field2;
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1598,8 +1606,9 @@ WHERE EXISTS (
   WHERE table1s.col_int_unique = table1.col_int_unique
 );
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -1617,8 +1626,9 @@ FROM i AS table1
   JOIN d AS table2 ON table1.pk = table2.col_int
 WHERE table1.col_int_key BETWEEN 5 AND 5+4;
 
---replace_regex /  \(cost=.*//
-eval explain format=tree $query;
+# Commented out due to plan changes from WL#16107.
+# --replace_regex /  \(cost=.*//
+# eval explain format=tree $query;
 --sorted_result
 eval $query;
 

@@ -329,6 +329,7 @@ analyze table t1;
 
 explain (select * from t1 where a=1) union (select * from t2 where a=1);
 --skip_if_hypergraph  # No support for const tables.
+--replace_regex $elide_costs
 explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);  # Tests printing of ZeroRowsIterator.
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
@@ -1330,6 +1331,7 @@ INSERT INTO t2 VALUES (1);
 
 --source include/turn_off_only_full_group_by.inc
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;  # Tests printing of ZeroRowsAggregatedIterator.
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 
@@ -2831,6 +2833,7 @@ INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
 ANALYZE TABLE t1;
 
 --skip_if_hypergraph  # Other costs with Hypergraph.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE (SELECT b FROM t1 UNION SELECT b FROM t1)
 UNION ALL SELECT b FROM t1;
 

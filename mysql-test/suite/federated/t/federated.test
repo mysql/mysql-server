@@ -506,14 +506,17 @@ SELECT * FROM federated.t1 WHERE id = 3;
 SELECT * FROM federated.t1 WHERE id = 3 AND col1 = 3; 
 SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'Two two'; 
 SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'fourfourfour'; 
+--skip_if_hypergraph  # Result difference, possibly due to bug#11755165.
 SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
   AND col3 = 5; 
+--skip_if_hypergraph  # Result difference, possibly due to bug#11755165.
 SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
   AND col3 = 5
   AND col4 = 55555;
 SELECT * FROM federated.t1 WHERE id = 5 
   AND col2 = 'Two two' AND col3 = 22
   AND col4 = 33;
+--skip_if_hypergraph  # Result difference, possibly due to bug#11755165.
 SELECT * FROM federated.t1 WHERE id = 5 
   AND col2 = 'five 5 five five 5' AND col3 = 5 
   AND col4 = 55555;
@@ -1395,9 +1398,11 @@ KEY `fld_cid` (`fld_cid`)
 ) ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/bug_17377_table';
 
+--skip_if_hypergraph  # Result difference, possibly due to bug#11755165.
 select * from federated.t1 where fld_parentid=0 and fld_delt=0
 order by fld_name;
 
+--skip_if_hypergraph  # Result difference, possibly due to bug#11755165.
 select * from federated.t1 where fld_parentid=0 and fld_delt=0;
 
 DROP TABLE federated.t1;

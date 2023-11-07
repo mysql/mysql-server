@@ -404,10 +404,12 @@ INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
   ('m', 'u', 'p', ST_GeomFromText('POINT(1192 1181)'));
 ROLLBACK;
 
+--skip_if_hypergraph  # Returns zero because of bug#36361834.
 SELECT COUNT(*) FROM t1;
 UPDATE t1 SET spatial_point = ST_GeomFromText('POINT(123 456)') WHERE id < 2000;
 SET @g1 = ST_GeomFromText('Polygon((123 456, 123 678, 456 678,456 456,123 456))');
 DELETE FROM t1 WHERE MBRContains(@g1, t1.spatial_point);
+--skip_if_hypergraph  # Returns zero because of bug#36361834.
 SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;

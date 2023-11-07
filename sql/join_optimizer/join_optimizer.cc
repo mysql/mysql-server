@@ -743,11 +743,6 @@ secondary_engine_check_optimizer_request_t SecondaryEngineStateCheckHook(
   return secondary_engine->secondary_engine_check_optimizer_request;
 }
 
-bool IsClusteredPrimaryKey(unsigned key_index, const TABLE &table) {
-  return key_index == table.s->primary_key &&
-         table.file->primary_key_is_clustered();
-}
-
 /// Returns the MATCH function of a predicate that can be pushed down to a
 /// full-text index. This can be done if the predicate is a MATCH function,
 /// or in some cases (see IsSargableFullTextIndexPredicate() for details)
@@ -992,7 +987,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // is not considered unless it follows an interesting order.
       // If force index is specified, we propose index scan anyway.
       if (order != 0 || (table->covering_keys.is_set(key_idx) &&
-                         !IsClusteredPrimaryKey(key_idx, *table))) {
+                         !IsClusteredPrimaryKey(table, key_idx))) {
         if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
                              key_idx, reverse, order)) {
           return true;
@@ -1407,7 +1402,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
     }
     const bool is_preferred_cpk =
         prefer_clustered_primary_key_scan &&
-        IsClusteredPrimaryKey(param->real_keynr[idx], *param->table);
+        IsClusteredPrimaryKey(param->table, param->real_keynr[idx]);
     if (!is_preferred_cpk && cost.total_cost() > best_cost) {
       continue;
     }
@@ -2474,7 +2469,7 @@ void CostingReceiver::ProposeIndexMerge(
     num_output_rows += path->num_output_rows();
 
     if (allow_clustered_primary_key_scan &&
-        IsClusteredPrimaryKey(path->index_range_scan().index, *table)) {
+        IsClusteredPrimaryKey(table, path->index_range_scan().index)) {
       assert(!*has_clustered_primary_key_scan);
       *has_clustered_primary_key_scan = true;
     } else {
@@ -2949,8 +2944,7 @@ bool CostingReceiver::ProposeRefAccess(
     num_output_rows = std::min(num_output_rows, 1.0);
   }
 
-  const double cost =
-      EstimateCostForRefAccess(m_thd, table, key_idx, num_output_rows);
+  const double cost = EstimateRefAccessCost(table, key_idx, num_output_rows);
 
   AccessPath path;
   if (single_row) {
@@ -3155,7 +3149,7 @@ bool CostingReceiver::ProposeTableScan(
   path.ordering_state = 0;
 
   const double num_output_rows = table->file->stats.records;
-  const double cost = table->file->table_scan_cost().total_cost();
+  const double cost = EstimateTableScanCost(table);
 
   path.num_output_rows_before_filter = num_output_rows;
   path.set_init_cost(0.0);
@@ -3296,32 +3290,7 @@ bool CostingReceiver::ProposeIndexScan(
   path.ordering_state = m_orderings->SetOrder(ordering_idx);
 
   double num_output_rows = table->file->stats.records;
-  double cost;
-
-  // If a table scan and a primary key scan is the very same thing,
-  // they should also have the same cost. However, read_cost()
-  // is based on number of rows, and table_scan_cost() is based on
-  // on-disk size, so it's complete potluck which one gives the
-  // higher number. We force primary scan cost to be table scan cost
-  // plus an arbitrary 0.1% factor, so that we will always prefer
-  // table scans if we don't need the ordering (both for user experience,
-  // and in case there _is_ a performance difference in the storage
-  // engine), but primary index scans otherwise.
-  //
-  // Note that this will give somewhat more access paths than is
-  // required in some cases.
-  if (IsClusteredPrimaryKey(key_idx, *table)) {
-    cost = table->file->table_scan_cost().total_cost() * 1.001;
-  } else if (table->covering_keys.is_set(key_idx)) {
-    // The index is covering, so we can do an index-only scan.
-    cost =
-        table->file->index_scan_cost(key_idx, /*ranges=*/1.0, num_output_rows)
-            .total_cost();
-  } else {
-    cost = table->file->read_cost(key_idx, /*ranges=*/1.0, num_output_rows)
-               .total_cost();
-  }
-
+  double cost = EstimateIndexScanCost(table, key_idx);
   path.num_output_rows_before_filter = num_output_rows;
   path.set_init_cost(0.0);
   path.set_init_once_cost(0.0);
@@ -3639,8 +3608,8 @@ bool CostingReceiver::ProposeFullTextIndexScan(
     }
   }
 
-  const double cost = EstimateCostForRefAccess(m_thd, table, key_idx,
-                                               num_output_rows_from_index);
+  const double cost =
+      EstimateRefAccessCost(table, key_idx, num_output_rows_from_index);
 
   AccessPath *path = NewFullTextSearchAccessPath(
       m_thd, table, ref, match, use_order,

@@ -484,12 +484,14 @@ select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 ANALYZE TABLE t4;
+--replace_regex $elide_costs
 explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
 # In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
 # how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
 --skip_if_hypergraph  # Depends on query plan.
+--replace_regex $elide_costs
 explain format=tree select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 --sorted_result
@@ -1398,6 +1400,7 @@ FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 let $query=
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
+--replace_regex $elide_costs
 eval explain $query;
 --sorted_result
 eval $query;
@@ -1469,6 +1472,7 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
 # outer joins and first matches are rejected by the join optimizer and cannot
 # exist (DBUG_ASSERTs in FindSubstructure verify it).
 --skip_if_hypergraph  # Depends on query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
          LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);

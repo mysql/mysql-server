@@ -14,9 +14,13 @@ INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 ANALYZE TABLE t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 drop table t1;
 
@@ -30,7 +34,9 @@ insert into t1 values
 (2,1,3,4), (2,3,4,5), (2,4,5,1),
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
+--replace_regex $elide_costs
 explain format=TREE select * from t1 where a > 2;
+--replace_regex $elide_trace_costs_and_rows
 explain format=JSON select * from t1 where a > 2;
 drop table t1;
 
@@ -40,10 +46,12 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
 CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
 CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
-INSERT INTO t1 VALUES (2), (3), (4), (5);
-INSERT INTO t2 VALUES (1), (2), (3), (4);
+INSERT INTO t1 VALUES (2), (3), (4), (5), (6), (7), (8), (9);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8);
 ANALYZE TABLE t1, t2;
+--replace_regex $elide_costs
 EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 DROP TABLE t1,t2;
 set optimizer_switch=@old_opt_switch;
@@ -61,14 +69,17 @@ KEY (col_int_key)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t2 VALUES
 (1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 DROP TABLE t1,t2;
 
 
 --echo # Group aggregates, hash join, sort.
+--echo # This plan depends on the cost. The intention here is unclear.
 CREATE TABLE t1 (
 pk int NOT NULL AUTO_INCREMENT,
 col_varchar varchar(1),
@@ -78,11 +89,13 @@ KEY idx_CC_col_varchar_key (col_varchar_key)
 );
 INSERT INTO t1 VALUES (1,'n','X'),(2,'Y','8'),(3,'R','l');
 ANALYZE TABLE t1;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT
 t1.col_varchar_key AS field1 FROM (t1, t1 as alias1)
 WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
                   WHERE alias2.col_varchar_key >= t1.col_varchar)
 GROUP BY field1;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT
 t1.col_varchar_key AS field1 FROM (t1, t1 as alias1)
 WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
@@ -91,7 +104,9 @@ GROUP BY field1;
 drop table t1;
 
 --echo # Information Schema
+--replace_regex $elide_costs
 explain format=TREE select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
+--replace_regex $elide_trace_costs_and_rows
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 
 
@@ -113,17 +128,21 @@ INSERT INTO t1 VALUES (NULL, 1, 3);
 ANALYZE TABLE t0, t1;
 
 set sql_mode="";
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM
     (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
     WHERE f1 > 2;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM
     (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
     WHERE f1 > 2;
 
 --echo # Filter, nested loop
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
 (SELECT f1, f2, f3 FROM t1) as dt, t0
 WHERE f1 > 3 and f2 < 50 and i0 > 3;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
 (SELECT f1, f2, f3 FROM t1) as dt, t0
 WHERE f1 > 3 and f2 < 50 and i0 > 3;
@@ -137,8 +156,9 @@ CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
 INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
 ANALYZE TABLE t1, t2;
 # Mask out all actual times
---replace_regex $elide_time
+--replace_regex $elide_metrics
 EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 drop table t1;
 drop table t2;
@@ -148,8 +168,10 @@ drop table t2;
 CREATE TABLE t1 (a INTEGER NOT NULL);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 ANALYZE TABLE t1;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
   LEFT JOIN t1 AS c ON b.a=c.a;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
   LEFT JOIN t1 AS c ON b.a=c.a;
 DROP TABLE t1;
@@ -161,6 +183,7 @@ DROP TABLE t1;
 
 CREATE TABLE t (a INT);
 --echo # Used to hit assertion in debug builds.
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON INTO @var
 SELECT 1 + 1 AS x FROM t GROUP BY x WITH ROLLUP HAVING x = 1;
 --echo # Used to show the GROUP BY clause as "group by ``".
@@ -181,6 +204,7 @@ SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
 --replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 
+--replace_regex $elide_json_costs
 --eval EXPLAIN FORMAT=JSON $query
 
 let $query =
@@ -190,6 +214,7 @@ SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
 --replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 
+--replace_regex $elide_trace_costs_and_rows
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1;
@@ -209,6 +234,7 @@ OVER (PARTITION BY b) FROM t1 x1;
 --replace_regex $elide_costs_and_rows
 --eval EXPLAIN FORMAT=TREE $query
 
+--replace_regex $elide_trace_costs_and_rows
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1;
@@ -223,7 +249,9 @@ INSERT INTO t VALUES (1), (2), (3);
 
 ANALYZE TABLE t;
 
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON INSERT INTO t VALUES (4), (5), (6);
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
 
 DROP TABLE t;

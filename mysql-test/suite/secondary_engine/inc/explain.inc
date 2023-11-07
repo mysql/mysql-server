@@ -2,6 +2,8 @@
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log
 
+--source include/elide_costs.inc
+
 --echo #
 --echo # Bug#28556942: ADD USING SECONDARY ENGINE TO EXPLAIN
 --echo #
@@ -11,6 +13,7 @@ ANALYZE TABLE t1;
 # Traditional format is not supported with hypergraph.
 --error 0, ER_HYPERGRAPH_NOT_SUPPORTED_YET
 EXPLAIN SELECT * FROM t1;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM t1;
 ALTER TABLE t1 SECONDARY_LOAD;
 --echo # After table is loaded, the secondary engine should be used.
@@ -18,6 +21,7 @@ ANALYZE TABLE t1;
 # As an exception, the traditional format is allowed with hypergraph
 # when using a secondary engine. It does not show the full plan.
 EXPLAIN SELECT * FROM t1;
+--replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM t1, t1 t2 WHERE t1.a = t2.a;
 DROP TABLE t1;
 

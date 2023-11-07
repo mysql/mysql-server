@@ -22,15 +22,16 @@ ANALYZE TABLE t1;
 # We should check if the probe (outer) input is empty first if it is an innerjoin \ or semijoin
 # where reading the first row from the probe is cheaper than from the build (inner) input.
 # If the probe is empty, we can skip reading the build input.
+# Note: Plan change under new cost model, but still shows (never) executed from the inner input.
 
 # Inner join.
- --replace_regex $elide_time
+ --replace_regex $elide_costs_and_time
  EXPLAIN ANALYZE SELECT 1 FROM t1 JOIN
   (SELECT SUM(x1.b) s FROM t1 x1, t1 x2 WHERE x1.b<x2.b GROUP BY x1.c) d1
   ON c=d1.s AND c*2<0;
 
 # Semijoin.
---replace_regex $elide_time
+--replace_regex $elide_costs_and_time
  EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
    (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
 
@@ -41,7 +42,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE small_tab(x INT);
-INSERT INTO small_tab VALUES (1), (2), (3), (4);
+INSERT INTO small_tab VALUES (1), (2), (3), (4), (5), (6);
 
 CREATE TABLE large_tab(x INT);
 INSERT INTO large_tab SELECT x FROM small_tab;

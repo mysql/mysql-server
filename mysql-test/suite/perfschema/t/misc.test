@@ -317,6 +317,7 @@ select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
   from performance_schema.table_lock_waits_summary_by_table
   where OBJECT_NAME = 't1';
 
+--skip_if_hypergraph  # Depends on plan choice.
 select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME = 't1';
@@ -330,6 +331,7 @@ select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
   where OBJECT_NAME = 't1';
 
 # Index stats should still be here
+--skip_if_hypergraph  # Depends on plan choice.
 select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME = 't1';
@@ -343,6 +345,7 @@ select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
   where OBJECT_NAME = 't1';
 
 # Index stats not printed
+--skip_if_hypergraph  # Depends on plan choice.
 select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME = 't1';
@@ -356,6 +359,7 @@ select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
   where OBJECT_NAME = 't1';
 
 # Index stats available again
+--skip_if_hypergraph  # Depends on plan choice.
 select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_NAME = 't1';

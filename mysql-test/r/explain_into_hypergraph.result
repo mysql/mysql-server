@@ -50,8 +50,8 @@ SELECT @v1, JSON_VALID(@v1);
             "i2"
           ],
           "estimated_rows": 3.0,
-          "estimated_total_cost": 0.25,
-          "estimated_first_row_cost": 0.08333333333333333
+          "estimated_total_cost": "elided",
+          "estimated_first_row_cost": "elided"
         }
       ],
       "condition": "(t1.i2 = 2)",
@@ -61,8 +61,8 @@ SELECT @v1, JSON_VALID(@v1);
       "filter_columns": [
         "test.t1.i2"
       ],
-      "estimated_total_cost": 0.55,
-      "estimated_first_row_cost": 0.55
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     },
     {
       "inputs": [
@@ -76,8 +76,8 @@ SELECT @v1, JSON_VALID(@v1);
             "i4"
           ],
           "estimated_rows": 3.0,
-          "estimated_total_cost": 0.25,
-          "estimated_first_row_cost": 0.08333333333333333
+          "estimated_total_cost": "elided",
+          "estimated_first_row_cost": "elided"
         }
       ],
       "condition": "(t1.i1 = t2.i3)",
@@ -88,8 +88,8 @@ SELECT @v1, JSON_VALID(@v1);
         "test.t1.i1",
         "test.t2.i3"
       ],
-      "estimated_total_cost": 0.55,
-      "estimated_first_row_cost": 0.55
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     }
   ],
   "join_type": "inner join",
@@ -98,8 +98,8 @@ SELECT @v1, JSON_VALID(@v1);
   "access_type": "join",
   "estimated_rows": 0.30000000447034836,
   "join_algorithm": "nested_loop",
-  "estimated_total_cost": 1.1,
-  "estimated_first_row_cost": 1.1
+  "estimated_total_cost": "elided",
+  "estimated_first_row_cost": "elided"
 }	1
 
 # User variable is overwritten on successful execution.
@@ -188,8 +188,8 @@ SELECT @v1, JSON_VALID(@v1);
           "estimated_rows": 3.0,
           "actual_last_row_ms": "elided",
           "actual_first_row_ms": "elided",
-          "estimated_total_cost": 0.25,
-          "estimated_first_row_cost": 0.08333333333333333
+          "estimated_total_cost": "elided",
+          "estimated_first_row_cost": "elided"
         }
       ],
       "condition": "(t1.i2 = 2)",
@@ -203,8 +203,8 @@ SELECT @v1, JSON_VALID(@v1);
       ],
       "actual_last_row_ms": "elided",
       "actual_first_row_ms": "elided",
-      "estimated_total_cost": 0.55,
-      "estimated_first_row_cost": 0.55
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     },
     {
       "inputs": [
@@ -222,8 +222,8 @@ SELECT @v1, JSON_VALID(@v1);
           "estimated_rows": 3.0,
           "actual_last_row_ms": "elided",
           "actual_first_row_ms": "elided",
-          "estimated_total_cost": 0.25,
-          "estimated_first_row_cost": 0.08333333333333333
+          "estimated_total_cost": "elided",
+          "estimated_first_row_cost": "elided"
         }
       ],
       "condition": "(t1.i1 = t2.i3)",
@@ -238,8 +238,8 @@ SELECT @v1, JSON_VALID(@v1);
       ],
       "actual_last_row_ms": "elided",
       "actual_first_row_ms": "elided",
-      "estimated_total_cost": 0.55,
-      "estimated_first_row_cost": 0.55
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     }
   ],
   "join_type": "inner join",
@@ -252,8 +252,8 @@ SELECT @v1, JSON_VALID(@v1);
   "join_algorithm": "nested_loop",
   "actual_last_row_ms": "elided",
   "actual_first_row_ms": "elided",
-  "estimated_total_cost": 1.1,
-  "estimated_first_row_cost": 1.1
+  "estimated_total_cost": "elided",
+  "estimated_first_row_cost": "elided"
 }	1
 
 # User variable is overwritten on successful execution.

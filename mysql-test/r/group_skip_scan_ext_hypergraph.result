@@ -3658,9 +3658,8 @@ EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 O
 (c = 3 OR c = 1 OR c = 2 OR c = 4)
 GROUP BY a;
 EXPLAIN
--> Group aggregate: max(t.d), min(t.d)  (rows=0.178)
-    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.178)
-        -> Covering index range scan on t using k1 over (11 < a)  (rows=13)
+-> Filter: ((t.a > 11) and ((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.178)
+    -> Covering index skip scan for grouping on t using k1 over (11 < a)  (rows=7)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
@@ -3672,9 +3671,9 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
-Handler_read_last	0
-Handler_read_next	4
+Handler_read_key	13
+Handler_read_last	1
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0

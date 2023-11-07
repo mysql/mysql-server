@@ -22,7 +22,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 d
@@ -31,8 +31,8 @@ d
 SET debug = '-d,handlerton_supports_distance_scan';
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Sort: d  (cost=6.98..6.98 rows=14)
-    -> Table scan on cafe  (cost=0.0179..0.25 rows=14)
+-> Sort: d  (rows=14)
+    -> Table scan on cafe  (rows=14)
 
 SET debug = '+d,handlerton_supports_distance_scan';
 SELECT ST_Distance(location, ST_GEOMFROMTEXT('Point(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
@@ -76,21 +76,21 @@ Table	Op	Msg_type	Msg_text
 test.cafe2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, location2) as d FROM cafe2 ORDER BY d ASC LIMIT 5;
 EXPLAIN
--> Sort: d, limit input to 5 row(s) per chunk  (cost=2.81..2.81 rows=5)
-    -> Table scan on cafe2  (cost=0.0179..0.25 rows=14)
+-> Sort: d, limit input to 5 row(s) per chunk  (rows=5)
+    -> Table scan on cafe2  (rows=14)
 
 EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, POINT(0,0)) as d1,
 ST_Distance(location2, POINT(0,0)) as d2 FROM cafe2 ORDER BY d1, d2 ASC;
 EXPLAIN
--> Sort: d1, d2  (cost=6.98..6.98 rows=14)
-    -> Table scan on cafe2  (cost=0.0179..0.25 rows=14)
+-> Sort: d1, d2  (rows=14)
+    -> Table scan on cafe2  (rows=14)
 
 SET optimizer_trace="enabled=on";
 EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM cafe JOIN cafe2 ON cafe2.id=cafe.id ORDER BY d;
 EXPLAIN
--> Nested loop inner join  (cost=0.518..7.25 rows=14)
-    -> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
-    -> Single-row covering index lookup on cafe2 using PRIMARY (id=cafe.id)  (cost=0.25..0.25 rows=1)
+-> Nested loop inner join  (rows=14)
+    -> Index distance scan on cafe using location  (rows=14)
+    -> Single-row covering index lookup on cafe2 using PRIMARY (id=cafe.id)  (rows=1)
 
 DROP TABLE cafe;
 DROP TABLE cafe2;
@@ -118,7 +118,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -145,7 +145,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('LINESTRING(0 0,40 15)')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -172,7 +172,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POLYGON((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -199,7 +199,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOINT(0 10,50 27,40 12,0 10)')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -226,7 +226,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTILINESTRING((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -253,7 +253,7 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,50 27,40 12,0 10)))')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 CREATE TABLE cafe(
@@ -280,11 +280,11 @@ Table	Op	Msg_type	Msg_text
 test.cafe	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(40 10))')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(40 10)')) as d FROM cafe ORDER BY d ASC;
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (rows=14)
 
 DROP TABLE cafe;
 SELECT HOST FROM performance_schema.setup_actors WHERE HOST = '%' AND USER = '%';

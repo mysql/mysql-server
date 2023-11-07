@@ -1,0 +1,232 @@
+--source include/have_debug.inc
+--source include/have_hypergraph.inc
+--source include/have_innodb_16k.inc  # Some costs depend on index height which again depends on page size.
+--disable_warnings
+
+# This file tests the cost model of individual access paths under the
+# hypergraph optimizer. We do not test for the exact value of cost
+# constants since they are subject to adjustment. Instead we test
+# (manually, by inspecting EXPLAIN output) that 1) The computed costs appear
+# reasonable, given our cost unit (scanning one row during a table scan), and 2)
+# That the cost models behave as intended when we vary the input.
+
+# Tables with dummy data.
+CREATE TABLE ten (x INT);
+INSERT INTO ten VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE thousand (x INT);
+INSERT INTO thousand SELECT 100*hundreds.x + 10*tens.x + ones.x FROM ten AS hundreds, ten AS tens, ten AS ones;
+
+--echo #
+--echo # Table scan
+--echo #
+
+# The cost of a table scan depends on the number of rows in the table,
+# the number of fields in the read set, and the width of the table.
+
+CREATE TABLE t1 (c1 INT);
+ANALYZE TABLE t1;
+
+--echo # The cost of scanning an empty table corresponds to the cost of scanning a table with 1 row.
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+
+--echo # The cost of a table scan is proportional to the number of rows in the table.
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+
+--echo # Doubling the rows from 2 to 4 should double the cost.
+INSERT INTO t1 VALUES (1), (1);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+
+--echo # Create a wide table with 4 rows.
+CREATE TABLE t2 (c1 INT, c2 INT, c3 INT, c4 INT, c5 INT, c6 INT, c7 INT, c8 INT, c9 INT, c10 INT);
+INSERT INTO t2 VALUES (1, 1, 1, 1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+ANALYZE TABLE t2;
+
+--echo # Cost should increase with the number of columns selected.
+EXPLAIN FORMAT=TREE SELECT c1 FROM t2;
+EXPLAIN FORMAT=TREE SELECT c1,c2 FROM t2;
+EXPLAIN FORMAT=TREE SELECT c1,c2,c3 FROM t2;
+
+--echo # Even when selecting the same number of columns from t1 and t2
+--echo # the cost of a table scan from t2 should be more expensive since the table is wider.
+EXPLAIN FORMAT=TREE SELECT c1 FROM t1;
+EXPLAIN FORMAT=TREE SELECT c1 FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Index scan
+--echo #
+
+# The cost of an index scan depends on the type of scan (primary, secondary covering, secondary non-covering),
+# the height of the index, the number of fields to read, and the width of the index.
+
+CREATE TABLE t1 (p INT PRIMARY KEY, s0 INT, s1 INT, s2 INT, c INT, KEY(s0), KEY(s1,s2));
+INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
+ANALYZE TABLE t1;
+
+--echo # Table scans should be preferred over index scans if we do not need order.
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+
+--echo # Scanning along the primary index should be slightly more expensive than a table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY p;
+
+--echo # Index scans on non-covering indexes are much more expensive than scans on covering or primary indexes.
+--echo # We have to force scanning along the secondary index as otherwise sorting would be chosen.
+SET DEBUG='+d,subplan_tokens,force_subplan_0xdc7daf6ba4947458';
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY s0;
+SET DEBUG='-d,subplan_tokens,force_subplan_0xdc7daf6ba4947458';
+
+--echo # A covering scan on the secondary index should be cheap.
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 ORDER BY s0;
+
+--echo # The cost of an index scan should increase with the width of the index.
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 ORDER BY s1;
+
+--echo # The cost of an index scan should increase with the number of fields in the read set.
+EXPLAIN FORMAT=TREE SELECT s1, s2 FROM t1 ORDER BY s1;
+
+--echo #
+--echo # Index range scan
+--echo #
+
+# Index range scans use the same underlying cost model as index scans.
+
+--echo # The cost of an index range scan depends on the number of fields selected.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 10;
+EXPLAIN FORMAT=TREE SELECT p, c FROM t1 WHERE p < 10;
+
+--echo # When returning only a few rows, the cost of the index lookup itself dominates the cost.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 1;
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 2;
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 3;
+
+--echo # When returning many rows, doubling the number approximately doubles the cost.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 10;
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 20;
+
+--echo # The cost of a covering index range scan is typically cheaper than a full primary index range scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE p < 10;
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 WHERE s0 < 10;
+
+--echo # The cost of a covering index range scan depends on index width.
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 WHERE s0 < 10;
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 WHERE s1 < 10;
+
+--echo # The cost of a covering index range scan depends on the number of fields selected.
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 WHERE s1 < 10;
+EXPLAIN FORMAT=TREE SELECT s1, s2 FROM t1 WHERE s1 < 10;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Sorting
+--echo #
+
+# The cost of sorting depends on the number of rows in the table
+# and the estimated number of comparisons performed during sorting.
+
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 INT, c5 INT);
+INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
+ANALYZE TABLE t1;
+
+--echo # The cost of comparisons is proportional to k*log2(k) where k is the LIMIT.
+--echo # Cost should grow faster than linearly when increasing the limit.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 2;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 200;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 400;
+
+--echo #
+--echo # Filtering
+--echo #
+
+# Create histograms to get more accurate row estimates for filtering.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c2, c3, c4, c5;
+
+--echo # Filtering should be relatively cheap compared to a table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+
+--echo # When we AND multiple filters together, we typically have to evaluate only few of them, unless they are highly selective.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100 AND c4 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100 AND c4 < 100 AND c5 < 100;
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900 AND c4 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900 AND c4 < 900 AND c5 < 900;
+
+--echo # When we OR multiple filters together, we typically have to evaluate all of them, unless they are highly selective.
+--echo # This should translate to a near-linear increase in filtering cost as we apply more filters.
+--echo # TODO(tlchrist): Apparently this mechanism is broken.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100 OR c4 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100 OR c4 < 100 OR c5 < 100;
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900 OR c4 < 900;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900 OR c4 < 900 OR c5 < 900;
+
+--echo # OR-ing together two conditions with low selectivity (0.1) should be more expensive than AND-ing them.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Hash join
+--echo #
+
+# The cost of a hash join depends on the number of rows to build,
+# the number of probes into the hash table, and the number of result rows.
+
+--echo # Create tables with columns that have 1, 5, and 10 records per key.
+CREATE TABLE t1(c1 INT, c2 INT, c5 INT, c10 INT);
+CREATE TABLE t2(c1 INT, c2 INT, c5 INT, c10 INT);
+CREATE TABLE t3(c1 INT, c2 INT, c5 INT, c10 INT);
+INSERT INTO t1 SELECT x, x DIV 2, x DIV 5, x DIV 10 FROM thousand;
+INSERT INTO t2 SELECT c1, c2, c5, c10 FROM t1 WHERE c1 < 200;
+INSERT INTO t3 SELECT c1, c2, c5, c10 FROM t1 WHERE c1 < 100;
+ANALYZE TABLE t1, t2, t3;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+ANALYZE TABLE t3 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+
+--echo # Because we use a non-standard way of estimating selectivity it is difficult
+--echo # to manipulate these tests to vary just one cost dimension.
+
+--echo # Increasing the number of probes and resulting rows increases cost.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 AS a JOIN t3 AS b ON a.c1 = b.c1;
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS a JOIN t3 AS b ON a.c1 = b.c1;
+
+--echo # Hashing 100 more rows is significantly more expensive than probing 100 more rows.
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS a JOIN t2 AS b ON a.c1 = b.c1;
+
+--echo # Increasing the number of result rows increases cost.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c5;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c10;
+
+DROP TABLE t1, t2, t3;
+
+DROP TABLE ten;
+DROP TABLE thousand;
+
+--enable_warnings
+--source include/disable_hypergraph.inc

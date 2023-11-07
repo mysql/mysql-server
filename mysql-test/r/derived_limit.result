@@ -8,10 +8,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT * FROM t1 LIMIT 5) SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=2.26..4.31 rows=5)
-    -> Materialize CTE cte  (cost=1.75..1.75 rows=5)
-        -> Limit: 5 row(s)  (cost=1.25 rows=5)
-            -> Table scan on t1  (cost=1.25 rows=10)
+-> Table scan on cte  (rows=5)
+    -> Materialize CTE cte  (rows=5)
+        -> Limit: 5 row(s)  (rows=5)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT * FROM t1 LIMIT 5) SELECT * FROM cte;
 a
@@ -23,12 +23,12 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte with deduplication  (rows=20)
         -> Limit table size: 5 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 5 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
@@ -41,12 +41,12 @@ a+20
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte  (rows=20)
         -> Limit table size: 5 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 5 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
@@ -59,12 +59,12 @@ a+20
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte with deduplication  (rows=20)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
@@ -87,12 +87,12 @@ a+20
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a+20 FROM t1 UNION DISTINCT SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte with deduplication  (rows=20)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a+20 FROM t1 UNION DISTINCT SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
@@ -115,12 +115,12 @@ a+20
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte  (rows=20)
         -> Limit table size: 15 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 15 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
@@ -143,12 +143,12 @@ a+20
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte  (rows=20)
         -> Limit table size: 15 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 15 row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
@@ -171,12 +171,12 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=4.64..7.25 rows=20)
-    -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Table scan on cte  (rows=20)
+    -> Materialize union CTE cte with deduplication  (rows=20)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
         -> Limit table size: 15 unique row(s)
-            -> Table scan on t1  (cost=1.25 rows=10)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
@@ -195,10 +195,10 @@ a
 12
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT * FROM t1 LIMIT 5 OFFSET 1) SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=2.26..4.31 rows=5)
-    -> Materialize CTE cte  (cost=1.75..1.75 rows=5)
-        -> Limit/Offset: 5/1 row(s)  (cost=1.25 rows=5)
-            -> Table scan on t1  (cost=1.25 rows=10)
+-> Table scan on cte  (rows=5)
+    -> Materialize CTE cte  (rows=5)
+        -> Limit/Offset: 5/1 row(s)  (rows=5)
+            -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT * FROM t1 LIMIT 5 OFFSET 1) SELECT * FROM cte;
 a
@@ -210,13 +210,13 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
 EXPLAIN
--> Limit/Offset: 15/1 row(s)  (cost=4.78..6.7 rows=15)
-    -> Table scan on cte  (cost=4.64..7.25 rows=20)
-        -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Limit/Offset: 15/1 row(s)  (rows=15)
+    -> Table scan on cte  (rows=20)
+        -> Materialize union CTE cte  (rows=20)
             -> Limit table size: 16 row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
             -> Limit table size: 16 row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
@@ -239,13 +239,13 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
 EXPLAIN
--> Limit/Offset: 15/1 row(s)  (cost=4.78..6.7 rows=15)
-    -> Table scan on cte  (cost=4.64..7.25 rows=20)
-        -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Limit/Offset: 15/1 row(s)  (rows=15)
+    -> Table scan on cte  (rows=20)
+        -> Materialize union CTE cte with deduplication  (rows=20)
             -> Limit table size: 16 unique row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
             -> Limit table size: 16 unique row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
@@ -264,14 +264,14 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 4 OFFSET 7;
 EXPLAIN
--> Limit/Offset: 4/7 row(s)  (cost=5.74..6.15 rows=4)
-    -> Limit/Offset: 15/1 row(s)  (cost=4.78..6.7 rows=15)
-        -> Table scan on cte  (cost=4.64..7.25 rows=20)
-            -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Limit/Offset: 4/7 row(s)  (rows=4)
+    -> Limit/Offset: 15/1 row(s)  (rows=15)
+        -> Table scan on cte  (rows=20)
+            -> Materialize union CTE cte  (rows=20)
                 -> Limit table size: 16 row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
                 -> Limit table size: 16 row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 4 OFFSET 7;
@@ -283,14 +283,14 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 2 OFFSET 7;
 EXPLAIN
--> Limit/Offset: 2/7 row(s)  (cost=5.74..5.88 rows=2)
-    -> Limit/Offset: 15/1 row(s)  (cost=4.78..6.7 rows=15)
-        -> Table scan on cte  (cost=4.64..7.25 rows=20)
-            -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Limit/Offset: 2/7 row(s)  (rows=2)
+    -> Limit/Offset: 15/1 row(s)  (rows=15)
+        -> Table scan on cte  (rows=20)
+            -> Materialize union CTE cte with deduplication  (rows=20)
                 -> Limit table size: 16 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
                 -> Limit table size: 16 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 2 OFFSET 7;
@@ -300,13 +300,13 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 4;
 EXPLAIN
--> Limit: 4 row(s)  (cost=4.64..5.05 rows=4)
-    -> Table scan on cte  (cost=4.64..7.25 rows=20)
-        -> Materialize union CTE cte  (cost=4.5..4.5 rows=20)
+-> Limit: 4 row(s)  (rows=4)
+    -> Table scan on cte  (rows=20)
+        -> Materialize union CTE cte  (rows=20)
             -> Limit table size: 15 row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
             -> Limit table size: 15 row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 4;
@@ -318,13 +318,13 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 2;
 EXPLAIN
--> Limit: 2 row(s)  (cost=4.64..4.78 rows=2)
-    -> Table scan on cte  (cost=4.64..7.25 rows=20)
-        -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Limit: 2 row(s)  (rows=2)
+    -> Table scan on cte  (rows=20)
+        -> Materialize union CTE cte with deduplication  (rows=20)
             -> Limit table size: 15 unique row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
             -> Limit table size: 15 unique row(s)
-                -> Table scan on t1  (cost=1.25 rows=10)
+                -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 2;
@@ -370,18 +370,18 @@ SELECT /*+ no_bnl() */ *
 FROM cte cte1,
 (SELECT 100 UNION SELECT 101) dt;
 EXPLAIN
--> Nested loop inner join  (cost=10.2 rows=20)
-    -> Table scan on dt  (cost=1.46..2.73 rows=2)
-        -> Union materialize with deduplication  (cost=0.2..0.2 rows=2)
-            -> Rows fetched before execution  (cost=0..0 rows=1)
-            -> Rows fetched before execution  (cost=0..0 rows=1)
-    -> Limit/Offset: 10/8 row(s)  (cost=5.74..6.97 rows=10)
-        -> Table scan on cte1  (cost=4.64..7.25 rows=20)
-            -> Materialize union CTE cte with deduplication  (cost=4.5..4.5 rows=20)
+-> Nested loop inner join  (rows=20)
+    -> Table scan on dt  (rows=2)
+        -> Union materialize with deduplication  (rows=2)
+            -> Rows fetched before execution  (rows=1)
+            -> Rows fetched before execution  (rows=1)
+    -> Limit/Offset: 10/8 row(s)  (rows=10)
+        -> Table scan on cte1  (rows=20)
+            -> Materialize union CTE cte with deduplication  (rows=20)
                 -> Limit table size: 18 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
                 -> Limit table size: 18 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1  (rows=10)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ *

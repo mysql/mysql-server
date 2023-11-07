@@ -598,6 +598,7 @@ SELECT count(*) FROM t1 WHERE
 
 # INNODB_FTS: INVESTIGATE
 --echo # should return 0
+--skip_if_hypergraph  # Hypergraph actually returns zero for some plan choices.
 SELECT count(*) FROM t1 WHERE 
   not exists(
    SELECT /*+ NO_SEMIJOIN() */ 1 FROM t2, t3

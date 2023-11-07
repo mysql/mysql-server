@@ -133,47 +133,47 @@ Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	Table is already up to date
 explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.25 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.25 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1, max(a2) from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.25 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1, min(a2), max(a2) from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.5 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 EXPLAIN
--> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=21.7 rows=33)
+-> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.5 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select min(a2) from t1 group by a1;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.25 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a2, min(c), max(c) from t1 group by a1,a2,b;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 select a1, min(a2) from t1 group by a1;
 a1	min(a2)
@@ -301,118 +301,118 @@ b	i421	l421
 b	m422	p422
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (cost=6.75 rows=10)
+-> Filter: (t1.a1 < 'd')  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (cost=9.35 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (cost=9.35 rows=14)
+-> Filter: (t1.a1 >= 'b')  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=14)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=14)
 
 explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=14)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a2 < 'b'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Filter: ((t1.a1 >= 'c') or (t1.a2 < 'b'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (cost=6.5 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (cost=6.5 rows=10)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (cost=6.75 rows=10)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=10)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (cost=6.5 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=6.5 rows=10)
+-> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=6.75 rows=10)
+-> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a'))  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=10)
 
 explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (cost=9.35 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (cost=9.35 rows=14)
+-> Filter: (t1.a1 >= 'b')  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=14)
 
 explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 in ('a','b','d'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (cost=9.1 rows=14)
+-> Filter: (t1.a1 in ('a','b','d'))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=14)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (cost=14.3 rows=22)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (cost=14.3 rows=22)
+-> Filter: (t2.a1 < 'd')  (rows=22)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=22)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (cost=14.6 rows=22)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (cost=14.6 rows=22)
+-> Filter: (t2.a1 < 'd')  (rows=22)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=22)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (cost=16.5 rows=25)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (cost=16.5 rows=25)
+-> Filter: (t2.a1 >= 'b')  (rows=25)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=25)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (cost=17.6 rows=27)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (cost=17.6 rows=27)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=27)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=27)
 
 explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (cost=17.6 rows=27)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (cost=17.6 rows=27)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=27)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=27)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a2 < 'b'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=21.7 rows=33)
+-> Filter: ((t2.a1 >= 'c') or (t2.a2 < 'b'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (cost=9.1 rows=14)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=14)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=14)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (cost=9.35 rows=14)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (cost=9.35 rows=14)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=14)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=14)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (cost=8.45 rows=13)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=8.45 rows=13)
+-> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (rows=13)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=13)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (cost=8.7 rows=13)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=8.7 rows=13)
+-> Filter: (((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')) and (t2.a2 > 'a'))  (rows=13)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=13)
 
 explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (cost=16.5 rows=25)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (cost=16.5 rows=25)
+-> Filter: (t2.a1 >= 'b')  (rows=25)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=25)
 
 explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 in ('a','b','d'))  (cost=14.3 rows=22)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (cost=14.3 rows=22)
+-> Filter: (t2.a1 in ('a','b','d'))  (rows=22)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=22)
 
 select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
@@ -729,63 +729,63 @@ d	l421
 d	p422
 explain format=tree select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=4.5 rows=5)
+-> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (rows=5)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=4.5 rows=5)
+-> Filter: ((t1.b = 'b') and (t1.a2 = 'a'))  (rows=5)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=5)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t1.b = 'b')  (cost=8.1 rows=9)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=8.1 rows=9)
+-> Filter: (t1.b = 'b')  (rows=9)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t1.b = 'b')  (cost=8.1 rows=9)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=8.1 rows=9)
+-> Filter: (t1.b = 'b')  (rows=9)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
 explain format=tree select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t1.b = 'b')  (cost=8.1 rows=9)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=8.1 rows=9)
+-> Filter: (t1.b = 'b')  (rows=9)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=4.5 rows=5)
+-> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (rows=5)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
 explain format=tree select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=4.5 rows=5)
+-> Filter: ((t2.b = 'b') and (t2.a2 = 'a'))  (rows=5)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t2.b = 'b')  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b = 'b')  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t2.b = 'b')  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b = 'b')  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
 EXPLAIN
--> Filter: (t2.b = 'b')  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b = 'b')  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (cost=2.61 rows=4)
-    -> Covering index skip scan for grouping on t3 using idx_t3_1  (cost=2.61 rows=4)
+-> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (rows=4)
+    -> Covering index skip scan for grouping on t3 using idx_t3_1  (rows=4)
 
 explain format=tree select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 EXPLAIN
--> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (cost=2.61 rows=4)
-    -> Covering index skip scan for grouping on t3 using idx_t3_1  (cost=2.61 rows=4)
+-> Filter: ((t3.b = 'b') and (t3.a2 = 'a'))  (rows=4)
+    -> Covering index skip scan for grouping on t3 using idx_t3_1  (rows=4)
 
 select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
 a1	a2	b	max(c)	min(c)
@@ -888,33 +888,33 @@ b	h212	e212
 c	h312	e312
 explain format=tree select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 EXPLAIN
--> Filter: ((t2.a2 = 'a') and (t2.b is null))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=4.5 rows=5)
+-> Filter: ((t2.a2 = 'a') and (t2.b is null))  (rows=5)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
 explain format=tree select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 EXPLAIN
--> Filter: ((t2.a2 = 'a') and (t2.b is null))  (cost=4.5 rows=5)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=4.5 rows=5)
+-> Filter: ((t2.a2 = 'a') and (t2.b is null))  (rows=5)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=5)
 
 explain format=tree select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
--> Filter: (t2.b is null)  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b is null)  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
--> Filter: (t2.b is null)  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b is null)  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
--> Filter: (t2.b is null)  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b is null)  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 EXPLAIN
--> Filter: (t2.b is null)  (cost=9 rows=10)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=9 rows=10)
+-> Filter: (t2.b is null)  (rows=10)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=10)
 
 select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 a1	a2	b	min(c)
@@ -942,158 +942,158 @@ a	a	NULL	a777	a999
 c	a	NULL	c777	c999
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c > 'b1')  (cost=11.1 rows=5.67)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (cost=11.1 rows=17)
+-> Filter: (t1.c > 'b1')  (rows=5.67)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c > 'b1')  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (cost=11.3 rows=17)
+-> Filter: (t1.c > 'b1')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b1' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c > 'f123')  (cost=11.1 rows=5.67)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (cost=11.1 rows=17)
+-> Filter: (t1.c > 'f123')  (rows=5.67)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c > 'f123')  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (cost=11.3 rows=17)
+-> Filter: (t1.c > 'f123')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('f123' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c < 'a0')  (cost=11.1 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (cost=11.1 rows=17)
+-> Filter: (t1.c < 'a0')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c < 'a0')  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (cost=11.3 rows=17)
+-> Filter: (t1.c < 'a0')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0')  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c < 'k321')  (cost=11.1 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (cost=11.1 rows=17)
+-> Filter: (t1.c < 'k321')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.c < 'k321')  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (cost=11.3 rows=17)
+-> Filter: (t1.c < 'k321')  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'k321')  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (cost=11.1 rows=17)
+-> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (cost=11.3 rows=17)
+-> Filter: ((t1.c < 'a0') or (t1.c > 'b1'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'a0') OR ('b1' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (cost=11.1 rows=9.44)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (rows=9.44)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (cost=11.3 rows=9.44)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Filter: ((t1.c > 'b1') or (t1.c <= 'g1'))  (rows=9.44)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c > 'b111') and (t1.c <= 'g112'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'g112')  (cost=11.3 rows=17)
+-> Filter: ((t1.c > 'b111') and (t1.c <= 'g112'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'g112')  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c < 'c5') or (t1.c = 'g412') or (t1.c = 'k421'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'c5') OR (c = 'g412') OR (c = 'k421')  (cost=11.3 rows=17)
+-> Filter: ((t1.c < 'c5') or (t1.c = 'g412') or (t1.c = 'k421'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'c5') OR (c = 'g412') OR (c = 'k421')  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.c > 'b111') and (t1.c <= 'g112')) or ((t1.c > 'd000') and (t1.c <= 'i110')))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'i110')  (cost=11.3 rows=17)
+-> Filter: (((t1.c > 'b111') and (t1.c <= 'g112')) or ((t1.c > 'd000') and (t1.c <= 'i110')))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c <= 'i110')  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c between 'b111' and 'g112') or (t1.c between 'd000' and 'i110'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' <= c <= 'i110')  (cost=11.3 rows=17)
+-> Filter: ((t1.c between 'b111' and 'g112') or (t1.c between 'd000' and 'i110'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' <= c <= 'i110')  (rows=17)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c > 'b1')  (cost=21.4 rows=11)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (cost=21.4 rows=33)
+-> Filter: (t2.c > 'b1')  (rows=11)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c > 'b1')  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (cost=21.7 rows=33)
+-> Filter: (t2.c > 'b1')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b1' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c > 'f123')  (cost=21.4 rows=11)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (cost=21.4 rows=33)
+-> Filter: (t2.c > 'f123')  (rows=11)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c > 'f123')  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (cost=21.7 rows=33)
+-> Filter: (t2.c > 'f123')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('f123' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c < 'a0')  (cost=21.5 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (cost=21.5 rows=33)
+-> Filter: (t2.c < 'a0')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c < 'a0')  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (cost=21.7 rows=33)
+-> Filter: (t2.c < 'a0')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0')  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c < 'k321')  (cost=21.5 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (cost=21.5 rows=33)
+-> Filter: (t2.c < 'k321')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.c < 'k321')  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (cost=21.7 rows=33)
+-> Filter: (t2.c < 'k321')  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'k321')  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (cost=21.5 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (cost=21.5 rows=33)
+-> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (cost=21.7 rows=33)
+-> Filter: ((t2.c < 'a0') or (t2.c > 'b1'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'a0') OR ('b1' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (cost=21.5 rows=18.3)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (cost=21.5 rows=33)
+-> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (rows=18.3)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (cost=21.7 rows=33)
+-> Filter: ((t2.c > 'b1') or (t2.c <= 'g1'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c > 'b111') and (t2.c <= 'g112'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'g112')  (cost=21.7 rows=33)
+-> Filter: ((t2.c > 'b111') and (t2.c <= 'g112'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'g112')  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c < 'c5') or (t2.c = 'g412') or (t2.c = 'k421'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'c5') OR (c = 'g412') OR (c = 'k421')  (cost=21.7 rows=33)
+-> Filter: ((t2.c < 'c5') or (t2.c = 'g412') or (t2.c = 'k421'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'c5') OR (c = 'g412') OR (c = 'k421')  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.c > 'b111') and (t2.c <= 'g112')) or ((t2.c > 'd000') and (t2.c <= 'i110')))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'i110')  (cost=21.7 rows=33)
+-> Filter: (((t2.c > 'b111') and (t2.c <= 'g112')) or ((t2.c > 'd000') and (t2.c <= 'i110')))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c <= 'i110')  (rows=33)
 
 select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
 a1	a2	b	max(c)
@@ -1516,13 +1516,13 @@ explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 EXPLAIN
--> Group aggregate: min(t1.c), max(t1.c)  (cost=4228 rows=16)
-    -> Nested loop inner join  (cost=2129 rows=20992)
-        -> Covering index scan on t1 using idx_t1_1  (cost=16.6 rows=128)
-        -> Single-row index lookup on <subquery2> using <auto_distinct_key> (c=t1.c)  (cost=37.6..37.6 rows=1)
-            -> Materialize with deduplication  (cost=37.6..37.6 rows=164)
-                -> Filter: (t2.c is not null)  (cost=21.2 rows=164)
-                    -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
+    -> Nested loop inner join  (rows=20992)
+        -> Covering index scan on t1 using idx_t1_1  (rows=128)
+        -> Single-row index lookup on <subquery2> using <auto_distinct_key> (c=t1.c)  (rows=1)
+            -> Materialize with deduplication  (rows=164)
+                -> Filter: (t2.c is not null)  (rows=164)
+                    -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
@@ -1532,77 +1532,77 @@ group by a1,a2,b;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Inner hash join (no condition)  (cost=1173 rows=128)
-            -> Covering index scan on t1 using idx_t1_1  (cost=16.6 rows=128)
+        -> Inner hash join (no condition)  (rows=128)
+            -> Covering index scan on t1 using idx_t1_1  (rows=128)
             -> Hash
-                -> Limit: 1 row(s)  (cost=1156 rows=1)
-                    -> Filter: (t2.c > 'b1')  (cost=1156 rows=54.7)
-                        -> Covering index scan on t2 using idx_t2_1  (cost=1156 rows=164)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Filter: (t2.c > 'b1')  (rows=54.7)
+                        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.3 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.c > 'b111'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (cost=11.3 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.c > 'b111'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'a') and (t1.a2 >= 'b') and (t1.c > 'b111'))  (cost=11.3 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (cost=11.3 rows=17)
+-> Filter: ((t1.b = 'a') and (t1.a2 >= 'b') and (t1.c > 'b111'))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b111' < c)  (rows=17)
 
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c < 'h112') or (t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122')))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c < 'h112') or (t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122')))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (rows=14)
 
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122') or (t1.c < 'h112') or (t1.c = 'c111')))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'a') and ((t1.a1 > 'a') or (t1.a1 < '9')) and (t1.a2 >= 'b') and (t1.a2 < 'z') and ((t1.c = 'j121') or ((t1.c > 'k121') and (t1.c < 'm122')) or (t1.c > 'o122') or (t1.c < 'h112') or (t1.c = 'c111')))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (c < 'h112') OR (c = 'j121') OR (2 more)  (rows=14)
 
 explain format=tree select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 explain format=tree select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'c') and (ord(t1.a1) > 97) and ((ord(t1.a2) + ord(t1.a1)) > 194))  (cost=11.1 rows=17)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: ((t1.b = 'c') and (ord(t1.a1) > 97) and ((ord(t1.a2) + ord(t1.a1)) > 194))  (rows=17)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1  (cost=21.7 rows=33)
+-> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.c > 'b111'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (cost=21.7 rows=33)
+-> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.c > 'b111'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'a') and (t2.a2 >= 'b') and (t2.c > 'b111'))  (cost=21.7 rows=33)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (cost=21.7 rows=33)
+-> Filter: ((t2.b = 'a') and (t2.a2 >= 'b') and (t2.c > 'b111'))  (rows=33)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b111' < c)  (rows=33)
 
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c < 'h112') or (t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122')))  (cost=16.2 rows=25)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c < 'h112') or (t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122')))  (rows=25)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (rows=25)
 
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122') or (t2.c < 'h112') or (t2.c = 'c111')))  (cost=16.2 rows=25)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'a') and ((t2.a1 > 'a') or (t2.a1 < '9')) and (t2.a2 >= 'b') and (t2.a2 < 'z') and ((t2.c = 'j121') or ((t2.c > 'k121') and (t2.c < 'm122')) or (t2.c > 'o122') or (t2.c < 'h112') or (t2.c = 'c111')))  (rows=25)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < c < 'h112') OR (c = 'j121') OR (2 more)  (rows=25)
 
 explain format=tree select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (cost=16.2 rows=25)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('a' < a1)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
 select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
@@ -1690,48 +1690,48 @@ select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') grou
 a1	a2	b	min(c)
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (cost=12.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=12.1 rows=17)
+-> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 explain format=tree select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (cost=21.5 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Filter: (((t2.a1 >= 'c') or (t2.a2 < 'b')) and (t2.b > 'a'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.5 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (cost=23.6 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=23.6 rows=33)
+-> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (cost=16.2 rows=25)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
 select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 a1	a2	b
@@ -1774,55 +1774,55 @@ select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1
 a1	a2	b
 explain format=tree select distinct a1,a2,b from t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
--> Group (no aggregates)  (cost=16.7 rows=1)
-    -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (cost=16.6 rows=1)
-        -> Covering index scan on t1 using idx_t1_1  (cost=16.6 rows=128)
+-> Group (no aggregates)  (rows=1)
+    -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=1)
+        -> Covering index scan on t1 using idx_t1_1  (rows=128)
 
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
--> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Group (no aggregates)  (cost=17 rows=1)
-    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=16.6 rows=4.27)
-        -> Covering index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group (no aggregates)  (rows=1)
+    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=4.27)
+        -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.5 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
--> Group (no aggregates)  (cost=21.3 rows=1)
-    -> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.2 rows=1)
-        -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group (no aggregates)  (rows=1)
+    -> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=1)
+        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
--> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (cost=16.2 rows=25)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Group (no aggregates)  (cost=21.7 rows=1)
-    -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.2 rows=5.47)
-        -> Covering index scan on t2 using idx_t2_2  (cost=21.2 rows=164)
+-> Group (no aggregates)  (rows=1)
+    -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=5.47)
+        -> Covering index scan on t2 using idx_t2_2  (rows=164)
 
 select distinct a1,a2,b from t1;
 a1	a2	b
@@ -1940,57 +1940,57 @@ d	d
 d	e
 explain format=tree select distinct a1,a2,b from t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=11.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (cost=12.1 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=12.1 rows=17)
+-> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Sort with duplicate removal: t1.b
-    -> Table scan on <temporary>  (cost=12.9..15.5 rows=17)
-        -> Temporary table with deduplication  (cost=12.8..12.8 rows=17)
-            -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=11.1 rows=17)
-                -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+    -> Table scan on <temporary>  (rows=17)
+        -> Temporary table with deduplication  (rows=17)
+            -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+                -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.5 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+-> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (cost=23.6 rows=33)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=23.6 rows=33)
+-> Filter: ((t2.c = 'i121') and (t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (cost=16.2 rows=25)
-    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (cost=16.2 rows=25)
+-> Filter: ((t2.b = 'c') and (t2.a1 > 'a') and (t2.a2 > 'a'))  (rows=25)
+    -> Covering index skip scan for deduplication on t2 using idx_t2_1 over ('a' < a1)  (rows=25)
 
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
 -> Sort with duplicate removal: t2.b
-    -> Table scan on <temporary>  (cost=24.8..27.7 rows=33)
-        -> Temporary table with deduplication  (cost=24.8..24.8 rows=33)
-            -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (cost=21.5 rows=33)
-                -> Covering index skip scan for deduplication on t2 using idx_t2_1  (cost=21.5 rows=33)
+    -> Table scan on <temporary>  (rows=33)
+        -> Temporary table with deduplication  (rows=33)
+            -> Filter: ((t2.b = 'a') and (t2.a2 >= 'b'))  (rows=33)
+                -> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=33)
 
 select distinct a1,a2,b from t1;
 a1	a2	b
@@ -2062,33 +2062,33 @@ b
 a
 explain format=tree select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (cost=12.8 rows=1)
-    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=11.1 rows=17)
-        -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
+-> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (rows=1)
+    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=17)
+        -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=17)
 
 explain format=tree select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 EXPLAIN
--> Aggregate: count(distinct t1.a1,t1.a2,t1.b,t1.c)  (cost=13 rows=1)
-    -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (cost=6.5 rows=65)
-        -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=6.5 rows=65)
+-> Aggregate: count(distinct t1.a1,t1.a2,t1.b,t1.c)  (rows=1)
+    -> Filter: ((t1.c = 'i121') and (t1.b = 'a') and (t1.a2 >= 'b'))  (rows=65)
+        -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=65)
 
 explain format=tree select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 EXPLAIN
--> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (cost=10.5 rows=1)
-    -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-        -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (rows=1)
+    -> Filter: ((t1.b = 'c') and (t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+        -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 explain format=tree select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
--> Aggregate: count(distinct t1.b)  (cost=17 rows=1)
-    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (cost=16.6 rows=4.27)
-        -> Covering index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Aggregate: count(distinct t1.b)  (rows=1)
+    -> Filter: ((t1.b = 'a') and (t1.a2 >= 'b'))  (rows=4.27)
+        -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 EXPLAIN
--> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (cost=10.5 rows=1)
-    -> Filter: ((t1.a1 > 'a') and (t1.a2 > 'a'))  (cost=9.1 rows=14)
-        -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (cost=9.1 rows=14)
+-> Aggregate: count(distinct t1.a1,t1.a2,t1.b)  (rows=1)
+    -> Filter: ((t1.a1 > 'a') and (t1.a2 > 'a'))  (rows=14)
+        -> Covering index skip scan for deduplication on t1 using idx_t1_1 over ('a' < a1)  (rows=14)
 
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 count(distinct a1,a2,b)
@@ -2107,27 +2107,27 @@ select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 104
 explain format=tree select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (cost=6.75 rows=10)
+-> Filter: (t1.a1 < 'd')  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
 explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (cost=6.5 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (cost=6.5 rows=10)
+-> Filter: (t1.a1 < 'd')  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
 explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (cost=6.75 rows=10)
+-> Filter: (t1.a1 < 'd')  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
 explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (cost=6.75 rows=10)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (cost=6.75 rows=10)
+-> Filter: (t1.a1 < 'd')  (rows=10)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=10)
 
 explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=6.1 rows=9)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (rows=9)
 
 select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	concat(min(c), max(c))
@@ -2197,96 +2197,96 @@ concat(ord(min(b)),ord(max(b)))	min(b)	max(b)
 9798	a	b
 explain format=tree select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 EXPLAIN
--> Group aggregate: min(t1.c), max(t1.c)  (cost=29.4 rows=16)
-    -> Index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
+    -> Index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select a1,a2,b,d from t1 group by a1,a2,b;
 EXPLAIN
--> Group (no aggregates)  (cost=29.4 rows=16)
-    -> Index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group (no aggregates)  (rows=16)
+    -> Index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 EXPLAIN
--> Group aggregate: min(t1.b), max(t1.b)  (cost=22.7 rows=8)
-    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (cost=20.1 rows=25.3)
-        -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=20.1 rows=76)
+-> Group aggregate: min(t1.b), max(t1.b)  (rows=8)
+    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (rows=25.3)
+        -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=76)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 EXPLAIN
--> Group aggregate: min(t1.c), max(t1.c)  (cost=18 rows=14.1)
-    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (cost=16.6 rows=14.1)
-        -> Index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=14.1)
+    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (rows=14.1)
+        -> Index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 EXPLAIN
--> Group (no aggregates)  (cost=18 rows=14.1)
-    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (cost=16.6 rows=14.1)
-        -> Index scan on t1 using idx_t1_1  (cost=16.6 rows=128)
+-> Group (no aggregates)  (rows=14.1)
+    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.d > 'xy2'))  (rows=14.1)
+        -> Index scan on t1 using idx_t1_1  (rows=128)
 
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
 EXPLAIN
--> Group aggregate: max(t2.c), min(t2.c)  (cost=26.7 rows=4.97)
-    -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b < 'b'))  (cost=21.2 rows=55.8)
-        -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group aggregate: max(t2.c), min(t2.c)  (rows=4.97)
+    -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b < 'b'))  (rows=55.8)
+        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 explain format=tree select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 EXPLAIN
--> Group (no aggregates)  (cost=22.7 rows=16)
-    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (cost=20.1 rows=25.3)
-        -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (cost=20.1 rows=76)
+-> Group (no aggregates)  (rows=16)
+    -> Filter: (((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')) and (t1.a2 > 'a') and (t1.c > 'a111'))  (rows=25.3)
+        -> Covering index range scan on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=76)
 
 explain format=tree select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 EXPLAIN
--> Group aggregate: min(t2.b)  (cost=21.3 rows=1.28)
-    -> Filter: ((t2.c = 'a111') and (t2.a2 = 'a'))  (cost=21.2 rows=1.64)
-        -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group aggregate: min(t2.b)  (rows=1.28)
+    -> Filter: ((t2.c = 'a111') and (t2.a2 = 'a'))  (rows=1.64)
+        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 a1	a2	min(b)	c
 a	a	a	a111
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
 EXPLAIN
--> Group aggregate: max(t2.c), min(t2.c)  (cost=22.9 rows=4.97)
-    -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b = 'a'))  (cost=21.2 rows=17.9)
-        -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group aggregate: max(t2.c), min(t2.c)  (rows=4.97)
+    -> Filter: (((t2.b = 'b') and (t2.a2 = 'a')) or (t2.b = 'a'))  (rows=17.9)
+        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2
 where (c > 'a000') and (c <= 'd999') and (c like '_8__') group by a1,a2,b;
 EXPLAIN
--> Group aggregate: min(t2.c), max(t2.c)  (cost=21.4 rows=1.42)
-    -> Filter: ((t2.c > 'a000') and (t2.c <= 'd999') and (t2.c like '_8__'))  (cost=21.2 rows=2.02)
-        -> Covering index scan on t2 using idx_t2_1  (cost=21.2 rows=164)
+-> Group aggregate: min(t2.c), max(t2.c)  (rows=1.42)
+    -> Filter: ((t2.c > 'a000') and (t2.c <= 'd999') and (t2.c like '_8__'))  (rows=2.02)
+        -> Covering index scan on t2 using idx_t2_1  (rows=164)
 
 explain format=tree select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 EXPLAIN
--> Group aggregate: min(t1.d), max(t1.d)  (cost=29.4 rows=64)
-    -> Index scan on t1 using idx_t1_1  (cost=16.6 rows=128)
+-> Group aggregate: min(t1.d), max(t1.d)  (rows=64)
+    -> Index scan on t1 using idx_t1_1  (rows=128)
 
 explain format=tree select a1,a2,count(a2) from t1 group by a1,a2,b;
 EXPLAIN
--> Group aggregate: count(t1.a2)  (cost=29.4 rows=16)
-    -> Covering index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group aggregate: count(t1.a2)  (rows=16)
+    -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
 explain format=tree select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 EXPLAIN
--> Group aggregate: count(t1.a2)  (cost=37.2 rows=16)
-    -> Filter: (t1.a1 > 'a')  (cost=27 rows=102)
-        -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (cost=27 rows=102)
+-> Group aggregate: count(t1.a2)  (rows=16)
+    -> Filter: (t1.a1 > 'a')  (rows=102)
+        -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (rows=102)
 
 explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 EXPLAIN
--> Group aggregate: sum(ord(t1.a1))  (cost=37.2 rows=16)
-    -> Filter: (t1.a1 > 'a')  (cost=27 rows=102)
-        -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (cost=27 rows=102)
+-> Group aggregate: sum(ord(t1.a1))  (rows=16)
+    -> Filter: (t1.a1 > 'a')  (rows=102)
+        -> Covering index range scan on t1 using idx_t1_2 over ('a' < a1)  (rows=102)
 
 explain format=tree select distinct(a1) from t1 where ord(a2) = 98;
 EXPLAIN
--> Group (no aggregates)  (cost=29.4 rows=4)
-    -> Filter: (ord(t1.a2) = 98)  (cost=16.6 rows=128)
-        -> Covering index scan on t1 using idx_t1_2  (cost=16.6 rows=128)
+-> Group (no aggregates)  (rows=4)
+    -> Filter: (ord(t1.a2) = 98)  (rows=128)
+        -> Covering index scan on t1 using idx_t1_2  (rows=128)
 
 select distinct(a1) from t1 where ord(a2) = 98;
 a1
@@ -2296,8 +2296,8 @@ c
 d
 explain format=tree select a1 from t1 where a2 = 'b' group by a1;
 EXPLAIN
--> Filter: (t1.a2 = 'b')  (cost=4.5 rows=5)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=4.5 rows=5)
+-> Filter: (t1.a2 = 'b')  (rows=5)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=5)
 
 select a1 from t1 where a2 = 'b' group by a1;
 a1
@@ -2307,8 +2307,8 @@ c
 d
 explain format=tree select distinct a1 from t1 where a2 = 'b';
 EXPLAIN
--> Filter: (t1.a2 = 'b')  (cost=4.5 rows=5)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=4.5 rows=5)
+-> Filter: (t1.a2 = 'b')  (rows=5)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (rows=5)
 
 select distinct a1 from t1 where a2 = 'b';
 a1
@@ -2363,13 +2363,13 @@ a
 BB
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 EXPLAIN
--> Filter: (t1.a = 'AA')  (cost=0.5 rows=1)
-    -> Covering index skip scan for deduplication on t1 using PRIMARY over (a = 'AA')  (cost=0.5 rows=1)
+-> Filter: (t1.a = 'AA')  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using PRIMARY over (a = 'AA')  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 EXPLAIN
--> Group (no aggregates)  (cost=0.45 rows=1)
-    -> Covering index lookup on t1 using PRIMARY (a='BB')  (cost=0.35 rows=1)
+-> Group (no aggregates)  (rows=1)
+    -> Covering index lookup on t1 using PRIMARY (a='BB')  (rows=1)
 
 SELECT DISTINCT a FROM t1 WHERE a='BB';
 a
@@ -2427,7 +2427,7 @@ INSERT INTO t1 (a) VALUES
 ('SOUTH EAST'), ('SOUTH WEST'), ('WESTERN');
 EXPLAIN FORMAT=TREE SELECT DISTINCT a,a FROM t1 ORDER BY a;
 EXPLAIN
--> Covering index scan on t1 using PRIMARY  (cost=1.61 rows=11)
+-> Covering index scan on t1 using PRIMARY  (rows=11)
 
 SELECT DISTINCT a,a FROM t1 ORDER BY a;
 a	a
@@ -2495,8 +2495,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain format=tree SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b < 2))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using PRIMARY over (b < 2)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b < 2))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using PRIMARY over (b < 2)  (rows=1)
 
 SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 MAX(b)	a
@@ -2511,9 +2511,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain format=tree SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 EXPLAIN
--> Group aggregate: min(t2.c)  (cost=0.56 rows=1)
-    -> Filter: ((t2.a = 1) and (t2.b = 2) and (t2.c > 1))  (cost=0.46 rows=1)
-        -> Covering index range scan on t2 using PRIMARY over (a = 1 AND b = 2 AND 1 < c)  (cost=0.46 rows=1)
+-> Group aggregate: min(t2.c)  (rows=1)
+    -> Filter: ((t2.a = 1) and (t2.b = 2) and (t2.c > 1))  (rows=1)
+        -> Covering index range scan on t2 using PRIMARY over (a = 1 AND b = 2 AND 1 < c)  (rows=1)
 
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 MIN(c)
@@ -2525,7 +2525,7 @@ INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
 (5,1), (5,2), (5,3), (5,4), (5,5);
 EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+-> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 FLUSH STATUS;
 SELECT max(b), a FROM t1 GROUP BY a;
@@ -2541,7 +2541,7 @@ Handler_read_key	10
 Handler_read_next	0
 EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+-> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
@@ -2577,69 +2577,69 @@ Handler_read_next	0
 EXPLAIN FORMAT=TREE (SELECT max(b), a FROM t1 GROUP BY a) UNION
 (SELECT max(b), a FROM t1 GROUP BY a);
 EXPLAIN
--> Table scan on <union temporary>  (cost=8.33..11 rows=22)
-    -> Union materialize with deduplication  (cost=8.2..8.2 rows=22)
-        -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
-        -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+-> Table scan on <union temporary>  (rows=22)
+    -> Union materialize with deduplication  (rows=22)
+        -> Covering index skip scan for grouping on t1 using a  (rows=11)
+        -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 EXPLAIN FORMAT=TREE SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer;
 EXPLAIN
--> Covering index scan on t1_outer using a  (cost=2.51 rows=20)
+-> Covering index scan on t1_outer using a  (rows=20)
 -> Select #2 (subquery in projection; run only once)
-    -> Filter: (t1.a < 2)  (cost=3 rows=11)
-        -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+    -> Filter: (t1.a < 2)  (rows=11)
+        -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
--> Covering index scan on t1_outer using a  (cost=2.51 rows=20)
+-> Covering index scan on t1_outer using a  (rows=20)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 EXPLAIN
--> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
+-> Zero rows (Impossible WHERE)  (rows=0)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
--> Filter: <in_optimizer>(t1_outer.a,t1_outer.a in (select #2))  (cost=2.51 rows=20)
-    -> Covering index scan on t1_outer using a  (cost=2.51 rows=20)
+-> Filter: <in_optimizer>(t1_outer.a,t1_outer.a in (select #2))  (rows=20)
+    -> Covering index scan on t1_outer using a  (rows=20)
     -> Select #2 (subquery in condition; run only once)
-        -> Filter: ((t1_outer.a = `<materialized_subquery>`.`max(b)`))  (cost=4.2..4.2 rows=1)
-            -> Limit: 1 row(s)  (cost=4.1..4.1 rows=1)
+        -> Filter: ((t1_outer.a = `<materialized_subquery>`.`max(b)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (max(b)=t1_outer.a)
-                    -> Materialize with deduplication  (cost=4.1..4.1 rows=11)
-                        -> Filter: (t1.a < 2)  (cost=3 rows=11)
-                            -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+                    -> Materialize with deduplication  (rows=11)
+                        -> Filter: (t1.a < 2)  (rows=11)
+                            -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 EXPLAIN
--> Filter: (t1_outer.a > (select #2))  (cost=3 rows=11)
-    -> Covering index skip scan for deduplication on t1_outer using a  (cost=3 rows=11)
+-> Filter: (t1_outer.a > (select #2))  (rows=11)
+    -> Covering index skip scan for deduplication on t1_outer using a  (rows=11)
     -> Select #2 (subquery in condition; run only once)
-        -> Filter: (t1.a < 2)  (cost=3 rows=11)
-            -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+        -> Filter: (t1.a < 2)  (rows=11)
+            -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2
 ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
 AND t1_outer1.b = t1_outer2.b;
 EXPLAIN
--> Inner hash join (t1_outer2.b = t1_outer1.b)  (cost=11.3 rows=10)
-    -> Covering index scan on t1_outer2 using a  (cost=0.142 rows=20)
+-> Inner hash join (t1_outer2.b = t1_outer1.b)  (rows=10)
+    -> Covering index scan on t1_outer2 using a  (rows=20)
     -> Hash
-        -> Covering index lookup on t1_outer1 using a (a=(select #2))  (cost=0.782 rows=5)
+        -> Covering index lookup on t1_outer1 using a (a=(select #2))  (rows=5)
 
 EXPLAIN FORMAT=TREE SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 EXPLAIN
--> Covering index scan on t1_outer2 using a  (cost=2.51 rows=20)
+-> Covering index scan on t1_outer2 using a  (rows=20)
 -> Select #2 (subquery in projection; run only once)
-    -> Covering index scan on t1_outer using a  (cost=2.51 rows=20)
+    -> Covering index scan on t1_outer using a  (rows=20)
     -> Select #3 (subquery in projection; run only once)
-        -> Filter: (t1.a < 2)  (cost=3 rows=11)
-            -> Covering index skip scan for grouping on t1 using a  (cost=3 rows=11)
+        -> Filter: (t1.a < 2)  (rows=11)
+            -> Covering index skip scan for grouping on t1 using a  (rows=11)
 
 CREATE TABLE t3 LIKE t1;
 # Warm-up data-dictionary cache.
@@ -2679,7 +2679,7 @@ INSERT INTO t1 VALUES
 (4), (2), (1), (2), (2), (4), (1), (4);
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (cost=3 rows=10)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=10)
 
 SELECT DISTINCT(a) FROM t1;
 a
@@ -2688,7 +2688,7 @@ a
 4
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (cost=3 rows=10)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=10)
 
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 a
@@ -2707,7 +2707,7 @@ EXPLAIN
 -> Sort: t1.a DESC
     -> Table scan on <temporary>
         -> Aggregate using temporary table
-            -> Table scan on t1  (cost=2.91 rows=24)
+            -> Table scan on t1  (rows=24)
 
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
@@ -2723,7 +2723,7 @@ CREATE INDEX break_it ON t1 (a, b);
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 EXPLAIN
--> Covering index skip scan for grouping on t1 using break_it  (cost=3 rows=10)
+-> Covering index skip scan for grouping on t1 using break_it  (rows=10)
 
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 a	MIN(b)	MAX(b)
@@ -2739,9 +2739,9 @@ EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 EXPLAIN
 -> Sort: t1.a DESC
-    -> Table scan on <temporary>  (cost=4.34..6.74 rows=10)
-        -> Temporary table with deduplication  (cost=4.1..4.1 rows=10)
-            -> Covering index skip scan for grouping on t1 using break_it  (cost=3 rows=10)
+    -> Table scan on <temporary>  (rows=10)
+        -> Temporary table with deduplication  (rows=10)
+            -> Covering index skip scan for grouping on t1 using break_it  (rows=10)
 
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
@@ -2756,8 +2756,8 @@ a	MIN(b)	MAX(b)
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 EXPLAIN
--> Group aggregate: min(t1.b), max(t1.b), avg(t1.b)  (cost=5.31 rows=4.9)
-    -> Covering index scan on t1 using break_it (reverse)  (cost=2.91 rows=24)
+-> Group aggregate: min(t1.b), max(t1.b), avg(t1.b)  (rows=4.9)
+    -> Covering index scan on t1 using break_it (reverse)  (rows=24)
 
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)	AVG(b)
@@ -2842,10 +2842,10 @@ a	b
 3	9
 explain format=tree select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 EXPLAIN
--> Table scan on <temporary>  (cost=3.41..3.41 rows=1)
-    -> Temporary table  (cost=0.9..0.9 rows=1)
-        -> Filter: (t1.a = 0)  (cost=0.8 rows=1)
-            -> Covering index skip scan for grouping on t1 using PRIMARY over (a = 0)  (cost=0.8 rows=1)
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table  (rows=1)
+        -> Filter: (t1.a = 0)  (rows=1)
+            -> Covering index skip scan for grouping on t1 using PRIMARY over (a = 0)  (rows=1)
 
 drop table t1;
 CREATE TABLE t1 (a int, b int, c int, d int,
@@ -2856,8 +2856,8 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
 EXPLAIN FORMAT=TREE SELECT DISTINCT c FROM t1 WHERE d=4;
 EXPLAIN
--> Filter: (t1.d = 4)  (cost=3.8 rows=10)
-    -> Covering index skip scan for deduplication on t1 using foo  (cost=3.8 rows=10)
+-> Filter: (t1.d = 4)  (rows=10)
+    -> Covering index skip scan for deduplication on t1 using foo  (rows=10)
 
 SELECT DISTINCT c FROM t1 WHERE d=4;
 c
@@ -2878,8 +2878,8 @@ INSERT INTO t SELECT * FROM t;
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 EXPLAIN
--> Filter: (t.b <> 0)  (cost=3.8 rows=10)
-    -> Covering index skip scan for grouping on t using a over (NULL < b < 0) OR (0 < b)  (cost=3.8 rows=10)
+-> Filter: (t.b <> 0)  (rows=10)
+    -> Covering index skip scan for grouping on t using a over (NULL < b < 0) OR (0 < b)  (rows=10)
 
 #should return 1 row
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
@@ -2890,8 +2890,8 @@ a	MIN(b)
 EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 EXPLAIN
--> Filter: (t.b <> 1)  (cost=3.8 rows=10)
-    -> Covering index skip scan for grouping on t using a over (NULL < b < 1) OR (1 < b)  (cost=3.8 rows=10)
+-> Filter: (t.b <> 1)  (rows=10)
+    -> Covering index skip scan for grouping on t using a over (NULL < b < 1) OR (1 < b)  (rows=10)
 
 #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
@@ -2903,8 +2903,8 @@ INSERT INTO t SELECT a, 2 FROM t;
 EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 EXPLAIN
--> Filter: ((t.b > 0) and (t.b < 2))  (cost=4.05 rows=10)
-    -> Covering index skip scan for grouping on t using a over (0 < b < 2)  (cost=4.05 rows=10)
+-> Filter: ((t.b > 0) and (t.b < 2))  (rows=10)
+    -> Covering index skip scan for grouping on t using a over (0 < b < 2)  (rows=10)
 
 #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
@@ -2977,40 +2977,40 @@ INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t1.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
 4
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a,b) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.a,t1.b)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t1.a,t1.b)  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a,b) FROM t1;
 COUNT(DISTINCT a,b)
 32
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b,a) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.b,t1.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t1.b,t1.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT b,a) FROM t1;
 COUNT(DISTINCT b,a)
 32
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.b)  (cost=6.93 rows=1)
-    -> Covering index scan on t1 using a  (cost=3.73 rows=32)
+-> Aggregate: count(distinct t1.b)  (rows=1)
+    -> Covering index scan on t1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT b) FROM t1;
 COUNT(DISTINCT b)
 16
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t1.a)  (cost=4.9 rows=5.66)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t1.a)  (rows=5.66)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 COUNT(DISTINCT a)
@@ -3020,8 +3020,8 @@ COUNT(DISTINCT a)
 1
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t1.b)  (cost=4.9 rows=5.66)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t1.b)  (rows=5.66)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 COUNT(DISTINCT b)
@@ -3031,9 +3031,9 @@ COUNT(DISTINCT b)
 8
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 EXPLAIN
--> Group aggregate: count(distinct t1.a)  (cost=6.93 rows=5.66)
-    -> Sort: t1.b  (cost=3.73 rows=32)
-        -> Covering index scan on t1 using a  (cost=3.73 rows=32)
+-> Group aggregate: count(distinct t1.a)  (rows=5.66)
+    -> Sort: t1.b  (rows=32)
+        -> Covering index scan on t1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 COUNT(DISTINCT a)
@@ -3055,52 +3055,52 @@ COUNT(DISTINCT a)
 2
 EXPLAIN FORMAT=TREE SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t1.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
 4
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.a,(t1.b + 0))  (cost=6.93 rows=1)
-    -> Covering index scan on t1 using a  (cost=3.73 rows=32)
+-> Aggregate: count(distinct t1.a,(t1.b + 0))  (rows=1)
+    -> Covering index scan on t1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 COUNT(DISTINCT a, b + 0)
 32
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 EXPLAIN
--> Filter: (count(distinct t1.b) < 20)  (cost=6.93 rows=1)
-    -> Aggregate: count(distinct t1.b), count(distinct t1.a)  (cost=6.93 rows=1)
-        -> Covering index scan on t1 using a  (cost=3.73 rows=32)
+-> Filter: (count(distinct t1.b) < 20)  (rows=1)
+    -> Aggregate: count(distinct t1.b), count(distinct t1.a)  (rows=1)
+        -> Covering index scan on t1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 COUNT(DISTINCT a)
 4
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 EXPLAIN
--> Filter: (count(distinct t1.c) < 10)  (cost=6.93 rows=1)
-    -> Aggregate: count(distinct t1.c), count(distinct t1.a)  (cost=6.93 rows=1)
-        -> Table scan on t1  (cost=3.73 rows=32)
+-> Filter: (count(distinct t1.c) < 10)  (rows=1)
+    -> Aggregate: count(distinct t1.c), count(distinct t1.a)  (rows=1)
+        -> Table scan on t1  (rows=32)
 
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 COUNT(DISTINCT a)
 4
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 EXPLAIN
--> Filter: (count(distinct t1.a) < 10)  (cost=4.9 rows=1)
-    -> Aggregate: count(distinct t1.a)  (cost=4.9 rows=1)
-        -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Filter: (count(distinct t1.a) < 10)  (rows=1)
+    -> Aggregate: count(distinct t1.a)  (rows=1)
+        -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 1
 1
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 EXPLAIN
--> Filter: (count(distinct t1.b) > 1)  (cost=4.9 rows=5.66)
-    -> Group aggregate: count(distinct t1.b)  (cost=4.9 rows=5.66)
-        -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Filter: (count(distinct t1.b) > 1)  (rows=5.66)
+    -> Group aggregate: count(distinct t1.b)  (rows=5.66)
+        -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 1
@@ -3112,11 +3112,11 @@ EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY
 EXPLAIN
 -> Group aggregate: count(distinct t1.a)
     -> Sort: t1_1.a
-        -> Stream results  (cost=107 rows=1024)
-            -> Inner hash join (no condition)  (cost=107 rows=1024)
-                -> Covering index scan on t1_2 using a  (cost=0.116 rows=32)
+        -> Stream results  (rows=1024)
+            -> Inner hash join (no condition)  (rows=1024)
+                -> Covering index scan on t1_2 using a  (rows=32)
                 -> Hash
-                    -> Covering index scan on t1_1 using a  (cost=3.73 rows=32)
+                    -> Covering index scan on t1_1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 COUNT(DISTINCT t1_1.a)
@@ -3126,64 +3126,64 @@ COUNT(DISTINCT t1_1.a)
 1
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), 12 FROM t1;
 EXPLAIN
--> Aggregate: count(distinct t1.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t1 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t1.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t1 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 COUNT(DISTINCT a)	12
 4	12
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b, c) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b,t2.c)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t2.a,t2.b,t2.c)  (rows=1)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 COUNT(DISTINCT a, b, c)
 32
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT a)
 4	10	2.5000
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.f)  (cost=6.95 rows=1)
-    -> Table scan on t2  (cost=3.75 rows=32)
+-> Aggregate: count(distinct t2.a), sum(distinct t2.a), avg(distinct t2.f)  (rows=1)
+    -> Table scan on t2  (rows=32)
 
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT f)
 4	10	1.0000
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.a)  (cost=4.9 rows=1)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.a)  (rows=1)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, a)
 32	32
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.f)  (cost=6.95 rows=1)
-    -> Table scan on t2  (cost=3.75 rows=32)
+-> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.f)  (rows=1)
+    -> Table scan on t2  (rows=32)
 
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, f)
 32	16
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.d)  (cost=6.95 rows=1)
-    -> Table scan on t2  (cost=3.75 rows=32)
+-> Aggregate: count(distinct t2.a,t2.b), count(distinct t2.b,t2.d)  (rows=1)
+    -> Table scan on t2  (rows=32)
 
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, d)
 32	16
 EXPLAIN FORMAT=TREE SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 EXPLAIN
--> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (cost=4.9 rows=8.65)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=8.65)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 a	c	COUNT(DISTINCT c, a, b)
@@ -3222,9 +3222,9 @@ a	c	COUNT(DISTINCT c, a, b)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT c, a, b) FROM t2
 WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 EXPLAIN
--> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (cost=0.471 rows=0.111)
-    -> Filter: ((t2.a > 5) and (t2.b between 10 and 20))  (cost=0.46 rows=0.111)
-        -> Covering index range scan on t2 using a over (5 < a)  (cost=0.46 rows=1)
+-> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=0.111)
+    -> Filter: ((t2.a > 5) and (t2.b between 10 and 20))  (rows=0.111)
+        -> Covering index range scan on t2 using a over (5 < a)  (rows=1)
 
 SELECT COUNT(DISTINCT c, a, b) FROM t2
 WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
@@ -3232,16 +3232,16 @@ COUNT(DISTINCT c, a, b)
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 GROUP BY b;
 EXPLAIN
--> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (cost=0.45 rows=1)
-    -> Covering index lookup on t2 using a (a=5)  (cost=0.35 rows=1)
+-> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a=5)  (rows=1)
 
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 GROUP BY b;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (cost=4.9 rows=5.66)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=5.66)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 a	COUNT(DISTINCT b)	SUM(DISTINCT b)
@@ -3251,8 +3251,8 @@ a	COUNT(DISTINCT b)	SUM(DISTINCT b)
 4	8	100
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (cost=4.9 rows=5.66)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=5.66)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
@@ -3262,9 +3262,9 @@ COUNT(DISTINCT b)	SUM(DISTINCT b)
 8	100
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b)  (cost=3.85 rows=1)
-    -> Filter: ((t2.d = 42) and (t2.c = 13))  (cost=3.75 rows=1)
-        -> Table scan on t2  (cost=3.75 rows=32)
+-> Aggregate: count(distinct t2.a,t2.b)  (rows=1)
+    -> Filter: ((t2.d = 42) and (t2.c = 13))  (rows=1)
+        -> Table scan on t2  (rows=32)
 
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 COUNT(DISTINCT a, b)
@@ -3272,9 +3272,9 @@ COUNT(DISTINCT a, b)
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
 EXPLAIN
--> Group aggregate: count(distinct t2.a), sum(distinct t2.a)  (cost=4.9 rows=5.66)
-    -> Filter: ((t2.c = 42) and (t2.b = 13))  (cost=3.8 rows=10)
-        -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t2.a), sum(distinct t2.a)  (rows=5.66)
+    -> Filter: ((t2.c = 42) and (t2.b = 13))  (rows=10)
+        -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
@@ -3283,17 +3283,17 @@ a	COUNT(DISTINCT a)	SUM(DISTINCT a)
 # the second part of count(..) is defined by a constant predicate
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 EXPLAIN
--> Aggregate: count(distinct t2.a,t2.b), sum(distinct t2.a)  (cost=4.07 rows=1)
-    -> Filter: (t2.b = 42)  (cost=3.75 rows=3.2)
-        -> Covering index scan on t2 using a  (cost=3.75 rows=32)
+-> Aggregate: count(distinct t2.a,t2.b), sum(distinct t2.a)  (rows=1)
+    -> Filter: (t2.b = 42)  (rows=3.2)
+        -> Covering index scan on t2 using a  (rows=32)
 
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 COUNT(DISTINCT a, b)	SUM(DISTINCT a)
 0	NULL
 EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: sum(distinct t2.a), max(t2.b)  (cost=6.95 rows=5.66)
-    -> Covering index scan on t2 using a  (cost=3.75 rows=32)
+-> Group aggregate: sum(distinct t2.a), max(t2.b)  (rows=5.66)
+    -> Covering index scan on t2 using a  (rows=32)
 
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SUM(DISTINCT a)	MAX(b)
@@ -3303,8 +3303,8 @@ SUM(DISTINCT a)	MAX(b)
 4	16
 EXPLAIN FORMAT=TREE SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 EXPLAIN
--> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (cost=4.9 rows=8.65)
-    -> Covering index skip scan for deduplication on t2 using a  (cost=3.8 rows=10)
+-> Group aggregate: count(distinct t2.c,t2.a,t2.b)  (rows=8.65)
+    -> Covering index skip scan for deduplication on t2 using a  (rows=10)
 
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 42 * (a + c + COUNT(DISTINCT c, a, b))
@@ -3342,8 +3342,8 @@ SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 252
 EXPLAIN FORMAT=TREE SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 EXPLAIN
--> Group aggregate: max(t2.b), sum(distinct t2.a)  (cost=6.95 rows=5.66)
-    -> Covering index scan on t2 using a  (cost=3.75 rows=32)
+-> Group aggregate: max(t2.b), sum(distinct t2.a)  (rows=5.66)
+    -> Covering index scan on t2 using a  (rows=32)
 
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 (SUM(DISTINCT a) + MAX(b))
@@ -3373,8 +3373,8 @@ f1	COUNT(DISTINCT f2)
 3	4
 explain format=tree SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
 EXPLAIN
--> Group aggregate: count(distinct t1.f2)  (cost=1.8 rows=3)
-    -> Covering index skip scan for deduplication on t1 using PRIMARY  (cost=0.9 rows=9)
+-> Group aggregate: count(distinct t1.f2)  (rows=3)
+    -> Covering index skip scan for deduplication on t1 using PRIMARY  (rows=9)
 
 drop table t1;
 # End of test#50539.
@@ -3401,8 +3401,8 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t1 WHERE b=4;
 EXPLAIN
--> Filter: (t1.b = 4)  (cost=62.4 rows=101)
-    -> Covering index skip scan for deduplication on t1 using foo  (cost=62.4 rows=101)
+-> Filter: (t1.b = 4)  (rows=101)
+    -> Covering index skip scan for deduplication on t1 using foo  (rows=101)
 
 SELECT DISTINCT a FROM t1 WHERE b=4;
 a
@@ -3428,8 +3428,8 @@ a	SUM(DISTINCT a)	MIN(b)
 4	4	4
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
 EXPLAIN
--> Group aggregate: sum(distinct t.a), min(t.b)  (cost=1.9 rows=2.65)
-    -> Covering index scan on t using a  (cost=1.2 rows=7)
+-> Group aggregate: sum(distinct t.a), min(t.b)  (rows=2.65)
+    -> Covering index scan on t using a  (rows=7)
 
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3443,8 +3443,8 @@ a	SUM(DISTINCT a)	MAX(b)
 4	4	5
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
 EXPLAIN
--> Group aggregate: sum(distinct t.a), max(t.b)  (cost=1.9 rows=2.65)
-    -> Covering index scan on t using a  (cost=1.2 rows=7)
+-> Group aggregate: sum(distinct t.a), max(t.b)  (rows=2.65)
+    -> Covering index scan on t using a  (rows=7)
 
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3458,9 +3458,9 @@ a	MAX(b)
 4	5
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
 EXPLAIN
--> Filter: (0 <> sum(distinct t.a))  (cost=1.9 rows=2.65)
-    -> Group aggregate: sum(distinct t.a), max(t.b)  (cost=1.9 rows=2.65)
-        -> Covering index scan on t using a  (cost=1.2 rows=7)
+-> Filter: (0 <> sum(distinct t.a))  (rows=2.65)
+    -> Group aggregate: sum(distinct t.a), max(t.b)  (rows=2.65)
+        -> Covering index scan on t using a  (rows=7)
 
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3471,8 +3471,8 @@ SUM(DISTINCT a)	MIN(b)	MAX(b)
 10	0	5
 EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
 EXPLAIN
--> Aggregate: sum(distinct t.a), min(t.b), max(t.b)  (cost=1.9 rows=1)
-    -> Covering index scan on t using a  (cost=1.2 rows=7)
+-> Aggregate: sum(distinct t.a), min(t.b), max(t.b)  (rows=1)
+    -> Covering index scan on t using a  (rows=7)
 
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3486,8 +3486,8 @@ a	SUM(DISTINCT a)	MIN(b)	MAX(b)
 4	4	4	5
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 EXPLAIN
--> Group aggregate: sum(distinct t.a), min(t.b), max(t.b)  (cost=1.9 rows=2.65)
-    -> Covering index scan on t using a  (cost=1.2 rows=7)
+-> Group aggregate: sum(distinct t.a), min(t.b), max(t.b)  (rows=2.65)
+    -> Covering index scan on t using a  (rows=7)
 
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3505,7 +3505,7 @@ CREATE TABLE t(a INT PRIMARY KEY)
 ENGINE = MERGE;
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t;
 EXPLAIN
--> Covering index scan on t using PRIMARY  (cost=0 rows=0)
+-> Covering index scan on t using PRIMARY  (rows=0)
 
 SELECT DISTINCT(a) FROM t;
 a
@@ -3535,8 +3535,8 @@ INSERT INTO t1(c1,c2) VALUES
 (4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
 EXPLAIN FORMAT=TREE SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 EXPLAIN
--> Filter: (t1.c1 = 4)  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using c1 over (c1 = 4)  (cost=0.5 rows=1)
+-> Filter: (t1.c1 = 4)  (rows=1)
+    -> Covering index skip scan for grouping on t1 using c1 over (c1 = 4)  (rows=1)
 
 FLUSH STATUS;
 SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
@@ -3565,16 +3565,16 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b < 2000))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b < 2000))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (rows=1)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 a	MAX(b)
 1	1001
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b < 2000))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b < 2000))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using a over (NULL < b < 2000)  (rows=1)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 a	MAX(b)
@@ -3582,8 +3582,8 @@ a	MAX(b)
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b between 0 and 1999.5))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using a over (0 <= b < 2000)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b between 0 and 1999.5))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using a over (0 <= b < 2000)  (rows=1)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;
@@ -3591,16 +3591,16 @@ a	MAX(b)
 1	1001
 EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b > 2000))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b > 2000))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (rows=1)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 a	MIN(b)
 1	2001
 EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b > 2000))  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (cost=0.5 rows=1)
+-> Filter: ((t1.a = 1) and (t1.b > 2000))  (rows=1)
+    -> Covering index skip scan for grouping on t1 using a over (2000 < b)  (rows=1)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 a	MIN(b)
@@ -3622,14 +3622,14 @@ test.t2	analyze	status	OK
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: ((out1.pk <> 3) and (out1.nk = (select #2)))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: ((out1.pk <> 3) and (out1.nk = (select #2)))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: max(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using PRIMARY  (cost=0.802 rows=3)
+            -> Aggregate: max(out1.k)  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3644,14 +3644,14 @@ ALTER TABLE t1 DROP COLUMN nk;
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(out1.k) FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: max(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using PRIMARY  (cost=0.802 rows=3)
+            -> Aggregate: max(out1.k)  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3665,8 +3665,8 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(k) FROM t1);
 EXPLAIN
--> Filter: (t2.k = '4')  (cost=0.801 rows=1)
-    -> Table scan on t2  (cost=0.801 rows=3)
+-> Filter: (t2.k = '4')  (rows=1)
+    -> Table scan on t2  (rows=3)
 
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(k) FROM t1);
@@ -3675,8 +3675,8 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT 2*MIN(k) FROM t1);
 EXPLAIN
--> Filter: (t2.k = '2')  (cost=0.801 rows=1)
-    -> Table scan on t2  (cost=0.801 rows=3)
+-> Filter: (t2.k = '2')  (rows=1)
+    -> Table scan on t2  (rows=3)
 
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT 2*MIN(k) FROM t1);
@@ -3685,11 +3685,11 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
 EXPLAIN
--> Filter: ((t2.k = '4') and <cache>(('4' = (select #2))))  (cost=0.801 rows=1)
-    -> Table scan on t2  (cost=0.801 rows=3)
+-> Filter: ((t2.k = '4') and <cache>(('4' = (select #2))))  (rows=1)
+    -> Table scan on t2  (rows=3)
     -> Select #2 (subquery in condition; run only once)
-        -> Aggregate: count(t1.k), sum(t1.k)  (cost=1.1 rows=1)
-            -> Covering index scan on t1 using k  (cost=0.802 rows=3)
+        -> Aggregate: count(t1.k), sum(t1.k)  (rows=1)
+            -> Covering index scan on t1 using k  (rows=3)
 
 SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
@@ -3699,14 +3699,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: min((out1.k + t1.k))  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using k  (cost=0.802 rows=3)
+            -> Aggregate: min((out1.k + t1.k))  (rows=1)
+                -> Covering index scan on t1 using k  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3719,14 +3719,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate:   (cost=1.1 rows=1)
-                -> Covering index scan on t1 using k  (cost=0.802 rows=3)
+            -> Aggregate:   (rows=1)
+                -> Covering index scan on t1 using k  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3739,14 +3739,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: min(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using k  (cost=0.802 rows=3)
+            -> Aggregate: min(out1.k)  (rows=1)
+                -> Covering index scan on t1 using k  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3759,14 +3759,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: count(t1.k), sum(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using k  (cost=0.802 rows=3)
+            -> Aggregate: count(t1.k), sum(out1.k)  (rows=1)
+                -> Covering index scan on t1 using k  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3779,14 +3779,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: count(0), sum(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using PRIMARY  (cost=0.802 rows=3)
+            -> Aggregate: count(0), sum(out1.k)  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3799,14 +3799,14 @@ k
 explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT AVG(out1.k) FROM t1);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=3)
-    -> Filter: (t2.k is not null)  (cost=0.801 rows=3)
-        -> Table scan on t2  (cost=0.801 rows=3)
-    -> Filter: (out1.pk = (select #2))  (cost=0.283 rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (cost=0.283 rows=1)
+-> Nested loop inner join  (rows=3)
+    -> Filter: (t2.k is not null)  (rows=3)
+        -> Table scan on t2  (rows=3)
+    -> Filter: (out1.pk = (select #2))  (rows=1)
+        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: avg(out1.k)  (cost=1.1 rows=1)
-                -> Covering index scan on t1 using PRIMARY  (cost=0.802 rows=3)
+            -> Aggregate: avg(out1.k)  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
@@ -3828,7 +3828,7 @@ CREATE TABLE t2 (h INT) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (3);
 explain format=tree SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3837,7 +3837,7 @@ k
 1
 explain format=tree SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3846,7 +3846,7 @@ k
 1
 explain format=tree SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3856,7 +3856,7 @@ k
 UPDATE t1 SET k=0;
 explain format=tree SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Zero rows (Impossible WHERE noticed after reading const tables)  (cost=0..0 rows=0)
+-> Zero rows (Impossible WHERE noticed after reading const tables)  (rows=0)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3864,7 +3864,7 @@ SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 k
 explain format=tree SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3873,7 +3873,7 @@ k
 0
 explain format=tree SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3885,7 +3885,7 @@ CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1);
 explain format=tree SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3894,7 +3894,7 @@ nk	k
 1	1
 explain format=tree SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3904,7 +3904,7 @@ nk	k
 UPDATE t1 SET nk=0, k=0;
 explain format=tree SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3913,7 +3913,7 @@ nk	k
 0	0
 explain format=tree SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
@@ -3949,9 +3949,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col)  (cost=1.18 rows=1.83)
-    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (cost=0.85 rows=3.33)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: min(a.aggr_col)  (rows=1.83)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=3.33)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3966,9 +3966,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: max(a.aggr_col)  (cost=1.18 rows=1.83)
-    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (cost=0.85 rows=3.33)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: max(a.aggr_col)  (rows=1.83)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=3.33)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3985,9 +3985,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col)  (cost=1.18 rows=1.83)
-    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (cost=0.85 rows=3.33)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: min(a.aggr_col)  (rows=1.83)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=3.33)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4002,9 +4002,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: max(a.aggr_col)  (cost=1.18 rows=1.83)
-    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (cost=0.85 rows=3.33)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: max(a.aggr_col)  (rows=1.83)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=3.33)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4019,9 +4019,9 @@ NULL	9	9
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=1.12 rows=1.63)
-    -> Filter: ((a.group_by_col in (3,9)) or (a.aggr_col = 9))  (cost=0.85 rows=2.67)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=1.63)
+    -> Filter: ((a.group_by_col in (3,9)) or (a.aggr_col = 9))  (rows=2.67)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4037,9 +4037,9 @@ NULL	9	9
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=1.18 rows=1.83)
-    -> Filter: ((a.group_by_col = 3) or (a.aggr_col > 8))  (cost=0.85 rows=3.33)
-        -> Covering index scan on a using group_by_col_key  (cost=0.85 rows=6)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=1.83)
+    -> Filter: ((a.group_by_col = 3) or (a.aggr_col > 8))  (rows=3.33)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4063,9 +4063,9 @@ NULL	7	9
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=1.97 rows=2.86)
-    -> Filter: ((a.group_by_col = 9) or (0 <> a.aggr_col))  (cost=1.15 rows=8.2)
-        -> Covering index scan on a using group_by_col_key  (cost=1.15 rows=9)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=2.86)
+    -> Filter: ((a.group_by_col = 9) or (0 <> a.aggr_col))  (rows=8.2)
+        -> Covering index scan on a using group_by_col_key  (rows=9)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4083,9 +4083,9 @@ NULL	7	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=1.98 rows=2.89)
-    -> Filter: ((0 <> a.group_by_col) or (a.aggr_col < 9))  (cost=1.15 rows=8.33)
-        -> Covering index scan on a using group_by_col_key  (cost=1.15 rows=9)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=2.89)
+    -> Filter: ((0 <> a.group_by_col) or (a.aggr_col < 9))  (rows=8.33)
+        -> Covering index scan on a using group_by_col_key  (rows=9)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4100,9 +4100,9 @@ group_by_col	MIN(aggr_col)	MAX(aggr_col)
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=2.65 rows=6.67)
-    -> Filter: (a.group_by_col = a.aggr_col)  (cost=1.45 rows=12)
-        -> Covering index scan on a using group_by_col_key  (cost=1.45 rows=12)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=6.67)
+    -> Filter: (a.group_by_col = a.aggr_col)  (rows=12)
+        -> Covering index scan on a using group_by_col_key  (rows=12)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4119,9 +4119,9 @@ group_by_col	MIN(aggr_col)	MAX(aggr_col)
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=1.85 rows=2)
-    -> Filter: (a.aggr_col < a.group_by_col)  (cost=1.45 rows=4)
-        -> Covering index scan on a using group_by_col_key  (cost=1.45 rows=12)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=2)
+    -> Filter: (a.aggr_col < a.group_by_col)  (rows=4)
+        -> Covering index scan on a using group_by_col_key  (rows=12)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4142,9 +4142,9 @@ NULL	7	9
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=3.24 rows=8.33)
-    -> Filter: ((0 <> a.aggr_col) or (0 <> a.group_by_col))  (cost=1.75 rows=14.9)
-        -> Covering index scan on a using group_by_col_key  (cost=1.75 rows=15)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=8.33)
+    -> Filter: ((0 <> a.aggr_col) or (0 <> a.group_by_col))  (rows=14.9)
+        -> Covering index scan on a using group_by_col_key  (rows=15)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4161,8 +4161,8 @@ group_by_col	MIN(aggr_col)	MAX(aggr_col)
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 EXPLAIN
--> Filter: ((0 <> a.aggr_col) and (0 <> a.group_by_col))  (cost=2 rows=7)
-    -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (cost=2 rows=7)
+-> Filter: ((0 <> a.aggr_col) and (0 <> a.group_by_col))  (rows=7)
+    -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (rows=7)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4179,8 +4179,8 @@ group_by_col	MIN(aggr_col)	MAX(aggr_col)
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 EXPLAIN
--> Filter: ((a.aggr_col <> 0) and (a.group_by_col <> 0))  (cost=2 rows=7)
-    -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (cost=2 rows=7)
+-> Filter: ((a.aggr_col <> 0) and (a.group_by_col <> 0))  (rows=7)
+    -> Covering index skip scan for grouping on a using group_by_col_key over (NULL < aggr_col < 0) OR (0 < aggr_col)  (rows=7)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4199,9 +4199,9 @@ group_by_col	MIN(aggr_col)	MAX(aggr_col)
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (cost=3.15 rows=8.33)
-    -> Filter: ((0 <> a.group_by_col) or (a.group_by_col < (a.aggr_col = 1)))  (cost=1.75 rows=14)
-        -> Covering index scan on a using group_by_col_key  (cost=1.75 rows=15)
+-> Group aggregate: min(a.aggr_col), max(a.aggr_col)  (rows=8.33)
+    -> Filter: ((0 <> a.group_by_col) or (a.group_by_col < (a.aggr_col = 1)))  (rows=14)
+        -> Covering index scan on a using group_by_col_key  (rows=15)
 
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4239,7 +4239,7 @@ SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 a	b
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Zero rows (Impossible WHERE noticed after reading const tables)  (cost=0..0 rows=0)
+-> Zero rows (Impossible WHERE noticed after reading const tables)  (rows=0)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4256,7 +4256,7 @@ a	b
 1	1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4270,13 +4270,13 @@ a	b
 0	0
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=2.73 rows=2)
-    -> Table scan on t1  (cost=2.73 rows=2)
+-> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (rows=2)
+    -> Table scan on t1  (rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)  (cost=0.1..0.1 rows=1)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (cost=0.1..0.1 rows=1)
-                -> Aggregate: max(t1.b)  (cost=0.1..0.1 rows=1)
-                    -> Rows fetched before execution  (cost=0..0 rows=1)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (rows=1)
+                -> Aggregate: max(t1.b)  (rows=1)
+                    -> Rows fetched before execution  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4305,8 +4305,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 EXPLAIN
--> Filter: (t1.f1 = 1)  (cost=0.5 rows=1)
-    -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)  (cost=0.5 rows=1)
+-> Filter: (t1.f1 = 1)  (rows=1)
+    -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)  (rows=1)
 
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 MIN(f2)
@@ -4315,10 +4315,10 @@ INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 EXPLAIN
--> Table scan on <temporary>  (cost=2.79..2.79 rows=1)
-    -> Temporary table with deduplication  (cost=0.279..0.279 rows=1)
-        -> Filter: (t1.f1 is null)  (cost=0.179 rows=1)
-            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (cost=0.179 rows=1)
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table with deduplication  (rows=1)
+        -> Filter: (t1.f1 is null)  (rows=1)
+            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (rows=1)
 
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 MIN(f2)

@@ -160,10 +160,12 @@ DELETE FROM t;
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 DELETE FROM t ORDER BY a;
 # OK because the WHERE clause uses a key.
+--skip_if_hypergraph  # Depends on the plan choice.
 DELETE FROM t WHERE a = 6;
 # OK because of LIMIT.
 DELETE FROM t ORDER BY a LIMIT 1;
 
+--skip_if_hypergraph  # Has to be skipped since we are skipping the DELETE above.
 SELECT * FROM t ORDER BY a;
 
 SET sql_safe_updates = DEFAULT;

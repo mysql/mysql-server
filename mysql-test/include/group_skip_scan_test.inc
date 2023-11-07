@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 #
 # Test file for WL#1724 (Min/Max Optimization for Queries with Group By Clause).
 # The queries in this file test query execution via GroupIndexSkipScan.

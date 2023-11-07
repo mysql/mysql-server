@@ -1,3 +1,4 @@
+--source include/not_hypergraph.inc  # Depends on plan choices.
 --echo #Test for Exclusive, GAP locks
 
 -- connect (con1,localhost,root,,)

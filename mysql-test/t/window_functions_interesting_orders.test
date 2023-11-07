@@ -33,12 +33,13 @@ EXPLAIN FORMAT=tree SELECT SUM(b) OVER (PARTITION BY a), SUM(c) OVER (ORDER BY a
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY b,a) FROM t1;
 
 # Create an index. It should be usable for eliding the sort.
+# We use a covering secondary index since the optimizer prefers sorting for non-covering indexes.
 CREATE INDEX idx ON t1 (a, b);
 ANALYZE TABLE t1;
 --replace_regex $elide_metrics
-EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a) FROM t1;
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (PARTITION BY a) FROM t1;
 --replace_regex $elide_metrics
-EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (PARTITION BY a ORDER BY b) FROM t1;
 ALTER TABLE t1 DROP INDEX idx;
 ANALYZE TABLE t1;
 
@@ -58,6 +59,7 @@ EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
 
 # ...but if the window frame is static, we can use sortahead
 # (or an index).
+--replace_regex $elide_metrics
 EXPLAIN FORMAT=tree SELECT DISTINCT a, b, SUM(b) OVER (PARTITION BY a) FROM t1 ORDER BY a;
 
 # DISTINCT and ORDER BY together. This one is incompatible with window ordering,
@@ -91,6 +93,7 @@ ANALYZE TABLE t1, t2;
 # functional dependency t1.x = t2.pk in the join condition. But t2.pk
 # was not made available in the temporary table between the sort and the
 # aggregation, so it failed. Expect the sort to be on t1.x now.
+# Note: This plan has changed with the cost model change.
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE
 SELECT ROW_NUMBER() OVER (PARTITION BY t1.x)

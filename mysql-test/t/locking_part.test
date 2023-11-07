@@ -1,3 +1,7 @@
+# The hypergraph optimizer chooses different plans and locks different rows.
+# Skipping single queries does not stabilize things since these queries themselves lock other rows.
+--source include/not_hypergraph.inc  
+
 # Test of SKIP LOCKED and NOWAIT on partitioned tables.
 # Must have same results as not partitioned tables.
 --source include/count_sessions.inc

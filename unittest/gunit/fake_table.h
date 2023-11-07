@@ -171,6 +171,10 @@ class Fake_TABLE : public TABLE {
     set_handler(&mock_handler);
     mock_handler.change_table_ptr(this, &table_share);
     field = m_field_array;
+
+    // Set some reasonable default statistics.
+    file->stats.block_size = 16384;
+    s->rec_buff_length = 128;  // Used for estimating index height.
   }
 
  public:
@@ -263,7 +267,9 @@ class Fake_TABLE : public TABLE {
     */
   }
 
-  // Defines an index over column and generates a unique id.
+  // Defines an index over column and generates a unique id. The KEY object is
+  // default constructed so rec_per_key info will have to be specified manually
+  // in unit tests.
   int create_index(Field *column, ulong key_flags = 0) {
     return create_index({column}, key_flags);
   }

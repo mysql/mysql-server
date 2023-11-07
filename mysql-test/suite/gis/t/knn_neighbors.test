@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/have_hypergraph.inc
+--source include/elide_costs.inc
 
 # create a table with a spatial column and fill it with enough values
 # such that the optimizer will eventually choose to use the spatial
@@ -28,6 +29,7 @@ insert into cafe (location) values (point(45,27));
 # the hypergraph optimizer will use the spatial index for knn search if the right debug flag is selected
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 # in this case the query returns empty result but that will change after WL9440: InnoDB: Distance scan of R-tree
 SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
@@ -35,6 +37,7 @@ SELECT ST_Distance(POINT(0,0), location) as d FROM cafe ORDER BY d ASC;
 
 # otherwise it will not use the index until the innodb support is implemented
 SET debug = '-d,handlerton_supports_distance_scan';
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
 
 # test for errors in the query
@@ -85,13 +88,16 @@ insert into cafe2 (location1, location2) values (point(45,27), point(50,13));
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe2;
 # TODO use the spatial index for the following two cases
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, location2) as d FROM cafe2 ORDER BY d ASC LIMIT 5;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, POINT(0,0)) as d1,
 ST_Distance(location2, POINT(0,0)) as d2 FROM cafe2 ORDER BY d1, d2 ASC;
 
 # test distance scan with joins
 # trace is enabled to increase coverage
 SET optimizer_trace="enabled=on";
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM cafe JOIN cafe2 ON cafe2.id=cafe.id ORDER BY d;
 
 # clean-up
@@ -122,6 +128,7 @@ insert into cafe (location) values (ST_GeomFromText('POINT(45 27)',4326));
 # the geographic version of a spatial index scan
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -150,6 +157,7 @@ insert into cafe (location) values (ST_GeomFromText('LINESTRING(45 27,40 12)'));
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('LINESTRING(0 0,40 15)')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -177,6 +185,7 @@ insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,45 27,40 12,0
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POLYGON((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -204,6 +213,7 @@ insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,45 27,40 12
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOINT(0 10,50 27,40 12,0 10)')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -231,6 +241,7 @@ insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,45 27
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTILINESTRING((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -258,6 +269,7 @@ insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,45 27,4
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,50 27,40 12,0 10)))')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up
@@ -285,8 +297,10 @@ insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40
 
 SET debug = '+d,handlerton_supports_distance_scan';
 ANALYZE TABLE cafe;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(40 10))')) as d FROM cafe ORDER BY d ASC;
 # we can also query a different geometry type than the one stored in the spatial column
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(40 10)')) as d FROM cafe ORDER BY d ASC;
 
 # clean-up

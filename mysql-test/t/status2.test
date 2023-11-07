@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Too much of this test depends on plan choices. 
+
 --echo #
 --echo # Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
 --echo #

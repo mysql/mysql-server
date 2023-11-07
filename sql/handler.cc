@@ -89,7 +89,8 @@
 #include "sql/error_handler.h"               // Internal_error_handler
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/lock.h"  // MYSQL_LOCK
+#include "sql/join_optimizer/cost_model.h"  // EstimateIndexRangeScanCost
+#include "sql/lock.h"                       // MYSQL_LOCK
 #include "sql/log.h"
 #include "sql/log_event.h"  // Write_rows_log_event
 #include "sql/mdl.h"
@@ -5990,15 +5991,15 @@ void ha_acl_notify(THD *thd, class Acl_change_notification *data) {
   @return
     Estimated cost of 'index only' scan
 */
-
 double handler::index_only_read_time(uint keynr, double records) {
-  double read_time;
+  const uint index_bytes_per_record =
+      table_share->key_info[keynr].key_length + ref_length;
+
   const uint keys_per_block =
-      (stats.block_size / 2 /
-           (table_share->key_info[keynr].key_length + ref_length) +
-       1);
-  read_time = ((double)(records + keys_per_block - 1) / (double)keys_per_block);
-  return read_time;
+      1 + ((stats.block_size / 2) / index_bytes_per_record);
+
+  return static_cast<double>(records + keys_per_block - 1) /
+         static_cast<double>(keys_per_block);
 }
 
 double handler::table_in_memory_estimate() const {
@@ -6345,13 +6346,17 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   }
 
   assert(total_rows != HA_POS_ERROR);
-  {
+  *flags |= (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SUPPORT_SORTED);
+
+  // Cost computation.
+  assert(cost->is_zero());
+  if (thd->lex->using_hypergraph_optimizer()) {
+    cost->add_cpu(
+        EstimateIndexRangeScanCost(table, keyno, n_ranges, total_rows));
+  } else {
     const Cost_model_table *const cost_model = table->cost_model();
 
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags |= (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SUPPORT_SORTED);
-
-    assert(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
       *cost = index_scan_cost(keyno, static_cast<double>(n_ranges),
                               static_cast<double>(total_rows));

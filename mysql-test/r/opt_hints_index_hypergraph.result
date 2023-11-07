@@ -87,20 +87,22 @@ EXPLAIN
 
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_c) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
--> Filter: ((t1.a = 1) and (t1.b = 2))  (rows=0.0156)
-    -> Index lookup on t1 using i_c (c=3)  (rows=1)
+-> Filter: (t1.a = 1)  (rows=0.0156)
+    -> Intersect rows sorted by row ID  (rows=0.0156)
+        -> Index range scan on t1 using i_c over (c = 3)  (rows=1)
+        -> Index range scan on t1 using i_b over (b = 2)  (rows=32)
 
 EXPLAIN SELECT /*+ NO_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (rows=8)
-    -> Aggregate using temporary table  (rows=8)
+-> Group aggregate: max(t1.b)  (rows=8)
+    -> Sort: t1.a  (rows=32)
         -> Index lookup on t1 using i_b (b=2)  (rows=32)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (rows=8)
-    -> Aggregate using temporary table  (rows=8)
-        -> Index lookup on t1 using i_b (b=2)  (rows=32)
+-> Group aggregate: max(t1.b)  (rows=8)
+    -> Filter: (t1.b = 2)  (rows=32)
+        -> Covering index scan on t1 using i_ab  (rows=256)
 
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
@@ -111,7 +113,7 @@ EXPLAIN SELECT /*+ NO_GROUP_INDEX(t1 i_a) */ a, COUNT(*) FROM t1 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>  (rows=8)
     -> Aggregate using temporary table  (rows=8)
-        -> Table scan on t1  (rows=256)
+        -> Covering index scan on t1 using i_a  (rows=256)
 
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
@@ -126,7 +128,7 @@ EXPLAIN SELECT /*+ NO_ORDER_INDEX(t1 i_a) */ a FROM t1
 ORDER BY a;
 EXPLAIN
 -> Sort: t1.a  (rows=256)
-    -> Table scan on t1  (rows=256)
+    -> Covering index scan on t1 using i_a  (rows=256)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_ab) */ a FROM t1
 ORDER BY a;
@@ -182,18 +184,17 @@ EXPLAIN SELECT a FROM v1;
 EXPLAIN
 -> Sort: a  (rows=256)
     -> Hash semijoin (t1.b = t1.a)  (rows=256)
-        -> Table scan on t1  (rows=256)
+        -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
             -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
 
 EXPLAIN SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Inner hash join (t1.b = t1.a)  (rows=256)
-        -> Remove duplicates from input grouped on t1.a  (rows=8)
-            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+        -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
-            -> Table scan on t1  (rows=256)
+            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
     -> Hash
         -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
 
@@ -204,11 +205,10 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 EXPLAIN SELECT a FROM v2;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Inner hash join (t1.b = t1.a)  (rows=256)
-        -> Remove duplicates from input grouped on t1.a  (rows=8)
-            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
+    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+        -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
-            -> Table scan on t1  (rows=256)
+            -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
     -> Hash
         -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
 
@@ -220,7 +220,7 @@ EXPLAIN
             -> Remove duplicates from input grouped on t1.a  (rows=8)
                 -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
             -> Filter: (t1.b = t1.a)  (rows=32)
-                -> Table scan on t1  (rows=256)
+                -> Covering index scan on t1 using i_ab  (rows=256)
         -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
     -> Hash
         -> Covering index range scan on tb using i_a over (3 < a)  (rows=160)
@@ -259,7 +259,8 @@ EXPLAIN
 
 EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
--> Full-text index search on t using x (x='abc')  (rows=0.444)
+-> Filter: (match t.x against ('abc'))  (rows=0.444)
+    -> Table scan on t  (rows=4)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
@@ -270,7 +271,7 @@ DROP TABLE t;
 CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
 EXPLAIN SELECT /*+ NO_JOIN_INDEX (t1) */ f1 FROM t1 WHERE f1 = 578;
 EXPLAIN
--> Filter: (t1.f1 = 578)  (cost=0.35..0.35 rows=1)
-    -> Table scan on t1  (cost=0.25..0.25 rows=1)
+-> Filter: (t1.f1 = 578)  (cost=0.353..0.353 rows=1)
+    -> Table scan on t1  (cost=0.295..0.295 rows=1)
 
 DROP TABLE t1;

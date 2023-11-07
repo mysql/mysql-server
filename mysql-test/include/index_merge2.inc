@@ -15,6 +15,8 @@
 #               main code went into include/index_merge2.inc
 #
 
+--source include/elide_costs.inc
+
 --echo #---------------- Index merge test 2 -------------------------------------------
 --echo # (Start of test file: index_merge2.inc)
 
@@ -352,7 +354,7 @@ drop table t1;
 --echo # BUG#21277: Index Merge/sort_union: wrong query results
 create table t1
 (
-  key1 int not null, 
+  key1 int not null,
   key2 int not null default 0,
   key3 int not null default 0
 );
@@ -410,6 +412,7 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 EXPLAIN
 SELECT a
 FROM t1
@@ -465,18 +468,19 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 EXPLAIN
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
          AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 
 --sorted_result
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
          AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 
 DROP TABLE t1;

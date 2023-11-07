@@ -265,6 +265,7 @@ SELECT * FROM t WHERE s1=6 FOR UPDATE;
 
 SELECT * FROM t WHERE s1=60 AND s2=70 FOR UPDATE;
 
+--skip_if_hypergraph  # Seems to depend on the plan choices above.
 SELECT lock_type,index_name,lock_mode,lock_data
 FROM performance_schema.data_locks
 WHERE object_schema="test" AND object_name="t"

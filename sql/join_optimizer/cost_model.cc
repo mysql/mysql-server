@@ -31,6 +31,7 @@
 
 #include "mem_root_deque.h"
 #include "my_base.h"
+#include "my_bitmap.h"  // bitmap_bits_set
 #include "sql/handler.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
@@ -59,39 +60,6 @@
 using std::min;
 using std::popcount;
 using std::string;
-
-double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
-                                double num_output_rows) {
-  // When asking the cost model for costs, the API takes in a double,
-  // but truncates it to an unsigned integer. This means that if we
-  // expect an index lookup to give e.g. 0.9 rows on average, the cost
-  // model will assume we get back 0 -- and even worse, InnoDB's
-  // cost model gives a cost of exactly zero for this case, ignoring
-  // entirely the startup cost! Obviously, a cost of zero would make
-  // it very attractive to line up a bunch of such lookups in a nestloop
-  // and nestloop-join against them, crowding out pretty much any other
-  // way to do a join, so to counteract both of these issues, we
-  // explicitly round up here. This can be removed if InnoDB's
-  // cost model is tuned better for this case.
-  const double hacked_num_output_rows = ceil(num_output_rows);
-
-  // We call find_cost_for_ref(), which is the same cost model used
-  // in the old join optimizer, but without the “worst_seek” cap,
-  // which gives ref access with high row counts an artificially low cost.
-  // Removing this cap hurts us a bit if the buffer pool gets filled
-  // with useful data _while running this query_, but it is just a really
-  // bad idea overall, that makes the join optimizer prefer such plans
-  // by a mile. The original comment says that it's there to prevent
-  // choosing table scan too often, but table scans are not a problem
-  // if we hash join on them. (They can be dangerous with nested-loop
-  // joins, though!)
-  //
-  // TODO(sgunders): This is still a very primitive, and rather odd,
-  // cost model. In particular, why don't we ask the storage engine for
-  // the cost of scanning non-covering secondary indexes?
-  return find_cost_for_ref(thd, table, key_idx, hacked_num_output_rows,
-                           /*worst_seeks=*/DBL_MAX);
-}
 
 void EstimateSortCost(THD *thd, AccessPath *path, double distinct_rows) {
   const auto &sort{path->sort()};
@@ -133,9 +101,9 @@ void EstimateSortCost(THD *thd, AccessPath *path, double distinct_rows) {
     // than the number of input rows), O(n + k log k) is the same as
     // O(n + n log n), which is equivalent to O(n log n) because n < n log n for
     // large values of n. So we always calculate it as n + k log k:
-    sort_cost = kSortOneRowCost *
-                (num_input_rows +
-                 sort_result_rows * std::max(log2(sort_result_rows), 1.0));
+    sort_cost = kSortOneRowCost * num_input_rows +
+                kSortComparisonCost * sort_result_rows *
+                    std::max(log2(sort_result_rows), 1.0);
   }
 
   path->set_cost(sort.child->cost() + sort_cost);

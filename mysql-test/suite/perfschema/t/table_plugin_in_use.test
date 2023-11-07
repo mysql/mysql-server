@@ -6,6 +6,8 @@
 #
 ################################################################################
 
+--source include/not_hypergraph.inc  # Appears susceptible to Bug#36578613.
+
 connect(con1, localhost, root,,);
 
 connect(con2, localhost, root,,);

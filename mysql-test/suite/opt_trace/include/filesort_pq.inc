@@ -1,4 +1,5 @@
 --source include/have_optimizer_trace.inc
+--source include/elide_costs.inc
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
@@ -209,6 +210,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 # Tests printing of MaterializeIterator with multiple iterators
 # on top of the table iterator.
 --skip_if_hypergraph  # Does not support pushing LIMIT into the sorts yet.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;

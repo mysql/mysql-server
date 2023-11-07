@@ -280,8 +280,11 @@ select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=
 if ($engine_type != "InnoDB" )
 {
   # Too unstable on InnoDB
+  --replace_regex $elide_costs
   explain select * from t1 where st_a=1 and st_b=1;
+  --replace_regex $elide_costs
   explain select st_a,st_b from t1 where st_a=1 and st_b=1;
+  --replace_regex $elide_costs
   explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 }
 

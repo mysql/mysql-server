@@ -361,6 +361,9 @@ DROP TABLE t;
 # temp table aggregation in hypergraph optimizer.
 ##########
 
+--echo # Note: Some of the query results below are susceptible to plan changes.
+--echo # This can happen when selecting columns that we do not group by or aggregate over.
+
 --source include/turn_off_only_full_group_by.inc
 
 create table tb1(id int , id2 int, primary key (id));

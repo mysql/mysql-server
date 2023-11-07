@@ -17,7 +17,7 @@ EXPLAIN
 SET optimizer_switch='hypergraph_optimizer=on';
 EXPLAIN FORMAT=TREE SELECT * FROM t;
 EXPLAIN
--> Table scan on t  (cost=0.0833..0.25 rows=3)
+-> Table scan on t  (cost=0.295..0.885 rows=3)
 
 #
 # Double engine costs.
@@ -32,7 +32,7 @@ EXPLAIN
 SET optimizer_switch='hypergraph_optimizer=on';
 EXPLAIN FORMAT=TREE SELECT * FROM t;
 EXPLAIN
--> Table scan on t  (cost=0.0833..0.25 rows=3)
+-> Table scan on t  (cost=0.295..0.885 rows=3)
 
 UPDATE mysql.engine_cost SET cost_value = DEFAULT;
 FLUSH OPTIMIZER_COSTS;
@@ -57,7 +57,7 @@ EXPLAIN
 SET optimizer_switch='hypergraph_optimizer=on';
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
 EXPLAIN
--> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.152..0.761 rows=5)
+-> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.641..3.2 rows=5)
 
 #
 # Double server costs.
@@ -73,7 +73,7 @@ EXPLAIN
 SET optimizer_switch='hypergraph_optimizer=on';
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
 EXPLAIN
--> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.152..0.761 rows=5)
+-> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.641..3.2 rows=5)
 
 UPDATE mysql.server_cost SET cost_value = DEFAULT;
 FLUSH OPTIMIZER_COSTS;

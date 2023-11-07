@@ -4,6 +4,8 @@
 --echo # WL#15588 Store EXPLAIN FORMAT=JSON SELECT output in user variable.
 --echo #
 
+--source include/elide_costs.inc
+
 SET @v1 = 'UNCHANGED';
 SET @v2 = @v1;
 
@@ -41,6 +43,7 @@ ANALYZE TABLE t1, t2;
 --echo
 --echo # EXPLAIN SELECT.
 EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+--replace_regex $elide_json_costs
 SELECT @v1, JSON_VALID(@v1);
 
 --echo
@@ -111,7 +114,7 @@ SET explain_json_format_version=2;
 --echo
 --echo # EXPLAIN ANALYZE SELECT.
 EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
---replace_regex $elide_json_ms
+--replace_regex $elide_json_costs_and_time
 SELECT @v1, JSON_VALID(@v1);
 
 --echo

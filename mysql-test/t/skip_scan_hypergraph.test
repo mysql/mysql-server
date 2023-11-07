@@ -2,6 +2,13 @@
 
 let $engine=innodb;
 
+--echo # Note: A lot of these tests changed with the new cost model.
+--echo # Following the cost model patches we can no longer trust
+--echo # that the chosen plans matches the intended plan for these tests.
+--echo #
+--echo # TODO(tlchrist): Find a way to make these tests stable
+--echo # and maintainable under changes to the cost model and statistics.
+
 --source include/skip_scan_test.inc
 
 --echo Skip scan with subqueries

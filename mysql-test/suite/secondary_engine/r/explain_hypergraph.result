@@ -19,9 +19,9 @@ EXPLAIN
   "used_columns": [
     "a"
   ],
-  "estimated_rows": 1.0,
-  "estimated_total_cost": 0.25,
-  "estimated_first_row_cost": 0.25
+  "estimated_rows": "elided",
+  "estimated_total_cost": "elided",
+  "estimated_first_row_cost": "elided"
 }
 ALTER TABLE t1 SECONDARY_LOAD;
 # After table is loaded, the secondary engine should be used.
@@ -46,10 +46,10 @@ EXPLAIN
       "used_columns": [
         "a"
       ],
-      "estimated_rows": 1.0,
+      "estimated_rows": "elided",
       "secondary_engine": "MOCK",
-      "estimated_total_cost": 0.5,
-      "estimated_first_row_cost": 0.5
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     },
     {
       "alias": "t2",
@@ -61,10 +61,10 @@ EXPLAIN
       "used_columns": [
         "a"
       ],
-      "estimated_rows": 1.0,
+      "estimated_rows": "elided",
       "secondary_engine": "MOCK",
-      "estimated_total_cost": 0.5,
-      "estimated_first_row_cost": 0.5
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
     }
   ],
   "join_type": "inner join",
@@ -75,13 +75,13 @@ EXPLAIN
     "t2.a",
     "test.t1.a"
   ],
-  "estimated_rows": 0.10000000149011612,
+  "estimated_rows": "elided",
   "hash_condition": [
     "(t1.a = t2.a)"
   ],
   "join_algorithm": "hash",
-  "estimated_total_cost": 1.2070000001043084,
-  "estimated_first_row_cost": 1.2070000001043084
+  "estimated_total_cost": "elided",
+  "estimated_first_row_cost": "elided"
 }
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

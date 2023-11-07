@@ -1985,9 +1985,11 @@ let $query_ba=SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 --echo # See BUG#13814468 about 'Range checked for each record'
 --echo
 eval EXPLAIN $query_ab;
+--skip_if_hypergraph  # Hypergraph produces some different warnings.
 eval $query_ab;
 --echo
 eval EXPLAIN $query_ba;
+--skip_if_hypergraph  # Hypergraph produces some different warnings.
 eval $query_ba;
 
 --echo

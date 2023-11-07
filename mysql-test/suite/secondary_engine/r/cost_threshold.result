@@ -38,21 +38,21 @@ x	y
 SELECT (SELECT y FROM t1 WHERE x = 1);
 (SELECT y FROM t1 WHERE x = 1)
 NULL
+SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+x	y
 SELECT * FROM v1;
 x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-x	y
-SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
 # All five queries are offloaded to the secondary engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	5
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 SELECT @@secondary_engine_cost_threshold,
 @@global.secondary_engine_cost_threshold;
 @@secondary_engine_cost_threshold	@@global.secondary_engine_cost_threshold
-100.000000	0.000000
+10000.000000	0.000000
 FLUSH STATUS;
 SELECT * FROM t1;
 x	y
@@ -62,31 +62,31 @@ x	y
 SELECT (SELECT y FROM t1 WHERE x = 1);
 (SELECT y FROM t1 WHERE x = 1)
 2
-SELECT * FROM v1;
-x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
+SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+x	y
 # The first three queries are not offloaded to the secondary engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	0
+SELECT * FROM v1;
+x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-x	y
-SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
 # The last two queries are offloaded to the secondary engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
-SET @@secondary_engine_cost_threshold = 1000000;
+SET @@secondary_engine_cost_threshold = 10000000;
 SELECT @@secondary_engine_cost_threshold,
 @@global.secondary_engine_cost_threshold;
 @@secondary_engine_cost_threshold	@@global.secondary_engine_cost_threshold
-1000000.000000	0.000000
+10000000.000000	0.000000
 FLUSH STATUS;
 SELECT * FROM t1;
 SELECT (SELECT y FROM t1 WHERE x = 1);
+SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 SELECT * FROM v1;
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 # All queries are executed in the primary storage engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
@@ -99,7 +99,7 @@ SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 FLUSH STATUS;
-SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 100) */ * FROM t1;
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 10000) */ * FROM t1;
 x	y
 1	2
 2	3
@@ -109,7 +109,7 @@ Variable_name	Value
 Secondary_engine_execution_count	0
 # The use_secondary_engine variable overrides the threshold.
 FLUSH STATUS;
-SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 1000000)
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 10000000)
 SET_VAR(use_secondary_engine = FORCED) */
 * FROM t1;
 x	y
@@ -136,7 +136,7 @@ x	y
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 EXECUTE ps;
 x	y
 1	2
@@ -151,7 +151,7 @@ x	y
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
-SET @@secondary_engine_cost_threshold = 100;
+SET @@secondary_engine_cost_threshold = 10000;
 EXECUTE ps;
 x	y
 1	2

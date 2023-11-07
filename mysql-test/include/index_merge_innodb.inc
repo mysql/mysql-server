@@ -3,6 +3,8 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
+--source include/elide_costs.inc
+
 # t/index_merge_innodb.test
 #
 # Index merge tests
@@ -58,6 +60,7 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 
 DROP TABLE t1;

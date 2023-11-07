@@ -914,7 +914,8 @@ struct TABLE_SHARE {
   */
   uint db_options_in_use{0};
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
-  /* Primary key index number, used in TABLE::key_info[] */
+  // Primary key index number, used in TABLE::key_info[]. See
+  // is_missing_primary_key() for more details.
   uint primary_key{0};
   uint next_number_index{0};      /* autoincrement key number */
   uint next_number_key_offset{0}; /* autoinc keypart offset in a key */
@@ -1459,8 +1460,14 @@ struct TABLE {
   Record_buffer m_record_buffer{0, 0, nullptr};
 
   /*
-    Map of keys that can be used to retrieve all data from this table
-    needed by the query without reading the row.
+    Map of keys that can be used to retrieve all data from this table needed by
+    the query without reading the row.
+
+    Note that the primary clustered key is treated as any other key, so for a
+    table t with a primary key column p and a second column c, the primary key
+    will be marked as covering for the query "SELECT p FROM t", but will not be
+    marked as covering for the query "SELECT p, c FROM t" (even though we can in
+    some sense retrieve the data from the index).
   */
   Key_map covering_keys;
   Key_map quick_keys;

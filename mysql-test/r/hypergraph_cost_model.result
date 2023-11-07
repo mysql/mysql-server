@@ -1,0 +1,430 @@
+CREATE TABLE ten (x INT);
+INSERT INTO ten VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE thousand (x INT);
+INSERT INTO thousand SELECT 100*hundreds.x + 10*tens.x + ones.x FROM ten AS hundreds, ten AS tens, ten AS ones;
+#
+# Table scan
+#
+CREATE TABLE t1 (c1 INT);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# The cost of scanning an empty table corresponds to the cost of scanning a table with 1 row.
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.295..0.295 rows=1)
+
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.295..0.295 rows=1)
+
+# The cost of a table scan is proportional to the number of rows in the table.
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.295..0.59 rows=2)
+
+# Doubling the rows from 2 to 4 should double the cost.
+INSERT INTO t1 VALUES (1), (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.295..1.18 rows=4)
+
+# Create a wide table with 4 rows.
+CREATE TABLE t2 (c1 INT, c2 INT, c3 INT, c4 INT, c5 INT, c6 INT, c7 INT, c8 INT, c9 INT, c10 INT);
+INSERT INTO t2 VALUES (1, 1, 1, 1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Cost should increase with the number of columns selected.
+EXPLAIN FORMAT=TREE SELECT c1 FROM t2;
+EXPLAIN
+-> Table scan on t2  (cost=0.387..1.55 rows=4)
+
+EXPLAIN FORMAT=TREE SELECT c1,c2 FROM t2;
+EXPLAIN
+-> Table scan on t2  (cost=0.433..1.73 rows=4)
+
+EXPLAIN FORMAT=TREE SELECT c1,c2,c3 FROM t2;
+EXPLAIN
+-> Table scan on t2  (cost=0.479..1.92 rows=4)
+
+# Even when selecting the same number of columns from t1 and t2
+# the cost of a table scan from t2 should be more expensive since the table is wider.
+EXPLAIN FORMAT=TREE SELECT c1 FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.295..1.18 rows=4)
+
+EXPLAIN FORMAT=TREE SELECT c1 FROM t2;
+EXPLAIN
+-> Table scan on t2  (cost=0.387..1.55 rows=4)
+
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Index scan
+#
+CREATE TABLE t1 (p INT PRIMARY KEY, s0 INT, s1 INT, s2 INT, c INT, KEY(s0), KEY(s1,s2));
+INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Table scans should be preferred over index scans if we do not need order.
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.516..516 rows=1000)
+
+# Scanning along the primary index should be slightly more expensive than a table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY p;
+EXPLAIN
+-> Index scan on t1 using PRIMARY  (cost=0.518..518 rows=1000)
+
+# Index scans on non-covering indexes are much more expensive than scans on covering or primary indexes.
+# We have to force scanning along the secondary index as otherwise sorting would be chosen.
+SET DEBUG='+d,subplan_tokens,force_subplan_0xdc7daf6ba4947458';
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY s0;
+EXPLAIN
+-> [0xdc7daf6ba4947458] Index scan on t1 using s0  (cost=3.17..3165 rows=1000)
+
+To force this plan, use:
+SET DEBUG='+d,subplan_tokens,force_subplan_0xdc7daf6ba4947458';
+
+SET DEBUG='-d,subplan_tokens,force_subplan_0xdc7daf6ba4947458';
+# A covering scan on the secondary index should be cheap.
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 ORDER BY s0;
+EXPLAIN
+-> Covering index scan on t1 using s0  (cost=0.299..299 rows=1000)
+
+# The cost of an index scan should increase with the width of the index.
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 ORDER BY s1;
+EXPLAIN
+-> Covering index scan on t1 using s1  (cost=0.31..310 rows=1000)
+
+# The cost of an index scan should increase with the number of fields in the read set.
+EXPLAIN FORMAT=TREE SELECT s1, s2 FROM t1 ORDER BY s1;
+EXPLAIN
+-> Covering index scan on t1 using s1  (cost=0.357..357 rows=1000)
+
+#
+# Index range scan
+#
+# The cost of an index range scan depends on the number of fields selected.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 10;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 10)  (cost=0.562..5.62 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT p, c FROM t1 WHERE p < 10;
+EXPLAIN
+-> Index range scan on t1 using PRIMARY over (p < 10)  (cost=0.608..6.08 rows=10)
+
+# When returning only a few rows, the cost of the index lookup itself dominates the cost.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 1;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 1)  (cost=2.64..2.64 rows=1)
+
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 2;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 2)  (cost=1.48..2.97 rows=2)
+
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 3;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 3)  (cost=1.1..3.3 rows=3)
+
+# When returning many rows, doubling the number approximately doubles the cost.
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 10;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 10)  (cost=0.562..5.62 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT p FROM t1 WHERE p < 20;
+EXPLAIN
+-> Covering index range scan on t1 using PRIMARY over (p < 20)  (cost=0.447..8.94 rows=20)
+
+# The cost of a covering index range scan is typically cheaper than a full primary index range scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE p < 10;
+EXPLAIN
+-> Index range scan on t1 using PRIMARY over (p < 10)  (cost=0.747..7.47 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 WHERE s0 < 10;
+EXPLAIN
+-> Covering index range scan on t1 using s0 over (NULL < s0 < 10)  (cost=0.47..4.7 rows=10)
+
+# The cost of a covering index range scan depends on index width.
+EXPLAIN FORMAT=TREE SELECT s0 FROM t1 WHERE s0 < 10;
+EXPLAIN
+-> Covering index range scan on t1 using s0 over (NULL < s0 < 10)  (cost=0.47..4.7 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 WHERE s1 < 10;
+EXPLAIN
+-> Covering index range scan on t1 using s1 over (NULL < s1 < 10)  (cost=0.482..4.82 rows=10)
+
+# The cost of a covering index range scan depends on the number of fields selected.
+EXPLAIN FORMAT=TREE SELECT s1 FROM t1 WHERE s1 < 10;
+EXPLAIN
+-> Covering index range scan on t1 using s1 over (NULL < s1 < 10)  (cost=0.482..4.82 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT s1, s2 FROM t1 WHERE s1 < 10;
+EXPLAIN
+-> Covering index range scan on t1 using s1 over (NULL < s1 < 10)  (cost=0.528..5.28 rows=10)
+
+DROP TABLE t1;
+#
+# Sorting
+#
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 INT, c5 INT);
+INSERT INTO t1 SELECT x, x, x, x, x FROM thousand;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# The cost of comparisons is proportional to k*log2(k) where k is the LIMIT.
+# Cost should grow faster than linearly when increasing the limit.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 1;
+EXPLAIN
+-> Sort: t1.c1, limit input to 1 row(s) per chunk  (cost=862..862 rows=1)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 2;
+EXPLAIN
+-> Sort: t1.c1, limit input to 2 row(s) per chunk  (cost=862..862 rows=2)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 100;
+EXPLAIN
+-> Sort: t1.c1, limit input to 100 row(s) per chunk  (cost=883..883 rows=100)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 200;
+EXPLAIN
+-> Sort: t1.c1, limit input to 200 row(s) per chunk  (cost=911..911 rows=200)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 ORDER BY c1 LIMIT 400;
+EXPLAIN
+-> Sort: t1.c1, limit input to 400 row(s) per chunk  (cost=973..973 rows=400)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+#
+# Filtering
+#
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c2, c3, c4, c5;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+test.t1	histogram	status	Histogram statistics created for column 'c2'.
+test.t1	histogram	status	Histogram statistics created for column 'c3'.
+test.t1	histogram	status	Histogram statistics created for column 'c4'.
+test.t1	histogram	status	Histogram statistics created for column 'c5'.
+# Filtering should be relatively cheap compared to a table scan.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+EXPLAIN
+-> Filter: (t1.c1 < 100)  (cost=5.74..574 rows=100)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+# When we AND multiple filters together, we typically have to evaluate only few of them, unless they are highly selective.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+EXPLAIN
+-> Filter: (t1.c1 < 100)  (cost=5.74..574 rows=100)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) and (t1.c2 < 100))  (cost=57.9..579 rows=10)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) and (t1.c2 < 100) and (t1.c3 < 100))  (cost=580..580 rows=1)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100 AND c4 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) and (t1.c2 < 100) and (t1.c3 < 100) and (t1.c4 < 100))  (cost=580..580 rows=0.1)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100 AND c3 < 100 AND c4 < 100 AND c5 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) and (t1.c2 < 100) and (t1.c3 < 100) and (t1.c4 < 100) and (t1.c5 < 100))  (cost=580..580 rows=0.01)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900;
+EXPLAIN
+-> Filter: (t1.c1 < 900)  (cost=0.637..574 rows=900)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) and (t1.c2 < 900))  (cost=0.772..626 rows=810)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) and (t1.c2 < 900) and (t1.c3 < 900))  (cost=0.922..672 rows=729)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900 AND c4 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) and (t1.c2 < 900) and (t1.c3 < 900) and (t1.c4 < 900))  (cost=1.09..714 rows=656)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 AND c2 < 900 AND c3 < 900 AND c4 < 900 AND c5 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) and (t1.c2 < 900) and (t1.c3 < 900) and (t1.c4 < 900) and (t1.c5 < 900))  (cost=1.27..752 rows=590)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+# When we OR multiple filters together, we typically have to evaluate all of them, unless they are highly selective.
+# This should translate to a near-linear increase in filtering cost as we apply more filters.
+# TODO(tlchrist): Apparently this mechanism is broken.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100;
+EXPLAIN
+-> Filter: (t1.c1 < 100)  (cost=5.74..574 rows=100)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) or (t1.c2 < 100))  (cost=3.02..574 rows=190)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) or (t1.c2 < 100) or (t1.c3 < 100))  (cost=2.12..574 rows=271)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100 OR c4 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) or (t1.c2 < 100) or (t1.c3 < 100) or (t1.c4 < 100))  (cost=1.67..574 rows=344)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100 OR c3 < 100 OR c4 < 100 OR c5 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) or (t1.c2 < 100) or (t1.c3 < 100) or (t1.c4 < 100) or (t1.c5 < 100))  (cost=1.4..574 rows=410)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900;
+EXPLAIN
+-> Filter: (t1.c1 < 900)  (cost=0.637..574 rows=900)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) or (t1.c2 < 900))  (cost=0.58..574 rows=990)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) or (t1.c2 < 900) or (t1.c3 < 900))  (cost=0.574..574 rows=999)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900 OR c4 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) or (t1.c2 < 900) or (t1.c3 < 900) or (t1.c4 < 900))  (cost=0.574..574 rows=1000)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 900 OR c2 < 900 OR c3 < 900 OR c4 < 900 OR c5 < 900;
+EXPLAIN
+-> Filter: ((t1.c1 < 900) or (t1.c2 < 900) or (t1.c3 < 900) or (t1.c4 < 900) or (t1.c5 < 900))  (cost=0.574..574 rows=1000)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+# OR-ing together two conditions with low selectivity (0.1) should be more expensive than AND-ing them.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 AND c2 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) and (t1.c2 < 100))  (cost=57.9..579 rows=10)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c1 < 100 OR c2 < 100;
+EXPLAIN
+-> Filter: ((t1.c1 < 100) or (t1.c2 < 100))  (cost=3.02..574 rows=190)
+    -> Table scan on t1  (cost=0.516..516 rows=1000)
+
+DROP TABLE t1;
+#
+# Hash join
+#
+# Create tables with columns that have 1, 5, and 10 records per key.
+CREATE TABLE t1(c1 INT, c2 INT, c5 INT, c10 INT);
+CREATE TABLE t2(c1 INT, c2 INT, c5 INT, c10 INT);
+CREATE TABLE t3(c1 INT, c2 INT, c5 INT, c10 INT);
+INSERT INTO t1 SELECT x, x DIV 2, x DIV 5, x DIV 10 FROM thousand;
+INSERT INTO t2 SELECT c1, c2, c5, c10 FROM t1 WHERE c1 < 200;
+INSERT INTO t3 SELECT c1, c2, c5, c10 FROM t1 WHERE c1 < 100;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+test.t1	histogram	status	Histogram statistics created for column 'c10'.
+test.t1	histogram	status	Histogram statistics created for column 'c2'.
+test.t1	histogram	status	Histogram statistics created for column 'c5'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'c1'.
+test.t2	histogram	status	Histogram statistics created for column 'c10'.
+test.t2	histogram	status	Histogram statistics created for column 'c2'.
+test.t2	histogram	status	Histogram statistics created for column 'c5'.
+ANALYZE TABLE t3 UPDATE HISTOGRAM ON c1, c2, c5, c10;
+Table	Op	Msg_type	Msg_text
+test.t3	histogram	status	Histogram statistics created for column 'c1'.
+test.t3	histogram	status	Histogram statistics created for column 'c10'.
+test.t3	histogram	status	Histogram statistics created for column 'c2'.
+test.t3	histogram	status	Histogram statistics created for column 'c5'.
+# Because we use a non-standard way of estimating selectivity it is difficult
+# to manipulate these tests to vary just one cost dimension.
+# Increasing the number of probes and resulting rows increases cost.
+EXPLAIN FORMAT=TREE SELECT * FROM t3 AS a JOIN t3 AS b ON a.c1 = b.c1;
+EXPLAIN
+-> Inner hash join (a.c1 = b.c1)  (cost=198..278 rows=100)
+    -> Table scan on a  (cost=0.47..47 rows=100)
+    -> Hash
+        -> Table scan on b  (cost=0.47..47 rows=100)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS a JOIN t3 AS b ON a.c1 = b.c1;
+EXPLAIN
+-> Inner hash join (a.c1 = b.c1)  (cost=198..360 rows=200)
+    -> Table scan on a  (cost=0.47..94 rows=200)
+    -> Hash
+        -> Table scan on b  (cost=0.47..47 rows=100)
+
+# Hashing 100 more rows is significantly more expensive than probing 100 more rows.
+EXPLAIN FORMAT=TREE SELECT * FROM t2 AS a JOIN t2 AS b ON a.c1 = b.c1;
+EXPLAIN
+-> Inner hash join (a.c1 = b.c1)  (cost=394..557 rows=200)
+    -> Table scan on a  (cost=0.47..94 rows=200)
+    -> Hash
+        -> Table scan on b  (cost=0.47..94 rows=200)
+
+# Increasing the number of result rows increases cost.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c1;
+EXPLAIN
+-> Inner hash join (t1.c1 = t2.c1)  (cost=394..1209 rows=1000)
+    -> Table scan on t1  (cost=0.47..470 rows=1000)
+    -> Hash
+        -> Table scan on t2  (cost=0.47..94 rows=200)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c5;
+EXPLAIN
+-> Inner hash join (t1.c1 = t2.c5)  (cost=394..1762 rows=5000)
+    -> Table scan on t1  (cost=0.47..470 rows=1000)
+    -> Hash
+        -> Table scan on t2  (cost=0.47..94 rows=200)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c10;
+EXPLAIN
+-> Inner hash join (t1.c1 = t2.c10)  (cost=394..2453 rows=10000)
+    -> Table scan on t1  (cost=0.47..470 rows=1000)
+    -> Hash
+        -> Table scan on t2  (cost=0.47..94 rows=200)
+
+DROP TABLE t1, t2, t3;
+DROP TABLE ten;
+DROP TABLE thousand;

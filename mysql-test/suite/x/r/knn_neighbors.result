@@ -83,7 +83,7 @@ mysqlxplugin.cafe	analyze	status	OK
 0 rows affected
 RUN EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC
 EXPLAIN
--> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+-> Index distance scan on cafe using location  (cost=0.617..8.64 rows=14)
 
 0 rows affected
 RUN SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC

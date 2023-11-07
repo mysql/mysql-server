@@ -1364,9 +1364,11 @@ select distinct fld3 from t2 limit 10;
 select distinct fld3 from t2 having fld3 like "A%" limit 10;
 --replace_result abr Abr art Art
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%";
+--replace_result abr Abr art Art
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" order by a limit 10;
 --replace_result abr Abr
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%" limit 10;
+--replace_result abr Abr
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" limit 10;
 
 # make a big table.
@@ -1718,6 +1720,7 @@ select companynr,sum(price)/count(price) as avg from t3 group by companynr havin
 
 select companynr,count(*) from t2 group by companynr order by 2 desc;
 select companynr,count(*) from t2 where companynr > 40 group by companynr order by 2 desc;
+--sorted_result
 select t2.fld4,t2.fld1,count(price),sum(price),min(price),max(price),avg(price) from t3,t2 where t3.companynr = 37 and t2.fld1 = t3.t2nr group by fld1,t2.fld4;
 
 #
@@ -1728,6 +1731,7 @@ select t2.fld4,t2.fld1,count(price),sum(price),min(price),max(price),avg(price) 
 #	    send rows
 #
 
+--sorted_result
 select t3.companynr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 512 group by companynr,fld3;
 select t2.companynr,count(*),min(fld3),max(fld3),sum(price),avg(price) from t2,t3 where t3.companynr >= 30 and t3.companynr <= 58 and t3.t2nr = t2.fld1 and 1+1=2 group by t2.companynr;
 

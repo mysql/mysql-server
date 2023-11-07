@@ -7,6 +7,7 @@
 # ================================================================
 --source include/have_debug.inc
 --source include/have_hypergraph.inc
+--source include/elide_costs.inc
 
 --echo ## create a table with spatial index
 CREATE TABLE cafe(
@@ -46,11 +47,13 @@ delimiter ;|
 --echo ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is enabled
 --echo ## Empty result set must be expected since innodb changes Distance scan of R-tree is not yet ready
 SET debug = '+d,handlerton_supports_distance_scan';
+--replace_regex $elide_costs
 call proc_gis();
 
 --echo ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is disabled
 --echo ## Always return result set because below query chooses full table scan
 SET debug = '-d,handlerton_supports_distance_scan';
+--replace_regex $elide_costs
 call proc_gis();
 
 --echo ## Test partition tables are not supported in GIS

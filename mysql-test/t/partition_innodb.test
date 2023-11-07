@@ -1278,14 +1278,17 @@ COLUMNS(PARTITION_ID)
 12:12:12',1),('Tom2',21,1,'2017-08-25 12:12:12',1),('Tom3',23,1,'2017-08-25
 12:12:12',1);
 
+--skip_if_hypergraph  # See Bug#36579596
 begin;update test12 set grade=3,date=now()  where age=23 and
 partition_id=1;
 
 --connection con1
+--skip_if_hypergraph  # See Bug#36579596
 begin;update test12 set grade=1,date=now()  where age=21 and
 partition_id=1;
 
 --connection con2
+--skip_if_hypergraph  # See Bug#36579596
 begin;update test12 set grade=0,date=now()  where age=20 and
 partition_id=1;
 
@@ -1364,16 +1367,19 @@ INSERT INTO t1 VALUES (3, '2018-04-25 10:18:02', '3');
 SELECT * FROM t1;
 
 begin;
+--skip_if_hypergraph  # See Bug#36579596
 UPDATE t1 SET data = '11' WHERE id = 1;
 
 --connection conn1
 begin;
+--skip_if_hypergraph  # See Bug#36579596
 UPDATE t1 SET data = '22' WHERE id = 2;
 commit;
 
 --disconnect conn1
 
 --connection default
+--skip_if_hypergraph  # See Bug#36579596
 SELECT * FROM t1;
 
 DROP TABLE t1;

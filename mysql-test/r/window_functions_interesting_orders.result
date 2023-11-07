@@ -38,15 +38,15 @@ CREATE INDEX idx ON t1 (a, b);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a) FROM t1;
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (PARTITION BY a) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a )
-    -> Index scan on t1 using idx
+-> Window aggregate with buffering: sum(t1.a) OVER (PARTITION BY t1.a )
+    -> Covering index scan on t1 using idx
 
-EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (PARTITION BY a ORDER BY b) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b )
-    -> Index scan on t1 using idx
+-> Window aggregate with buffering: sum(t1.a) OVER (PARTITION BY t1.a ORDER BY t1.b )
+    -> Covering index scan on t1 using idx
 
 ALTER TABLE t1 DROP INDEX idx;
 ANALYZE TABLE t1;
@@ -76,10 +76,10 @@ EXPLAIN
 
 EXPLAIN FORMAT=tree SELECT DISTINCT a, b, SUM(b) OVER (PARTITION BY a) FROM t1 ORDER BY a;
 EXPLAIN
--> Remove duplicates from input grouped on t1.a, t1.b  (cost=4.02..5.05 rows=2.83)
-    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a )   (cost=3.55..4.25 rows=8)
-        -> Sort: t1.a, t1.b  (cost=3.45..3.45 rows=8)
-            -> Table scan on t1  (cost=0.0312..0.25 rows=8)
+-> Remove duplicates from input grouped on t1.a, t1.b
+    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a )
+        -> Sort: t1.a, t1.b
+            -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
 EXPLAIN
@@ -128,8 +128,9 @@ EXPLAIN
         -> Stream results
             -> Group (no aggregates)
                 -> Nested loop inner join
-                    -> Index scan on t1 using PRIMARY
+                    -> Sort: t1.pk
+                        -> Table scan on t1
                     -> Filter: (t1.x = t2.pk)
-                        -> Covering index scan on t2 using PRIMARY
+                        -> Table scan on t2
 
 DROP TABLE t1, t2;

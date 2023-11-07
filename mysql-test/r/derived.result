@@ -590,9 +590,9 @@ ON table3 .`i1`  = table2 .o1
 ) ON table3 .`i2`  = table2 .o1
 ;
 EXPLAIN
--> Covering index lookup on table3 using <auto_key0> (i1='m', i2='m')  (cost=1.25..1.25 rows=1)
-    -> Materialize  (cost=0.902..0.902 rows=2)
-        -> Table scan on cc  (cost=0.702 rows=2)
+-> Covering index lookup on table3 using <auto_key0> (i1='m', i2='m')  (rows=1)
+    -> Materialize  (rows=2)
+        -> Table scan on cc  (rows=2)
 
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE cc;

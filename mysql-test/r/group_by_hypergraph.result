@@ -14,9 +14,9 @@ EXPLAIN
 -> Remove duplicates from input grouped on t1.x, min(t2.x)
     -> Group aggregate: min(t2.x)
         -> Sort: t2.x
-            -> Inner hash join (t1.x = t2.x)
+            -> Nested loop inner join
                 -> Table scan on t1
-                -> Hash
+                -> Filter: (t1.x = t2.x)
                     -> Table scan on t2
 
 DROP TABLE t;
@@ -87,7 +87,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.c  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
 c	sum(e)
@@ -98,7 +99,8 @@ NULL	5
 EXPLAIN FORMAT=TREE SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.c, t1.d  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
 c	d	sum(e)
@@ -112,7 +114,8 @@ NULL	NULL	5
 EXPLAIN FORMAT=TREE SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.c, t1.d, t1.a  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
 c	d	a	sum(e)
@@ -131,7 +134,8 @@ NULL	NULL	NULL	5
 EXPLAIN FORMAT=TREE SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: sum(t1.e)  (rows=7.78)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.c, t1.d, t1.a, t1.b  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
 c	d	a	b	sum(e)
@@ -184,27 +188,29 @@ NULL	NULL	5
 EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
 EXPLAIN
 -> Group aggregate: sum(t1.e)  (rows=2.24)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.d, t1.a, t1.c  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
 d	a	c	sum(e)
 0	0	0	1
-0	4	0	1
-0	1	1	1
 0	0	2	1
+0	1	1	1
 0	2	2	1
+0	4	0	1
 EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
 EXPLAIN
 -> Group aggregate: sum(t1.e)  (rows=2.24)
-    -> Index scan on t1 using ix1  (rows=5)
+    -> Sort: t1.a, t1.d, t1.c  (rows=5)
+        -> Table scan on t1  (rows=5)
 
 SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
 a	d	c	sum(e)
 0	0	0	1
-4	0	0	1
-1	0	1	1
 0	0	2	1
+1	0	1	1
 2	0	2	1
+4	0	0	1
 EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
 EXPLAIN
 -> Group aggregate: sum(t1.e)  (rows=2.24)
@@ -410,9 +416,10 @@ EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
 EXPLAIN
 -> Group (no aggregates)  (rows=23) (actual rows=33 loops=1)
     -> Sort: t1.a, t2.c3  (rows=10000) (actual rows=10000 loops=1)
-        -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
-            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-            -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
+        -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
+            -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
 
 DROP VIEW num1000;
 DROP TABLE num10, t1, t2;
@@ -455,6 +462,8 @@ EXPLAIN
             -> Table scan on t  (rows=1)
 
 DROP TABLE t;
+# Note: Some of the query results below are susceptible to plan changes.
+# This can happen when selecting columns that we do not group by or aggregate over.
 create table tb1(id int , id2 int, primary key (id));
 insert into tb1 values (1, 10), (2, 11), (3, 12), (4, 10), (5, 11), (6, 12), (7, 10), (8, 11), (9, 12), (10, 10), (11, 11), (12, 12);
 analyze table tb1;
@@ -504,9 +513,9 @@ id2	(select avg(tb1.id) + id3 from tb2 where tb2.id = tb1.id2)
 12	19.5000
 select sql_small_result tb2.id, tb2.id3, id2, avg(tb1.id) from tb1, tb2 group by id2;
 id	id3	id2	avg(tb1.id)
-1	10	10	5.5000
-1	10	11	6.5000
-1	10	12	7.5000
+12	12	10	5.5000
+12	12	11	6.5000
+12	12	12	7.5000
 drop table tb2;
 select sql_small_result ROUND(RAND(100)*10) r2, sum(1) r1 from tb1 group by id2  HAVING r1 = 4 and r2=2 ;
 r2	r1
@@ -778,7 +787,7 @@ EXPLAIN FORMAT=TREE select sql_small_result avg(id2) from tb1 t1 group by id;
 EXPLAIN
 -> Table scan on <temporary>  (rows=12)
     -> Aggregate using temporary table  (rows=12)
-        -> Index scan on t1 using PRIMARY  (rows=12)
+        -> Table scan on t1  (rows=12)
 
 truncate tb1;
 analyze table tb1;

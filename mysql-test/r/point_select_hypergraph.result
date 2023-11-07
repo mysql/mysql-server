@@ -10,7 +10,7 @@ PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
 SET @v = 2;
 EXECUTE q USING @v;
 EXPLAIN
--> Single-row index lookup on t1 using PRIMARY (pk=2)  (cost=0.25..0.25 rows=1)
+-> Single-row index lookup on t1 using PRIMARY (pk=2)  (rows=1)
 
 DROP TABLE t1;
 SET optimizer_switch=DEFAULT;

@@ -2119,9 +2119,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
--> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (cost=244 rows=1)
-    -> Filter: (rand() > 0.5)  (cost=124 rows=1199)
-        -> Covering index scan on t2 using fld1  (cost=124 rows=1199)
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (rows=1)
+    -> Filter: (rand() > 0.5)  (rows=1199)
+        -> Covering index scan on t2 using fld1  (rows=1199)
 
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)

@@ -14,6 +14,7 @@ create table t1 (
   a varchar(2) character set cp932
 ) engine=myisam;
 --disable_warnings
+--skip_if_hypergraph  # Gives error after cost model changes, see Bug#36575175.
 insert into t1
 select unhex(concat(t24.a, t23.a, t22.a, t21.a))
 from t2 t21, t2 t22, t2 t23, t2 t24;

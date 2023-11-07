@@ -8,7 +8,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.55 rows=3)
+-> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
@@ -16,7 +16,7 @@ CREATE TABLE t2 ( f1 INT );
 EXPLAIN FORMAT=tree INSERT INTO t2 SELECT * FROM t1;
 EXPLAIN
 -> Insert into t2
-    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Table scan on t1  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
@@ -24,20 +24,20 @@ CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree UPDATE t1, t2 SET f1=f1+2, f2=f2+1 WHERE f1 = f2;
 EXPLAIN
 -> Update t1 (buffered), t2 (buffered)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Filter: (t2.f2 = t1.f1)  (cost=0.35 rows=1)
-            -> Table scan on t2  (cost=0.35 rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Filter: (t2.f2 = t1.f1)  (rows=1)
+            -> Table scan on t2  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)  (cost=0.8 rows=1)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
+-> Delete from t1 (immediate), t2 (buffered)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Table scan on t2  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
@@ -49,11 +49,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.55 rows=3)
+-> Table scan on t1  (rows=3)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
-        -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
-            -> Table scan on i  (cost=0.35 rows=3)
+    -> Aggregate: min(i.f1)  (rows=1)
+        -> Filter: (i.f1 > t1.f1)  (rows=1)
+            -> Table scan on i  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -67,7 +67,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 EXPLAIN
--> Covering index scan on t1 using PRIMARY (reverse)  (cost=0.55 rows=3)
+-> Covering index scan on t1 using PRIMARY (reverse)  (rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
@@ -79,23 +79,23 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN
--> Aggregate: sum(t1.f1)  (cost=0.85 rows=1)
-    -> Covering index scan on t1 using f1  (cost=0.55 rows=3)
+-> Aggregate: sum(t1.f1)  (rows=1)
+    -> Covering index scan on t1 using f1  (rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
--> Group (no aggregates)  (cost=0.85 rows=1.73)
-    -> Covering index scan on t1 using f1  (cost=0.55 rows=3)
+-> Group (no aggregates)  (rows=1.73)
+    -> Covering index scan on t1 using f1  (rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
--> Group aggregate: count(0)  (cost=0.85 rows=1.73)
-    -> Covering index scan on t1 using f1  (cost=0.55 rows=3)
+-> Group aggregate: count(0)  (rows=1.73)
+    -> Covering index scan on t1 using f1  (rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 EXPLAIN
--> Group aggregate with rollup: count(0)  (cost=0.85 rows=2.73)
-    -> Covering index scan on t1 using f1  (cost=0.55 rows=3)
+-> Group aggregate with rollup: count(0)  (rows=2.73)
+    -> Covering index scan on t1 using f1  (rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -107,7 +107,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1)
+-> Rows fetched before execution  (rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -122,10 +122,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
 EXPLAIN
--> Nested loop left join  (cost=1.1 rows=3)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Filter: (t1.f1 = <cache>((3 + 2)))  (cost=0.117..0.117 rows=1)
-        -> Constant row from t2  (cost=0.117..0.117 rows=1)
+-> Nested loop left join  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
+    -> Filter: (t1.f1 = <cache>((3 + 2)))  (rows=1)
+        -> Constant row from t2  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -139,10 +139,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
 EXPLAIN
--> Nested loop left join  (cost=0.55 rows=3)
-    -> Rows fetched before execution  (cost=0..0 rows=1)
-    -> Filter: (t2.f1 = 2)  (cost=0.55 rows=3)
-        -> Table scan on t2  (cost=0.55 rows=3)
+-> Nested loop left join  (rows=3)
+    -> Rows fetched before execution  (rows=1)
+    -> Filter: (t2.f1 = 2)  (rows=3)
+        -> Table scan on t2  (rows=3)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INT );
@@ -158,13 +158,13 @@ test.t2	analyze	status	OK
 test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON t3.b IS NULL;
 EXPLAIN
--> Nested loop left join  (cost=0.7 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
-    -> Filter: (t3.b is null)  (cost=0.7 rows=1)
-        -> Nested loop left join  (cost=0.7 rows=1)
-            -> Table scan on t2  (cost=0.35 rows=1)
-            -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
-                -> Table scan on t3  (cost=0.35 rows=1)
+-> Nested loop left join  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Filter: (t3.b is null)  (rows=1)
+        -> Nested loop left join  (rows=1)
+            -> Table scan on t2  (rows=1)
+            -> Filter: (t3.a = t2.a)  (rows=1)
+                -> Table scan on t3  (rows=1)
 
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -178,11 +178,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 EXPLAIN
--> Filter: (t2.f1 is null)  (cost=2.8 rows=3)
-    -> Nested loop antijoin  (cost=2.8 rows=3)
-        -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-        -> Filter: (t2.f1 = t1.f1)  (cost=0.483 rows=1)
-            -> Table scan on t2  (cost=0.483 rows=3)
+-> Filter: (t2.f1 is null)  (rows=3)
+    -> Nested loop antijoin  (rows=3)
+        -> Covering index scan on t1 using PRIMARY  (rows=3)
+        -> Filter: (t2.f1 = t1.f1)  (rows=1)
+            -> Table scan on t2  (rows=3)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b INT);
@@ -199,13 +199,13 @@ test.t2	analyze	status	OK
 FLUSH STATUS;
 EXPLAIN FORMAT=tree SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
 EXPLAIN
--> Table scan on <temporary>  (cost=3.51..4.76 rows=2)
-    -> Temporary table with deduplication  (cost=2.25..2.25 rows=2)
-        -> Nested loop inner join  (cost=2.05 rows=2)
-            -> Table scan on t1  (cost=0.45 rows=2)
-            -> Limit: 1 row(s)  (cost=0.583 rows=1)
-                -> Filter: (t2.c <= 3)  (cost=0.583 rows=1.67)
-                    -> Index lookup on t2 using a (a=t1.a)  (cost=0.583 rows=5)
+-> Table scan on <temporary>  (rows=2)
+    -> Temporary table with deduplication  (rows=2)
+        -> Nested loop inner join  (rows=2)
+            -> Table scan on t1  (rows=2)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Filter: (t2.c <= 3)  (rows=1.67)
+                    -> Index lookup on t2 using a (a=t1.a)  (rows=5)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
@@ -217,8 +217,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 EXPLAIN
--> Sort: t1.f1 DESC  (cost=0.55 rows=3)
-    -> Table scan on t1  (cost=0.55 rows=3)
+-> Sort: t1.f1 DESC  (rows=3)
+    -> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( a LONGBLOB, b INT );
@@ -228,14 +228,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT 0 AS foo FROM t1 WHERE 0 = (SELECT group_concat(b) FROM t1 t GROUP BY t1.a) ;
 EXPLAIN
--> Filter: (0 = (select #2))  (cost=0.35 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
+-> Filter: (0 = (select #2))  (rows=1)
+    -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; dependent)
         -> Group aggregate: group_concat(t1.b separator ',')
             -> Sort row IDs: t1.a
-                -> Table scan on <temporary>  (cost=2.96..2.96 rows=1)
-                    -> Temporary table  (cost=0.45..0.45 rows=1)
-                        -> Table scan on t  (cost=0.35 rows=1)
+                -> Table scan on <temporary>  (rows=1)
+                    -> Temporary table  (rows=1)
+                        -> Table scan on t  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -247,9 +247,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (cost=1.91..3.18 rows=2)
-    -> Temporary table with deduplication  (cost=0.65..0.65 rows=2)
-        -> Table scan on t1  (cost=0.45 rows=2)
+-> Table scan on <temporary>  (rows=2)
+    -> Temporary table with deduplication  (rows=2)
+        -> Table scan on t1  (rows=2)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 VARCHAR(100) );
@@ -263,11 +263,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
 EXPLAIN
--> Limit: 2 row(s)  (cost=1.76..2.28 rows=2)
-    -> Table scan on <temporary>  (cost=1.76..3.81 rows=5)
-        -> Temporary table with deduplication  (cost=1.25..1.25 rows=5)
+-> Limit: 2 row(s)  (rows=2)
+    -> Table scan on <temporary>  (rows=5)
+        -> Temporary table with deduplication  (rows=5)
             -> Limit table size: 2 unique row(s)
-                -> Table scan on t1  (cost=0.75 rows=5)
+                -> Table scan on t1  (rows=5)
 
 DROP TABLE t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
@@ -278,11 +278,11 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
 EXPLAIN
 -> Insert into t1
-    -> Limit: 1 row(s)  (cost=1.91..1.91 rows=1)
-        -> Table scan on <temporary>  (cost=1.91..3.18 rows=2)
-            -> Temporary table  (cost=0.65..0.65 rows=2)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Table scan on <temporary>  (rows=2)
+            -> Temporary table  (rows=2)
                 -> Limit table size: 1 row(s)
-                    -> Covering index scan on t1 using PRIMARY  (cost=0.45 rows=2)
+                    -> Covering index scan on t1 using PRIMARY  (rows=2)
 
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
@@ -294,13 +294,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (cost=6.42..8.19 rows=3.32)
-    -> Temporary table with deduplication  (cost=5.65..5.65 rows=3.32)
-        -> Table scan on <temporary>  (cost=3.55..5.32 rows=3.32)
-            -> Temporary table  (cost=2.78..2.78 rows=3.32)
-                -> Group aggregate: count(distinct t1.b)  (cost=2.45 rows=3.32)
-                    -> Sort: t1.a  (cost=1.35 rows=11)
-                        -> Table scan on t1  (cost=1.35 rows=11)
+-> Table scan on <temporary>  (rows=3.32)
+    -> Temporary table with deduplication  (rows=3.32)
+        -> Table scan on <temporary>  (rows=3.32)
+            -> Temporary table  (rows=3.32)
+                -> Group aggregate: count(distinct t1.b)  (rows=3.32)
+                    -> Sort: t1.a  (rows=11)
+                        -> Table scan on t1  (rows=11)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -312,22 +312,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
--> Filter: (t1.f1 = (select #2))  (cost=0.55 rows=3)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Filter: (t1.f1 = (select #2))  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
-            -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
-                -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
+        -> Aggregate: min(i.f1)  (rows=1)
+            -> Filter: (i.f1 > t1.f1)  (rows=1)
+                -> Index range scan on i (re-planned for each iteration)  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
--> Filter: (t1.f1 > (select #2))  (cost=0.55 rows=2)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Filter: (t1.f1 > (select #2))  (rows=2)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Select #2 (subquery in condition; run only once)
-        -> Limit: 1 row(s)  (cost=0.55 rows=1)
-            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -339,14 +339,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
 EXPLAIN
--> Filter: (t1.f1 = (select #2))  (cost=0.55 rows=3)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Filter: (t1.f1 = (select #2))  (rows=3)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Covering index scan on i using PRIMARY  (cost=0.55 rows=3)
+        -> Covering index scan on i using PRIMARY  (rows=3)
         -> Select #3 (subquery in projection; dependent)
-            -> Aggregate: min(ii.f1)  (cost=0.45 rows=1)
-                -> Filter: (ii.f1 > t1.f1)  (cost=0.35 rows=1)
-                    -> Index range scan on ii (re-planned for each iteration)  (cost=0.35 rows=3)
+            -> Aggregate: min(ii.f1)  (rows=1)
+                -> Filter: (ii.f1 > t1.f1)  (rows=1)
+                    -> Index range scan on ii (re-planned for each iteration)  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #1
@@ -360,11 +360,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
 EXPLAIN
--> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Covering index scan on t1 using PRIMARY  (rows=3)
 -> Select #4 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
-        -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
-            -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
+    -> Aggregate: min(i.f1)  (rows=1)
+        -> Filter: (i.f1 > t1.f1)  (rows=1)
+            -> Index range scan on i (re-planned for each iteration)  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #4 was resolved in SELECT #1
@@ -381,12 +381,12 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 EXPLAIN
 -> Sort: tmp1
-    -> Stream results  (cost=0.55 rows=3)
-        -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+    -> Stream results  (rows=3)
+        -> Covering index scan on t1 using PRIMARY  (rows=3)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)  (cost=0.35 rows=1)
-        -> Filter: (inner_t1.f1 > t1.f1)  (cost=0.35 rows=1)
-            -> Index range scan on inner_t1 (re-planned for each iteration)  (cost=0.35 rows=3)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Filter: (inner_t1.f1 > t1.f1)  (rows=1)
+            -> Index range scan on inner_t1 (re-planned for each iteration)  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -400,9 +400,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
 EXPLAIN
--> Sort: t1.b  (cost=1.35 rows=11)
-    -> Filter: (t1.a > 3)  (cost=1.35 rows=11)
-        -> Table scan on t1  (cost=1.35 rows=11)
+-> Sort: t1.b  (rows=11)
+    -> Filter: (t1.a > 3)  (rows=11)
+        -> Table scan on t1  (rows=11)
 
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
@@ -436,9 +436,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY b LIMIT 3;
 EXPLAIN
--> Limit: 3 row(s)  (cost=1.35 rows=3)
-    -> Sort: t1.b, limit input to 3 row(s) per chunk  (cost=1.35 rows=11)
-        -> Table scan on t1  (cost=1.35 rows=11)
+-> Limit: 3 row(s)  (rows=3)
+    -> Sort: t1.b, limit input to 3 row(s) per chunk  (rows=11)
+        -> Table scan on t1  (rows=11)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( a INTEGER );
@@ -448,24 +448,24 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING ( a ),
 LATERAL ( SELECT * FROM t3 WHERE t3.a = t2.a LIMIT 1 ) t3d,
 LATERAL ( SELECT * FROM t3 WHERE t3.a > t1.a LIMIT 1 ) t4d;
 EXPLAIN
--> Nested loop inner join  (cost=9.3 rows=1)
-    -> Nested loop inner join  (cost=3.87 rows=1)
-        -> Invalidate materialized tables (row from t2)  (cost=0.7 rows=1)
-            -> Nested loop left join  (cost=0.7 rows=1)
-                -> Invalidate materialized tables (row from t1)  (cost=0.35 rows=1)
-                    -> Table scan on t1  (cost=0.35 rows=1)
-                -> Filter: (t2.a = t1.a)  (cost=0.35 rows=1)
-                    -> Table scan on t2  (cost=0.35 rows=1)
-        -> Table scan on t3d  (cost=2.96..2.96 rows=1)
-            -> Materialize (invalidate on row from t2)  (cost=0.45..0.45 rows=1)
-                -> Limit: 1 row(s)  (cost=0.35 rows=1)
-                    -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
-                        -> Table scan on t3  (cost=0.35 rows=1)
-    -> Table scan on t4d  (cost=2.96..2.96 rows=1)
-        -> Materialize (invalidate on row from t1)  (cost=0.45..0.45 rows=1)
-            -> Limit: 1 row(s)  (cost=0.35 rows=1)
-                -> Filter: (t3.a > t1.a)  (cost=0.35 rows=1)
-                    -> Table scan on t3  (cost=0.35 rows=1)
+-> Nested loop inner join  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Invalidate materialized tables (row from t2)  (rows=1)
+            -> Nested loop left join  (rows=1)
+                -> Invalidate materialized tables (row from t1)  (rows=1)
+                    -> Table scan on t1  (rows=1)
+                -> Filter: (t2.a = t1.a)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+        -> Table scan on t3d  (rows=1)
+            -> Materialize (invalidate on row from t2)  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Filter: (t3.a = t2.a)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+    -> Table scan on t4d  (rows=1)
+        -> Materialize (invalidate on row from t1)  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Filter: (t3.a > t1.a)  (rows=1)
+                    -> Table scan on t3  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
@@ -480,19 +480,19 @@ t2 LEFT JOIN t3 USING ( a ) CROSS JOIN
 LATERAL ( SELECT * FROM t4 WHERE t4.a = t3.a LIMIT 1 ) t4d
 ) ON t1.a = t4d.a;
 EXPLAIN
--> Nested loop left join  (cost=0.7 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
-    -> Nested loop inner join  (cost=1.85 rows=1)
-        -> Invalidate materialized tables (row from t3)  (cost=0.7 rows=1)
-            -> Nested loop left join  (cost=0.7 rows=1)
-                -> Table scan on t2  (cost=0.35 rows=1)
-                -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
-                    -> Table scan on t3  (cost=0.35 rows=1)
-        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)  (cost=1.07..1.7 rows=2)
-            -> Materialize (invalidate on row from t3)  (cost=0.45..0.45 rows=1)
-                -> Limit: 1 row(s)  (cost=0.35 rows=1)
-                    -> Filter: (t4.a = t3.a)  (cost=0.35 rows=1)
-                        -> Table scan on t4  (cost=0.35 rows=1)
+-> Nested loop left join  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Invalidate materialized tables (row from t3)  (rows=1)
+            -> Nested loop left join  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Filter: (t3.a = t2.a)  (rows=1)
+                    -> Table scan on t3  (rows=1)
+        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)  (rows=2)
+            -> Materialize (invalidate on row from t3)  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Filter: (t4.a = t3.a)  (rows=1)
+                        -> Table scan on t4  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
@@ -501,27 +501,27 @@ CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
 WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
 EXPLAIN
--> Sort: alias1.f1  (cost=2.95..2.95 rows=0)
-    -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.85..2.85 rows=0)
-        -> Table scan on alias1  (cost=2.85..2.85 rows=0)
-            -> Materialize  (cost=0.35..0.35 rows=0)
-                -> Limit/Offset: 2/1 row(s)  (cost=0.35 rows=0)
-                    -> Table scan on t1  (cost=0.35 rows=1)
+-> Sort: alias1.f1  (rows=0)
+    -> Filter: <nop>((alias1.f1 <= (select #3)))  (rows=0)
+        -> Table scan on alias1  (rows=0)
+            -> Materialize  (rows=0)
+                -> Limit/Offset: 2/1 row(s)  (rows=0)
+                    -> Table scan on t1  (rows=1)
         -> Select #3 (subquery in condition; run only once)
-            -> Aggregate: max(t1.f1)  (cost=0.45 rows=1)
-                -> Table scan on t1  (cost=0.35 rows=1)
+            -> Aggregate: max(t1.f1)  (rows=1)
+                -> Table scan on t1  (rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f1 INT );
 EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my_cte, t2;
 EXPLAIN
--> Nested loop inner join  (cost=2.98 rows=1)
-    -> Table scan on t2  (cost=0.35 rows=1)
-    -> Table scan on my_cte  (cost=2.96..2.96 rows=1)
-        -> Materialize CTE my_cte  (cost=0.45..0.45 rows=1)
-            -> Limit: 3 row(s)  (cost=0.35 rows=1)
-                -> Table scan on t1  (cost=0.35 rows=1)
+-> Nested loop inner join  (rows=1)
+    -> Table scan on t2  (rows=1)
+    -> Table scan on my_cte  (rows=1)
+        -> Materialize CTE my_cte  (rows=1)
+            -> Limit: 3 row(s)  (rows=1)
+                -> Table scan on t1  (rows=1)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -529,10 +529,10 @@ CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop semijoin  (cost=0.7 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
-    -> Filter: (t2.i = t1.i)  (cost=0.35 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
+-> Nested loop semijoin  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Filter: (t2.i = t1.i)  (rows=1)
+        -> Table scan on t2  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER);
@@ -547,11 +547,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.i) IN (SELECT t3.i FROM t3,t4) AND t1.pk = 2 AND t2.pk = 4;
 EXPLAIN
--> Limit: 1 row(s)  (cost=0.7 rows=1)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Filter: (t3.i = '3')  (cost=0.35 rows=1)
-            -> Table scan on t3  (cost=0.35 rows=1)
-        -> Table scan on t4  (cost=0.35 rows=1)
+-> Limit: 1 row(s)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Filter: (t3.i = '3')  (rows=1)
+            -> Table scan on t3  (rows=1)
+        -> Table scan on t4  (rows=1)
 
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (i INTEGER);
@@ -559,14 +559,14 @@ CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER, j INTEGER);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE t1.i IN ( SELECT i FROM t2 LEFT JOIN t3 USING (i) WHERE t3.j = 1234 OR t3.j IS NULL );
 EXPLAIN
--> Nested loop semijoin  (cost=0.7 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
-    -> Filter: ((t3.j = 1234) or (t3.j is null))  (cost=0.7 rows=1)
-        -> Nested loop left join  (cost=0.7 rows=1)
-            -> Filter: (t2.i = t1.i)  (cost=0.35 rows=1)
-                -> Table scan on t2  (cost=0.35 rows=1)
-            -> Filter: (t2.i = t3.i)  (cost=0.35 rows=1)
-                -> Table scan on t3  (cost=0.35 rows=1)
+-> Nested loop semijoin  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Filter: ((t3.j = 1234) or (t3.j is null))  (rows=1)
+        -> Nested loop left join  (rows=1)
+            -> Filter: (t2.i = t1.i)  (rows=1)
+                -> Table scan on t2  (rows=1)
+            -> Filter: (t2.i = t3.i)  (rows=1)
+                -> Table scan on t3  (rows=1)
 
 DROP TABLE t1, t2, t3;
 set @old_opt_switch=@@optimizer_switch;
@@ -578,14 +578,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
 EXPLAIN
--> Nested loop inner join  (cost=3.71 rows=1)
-    -> Table scan on <subquery2>  (cost=3.16..3.16 rows=1)
-        -> Materialize with deduplication  (cost=0.65..0.65 rows=1)
-            -> Filter: (t1.a is not null)  (cost=0.55 rows=1)
-                -> Filter: (t1.b = 2)  (cost=0.55 rows=1)
-                    -> Table scan on t1  (cost=0.55 rows=3)
-    -> Filter: (t1.a = `<subquery2>`.a)  (cost=0.35 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=3)
+-> Nested loop inner join  (rows=1)
+    -> Table scan on <subquery2>  (rows=1)
+        -> Materialize with deduplication  (rows=1)
+            -> Filter: (t1.a is not null)  (rows=1)
+                -> Filter: (t1.b = 2)  (rows=1)
+                    -> Table scan on t1  (rows=3)
+    -> Filter: (t1.a = `<subquery2>`.a)  (rows=1)
+        -> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
@@ -598,13 +598,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
 EXPLAIN
--> Nested loop antijoin  (cost=1.75 rows=9)
-    -> Table scan on t1  (cost=0.55 rows=3)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)  (cost=0.983..0.983 rows=1)
-        -> Materialize with deduplication  (cost=0.85..0.85 rows=3)
-            -> Filter: (t1.b is not null)  (cost=0.55 rows=3)
-                -> Filter: (t1.b > 2)  (cost=0.55 rows=3)
-                    -> Table scan on t1  (cost=0.55 rows=3)
+-> Nested loop antijoin  (rows=9)
+    -> Table scan on t1  (rows=3)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)  (rows=1)
+        -> Materialize with deduplication  (rows=3)
+            -> Filter: (t1.b is not null)  (rows=3)
+                -> Filter: (t1.b > 2)  (rows=3)
+                    -> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
@@ -617,14 +617,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );
 EXPLAIN
--> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=0.55 rows=3)
-    -> Table scan on t1  (cost=0.55 rows=3)
+-> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (rows=3)
+    -> Table scan on t1  (rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)  (cost=0.65 rows=1)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.a)))  (cost=0.65 rows=1)
-                -> Aggregate: max(t1.a)  (cost=0.65 rows=1)
-                    -> Filter: (t1.b = 2)  (cost=0.55 rows=1)
-                        -> Table scan on t1  (cost=0.55 rows=3)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.a)))  (rows=1)
+                -> Aggregate: max(t1.a)  (rows=1)
+                    -> Filter: (t1.b = 2)  (rows=1)
+                        -> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
@@ -640,11 +640,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Remove duplicate t1 rows using temporary table (weedout)  (cost=0.9 rows=1)
-    -> Nested loop inner join  (cost=0.9 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
-        -> Filter: (t1.i = t2.i)  (cost=0.35 rows=1)
-            -> Table scan on t1  (cost=0.35 rows=3)
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t2  (rows=1)
+        -> Filter: (t1.i = t2.i)  (rows=1)
+            -> Table scan on t1  (rows=3)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -661,11 +661,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop inner join  (cost=2.5 rows=3)
-    -> Table scan on t1  (cost=0.55 rows=3)
-    -> Limit: 1 row(s)  (cost=0.283 rows=1)
-        -> Filter: (t2.i = t1.i)  (cost=0.283 rows=1)
-            -> Table scan on t2  (cost=0.283 rows=4)
+-> Nested loop inner join  (rows=3)
+    -> Table scan on t1  (rows=3)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Filter: (t2.i = t1.i)  (rows=1)
+            -> Table scan on t2  (rows=4)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -682,11 +682,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop inner join  (cost=2.05 rows=4)
-    -> Remove duplicates from input sorted on i1  (cost=0.651 rows=4)
-        -> Filter: (t2.i is not null)  (cost=0.651 rows=4)
-            -> Covering index scan on t2 using i1  (cost=0.651 rows=4)
-    -> Single-row covering index lookup on t1 using PRIMARY (i=t2.i)  (cost=1.1 rows=1)
+-> Nested loop inner join  (rows=4)
+    -> Remove duplicates from input sorted on i1  (rows=4)
+        -> Filter: (t2.i is not null)  (rows=4)
+            -> Covering index scan on t2 using i1  (rows=4)
+    -> Single-row covering index lookup on t1 using PRIMARY (i=t2.i)  (rows=1)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -706,10 +706,10 @@ CREATE TABLE t2 (col_int INTEGER);
 EXPLAIN FORMAT=tree SELECT /*+ NO_BNL(t1, t2) */ * FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 EXPLAIN
--> Nested loop inner join  (cost=0.7 rows=1)
-    -> Table scan on t2  (cost=0.35 rows=1)
-    -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=0.35 rows=1)
-        -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=0.35 rows=1)
+-> Nested loop inner join  (rows=1)
+    -> Table scan on t2  (rows=1)
+    -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=1)
+        -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
@@ -721,18 +721,18 @@ EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a L
 EXPLAIN
 -> Limit: 3 row(s)  (actual rows=1 loops=1)
     -> Sort: `(a.b + b.a)`, limit input to 3 row(s) per chunk  (actual rows=1 loops=1)
-        -> Stream results  (cost=1.6 rows=3) (actual rows=1 loops=1)
-            -> Nested loop inner join  (cost=1.6 rows=3) (actual rows=1 loops=1)
-                -> Filter: (b.b is not null)  (cost=0.55 rows=3) (actual rows=3 loops=1)
-                    -> Table scan on b  (cost=0.55 rows=3) (actual rows=3 loops=1)
-                -> Single-row index lookup on a using PRIMARY (a=b.b)  (cost=0.283 rows=1) (actual rows=0.333 loops=3)
+        -> Stream results  (rows=3) (actual rows=1 loops=1)
+            -> Nested loop inner join  (rows=3) (actual rows=1 loops=1)
+                -> Filter: (b.b is not null)  (rows=3) (actual rows=3 loops=1)
+                    -> Table scan on b  (rows=3) (actual rows=3 loops=1)
+                -> Single-row index lookup on a using PRIMARY (a=b.b)  (rows=1) (actual rows=0.333 loops=3)
 
 EXPLAIN ANALYZE SELECT * FROM t1 AS a, t1 AS b WHERE a.b=500;
 EXPLAIN
--> Nested loop inner join  (cost=1.1 rows=3) (actual rows=0 loops=1)
-    -> Filter: (a.b = 500)  (cost=0.55 rows=1) (actual rows=0 loops=1)
-        -> Table scan on a  (cost=0.55 rows=3) (actual rows=3 loops=1)
-    -> Table scan on b  (cost=0.55 rows=3) (never executed)
+-> Nested loop inner join  (rows=3) (actual rows=0 loops=1)
+    -> Filter: (a.b = 500)  (rows=1) (actual rows=0 loops=1)
+        -> Table scan on a  (rows=3) (actual rows=3 loops=1)
+    -> Table scan on b  (rows=3) (never executed)
 
 DROP TABLE t1;
 EXPLAIN ANALYZE FOR CONNECTION 1;
@@ -743,11 +743,11 @@ EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
 ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0..0 rows=1) (actual rows=1 loops=1)
+-> Rows fetched before execution  (rows=1) (actual rows=1 loops=1)
 
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
 EXPLAIN
--> Table scan on ENGINES  (cost=2.73 rows=2)
+-> Table scan on ENGINES  (rows=2)
     -> Fill information schema table ENGINES
 
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -757,21 +757,21 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
--> Nested loop inner join  (cost=10.1 rows=18)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Table scan on d1  (cost=2.13..4.28 rows=6)
-        -> Union materialize with deduplication  (cost=1.7..1.7 rows=6)
-            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Nested loop inner join  (rows=18)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
+    -> Table scan on d1  (rows=6)
+        -> Union materialize with deduplication  (rows=6)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
--> Nested loop inner join  (cost=10.1 rows=18)
-    -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Table scan on d1  (cost=2.13..4.28 rows=6)
-        -> Union all materialize  (cost=1.7..1.7 rows=6)
-            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+-> Nested loop inner join  (rows=18)
+    -> Covering index scan on t1 using PRIMARY  (rows=3)
+    -> Table scan on d1  (rows=6)
+        -> Union all materialize  (rows=6)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
+            -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 DROP TABLE t1;
 #
@@ -784,11 +784,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=1.25 rows=10) (actual rows=10 loops=1)
+-> Table scan on t1  (rows=10) (actual rows=10 loops=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (cost=0.917 rows=1) (actual rows=1 loops=10)
-        -> Filter: (inner_t1.f1 < t1.f1)  (cost=0.583 rows=3.33) (actual rows=4.5 loops=10)
-            -> Table scan on inner_t1  (cost=0.583 rows=10) (actual rows=10 loops=10)
+    -> Aggregate: count(0)  (rows=1) (actual rows=1 loops=10)
+        -> Filter: (inner_t1.f1 < t1.f1)  (rows=3.33) (actual rows=4.5 loops=10)
+            -> Table scan on inner_t1  (rows=10) (actual rows=10 loops=10)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -805,31 +805,31 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1;
 EXPLAIN
 -> Update t1 (immediate), t2 (buffered)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
 EXPLAIN
 -> Update t1 (buffered), t2 (buffered)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Filter: (t2.a = t1.a)  (cost=0.35 rows=1)
-            -> Table scan on t2  (cost=0.35 rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Filter: (t2.a = t1.a)  (rows=1)
+            -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)  (cost=0.8 rows=1)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
+-> Delete from t1 (immediate), t2 (buffered)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
 EXPLAIN
--> Delete from t1 (buffered), t1bis (buffered)  (cost=0.9 rows=1)
-    -> Nested loop inner join  (cost=0.7 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-        -> Table scan on t1bis  (cost=0.35 rows=1)
+-> Delete from t1 (buffered), t1bis (buffered)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Table scan on t1  (rows=1)
+        -> Table scan on t1bis  (rows=1)
 
 DROP TABLE t1,t2;
 #
@@ -847,7 +847,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER);
 EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
 EXPLAIN
--> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
+-> Zero rows (Impossible WHERE)  (rows=0)
 
 DROP TABLE t1;
 #
@@ -860,13 +860,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
 EXPLAIN
--> Nested loop left join  (cost=14.9 rows=15) (actual rows=15 loops=1)
-    -> Table scan on t1  (cost=0.75 rows=5) (actual rows=5 loops=1)
-    -> Table scan on d1  (cost=1.57..2.6 rows=3) (actual rows=3 loops=5)
-        -> Materialize  (cost=1.05..1.05 rows=3) (actual rows=3 loops=1)
-            -> Limit: 3 row(s)  (cost=0.75 rows=3) (actual rows=3 loops=1)
-                -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.75 rows=5) (actual rows=3 loops=1)
-                    -> Table scan on t1  (cost=0.75 rows=5) (actual rows=5 loops=1)
+-> Nested loop left join  (rows=15) (actual rows=15 loops=1)
+    -> Table scan on t1  (rows=5) (actual rows=5 loops=1)
+    -> Table scan on d1  (rows=3) (actual rows=3 loops=5)
+        -> Materialize  (rows=3) (actual rows=3 loops=1)
+            -> Limit: 3 row(s)  (rows=3) (actual rows=3 loops=1)
+                -> Sort: t1.a, limit input to 3 row(s) per chunk  (rows=5) (actual rows=3 loops=1)
+                    -> Table scan on t1  (rows=5) (actual rows=5 loops=1)
 
 DROP TABLE t1;
 #
@@ -876,16 +876,16 @@ CREATE TABLE t1 (a int);
 SET sql_mode='';
 EXPLAIN FORMAT=tree SELECT a IN (SELECT a FROM (table t1) AS d) FROM t1 GROUP BY (@b:=5);
 EXPLAIN
--> Group (no aggregates)  (cost=0.45 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
+-> Group (no aggregates)  (rows=1)
+    -> Table scan on t1  (rows=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)  (cost=1.85..1.85 rows=1)
-        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=1.85..1.85 rows=1)
-            -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (cost=0.8..1.85 rows=4)
-                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (cost=1.4 rows=4)
-                    -> Materialize  (cost=0.45..0.45 rows=1)
-                        -> Table scan on t1  (cost=0.35 rows=1)
-                -> Table scan on d  (cost=2.52 rows=2)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (rows=1)
+            -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
+                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (rows=4)
+                    -> Materialize  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                -> Table scan on d  (rows=2)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -900,11 +900,11 @@ EXPLAIN FORMAT=tree
 UNION ALL
 SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
 EXPLAIN
--> Append  (cost=0.35..0.35 rows=1)
-    -> Stream results  (cost=0.35 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
-    -> Stream results  (cost=0..0 rows=0)
-        -> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
+-> Append  (rows=1)
+    -> Stream results  (rows=1)
+        -> Table scan on t1  (rows=1)
+    -> Stream results  (rows=0)
+        -> Zero rows (Impossible WHERE)  (rows=0)
 
 DROP TABLE t1;
 CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
@@ -914,22 +914,22 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 EXPLAIN
--> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (cost=2.07 rows=5)
+-> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
 EXPLAIN
--> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (cost=2.07 rows=5)
+-> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
 EXPLAIN ANALYZE
 SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
 EXPLAIN
--> Filter: ((t1.pk > 1) or (t1.a > 2) or (t1.b > 3))  (cost=1.97 rows=1) (actual rows=0 loops=1)
-    -> Sort-deduplicate by row ID  (cost=1.97 rows=1) (actual rows=0 loops=1)
+-> Filter: ((t1.pk > 1) or (t1.a > 2) or (t1.b > 3))  (rows=1) (actual rows=0 loops=1)
+    -> Sort-deduplicate by row ID  (rows=1) (actual rows=0 loops=1)
         -> Clustered primary key (scanned separately)
-            -> Index range scan on t1 using PRIMARY over (1 < pk)  (cost=0.36 rows=1) (actual rows=0 loops=1)
-        -> Index range scan on t1 using a over (2 < a)  (cost=0.36 rows=1) (actual rows=0 loops=1)
-        -> Index range scan on t1 using b over (3 < b)  (cost=0.36 rows=1) (actual rows=0 loops=1)
+            -> Index range scan on t1 using PRIMARY over (1 < pk)  (rows=1) (actual rows=0 loops=1)
+        -> Index range scan on t1 using a over (2 < a)  (rows=1) (actual rows=0 loops=1)
+        -> Index range scan on t1 using b over (3 < b)  (rows=1) (actual rows=0 loops=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, KEY idx1 (a,b,c,d,e));
@@ -939,8 +939,8 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT /*+ SKIP_SCAN(t1) */ * FROM t1 WHERE a IN (2,4,6,8,10) AND b=5 AND e BETWEEN 100 AND 200;
 EXPLAIN
--> Filter: ((t1.b = 5) and (t1.a in (2,4,6,8,10)) and (t1.e between 100 and 200))  (cost=0.301..1.5 rows=5)
-    -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (cost=0.301..1.5 rows=5)
+-> Filter: ((t1.b = 5) and (t1.a in (2,4,6,8,10)) and (t1.e between 100 and 200))  (rows=5)
+    -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (rows=5)
 
 DROP TABLE t1;
 #
@@ -953,14 +953,14 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
 EXPLAIN
--> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (cost=0.46 rows=1)
-    -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (cost=0.46 rows=1)
+-> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (rows=1)
+    -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (rows=1)
 
 EXPLAIN FORMAT=tree
 SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
 EXPLAIN
--> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (cost=0.661 rows=2)
-    -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (cost=0.661 rows=2)
+-> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (rows=2)
+    -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (rows=2)
 
 DROP TABLE t;
 #
@@ -973,16 +973,16 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
 EXPLAIN
--> Delete from t (buffered)  (cost=0..0 rows=0)
-    -> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
+-> Delete from t (buffered)  (rows=0)
+    -> Zero rows (Impossible WHERE)  (rows=0)
 
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
 EXPLAIN
--> Delete from t1 (buffered)  (cost=3.1 rows=9) (actual rows=0 loops=1)
-    -> Nested loop inner join  (cost=2.2 rows=9) (actual rows=2 loops=1)
-        -> Table scan on t1  (cost=0.55 rows=3) (actual rows=3 loops=1)
-        -> Filter: (t1.x = (t2.x + 1))  (cost=0.35 rows=3) (actual rows=0.667 loops=3)
-            -> Table scan on t2  (cost=0.35 rows=3) (actual rows=3 loops=3)
+-> Delete from t1 (buffered)  (rows=9) (actual rows=0 loops=1)
+    -> Nested loop inner join  (rows=9) (actual rows=2 loops=1)
+        -> Table scan on t1  (rows=3) (actual rows=3 loops=1)
+        -> Filter: (t1.x = (t2.x + 1))  (rows=3) (actual rows=0.667 loops=3)
+            -> Table scan on t2  (rows=3) (actual rows=3 loops=3)
 
 SELECT * FROM t;
 x
@@ -1001,10 +1001,10 @@ test.t	analyze	status	OK
 EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
 EXPLAIN
 -> Update t1 (buffered)  (actual rows=0 loops=1)
-    -> Nested loop inner join  (cost=2.2 rows=3) (actual rows=3 loops=1)
-        -> Table scan on t1  (cost=0.55 rows=3) (actual rows=3 loops=1)
-        -> Filter: (t2.x = t1.x)  (cost=0.283 rows=1) (actual rows=1 loops=3)
-            -> Table scan on t2  (cost=0.283 rows=3) (actual rows=3 loops=3)
+    -> Nested loop inner join  (rows=3) (actual rows=3 loops=1)
+        -> Table scan on t1  (rows=3) (actual rows=3 loops=1)
+        -> Filter: (t2.x = t1.x)  (rows=1) (actual rows=1 loops=3)
+            -> Table scan on t2  (rows=3) (actual rows=3 loops=3)
 
 SELECT * FROM t;
 x	y
@@ -1025,137 +1025,137 @@ WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
 SELECT 2 FROM tx;
 EXPLAIN
--> Table scan on <union temporary>  (cost=5.86..7.55 rows=3) (actual rows=1 loops=1)
-    -> Union materialize with deduplication  (cost=5.01..5.01 rows=3) (actual rows=1 loops=1)
-        -> Nested loop inner join  (cost=1.4 rows=2) (actual rows=0 loops=1)
-            -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=0 loops=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Table scan on d2  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                -> Filter: (d1.a = (10 * d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2) (never executed)
-                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.8..0.8 rows=1) (never executed)
-        -> Table scan on tx  (cost=3.31..3.31 rows=1) (actual rows=1 loops=1)
-            -> Materialize CTE tx if needed  (cost=0.8..0.8 rows=1) (actual rows=1 loops=1)
-                -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=1 loops=1)
-                    -> Filter: (j1.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                        -> Table scan on j1  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (cost=0.35 rows=1) (actual rows=1 loops=1)
+-> Table scan on <union temporary>  (rows=3) (actual rows=1 loops=1)
+    -> Union materialize with deduplication  (rows=3) (actual rows=1 loops=1)
+        -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
+            -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+                -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
+                    -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
+                -> Filter: (d1.a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
+        -> Table scan on tx  (rows=1) (actual rows=1 loops=1)
+            -> Materialize CTE tx if needed  (rows=1) (actual rows=1 loops=1)
+                -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
+                    -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
+                        -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
 
 EXPLAIN FORMAT=TREE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1) UNION
 SELECT 2 FROM tx;
 EXPLAIN
--> Table scan on <union temporary>  (cost=5.86..7.55 rows=3)
-    -> Union materialize with deduplication  (cost=5.01..5.01 rows=3)
-        -> Nested loop inner join  (cost=1.4 rows=2)
-            -> Nested loop inner join  (cost=0.7 rows=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1)
-                    -> Table scan on d2  (cost=0.35 rows=1)
-                -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2)
-                    -> Materialize CTE tx if needed  (cost=0.8..0.8 rows=1)
-                        -> Nested loop inner join  (cost=0.7 rows=1)
-                            -> Filter: (j1.b is not null)  (cost=0.35 rows=1)
-                                -> Table scan on j1  (cost=0.35 rows=1)
-                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (cost=0.35 rows=1)
-        -> Table scan on tx  (cost=3.31..3.31 rows=1)
-            -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.8..0.8 rows=1)
+-> Table scan on <union temporary>  (rows=3)
+    -> Union materialize with deduplication  (rows=3)
+        -> Nested loop inner join  (rows=2)
+            -> Nested loop inner join  (rows=1)
+                -> Filter: (d2.b is not null)  (rows=1)
+                    -> Table scan on d2  (rows=1)
+                -> Filter: (d1.a = -(d2.a))  (rows=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2)
+                    -> Materialize CTE tx if needed  (rows=1)
+                        -> Nested loop inner join  (rows=1)
+                            -> Filter: (j1.b is not null)  (rows=1)
+                                -> Table scan on j1  (rows=1)
+                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1)
+        -> Table scan on tx  (rows=1)
+            -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1)
 
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
 EXPLAIN
--> Table scan on <union temporary>  (cost=5.86..7.55 rows=3) (actual rows=1 loops=1)
-    -> Union materialize with deduplication  (cost=5.01..5.01 rows=3) (actual rows=1 loops=1)
-        -> Table scan on tx  (cost=3.31..3.31 rows=1) (actual rows=1 loops=1)
-            -> Materialize CTE tx if needed  (cost=0.8..0.8 rows=1) (actual rows=1 loops=1)
-                -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=1 loops=1)
-                    -> Filter: (j1.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                        -> Table scan on j1  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-        -> Nested loop inner join  (cost=1.4 rows=2) (actual rows=0 loops=1)
-            -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=0 loops=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Table scan on d2  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2) (never executed)
-                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.8..0.8 rows=1) (never executed)
+-> Table scan on <union temporary>  (rows=3) (actual rows=1 loops=1)
+    -> Union materialize with deduplication  (rows=3) (actual rows=1 loops=1)
+        -> Table scan on tx  (rows=1) (actual rows=1 loops=1)
+            -> Materialize CTE tx if needed  (rows=1) (actual rows=1 loops=1)
+                -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
+                    -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
+                        -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
+        -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
+            -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+                -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
+                    -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
+                -> Filter: (d1.a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1) (actual rows=0 loops=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=d2.a JOIN tx ON d2.b=i1);
 EXPLAIN
--> Table scan on <union temporary>  (cost=5.86..7.55 rows=3) (actual rows=1 loops=1)
-    -> Union materialize with deduplication  (cost=5.01..5.01 rows=3) (actual rows=1 loops=1)
-        -> Table scan on tx  (cost=3.31..3.31 rows=1) (actual rows=1 loops=1)
-            -> Materialize CTE tx if needed  (cost=0.8..0.8 rows=1) (actual rows=1 loops=1)
-                -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=1 loops=1)
-                    -> Filter: (j1.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                        -> Table scan on j1  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-        -> Nested loop inner join  (cost=1.4 rows=2) (actual rows=0 loops=1)
-            -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=1 loops=1)
-                -> Covering index scan on d1 using PRIMARY  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Single-row index lookup on d2 using PRIMARY (a=d1.a)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2) (actual rows=0 loops=1)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2) (actual rows=0 loops=1)
-                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.8..0.8 rows=1) (never executed)
+-> Table scan on <union temporary>  (rows=3) (actual rows=1 loops=1)
+    -> Union materialize with deduplication  (rows=3) (actual rows=1 loops=1)
+        -> Table scan on tx  (rows=1) (actual rows=1 loops=1)
+            -> Materialize CTE tx if needed  (rows=1) (actual rows=1 loops=1)
+                -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
+                    -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
+                        -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
+        -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
+            -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
+                -> Covering index scan on d1 using PRIMARY  (rows=1) (actual rows=1 loops=1)
+                -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row index lookup on d2 using PRIMARY (a=d1.a)  (rows=1) (actual rows=1 loops=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2) (actual rows=0 loops=1)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (actual rows=0 loops=1)
+                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
 EXPLAIN
--> Table scan on <union temporary>  (cost=3.84..5.75 rows=4) (actual rows=0 loops=1)
-    -> Union materialize with deduplication  (cost=3.2..3.2 rows=4) (actual rows=0 loops=1)
-        -> Nested loop inner join  (cost=1.4 rows=2) (actual rows=0 loops=1)
-            -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=0 loops=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Table scan on d2  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                -> Filter: (d1.a = (10 * d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2) (never executed)
-                    -> Materialize CTE tx if needed  (cost=0.8..0.8 rows=1) (never executed)
-                        -> Nested loop inner join  (cost=0.7 rows=1) (never executed)
-                            -> Filter: (j1.b is not null)  (cost=0.35 rows=1) (never executed)
-                                -> Table scan on j1  (cost=0.35 rows=1) (never executed)
-                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (cost=0.35 rows=1) (never executed)
-        -> Nested loop inner join  (cost=1.4 rows=2) (actual rows=0 loops=1)
-            -> Nested loop inner join  (cost=0.7 rows=1) (actual rows=0 loops=1)
-                -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                    -> Table scan on d2  (cost=0.35 rows=1) (actual rows=1 loops=1)
-                -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-            -> Filter: (d2.b = tx.i1)  (cost=0.75..0.7 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.5 rows=2) (never executed)
-                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.8..0.8 rows=1) (never executed)
+-> Table scan on <union temporary>  (rows=4) (actual rows=0 loops=1)
+    -> Union materialize with deduplication  (rows=4) (actual rows=0 loops=1)
+        -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
+            -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+                -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
+                    -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
+                -> Filter: (d1.a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                    -> Materialize CTE tx if needed  (rows=1) (never executed)
+                        -> Nested loop inner join  (rows=1) (never executed)
+                            -> Filter: (j1.b is not null)  (rows=1) (never executed)
+                                -> Table scan on j1  (rows=1) (never executed)
+                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (never executed)
+        -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
+            -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+                -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
+                    -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
+                -> Filter: (d1.a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1) (actual rows=0 loops=1)
+            -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                    -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM x1 y1 WHERE
 y1.m1 = (SELECT MAX(m1) FROM x1) AND ABS(y1.m1) = (SELECT MIN(m1) FROM x1);
 EXPLAIN
--> Filter: (y1.m1 = (select #3))  (cost=2.73..2.73 rows=1) (actual rows=1 loops=1)
-    -> Table scan on y1  (cost=2.5..2.5 rows=0) (actual rows=1 loops=1)
-        -> Materialize CTE x1 if needed (query plan printed elsewhere)  (cost=0..0 rows=0) (never executed)
+-> Filter: (y1.m1 = (select #3))  (rows=1) (actual rows=1 loops=1)
+    -> Table scan on y1  (rows=0) (actual rows=1 loops=1)
+        -> Materialize CTE x1 if needed (query plan printed elsewhere)  (rows=0) (never executed)
     -> Select #3 (subquery in condition; run only once)
-        -> Aggregate: max(x1.m1)  (cost=2.5..2.5 rows=1) (actual rows=1 loops=1)
-            -> Table scan on x1  (cost=2.5..2.5 rows=0) (actual rows=1 loops=1)
-                -> Materialize CTE x1 if needed  (cost=0..0 rows=0) (actual rows=1 loops=1)
+        -> Aggregate: max(x1.m1)  (rows=1) (actual rows=1 loops=1)
+            -> Table scan on x1  (rows=0) (actual rows=1 loops=1)
+                -> Materialize CTE x1 if needed  (rows=0) (actual rows=1 loops=1)
                     -> Table scan on <temporary>  (actual rows=1 loops=1)
                         -> Aggregate using temporary table  (actual rows=1 loops=1)
-                            -> Table scan on t1  (cost=0.35 rows=1) (actual rows=1 loops=1)
+                            -> Table scan on t1  (rows=1) (actual rows=1 loops=1)
 
 #
 #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath
@@ -1165,17 +1165,17 @@ WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
 WHERE y1.b+y2.b = (SELECT MAX(m1) FROM x1);
 EXPLAIN
--> Nested loop inner join  (cost=0.7 rows=1) (actual rows=0 loops=1)
-    -> Table scan on y2  (cost=0.35 rows=1) (actual rows=1 loops=1)
-    -> Filter: (((y1.b + y2.b) = (select #2)) and (y1.a = -(y2.a)))  (cost=0.35 rows=1) (actual rows=0 loops=1)
-        -> Single-row index lookup on y1 using PRIMARY (a=-(y2.a))  (cost=0.35 rows=1) (actual rows=0 loops=1)
+-> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+    -> Table scan on y2  (rows=1) (actual rows=1 loops=1)
+    -> Filter: (((y1.b + y2.b) = (select #2)) and (y1.a = -(y2.a)))  (rows=1) (actual rows=0 loops=1)
+        -> Single-row index lookup on y1 using PRIMARY (a=-(y2.a))  (rows=1) (actual rows=0 loops=1)
         -> Select #2 (subquery in condition; run only once)
-            -> Aggregate: max(x1.m1)  (cost=2.5..2.5 rows=1) (never executed)
-                -> Table scan on x1  (cost=2.5..2.5 rows=0) (never executed)
-                    -> Materialize CTE x1  (cost=0..0 rows=0) (never executed)
+            -> Aggregate: max(x1.m1)  (rows=1) (never executed)
+                -> Table scan on x1  (rows=0) (never executed)
+                    -> Materialize CTE x1  (rows=0) (never executed)
                         -> Table scan on <temporary>  (never executed)
                             -> Aggregate using temporary table  (never executed)
-                                -> Table scan on t1  (cost=0.35 rows=1) (never executed)
+                                -> Table scan on t1  (rows=1) (never executed)
 
 DROP TABLE t1;
 #

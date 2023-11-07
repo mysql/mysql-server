@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 # Test query expressions with LIMIT and/or OFFSET:
 
 CREATE TABLE t1(a INTEGER);
