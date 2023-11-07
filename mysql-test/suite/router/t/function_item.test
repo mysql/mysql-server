@@ -1,4 +1,4 @@
-# Validate handling of procedures, configured to generate a FEED response.
+# Validate handling of function, configured to generate a ITEM response.
 #
 # Check handling of invalid: URL parameters, methods, payloads.
 # Validate the handling of input/output parameters.
@@ -17,7 +17,7 @@
 ## Test starts here
 --echo
 --echo
---echo ## I. Verify error messages while providing faulty configuration to rest procedure
+--echo ## I. Verify error messages while providing faulty configuration to rest function
 --echo #
 --echo # 1. POST request is not supported by object/procedures
 --echo # 2. DELETE request is not supported by object/procedures
@@ -29,20 +29,45 @@
 --echo #    match registred input parameters.
 --echo #
 
+--echo
+--echo ## II. Verify valid rest request to rest function
 --echo #
---echo ## IV. Verify handling of different MYSQL types as input and output of
---echo ##      stored procedures, when they are transfered in POST requests
+--echo # 1. GET request, no arguments
+--echo # 2. POST request, no arguments
+--echo # 3. GET request, multiple arguments
+--echo # 4. POST request, multiple arguments
+
+--echo ## III. Verify handling of different MYSQL types as input and result of
+--echo ##      function, when they are transfered in GET requests
 --echo #
---echo # 1. Verify if intput varchar value is the same at output of stored procedure
---echo # 2. Verify if intput DATE value is the same at output of stored procedure
---echo # 3. Verify if intput YEAR value is the same at output of stored procedure
---echo # 4. Verify if intput TIME value is the same at output of stored procedure
---echo # 5. Verify if intput BIT(1) value is the same at output of stored procedure
---echo # 6. Verify if intput TINYINT(1) value is the same at output of stored procedure
---echo # 7. Verify if intput TINYINT(8) value is the same at output of stored procedure
---echo # 8. Verify if intput DECIMAL value is the same at output of stored procedure
---echo # 9. Verify if intput FLOAT value is the same at output of stored procedure
---echo # 10. Verify if intput DOUBLE value is the same at output of stored procedure
+--echo # 1. Verify if input varchar value is the same at output of function
+--echo # 2. Verify if input DATE value is the same at output of function
+--echo # 3. Verify if input YEAR value is the same at output of function
+--echo # 4. Verify if input TIME value is the same at output of function
+--echo # 5. Verify if input BIT(1) value is the same at output of function
+--echo # 6. Verify if input TINYINT(1) value is the same at output of function
+--echo # 7. Verify if input TINYINT(8) value is the same at output of function
+--echo # 8. Verify if input DECIMAL value is the same at output of function
+--echo # 9. Verify if input FLOAT value is the same at output of function
+--echo # 10. Verify if input DOUBLE value is the same at output of function
+--echo # 11. Verify if input JSON simple value is the same at output of function
+--echo # 11. Verify if input JSON complex value is the same at output of function
+
+--echo ## IV. Verify handling of different MYSQL types as input and result of
+--echo ##      function, when they are transfered in POST requests
+--echo #
+--echo # 1. Verify if input varchar value is the same at output of function
+--echo # 2. Verify if input DATE value is the same at output of function
+--echo # 3. Verify if input YEAR value is the same at output of function
+--echo # 4. Verify if input TIME value is the same at output of function
+--echo # 5. Verify if input BIT(1) value is the same at output of function
+--echo # 6. Verify if input TINYINT(1) value is the same at output of function
+--echo # 7. Verify if input TINYINT(8) value is the same at output of function
+--echo # 8. Verify if input DECIMAL value is the same at output of function
+--echo # 9. Verify if input FLOAT value is the same at output of function
+--echo # 10. Verify if input DOUBLE value is the same at output of function
+--echo # 11. Verify if input JSON simple value is the same at output of function
+--echo # 11. Verify if input JSON complex value is the same at output of function
 
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
@@ -189,21 +214,21 @@ exec $MRS_CLIENT_ARGS
 
 --echo
 --echo #
---echo # II.6
+--echo # II.2
 exec $MRS_CLIENT_ARGS
   --path /svc/func/nothing
   -t PUT --payload '{}';
 
 --echo
 --echo #
---echo # II.2
+--echo # II.3
 exec $MRS_CLIENT_ARGS
   --path /svc/func/sum?a=10\&b=20;
 
 
 --echo
 --echo #
---echo # II.7
+--echo # II.4
 exec $MRS_CLIENT_ARGS
   --path /svc/func/sum
   -t PUT --payload '{"a":10,"b":20}';
@@ -270,6 +295,19 @@ exec $MRS_CLIENT_ARGS
 --echo # III.10
 exec $MRS_CLIENT_ARGS
   --path /svc/func/move_double?a=10;
+
+--echo
+--echo #
+--echo # III.11
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json?a=100;
+
+--echo
+--echo #
+--echo # III.12
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json?a=[\"aaaa\",20,30,{\"field1\":\"value1\"}];
+
 
 
 --echo
@@ -344,7 +382,22 @@ exec $MRS_CLIENT_ARGS
 exec $MRS_CLIENT_ARGS
   --path /svc/func/move_double
   -t PUT --payload '{"a":10}';
+  
+--echo
+--echo #
+--echo # IV.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json
+  -t PUT --payload '{"a":100}';
+
+--echo
+--echo #
+--echo # IV.11
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json
+  -t PUT --payload '{"a":["aaaa",20,30,{"field1":"value1"}]}';
+  
 
 # Cleanup
-DROP SCHEMA proc_schema;
+DROP SCHEMA func_schema;
 --source ../include/mrs/cleanup.inc

@@ -5,6 +5,7 @@ DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
 
 if ($router_config_to_remove1)
 {
@@ -41,4 +42,5 @@ if ($KEEP_ROUTER_FILES == 1)
 --echo DROP ROLE mysql_rest_service_schema_admin;
 --echo DROP ROLE mysql_rest_service_meta_provider;
 --echo DROP ROLE mysql_rest_service_data_provider;
+--echo DROP ROLE mysql_rest_service_dev;
 }

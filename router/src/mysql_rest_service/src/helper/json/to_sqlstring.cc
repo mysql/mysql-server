@@ -22,10 +22,13 @@
 */
 
 #include "helper/json/to_sqlstring.h"
+#include "helper/json/to_string.h"
 
 namespace helper {
 namespace json {
 namespace sql {
+
+using DataType = mrs::database::entry::Field::DataType;
 
 mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
                                    const rapidjson::Value &v) {
@@ -55,6 +58,44 @@ mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
         "JSON value to SQLString, received unsupported type.");
   }
 
+  return sql;
+}
+
+static bool is_matching_type(rapidjson::Type json_type, DataType field_type) {
+  switch (json_type) {
+    case rapidjson::kNullType:
+      return true;
+    case rapidjson::kFalseType:
+      return field_type == DataType::typeBoolean;
+    case rapidjson::kTrueType:
+      return field_type == DataType::typeBoolean;
+    case rapidjson::kObjectType:
+      return false;
+    case rapidjson::kArrayType:
+      return false;
+    case rapidjson::kStringType:
+      return field_type == DataType::typeString ||
+             field_type == DataType::typeTimestamp;
+    case rapidjson::kNumberType:
+      return field_type == DataType::typeInt ||
+             field_type == DataType::typeLong ||
+             field_type == DataType::typeDouble;
+  }
+
+  return false;
+}
+
+mysqlrouter::sqlstring &operator<<(
+    mysqlrouter::sqlstring &sql,
+    const std::pair<rapidjson::Value *, DataType> &pair) {
+  auto [v, type] = pair;
+
+  if (is_matching_type(v->GetType(), type)) {
+    sql << *v;
+    return sql;
+  }
+
+  sql << json::to_string(*v);
   return sql;
 }
 

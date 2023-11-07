@@ -27,6 +27,8 @@
 #include <my_rapidjson_size_t.h>
 #include <rapidjson/document.h>
 
+#include "mrs/database/entry/field.h"
+
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace helper {
@@ -36,6 +38,11 @@ namespace sql {
 // To not keep this function in the same namespace as to_string
 mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
                                    const rapidjson::Value &v);
+
+mysqlrouter::sqlstring &operator<<(
+    mysqlrouter::sqlstring &sql,
+    const std::pair<rapidjson::Value *, mrs::database::entry::Field::DataType>
+        &v);
 
 }  // namespace sql
 }  // namespace json

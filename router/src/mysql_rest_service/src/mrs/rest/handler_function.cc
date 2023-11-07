@@ -217,23 +217,23 @@ HttpResult HandlerFunction::handle_put([
   std::string result;
   std::vector<enum_field_types> variables;
   auto &ownership = route_->get_user_row_ownership();
+  bool appended = false;
   for (auto &el : p) {
-    if (!result.empty()) result += ",";
-
+    if (appended) result += ",";
+    appended = false;
     if (ownership.user_ownership_enforced &&
         (ownership.user_ownership_column == el.bind_name)) {
       result += to_sqlstring(ctxt->user.user_id).str();
+      appended = true;
     } else if (el.mode == mrs::database::entry::Field::Mode::modeIn) {
       auto it = doc.FindMember(el.name.c_str());
       if (it == doc.MemberEnd())
         throw http::Error(HttpStatusCode::BadRequest,
                           "Parameter not set:"s + el.name);
       mysqlrouter::sqlstring sql("?");
-      sql << it->value;
+      sql << std::make_pair(&it->value, el.data_type);
       result += sql.str();
-    } else {
-      result += "?";
-      variables.push_back(to_mysql_type(el.data_type));
+      appended = true;
     }
   }
 

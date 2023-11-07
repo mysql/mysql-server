@@ -4,7 +4,7 @@
 # Create schema that contains each basic MRS object type
 --disable_query_log
 --disable_result_log
-DROP SCHEMA IF EXISTS `func_schema` ;
+DROP SCHEMA IF EXISTS `func_schema`;
 
 CREATE SCHEMA IF NOT EXISTS `func_schema`;
 USE `func_schema`;
