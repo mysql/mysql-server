@@ -7869,24 +7869,28 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
   ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
-  if (!iter.openSection(CFG_SECTION_NODE, node_1)) {
-    g_err << "Failed to get data node configuration." << endl;
-    return NDBT_FAILED;
+  Uint32 enabledPartialLCP = 1;
+  for (int idx = 0; idx < MAX_NODES; idx ++) {
+    if (!iter.openSection(CFG_SECTION_NODE, idx)) {
+      break;
+    }
+    Uint32 nodeId=0;
+    if(iter.get(CFG_NODE_ID, &nodeId)) {
+      if(nodeId == (Uint32) node_1) {
+        iter.get(CFG_DB_ENABLE_PARTIAL_LCP, &enabledPartialLCP);
+        iter.closeSection();
+        break;
+      }
+    }
+    iter.closeSection();
   }
 
-  Uint32 enabledPartialLCP = 1;
-  if (iter.get(CFG_DB_ENABLE_PARTIAL_LCP, &enabledPartialLCP)) {
-    if (enabledPartialLCP == 0) {
-      g_err << "[SKIPPED] Test skipped.  Needs EnablePartialLcp=1" << endl;
-      iter.closeSection();
-      return NDBT_SKIPPED;
-    }
+  if (enabledPartialLCP == 0)
+  {
+    g_err << "[SKIPPED] Test skipped. Needs EnablePartialLcp=1" << endl;
+    iter.closeSection();
+    return NDBT_SKIPPED;
   }
-  else {
-    g_err << "Failed to get CFG_DB_ENABLE_PARTIAL_LCP" << endl;
-    return NDBT_FAILED;
-  }
-  iter.closeSection();
 
   Ndb *pNdb = GETNDB(step);
   int loops = 2200;
