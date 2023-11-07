@@ -291,6 +291,13 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     return false;
   }
 
+  // Remove NDB utility table mysql.ndb_apply_status, it's managed
+  // by the binlog thread but not marked as hidden in DD. It's masked in similar
+  // way from the list of tables in NDB.
+  if (schema_name == "mysql") {
+    ndb_tables_in_DD.erase("ndb_apply_status");
+  }
+
   // Special case when all NDB tables belonging to a schema still exist in DD
   // but not in NDB
   if (ndb_tables_in_NDB.empty() && !ndb_tables_in_DD.empty()) {
