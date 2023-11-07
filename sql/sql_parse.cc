@@ -3614,7 +3614,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
 
       if (open_tables_for_query(thd, all_tables, false)) goto error;
-      if (!thd->stmt_arena->is_regular()) {
+      if (!thd->stmt_arena->is_regular() &&
+          (thd->stmt_arena->get_state() == Query_arena::STMT_PREPARED ||
+           thd->stmt_arena->get_state() == Query_arena::STMT_EXECUTED)) {
         lex->restore_cmd_properties();
         bind_fields(thd->stmt_arena->item_list());
         if (all_tables != nullptr &&
