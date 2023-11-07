@@ -23,6 +23,7 @@
 # 3. add redirect
 # 4. remove all
 #
+UPDATE  `mysql_rest_service_metadata`.`config` SET data='{}';
 # Registred SERVICE at path: /svc2
 SET @service_id2=@service_id;
 # Registred DB_SCHEMA at path: /svc2/sch2

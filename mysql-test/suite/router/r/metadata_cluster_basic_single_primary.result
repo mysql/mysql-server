@@ -35,6 +35,7 @@ START TRANSACTION;
 # Registred DB_OBJECT at path: /svc/basic/t1
 # Registred DB_OBJECT at path: /svc/basic/t2
 COMMIT;
+include/rpl_sync.inc
 GET /svc/basic/t1
 {
     "items": [

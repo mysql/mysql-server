@@ -27,6 +27,7 @@ START TRANSACTION;
 --let $mrs_add_db_object_options=$test_options
 --source ../include/mrs/db_object/add.inc
 COMMIT;
+--source include/rpl_sync.inc
 
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
