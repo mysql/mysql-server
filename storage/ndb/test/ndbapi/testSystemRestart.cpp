@@ -3367,8 +3367,6 @@ int runAlterTableAndOptimize(NDBT_Context *ctx, NDBT_Step *step) {
     }
   }
 
-  SqlClient::thread_end();
-
   return NDBT_OK;
 }
 

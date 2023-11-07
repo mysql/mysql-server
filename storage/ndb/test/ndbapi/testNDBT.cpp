@@ -204,6 +204,16 @@ int runTestSqlClient(NDBT_Context *ctx, NDBT_Step *step) {
 
     if (!sql.doQuery("DROP TABLE sql_client_test")) return NDBT_FAILED;
   }
+  return NDBT_OK;
+}
+
+int runTestSqlClientThread(NDBT_Context *ctx, NDBT_Step *step) {
+  SqlClient sql("");
+
+  // Select all rows from mysql.user
+  SqlResultSet result;
+  if (!sql.doQuery("SELECT * FROM mysql.user", result)) return NDBT_FAILED;
+  // result.print();
 
   return NDBT_OK;
 }
@@ -221,7 +231,12 @@ TESTCASE("AtrtClient", "Test AtrtClient class") {
 /*
   $> testNDBT -n SqlClient
 */
-TESTCASE("SqlClient", "Test SqlClient class") { INITIALIZER(runTestSqlClient); }
+TESTCASE("SqlClient", "Test SqlClient class") {
+  INITIALIZER(runTestSqlClient);
+}
+TESTCASE("SqlClientThreads", "Test SqlClient class with threads") {
+  STEPS(runTestSqlClientThread, 10);
+}
 NDBT_TESTSUITE_END(testNDBT)
 
 int main(int argc, const char **argv) {

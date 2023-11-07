@@ -103,19 +103,6 @@ class SqlClient {
   bool waitConnected(int timeout = 120);
 
   unsigned long long selectCountTable(const char *table);
-
-  /*
-     Usage of SqlClient initializes the MySQL library and allocates resources in
-     the thread that need to be released.
-     */
-  static void thread_end();
-
-  // Helper which run thread_end() when going out of scope, should be used
-  // when using SqlClient in more than on thread.
-  struct ThreadScopeGuard {
-    ~ThreadScopeGuard() { thread_end(); }
-  };
-
  protected:
   /**
     Run query using prepared statement interface, this allow the query to

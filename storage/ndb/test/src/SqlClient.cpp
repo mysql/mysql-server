@@ -27,6 +27,7 @@
 #include "SqlClient.hpp"
 
 #include <memory>
+#include <mutex>
 
 #include "util/require.h"
 
@@ -35,6 +36,8 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include "NDBT_Output.hpp"
+
+static std::once_flag mysql_library_initialized;
 
 // Release resources at program exit
 static void sqlclient_atexit() {
@@ -45,8 +48,19 @@ static void sqlclient_atexit() {
 SqlClient::SqlClient(const char *dbname, const char *suffix)
     : m_user("root"), m_pass(""), m_dbname(dbname) {
   // Initialize MySQL library and setup to release it when program exits
-  mysql_library_init(0, nullptr, nullptr);
+  std::call_once(mysql_library_initialized, mysql_library_init, 0, nullptr,
+                 nullptr);
   std::atexit(sqlclient_atexit);
+
+  // Usage of SqlClient initializes the MySQL library and allocates resources in
+  // the thread that need to be released.
+  thread_local struct EndThreadGuard {
+    bool enabled{false};
+    ~EndThreadGuard() {
+      if (enabled) mysql_thread_end();
+    }
+  } end_thread_guard;
+  end_thread_guard.enabled = true;
 
   /**
    The settings for how SqlClient connects to a MySQL Server is configured by
@@ -93,11 +107,6 @@ SqlClient::SqlClient(MYSQL *mysql)
     : m_mysql(mysql),
       m_owns_mysql(false)  // The passed MYSQL object is NOT owned by this class
 {}
-
-void SqlClient::thread_end() {
-  // Release MySQL thread resources
-  mysql_thread_end();
-}
 
 bool SqlClient::isConnected() {
   if (m_owns_mysql == false) {
