@@ -54,7 +54,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
                   {
                     "spill to disk initiated": {
                       "chunk sets": 1,
-                      "chunk files": 4
+                      "chunk files": "elided"
                     }
                   }
                 ]
