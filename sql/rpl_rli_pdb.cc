@@ -1534,6 +1534,13 @@ void Slave_committed_queue::free_dynamic_items() {
 
 void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const {
+  const Gtid_specification *gtid_next = &info_thd->variables.gtid_next;
+  do_report(level, err_code, gtid_next, msg, args);
+}
+
+void Slave_worker::do_report(loglevel level, int err_code,
+                             const Gtid_specification *gtid_next,
+                             const char *msg, va_list args) const {
   char buff_coord[MAX_SLAVE_ERRMSG];
   char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
   const char *log_name =
@@ -1541,7 +1548,6 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   ulonglong log_pos = const_cast<Slave_worker *>(this)->get_master_log_pos();
   bool is_group_replication_applier_channel =
       channel_map.is_group_replication_channel_name(c_rli->get_channel(), true);
-  const Gtid_specification *gtid_next = &info_thd->variables.gtid_next;
   THD *thd = info_thd;
 
   gtid_next->to_string(global_tsid_map, buff_gtid, true);

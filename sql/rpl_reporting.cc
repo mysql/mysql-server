@@ -120,6 +120,15 @@ void Slave_reporting_capability::report(loglevel level, int err_code,
   va_end(args);
 }
 
+void Slave_reporting_capability::report(loglevel level, int err_code,
+                                        const Gtid_specification *gtid_next,
+                                        const char *msg, ...) const {
+  va_list args;
+  va_start(args, msg);
+  do_report(level, err_code, gtid_next, msg, args);
+  va_end(args);
+}
+
 void Slave_reporting_capability::va_report(loglevel level, int err_code,
                                            const char *prefix_msg,
                                            const char *msg,

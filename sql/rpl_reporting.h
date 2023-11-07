@@ -41,6 +41,7 @@
 #define MAX_SLAVE_ERRMSG 1024
 
 class THD;
+struct Gtid_specification;
 
 /**
    Mix-in to handle the message logging and reporting for relay log
@@ -72,6 +73,11 @@ class Slave_reporting_capability {
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
       MY_ATTRIBUTE((format(printf, 4, 5)));
+
+  virtual void report(loglevel level, int err_code,
+                      const Gtid_specification *gtid_next, const char *msg,
+                      ...) const MY_ATTRIBUTE((format(printf, 5, 6)));
+
   void va_report(loglevel level, int err_code, const char *prefix_msg,
                  const char *msg, va_list v_args) const
       MY_ATTRIBUTE((format(printf, 5, 0)));
@@ -153,6 +159,11 @@ class Slave_reporting_capability {
                          va_list v_args) const
       MY_ATTRIBUTE((format(printf, 4, 0)));
 
+  virtual void do_report(loglevel level, int err_code,
+                         const Gtid_specification *gtid_next, const char *msg,
+                         va_list v_args) const
+      MY_ATTRIBUTE((format(printf, 5, 0)));
+
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
@@ -167,6 +178,13 @@ class Slave_reporting_capability {
 };
 
 inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
+                                                  const char *msg,
+                                                  va_list v_args) const {
+  va_report(level, err_code, nullptr, msg, v_args);
+}
+
+inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
+                                                  const Gtid_specification *,
                                                   const char *msg,
                                                   va_list v_args) const {
   va_report(level, err_code, nullptr, msg, v_args);
