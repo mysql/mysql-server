@@ -34,8 +34,8 @@
 #
 # ==== REFERENCES ====
 #
-# WL#15294 Extending GTID with tags to identify group of transactions
-#          Step 5
+# WL#15294 Extending GTID with tags to identify group of transactions. step 5
+# Bug#35945223 Errors on Gtid_log_event::do_apply_event might refer an old GTID
 #
 
 --source include/have_binlog_format_row.inc

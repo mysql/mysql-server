@@ -911,6 +911,11 @@ class Slave_worker : public Relay_log_info {
                  va_list v_args) const override
       MY_ATTRIBUTE((format(printf, 4, 0)));
 
+  void do_report(loglevel level, int err_code,
+                 const Gtid_specification *gtid_next, const char *msg,
+                 va_list v_args) const override
+      MY_ATTRIBUTE((format(printf, 5, 0)));
+
  private:
   ulong gaq_index;           // GAQ index of the current assignment
   ulonglong master_log_pos;  // event's cached log_pos for possible error report

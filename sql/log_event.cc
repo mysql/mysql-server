@@ -13336,7 +13336,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     if (thd->server_status & SERVER_STATUS_IN_TRANS) {
       /* This is not an error (XA is safe), just an information */
-      rli->report(INFORMATION_LEVEL, 0,
+      rli->report(INFORMATION_LEVEL, 0, &spec,
                   "Rolling back unfinished transaction (no COMMIT "
                   "or ROLLBACK in relay log). A probable cause is partial "
                   "transaction left on relay log because of restarting IO "
@@ -13349,7 +13349,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
   if (this->is_tagged()) {
     Applier_security_context_guard security_context{rli, thd};
     if (!security_context.has_access({"TRANSACTION_GTID_TAG"})) {
-      rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED,
+      rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED, &spec,
                   ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED),
                   "the TRANSACTION_GTID_TAG and at least one of the: "
                   "SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
