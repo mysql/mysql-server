@@ -117,7 +117,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/stop_slave.inc
 CALL mtr.add_suppression('Info table has a problem with its key field.*slave_master_info');
-CALL mtr.add_suppression('Error in checking mysql.slave_master_info repository info type of TABLE');
 CALL mtr.add_suppression('Error creating connection metadata');
 ALTER TABLE slave_master_info
 MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL

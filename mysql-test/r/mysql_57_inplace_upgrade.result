@@ -37,7 +37,6 @@ Pattern "ACL table mysql\.password_history missing\. Some operations may fail\."
 Pattern "The system table mysql\.global_grants is missing. Please perform the MySQL upgrade procedure\." found
 Pattern "System table \'func\' is expected to be transactional\." found
 Pattern "Info table is not ready to be used\. Table \'mysql.slave_master_info\' cannot be opened\." found
-Pattern "Error in checking mysql\.slave_master_info repository info type of TABLE\." found
 Pattern "Error creating connection metadata\: Error checking repositories\." found
 Pattern "Replica: Failed to initialize the connection metadata structure for channel \'\'; its record may still be present in the applier metadata repository, consider deleting it\." found
 Pattern "Failed to create or recover replication info repositories\." found

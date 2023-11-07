@@ -160,7 +160,6 @@ ALTER TABLE slave_master_info
 
 # The slave will throw the following errors:
 CALL mtr.add_suppression('Info table has a problem with its key field.*slave_master_info');
-CALL mtr.add_suppression('Error in checking mysql.slave_master_info repository info type of TABLE');
 CALL mtr.add_suppression('Error creating connection metadata');
 
 # Change the position of the slave_master_info table primary key
