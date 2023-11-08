@@ -70,7 +70,7 @@ class List_iterator;
 
   where all selected fields are parts of the same index.
   The class of queries that can be processed by this quick select is fully
-  specified in the description of get_best_group_min_max().
+  specified in the description of get_best_group_skip_scan().
 
   The Read() method directly produces result tuples, thus obviating the
   need to use AggregateIterator, because all grouping is already done inside

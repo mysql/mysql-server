@@ -628,7 +628,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     Try to construct a GroupIndexSkipScanIterator.
     Notice that it can be constructed no matter if there is a range tree.
   */
-  AccessPath *group_path = get_best_group_min_max(
+  AccessPath *group_path = get_best_group_skip_scan(
       thd, &param, tree, interesting_order, skip_records_in_range, best_cost);
   if (group_path) {
     DBUG_EXECUTE_IF("force_lis_for_group_by", group_path->set_cost(0.0););

@@ -534,10 +534,10 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -768,10 +768,10 @@ select `col
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {

@@ -122,10 +122,10 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -411,10 +411,10 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -715,10 +715,10 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -1080,10 +1080,10 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {

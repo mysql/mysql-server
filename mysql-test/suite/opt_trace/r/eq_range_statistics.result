@@ -146,10 +146,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -366,10 +366,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -592,10 +592,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -822,10 +822,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -1051,10 +1051,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -1274,10 +1274,10 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -1494,10 +1494,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {

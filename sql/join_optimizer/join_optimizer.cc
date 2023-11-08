@@ -7206,6 +7206,105 @@ static void CacheCostInfoForJoinConditions(THD *thd,
   }
 }
 
+bool ApplyAggregation(
+    THD *thd, JoinHypergraph *graph, CostingReceiver &receiver,
+    int group_by_ordering_idx, bool need_rowid, bool aggregation_is_unordered,
+    const LogicalOrderings &orderings,
+    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
+    FunctionalDependencySet fd_set, Query_block *query_block,
+    Prealloced_array<AccessPath *, 4> &root_candidates, string *trace) {
+  JOIN *join = query_block->join;
+  // Apply GROUP BY, if applicable. We currently always do this by sorting
+  // first and then using streaming aggregation.
+  if (!query_block->is_grouped()) return false;
+
+  if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
+    return true;
+
+  graph->secondary_engine_costing_flags |=
+      SecondaryEngineCostingFlag::CONTAINS_AGGREGATION_ACCESSPATH;
+
+  if (trace != nullptr) {
+    *trace += "Applying aggregation for GROUP BY\n";
+  }
+
+  // AggregateIterator and EstimateAggregateRows() need join->group_fields to
+  // find the grouping columns.
+  if (make_group_fields(join, join)) {
+    return true;
+  }
+
+  // Reuse this, so that we do not have to recalculate it for each
+  // alternative aggregate path.
+  double aggregate_rows = kUnknownRowCount;
+  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  for (AccessPath *root_path : root_candidates) {
+    const bool group_needs_sort =
+        query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
+        !orderings.DoesFollowOrder(root_path->ordering_state,
+                                   group_by_ordering_idx);
+
+    if (!group_needs_sort) {
+      AccessPath aggregate_path = CreateStreamingAggregationPath(
+          thd, root_path, join, query_block->olap, aggregate_rows, trace);
+      aggregate_rows = aggregate_path.num_output_rows();
+      receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "sort elided");
+      continue;
+    }
+
+    root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
+
+    // We need to sort. Try all sort-ahead, not just the one directly derived
+    // from GROUP BY clause, because a broader one might help us elide ORDER
+    // BY or DISTINCT later.
+    for (const SortAheadOrdering &sort_ahead_ordering : sort_ahead_orderings) {
+      LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
+          orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
+      if (sort_ahead_ordering.ordering_idx != group_by_ordering_idx &&
+          !orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
+        continue;
+      }
+      if (sort_ahead_ordering.aggregates_required) {
+        // We can't sort by an aggregate before we've aggregated.
+        continue;
+      }
+
+      Mem_root_array<TABLE *> tables = CollectTables(thd, root_path);
+      AccessPath *sort_path = new (thd->mem_root) AccessPath;
+      sort_path->type = AccessPath::SORT;
+      sort_path->count_examined_rows = false;
+      sort_path->sort().child = root_path;
+      sort_path->sort().filesort = nullptr;
+      sort_path->sort().remove_duplicates = false;
+      sort_path->sort().unwrap_rollup = true;
+      sort_path->sort().limit = HA_POS_ERROR;
+      sort_path->sort().force_sort_rowids = false;
+      sort_path->sort().order = sort_ahead_ordering.order;
+      EstimateSortCost(sort_path);
+      assert(!aggregation_is_unordered);
+      sort_path->ordering_state = ordering_state;
+
+      char description[256];
+      if (trace != nullptr) {
+        snprintf(description, sizeof(description), "sort(%d)",
+                 sort_ahead_ordering.ordering_idx);
+      }
+
+      AccessPath aggregate_path = CreateStreamingAggregationPath(
+          thd, sort_path, join, query_block->olap, aggregate_rows, trace);
+      aggregate_rows = aggregate_path.num_output_rows();
+      receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, description);
+    }
+  }
+  root_candidates = std::move(new_root_candidates);
+
+  // Final setup will be done in FinalizePlanForQueryBlock(),
+  // when we have all materialization done.
+  return false;
+}
+
 /**
   Find the lowest-cost plan (which hopefully is also the cheapest to execute)
   of all the legal ways to execute the query. The overall order of operations is
@@ -7342,7 +7441,6 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 
   // Collect interesting orders from ORDER BY, GROUP BY, semijoins and windows.
   // See BuildInterestingOrders() for more detailed information.
-  SecondaryEngineFlags engine_flags = EngineFlags(thd);
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
@@ -7598,94 +7696,14 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
   const bool aggregation_is_unordered = Overlaps(
-      engine_flags,
+      EngineFlags(thd),
       MakeSecondaryEngineFlags(SecondaryEngineFlag::AGGREGATION_IS_UNORDERED));
-  if (query_block->is_grouped()) {
-    if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
-      return nullptr;
 
-    graph.secondary_engine_costing_flags |=
-        SecondaryEngineCostingFlag::CONTAINS_AGGREGATION_ACCESSPATH;
-
-    if (trace != nullptr) {
-      *trace += "Applying aggregation for GROUP BY\n";
-    }
-
-    // AggregateIterator and EstimateAggregateRows() need join->group_fields to
-    // find the grouping columns.
-    if (make_group_fields(join, join)) {
-      return nullptr;
-    }
-
-    // Reuse this, so that we do not have to recalculate it for each
-    // alternative aggregate path.
-    double aggregate_rows = kUnknownRowCount;
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      const bool group_needs_sort =
-          query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
-          !orderings.DoesFollowOrder(root_path->ordering_state,
-                                     group_by_ordering_idx);
-
-      if (!group_needs_sort) {
-        AccessPath aggregate_path = CreateStreamingAggregationPath(
-            thd, root_path, join, query_block->olap, aggregate_rows, trace);
-        aggregate_rows = aggregate_path.num_output_rows();
-        receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "sort elided");
-        continue;
-      }
-
-      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
-
-      // We need to sort. Try all sort-ahead, not just the one directly derived
-      // from GROUP BY clause, because a broader one might help us elide ORDER
-      // BY or DISTINCT later.
-      for (const SortAheadOrdering &sort_ahead_ordering :
-           sort_ahead_orderings) {
-        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
-            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
-        if (sort_ahead_ordering.ordering_idx != group_by_ordering_idx &&
-            !orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
-          continue;
-        }
-        if (sort_ahead_ordering.aggregates_required) {
-          // We can't sort by an aggregate before we've aggregated.
-          continue;
-        }
-
-        Mem_root_array<TABLE *> tables = CollectTables(thd, root_path);
-        AccessPath *sort_path = new (thd->mem_root) AccessPath;
-        sort_path->type = AccessPath::SORT;
-        sort_path->count_examined_rows = false;
-        sort_path->sort().child = root_path;
-        sort_path->sort().filesort = nullptr;
-        sort_path->sort().remove_duplicates = false;
-        sort_path->sort().unwrap_rollup = true;
-        sort_path->sort().limit = HA_POS_ERROR;
-        sort_path->sort().force_sort_rowids = false;
-        sort_path->sort().order = sort_ahead_ordering.order;
-        EstimateSortCost(sort_path);
-        assert(!aggregation_is_unordered);
-        sort_path->ordering_state = ordering_state;
-
-        char description[256];
-        if (trace != nullptr) {
-          snprintf(description, sizeof(description), "sort(%d)",
-                   sort_ahead_ordering.ordering_idx);
-        }
-
-        AccessPath aggregate_path = CreateStreamingAggregationPath(
-            thd, sort_path, join, query_block->olap, aggregate_rows, trace);
-        aggregate_rows = aggregate_path.num_output_rows();
-        receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, description);
-      }
-    }
-    root_candidates = std::move(new_root_candidates);
-
-    // Final setup will be done in FinalizePlanForQueryBlock(),
-    // when we have all materialization done.
+  if (ApplyAggregation(thd, &graph, receiver, group_by_ordering_idx, need_rowid,
+                       aggregation_is_unordered, orderings,
+                       sort_ahead_orderings, fd_set, query_block,
+                       root_candidates, trace)) {
+    return nullptr;
   }
 
   // Before we apply the HAVING condition, make sure its used_tables() cache is

@@ -187,7 +187,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                   },
                   "setup_range_conditions": [
                   ],
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },
@@ -486,7 +486,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                   },
                   "setup_range_conditions": [
                   ],
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },
@@ -769,7 +769,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                   },
                   "setup_range_conditions": [
                   ],
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },
@@ -1028,7 +1028,7 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                   },
                   "setup_range_conditions": [
                   ],
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },

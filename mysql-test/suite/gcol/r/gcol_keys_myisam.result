@@ -231,10 +231,10 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "potential_skip_scan_indexes": [
                       {
@@ -636,15 +636,15 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                       ] /* key_parts */
                     }
                   ] /* potential_range_indexes */,
-                  "group_index_range": {
-                    "potential_group_range_indexes": [
+                  "group_index_skip_scan": {
+                    "potential_group_skip_scan_indexes": [
                       {
                         "index": "PRIMARY",
                         "usable": false,
                         "cause": "not_covering"
                       }
-                    ] /* potential_group_range_indexes */
-                  } /* group_index_range */,
+                    ] /* potential_group_skip_scan_indexes */
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "chosen": false,
                     "cause": "has_group_by"

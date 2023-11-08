@@ -8022,7 +8022,7 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
   @param[out] out_args   Collect the arguments of the aggregate functions
                          to a list. We don't worry about duplicates as
                          these will be sorted out later in
-                         get_best_group_min_max.
+                         get_best_group_skip_scan.
 
   @return                does the query qualify for indexed AGGFN(DISTINCT)
     @retval   true       it does

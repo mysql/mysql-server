@@ -1409,10 +1409,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                   ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_single_table"
-                  } /* group_index_range */,
+                  } /* group_index_skip_scan */,
                   "skip_scan_range": {
                     "chosen": false,
                     "cause": "not_single_table"
@@ -1565,10 +1565,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                       ] /* potential_range_indexes */,
                       "setup_range_conditions": [
                       ] /* setup_range_conditions */,
-                      "group_index_range": {
+                      "group_index_skip_scan": {
                         "chosen": false,
                         "cause": "not_single_table"
-                      } /* group_index_range */,
+                      } /* group_index_skip_scan */,
                       "skip_scan_range": {
                         "chosen": false,
                         "cause": "not_single_table"

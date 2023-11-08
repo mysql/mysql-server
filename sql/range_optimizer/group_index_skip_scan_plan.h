@@ -59,9 +59,8 @@ struct GroupIndexSkipScanParameters {
   uint group_key_parts;   ///< Number of index key parts in the group prefix
   KEY *index_info;        ///< The index chosen for data access
   uint key_infix_len;     ///< Longest key for equality predicates
-  SEL_ROOT
-  *index_tree_tracing_only;  ///< The sub-tree corresponding to index_info
-  bool is_index_scan;        ///< Use index_next() instead of random read
+  SEL_ROOT *index_tree;   ///< The sub-tree corresponding to index_info
+  bool is_index_scan;     ///< Use index_next() instead of random read
   KEY_PART *used_key_part;
   uint real_key_parts;
   uint max_used_key_length;
@@ -70,9 +69,25 @@ struct GroupIndexSkipScanParameters {
   Quick_ranges min_max_ranges;
 };
 
-AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
-                                   SEL_TREE *tree, enum_order order_direction,
-                                   bool skip_records_in_range, double cost_est);
+/* Info required to create a group index skip scan AccessPath
+ */
+struct GroupIndexSkipScanInfo {
+  Cost_estimate cost;           /* Cost of scan */
+  ha_rows records;              /* Number of rows returned by scan */
+  uint param_idx;               /* Location of index in param->keys */
+  uint num_used_key_parts;      /* Number of index key parts used for access. */
+  ha_rows quick_prefix_records; /* Number of records returned by index range
+                                   scan used internally if any */
+  Item_field *min_max_arg_item; /* The argument of all MIN/MAX functions */
+  GroupIndexSkipScanParameters
+      *param; /* Part of the access path - used in creation of the Iterator for
+                 this scan. */
+};
+
+AccessPath *get_best_group_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
+                                     SEL_TREE *tree, enum_order order_direction,
+                                     bool skip_records_in_range,
+                                     double cost_est);
 
 void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
                                             const RANGE_OPT_PARAM *,

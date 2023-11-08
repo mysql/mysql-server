@@ -2189,10 +2189,10 @@ ON table2 .col_int_key = table1 .col_int_key
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
                       ] /* setup_range_conditions */,
-                      "group_index_range": {
+                      "group_index_skip_scan": {
                         "chosen": false,
                         "cause": "not_single_table"
-                      } /* group_index_range */,
+                      } /* group_index_skip_scan */,
                       "skip_scan_range": {
                         "chosen": false,
                         "cause": "not_single_table"
@@ -2549,10 +2549,10 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                         } /* best_covering_index_scan */,
                                         "setup_range_conditions": [
                                         ] /* setup_range_conditions */,
-                                        "group_index_range": {
+                                        "group_index_skip_scan": {
                                           "chosen": false,
                                           "cause": "not_group_by_or_distinct"
-                                        } /* group_index_range */,
+                                        } /* group_index_skip_scan */,
                                         "skip_scan_range": {
                                           "potential_skip_scan_indexes": [
                                             {

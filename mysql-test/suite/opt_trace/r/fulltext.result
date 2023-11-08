@@ -91,7 +91,7 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
                   ],
                   "setup_range_conditions": [
                   ],
-                  "group_index_range": {
+                  "group_index_skip_scan": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },
