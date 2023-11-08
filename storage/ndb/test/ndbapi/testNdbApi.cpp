@@ -7088,20 +7088,54 @@ int runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context *ctx,
   HugoOperations hugoOps(*pTab);
   Ndb *pNdb = GETNDB(step);
 
+  /**
+   * Given a randomly selected TC node T
+   * Define a transaction affecting row R on nodes in nodegroup
+   * N.
+   * Perform async execute of commit (with optional error insert
+   * stalling commit processing at TC T)
+   * Kill off one of the nodes in nodegroup N which are
+   * participating in the transaction
+   *
+   * This exercises the 'participant failure' handling path in
+   * TC node T, which should manage to complete the transaction
+   * processing despite any error inserts as it uses the
+   * 'slow' commit protocol, and return an ack
+   */
+  int rowNodeId = 0;
+  {
+    CHECKE((hugoOps.startTransaction(pNdb, 0) == NDBT_OK), hugoOps);
+    rowNodeId = hugoOps.getTransaction()->getConnectedNodeId();
+    CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK), hugoOps);
+  }
+
   CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK), hugoOps);
 
   CHECKE((hugoOps.pkWriteRecord(pNdb, 0) == NDBT_OK), hugoOps);
   CHECKE((hugoOps.execute_NoCommit(pNdb) == NDBT_OK), hugoOps);
 
   const int tcNodeId = hugoOps.getTransaction()->getConnectedNodeId();
-  int victimNodeId = tcNodeId;
+  int victimNodeId = rowNodeId;
   if (restarter.getNumDbNodes() < 2) {
     ndbout_c("Too few nodes - failing");
     return NDBT_FAILED;
   }
 
   while (victimNodeId == tcNodeId) {
-    victimNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    /**
+     * Want the victim to be some node in the row's nodegroup
+     * (which must be participating in the transaction), other
+     * than the TC node itself
+     */
+    victimNodeId = restarter.getRandomNodeSameNodeGroup(victimNodeId, rand());
+  }
+
+  ndbout_c("Row is on node %u, tc is on node %u victim node is %u", rowNodeId,
+           tcNodeId, victimNodeId);
+
+  if (victimNodeId == -1) {
+    ndbout_c("Failed to find victim");
+    return NDBT_FAILED;
   }
 
   ndbout_c("Injecting error %u in tc node %u prior to commit request",
@@ -7138,6 +7172,12 @@ int runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context *ctx,
 
 int runCheckSlowCommit(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
+
+  if (restarter.getNumReplicas() < 2) {
+    ndbout_c("Test requires > 1 replica");
+    return NDBT_SKIPPED;
+  }
+
   /* Want to test the 'slow' commit protocol behaves
    * correctly for various table types
    * This protocol is now only used when handling
