@@ -1209,7 +1209,6 @@ static void usage(void) {
   flush-logs            Flush all logs\n\
   flush-status		Clear status variables\n\
   flush-tables          Flush all tables\n\
-  flush-threads         Flush the thread cache\n\
   flush-privileges      Reload grant tables (same as reload)\n\
   kill id,id,...	Kill mysql threads");
   puts(
