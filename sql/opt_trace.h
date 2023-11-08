@@ -459,7 +459,12 @@ class Opt_trace_struct {
   */
   Opt_trace_struct(Opt_trace_context *ctx_arg, bool requires_key_arg,
                    const char *key, Opt_trace_context::feature_value feature)
-      : started(false) {
+      : started(false),
+        requires_key(false),
+        has_disabled_I_S(false),
+        empty(false),
+        stmt(nullptr),
+        saved_key(nullptr) {
     // A first inlined test
     if (unlikely(ctx_arg->is_started())) {
       // Tracing enabled: must fully initialize the structure.

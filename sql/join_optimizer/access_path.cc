@@ -114,7 +114,7 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
       FindTablesToGetRowidFor(path);
     }
   }
-
+  path->has_group_skip_scan = child->has_group_skip_scan;
   return path;
 }
 
@@ -1531,6 +1531,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     AccessPath *filter_path = new (thd->mem_root) AccessPath;
     filter_path->type = AccessPath::FILTER;
     filter_path->filter().child = right_path;
+    filter_path->has_group_skip_scan = right_path->has_group_skip_scan;
 
     // We don't bother trying to materialize subqueries in join conditions,
     // since they should be very rare.
@@ -1590,6 +1591,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
   path->type = AccessPath::FILTER;
   path->filter().condition = condition;
   path->filter().child = new_path;
+  path->has_group_skip_scan = new_path->has_group_skip_scan;
   path->filter().materialize_subqueries = false;
 
   // Clear filter_predicates, but keep applied_sargable_join_predicates.

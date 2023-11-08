@@ -259,13 +259,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a;
 EXPLAIN
--> Group (no aggregates)  (rows=11) (actual rows=11 loops=1)
-    -> Covering index scan on t1 using PRIMARY  (rows=1000) (actual rows=1000 loops=1)
+-> Covering index skip scan for deduplication on t1 using PRIMARY  (rows=11) (actual rows=11 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c;
 EXPLAIN
--> Group (no aggregates)  (rows=5) (actual rows=5 loops=1)
-    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+-> Covering index skip scan for deduplication on t1 using ix1  (rows=2.24) (actual rows=5 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,c;
 EXPLAIN
@@ -274,13 +272,11 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a;
 EXPLAIN
--> Group (no aggregates)  (rows=77) (actual rows=77 loops=1)
-    -> Covering index scan on t1 using ix2  (rows=1000) (actual rows=1000 loops=1)
+-> Covering index skip scan for deduplication on t1 using ix2  (rows=77) (actual rows=77 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a;
 EXPLAIN
--> Group (no aggregates)  (rows=385) (actual rows=385 loops=1)
-    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+-> Covering index skip scan for deduplication on t1 using ix1  (rows=385) (actual rows=385 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a,c WITH ROLLUP;
 EXPLAIN

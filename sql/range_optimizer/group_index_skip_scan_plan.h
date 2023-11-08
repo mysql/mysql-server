@@ -84,6 +84,10 @@ struct GroupIndexSkipScanInfo {
                  this scan. */
 };
 
+Mem_root_array<AccessPath *> get_all_group_skip_scans(
+    THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
+    enum_order order_direction, bool skip_records_in_range, double cost_est);
+
 AccessPath *get_best_group_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
                                      SEL_TREE *tree, enum_order order_direction,
                                      bool skip_records_in_range,

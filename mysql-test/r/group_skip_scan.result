@@ -4305,8 +4305,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 EXPLAIN
--> Filter: (t1.f1 = 1)
-    -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)
+-> Filter: (t1.f1 = 1)  (cost=0.5 rows=1)
+    -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)  (cost=0.5 rows=1)
 
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 MIN(f2)
@@ -4315,10 +4315,10 @@ INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 EXPLAIN
--> Table scan on <temporary>
-    -> Temporary table with deduplication
-        -> Filter: (t1.f1 is null)
-            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)
+-> Table scan on <temporary>  (cost=2.79..2.79 rows=1)
+    -> Temporary table with deduplication  (cost=0.279..0.279 rows=1)
+        -> Filter: (t1.f1 is null)  (cost=0.179 rows=1)
+            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (cost=0.179 rows=1)
 
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 MIN(f2)

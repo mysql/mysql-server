@@ -169,18 +169,29 @@ analyze table t3;
 #
 
 # plans
+--replace_regex $elide_costs
 explain format=tree select a1, min(a2) from t1 group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1, min(a2) from t1 group by a1;  # Also demonstrates lack of AggregateIterator.
+--replace_regex $elide_costs
 explain format=tree select a1, max(a2) from t1 group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1, min(a2), max(a2) from t1 group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
 --replace_column 8 # 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 # Select fields in different order
+--replace_regex $elide_costs
 explain format=tree select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
+--replace_regex $elide_costs
 explain format=tree select min(a2) from t1 group by a1;
+--replace_regex $elide_costs
 explain format=tree select a2, min(c), max(c) from t1 group by a1,a2,b;
 
 # queries
@@ -202,41 +213,64 @@ select a2, min(c), max(c) from t1 group by a1,a2,b;
 
 # A) Preds only over the group 'A' attributes
 # plans
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 
 # queries
@@ -268,20 +302,32 @@ select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 # B) Equalities only over the non-group 'B' attributes
 # plans
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
 
 # these queries test case 2) in TRP_GROUP_MIN_MAX::update_cost()
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 
 # queries
@@ -311,11 +357,17 @@ select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 
 --source include/turn_off_only_full_group_by.inc
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 # queries
 select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
@@ -330,52 +382,83 @@ select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 # C) Range predicates for the MIN/MAX attribute
 # plans
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 
 # queries
@@ -413,11 +496,13 @@ select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k
 select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 
 # analyze the sub-select
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 
 # the sub-select is unrelated to MIN/MAX
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
@@ -425,25 +510,38 @@ group by a1,a2,b;
 
 # A,B,C) Predicates referencing mixed classes of attributes
 # plans
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 # queries
@@ -468,20 +566,29 @@ select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') grou
 #
 
 # plans
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 # queries
@@ -500,19 +607,29 @@ select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1
 #
 
 # plans
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1;
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+--replace_regex $elide_costs
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+--replace_regex $elide_costs
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 
 # queries
@@ -549,21 +666,31 @@ select distinct t1.a1,t2.a1 from t1,t2;
 
 #--source include/turn_off_only_full_group_by.inc
 
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1;
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 --replace_column 10 #
+--replace_regex $elide_costs
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 # queries
@@ -585,10 +712,15 @@ select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 # COUNT (DISTINCT cols) queries
 #
 
+--replace_regex $elide_costs
 explain format=tree select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
+--replace_regex $elide_costs
 explain format=tree select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+--replace_regex $elide_costs
 explain format=tree select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+--replace_regex $elide_costs
 explain format=tree select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
+--replace_regex $elide_costs
 explain format=tree select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
@@ -601,10 +733,15 @@ select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 # Queries with expressions in the select clause
 #
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 
 select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
@@ -623,46 +760,60 @@ select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 
 --source include/turn_off_only_full_group_by.inc
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,d from t1 group by a1,a2,b;
 
 # predicate that references an attribute that is after the MIN/MAX argument
 # in the index
+--replace_regex $elide_costs
 explain format=tree select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 
 # predicate that references a non-indexed attribute
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 
 # non-equality predicate for a non-group select attribute
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 
 # non-group field with an equality predicate that references a keypart after the
 # MIN/MAX argument
+--replace_regex $elide_costs
 explain format=tree select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 
 # disjunction for a non-group select attribute
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # non-range predicate for the MIN/MAX attribute
+--replace_regex $elide_costs
 explain format=tree select a1,a2,b,min(c),max(c) from t2
 where (c > 'a000') and (c <= 'd999') and (c like '_8__') group by a1,a2,b;
 
 # not all attributes are indexed by one index
+--replace_regex $elide_costs
 explain format=tree select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 
 # other aggregate functions than MIN/MAX
+--replace_regex $elide_costs
 explain format=tree select a1,a2,count(a2) from t1 group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+--replace_regex $elide_costs
 explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 
 
@@ -670,6 +821,7 @@ explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,
 # Bug #16710: select distinct doesn't return all it should
 #
 
+--replace_regex $elide_costs
 explain format=tree select distinct(a1) from t1 where ord(a2) = 98;
 select distinct(a1) from t1 where ord(a2) = 98;
 
@@ -677,9 +829,11 @@ select distinct(a1) from t1 where ord(a2) = 98;
 # BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.
 #
 
+--replace_regex $elide_costs
 explain format=tree select a1 from t1 where a2 = 'b' group by a1;
 select a1 from t1 where a2 = 'b' group by a1;
 
+--replace_regex $elide_costs
 explain format=tree select distinct a1 from t1 where a2 = 'b';
 select distinct a1 from t1 where a2 = 'b';
 
@@ -733,7 +887,9 @@ OPTIMIZE TABLE t1;
 SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='AA' GROUP BY a;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 
 SELECT DISTINCT a FROM t1 WHERE a='BB';
@@ -791,6 +947,7 @@ INSERT INTO t1 (a) VALUES
   ('NORTH CENTRAL'), ('NORTH EAST'), ('NORTH WEST'), ('SCOTLAND'),
   ('SOUTH EAST'), ('SOUTH WEST'), ('WESTERN');
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT DISTINCT a,a FROM t1 ORDER BY a;
 SELECT DISTINCT a,a FROM t1 ORDER BY a;
 
@@ -853,12 +1010,14 @@ INSERT INTO t1 VALUES (2,1),(2,2),(2,0),(2,3);
 INSERT INTO t1 VALUES (3,1),(3,2),(3,0),(3,3);
 ANALYZE TABLE t1;
 
+--replace_regex $elide_costs
 explain format=tree SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MIN(b), a FROM t1 WHERE b > 1 AND a = 1 GROUP BY a;
 CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a,b,c));
 INSERT INTO t2 SELECT a,b,b FROM t1;
 ANALYZE TABLE t2;
+--replace_regex $elide_costs
 explain format=tree SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 
@@ -875,11 +1034,13 @@ CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
 INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
        (2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6),
        (5,1), (5,2), (5,3), (5,4), (5,5);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 SELECT max(b), a FROM t1 GROUP BY a;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
@@ -894,22 +1055,30 @@ FLUSH STATUS;
  (SELECT max(b), a FROM t1 GROUP BY a);
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE (SELECT max(b), a FROM t1 GROUP BY a) UNION
  (SELECT max(b), a FROM t1 GROUP BY a);
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
   a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING
   a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2
    ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
    AND t1_outer1.b = t1_outer2.b;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 
@@ -957,11 +1126,13 @@ INSERT INTO t1 VALUES
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 SELECT DISTINCT(a) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 
@@ -977,6 +1148,7 @@ INSERT INTO t1 SELECT a + 1, b FROM t1;
 INSERT INTO t1 SELECT a + 2, b FROM t1;
 INSERT INTO t1 SELECT a + 4, b FROM t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
@@ -985,16 +1157,19 @@ CREATE INDEX break_it ON t1 (a, b);
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
@@ -1018,6 +1193,7 @@ insert into  t1 (a,b) values
 insert into t1 (a,b) select a, max(b)+1 from t1 where a = 0 group by a;
 --sorted_result
 select * from t1;
+--replace_regex $elide_costs
 explain format=tree select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 drop table t1;
 
@@ -1038,6 +1214,7 @@ INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
 #Should be non-empty
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT DISTINCT c FROM t1 WHERE d=4;
 SELECT DISTINCT c FROM t1 WHERE d=4;
 
@@ -1058,6 +1235,7 @@ INSERT INTO t SELECT * FROM t;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 --echo #should return 1 row
@@ -1067,6 +1245,7 @@ SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 --echo #should return 1 row
@@ -1078,6 +1257,7 @@ INSERT INTO t SELECT a, 2 FROM t;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 --echo #should return 1 row
@@ -1160,101 +1340,125 @@ INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1;
 SELECT COUNT(DISTINCT a) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a,b) FROM t1;
 SELECT COUNT(DISTINCT a,b) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b,a) FROM t1;
 SELECT COUNT(DISTINCT b,a) FROM t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1;
 SELECT COUNT(DISTINCT b) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), 12 FROM t1;
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b, c) FROM t2;
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT c, a, b) FROM t2
   WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 SELECT COUNT(DISTINCT c, a, b) FROM t2
   WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
   GROUP BY b;
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
@@ -1262,19 +1466,23 @@ SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
   WHERE b = 13 AND c = 42 GROUP BY a;
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
@@ -1282,17 +1490,21 @@ SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 
 --echo # This query could have been resolved using loose index scan since
 --echo # the second part of count(..) is defined by a constant predicate
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 
@@ -1313,6 +1525,7 @@ insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'),
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 
 SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+--replace_regex $elide_costs
 explain format=tree SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
 
 drop table t1;
@@ -1345,6 +1558,7 @@ INSERT INTO t1 SELECT * FROM t1;
 let query=
 SELECT DISTINCT a FROM t1 WHERE b=4;
 
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -1365,30 +1579,35 @@ set end_markers_in_json=on;
 ANALYZE TABLE t;
 
 SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
@@ -1406,6 +1625,7 @@ DROP TABLE t;
 --echo #
 CREATE TABLE t(a INT PRIMARY KEY)
   ENGINE = MERGE;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t;
 SELECT DISTINCT(a) FROM t;
 DROP TABLE t;
@@ -1436,6 +1656,7 @@ INSERT INTO t1(c1,c2) VALUES
 (4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
 (4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 FLUSH STATUS;
 SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
@@ -1458,23 +1679,28 @@ INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
 ANALYZE TABLE t1;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
            GROUP BY a;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -1497,6 +1723,7 @@ ANALYZE TABLE t1, t2;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1506,6 +1733,7 @@ ALTER TABLE t1 DROP COLUMN nk;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(out1.k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1513,18 +1741,21 @@ eval $query;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT 2*MIN(k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1532,36 +1763,42 @@ eval $query;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT AVG(out1.k) FROM t1);
 
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1580,24 +1817,30 @@ CREATE TABLE t2 (h INT) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (3);
 
 let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 UPDATE t1 SET k=0;
 
 let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1607,18 +1850,22 @@ CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1);
 
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
 UPDATE t1 SET nk=0, k=0;
 
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1651,6 +1898,7 @@ ANALYZE TABLE a;
 SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
@@ -1661,6 +1909,7 @@ SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
@@ -1674,6 +1923,7 @@ ALTER TABLE a DROP KEY aggr_col_key;
 SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
@@ -1684,6 +1934,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
@@ -1695,6 +1946,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 
@@ -1706,6 +1958,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 
@@ -1722,6 +1975,7 @@ ANALYZE TABLE a;
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
 
@@ -1734,6 +1988,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 
@@ -1748,6 +2003,7 @@ INSERT INTO a VALUES(1,1),(1,2),(2,1);
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 
@@ -1759,6 +2015,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 
@@ -1772,6 +2029,7 @@ INSERT INTO a VALUES(0,1),(1,0),(0,0);
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 
@@ -1783,6 +2041,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 
@@ -1794,6 +2053,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 
@@ -1805,6 +2065,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 
@@ -1847,7 +2108,8 @@ INSERT INTO t1 VALUES(1,0);
 eval $query;
 INSERT INTO t2 VALUES (0, 'a', 3, 4);
 eval $query;
-eval  EXPLAIN FORMAT=TREE $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
 DELETE FROM t1;
 DELETE FROM t2;
 
@@ -1858,6 +2120,7 @@ eval $query;
 --echo # If t2 has at least one row, we will get a result row
 INSERT INTO t2 VALUES (0, 'a', 3, 4);
 eval $query;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 
 --echo # If we have two rows in t1, t1 will not be read before
@@ -1865,6 +2128,7 @@ eval EXPLAIN FORMAT=TREE $query;
 --echo # before this patch.
 INSERT INTO t1 VALUES(0,0);
 eval $query;
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 
 DROP TABLE t1, t2;
@@ -1894,12 +2158,12 @@ ANALYZE TABLE t1;
 
 # Should pick loose index scan to do the aggregation. Rows
 # looked at should be 1 as the group by attribute is a constant.
---replace_regex /  \(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
---replace_regex /  \(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 

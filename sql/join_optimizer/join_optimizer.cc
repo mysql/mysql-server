@@ -791,7 +791,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         m_range_optimizer_mem_root.ClearForReuse();
       }
     });
-    if (!tl->is_recursive_reference() && m_graph->num_where_predicates > 0) {
+    if (!tl->is_recursive_reference()) {
       // Note that true error returns in itself is not enough to fail the query;
       // the range optimizer could be out of RAM easily enough, which is
       // nonfatal. That just means we won't be using it for this table.
@@ -1530,8 +1530,21 @@ bool CostingReceiver::FindIndexRangeScans(
       return false;
     }
   }
+
+  OverflowBitset all_predicates_fixed = std::move(all_predicates);
   if (tree == nullptr) {
-    // There were no range predicates on this table.
+    // The only possible range scan for a NULL tree is a group index skip
+    // scan. Collect and propose all group skip scans
+    Cost_estimate cost_est = table->file->table_scan_cost();
+    Mem_root_array<AccessPath *> skip_scan_paths = get_all_group_skip_scans(
+        m_thd, &param, tree, ORDER_NOT_RELEVANT,
+        /*skip_records_in_range=*/false, cost_est.total_cost());
+    for (AccessPath *group_skip_scan_path : skip_scan_paths) {
+      ProposeIndexSkipScan(
+          node_idx, &param, group_skip_scan_path, table, all_predicates_fixed,
+          m_graph->num_where_predicates, m_graph->num_where_predicates,
+          group_skip_scan_path->num_output_rows(), /*inexact=*/true);
+    }
     return false;
   }
   assert(tree->type == SEL_TREE::KEY);
@@ -1546,7 +1559,6 @@ bool CostingReceiver::FindIndexRangeScans(
           tree_subsumed_predicates_fixed, *m_graph, &possible_scans)) {
     return true;
   }
-  OverflowBitset all_predicates_fixed = std::move(all_predicates);
   *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
       m_thd, param, table->file->stats.records, possible_scans, *m_graph,
       all_predicates_fixed, m_trace);
@@ -1759,6 +1771,19 @@ bool CostingReceiver::FindIndexRangeScans(
                            iskip_scan.tree->inexact);
     }
   }
+
+  // Propose group index skip scans for whole predicate
+  Cost_estimate cost_est = table->file->table_scan_cost();
+  Mem_root_array<AccessPath *> group_skip_scan_paths = get_all_group_skip_scans(
+      m_thd, &param, tree, ORDER_NOT_RELEVANT, /*skip_records_in_range=*/false,
+      cost_est.total_cost());
+  for (AccessPath *group_skip_scan_path : group_skip_scan_paths) {
+    ProposeIndexSkipScan(
+        node_idx, &param, group_skip_scan_path, table, all_predicates_fixed,
+        m_graph->num_where_predicates, m_graph->num_where_predicates,
+        group_skip_scan_path->num_output_rows(), tree->inexact);
+  }
+
   return false;
 }
 
@@ -2430,7 +2455,11 @@ void CostingReceiver::ProposeIndexSkipScan(
         /*materialize_subqueries*/ false, skip_scan_path, &new_fd_set);
   }
 
-  const uint keynr = param->real_keynr[skip_scan_path->index_skip_scan().index];
+  uint keynr =
+      skip_scan_path->type == AccessPath::INDEX_SKIP_SCAN
+          ? param->real_keynr[skip_scan_path->index_skip_scan().index]
+          : param->real_keynr[skip_scan_path->group_index_skip_scan().index];
+
   const auto it = find_if(m_active_indexes->begin(), m_active_indexes->end(),
                           [table, keynr](const ActiveIndexInfo &info) {
                             return info.table == table &&
@@ -2441,7 +2470,9 @@ void CostingReceiver::ProposeIndexSkipScan(
         m_orderings->RemapOrderingIndex(it->forward_order));
   }
 
-  skip_scan_path->set_num_output_rows(num_output_rows_after_filter);
+  if (skip_scan_path->type == AccessPath::INDEX_SKIP_SCAN)
+    skip_scan_path->set_num_output_rows(num_output_rows_after_filter);
+
   skip_scan_path->set_init_cost(0.0);
   ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
                                  /*obsolete_orderings=*/0, skip_scan_path,
@@ -5015,6 +5046,14 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
     }
   }
 
+  // A path which has a GROUP_INDEX_SKIP_SCAN has already done the
+  // aggregation, so the aggregated path should be preferred
+  if (a.has_group_skip_scan != b.has_group_skip_scan) {
+    flags = a.has_group_skip_scan
+                ? AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER)
+                : AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
+  }
+
   // Numerical cost dimensions are compared fuzzily in order to treat paths
   // with insignificant differences as identical.
   constexpr double fuzz_factor = 1.01;
@@ -5436,6 +5475,11 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   if (verify_consistency && path->parameter_tables == 0 &&
       path->num_output_rows() >= 1e-3) {
     for (const AccessPath *other_path : *existing_paths) {
+      // do not compare aggregated paths with unaggregated paths
+      if (path->has_group_skip_scan != other_path->has_group_skip_scan) {
+        continue;
+      }
+
       if (other_path->parameter_tables == 0 &&
           (other_path->num_output_rows() < path->num_output_rows() * 0.99 ||
            other_path->num_output_rows() > path->num_output_rows() * 1.01)) {
@@ -5558,6 +5602,7 @@ AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
   sort_path.sort().unwrap_rollup = true;
   sort_path.sort().limit = HA_POS_ERROR;
   sort_path.sort().force_sort_rowids = false;
+  sort_path.has_group_skip_scan = child->has_group_skip_scan;
   EstimateSortCost(&sort_path);
   return sort_path;
 }
@@ -5763,6 +5808,7 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
   EstimateMaterializeCost(thd, materialize_path);
   materialize_path->ordering_state = path->ordering_state;
   materialize_path->delayed_predicates = path->delayed_predicates;
+  materialize_path->has_group_skip_scan = path->has_group_skip_scan;
   return materialize_path;
 }
 
@@ -6190,6 +6236,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.aggregate().child = child_path;
   aggregate_path.aggregate().olap = olap;
   aggregate_path.set_num_output_rows(row_estimate);
+  aggregate_path.has_group_skip_scan = child_path->has_group_skip_scan;
   EstimateAggregateCost(&aggregate_path, query_block, trace);
   return aggregate_path;
 }
@@ -6270,6 +6317,7 @@ void ApplyHavingOrQualifyCondition(
     // TODO(sgunders): Collect and apply functional dependencies from
     // HAVING conditions.
     filter_path.ordering_state = root_path->ordering_state;
+    filter_path.has_group_skip_scan = root_path->has_group_skip_scan;
     receiver->ProposeAccessPath(&filter_path, &new_root_candidates,
                                 /*obsolete_orderings=*/0, "");
   }
@@ -6289,6 +6337,7 @@ AccessPath MakeSortPathForDistinct(
   sort_path.sort().unwrap_rollup = false;
   sort_path.sort().limit = HA_POS_ERROR;
   sort_path.sort().force_sort_rowids = false;
+  sort_path.has_group_skip_scan = root_path->has_group_skip_scan;
 
   if (aggregation_is_unordered) {
     // Even though we create a sort node for the distinct operation,
@@ -6392,6 +6441,18 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
+      // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
+      // subsumed an aggregation, the subsumed aggregation could be either a
+      // a group-by or a deduplication. If there is no group-by in the query
+      // block, then the deduplication has been subsumed.
+      if (root_path->has_group_skip_scan &&
+          !query_block->is_explicitly_grouped()) {
+        receiver.ProposeAccessPath(root_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0,
+                                   "deduplication elided");
+        continue;
+      }
+
       if (grouping.GetElements().empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
@@ -6537,6 +6598,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path->sort().limit =
             push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
         sort_path->sort().order = join->order.order;
+        sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
         EstimateSortCost(sort_path);
 
         // If this is a DELETE or UPDATE statement, row IDs must be preserved
@@ -7206,6 +7268,24 @@ static void CacheCostInfoForJoinConditions(THD *thd,
   }
 }
 
+static bool IsAlreadyAggregated(const AccessPath *root_path) {
+  if (!root_path->has_group_skip_scan) return false;
+  bool already_agg = false;
+  WalkAccessPaths(
+      root_path, /*join=*/nullptr,
+      WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&already_agg](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::GROUP_INDEX_SKIP_SCAN &&
+            ((path->group_index_skip_scan().param->min_max_arg_part !=
+              nullptr) ||
+             !path->group_index_skip_scan().param->have_agg_distinct)) {
+          already_agg = true;
+        }
+        return false;
+      });
+  return already_agg;
+}
+
 bool ApplyAggregation(
     THD *thd, JoinHypergraph *graph, CostingReceiver &receiver,
     int group_by_ordering_idx, bool need_rowid, bool aggregation_is_unordered,
@@ -7236,8 +7316,9 @@ bool ApplyAggregation(
 
   // Reuse this, so that we do not have to recalculate it for each
   // alternative aggregate path.
-  double aggregate_rows = kUnknownRowCount;
   Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  double aggregate_rows = kUnknownRowCount;
+
   for (AccessPath *root_path : root_candidates) {
     const bool group_needs_sort =
         query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
@@ -7281,6 +7362,7 @@ bool ApplyAggregation(
       sort_path->sort().limit = HA_POS_ERROR;
       sort_path->sort().force_sort_rowids = false;
       sort_path->sort().order = sort_ahead_ordering.order;
+      sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
       EstimateSortCost(sort_path);
       assert(!aggregation_is_unordered);
       sort_path->ordering_state = ordering_state;
@@ -7297,6 +7379,18 @@ bool ApplyAggregation(
       receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, description);
     }
+  }
+  // Handle access paths which have already been aggregated by group skip
+  // scans. Use AGGREGATE rowcount estimates from hypergraph cost model for
+  // these already-aggregated paths where available.
+  for (AccessPath *root_path : root_candidates) {
+    if (!IsAlreadyAggregated(root_path)) continue;
+    if (aggregate_rows != kUnknownRowCount) {
+      // Use AGGREGATE row estimate if available
+      root_path->set_num_output_rows(aggregate_rows);
+    }
+    receiver.ProposeAccessPath(root_path, &new_root_candidates,
+                               /*obsolete_orderings=*/0, "aggregation elided");
   }
   root_candidates = std::move(new_root_candidates);
 

@@ -469,13 +469,12 @@ EXPLAIN FORMAT=TREE SELECT * FROM
 (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 EXPLAIN
--> Filter: (dt.f1 > 2)  (cost=4.24..5.83 rows=2)
-    -> Table scan on dt  (cost=2.58..5.23 rows=6)
-        -> Materialize  (cost=2.66..2.66 rows=6)
-            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.343..2.06 rows=6)
-                -> Stream results  (cost=0.243..1.46 rows=6)
-                    -> Group (no aggregates)  (cost=0.243..1.46 rows=6)
-                        -> Covering index scan on t1 using f1_2  (cost=0.0213..0.255 rows=12)
+-> Filter: (dt.f1 > 2)  (cost=4.56..4.56 rows=0.816)
+    -> Table scan on dt  (cost=2.68..4.31 rows=2.45)
+        -> Materialize  (cost=1.79..1.79 rows=2.45)
+            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.631..1.54 rows=2.45)
+                -> Stream results  (cost=0.531..1.3 rows=2.45)
+                    -> Covering index skip scan for deduplication on t1 using f1_2  (cost=0.531..1.3 rows=2.45)
 
 EXPLAIN FORMAT=JSON SELECT * FROM
 (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
@@ -493,33 +492,23 @@ EXPLAIN
                 {
                   "inputs": [
                     {
-                      "inputs": [
-                        {
-                          "covering": true,
-                          "operation": "Covering index scan on t1 using f1_2",
-                          "index_name": "f1_2",
-                          "table_name": "t1",
-                          "access_type": "index",
-                          "estimated_rows": 12.0,
-                          "index_access_type": "index_scan",
-                          "estimated_total_cost": 0.2553606237816764,
-                          "estimated_first_row_cost": 0.021280051981806367
-                        }
-                      ],
-                      "group_by": true,
-                      "functions": [],
-                      "operation": "Group (no aggregates)",
-                      "access_type": "aggregate",
-                      "estimated_rows": 6.0,
-                      "estimated_total_cost": 1.4553606237816765,
-                      "estimated_first_row_cost": 0.24256010396361274
+                      "ranges": [],
+                      "covering": true,
+                      "operation": "Covering index skip scan for deduplication on t1 using f1_2",
+                      "index_name": "f1_2",
+                      "table_name": "t1",
+                      "access_type": "index",
+                      "estimated_rows": 2.449489742783178,
+                      "index_access_type": "group_index_skip_scan",
+                      "estimated_total_cost": 1.3000000000000003,
+                      "estimated_first_row_cost": 0.5307227776030221
                     }
                   ],
                   "operation": "Stream results",
                   "access_type": "stream",
-                  "estimated_rows": 6.0,
-                  "estimated_total_cost": 1.4553606237816765,
-                  "estimated_first_row_cost": 0.24256010396361274
+                  "estimated_rows": 2.449489742783178,
+                  "estimated_total_cost": 1.3000000000000003,
+                  "estimated_first_row_cost": 0.5307227776030221
                 }
               ],
               "buffering": true,
@@ -528,32 +517,32 @@ EXPLAIN
               ],
               "operation": "Window aggregate with buffering: sum(t1.f2) OVER () ",
               "access_type": "window",
-              "estimated_rows": 6.0,
-              "estimated_total_cost": 2.0553606237816764,
-              "estimated_first_row_cost": 0.34256010396361275
+              "estimated_rows": 2.449489742783178,
+              "estimated_total_cost": 1.544948974278318,
+              "estimated_first_row_cost": 0.6307227776030221
             }
           ],
           "operation": "Materialize",
           "access_type": "materialize",
-          "estimated_rows": 6.0,
-          "estimated_total_cost": 2.6553606237816765,
-          "estimated_first_row_cost": 2.6553606237816765
+          "estimated_rows": 2.449489742783178,
+          "estimated_total_cost": 1.7898979485566358,
+          "estimated_first_row_cost": 1.7898979485566358
         }
       ],
       "operation": "Table scan on dt",
       "table_name": "dt",
       "access_type": "table",
-      "estimated_rows": 6.0,
-      "estimated_total_cost": 5.230360623781676,
-      "estimated_first_row_cost": 2.584527290448343
+      "estimated_rows": 2.449489742783178,
+      "estimated_total_cost": 4.314897948556635,
+      "estimated_first_row_cost": 2.675775907699572
     }
   ],
   "condition": "(dt.f1 > 2)",
   "operation": "Filter: (dt.f1 > 2)",
   "access_type": "filter",
-  "estimated_rows": 1.9997999668121338,
-  "estimated_total_cost": 5.830360623781676,
-  "estimated_first_row_cost": 4.243019416006403
+  "estimated_rows": 0.8164149177207436,
+  "estimated_total_cost": 4.559846922834953,
+  "estimated_first_row_cost": 4.559846922834953
 }
 # Filter, nested loop
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM

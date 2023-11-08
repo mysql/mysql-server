@@ -720,7 +720,8 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
         if (path->type == AccessPath::WINDOW) {
           FinalizeWindowPath(thd, query_block, *original_fields,
                              applied_replacements, path);
-        } else if (path->type == AccessPath::AGGREGATE) {
+        } else if (path->type == AccessPath::AGGREGATE ||
+                   path->type == AccessPath::GROUP_INDEX_SKIP_SCAN) {
           for (Cached_item &ci : join->group_fields) {
             for (const Func_ptr_array *earlier_replacement :
                  applied_replacements) {
@@ -734,15 +735,12 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
 
           // Set up aggregators, now that fields point into the right temporary
           // table.
-          const bool need_distinct =
-              true;  // We don't support loose index scan yet.
           for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
                ++func_ptr) {
             Item_sum *func = *func_ptr;
             Aggregator::Aggregator_type type =
-                need_distinct && func->has_with_distinct()
-                    ? Aggregator::DISTINCT_AGGREGATOR
-                    : Aggregator::SIMPLE_AGGREGATOR;
+                func->has_with_distinct() ? Aggregator::DISTINCT_AGGREGATOR
+                                          : Aggregator::SIMPLE_AGGREGATOR;
             if (func->set_aggregator(type) || func->aggregator_setup(thd)) {
               error = true;
               return true;

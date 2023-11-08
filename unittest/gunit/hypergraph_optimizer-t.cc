@@ -6597,6 +6597,56 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiPredicate) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, GroupIndexSkipScanAgg) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t1.y FROM t1 GROUP BY t1.x, t1.y", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 10000;
+  t1->file->stats.block_size = 4096;
+  t1->file->stats.data_file_length = 100e6;
+  CreateOrderedIndex({t1->field[0], t1->field[1], t1->field[2]}, HA_NOSAME);
+  CreateOrderedIndex({t1->field[0], t1->field[1]}, HA_NOSAME);
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(0);  // covering index on (x,y,z)
+  t1->covering_keys.set_bit(1);  // covering index on (x.y)
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::GROUP_INDEX_SKIP_SCAN, root->type);
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, GroupIndexSkipScanDedup) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.x, t1.y FROM t1", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 10000;
+  t1->file->stats.block_size = 4096;
+  t1->file->stats.data_file_length = 100e6;
+  CreateOrderedIndex({t1->field[0], t1->field[1], t1->field[2]}, HA_NOSAME);
+  CreateOrderedIndex({t1->field[0], t1->field[1]}, HA_NOSAME);
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(0);  // covering index on (x,y,z)
+  t1->covering_keys.set_bit(1);  // covering index on (x.y)
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::GROUP_INDEX_SKIP_SCAN, root->type);
+  query_block->cleanup(/*full=*/true);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

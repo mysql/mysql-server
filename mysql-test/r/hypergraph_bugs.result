@@ -794,8 +794,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT DISTINCT b FROM t1;
 EXPLAIN
--> Remove duplicates from input grouped on t1.b  (rows=5) (actual rows=5 loops=1)
-    -> Covering index scan on t1 using b  (rows=100) (actual rows=100 loops=1)
+-> Covering index skip scan for deduplication on t1 using b  (rows=5) (actual rows=5 loops=1)
 
 EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN

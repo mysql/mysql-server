@@ -1,4 +1,5 @@
 --source include/have_hypergraph.inc
+--source include/elide_costs.inc
 
 # The include statement below is a temp one for tests that are yet to
 # be ported to run with InnoDB,
