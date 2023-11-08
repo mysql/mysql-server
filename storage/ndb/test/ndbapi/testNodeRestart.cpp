@@ -9459,7 +9459,7 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
 
       CHECK(hugoOps.startTransaction(pNdb, rowNum) == 0,
             "Start transaction failed");
-      CHECK(hugoOps.pkUpdateRecord(pNdb, 1, 1) == 0, "Define Update failed");
+      CHECK(hugoOps.pkUpdateRecord(pNdb, rowNum, 1) == 0, "Define Update failed");
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0, "Execute NoCommit failed");
 
       NdbTransaction *trans = hugoOps.getTransaction();
@@ -9487,8 +9487,12 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
         pNdb->pollNdb(1000);
 
         if (cbd.ready) {
+          ndbout_c("     Result ready : %u", trans->getNdbError().code);
           break;
         }
+      }
+      if (!cbd.ready) {
+        ndbout_c("     No result yet");
       }
 
       /* Transaction stalled now */
@@ -9531,7 +9535,12 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
         return NDBT_FAILED;
       }
 
-      CHECK(trans->getNdbError().code == 0, "Error on original request");
+      if (trans->getNdbError().code != 0) {
+        ndbout_c("Got unexpected failure code : %u : %s",
+                 trans->getNdbError().code,
+                 trans->getNdbError().message);
+        return NDBT_FAILED;
+      }
 
       NdbTransaction::CommitStatusType cst = trans->commitStatus();
 
