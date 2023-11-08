@@ -3088,9 +3088,8 @@ int runTestNdbApiConfig(NDBT_Context *ctx, NDBT_Step *step) {
     if (!mgmd.get_config(conf)) return NDBT_FAILED;
 
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
-    for (Uint32 nodeid = 1; nodeid < MAX_NODES; nodeid++) {
+    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
       Uint32 type;
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid)) continue;
 
       if (iter.get(CFG_TYPE_OF_SECTION, &type) &&
           type == NDB_MGM_NODE_TYPE_API) {
@@ -3098,7 +3097,6 @@ int runTestNdbApiConfig(NDBT_Context *ctx, NDBT_Step *step) {
           iter.set(parameters[param].key, parameters[param].values[i]);
         }
       }
-
       iter.closeSection();
     }
 

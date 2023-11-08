@@ -1179,9 +1179,8 @@ static int resizeRedoLog(NDBT_Context *ctx, NDBT_Step *step) {
           << " FragmentLogFileSize = " << logFileSize << " TimeBetweenLCP "
           << LCPinterval << endl;
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++) {
+    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
       Uint32 oldValue;
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid)) continue;
       if (iter.get(CFG_DB_NO_REDOLOG_FILES, &oldValue)) {
         iter.set(CFG_DB_NO_REDOLOG_FILES, noOfLogFiles);
         if (defaultNoOfLogFiles == 0) {
