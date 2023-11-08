@@ -1452,6 +1452,11 @@ class Backup : public SimulatedBlock {
   void pausing_lcp(Uint32 place, Uint32 val);
   void get_lcp_record(BackupRecordPtr &ptr);
   bool get_backup_record(BackupRecordPtr &ptr);
+  void sendSignalAfterErrorCondCleared(BlockReference ref,
+                                       GlobalSignalNumber gsn, Signal *signal,
+                                       Uint32 length, JobBufferLevel jbuf,
+                                       SectionHandle *sections,
+                                       Uint32 errorCode, Uint32 intervalMillis);
 
  public:
   bool is_change_part_state(Uint32 page_id);
