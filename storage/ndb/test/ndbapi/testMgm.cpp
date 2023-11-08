@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3664,12 +3664,9 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
 
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (Uint32 nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++)
     {
       Uint32 type;
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
-        continue;
-
       if (iter.get(CFG_TYPE_OF_SECTION, &type) &&
           type == NDB_MGM_NODE_TYPE_API)
       {
@@ -3678,7 +3675,6 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
           iter.set(parameters[param].key, parameters[param].values[i]);
         }
       }
-
       iter.closeSection();
     }
 

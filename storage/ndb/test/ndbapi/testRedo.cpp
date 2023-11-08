@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1317,15 +1317,13 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Setting NoOfFragmentLogFiles = " << noOfLogFiles
-          << " FragmentLogFileSize = " << logFileSize
-          << " TimeBetweenLCP " << LCPinterval << endl;
+          << " FragmentLogFileSize = " << logFileSize << " TimeBetweenLCP "
+          << LCPinterval << endl;
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++)
     {
       Uint32 oldValue;
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
-        continue;
-      if (iter.get(CFG_DB_NO_REDOLOG_FILES, &oldValue)) 
+      if (iter.get(CFG_DB_NO_REDOLOG_FILES, &oldValue))
       {
         iter.set(CFG_DB_NO_REDOLOG_FILES, noOfLogFiles);
         if(defaultNoOfLogFiles == 0)
@@ -1334,7 +1332,8 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
         }
         else if(oldValue != defaultNoOfLogFiles) 
         {
-          g_err << "NoOfFragmentLogFiles is not consistent across nodes" << endl;
+          g_err << "NoOfFragmentLogFiles is not consistent across nodes"
+                << endl;
           break; 
         }
       }

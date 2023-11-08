@@ -65,10 +65,8 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
     g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
           << endl;
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++)
     {
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
-        continue;
       Uint32 oldValue = 0;
       if (iter.get(CFG_DB_START_PARTITION_TIMEOUT, oldValue))
       {
@@ -78,7 +76,8 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
         }
         else if (oldValue != defaultValue)
         {
-          g_err << "StartPartitionedTimeout is not consistent across nodes" << endl;
+          g_err << "StartPartitionedTimeout is not consistent across data node"
+                   "sections" << endl;
           break;
         }
       }
@@ -8911,12 +8910,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   }
   ConfigValues::Iterator iter(conf.m_configValues->m_config);
   Uint32 enabledPartialLCP = 1;
-  for (int idx = 0; idx < MAX_NODES; idx ++)
+  for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++)
   {
-    if (!iter.openSection(CFG_SECTION_NODE, idx))
-    {
-      break;
-    }
     Uint32 nodeId=0;
     if(iter.get(CFG_NODE_ID, &nodeId))
     {

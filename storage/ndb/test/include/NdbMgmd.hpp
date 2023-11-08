@@ -482,24 +482,19 @@ public:
 
     Uint64 default_value = 0;
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    for(int idx=0; iter.openSection(type_of_section, idx); idx++)
     {
-      if (!iter.openSection(type_of_section, nodeid))
-        continue;
       Uint64 old_value = 0;
       if (iter.get(config_variable, &old_value))
       {
         if (default_value == 0)
         {
           default_value = old_value;
-        }
-        else if (old_value != default_value)
-        {
-          g_err << "StartDiskPageBufferMemory is not consistent across nodes"
-                << ". Node id " << nodeid
-                << ": value " << old_value
-                << ". Overwriting it with the given value " << new_value
+        } else if (old_value != default_value) {
+          g_err << "Config value is not consistent across sections."
                 << endl;
+          iter.closeSection();
+          return false;
         }
       }
       iter.set(config_variable, new_value);
@@ -544,24 +539,19 @@ public:
 
     Uint32 default_value = 0;
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    for(int idx=0; iter.openSection(type_of_section, idx); idx++)
     {
-      if (!iter.openSection(type_of_section, nodeid))
-        continue;
       Uint32 old_value = 0;
       if (iter.get(config_variable, &old_value))
       {
         if (default_value == 0)
         {
           default_value = old_value;
-        }
-        else if (old_value != default_value)
-        {
-          g_err << "Config value is not consistent across nodes"
-                << ". Node id " << nodeid
-                << ": value " << old_value
-                << ". Overwriting it with the given value " << new_value
+        } else if (old_value != default_value) {
+          g_err << "Config value is not consistent across sections."
                 << endl;
+          iter.closeSection();
+          return false;
         }
       }
       iter.set(config_variable, new_value);
@@ -605,15 +595,12 @@ public:
     }
 
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    for(int idx=0; iter.openSection(type_of_section, idx); idx++)
     {
-      if (!iter.openSection(type_of_section, nodeid))
-        continue;
       Uint32 current_value = 0;
-      if (iter.get(config_variable, &current_value))
-      {
-        if (current_value > 0)
-        {
+      if (iter.get(config_variable, &current_value)) {
+        if (current_value > 0) {
+          iter.closeSection();
           return current_value;
         }
       }
