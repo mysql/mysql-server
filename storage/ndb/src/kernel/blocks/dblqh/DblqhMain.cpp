@@ -9760,18 +9760,23 @@ void Dblqh::execCOMMIT(Signal* signal)
     }
     return;
   }
-  if (ERROR_INSERTED(5110))
-  {
-    jam();
-    g_eventLogger->info("LQH %u delaying commit",
-                        instance());
-    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 200, signal->getLength());
-    return;
-  }
 
   TcConnectionrecPtr tcConnectptr;
   tcConnectptr.i = tcIndex;
   ptrAss(tcConnectptr, regTcConnectionrec);
+
+  if (ERROR_INSERTED(5110))
+  {
+    jam();
+    if (tcConnectptr.p->tableref > 2) 
+    {
+      jam();
+      g_eventLogger->info("LQH %u delaying commit", instance());
+      sendSignalWithDelay(cownref, GSN_COMMIT, signal, 200, signal->getLength());
+      return;
+    }
+    return;
+  }
   if ((tcConnectptr.p->transid[0] == transid1) &&
       (tcConnectptr.p->transid[1] == transid2)) {
 
@@ -9936,18 +9941,24 @@ void Dblqh::execCOMPLETE(Signal* signal)
     }
     return;
   }
-  if (ERROR_INSERTED(5111))
-  {
-    jam();
-    g_eventLogger->info("LQH %u delaying complete",
-                        instance());
-    sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 200, signal->getLength());
-    return;
-  }
 
   TcConnectionrecPtr tcConnectptr;
   tcConnectptr.i = tcIndex;
   ptrAss(tcConnectptr, regTcConnectionrec);
+
+  if (ERROR_INSERTED(5111))
+  {
+    jam();
+    if (tcConnectptr.p->tableref > 2)
+    {
+      jam();
+      g_eventLogger->info("LQH %u delaying complete", instance());
+      sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 200,
+                          signal->getLength());
+      return;
+    }
+  }
+
   if ((tcConnectptr.p->transactionState == TcConnectionrec::COMMITTED) &&
       (tcConnectptr.p->transid[0] == transid1) &&
       (tcConnectptr.p->transid[1] == transid2)) {
