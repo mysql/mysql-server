@@ -321,3 +321,12 @@ WHERE bars.parent_id = X'93222796caba43ca979f5c96eb6898b7';
 text
 correct output
 DROP TABLE parents, foos, bars;
+#
+# Bug#35507763: Assertion `to->field_ptr() != from->field_ptr()' failed.
+#
+CREATE TABLE t (x BINARY(0), y BINARY(0));
+INSERT INTO t VALUES ('', x);
+SELECT * FROM t;
+x	y
+	
+DROP TABLE t;
