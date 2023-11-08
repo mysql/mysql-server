@@ -1,12 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # Test file for WL#1724 (Min/Max Optimization for Queries with Group By Clause).
-# The queries in this file test query execution via QUICK_GROUP_MIN_MAX_SELECT.
+# The queries in this file test query execution via GroupIndexSkipScan.
 #
 
 #
@@ -101,7 +95,7 @@ analyze table t2;
 # Table t3 is the same as t1, but with smaller column lenghts.
 # This allows to test different branches of the cost computation procedure
 # when the number of keys per block are less than the number of keys in the
-# sub-groups formed by predicates over non-group attributes. 
+# sub-groups formed by predicates over non-group attributes.
 
 --disable_warnings
 drop table if exists t3;
@@ -175,20 +169,19 @@ analyze table t3;
 #
 
 # plans
-explain select a1, min(a2) from t1 group by a1;
---skip_if_hypergraph  # Does not support indexes for MIN/MAX.
+explain format=tree select a1, min(a2) from t1 group by a1;
 explain format=tree select a1, min(a2) from t1 group by a1;  # Also demonstrates lack of AggregateIterator.
-explain select a1, max(a2) from t1 group by a1;
-explain select a1, min(a2), max(a2) from t1 group by a1;
-explain select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
-explain select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
+explain format=tree select a1, max(a2) from t1 group by a1;
+explain format=tree select a1, min(a2), max(a2) from t1 group by a1;
+explain format=tree select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
+explain format=tree select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
 --replace_column 8 # 10 #
-explain select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
+explain format=tree select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
 # Select fields in different order
-explain select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
-explain select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
-explain select min(a2) from t1 group by a1;
-explain select a2, min(c), max(c) from t1 group by a1,a2,b;
+explain format=tree select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
+explain format=tree select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
+explain format=tree select min(a2) from t1 group by a1;
+explain format=tree select a2, min(c), max(c) from t1 group by a1,a2,b;
 
 # queries
 select a1, min(a2) from t1 group by a1;
@@ -209,42 +202,42 @@ select a2, min(c), max(c) from t1 group by a1,a2,b;
 
 # A) Preds only over the group 'A' attributes
 # plans
-explain select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
-explain select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
-explain select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
-explain select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
+explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 --replace_column 10 #
-explain select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
+explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 --replace_column 10 #
-explain select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
+explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 
 # queries
 select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
@@ -275,21 +268,21 @@ select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 # B) Equalities only over the non-group 'B' attributes
 # plans
 
-explain select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
-explain select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
-explain select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
-explain select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
-explain select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
 
-explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
-explain select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
-explain select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
-explain select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
-explain select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
+explain format=tree select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
 
 # these queries test case 2) in TRP_GROUP_MIN_MAX::update_cost()
-explain select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
-explain select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
+explain format=tree select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 
 # queries
 select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
@@ -318,12 +311,12 @@ select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 
 --source include/turn_off_only_full_group_by.inc
 
-explain select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
-explain select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
-explain select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
-explain select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
-explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
-explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+explain format=tree select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+explain format=tree select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+explain format=tree select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
+explain format=tree select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 # queries
 select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
@@ -337,53 +330,53 @@ select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 # C) Range predicates for the MIN/MAX attribute
 # plans
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
-explain select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
 
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain format=tree select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 
 # queries
 select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
@@ -420,38 +413,38 @@ select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k
 select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
 
 # analyze the sub-select
-explain select a1,a2,b,min(c),max(c) from t1
+explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 
 # the sub-select is unrelated to MIN/MAX
-explain select a1,a2,b,min(c),max(c) from t1
+explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 
 
 # A,B,C) Predicates referencing mixed classes of attributes
 # plans
-explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
-explain select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
-explain select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
-explain select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
-explain select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
-explain select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
 
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 # queries
 select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
@@ -475,22 +468,21 @@ select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') grou
 #
 
 # plans
-explain select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
---skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
-explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
-explain select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
-explain select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain format=tree select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 --replace_column 10 #
-explain select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain format=tree select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 --replace_column 10 #
-explain select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
 # queries
 select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
@@ -508,20 +500,20 @@ select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1
 #
 
 # plans
-explain select distinct a1,a2,b from t1;
-explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
-explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
-explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
-explain select distinct b from t1 where (a2 >= 'b') and (b = 'a');
+explain format=tree select distinct a1,a2,b from t1;
+explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
+explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
 --replace_column 10 #
-explain select distinct a1,a2,b from t2;
+explain format=tree select distinct a1,a2,b from t2;
 --replace_column 10 #
-explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
-explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
+explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 --replace_column 10 #
-explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
-explain select distinct b from t2 where (a2 >= 'b') and (b = 'a');
+explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 
 # queries
 select distinct a1,a2,b from t1;
@@ -557,22 +549,22 @@ select distinct t1.a1,t2.a1 from t1,t2;
 
 #--source include/turn_off_only_full_group_by.inc
 
-explain select distinct a1,a2,b from t1;
-explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
-explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
-explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
-explain select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b from t1;
+explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 --replace_column 10 #
-explain select distinct a1,a2,b from t2;
+explain format=tree select distinct a1,a2,b from t2;
 --replace_column 10 #
-explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 --replace_column 10 #
-explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 --replace_column 10 #
-explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 --replace_column 10 #
-explain select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 # queries
 select distinct a1,a2,b from t1;
@@ -593,11 +585,11 @@ select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 # COUNT (DISTINCT cols) queries
 #
 
-explain select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
-explain select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
-explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
-explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
-explain select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+explain format=tree select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
+explain format=tree select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain format=tree select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain format=tree select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
+explain format=tree select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
@@ -609,11 +601,11 @@ select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 # Queries with expressions in the select clause
 #
 
-explain select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
-explain select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
-explain select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
-explain select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
-explain select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
+explain format=tree select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
+explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
+explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 
 select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
@@ -624,71 +616,71 @@ select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 
 #
 # Negative examples: queries that should NOT be treated as optimizable by
-# QUICK_GROUP_MIN_MAX_SELECT
+# GroupIndexSkipScan
 #
 
 # select a non-indexed attribute
 
 --source include/turn_off_only_full_group_by.inc
 
-explain select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
+explain format=tree select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 
-explain select a1,a2,b,d from t1 group by a1,a2,b;
+explain format=tree select a1,a2,b,d from t1 group by a1,a2,b;
 
 # predicate that references an attribute that is after the MIN/MAX argument
 # in the index
-explain select a1,a2,min(b),max(b) from t1
+explain format=tree select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 
 # predicate that references a non-indexed attribute
-explain select a1,a2,b,min(c),max(c) from t1
+explain format=tree select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 
-explain select a1,a2,b,c from t1
+explain format=tree select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 
 # non-equality predicate for a non-group select attribute
-explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
-explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
+explain format=tree select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 
 # non-group field with an equality predicate that references a keypart after the
 # MIN/MAX argument
-explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+explain format=tree select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 
 # disjunction for a non-group select attribute
-explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
+explain format=tree select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # non-range predicate for the MIN/MAX attribute
-explain select a1,a2,b,min(c),max(c) from t2
+explain format=tree select a1,a2,b,min(c),max(c) from t2
 where (c > 'a000') and (c <= 'd999') and (c like '_8__') group by a1,a2,b;
 
 # not all attributes are indexed by one index
-explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
+explain format=tree select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 
 # other aggregate functions than MIN/MAX
-explain select a1,a2,count(a2) from t1 group by a1,a2,b;
-explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
-explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+explain format=tree select a1,a2,count(a2) from t1 group by a1,a2,b;
+explain format=tree select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 
 
 #
 # Bug #16710: select distinct doesn't return all it should
 #
 
-explain select distinct(a1) from t1 where ord(a2) = 98;
+explain format=tree select distinct(a1) from t1 where ord(a2) = 98;
 select distinct(a1) from t1 where ord(a2) = 98;
 
 #
 # BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.
 #
 
-explain select a1 from t1 where a2 = 'b' group by a1;
+explain format=tree select a1 from t1 where a2 = 'b' group by a1;
 select a1 from t1 where a2 = 'b' group by a1;
 
-explain select distinct a1 from t1 where a2 = 'b';
+explain format=tree select distinct a1 from t1 where a2 = 'b';
 select distinct a1 from t1 where a2 = 'b';
 
 #
@@ -741,8 +733,8 @@ OPTIMIZE TABLE t1;
 SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 
-EXPLAIN SELECT a FROM t1 WHERE a='AA' GROUP BY a;
-EXPLAIN SELECT a FROM t1 WHERE a='BB' GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='AA' GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 
 SELECT DISTINCT a FROM t1 WHERE a='BB';
 SELECT DISTINCT a FROM t1 WHERE a LIKE 'B%';
@@ -752,7 +744,7 @@ DROP TABLE t1;
 
 
 #
-# Bug #15102: select distinct returns empty result, select count 
+# Bug #15102: select distinct returns empty result, select count
 #             distinct > 0 (correct)
 #
 
@@ -794,13 +786,13 @@ DROP PROCEDURE a;
 
 CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a)) charset utf8mb4;
 
-INSERT INTO t1 (a) VALUES 
+INSERT INTO t1 (a) VALUES
   (''), ('CENTRAL'), ('EASTERN'), ('GREATER LONDON'),
   ('NORTH CENTRAL'), ('NORTH EAST'), ('NORTH WEST'), ('SCOTLAND'),
   ('SOUTH EAST'), ('SOUTH WEST'), ('WESTERN');
 
-EXPLAIN SELECT DISTINCT a,a FROM t1 ORDER BY a;  
-SELECT DISTINCT a,a FROM t1 ORDER BY a;  
+EXPLAIN FORMAT=TREE SELECT DISTINCT a,a FROM t1 ORDER BY a;
+SELECT DISTINCT a,a FROM t1 ORDER BY a;
 
 DROP TABLE t1;
 
@@ -861,13 +853,13 @@ INSERT INTO t1 VALUES (2,1),(2,2),(2,0),(2,3);
 INSERT INTO t1 VALUES (3,1),(3,2),(3,0),(3,3);
 ANALYZE TABLE t1;
 
-explain SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
+explain format=tree SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MIN(b), a FROM t1 WHERE b > 1 AND a = 1 GROUP BY a;
 CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a,b,c));
 INSERT INTO t2 SELECT a,b,b FROM t1;
 ANALYZE TABLE t2;
-explain SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
+explain format=tree SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 
 DROP TABLE t1,t2;
@@ -883,12 +875,12 @@ CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
 INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
        (2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6),
        (5,1), (5,2), (5,3), (5,4), (5,5);
-EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 SELECT max(b), a FROM t1 GROUP BY a;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
-EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT max(b), a FROM t1 GROUP BY a;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 --skip_if_hypergraph  # Depends on the query plan.
@@ -898,27 +890,27 @@ SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
-(SELECT max(b), a FROM t1 GROUP BY a) UNION 
+(SELECT max(b), a FROM t1 GROUP BY a) UNION
  (SELECT max(b), a FROM t1 GROUP BY a);
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
-EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION 
+EXPLAIN FORMAT=TREE (SELECT max(b), a FROM t1 GROUP BY a) UNION
  (SELECT max(b), a FROM t1 GROUP BY a);
 
-EXPLAIN SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
+EXPLAIN FORMAT=TREE SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer;
-EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE EXISTS 
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
-EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
   (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
-EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer WHERE
   a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
-EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING
   a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
-EXPLAIN SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2 
-   ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) 
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2
+   ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
    AND t1_outer1.b = t1_outer2.b;
-EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
+EXPLAIN FORMAT=TREE SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 
 CREATE TABLE t3 LIKE t1;
@@ -934,7 +926,7 @@ INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 DELETE FROM t3;
 FLUSH STATUS;
-INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) 
+INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2)
   FROM t1 LIMIT 1;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
@@ -944,7 +936,7 @@ DELETE FROM t3 WHERE (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) > 10000;
 SHOW STATUS LIKE 'handler_read__e%';
 FLUSH STATUS;
 --error ER_SUBQUERY_NO_1_ROW
-DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
+DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x
                       FROM t1) > 10000;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read__e%';
@@ -953,7 +945,7 @@ DROP TABLE t1,t2,t3;
 --enable_ps_protocol
 
 #
-# Bug#25602: queries with DISTINCT and SQL_BIG_RESULT hint 
+# Bug#25602: queries with DISTINCT and SQL_BIG_RESULT hint
 #            for which loose scan optimization is applied
 #
 
@@ -965,12 +957,12 @@ INSERT INTO t1 VALUES
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT DISTINCT(a) FROM t1;
+EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 SELECT DISTINCT(a) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 
 DROP TABLE t1;
@@ -985,7 +977,7 @@ INSERT INTO t1 SELECT a + 1, b FROM t1;
 INSERT INTO t1 SELECT a + 2, b FROM t1;
 INSERT INTO t1 SELECT a + 4, b FROM t1;
 
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
@@ -993,17 +985,17 @@ CREATE INDEX break_it ON t1 (a, b);
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
@@ -1014,7 +1006,7 @@ DROP TABLE t1;
 #            used causes server crash.
 #
 create table t1 (a int, b int, primary key (a,b), key `index` (a,b)) engine=MyISAM;
-insert into  t1 (a,b) values 
+insert into  t1 (a,b) values
 (0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),
   (0,7),(0,8),(0,9),(0,10),(0,11),(0,12),(0,13),
 (1,0),(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),
@@ -1026,7 +1018,7 @@ insert into  t1 (a,b) values
 insert into t1 (a,b) select a, max(b)+1 from t1 where a = 0 group by a;
 --sorted_result
 select * from t1;
-explain select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
+explain format=tree select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 drop table t1;
 
 
@@ -1046,13 +1038,13 @@ INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
 #Should be non-empty
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT DISTINCT c FROM t1 WHERE d=4;
+EXPLAIN FORMAT=TREE SELECT DISTINCT c FROM t1 WHERE d=4;
 SELECT DISTINCT c FROM t1 WHERE d=4;
 
 DROP TABLE t1;
 
 --echo #
---echo # Bug #45386: Wrong query result with MIN function in field list, 
+--echo # Bug #45386: Wrong query result with MIN function in field list,
 --echo #  WHERE and GROUP BY clause
 --echo #
 
@@ -1066,7 +1058,7 @@ INSERT INTO t SELECT * FROM t;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 --echo #should return 1 row
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
@@ -1075,7 +1067,7 @@ SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 --echo #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
@@ -1086,7 +1078,7 @@ INSERT INTO t SELECT a, 2 FROM t;
 --echo #should use range with index for group by
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN
+EXPLAIN FORMAT=TREE
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 --echo #should return 1 row
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
@@ -1096,11 +1088,11 @@ DROP TABLE t;
 --echo #
 --echo # Bug #48472: Loose index scan inappropriately chosen for some WHERE
 --echo #             conditions
---echo # 
+--echo #
 
 CREATE TABLE t (a INT, b INT, INDEX (a,b));
 INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
-INSERT INTO t SELECT * FROM t;                                   
+INSERT INTO t SELECT * FROM t;
 
 SELECT a, MAX(b) FROM t WHERE 0=b+0 GROUP BY a;
 
@@ -1131,40 +1123,12 @@ SELECT 1 AS c, b FROM t1 WHERE b IN (1,2) GROUP BY c, b;
 SELECT a FROM t1 WHERE b=1;
 DROP TABLE t1;
 
---echo # 
---echo # Bug#47762: Incorrect result from MIN() when WHERE tests NOT NULL column
---echo #            for NULL
---echo #
-
---echo ## Test for NULLs allowed
-CREATE TABLE t1 ( a INT, KEY (a) );
-INSERT INTO t1 VALUES (1), (2), (3);
---source include/min_null_cond.inc
-INSERT INTO t1 VALUES (NULL), (NULL);
---source include/min_null_cond.inc
-DROP TABLE t1;
-
---echo ## Test for NOT NULLs
-CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY);
-INSERT INTO t1 VALUES (1), (2), (3);
---echo #
---echo # NULL-safe operator test disabled for non-NULL indexed columns.
---echo #
---echo # See bugs
---echo #
---echo # - Bug#52174: Sometimes wrong plan when reading a MAX value from 
---echo #   non-NULL index
---echo #
---let $skip_null_safe_test= 1
---source include/min_null_cond.inc
-DROP TABLE t1;
-
 --echo #
 --echo # Bug#53859: Valgrind: opt_sum_query(TABLE_LIST*, List<Item>&, Item*) at
 --echo # opt_sum.cc:305
 --echo #
 CREATE TABLE t1 ( a INT, KEY (a) );
-INSERT INTO t1 VALUES (1), (2), (3); 
+INSERT INTO t1 VALUES (1), (2), (3);
 
 SELECT MIN( a ) AS min_a
 FROM t1
@@ -1188,7 +1152,7 @@ INSERT INTO t1 SELECT a + 1, b, 1 FROM t1;
 INSERT INTO t1 SELECT a + 2, b + 8, 1 FROM t1;
 
 CREATE TABLE t2 (a INT, b INT, c INT, d INT, e INT, f INT, KEY (a,b,c));
-INSERT INTO t2 VALUES (1,1,1,1,1,1), (1,2,1,1,1,1), (1,3,1,1,1,1), 
+INSERT INTO t2 VALUES (1,1,1,1,1,1), (1,2,1,1,1,1), (1,3,1,1,1,1),
        (1,4,1,1,1,1);
 INSERT INTO t2 SELECT a, b + 4, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
@@ -1196,140 +1160,140 @@ INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1;
 SELECT COUNT(DISTINCT a) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a,b) FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a,b) FROM t1;
 SELECT COUNT(DISTINCT a,b) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT b,a) FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b,a) FROM t1;
 SELECT COUNT(DISTINCT b,a) FROM t1;
 
-EXPLAIN SELECT COUNT(DISTINCT b) FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1;
 SELECT COUNT(DISTINCT b) FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
+EXPLAIN FORMAT=TREE SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 
-EXPLAIN SELECT COUNT(DISTINCT a, b + 0) FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 
-EXPLAIN SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a), 12 FROM t1;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), 12 FROM t1;
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a, b, c) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b, c) FROM t2;
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 
-EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 
-EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 
-EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
+EXPLAIN FORMAT=TREE SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 
-EXPLAIN SELECT COUNT(DISTINCT c, a, b) FROM t2
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT c, a, b) FROM t2
   WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 SELECT COUNT(DISTINCT c, a, b) FROM t2
   WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 
-EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
   GROUP BY b;
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
   GROUP BY b;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
-EXPLAIN SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
+EXPLAIN FORMAT=TREE SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
   WHERE b = 13 AND c = 42 GROUP BY a;
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
   WHERE b = 13 AND c = 42 GROUP BY a;
 
 --echo # This query could have been resolved using loose index scan since
 --echo # the second part of count(..) is defined by a constant predicate
-EXPLAIN SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 
-EXPLAIN SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 
 # On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
 --replace_result 11 10
-EXPLAIN SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
+EXPLAIN FORMAT=TREE SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 
-EXPLAIN SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 
 DROP TABLE t1,t2;
@@ -1345,12 +1309,12 @@ CREATE TABLE t1 (
   f2 char(1) NOT NULL DEFAULT '',
   PRIMARY KEY (f1,f2)
 )  charset utf8mb4;
-insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
+insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'),
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 
 SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
-explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
- 
+explain format=tree SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+
 drop table t1;
 --echo # End of test#50539.
 
@@ -1381,7 +1345,7 @@ INSERT INTO t1 SELECT * FROM t1;
 let query=
 SELECT DISTINCT a FROM t1 WHERE b=4;
 
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 DROP TABLE t1;
@@ -1401,31 +1365,31 @@ set end_markers_in_json=on;
 ANALYZE TABLE t;
 
 SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
-EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
-EXPLAIN SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
-EXPLAIN SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
-EXPLAIN SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
-EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+EXPLAIN FORMAT=TREE SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -1442,7 +1406,7 @@ DROP TABLE t;
 --echo #
 CREATE TABLE t(a INT PRIMARY KEY)
   ENGINE = MERGE;
-EXPLAIN SELECT DISTINCT(a) FROM t;
+EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t;
 SELECT DISTINCT(a) FROM t;
 DROP TABLE t;
 --echo # End of test#18066518.
@@ -1472,7 +1436,7 @@ INSERT INTO t1(c1,c2) VALUES
 (4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
 (4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
 
-EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+EXPLAIN FORMAT=TREE SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 FLUSH STATUS;
 SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 --skip_if_hypergraph  # Depends on the query plan (loose index scan is not supported).
@@ -1494,24 +1458,24 @@ INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
 ANALYZE TABLE t1;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
            GROUP BY a;
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 DROP TABLE t1;
@@ -1533,7 +1497,7 @@ ANALYZE TABLE t1, t2;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 --echo # Repeat the test with PRIMARY KEY instead of the non-indexed column.
@@ -1542,63 +1506,63 @@ ALTER TABLE t1 DROP COLUMN nk;
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(out1.k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 --echo # Inner reference should be optimized.
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MAX(k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT 2*MIN(k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 --echo # Combinations of outer and inner references should not be optimized.
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk = (SELECT AVG(out1.k) FROM t1);
 
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 DROP TABLE t1, t2;
@@ -1616,25 +1580,25 @@ CREATE TABLE t2 (h INT) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (3);
 
 let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 UPDATE t1 SET k=0;
 
 let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 DROP TABLE t1;
@@ -1643,19 +1607,19 @@ CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1);
 
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 UPDATE t1 SET nk=0, k=0;
 
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
-eval explain $query;
+eval explain format=tree $query;
 eval $query;
 
 DROP TABLE t1;
@@ -1687,7 +1651,7 @@ ANALYZE TABLE a;
 SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1697,7 +1661,7 @@ SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1710,7 +1674,7 @@ ALTER TABLE a DROP KEY aggr_col_key;
 SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1720,7 +1684,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1731,7 +1695,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1742,7 +1706,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1758,7 +1722,7 @@ ANALYZE TABLE a;
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1770,7 +1734,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1784,7 +1748,7 @@ INSERT INTO a VALUES(1,1),(1,2),(2,1);
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1795,7 +1759,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1808,7 +1772,7 @@ INSERT INTO a VALUES(0,1),(1,0),(0,0);
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1819,7 +1783,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1830,7 +1794,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1841,7 +1805,7 @@ SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
 SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 
-EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 
 --skip_if_hypergraph  # Does not output the same optimizer trace.
@@ -1883,7 +1847,6 @@ INSERT INTO t1 VALUES(1,0);
 eval $query;
 INSERT INTO t2 VALUES (0, 'a', 3, 4);
 eval $query;
---skip_if_hypergraph  # Different plan.
 eval  EXPLAIN FORMAT=TREE $query;
 DELETE FROM t1;
 DELETE FROM t2;
@@ -1895,7 +1858,6 @@ eval $query;
 --echo # If t2 has at least one row, we will get a result row
 INSERT INTO t2 VALUES (0, 'a', 3, 4);
 eval $query;
---skip_if_hypergraph  # Different plan.
 eval EXPLAIN FORMAT=TREE $query;
 
 --echo # If we have two rows in t1, t1 will not be read before
@@ -1903,7 +1865,6 @@ eval EXPLAIN FORMAT=TREE $query;
 --echo # before this patch.
 INSERT INTO t1 VALUES(0,0);
 eval $query;
---skip_if_hypergraph  # Different plan.
 eval EXPLAIN FORMAT=TREE $query;
 
 DROP TABLE t1, t2;
@@ -1931,17 +1892,15 @@ INSERT INTO t1 SELECT i0+1, i0*rand()*10 from t0;
 INSERT INTO t1 VALUES (1,0);
 ANALYZE TABLE t1;
 
---skip_if_hypergraph  # Different plan.
 # Should pick loose index scan to do the aggregation. Rows
 # looked at should be 1 as the group by attribute is a constant.
 --replace_regex /  \(cost=.*//
-EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
+EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
---skip_if_hypergraph  # Different plan.
 --replace_regex /  \(cost=.*//
-EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
+EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 
 DROP TABLE t0,t1;

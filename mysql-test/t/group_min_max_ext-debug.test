@@ -6,7 +6,7 @@
 --echo #
 
 let $engine=innodb;
---source include/group_min_max_ext_data.inc
+--source include/group_skip_scan_ext_data.inc
 
 SET debug= '+d,bug30769515_QUERY_INTERRUPTED';
 --error ER_QUERY_INTERRUPTED

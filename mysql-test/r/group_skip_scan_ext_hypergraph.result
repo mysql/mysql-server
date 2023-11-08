@@ -1,0 +1,4219 @@
+CREATE TABLE t (a INT, b INT, c INT, d INT, KEY k1(a, b, c, d)) ENGINE=innodb;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	20	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c is null)))  (rows=37.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-20
+12	-15	-15
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+11	30	30
+12	-15	-20
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	30	-10
+12	-23	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group (no aggregates)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a
+1
+10
+11
+12
+2
+3
+4
+5
+6
+7
+8
+9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17.2)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+10	2	10	1
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+3	2	10	1
+4	2	10	1
+5	2	10	1
+6	2	10	1
+7	2	10	1
+8	2	10	1
+9	2	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=25)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+1	3	10	1
+10	2	10	1
+10	3	10	1
+11	2	-10	-10
+11	3	20	20
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+2	3	10	1
+3	2	10	1
+3	3	10	1
+4	2	10	1
+4	3	10	1
+5	2	10	1
+5	3	10	1
+6	2	10	1
+6	3	10	1
+7	2	10	1
+7	3	10	1
+8	2	10	1
+8	3	10	1
+9	2	10	1
+9	3	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+a
+1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+a	MAX(d)	MIN(d)
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.32)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=1.74)
+        -> Covering index range scan on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=254)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	254
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a, t.b  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+a	b
+1	2
+12	15
+12	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a  (rows=12)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=55)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+a
+1
+12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	54
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=2.98)
+    -> Filter: ((t.c = 3) or (t.c = 40))  (rows=8.86)
+        -> Covering index range scan on t using k1 over (a = 1 AND NULL < b < 4) OR (a = 1 AND 10 < b) OR (2 more)  (rows=155)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	1
+1	2	10	1
+1	3	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	154
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=271)
+        -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (3 more)  (rows=271)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	5
+Handler_read_last	0
+Handler_read_next	268
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: count(distinct t.a,t.b)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+COUNT(DISTINCT a, b)
+3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)
+78	6.5000
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a), count(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
+78	6.5000	12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.0533)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
+        -> Covering index range scan on t using k1 over (11 < a)  (rows=4)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+12	-15	-15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=48.4)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=48.4)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=56)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=57.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+12	2	NULL	NULL
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=29)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=29)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	3
+10	2	3
+10	3	3
+10	4	3
+10	5	3
+12	2	NULL
+6	1	3
+6	2	3
+6	3	3
+6	4	3
+6	5	3
+7	1	3
+7	2	3
+7	3	3
+7	4	3
+7	5	3
+8	1	3
+8	2	3
+8	3	3
+8	4	3
+8	5	3
+9	1	3
+9	2	3
+9	3	3
+9	4	3
+9	5	3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=24.3)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+6	1	9	9
+6	2	9	9
+6	3	9	9
+6	4	9	9
+6	5	9	9
+7	1	9	9
+7	2	9	9
+7	3	9	9
+7	4	9	9
+7	5	9	9
+8	1	9	9
+8	2	9	9
+8	3	9	9
+8	4	9	9
+8	5	9	9
+9	1	9	9
+9	2	9	9
+9	3	9	9
+9	4	9	9
+9	5	9	9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	1
+10	2	9	1
+10	3	9	1
+10	4	9	1
+10	5	9	1
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=2.06)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=4.26)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	1	4
+10	2	1	4
+10	3	1	4
+10	4	1	4
+10	5	1	4
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=2.97)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=8.85)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	1
+10	2	1
+10	3	1
+10	4	1
+10	5	1
+11	2	-10
+11	3	20
+11	NULL	30
+12	15	-20
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	max(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	min(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+EXPLAIN
+-> Group aggregate: min(t.b), max(t.b)  (rows=12)
+    -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+a	MIN(b)	MAX(b)
+10	1	5
+11	2	15
+12	2	15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+ALTER TABLE t ADD KEY k2(a DESC, b, c DESC, d);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT a, b, MIN(d) FROM t
+WHERE (a > 4) AND (c = 3 or c = 40) AND (d > 7)  GROUP BY a, b;
+a	b	MIN(d)
+10	1	8
+10	2	8
+10	3	8
+10	4	8
+10	5	8
+11	3	20
+11	NULL	30
+5	1	8
+5	2	8
+5	3	8
+5	4	8
+5	5	8
+6	1	8
+6	2	8
+6	3	8
+6	4	8
+6	5	8
+7	1	8
+7	2	8
+7	3	8
+7	4	8
+7	5	8
+8	1	8
+8	2	8
+8	3	8
+8	4	8
+8	5	8
+9	1	8
+9	2	8
+9	3	8
+9	4	8
+9	5	8
+SELECT a, b, MIN(d) FROM t
+WHERE (a > 4) AND (c = 3 or c = 40) AND (d > 7)  GROUP BY a, b;
+a	b	MIN(d)
+10	1	8
+10	2	8
+10	3	8
+10	4	8
+10	5	8
+11	3	20
+11	NULL	30
+5	1	8
+5	2	8
+5	3	8
+5	4	8
+5	5	8
+6	1	8
+6	2	8
+6	3	8
+6	4	8
+6	5	8
+7	1	8
+7	2	8
+7	3	8
+7	4	8
+7	5	8
+8	1	8
+8	2	8
+8	3	8
+8	4	8
+8	5	8
+9	1	8
+9	2	8
+9	3	8
+9	4	8
+9	5	8
+ALTER TABLE t DROP KEY k2;
+EXPLAIN FORMAT=TREE SELECT a, b FROM t  WHERE (a > 4) AND (c = 3 OR c > 6)  GROUP BY a, b;
+EXPLAIN
+-> Group (no aggregates)  (rows=56)
+    -> Filter: ((t.c = 3) or (t.c > 6))  (rows=532)
+        -> Covering index range scan on t using k1 over (4 < a)  (rows=1508)
+
+EXPLAIN FORMAT=TREE SELECT a, b FROM t  WHERE (a > 4) AND (c = 3 OR c = 40) AND
+(d = -1 OR d = -2 OR d > 7)  GROUP BY a, b;
+EXPLAIN
+-> Group (no aggregates)  (rows=29.5)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = <cache>(-(1))) or (t.d = <cache>(-(2))) or (t.d > 7)))  (rows=29.5)
+        -> Covering index range scan on t using k1 over (4 < a)  (rows=1508)
+
+ALTER TABLE t DROP KEY k1;
+ALTER TABLE t ADD KEY k1(a, b, c, d DESC);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=2.74)
+    -> Filter: (t.c = 3)  (rows=7.48)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+SELECT a, b, MIN(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
+a	b	MIN(d)
+10	1	1
+10	2	1
+10	3	1
+10	4	1
+10	5	1
+11	2	-10
+11	3	20
+12	2	NULL
+12	15	-15
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=2.74)
+    -> Filter: (t.c = 3)  (rows=7.48)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+SELECT a, b, MIN(d), MAX(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	1	10
+10	2	1	10
+10	3	1	10
+10	4	1	10
+10	5	1	10
+11	2	-10	-10
+11	3	20	20
+12	2	NULL	NULL
+12	15	-15	-15
+ALTER TABLE t DROP KEY k1;
+ALTER TABLE t ADD KEY k1(a DESC, b, c DESC, d);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	20	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c is null)))  (rows=37.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-20
+12	-15	-15
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+11	30	30
+12	-15	-20
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	30	-10
+12	-23	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group (no aggregates)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a
+1
+10
+11
+12
+2
+3
+4
+5
+6
+7
+8
+9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17.2)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+10	2	10	1
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+3	2	10	1
+4	2	10	1
+5	2	10	1
+6	2	10	1
+7	2	10	1
+8	2	10	1
+9	2	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=25)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+1	3	10	1
+10	2	10	1
+10	3	10	1
+11	2	-10	-10
+11	3	20	20
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+2	3	10	1
+3	2	10	1
+3	3	10	1
+4	2	10	1
+4	3	10	1
+5	2	10	1
+5	3	10	1
+6	2	10	1
+6	3	10	1
+7	2	10	1
+7	3	10	1
+8	2	10	1
+8	3	10	1
+9	2	10	1
+9	3	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+a
+1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+a	MAX(d)	MIN(d)
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 12 AND b = 2 AND c = 40) OR (a = 12 AND b = 2 AND c = 3) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.32)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=1.74)
+        -> Covering index range scan on t using k1 over (a < 11) OR (2 < a < NULL)  (rows=254)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	254
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a, t.b  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 12 AND b = 2 AND c = 40) OR (a = 12 AND b = 2 AND c = 3) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+a	b
+1	2
+12	15
+12	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a  (rows=12)
+    -> Covering index range scan on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=55)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+a
+1
+12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	54
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=2.98)
+    -> Filter: ((t.c = 3) or (t.c = 40))  (rows=8.86)
+        -> Covering index range scan on t using k1 over (a = 12 AND NULL < b < 4) OR (a = 12 AND 10 < b) OR (2 more)  (rows=155)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	1
+1	2	10	1
+1	3	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	154
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=271)
+        -> Covering index range scan on t using k1 over (a < 9) OR (a = 1 AND b = 2 AND c = 40) OR (3 more)  (rows=271)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	5
+Handler_read_last	0
+Handler_read_next	268
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: count(distinct t.a,t.b)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 12 AND b = 2 AND c = 40) OR (a = 12 AND b = 2 AND c = 3) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+COUNT(DISTINCT a, b)
+3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)
+78	6.5000
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a), count(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
+78	6.5000	12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.0533)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
+        -> Covering index range scan on t using k1 over (a < 11)  (rows=4)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+12	-15	-15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=48.4)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=48.4)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=56)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=57.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+12	2	NULL	NULL
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=29)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=29)
+        -> Covering index range scan on t using k1 over (a < 5)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	3
+10	2	3
+10	3	3
+10	4	3
+10	5	3
+12	2	NULL
+6	1	3
+6	2	3
+6	3	3
+6	4	3
+6	5	3
+7	1	3
+7	2	3
+7	3	3
+7	4	3
+7	5	3
+8	1	3
+8	2	3
+8	3	3
+8	4	3
+8	5	3
+9	1	3
+9	2	3
+9	3	3
+9	4	3
+9	5	3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=24.3)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
+        -> Covering index range scan on t using k1 over (a < 5)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+6	1	9	9
+6	2	9	9
+6	3	9	9
+6	4	9	9
+6	5	9	9
+7	1	9	9
+7	2	9	9
+7	3	9	9
+7	4	9	9
+7	5	9	9
+8	1	9	9
+8	2	9	9
+8	3	9	9
+8	4	9	9
+8	5	9	9
+9	1	9	9
+9	2	9	9
+9	3	9	9
+9	4	9	9
+9	5	9	9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (a < 9)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	1
+10	2	9	1
+10	3	9	1
+10	4	9	1
+10	5	9	1
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (a < 9)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=2.06)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=4.26)
+        -> Covering index range scan on t using k1 over (a < 9)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	1	4
+10	2	1	4
+10	3	1	4
+10	4	1	4
+10	5	1	4
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=2.97)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=8.85)
+        -> Covering index range scan on t using k1 over (a < 9)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	1
+10	2	1
+10	3	1
+10	4	1
+10	5	1
+11	2	-10
+11	3	20
+11	NULL	30
+12	15	-20
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (a <= 10)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	max(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (a <= 10)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	min(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+EXPLAIN
+-> Group aggregate: min(t.b), max(t.b)  (rows=12)
+    -> Covering index range scan on t using k1 over (a < 9)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+a	MIN(b)	MAX(b)
+10	1	5
+11	2	15
+12	2	15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+ALTER TABLE t DROP KEY k1;
+ALTER TABLE t ADD KEY k1(a, b DESC, c, d DESC);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	20	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c is null)))  (rows=37.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-20
+12	-15	-15
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+11	30	30
+12	-15	-20
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=22.3)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	30	-10
+12	-23	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group (no aggregates)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a
+1
+10
+11
+12
+2
+3
+4
+5
+6
+7
+8
+9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17.2)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+10	2	10	1
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+3	2	10	1
+4	2	10	1
+5	2	10	1
+6	2	10	1
+7	2	10	1
+8	2	10	1
+9	2	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=25)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+1	3	10	1
+10	2	10	1
+10	3	10	1
+11	2	-10	-10
+11	3	20	20
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+2	3	10	1
+3	2	10	1
+3	3	10	1
+4	2	10	1
+4	3	10	1
+5	2	10	1
+5	3	10	1
+6	2	10	1
+6	3	10	1
+7	2	10	1
+7	3	10	1
+8	2	10	1
+8	3	10	1
+9	2	10	1
+9	3	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2)  (rows=51)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+a
+1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+a	MAX(d)	MIN(d)
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15 AND c = 3) OR (a = 1 AND b = 15 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.32)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=1.74)
+        -> Covering index range scan on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=254)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	254
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a, t.b  (rows=17)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15 AND c = 3) OR (a = 1 AND b = 15 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+a	b
+1	2
+12	15
+12	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a  (rows=12)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=55)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+a
+1
+12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	54
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=2.98)
+    -> Filter: ((t.c = 3) or (t.c = 40))  (rows=8.86)
+        -> Covering index range scan on t using k1 over (a = 1 AND b < 10) OR (a = 1 AND 4 < b < NULL) OR (2 more)  (rows=155)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	1
+1	2	10	1
+1	3	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	154
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=271)
+        -> Covering index range scan on t using k1 over (a = 1 AND b = 15 AND c = 3) OR (a = 1 AND b = 15 AND c = 40) OR (3 more)  (rows=271)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	5
+Handler_read_last	0
+Handler_read_next	268
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: count(distinct t.a,t.b)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15 AND c = 3) OR (a = 1 AND b = 15 AND c = 40) OR (6 more)  (rows=17)
+
+FLUSH STATUS;
+SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+COUNT(DISTINCT a, b)
+3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)
+78	6.5000
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a), count(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.2)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
+78	6.5000	12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.0533)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
+        -> Covering index range scan on t using k1 over (11 < a)  (rows=4)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+12	-15	-15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=48.4)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=48.4)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=56)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=57.9)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+12	2	NULL	NULL
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=29)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=29)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	3
+10	2	3
+10	3	3
+10	4	3
+10	5	3
+12	2	NULL
+6	1	3
+6	2	3
+6	3	3
+6	4	3
+6	5	3
+7	1	3
+7	2	3
+7	3	3
+7	4	3
+7	5	3
+8	1	3
+8	2	3
+8	3	3
+8	4	3
+8	5	3
+9	1	3
+9	2	3
+9	3	3
+9	4	3
+9	5	3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=24.3)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+6	1	9	9
+6	2	9	9
+6	3	9	9
+6	4	9	9
+6	5	9	9
+7	1	9	9
+7	2	9	9
+7	3	9	9
+7	4	9	9
+7	5	9	9
+8	1	9	9
+8	2	9	9
+8	3	9	9
+8	4	9	9
+8	5	9	9
+9	1	9	9
+9	2	9	9
+9	3	9	9
+9	4	9	9
+9	5	9	9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	1
+10	2	9	1
+10	3	9	1
+10	4	9	1
+10	5	9	1
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=2.06)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=4.26)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	1	4
+10	2	1	4
+10	3	1	4
+10	4	1	4
+10	5	1	4
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=2.97)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=8.85)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	1
+10	2	1
+10	3	1
+10	4	1
+10	5	1
+11	2	-10
+11	3	20
+11	NULL	30
+12	15	-20
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	max(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=1.28)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.64)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	min(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+EXPLAIN
+-> Group aggregate: min(t.b), max(t.b)  (rows=12)
+    -> Covering index range scan on t using k1 over (9 < a)  (rows=258)
+
+FLUSH STATUS;
+SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+a	MIN(b)	MAX(b)
+10	1	5
+11	2	15
+12	2	15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+DROP TABLE t;
+CREATE TABLE t (a INT, b INT, c INT, d INT, KEY k1(a, b, c, d)) ENGINE=myisam;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Sort: t.a  (rows=25.8)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25.8)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	20	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Sort: t.a  (rows=17.7)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.7)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Sort: t.a  (rows=38.3)
+        -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c is null)))  (rows=38.3)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-20
+12	-15	-15
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Sort: t.a  (rows=22.9)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=22.9)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+11	30	30
+12	-15	-20
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Sort: t.a  (rows=22.9)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=22.9)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	30	-10
+12	-23	-23
+2	10	1
+3	10	1
+4	10	1
+5	10	1
+6	10	1
+7	10	1
+8	10	1
+9	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+EXPLAIN
+-> Group (no aggregates)  (rows=12)
+    -> Sort: t.a  (rows=25.8)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25.8)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
+a
+1
+10
+11
+12
+2
+3
+4
+5
+6
+7
+8
+9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=17.7)
+    -> Sort: t.a, t.b  (rows=17.7)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.7)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+10	2	10	1
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+3	2	10	1
+4	2	10	1
+5	2	10	1
+6	2	10	1
+7	2	10	1
+8	2	10	1
+9	2	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=25.8)
+    -> Sort: t.a, t.b  (rows=25.8)
+        -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=25.8)
+            -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+1	3	10	1
+10	2	10	1
+10	3	10	1
+11	2	-10	-10
+11	3	20	20
+12	15	-15	-20
+12	2	-23	-23
+2	2	10	1
+2	3	10	1
+3	2	10	1
+3	3	10	1
+4	2	10	1
+4	3	10	1
+5	2	10	1
+5	3	10	1
+6	2	10	1
+6	3	10	1
+7	2	10	1
+7	3	10	1
+8	2	10	1
+8	3	10	1
+9	2	10	1
+9	3	10	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
+a
+1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.185)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.185)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
+GROUP BY a, b;
+a	MAX(d)	MIN(d)
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+1	9	1
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=24)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=24)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.37)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=1.86)
+        -> Covering index range scan on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=264)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	2	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	254
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a, t.b  (rows=24)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=24)
+
+FLUSH STATUS;
+SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+a	b
+1	2
+12	15
+12	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+EXPLAIN
+-> Remove duplicates from input grouped on t.a  (rows=12)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=62)
+
+FLUSH STATUS;
+SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
+a
+1
+12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	54
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=3.09)
+    -> Filter: ((t.c = 3) or (t.c = 40))  (rows=9.56)
+        -> Covering index range scan on t using k1 over (a = 1 AND NULL < b < 4) OR (a = 1 AND 10 < b) OR (2 more)  (rows=163)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	1
+1	2	10	1
+1	3	10	1
+12	15	-15	-20
+12	2	-23	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	154
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=12)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=291)
+        -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (3 more)  (rows=291)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+1	10	1
+10	10	1
+11	-10	-10
+12	-15	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	5
+Handler_read_last	0
+Handler_read_next	268
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: count(distinct t.a,t.b)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2 AND c = 3) OR (a = 1 AND b = 2 AND c = 40) OR (6 more)  (rows=24)
+
+FLUSH STATUS;
+SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+COUNT(DISTINCT a, b)
+3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	14
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.7)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)
+78	6.5000
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+EXPLAIN
+-> Aggregate: sum(distinct t.a), avg(distinct t.a), count(distinct t.a)  (rows=1)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=17.7)
+        -> Table scan on t  (rows=2508)
+
+FLUSH STATUS;
+SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
+SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
+78	6.5000	12
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2509
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.178)
+    -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.178)
+        -> Covering index range scan on t using k1 over (11 < a)  (rows=13)
+
+FLUSH STATUS;
+SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
+(c = 3 OR c = 1 OR c = 2 OR c = 4)
+GROUP BY a;
+a	MAX(d)	MIN(d)
+12	-15	-15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=49.6)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=49.6)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=55.7)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=59.4)
+        -> Covering index scan on t using k1  (rows=2508)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+1	1	10	2
+1	2	10	2
+1	3	10	2
+1	4	10	2
+1	5	10	2
+10	1	10	2
+10	2	10	2
+10	3	10	2
+10	4	10	2
+10	5	10	2
+11	3	20	20
+11	NULL	30	30
+12	2	NULL	NULL
+2	1	10	2
+2	2	10	2
+2	3	10	2
+2	4	10	2
+2	5	10	2
+3	1	10	2
+3	2	10	2
+3	3	10	2
+3	4	10	2
+3	5	10	2
+4	1	10	2
+4	2	10	2
+4	3	10	2
+4	4	10	2
+4	5	10	2
+5	1	10	2
+5	2	10	2
+5	3	10	2
+5	4	10	2
+5	5	10	2
+6	1	10	2
+6	2	10	2
+6	3	10	2
+6	4	10	2
+6	5	10	2
+7	1	10	2
+7	2	10	2
+7	3	10	2
+7	4	10	2
+7	5	10	2
+8	1	10	2
+8	2	10	2
+8	3	10	2
+8	4	10	2
+8	5	10	2
+9	1	10	2
+9	2	10	2
+9	3	10	2
+9	4	10	2
+9	5	10	2
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	2508
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=29.6)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=29.6)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1252)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
+(d  < -24 OR d = 3 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	3
+10	2	3
+10	3	3
+10	4	3
+10	5	3
+12	2	NULL
+6	1	3
+6	2	3
+6	3	3
+6	4	3
+6	5	3
+7	1	3
+7	2	3
+7	3	3
+7	4	3
+7	5	3
+8	1	3
+8	2	3
+8	3	3
+8	4	3
+8	5	3
+9	1	3
+9	2	3
+9	3	3
+9	4	3
+9	5	3
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=24.8)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.8)
+        -> Covering index range scan on t using k1 over (5 < a)  (rows=1252)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+11	2	-10	-10
+12	15	-15	-20
+12	2	-23	-23
+6	1	9	9
+6	2	9	9
+6	3	9	9
+6	4	9	9
+6	5	9	9
+7	1	9	9
+7	2	9	9
+7	3	9	9
+7	4	9	9
+7	5	9	9
+8	1	9	9
+8	2	9	9
+8	3	9	9
+8	4	9	9
+8	5	9	9
+9	1	9	9
+9	2	9	9
+9	3	9	9
+9	4	9	9
+9	5	9	9
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d), min(t.d)  (rows=1.35)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=1.82)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  1 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MAX(d)	MIN(d)
+10	1	9	1
+10	2	9	1
+10	3	9	1
+10	4	9	1
+10	5	9	1
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=1.35)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=1.82)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  =  0 OR d = 9 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	9	9
+10	2	9	9
+10	3	9	9
+10	4	9	9
+10	5	9	9
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d), max(t.d)  (rows=2.17)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=4.71)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)	MAX(d)
+10	1	1	4
+10	2	1	4
+10	3	1	4
+10	4	1	4
+10	5	1	4
+12	2	NULL	NULL
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=3.13)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=9.78)
+        -> Covering index range scan on t using k1 over (9 < a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
+(d < 2 OR d > 5 OR d IS NULL)
+GROUP BY a, b;
+a	b	MIN(d)
+10	1	1
+10	2	1
+10	3	1
+10	4	1
+10	5	1
+11	2	-10
+11	3	20
+11	NULL	30
+12	15	-20
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: max(t.d)  (rows=1.35)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.82)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	max(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+EXPLAIN
+-> Group aggregate: min(t.d)  (rows=1.35)
+    -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=1.82)
+        -> Covering index range scan on t using k1 over (10 <= a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
+(d is NULL or d = -10 or d = -23)
+GROUP BY a, b;
+a	b	min(d)
+11	2	-10
+12	2	-23
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+EXPLAIN
+-> Group aggregate: min(t.b), max(t.b)  (rows=12)
+    -> Covering index range scan on t using k1 over (9 < a)  (rows=278)
+
+FLUSH STATUS;
+SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
+a	MIN(b)	MAX(b)
+10	1	5
+11	2	15
+12	2	15
+
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	258
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+include/diff_tables.inc [test.group_query, test.no_group_query]
+drop tables test.group_query, test.no_group_query;
+DROP TABLE t;

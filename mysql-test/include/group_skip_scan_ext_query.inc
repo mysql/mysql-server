@@ -1,7 +1,8 @@
-# This query uses loose index scan.
+# This query uses group skip scan.
 let $hint = ;
 let $check_query = $query $hint $cond;
-eval EXPLAIN $check_query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $check_query;
 FLUSH STATUS;
 --sorted_result
 eval $check_query;
