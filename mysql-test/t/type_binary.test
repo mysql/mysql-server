@@ -187,3 +187,12 @@ SELECT * FROM v1;
 --echo # Literals should be entirely printed:
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#35507763: Assertion `to->field_ptr() != from->field_ptr()' failed.
+--echo #
+
+CREATE TABLE t (x BINARY(0), y BINARY(0));
+INSERT INTO t VALUES ('', x);
+SELECT * FROM t;
+DROP TABLE t;

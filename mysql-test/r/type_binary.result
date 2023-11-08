@@ -287,3 +287,12 @@ SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab68) AS `a`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab60) AS `b`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x0f9d04ae61b34468ac798ffcc984ab68) AS `c`,(0x03ffffffffffffffff = 0x03ffffffffffffffff) AS `d`,(0x03ffffffffffffffff = 0x03fffffffffffffffe) AS `e`,(0x03ffffffffffffffff = 0x01ffffffffffffffff) AS `f`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
+#
+# Bug#35507763: Assertion `to->field_ptr() != from->field_ptr()' failed.
+#
+CREATE TABLE t (x BINARY(0), y BINARY(0));
+INSERT INTO t VALUES ('', x);
+SELECT * FROM t;
+x	y
+	
+DROP TABLE t;

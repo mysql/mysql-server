@@ -6544,7 +6544,6 @@ void Item_field::make_field(Send_field *tmp_field) {
  */
 static inline type_conversion_status field_conv_with_cache(
     Field *to, Field *from, Field **last_to, uint32_t *to_is_memcpyable) {
-  assert(to->field_ptr() != from->field_ptr());
   if (to != *last_to) {
     *last_to = to;
     if (fields_are_memcpyable(to, from)) {
@@ -6557,7 +6556,13 @@ static inline type_conversion_status field_conv_with_cache(
       *to_is_memcpyable == to->pack_length() && from->type() == to->type() &&
       (from->type() != MYSQL_TYPE_NEWDECIMAL ||
        from->decimals() == to->decimals())) {
-    memcpy(to->field_ptr(), from->field_ptr(), *to_is_memcpyable);
+    const size_t length = *to_is_memcpyable;
+    // Check that we're not memcpying from the source string into itself, since
+    // that invokes undefined behaviour. Two adjacent fields could have the same
+    // position in the record buffer if one of them has zero length (such as
+    // CHAR(0)). This is not a problem, since memcpy is a no-op in that case.
+    assert(to->field_ptr() != from->field_ptr() || length == 0);
+    memcpy(to->field_ptr(), from->field_ptr(), length);
     return TYPE_OK;
   } else {
     return field_conv_slow(to, from);
