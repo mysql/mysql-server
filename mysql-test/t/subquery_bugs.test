@@ -2011,3 +2011,16 @@ SELECT * FROM t t1 WHERE EXISTS
     t1.id = (SELECT id2 FROM t t3 WHERE t2.id = t3.id));
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35944739: Assertion failure at CreateIteratorFromAccessPath
+--echo #               in access_path.cc
+--echo #
+
+CREATE TABLE t(i INT, KEY (i));
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+--sorted_result
+SELECT 1 AS x FROM t
+WHERE i IN (SELECT i FROM (TABLE t) AS dt WHERE i < 2) GROUP BY x WITH ROLLUP;
+DROP TABLE t;

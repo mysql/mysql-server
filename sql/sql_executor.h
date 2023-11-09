@@ -542,8 +542,6 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
 AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path,
                                                 const Query_block &query_block);
 
-AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
-                                         AccessPath *table_path);
 AccessPath *GetAccessPathForDerivedTable(
     THD *thd, Table_ref *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,

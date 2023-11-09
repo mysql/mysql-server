@@ -2386,3 +2386,18 @@ id	id2
 1	1
 2	2
 DROP TABLE t;
+#
+# Bug#35944739: Assertion failure at CreateIteratorFromAccessPath
+#               in access_path.cc
+#
+CREATE TABLE t(i INT, KEY (i));
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT 1 AS x FROM t
+WHERE i IN (SELECT i FROM (TABLE t) AS dt WHERE i < 2) GROUP BY x WITH ROLLUP;
+x
+1
+NULL
+DROP TABLE t;

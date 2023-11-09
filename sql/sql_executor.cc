@@ -1470,8 +1470,8 @@ static bool IsTableScan(AccessPath *path) {
   return path->type == AccessPath::TABLE_SCAN;
 }
 
-AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
-                                         AccessPath *table_path) {
+static AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
+                                                AccessPath *table_path) {
   return GetAccessPathForDerivedTable(
       thd, qep_tab->table_ref, qep_tab->table(), qep_tab->rematerialize,
       qep_tab->invalidators, /*need_rowid=*/false, table_path);
@@ -1480,7 +1480,7 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
 /**
    Recalculate the cost of 'path'.
    @param path the access path for which we update the cost numbers.
-   @param outer_query_block the query block to which 'path belongs.
+   @param outer_query_block the query block to which 'path' belongs.
 */
 static void RecalculateTablePathCost(AccessPath *path,
                                      const Query_block &outer_query_block) {
@@ -1626,7 +1626,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
   }
 
   if (explain) {
-    // Update cost from the bottom an up, so that the cost of each path
+    // Update cost from the bottom and up, so that the cost of each path
     // includes the cost of its descendants.
     for (auto ancestor = ancestor_paths.end() - 1;
          ancestor >= ancestor_paths.begin(); ancestor--) {
@@ -1750,7 +1750,8 @@ AccessPath *GetAccessPathForDerivedTable(
   Get the RowIterator used for scanning the given table, with any required
   materialization operations done first.
  */
-AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
+static AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab,
+                                      QEP_TAB *qep_tabs) {
   AccessPath *table_path;
   if (qep_tab->materialize_table == QEP_TAB::MATERIALIZE_DERIVED) {
     table_path =
@@ -1832,6 +1833,8 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         sjm->table_param.end_write_records,
         /*reject_multiple_rows=*/false);
     EstimateMaterializeCost(thd, table_path);
+    table_path = MoveCompositeIteratorsFromTablePath(
+        table_path, *qep_tab->join()->query_block);
 
 #ifndef NDEBUG
     // Make sure we clear this table out when the join is reset,
