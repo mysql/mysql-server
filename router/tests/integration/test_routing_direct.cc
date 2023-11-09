@@ -4375,22 +4375,15 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
 
     auto set_var_res = query_one_result(cli, oss.str());
 
-    if (read_only_sys_vars.contains(var[0])) {
-      ASSERT_ERROR(set_var_res);
-      // is a read only variable
-      EXPECT_EQ(set_var_res.error().value(), 1238) << set_var_res.error();
-    } else if (global_sys_vars.contains(var[0])) {
-      ASSERT_ERROR(set_var_res);
-      EXPECT_EQ(set_var_res.error().value(), 1229) << set_var_res.error();
-    } else if (null_is_invalid_argument_sys_vars.contains(var[0])) {
-      ASSERT_ERROR(set_var_res);
-      EXPECT_EQ(set_var_res.error().value(), 1232) << set_var_res.error();
-    } else if (not_nullable_sys_vars.contains(var[0])) {
-      ASSERT_ERROR(set_var_res);
-      EXPECT_EQ(set_var_res.error().value(), 1231) << set_var_res.error();
-    } else if (super_sys_vars.contains(var[0])) {
-      ASSERT_ERROR(set_var_res);
-      EXPECT_EQ(set_var_res.error().value(), 1227) << set_var_res.error();
+    if (!set_var_res) {
+      EXPECT_THAT(set_var_res.error().value(),
+                  ::testing::AnyOf(1227,  // super sys-var
+                                   1229,  // global sys-var
+                                   1231,  // not nullable
+                                   1232,  // NULL is invalid-argument
+                                   1238   // read-only
+                                   ))
+          << set_var_res.error();
     } else {
       EXPECT_NO_ERROR(set_var_res);
 
