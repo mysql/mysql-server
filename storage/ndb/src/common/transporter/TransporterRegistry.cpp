@@ -1229,30 +1229,32 @@ Uint32 TransporterRegistry::check_TCP(TransporterReceiveHandle &recvdata,
       tcpReadSelectReply =
           epoll_wait(recvdata.m_epoll_fd, recvdata.m_epoll_events, num_trps,
                      timeOutMillis);
-      retVal = tcpReadSelectReply;
+      if (unlikely(tcpReadSelectReply < 0)) {
+        assert(errno == EINTR);
+        // Ignore epoll_wait() error and handle as 'nothing received'.
+        return 0;
+      }
     }
 
-    int num_socket_events = tcpReadSelectReply;
-    if (num_socket_events > 0) {
-      for (int i = 0; i < num_socket_events; i++) {
-        const TrpId trpid = recvdata.m_epoll_events[i].data.u32;
-        /**
-         * check that it's assigned to "us"
-         */
-        assert(recvdata.m_transporters.get(trpid));
+    // Handle the received epoll events
+    for (int i = 0; i < tcpReadSelectReply; i++) {
+      const TrpId trpid = recvdata.m_epoll_events[i].data.u32;
+      /**
+       * check that it's assigned to "us"
+       */
+      assert(recvdata.m_transporters.get(trpid));
 
-        // Note that EPOLLHUP is delivered even if not listened to.
-        if (recvdata.m_epoll_events[i].events & EPOLLHUP) {
-          // Stop listening to events from 'sock_fd'
-          ndb_socket_t sock_fd = allTransporters[trpid]->getSocket();
-          epoll_ctl(recvdata.m_epoll_fd, EPOLL_CTL_DEL,
-                    ndb_socket_get_native(sock_fd), nullptr);
-        } else if (recvdata.m_epoll_events[i].events & EPOLLIN) {
-          recvdata.m_recv_transporters.set(trpid);
-        }
+      // Note that EPOLLHUP is delivered even if not listened to.
+      if (recvdata.m_epoll_events[i].events & EPOLLHUP) {
+        // Stop listening to events from 'sock_fd'
+        ndb_socket_t sock_fd = allTransporters[trpid]->getSocket();
+        epoll_ctl(recvdata.m_epoll_fd, EPOLL_CTL_DEL,
+                  ndb_socket_get_native(sock_fd), nullptr);
+        start_disconnecting_trp(trpid);
+      } else if (recvdata.m_epoll_events[i].events & EPOLLIN) {
+        recvdata.m_recv_transporters.set(trpid);
+        retVal++;
       }
-    } else if (num_socket_events < 0) {
-      assert(errno == EINTR);
     }
   } else
 #endif
