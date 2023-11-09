@@ -199,7 +199,7 @@ bool server_telemetry_traces_service_initialized = false;
 #endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
 
 // currently registered collection of telemetry trace callbacks
-std::atomic<telemetry_t *> g_telemetry = nullptr;
+PFS_ALIGNED PFS_cacheline_atomic_ptr<telemetry_t *> g_telemetry;
 
 // locking for callback register/unregister
 mysql_mutex_t LOCK_pfs_tracing_callback;
@@ -213,7 +213,7 @@ static PSI_mutex_info info_LOCK_pfs_tracing_callback = {
 
 void initialize_mysql_server_telemetry_traces_service() {
 #ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
-  g_telemetry = nullptr;
+  g_telemetry.m_ptr = nullptr;
 
   assert(!server_telemetry_traces_service_initialized);
 
@@ -231,7 +231,7 @@ void cleanup_mysql_server_telemetry_traces_service() {
     mysql_mutex_destroy(&LOCK_pfs_tracing_callback);
     server_telemetry_traces_service_initialized = false;
   }
-  g_telemetry = nullptr;
+  g_telemetry.m_ptr = nullptr;
 #endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
 }
 
@@ -254,7 +254,7 @@ bool impl_register_telemetry(telemetry_t *telemetry [[maybe_unused]]) {
   // telemetry available, if we would need to uninstall previous component using
   // this before installing new one
   mysql_mutex_lock(&LOCK_pfs_tracing_callback);
-  g_telemetry = telemetry;
+  g_telemetry.m_ptr = telemetry;
   mysql_mutex_unlock(&LOCK_pfs_tracing_callback);
   // Success
   return false;
@@ -268,8 +268,8 @@ bool impl_unregister_telemetry(telemetry_t *telemetry [[maybe_unused]]) {
 #ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
   if (!server_telemetry_traces_service_initialized) return true;
   mysql_mutex_lock(&LOCK_pfs_tracing_callback);
-  if (g_telemetry == telemetry) {
-    g_telemetry = nullptr;
+  if (g_telemetry.m_ptr == telemetry) {
+    g_telemetry.m_ptr = nullptr;
     mysql_mutex_unlock(&LOCK_pfs_tracing_callback);
     // Success
     return false;

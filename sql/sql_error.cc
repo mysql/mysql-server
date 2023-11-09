@@ -347,6 +347,7 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
   memset(m_current_statement_cond_count_by_qb, 0,
          sizeof(m_current_statement_cond_count_by_qb));
   m_message_text[0] = '\0';
+  m_message_text_length = 0;
 }
 
 Diagnostics_area::~Diagnostics_area() {}
@@ -357,6 +358,7 @@ void Diagnostics_area::reset_diagnostics_area() {
   set_overwrite_status(false);
   // Don't take chances in production.
   m_message_text[0] = '\0';
+  m_message_text_length = 0;
   m_mysql_errno = 0;
   m_affected_rows = 0;
   m_last_insert_id = 0;
@@ -381,10 +383,13 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
   m_last_statement_cond_count = current_statement_cond_count();
   m_affected_rows = affected_rows;
   m_last_insert_id = last_insert_id;
-  if (message_text)
+  if (message_text) {
     strmake(m_message_text, message_text, sizeof(m_message_text) - 1);
-  else
+    m_message_text_length = strlen(m_message_text);
+  } else {
     m_message_text[0] = '\0';
+    m_message_text_length = 0;
+  }
   m_status = DA_OK;
 }
 
@@ -443,6 +448,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
   memcpy(m_returned_sqlstate, returned_sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH] = '\0';
   strmake(m_message_text, message_text, sizeof(m_message_text) - 1);
+  m_message_text_length = strlen(m_message_text);
 
   m_status = DA_ERROR;
 }

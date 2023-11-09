@@ -153,7 +153,7 @@ void cleanup_events_statements_history_long() {
 
 static inline void copy_events_statements(PFS_events_statements *dest,
                                           const PFS_events_statements *source) {
-  /* Copy all attributes except SQL TEXT and DIGEST */
+  /* Copy all attributes except SQL TEXT, DIGEST and MESSAGE_TEXT */
   dest->PFS_events::operator=(*source);
   memcpy(&dest->m_statement_id, &source->m_statement_id,
          pointer_cast<const char *>(&source->m_sqltext) -
@@ -171,6 +171,15 @@ static inline void copy_events_statements(PFS_events_statements *dest,
 
   /* Copy DIGEST */
   dest->m_digest_storage.copy(&source->m_digest_storage);
+
+  /* Copy MESSAGE_TEXT */
+  const uint message_text_length = source->m_message_text_length;
+
+  if (message_text_length > 0) {
+    memcpy(dest->m_message_text, source->m_message_text, message_text_length);
+  }
+  dest->m_message_text[message_text_length] = '\0';
+  dest->m_message_text_length = message_text_length;
 }
 
 /**

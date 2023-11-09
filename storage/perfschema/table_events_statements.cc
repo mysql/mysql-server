@@ -342,8 +342,13 @@ int table_events_statements_common::make_row_part_1(
                      m_row.m_source, sizeof(m_row.m_source),
                      m_row.m_source_length);
 
-  memcpy(m_row.m_message_text, statement->m_message_text,
-         sizeof(m_row.m_message_text));
+  m_row.m_message_text_length = statement->m_message_text_length;
+  if (m_row.m_message_text_length > 0) {
+    memcpy(m_row.m_message_text, statement->m_message_text,
+           m_row.m_message_text_length);
+  }
+  m_row.m_message_text[m_row.m_message_text_length] = '\0';
+
   memcpy(m_row.m_sqlstate, statement->m_sqlstate, SQLSTATE_LENGTH);
 
   m_row.m_sql_errno = statement->m_sql_errno;
@@ -532,7 +537,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         case 19: /* MESSAGE_TEXT */
-          len = (uint)strlen(m_row.m_message_text);
+          len = m_row.m_message_text_length;
           if (len) {
             set_field_varchar_utf8mb4(f, m_row.m_message_text, len);
           } else {

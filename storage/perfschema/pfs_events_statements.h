@@ -63,8 +63,6 @@ struct PFS_events_statements : public PFS_events {
   /** Locked time. */
   ulonglong m_lock_time;
 
-  /** Diagnostics area, message text. */
-  char m_message_text[MYSQL_ERRMSG_SIZE + 1];
   /** Diagnostics area, error number. */
   uint m_sql_errno;
   /** Diagnostics area, @c SQLSTATE. */
@@ -144,6 +142,14 @@ struct PFS_events_statements : public PFS_events {
     and always point to pre allocated memory.
   */
   sql_digest_storage m_digest_storage;
+
+  /**
+    Length of @c m_message_text.
+    This is placed __before__ m_message_text[], for data locality.
+  */
+  uint m_message_text_length;
+  /** Diagnostics area, message text. */
+  char m_message_text[MYSQL_ERRMSG_SIZE + 1];
 };
 
 void insert_events_statements_history(PFS_thread *thread,

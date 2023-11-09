@@ -377,6 +377,11 @@ class Diagnostics_area {
     return m_message_text;
   }
 
+  uint message_text_length() const {
+    assert(m_status == DA_ERROR || m_status == DA_OK);
+    return m_message_text_length;
+  }
+
   uint mysql_errno() const {
     assert(m_status == DA_ERROR);
     return m_mysql_errno;
@@ -623,6 +628,11 @@ class Diagnostics_area {
     If DA status is OK, it's the OK-message to be sent.
   */
   char m_message_text[MYSQL_ERRMSG_SIZE];
+
+  /**
+    Length, in bytes, of m_message_text.
+  */
+  uint m_message_text_length;
 
   /**
     SQL RETURNED_SQLSTATE condition item.
