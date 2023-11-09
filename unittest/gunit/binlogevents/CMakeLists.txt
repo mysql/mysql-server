@@ -41,6 +41,8 @@ SET(TESTS
   payload_event_buffer_istream
   transaction_compression
   transaction_payload_codec
+  gtid_tag
+  tsid_encoding
 )
 
 FOREACH(test ${TESTS})

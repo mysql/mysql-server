@@ -54,6 +54,11 @@ struct mysql_mutex_t;
 #include "client/mysqlbinlog.h"
 #endif
 
+#include "sql/log.h"
+
+using mysql::gtid::Tsid;
+using mysql::utils::Return_status;
+
 ulong _gtid_consistency_mode;
 const char *gtid_consistency_mode_names[] = {"OFF", "ON", "WARN", NullS};
 TYPELIB gtid_consistency_mode_typelib = {
@@ -62,82 +67,171 @@ TYPELIB gtid_consistency_mode_typelib = {
 
 #ifdef MYSQL_SERVER
 enum_gtid_consistency_mode get_gtid_consistency_mode() {
-  global_sid_lock->assert_some_lock();
+  global_tsid_lock->assert_some_lock();
   return (enum_gtid_consistency_mode)_gtid_consistency_mode;
 }
 #endif
 
-enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
+std::size_t Gtid::skip_whitespace(const char *text, std::size_t pos) {
   DBUG_TRACE;
+  while (my_isspace(&my_charset_utf8mb3_general_ci, text[pos])) {
+    ++pos;
+  }
+  return pos;
+}
+
+std::tuple<Return_status, rpl_sid, std::size_t> Gtid::parse_sid_str(
+    const char *text, std::size_t pos) {
+  DBUG_TRACE;
+  Return_status status = Return_status::ok;
   rpl_sid sid{};
-  const char *s = text;
+  sid.clear();
+  pos = skip_whitespace(text, pos);
+  if (sid.parse(&text[pos], mysql::gtid::Uuid::TEXT_LENGTH) == 0) {
+    pos += mysql::gtid::Uuid::TEXT_LENGTH;
+    pos = skip_whitespace(text, pos);
+  } else {
+    DBUG_PRINT("info", ("not a uuid at char %d in '%s'", (int)pos, text));
+    status = Return_status::error;
+  }
+  return std::make_tuple(status, sid, pos);
+}
 
-  SKIP_WHITESPACE();
+std::pair<Gtid::Tag, std::size_t> Gtid::parse_tag_str(const char *text,
+                                                      std::size_t pos) {
+  DBUG_TRACE;
+  Gtid::Tag tag;
+  pos = skip_whitespace(text, pos);
+  pos += tag.from_cstring(text + pos);
+  pos = skip_whitespace(text, pos);
+  return std::make_pair(tag, pos);
+}
 
-  // parse sid
-  if (sid.parse(s, mysql::gtid::Uuid::TEXT_LENGTH) == 0) {
-    rpl_sidno sidno_var = sid_map->add_sid(sid);
-    if (sidno_var <= 0) RETURN_REPORTED_ERROR;
-    s += mysql::gtid::Uuid::TEXT_LENGTH;
-
-    SKIP_WHITESPACE();
-
-    // parse colon
-    if (*s == ':') {
-      s++;
-
-      SKIP_WHITESPACE();
-
-      // parse gno
-      rpl_gno gno_var = parse_gno(&s);
-      if (gno_var > 0) {
-        SKIP_WHITESPACE();
-        if (*s == '\0') {
-          sidno = sidno_var;
-          gno = gno_var;
-          RETURN_OK;
-        } else
-          DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
-                              "at char %d in '%s'",
-                              s, (int)(s - text), text));
-      } else
-        DBUG_PRINT("info",
-                   ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
-                    gno_var, (int)(s - text), text));
-    } else
-      DBUG_PRINT("info",
-                 ("missing colon at char %d in '%s'", (int)(s - text), text));
-  } else
+std::tuple<Return_status, rpl_gno, std::size_t> Gtid::parse_gno_str(
+    const char *text, std::size_t pos) {
+  DBUG_TRACE;
+  auto status = Return_status::ok;
+  const char *text_cpy = text + pos;
+  rpl_gno gno_var = parse_gno(&text_cpy);
+  pos = text_cpy - text;
+  if (gno_var > 0) {
+    pos = skip_whitespace(text, pos);
+    if (text[pos] != '\0') {
+      DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
+                          "at char %d in '%s'",
+                          text_cpy, (int)pos, text));
+      status = Return_status::error;
+      gno_var = 0;
+    }
+  } else {
     DBUG_PRINT("info",
-               ("not a uuid at char %d in '%s'", (int)(s - text), text));
+               ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
+                gno_var, (int)pos, text));
+    status = Return_status::error;
+  }
+  return std::make_tuple(status, gno_var, pos);
+}
+
+void Gtid::report_parsing_error(const char *text) {
+  DBUG_TRACE;
   BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
                (ER_MALFORMED_GTID_SPECIFICATION, MYF(0), text));
-  RETURN_REPORTED_ERROR;
 }
 
-int Gtid::to_string(const rpl_sid &sid, char *buf) const {
+std::pair<Return_status, std::size_t> Gtid::parse_gtid_separator(
+    const char *text, std::size_t pos) {
   DBUG_TRACE;
-  char *s = buf + sid.to_string(buf);
-  *s = ':';
-  s++;
-  s += format_gno(s, gno);
-  return (int)(s - buf);
+  auto status = Return_status::ok;
+  pos = skip_whitespace(text, pos);
+  if (text[pos] != gtid_separator) {
+    DBUG_PRINT("info", ("missing colon at char %d in '%s'", (int)pos, text));
+    status = Return_status::error;
+  } else {
+    pos = skip_whitespace(text, pos + 1);
+  }
+  return std::make_pair(status, pos);
 }
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
+std::pair<Return_status, mysql::gtid::Gtid> Gtid::parse_gtid_from_cstring(
+    const char *text) {
+  DBUG_TRACE;
+  auto invalid_gtid = std::make_pair(Return_status::error, mysql::gtid::Gtid());
+
+  auto [status, uuid, pos] = parse_sid_str(text, 0);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  std::tie(status, pos) = parse_gtid_separator(text, pos);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  mysql::gtid::Tag tag;
+  std::tie(tag, pos) = parse_tag_str(text, pos);
+  if (tag.is_defined()) {
+    std::tie(status, pos) = parse_gtid_separator(text, pos);
+    if (status != Return_status::ok) {
+      return invalid_gtid;
+    }
+  }
+  rpl_gno gno;
+  std::tie(status, gno, pos) = parse_gno_str(text, pos);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  return std::make_pair(Return_status::ok,
+                        mysql::gtid::Gtid(mysql::gtid::Tsid(uuid, tag), gno));
+}
+
+Return_status Gtid::parse(Tsid_map *tsid_map, const char *text) {
+  DBUG_TRACE;
+  auto [status, parsed_gtid] = parse_gtid_from_cstring(text);
+  if (status == Return_status::error) {
+    report_parsing_error(text);
+    return status;
+  }
+  rpl_sidno sidno_var = tsid_map->add_tsid(parsed_gtid.get_tsid());
+  if (sidno_var <= 0) {
+    status = Return_status::error;
+  }
+  rpl_gno gno_var = parsed_gtid.get_gno();
+  if (status == Return_status::ok) {
+    sidno = sidno_var;
+    gno = gno_var;
+  }
+  return status;
+}
+
+int Gtid::to_string_gno(char *buf) const {
+  DBUG_TRACE;
+  int id = 0;
+  *buf = ':';
+  ++id;
+  id += format_gno(buf + id, gno);
+  return id;
+}
+
+int Gtid::to_string(const Tsid &tsid, char *buf) const {
+  DBUG_TRACE;
+  int id = 0;
+  id += tsid.to_string(buf);
+  id += to_string_gno(buf + id);
+  return id;
+}
+
+int Gtid::to_string(const Tsid_map *tsid_map, char *buf, bool need_lock) const {
   DBUG_TRACE;
   int ret;
-  if (sid_map != nullptr) {
-    Checkable_rwlock *lock = sid_map->get_sid_lock();
+  if (tsid_map != nullptr) {
+    Checkable_rwlock *lock = tsid_map->get_tsid_lock();
     if (lock) {
       if (need_lock)
         lock->rdlock();
       else
         lock->assert_some_lock();
     }
-    const rpl_sid &sid = sid_map->sidno_to_sid(sidno);
+    const auto tsid = tsid_map->sidno_to_tsid(sidno);
     if (lock && need_lock) lock->unlock();
-    ret = to_string(sid, buf);
+    ret = to_string(tsid, buf);
   } else {
 #ifdef NDEBUG
     /*
@@ -156,35 +250,9 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
 
 bool Gtid::is_valid(const char *text) {
   DBUG_TRACE;
-  const char *s = text;
-  SKIP_WHITESPACE();
-  if (!rpl_sid::is_valid(s, mysql::gtid::Uuid::TEXT_LENGTH)) {
-    DBUG_PRINT("info",
-               ("not a uuid at char %d in '%s'", (int)(s - text), text));
-    return false;
-  }
-  s += mysql::gtid::Uuid::TEXT_LENGTH;
-  SKIP_WHITESPACE();
-  if (*s != ':') {
-    DBUG_PRINT("info",
-               ("missing colon at char %d in '%s'", (int)(s - text), text));
-    return false;
-  }
-  s++;
-  SKIP_WHITESPACE();
-  if (parse_gno(&s) <= 0) {
-    DBUG_PRINT("info", ("GNO was zero or invalid at char %d in '%s'",
-                        (int)(s - text), text));
-    return false;
-  }
-  SKIP_WHITESPACE();
-  if (*s != 0) {
-    DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
-                        "at char %d in '%s'",
-                        s, (int)(s - text), text));
-    return false;
-  }
-  return true;
+  Return_status status;
+  std::tie(status, std::ignore) = parse_gtid_from_cstring(text);
+  return status == Return_status::ok;
 }
 
 #ifndef NDEBUG
@@ -214,12 +282,13 @@ void check_return_status(enum_return_status status, const char *action,
 #endif  // ! NDEBUG
 
 #ifdef MYSQL_SERVER
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {
+
+rpl_sidno get_sidno_from_global_tsid_map(const Tsid &tsid) {
   DBUG_TRACE;
 
-  global_sid_lock->rdlock();
-  rpl_sidno sidno = global_sid_map->add_sid(sid);
-  global_sid_lock->unlock();
+  global_tsid_lock->rdlock();
+  rpl_sidno sidno = global_tsid_map->add_tsid(tsid);
+  global_tsid_lock->unlock();
 
   return sidno;
 }
@@ -227,9 +296,9 @@ rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {
 rpl_gno get_last_executed_gno(rpl_sidno sidno) {
   DBUG_TRACE;
 
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
   rpl_gno gno = gtid_state->get_last_executed_gno(sidno);
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   return gno;
 }
@@ -273,12 +342,12 @@ void Trx_monitoring_info::clear() {
   uncompressed_bytes = 0;
 }
 
-void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
+void Trx_monitoring_info::copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg) const {
-  assert(sid_map);
+  assert(tsid_map);
   assert(gtid_arg);
   assert(gtid_length_arg);
   assert(original_commit_ts_arg);
@@ -293,10 +362,10 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
       *gtid_length_arg = 9;
     } else {
       // The GTID is set
-      Checkable_rwlock *sid_lock = sid_map->get_sid_lock();
-      sid_lock->rdlock();
-      *gtid_length_arg = gtid.to_string(sid_map, gtid_arg);
-      sid_lock->unlock();
+      Checkable_rwlock *tsid_lock = tsid_map->get_tsid_lock();
+      tsid_lock->rdlock();
+      *gtid_length_arg = gtid.to_string(tsid_map, gtid_arg);
+      tsid_lock->unlock();
     }
     *original_commit_ts_arg = original_commit_timestamp;
     *immediate_commit_ts_arg = immediate_commit_timestamp;
@@ -311,7 +380,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
   }
 }
 
-void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
+void Trx_monitoring_info::copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
@@ -320,12 +389,12 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time : 0;
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
 }
 
 void Trx_monitoring_info::copy_to_ps_table(
-    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
@@ -349,12 +418,12 @@ void Trx_monitoring_info::copy_to_ps_table(
     *last_transient_timestamp_arg = 0;
     *retries_count_arg = 0;
   }
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
 }
 
 void Trx_monitoring_info::copy_to_ps_table(
-    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
@@ -363,7 +432,7 @@ void Trx_monitoring_info::copy_to_ps_table(
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time : 0;
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg,
                    last_transient_errno_arg, last_transient_errmsg_arg,
                    last_transient_errmsg_length_arg,

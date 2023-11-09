@@ -7,7 +7,7 @@ events_transactions_history_long	CREATE TABLE `events_transactions_history_long`
   `EVENT_NAME` varchar(128) NOT NULL,
   `STATE` enum('ACTIVE','COMMITTED','ROLLED BACK') DEFAULT NULL,
   `TRX_ID` bigint unsigned DEFAULT NULL,
-  `GTID` varchar(64) DEFAULT NULL,
+  `GTID` varchar(90) DEFAULT NULL,
   `XID_FORMAT_ID` int DEFAULT NULL,
   `XID_GTRID` varchar(130) DEFAULT NULL,
   `XID_BQUAL` varchar(130) DEFAULT NULL,

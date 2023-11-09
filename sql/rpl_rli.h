@@ -835,13 +835,13 @@ class Relay_log_info : public Rpl_info {
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
-  Sid_map *get_sid_map() { return gtid_set->get_sid_map(); }
+  Tsid_map *get_tsid_map() { return gtid_set->get_tsid_map(); }
 
-  Checkable_rwlock *get_sid_lock() { return get_sid_map()->get_sid_lock(); }
+  Checkable_rwlock *get_tsid_lock() { return get_tsid_map()->get_tsid_lock(); }
 
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno) {
-    get_sid_lock()->assert_some_lock();
-    assert(sidno <= get_sid_map()->get_max_sidno());
+    get_tsid_lock()->assert_some_lock();
+    assert(sidno <= get_tsid_map()->get_max_sidno());
     gtid_set->ensure_sidno(sidno);
     gtid_set->_add_gtid(sidno, gno);
   }

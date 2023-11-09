@@ -282,7 +282,7 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_Owned_gtids_sidno_to_hash, "Owned_gtids::sidno_to_hash", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_Sid_map_Node, "Sid_map::Node", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_tsid_map_Node, "Tsid_map::Node", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Gtid_state_group_commit_sidno,
      "Gtid_state::group_commit_sidno_locks", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0,

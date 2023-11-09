@@ -29,7 +29,10 @@
 #include <set>
 #include <sstream>
 
+#include "mysql/binlog/event/nodiscard.h"
 #include "mysql/gtid/global.h"
+#include "mysql/gtid/tsid.h"
+#include "mysql/serialization/archive_binary.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{
@@ -41,25 +44,31 @@ namespace mysql::gtid {
  *
  * This class abstracts the representation of a Global Transaction Identifier.
  *
- * It contains two fields, a UUID and a sequence number.
+ * It contains two fields, a TSID, composed of UUID and tag, and a sequence
+ * number.
  */
 class Gtid {
  public:
   /// In 'UUID:SEQNO', this is the ':'
-  static const inline std::string SEPARATOR_UUID_SEQNO{":"};
+  static constexpr auto separator_gtid{':'};
 
  protected:
-  Uuid m_uuid;
+  Tsid m_tsid;
   gno_t m_gno{0};
 
  public:
   /**
+   * @brief Construct an empty GTID
+   */
+  Gtid() = default;
+
+  /**
    * @brief Construct a new Gtid object
    *
-   * @param uuid the uuid part of the transaction identifier.
+   * @param tsid TSID part of the transaction identifier
    * @param gno The gno part of the transaction identfier.
    */
-  Gtid(const Uuid &uuid, gno_t gno);
+  Gtid(const Tsid &tsid, gno_t gno);
 
   /**
    * @brief Destroy the Gtid object
@@ -82,11 +91,58 @@ class Gtid {
   virtual const Uuid &get_uuid() const;
 
   /**
+   * @brief Get the tsid of this transaction identifier.
+   *
+   * @return The tsid part of this transaction identifier.
+   */
+  virtual const Tsid &get_tsid() const;
+
+  /**
+   * @brief Get the tag of this transaction identifier.
+   *
+   * @return The tag part of this transaction identifier.
+   */
+  virtual const Tag &get_tag() const;
+
+  /**
    * @brief Gets a human readable representation of this transaction identifier.
    *
    * @return A human readable representation of this transaction identifier.
    */
   virtual std::string to_string() const;
+
+  /**
+   * @brief Encodes GTID into a binary format. Supported is only tagged format
+   * of a GTID. Buf must be preallocated with a required number of bytes
+   *
+   * @param buf Buffer to write to
+   *
+   * @return Number of bytes written
+   */
+  virtual std::size_t encode_gtid_tagged(unsigned char *buf) const;
+
+  /**
+   * @brief Decodes GTID from a given buffer. Supported is only tagged format
+   * of a GTID. Buf must contain required number of bytes
+   *
+   * @param buf Buffer to read from
+   * @param buf_len Buffer length in bytes
+   *
+   * @return Number of bytes read from the buffer or 0 in case decoding is not
+   * possible
+   */
+  [[NODISCARD]] virtual std::size_t decode_gtid_tagged(const unsigned char *buf,
+                                                       std::size_t buf_len);
+
+  /**
+   * @brief Gets maximum length of encoded GTID in compile time
+   *
+   * @return Maximum number of bytes needed to store GTID
+   */
+  static constexpr std::size_t get_max_encoded_length() {
+    return Tsid::get_max_encoded_length() +
+           mysql::serialization::Archive_binary::get_max_size<int64_t, 0>();
+  }
 
   /**
    * @brief Compares two identifiers and returns whether they match or not.

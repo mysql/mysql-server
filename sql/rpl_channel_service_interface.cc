@@ -828,17 +828,17 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
 
   rpl_gno last_gno = 0;
 
-  Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
-  sid_lock->rdlock();
+  Checkable_rwlock *tsid_lock = mi->rli->get_tsid_lock();
+  tsid_lock->rdlock();
   last_gno = mi->rli->get_gtid_set()->get_last_gno(sidno);
-  sid_lock->unlock();
+  tsid_lock->unlock();
 
 #if !defined(NDEBUG)
   const Gtid_set *retrieved_gtid_set = mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string = nullptr;
-  sid_lock->wrlock();
+  tsid_lock->wrlock();
   retrieved_gtid_set->to_string(&retrieved_gtid_set_string);
-  sid_lock->unlock();
+  tsid_lock->unlock();
   DBUG_PRINT("info", ("get_last_delivered_gno retrieved_set_string: %s",
                       retrieved_gtid_set_string));
   my_free(retrieved_gtid_set_string);
@@ -859,12 +859,12 @@ int channel_add_executed_gtids_to_received_gtids(const char *channel) {
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   enum_return_status return_status =
       mi->rli->add_gtid_set(gtid_state->get_executed_gtids());
 
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   channel_map.unlock();
 
   return return_status != RETURN_STATUS_OK;
@@ -907,16 +907,16 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   channel_map.unlock();
 
   /*
-    The retrieved_gtid_set (rli->get_gtid_set) has its own sid_map/sid_lock
-    and do not use global_sid_map/global_sid_lock. Instead of blocking both
+    The retrieved_gtid_set (rli->get_gtid_set) has its own tsid_map/tsid_lock
+    and do not use global_tsid_map/global_tsid_lock. Instead of blocking both
     sid locks on each wait iteration at rli->wait_for_gtid_set(Gtid_set), it
     would be better to use rli->wait_for_gtid_set(char *) that will create a
-    new Gtid_set based on global_sid_map.
+    new Gtid_set based on global_tsid_map.
   */
   char *retrieved_gtid_set_buf;
-  mi->rli->get_sid_lock()->wrlock();
+  mi->rli->get_tsid_lock()->wrlock();
   mi->rli->get_gtid_set()->to_string(&retrieved_gtid_set_buf);
-  mi->rli->get_sid_lock()->unlock();
+  mi->rli->get_tsid_lock()->unlock();
 
   int error = mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf,
                                          timeout, false);

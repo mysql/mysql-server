@@ -32,6 +32,7 @@
 #include <atomic>
 
 #include "my_inttypes.h"
+#include "mysql/gtid/tsid.h"
 #include "sql/rpl_gtid.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_events.h"
@@ -83,7 +84,8 @@ typedef struct PSI_xid PSI_xid;
 /** A transaction record. */
 struct PFS_events_transactions : public PFS_events {
   /** Source identifier, mapped from internal format. */
-  rpl_sid m_sid;
+  using Tsid_plain = mysql::gtid::Tsid_plain;
+  Tsid_plain m_tsid;
   /** InnoDB transaction ID. */
   ulonglong m_trxid;
   /** Status */

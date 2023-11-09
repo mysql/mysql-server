@@ -549,7 +549,7 @@ def	performance_schema	events_transactions_current	END_EVENT_ID	3	NULL	YES	bigin
 def	performance_schema	events_transactions_current	EVENT_NAME	4	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	STATE	5	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_transactions_current	GTID	7	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	events_transactions_current	GTID	7	NULL	YES	varchar	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(90)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	XID_GTRID	9	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	XID_BQUAL	10	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
@@ -573,7 +573,7 @@ def	performance_schema	events_transactions_history	END_EVENT_ID	3	NULL	YES	bigin
 def	performance_schema	events_transactions_history	EVENT_NAME	4	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history	STATE	5	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_transactions_history	GTID	7	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	events_transactions_history	GTID	7	NULL	YES	varchar	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(90)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history	XID_GTRID	9	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history	XID_BQUAL	10	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
@@ -597,7 +597,7 @@ def	performance_schema	events_transactions_history_long	END_EVENT_ID	3	NULL	YES	
 def	performance_schema	events_transactions_history_long	EVENT_NAME	4	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history_long	STATE	5	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history_long	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_transactions_history_long	GTID	7	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	events_transactions_history_long	GTID	7	NULL	YES	varchar	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(90)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history_long	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history_long	XID_GTRID	9	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
 def	performance_schema	events_transactions_history_long	XID_BQUAL	10	NULL	YES	varchar	130	520	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(130)			select,insert,update,references			NULL
@@ -1068,12 +1068,12 @@ def	performance_schema	replication_applier_status_by_coordinator	SERVICE_STATE	3
 def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_NUMBER	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_MESSAGE	5	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_ERROR_TIMESTAMP	6	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION	7	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION	7	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	8	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	9	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP	10	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP	11	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION	12	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION	12	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	13	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	14	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_coordinator	PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP	15	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
@@ -1084,12 +1084,12 @@ def	performance_schema	replication_applier_status_by_worker	SERVICE_STATE	4	NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_NUMBER	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_MESSAGE	6	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_ERROR_TIMESTAMP	7	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION	8	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION	8	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	9	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	10	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	11	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	12	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION	13	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION	13	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	14	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	15	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	16	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
@@ -1149,12 +1149,12 @@ def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	8	
 def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	10	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	11	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION	12	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION	12	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	13	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	14	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP	15	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP	16	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION	17	NULL	YES	char	57	228	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(57)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION	17	NULL	YES	char	90	360	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(90)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	18	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	19	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	20	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL

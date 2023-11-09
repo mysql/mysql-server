@@ -1,0 +1,90 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# T1.1. On the replica: Set debug point that will simulate unknown
+#       required fields in the tagged Gtid_log_event
+
+[connection slave]
+include/suppress_messages.inc
+# Connection 1 suppresses message <Could not parse relay log event entry>.
+# Connection 1 suppresses message <Relay log write failure: could not queue event from source>.
+# Connection 2 suppresses message <Could not parse relay log event entry>.
+# Connection 2 suppresses message <Relay log write failure: could not queue event from source>.
+include/save_error_log_position.inc
+# Adding debug point 'simulate_gtid_tagged_log_event_with_unknown_non_ignorable_fields' to @@GLOBAL.debug
+
+# T1.2. On the source: Execute transactions with tagged GTIDs
+
+[connection master]
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+[connection slave]
+
+# T1.3. On the replica: Check that SQL thread has stopped
+
+include/assert.inc ["SQL thread should be stopped"]
+
+# T1.4. On the replica: Check that a correct message has been printed
+#       into the error log
+
+include/assert_error_log.inc [server: 2, pattern: Unrecognized event format. The event appears to originate from a future server version]
+#
+# Clean-up after T1
+#
+# Removing debug point 'simulate_gtid_tagged_log_event_with_unknown_non_ignorable_fields' from @@GLOBAL.debug
+[connection master]
+
+# T2.1. On the source: Set debug point that will simulate unknown
+#       required fields in the tagged Gtid_log_event
+
+# Adding debug point 'add_unknown_ignorable_fields_to_gtid_log_event' to @@GLOBAL.debug
+# Adding debug point 'change_unknown_fields_to_non_ignorable' to @@GLOBAL.debug
+
+# T2.2. On the source: Execute transactions with tagged GTIDs
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+# Removing debug point 'change_unknown_fields_to_non_ignorable' from @@GLOBAL.debug
+
+# T2.3. On the replica: Check that IO thread has stopped
+
+[connection slave]
+include/assert.inc ["IO thread should be stopped"]
+#
+# Clean-up after T2
+#
+RESET REPLICA;
+[connection master]
+RESET BINARY LOGS AND GTIDS;
+[connection slave]
+include/start_slave.inc
+
+# T3.1. On the source: Set debug point that will simulate unknown
+#       ignorable fields in the tagged Gtid_log_event (debug point set)
+
+[connection master]
+
+# T3.2. On the source: Execute transactions with tagged GTIDs
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+
+# T3.3. Synchronize source with the replica
+
+# Removing debug point 'add_unknown_ignorable_fields_to_gtid_log_event' from @@GLOBAL.debug
+include/sync_slave_sql_with_master.inc
+
+# T3.4. On the replica: Check that tagged transactions were replicated
+
+[connection slave]
+include/assert.inc [Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable]
+#
+# Clean-up
+#
+include/rpl_end.inc

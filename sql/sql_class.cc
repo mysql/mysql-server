@@ -701,7 +701,7 @@ THD::THD(bool enable_plugins)
       m_enable_plugins(enable_plugins),
       m_audited(true),
 #ifdef HAVE_GTID_NEXT_LIST
-      owned_gtid_set(global_sid_map),
+      owned_gtid_set(global_tsid_map),
 #endif
       rpl_thd_ctx(key_memory_rpl_thd_context),
       skip_gtid_rollback(false),
@@ -723,6 +723,7 @@ THD::THD(bool enable_plugins)
       external_store_(),
       events_cache_(nullptr),
       audit_plugins_present(false) {
+  has_incremented_gtid_automatic_count = false;
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -1125,7 +1126,7 @@ void THD::init(void) {
   session_tracker.enable(this);
 
   owned_gtid.clear();
-  owned_sid.clear();
+  owned_tsid.clear();
   m_se_gtid_flags.reset();
   owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
 
@@ -1431,6 +1432,10 @@ THD::~THD() {
   THD_CHECK_SENTRY(this);
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
+
+  if (has_incremented_gtid_automatic_count) {
+    gtid_state->decrease_gtid_automatic_tagged_count();
+  }
 
   if (!release_resources_done()) release_resources();
 

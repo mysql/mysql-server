@@ -7714,7 +7714,7 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
     pfs->m_source_file = src_file;
     pfs->m_source_line = src_line;
     pfs->m_state = TRANS_STATE_ACTIVE;
-    pfs->m_sid.clear();
+    pfs->m_tsid.clear();
     pfs->m_gtid_spec.set_automatic();
   }
 }
@@ -7730,7 +7730,8 @@ void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
     auto *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
     assert(pfs != nullptr);
-    pfs->m_sid = *static_cast<const rpl_sid *>(sid);
+    pfs->m_tsid =
+        mysql::gtid::Tsid_plain(*static_cast<const mysql::gtid::Tsid *>(sid));
     pfs->m_gtid_spec = *static_cast<const Gtid_specification *>(gtid_spec);
   }
 }

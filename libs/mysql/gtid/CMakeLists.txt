@@ -20,21 +20,33 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+SET(LINKED_LIBRARIES
+)
+
 SET(TARGET_HEADERS
   global.h
   gtid.h
   gtidset.h
+  tag.h
+  tag_plain.h
+  tsid.h
+  tsid_plain.h
   uuid.h
 )
 
 SET(TARGET_SRCS
   gtid.cpp
   gtidset.cpp
+  tag.cpp
+  tag_plain.cpp
+  tsid.cpp
+  tsid_plain.cpp
   uuid.cpp
 )
 
 LIBS_MYSQL_CREATE_LIBRARY(mysql_gtid
   TARGET_SRCS ${TARGET_SRCS}
   TARGET_HEADERS ${TARGET_HEADERS}
+  LINK_LIBRARIES ${LINKED_LIBRARIES}
 )
 

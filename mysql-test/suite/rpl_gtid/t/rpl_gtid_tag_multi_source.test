@@ -1,0 +1,281 @@
+# ==== PURPOSE ====
+#
+# This test is to validate execution of the
+# SET GTID_NEXT=AUTOMATIC:<tag> command in multi-source topology
+#
+# ==== IMPLEMENTATION ====
+#
+#
+# T1.
+#     Test steps:
+#
+#     1. On the source 1: Execute N transaction with automatic UUID and
+#        specified tag - tag1
+#     2. On the source 3: Execute N transaction with automatic UUID and
+#        specified tag - tag1
+#     3. On the source 3: Execute N transaction with automatic UUID and
+#        specified tag - tag2
+#
+#     Test pass conditions:
+#
+#     4. On the replica: check Pass condition 1:
+#        Check that there are 2*N transactions with tag 1 in gtid_executed
+#     5. On the replica: check Pass condition 2:
+#        Check that there are N transactions with tag 2 in gtid_executed
+#     6. Pass condition 3: No errors in execution (checked automatically)
+#
+# T2.
+#     Test steps:
+#
+#     1. On the source 4: Execute N2 transaction with specified UUID_1 and
+#        specified tag - tag3
+#     2. On the source 4: Execute N2 transaction with specified UUID_2 and
+#        specified tag - tag4
+#     3. On the source 5: Execute N2 transaction with specified UUID_2 and
+#        specified tag - tag3
+#     4. On the source 5: Execute N2 transaction with specified UUID_1 and
+#        specified tag - tag4
+#
+#     Test pass conditions:
+#     5. On the replica: check Pass condition 1:
+#        Check that there are N2 transactions with UUID_1:tag3
+#        and N2 transactions with UUID_2:tag3 in gtid_executed
+#     5. On the replica: check Pass condition 1:
+#        Check that there are N2 transactions with UUID_1:tag4
+#        and N2 transactions with UUID_2:tag4 in gtid_executed
+#     7. Pass condition 3: No errors in execution (checked automatically)
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Steps 2 and 3
+#
+
+--echo
+--echo # Set up replication topology: 4 sources (id: 1,3,4,5) and
+--echo # 1 replica (id: 2)
+--echo
+
+--let $rpl_topology = 1->2, 3->2, 4->2, 5->2
+--let $rpl_multi_source=1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--echo
+--echo # T1.1. On the source 1: Execute N transaction with automatic UUID and
+--echo #       specified tag - tag1
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo # T1.2. On the source 3: Execute N transaction with automatic UUID and
+--echo #       specified tag - tag1
+--echo
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+
+CREATE TABLE t3 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 VALUES (2);
+
+--echo
+--echo # T1.3. On the source 3: Execute N transaction with automatic UUID and
+--echo #       specified tag - tag2
+--echo
+
+SET GTID_NEXT='AUTOMATIC:tag_2';
+INSERT INTO t3 VALUES (3);
+INSERT INTO t3 VALUES (4);
+INSERT INTO t3 VALUES (5);
+
+--echo
+--echo # T2.1. On the source 4: Execute N transaction with specified UUID_1 and
+--echo #       specified tag - tag3
+--echo
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_3:1';
+CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_3:2';
+INSERT INTO t4 VALUES (1);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_3:3';
+INSERT INTO t4 VALUES (2);
+
+--echo
+--echo # T2.2. On the source 4: Execute N transaction with specified UUID_2 and
+--echo #       specified tag - tag4
+--echo
+
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_4:1';
+INSERT INTO t4 VALUES (3);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_4:2';
+INSERT INTO t4 VALUES (4);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_4:3';
+INSERT INTO t4 VALUES (5);
+
+--echo
+--echo # T2.3. On the source 5: Execute N transaction with specified UUID_2 and
+--echo #       specified tag - tag3
+--echo
+
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_3:1';
+CREATE TABLE t5 (c1 INT) ENGINE=InnoDB;
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_3:2';
+INSERT INTO t5 VALUES (1);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111112:tag_3:3';
+INSERT INTO t5 VALUES (2);
+
+--echo
+--echo # T2.4. On the source 5: Execute N transaction with specified UUID_1 and
+--echo #       specified tag - tag4
+--echo
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_4:1';
+INSERT INTO t5 VALUES (3);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_4:2';
+INSERT INTO t5 VALUES (4);
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_4:3';
+INSERT INTO t5 VALUES (5);
+
+--echo
+--echo # Connect to the replica and start replication threads
+--echo
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--source include/start_slave.inc
+
+--echo
+--echo # Synchronizing servers
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo
+--echo # Checking GTID executed set on the replica
+--echo
+
+--echo
+--echo # T1.4. On the replica: check Pass condition 1:
+--echo #       Check that there are 2*N transactions with tag 1 in gtid_executed
+--echo
+
+--let $assert_cond= [SELECT GTID_SUBSET("$server_1_uuid:tag_1:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 1, tagged with tag_1 were replicated correctly. T1, pass condition 1.
+--source include/assert.inc
+
+--let $assert_cond= [SELECT GTID_SUBSET("$server_3_uuid:tag_1:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 3, tagged with tag_1, were replicated correctly. T1, pass condition 2.
+--source include/assert.inc
+
+--echo
+--echo # T1.5. On the replica: check Pass condition 2:
+--echo #       Check that there are N transactions with tag 2 in gtid_executed
+--echo
+
+--let $assert_cond= [SELECT GTID_SUBSET("$server_3_uuid:tag_2:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 3, tagged with tag_2, were replicated correctly. T1, pass condition 3.
+--source include/assert.inc
+
+
+--echo
+--echo # T2.5. On the replica: check Pass condition 1:
+--echo #       Check that there are N2 transactions with UUID_1:tag3
+--echo #       and N2 transactions with UUID_2:tag3
+--echo #       in gtid_executed
+--echo
+
+--let $assert_cond= [SELECT GTID_SUBSET("11111111-1111-1111-1111-111111111111:tag_3:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 4, tagged with tag_3, were replicated correctly. T2, pass condition 1.
+--source include/assert.inc
+
+--let $assert_cond= [SELECT GTID_SUBSET("11111111-1111-1111-1111-111111111112:tag_3:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 4, tagged with tag_4, were replicated correctly. T2, pass condition 1.
+--source include/assert.inc
+
+--echo
+--echo # T2.6. On the replica: check Pass condition 2:
+--echo #       Check that there are N2 transactions with UUID_1:tag4
+--echo #       and N2 transactions with UUID_2:tag4
+--echo #       in gtid_executed
+--echo
+
+--let $assert_cond= [SELECT GTID_SUBSET("11111111-1111-1111-1111-111111111111:tag_4:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 5, tagged with tag_4, were replicated correctly. T2, pass condition 2.
+--source include/assert.inc
+
+--let $assert_cond= [SELECT GTID_SUBSET("11111111-1111-1111-1111-111111111112:tag_4:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that transactions originated from server 5, tagged with tag_4, were replicated correctly. T2, pass condition 2.
+--source include/assert.inc
+
+--echo
+--echo # Clean up
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+DROP TABLE t3;
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+SET GTID_NEXT='AUTOMATIC';
+DROP TABLE t4;
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+SET GTID_NEXT='AUTOMATIC';
+DROP TABLE t5;
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync=1
+--source include/rpl_end.inc

@@ -136,6 +136,15 @@ class Collation_key_equal {
   decltype(cs->coll->strnncollsp) strnncollsp;
 };
 
+/// @brief Allocator type used in Map_myalloc
+template <class Key, class Value>
+using Map_allocator_type = Malloc_allocator<std::pair<const Key, Value>>;
+
+/// @brief Map using custom Malloc_allocator allocator
+template <class Key, class Value, class Compare = std::less<Key>>
+using Map_myalloc =
+    std::map<Key, Value, Compare, Map_allocator_type<Key, Value>>;
+
 /**
   std::unordered_map, but with my_malloc, so that you can track the memory
   used using PSI memory keys.

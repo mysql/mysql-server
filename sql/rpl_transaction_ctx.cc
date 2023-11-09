@@ -68,19 +68,24 @@ bool Rpl_transaction_ctx::is_transaction_rollback() {
   return m_transaction_ctx.m_rollback_transaction;
 }
 
-bool Rpl_transaction_ctx::is_generated_gtid() {
-  DBUG_TRACE;
-  return m_transaction_ctx.m_generated_gtid;
-}
-
-rpl_sidno Rpl_transaction_ctx::get_sidno() {
+rpl_sidno Rpl_transaction_ctx::get_sidno() const {
   DBUG_TRACE;
   return m_transaction_ctx.m_sidno;
 }
 
-rpl_gno Rpl_transaction_ctx::get_gno() {
+rpl_gno Rpl_transaction_ctx::get_gno() const {
   DBUG_TRACE;
   return m_transaction_ctx.m_gno;
+}
+
+std::pair<rpl_sidno, rpl_gno> Rpl_transaction_ctx::get_gtid_components() const {
+  DBUG_TRACE;
+  return std::make_pair(get_sidno(), get_gno());
+}
+
+void Rpl_transaction_ctx::set_sidno(rpl_sidno sidno) {
+  DBUG_TRACE;
+  m_transaction_ctx.m_sidno = sidno;
 }
 
 /**

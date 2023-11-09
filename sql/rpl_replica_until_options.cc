@@ -178,9 +178,9 @@ bool Until_relay_position::check_all_transactions_read_from_relay_log() {
 int Until_gtids::init(const char *gtid_set_str) {
   enum_return_status ret;
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   ret = m_gtids.add_gtid_text(gtid_set_str);
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   if (ret != RETURN_STATUS_OK) return ER_BAD_REPLICA_UNTIL_COND;
   return 0;
@@ -188,37 +188,38 @@ int Until_gtids::init(const char *gtid_set_str) {
 
 bool Until_before_gtids::check_at_start_slave() {
   DBUG_TRACE;
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   if (m_gtids.is_intersection_nonempty(gtid_state->get_executed_gtids())) {
     char *buffer;
     m_gtids.to_string(&buffer);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
 
     LogErr(INFORMATION_LEVEL,
            ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED, buffer);
     my_free(buffer);
     return true;
   }
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   return false;
 }
 
 bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
   DBUG_TRACE;
-  if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
+  if (mysql::binlog::event::Log_event_type_helper::is_assigned_gtid_event(
+          ev->get_type_code())) {
     Gtid_log_event *gev =
         const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     if (m_gtids.contains_gtid(gev->get_sidno(false), gev->get_gno())) {
       char *buffer;
       m_gtids.to_string(&buffer);
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       LogErr(INFORMATION_LEVEL,
              ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED, buffer);
       my_free(buffer);
       return true;
     }
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
   }
   return false;
 }
@@ -241,7 +242,7 @@ void Until_after_gtids::last_transaction_executed_message() {
 
 bool Until_after_gtids::check_all_transactions_executed() {
   const Checkable_rwlock::Guard global_sid_lock_guard(
-      *global_sid_lock, Checkable_rwlock::WRITE_LOCK);
+      *global_tsid_lock, Checkable_rwlock::WRITE_LOCK);
   if (m_gtids.is_subset(gtid_state->get_executed_gtids())) {
     last_transaction_executed_message();
     return true;
@@ -254,7 +255,7 @@ bool Until_after_gtids::check_at_start_slave() {
   if (check_all_transactions_executed()) return true;
   if (m_gtids_known_to_channel == nullptr) {
     m_gtids_known_to_channel =
-        std::make_unique<Gtid_set>(global_sid_map, nullptr);
+        std::make_unique<Gtid_set>(global_tsid_map, nullptr);
   }
   return false;
 }
@@ -263,7 +264,7 @@ bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev) {
   DBUG_TRACE;
 
   if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     /*
      Below check is needed when last transaction is received from other source
      while transactions scheduled by this channel are in execution.
@@ -281,10 +282,10 @@ bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev) {
     */
     m_gtids_known_to_channel->add_gtid_set(gtid_state->get_executed_gtids());
     if (m_gtids.is_subset(m_gtids_known_to_channel.get())) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       if (!wait_for_gtid_set()) {
         const Checkable_rwlock::Guard global_sid_lock_guard(
-            *global_sid_lock, Checkable_rwlock::READ_LOCK);
+            *global_tsid_lock, Checkable_rwlock::READ_LOCK);
         last_transaction_executed_message();
       }
       return true;
@@ -293,10 +294,10 @@ bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev) {
     Gtid_log_event *gev =
         const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
     m_gtids_known_to_channel->_add_gtid(gev->get_sidno(false), gev->get_gno());
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
   } else if (ev->ends_group()) {
     const Checkable_rwlock::Guard global_sid_lock_guard(
-        *global_sid_lock, Checkable_rwlock::WRITE_LOCK);
+        *global_tsid_lock, Checkable_rwlock::WRITE_LOCK);
     m_gtids_known_to_channel->add_gtid_set(gtid_state->get_executed_gtids());
     if (m_gtids.is_subset(m_gtids_known_to_channel.get())) {
       m_last_transaction_in_execution = true;
@@ -310,7 +311,7 @@ bool Until_after_gtids::check_after_dispatching_event() {
   if (m_last_transaction_in_execution) {
     if (!wait_for_gtid_set()) {
       const Checkable_rwlock::Guard global_sid_lock_guard(
-          *global_sid_lock, Checkable_rwlock::READ_LOCK);
+          *global_tsid_lock, Checkable_rwlock::READ_LOCK);
       last_transaction_executed_message();
     }
     return true;
@@ -322,22 +323,22 @@ bool Until_after_gtids::wait_for_gtid_set() {
   constexpr double worker_wait_timeout = 1;
   bool status = false;
 
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
   while (gtid_state->wait_for_gtid_set(current_thd, &m_gtids,
                                        worker_wait_timeout)) {
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     /*
      If some error happend in the worker, or shutdown we need to unblock and
      stop the coordinator.
     */
     if (m_rli->sql_thread_kill_accepted || m_rli->is_error()) {
-      global_sid_lock->rdlock();
+      global_tsid_lock->rdlock();
       status = true;
       break;
     }
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
   }
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   return status;
 }
 

@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
-call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 include/start_slave_io.inc
 include/gtid_step_reset_on_retrieved.inc
 # Adding debug point 'simulate_unknown_ignorable_log_event_with_xid' to @@GLOBAL.debug

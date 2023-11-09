@@ -16,6 +16,31 @@ INSERT INTO t1 VALUES (2);
 
 --eval SET GTID_NEXT='$uuid1:2'
 INSERT INTO t1 VALUES (3);
+
+--eval SET GTID_NEXT='$uuid0:tag_1:1'
+INSERT INTO t1 VALUES (4);
+
+--eval SET GTID_NEXT='$uuid0:tag_1:2'
+INSERT INTO t1 VALUES (5);
+
+--eval SET GTID_NEXT='$uuid0:tag_2:1'
+INSERT INTO t1 VALUES (6);
+
+--eval SET GTID_NEXT='$uuid0:tag_2:2'
+INSERT INTO t1 VALUES (7);
+
+--eval SET GTID_NEXT='$uuid1:tag_1:1'
+INSERT INTO t1 VALUES (8);
+
+--eval SET GTID_NEXT='$uuid1:tag_1:2'
+INSERT INTO t1 VALUES (9);
+
+--eval SET GTID_NEXT='$uuid1:tag_2:1'
+INSERT INTO t1 VALUES (10);
+
+--eval SET GTID_NEXT='$uuid1:tag_2:2'
+INSERT INTO t1 VALUES (11);
+
 SET GTID_NEXT=AUTOMATIC;
 
 --let $basedir=`SELECT @@basedir`

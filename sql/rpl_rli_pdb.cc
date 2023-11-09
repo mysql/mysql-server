@@ -1544,7 +1544,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   const Gtid_specification *gtid_next = &info_thd->variables.gtid_next;
   THD *thd = info_thd;
 
-  gtid_next->to_string(global_sid_map, buff_gtid, true);
+  gtid_next->to_string(global_tsid_map, buff_gtid, true);
 
   if (level == ERROR_LEVEL && (!has_temporary_error(thd, err_code) ||
                                thd->get_transaction()->cannot_safely_rollback(
@@ -1610,6 +1610,7 @@ static bool may_have_timestamp(Log_event *ev) {
   switch (ev->get_type_code()) {
     case mysql::binlog::event::QUERY_EVENT:
     case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       res = true;
       break;
 
@@ -1625,6 +1626,7 @@ static int64 get_last_committed(Log_event *ev) {
 
   switch (ev->get_type_code()) {
     case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       res = static_cast<Gtid_log_event *>(ev)->last_committed;
       break;
 
@@ -1640,6 +1642,7 @@ static int64 get_sequence_number(Log_event *ev) {
 
   switch (ev->get_type_code()) {
     case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       res = static_cast<Gtid_log_event *>(ev)->sequence_number;
       break;
 
@@ -1708,7 +1711,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
 #endif
 
   // Address partitioning only in database mode
-  if (!is_gtid_event(ev) && is_mts_db_partitioned(rli)) {
+  if (!is_any_gtid_event(ev) && is_mts_db_partitioned(rli)) {
     if (ev->contains_partition_info(end_group_sets_max_dbs)) {
       uint num_dbs = ev->mts_number_dbs();
 
@@ -2496,7 +2499,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
     */
     worker_curr_ev.set_current_event(ev);
 
-    if (is_gtid_event(ev)) seen_gtid = true;
+    if (is_any_gtid_event(ev)) seen_gtid = true;
     if (!seen_begin && ev->starts_group()) {
       seen_begin = true;  // The current group is started with B-event
       worker->end_group_sets_max_dbs = true;
@@ -2534,12 +2537,12 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       WL#7592 refines the original assert disjunction formula
       with the final disjunct.
     */
-    assert(seen_begin || is_gtid_event(ev) ||
+    assert(seen_begin || is_any_gtid_event(ev) ||
            ev->get_type_code() == mysql::binlog::event::QUERY_EVENT ||
            is_mts_db_partitioned(rli) || worker->id == 0 || seen_gtid);
 
     if (ev->ends_group() ||
-        (!seen_begin && !is_gtid_event(ev) &&
+        (!seen_begin && !is_any_gtid_event(ev) &&
          (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT ||
           /* break through by LC only in GTID off */
           (!seen_gtid && !is_mts_db_partitioned(rli)))))

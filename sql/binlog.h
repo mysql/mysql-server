@@ -61,7 +61,7 @@ class Log_event;
 class Master_info;
 class Relay_log_info;
 class Rows_log_event;
-class Sid_map;
+class Tsid_map;
 class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
@@ -445,7 +445,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     to relay logs.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
-    global_sid_lock->wrlock are acquired; otherwise they are asserted
+    global_tsid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
     @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
@@ -754,9 +754,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
     event was written to the log.
     @param need_lock_index If true, LOCK_index is acquired; otherwise
     LOCK_index must be taken by the caller.
-    @param need_sid_lock If true, the read lock on global_sid_lock
+    @param need_tsid_lock If true, the read lock on global_tsid_lock
     will be acquired.  Otherwise, the caller must hold the read lock
-    on global_sid_lock.
+    on global_tsid_lock.
     @param extra_description_event The master's FDE to be written by the I/O
     thread while creating a new relay log file. This should be NULL for
     binary log files.
@@ -765,7 +765,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,
-                   bool need_lock_index, bool need_sid_lock,
+                   bool need_lock_index, bool need_tsid_lock,
                    Format_description_log_event *extra_description_event,
                    uint32 new_index_number = 0);
   bool open_index_file(const char *index_file_name_arg, const char *log_name,
@@ -1006,11 +1006,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
 
   /**
-    Deep copy global_sid_map and gtid_executed.
-    Both operations are done under LOCK_commit and global_sid_lock
+    Deep copy global_tsid_map and gtid_executed.
+    Both operations are done under LOCK_commit and global_tsid_lock
     protection.
 
-    @param[out] sid_map  The Sid_map to which global_sid_map will
+    @param[out] tsid_map  The Tsid_map to which global_tsid_map will
                          be copied.
     @param[out] gtid_set The Gtid_set to which gtid_executed will
                          be copied.
@@ -1019,7 +1019,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
       @retval 0      OK
       @retval !=0    Error
   */
-  int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
+  int get_gtid_executed(Tsid_map *tsid_map, Gtid_set *gtid_set);
 
   /*
     True while rotating binlog, which is caused by logging Incident_log_event.

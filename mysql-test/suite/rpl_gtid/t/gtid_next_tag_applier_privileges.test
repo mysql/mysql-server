@@ -1,0 +1,135 @@
+# ==== PURPOSE ====
+#
+# This test is to validate that privileges for the SET_GTID_NEXT
+# are enforced by the applier.
+#
+# ==== REQUIREMENTS ====
+#
+# R1. Executing transactions with tagged GTIDs shall be allowed in the
+#     following cases:
+#  R1.1. User has TRANSACTION_GTID_TAG and SYSTEM_VARIABLES_ADMIN
+#  R1.2. User has TRANSACTION_GTID_TAG and SESSION_VARIABLES_ADMIN
+#  R1.3. User has TRANSACTION_GTID_TAG and REPLICATION_APPLIER
+# R2. Executing transactions with tagged GTIDs shall be disallowed in the
+#     following cases:
+#  R2.1. User has TRANSACTION_GTID_TAG but neither of
+#        SYSTEM_VARIABLES_ADMIN nor
+#        SESSION_VARIABLES_ADMIN nor
+#        REPLICATION_APPLIER
+#  R2.2. User has SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN or
+#        REPLICATION_APPLIERbut not TRANSACTION_GTID_TAG
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication, create an user with REPLICATION_APPLIER
+#     2. Execute one untagged and one tagged transaction, the tagged one fails
+#        Privileges: SYSTEM_VARIABLES_ADMIN
+#     3. Try again with more privileges, replication succeeds
+#        Privileges: TRANSACTION_GTID_TAG
+#     4. Revoke SYSTEM_VARIABLES_ADMIN privilege. Execute tagged transaction.
+#        Replication should succeed. Privileges: TRANSACTION_GTID_TAG
+#     5. Cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 5
+#
+
+--source include/have_binlog_format_row.inc
+--source include/not_have_privilege_checks_user.inc
+
+--echo
+--echo # 1. Set up replication, create an user with REPLICATION_APPLIER
+--echo
+
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CREATE USER custom_user;
+GRANT CREATE USER on *.* to custom_user;
+GRANT CREATE on *.* to custom_user;
+GRANT DROP on *.* to custom_user;
+GRANT REPLICATION_APPLIER on *.* to custom_user;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='custom_user';
+CALL mtr.add_suppression("Replica SQL for channel ''.*");
+--source include/start_slave.inc
+
+--echo
+--echo # 2. Execute one untagged and one tagged transaction, the tagged one
+--echo #    fails. Privileges: SYSTEM_VARIABLES_ADMIN
+--echo
+
+GRANT SYSTEM_VARIABLES_ADMIN on *.* to custom_user;
+
+--source include/rpl_connection_master.inc
+
+# Can execute an untagged transaction
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:1";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+
+# Cannot execute a tagged transaction
+
+SET GTID_NEXT= "AUTOMATIC:bb";
+INSERT INTO t1 VALUES(1);
+
+SET GTID_NEXT= "AUTOMATIC";
+
+--source include/rpl_connection_slave.inc
+
+--let $slave_param= Last_SQL_Errno
+--let $slave_timeout=10
+--let $slave_param_value= convert_error(ER_SPECIFIC_ACCESS_DENIED)
+--source include/wait_for_slave_param.inc
+
+--echo
+--echo # 3. Try again with more privileges, replication succeeds
+--echo #    Privileges: SYSTEM_VARIABLES_ADMIN && TRANSACTION_GTID_TAG
+--echo
+
+GRANT TRANSACTION_GTID_TAG on *.* to custom_user;
+
+--source include/start_slave_sql.inc
+
+--let $wait_condition = SELECT count(*) = 1 FROM t1
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Revoke a privilege. Execute tagged transaction.
+--echo #    Replication should succeed. Privileges: TRANSACTION_GTID_TAG
+--echo
+
+--source include/stop_slave.inc
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM custom_user;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+SET GTID_NEXT= "AUTOMATIC:bb";
+INSERT INTO t1 VALUES(2);
+
+--source include/rpl_connection_slave.inc
+
+--let $wait_condition = SELECT count(*) = 2 FROM t1
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Cleanup
+--echo
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP USER IF EXISTS custom_user;
+
+--source include/rpl_end.inc

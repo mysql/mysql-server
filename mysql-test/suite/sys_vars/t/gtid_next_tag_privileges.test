@@ -1,0 +1,277 @@
+# ==== PURPOSE ====
+#
+# This test is to validate correct execution of the
+# SET GTID_NEXT=AUTOMATIC:<tag> command on the source (no replica) under
+# different privileges
+#
+# ==== REQUIREMENTS ====
+#
+# Change of GTID for the next transaction shall be allowed only if the user
+# executing the transaction has the following privileges levels:
+# TRANSACTION_GTID_TAG and SYSTEM_VARIABLES_ADMIN or
+# TRANSACTION_GTID_TAG and SESSION_VARIABLES_ADMIN or
+# TRANSACTION_GTID_TAG and REPLICATION_APPLIER
+#
+# ==== IMPLEMENTATION ====
+#
+# Below test checks that GTID_NEXT can be executed only under the
+# required privileges.
+#
+# T1.
+#     Test steps:
+#
+#     1. Create a user with no privileges
+#     2. Execute SET_GTID_NEXT with specified, tagged GTID
+#     3. Check Pass condition 1:
+#        ER_SPECIFIC_ACCESS_DENIED
+#     4. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#     5. Check Pass condition 2:
+#        ER_SPECIFIC_ACCESS_DENIED
+#     6. Grant SYSTEM_VARIABLES_ADMIN to the user
+#     7. Execute SET_GTID_NEXT with specified, tagged GTID
+#     8. Check Pass condition 3:
+#        ER_SPECIFIC_ACCESS_DENIED
+#     9. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#    10. Check Pass condition 4:
+#        ER_SPECIFIC_ACCESS_DENIED
+#    11. Execute SET_GTID_NEXT with a specified, non tagged GTID
+#    12. Check Pass condition 5:
+#        No error
+#    13. Grant TRANSACTION_GTID_TAG to the user
+#    14. Execute SET_GTID_NEXT with specified, tagged GTID
+#    15. Check Pass condition 6:
+#        No error
+#    16. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#    17. Check Pass condition 7:
+#        No error
+#    18. Revoke SYSTEM_VARIABLES_ADMIN from the user
+#    19. Execute SET_GTID_NEXT with specified, tagged GTID
+#    20. Check Pass condition 8:
+#        ER_SPECIFIC_ACCESS_DENIED
+#    21. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#    22. Check Pass condition 9:
+#        ER_SPECIFIC_ACCESS_DENIED
+#    23. Grant SESSION_VARIABLES_ADMIN to the user
+#    24. Execute SET_GTID_NEXT with specified, tagged GTID
+#    25. Check Pass condition 10:
+#        No error
+#    26. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#    27. Check Pass condition 11:
+#        No error
+#    28. Revoke SESSION_VARIABLES_ADMIN from the user
+#      . Grant REPLICATION_APPLIER to the user
+#    29. Execute SET_GTID_NEXT with specified, tagged GTID
+#    30. Check Pass condition 12:
+#        No error
+#    31. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+#    32. Check Pass condition 13:
+#        No error
+#
+#     Test pass conditions:
+#
+#    - step 3
+#    - step 5
+#    - step 8
+#    - step 10
+#    - step 12
+#    - step 15
+#    - step 17
+#    - step 20
+#    - step 22
+#    - step 25
+#    - step 27
+#    - step 30
+#    - step 32
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 5
+#
+
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+
+--let $rpl_skip_sync= 1
+--let $rpl_gtid_mode=ON_PERMISSIVE
+--source include/rpl_set_gtid_mode.inc
+
+--echo
+--echo # T1.1. Create a user with no privileges
+--echo
+
+CREATE USER normal_user;
+--connect(conn_1, localhost, normal_user,,)
+
+--echo
+--echo # T1.2. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.3. Check Pass condition 1:
+--echo #        ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.4. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.5. Check Pass condition 2:
+--echo #       ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo
+--echo # T1.6. Grant SYSTEM_VARIABLES_ADMIN to the user
+--echo
+
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO normal_user;
+
+--connection conn_1
+
+--echo
+--echo # T1.7. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.8. Check Pass condition 3:
+--echo #       ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.9.  Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.10. Check Pass condition 4:
+--echo #        ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo
+--echo # T1.11. Execute SET_GTID_NEXT with a specified, non tagged GTID
+--echo # T1.12. Check Pass condition 5:
+--echo #        No error
+--echo
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:1";
+ROLLBACK;
+
+--echo
+--echo # T1.13. Grant TRANSACTION_GTID_TAG to the user
+--echo
+
+--connection default
+GRANT TRANSACTION_GTID_TAG ON *.* TO normal_user;
+
+--connection conn_1
+
+--echo
+--echo # T1.14. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.15. Check Pass condition 6:
+--echo #        No error
+--echo
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+ROLLBACK;
+
+--echo
+--echo # T1.16. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.17. Check Pass condition 7:
+--echo #        No error
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo
+--echo # T1.18. Revoke SYSTEM_VARIABLES_ADMIN from the user
+--echo
+
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM normal_user;
+
+--connection conn_1
+
+--echo
+--echo # T1.19. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.20. Check Pass condition 8:
+--echo #        ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+
+--echo
+--echo # T1.21. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.22. Check Pass condition 9:
+--echo #        ER_SPECIFIC_ACCESS_DENIED
+--echo
+
+--error ER_SPECIFIC_ACCESS_DENIED
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo
+--echo # T1.23. Grant SESSION_VARIABLES_ADMIN to the user
+--echo
+
+--connection default
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO normal_user;
+
+--echo
+--echo # T1.24. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.25. Check Pass condition 10:
+--echo #        No error
+--echo
+
+--connection conn_1
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+ROLLBACK;
+
+--echo
+--echo # T1.26. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.27. Check Pass condition 11:
+--echo #        No error
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo
+--echo # T1.28. Revoke SESSION_VARIABLES_ADMIN from the user
+--echo #      . Grant REPLICATION_APPLIER to the user
+--echo
+
+--connection default
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM normal_user;
+GRANT REPLICATION_APPLIER ON *.* TO normal_user;
+
+--echo
+--echo # T1.29. Execute SET_GTID_NEXT with specified, tagged GTID
+--echo # T1.30. Check Pass condition 12:
+--echo #        No error
+--echo
+
+--connection conn_1
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:bb:1";
+ROLLBACK;
+
+--echo
+--echo # T1.31. Execute SET_GTID_NEXT with AUTOMATIC, tagged GTID
+--echo # T1.32. Check Pass condition 13:
+--echo #        No error
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:bb";
+
+--echo #
+--echo # Clean-up
+--echo #
+
+--connection default
+--disconnect conn_1
+SET GTID_NEXT= "AUTOMATIC";
+DROP USER normal_user;
+
+--let $rpl_skip_sync= 1
+--let $rpl_gtid_mode=$gtid_mode
+--source include/rpl_set_gtid_mode.inc

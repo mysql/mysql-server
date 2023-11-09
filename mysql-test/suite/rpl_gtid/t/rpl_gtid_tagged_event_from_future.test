@@ -1,0 +1,214 @@
+# ==== PURPOSE ====
+#
+# This tests forward compatibility of tagged Gtid_log_event.
+#
+# ==== REQUIREMENTS ====
+#
+# 1. In case Gtid_log_event includes new ignorable fields, replica shall
+#    correctly process incoming Gtid_log_event.
+# 2. In case Gtid_log_event includes new non ignorable fields, replica shall
+#    exit with the following message "Unrecognized event format.
+#    The event appears to originate from a future server version"
+#
+# ==== IMPLEMENTATION ====
+#
+# Below checks whether EVENT_UNSUPPORTED_NEW_VERSION is correctly processed
+# on the replica
+#
+# T1.
+#     Test steps:
+#
+#     1. On the replica: Set debug point that will simulate unknown required
+#        fields in the tagged Gtid_log_event
+#     2. On the source: Execute transactions with tagged GTIDs
+#     3. On the replica: Check that SQL thread has stopped
+#     4. On the replica: Check that a correct message has been printed into
+#        the error log
+#
+#     Test pass conditions:
+#
+#     - step 3
+#     - step 4
+#
+# This tests generates GTID_TAGGED_LOG_EVENT on the source with additional
+# unknown field that cannot be ignored by the replica.
+#
+# T2.
+#     Test steps:
+#
+#     1. On the source: Set debug point that will simulate unknown required
+#        fields in the tagged Gtid_log_event
+#     2. On the source: Execute transactions with tagged GTIDs
+#     3. On the replica: Check that IO thread has stopped
+#
+#     Test pass conditions:
+#
+#     - step 3
+#
+# Below test generates GTID_TAGGED_LOG_EVENT on the source with additional
+# unknown field that can be ignored by the replica
+#
+# T3.
+#     Test steps:
+#
+#     1. On the source: Set debug point that will simulate unknown ignorable
+#        fields in the tagged Gtid_log_event
+#     2. On the source: Execute transactions with tagged GTIDs
+#     3. Synchronize source with the replica
+#     4. On the replica: Check that tagged transactions were replicated
+#
+#     Test pass conditions:
+#
+#     - step 3
+#     - step 4
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Steps 2 and 3
+#
+
+--source include/have_debug.inc
+# This test does not depend on binlog format
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--echo
+--echo # T1.1. On the replica: Set debug point that will simulate unknown
+--echo #       required fields in the tagged Gtid_log_event
+--echo
+
+--source include/rpl_connection_slave.inc
+
+let $messages =
+Could not parse relay log event entry
+Relay log write failure: could not queue event from source
+;
+--source include/suppress_messages.inc
+
+--source include/save_error_log_position.inc
+
+--let $debug_point = simulate_gtid_tagged_log_event_with_unknown_non_ignorable_fields
+--source include/add_debug_point.inc
+
+--echo
+--echo # T1.2. On the source: Execute transactions with tagged GTIDs
+--echo
+
+--source include/rpl_connection_master.inc
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+
+--echo
+--echo # T1.3. On the replica: Check that SQL thread has stopped
+--echo
+
+--let $is_sql_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= "SQL thread should be stopped"
+--let $assert_cond= "$is_sql_thread_running" = "No"
+--source include/assert.inc
+
+--echo
+--echo # T1.4. On the replica: Check that a correct message has been printed
+--echo #       into the error log
+--echo
+
+--let $error_pattern = Unrecognized event format. The event appears to originate from a future server version
+--source include/assert_error_log.inc
+
+--echo #
+--echo # Clean-up after T1
+--echo #
+
+--let $debug_point = simulate_gtid_tagged_log_event_with_unknown_non_ignorable_fields
+--source include/remove_debug_point.inc
+
+--source include/rpl_connection_master.inc
+
+--echo
+--echo # T2.1. On the source: Set debug point that will simulate unknown
+--echo #       required fields in the tagged Gtid_log_event
+--echo
+
+--let $debug_point = add_unknown_ignorable_fields_to_gtid_log_event
+--source include/add_debug_point.inc
+--let $debug_point = change_unknown_fields_to_non_ignorable
+--source include/add_debug_point.inc
+
+--echo
+--echo # T2.2. On the source: Execute transactions with tagged GTIDs
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+
+--let $debug_point = change_unknown_fields_to_non_ignorable
+--source include/remove_debug_point.inc
+
+--echo
+--echo # T2.3. On the replica: Check that IO thread has stopped
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--let $is_io_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= "IO thread should be stopped"
+--let $assert_cond= "$is_io_thread_running" = "No"
+--source include/assert.inc
+
+--echo #
+--echo # Clean-up after T2
+--echo #
+
+RESET REPLICA;
+--source include/rpl_connection_master.inc
+RESET BINARY LOGS AND GTIDS;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--echo
+--echo # T3.1. On the source: Set debug point that will simulate unknown
+--echo #       ignorable fields in the tagged Gtid_log_event (debug point set)
+--echo
+
+--source include/rpl_connection_master.inc
+--let $server_uuid = `SELECT @@server_uuid`
+
+--echo
+--echo # T3.2. On the source: Execute transactions with tagged GTIDs
+--echo
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+DROP TABLE t1;
+
+--echo
+--echo # T3.3. Synchronize source with the replica
+--echo
+
+--let $debug_point = add_unknown_ignorable_fields_to_gtid_log_event
+--source include/remove_debug_point.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # T3.4. On the replica: Check that tagged transactions were replicated
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--let $assert_cond= [SELECT GTID_SUBSET("$server_uuid:aa:1-2", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable
+--source include/assert.inc
+
+--echo #
+--echo # Clean-up
+--echo #
+
+--source include/rpl_end.inc

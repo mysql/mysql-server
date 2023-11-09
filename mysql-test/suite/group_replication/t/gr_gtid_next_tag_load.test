@@ -1,0 +1,71 @@
+# ==== PURPOSE ====
+#
+# This test is to validate execution of transactions with tagged GTIDs in
+# topologies running with a Group Replication Plugin.
+#
+# ==== IMPLEMENTATION ====
+#
+# R1. Multi-primary GR shall sustain a concurrent load of transactions with
+#     automatically assigned GTIDs with specified tags.
+#
+# ==== IMPLEMENTATION ====
+#
+# This test is to validate execution of the
+# SET GTID_NEXT=AUTOMATIC:<tag> command in the Group Replication plugin.
+#
+# This test is executing tests implemented in the
+# extra/group_replication/gr_gtid_next_tag_block_size.inc
+# for different values of the group_replication_gtid_assignment_block_size
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 4
+#
+
+--source include/big_test.inc
+--source include/have_nodebug.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_gtid_utils=1
+--let $rpl_server_count= 5
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo #
+--echo # SUITE 1: group_replication_gtid_assignment_block_size = 1
+--echo #
+--echo
+
+--let $use_block_size=1
+--source ../include/gr_gtid_next_tag_block_size.inc
+
+--echo
+--echo #
+--echo # SUITE 2: group_replication_gtid_assignment_block_size = 10
+--echo #
+--echo
+
+--let $use_block_size=10
+--source ../include/gr_gtid_next_tag_block_size.inc
+
+--echo
+--echo #
+--echo # SUITE 3: group_replication_gtid_assignment_block_size = 100
+--echo #
+--echo
+
+--let $use_block_size=100
+--source ../include/gr_gtid_next_tag_block_size.inc
+
+--echo
+--echo #
+--echo # SUITE 4: group_replication_gtid_assignment_block_size = 1000000
+--echo #
+--echo
+
+--let $use_block_size=1000000
+--source ../include/gr_gtid_next_tag_block_size.inc
+
+--source include/group_replication_end.inc

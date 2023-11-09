@@ -1,0 +1,112 @@
+# ==== PURPOSE ====
+#
+# This tests forward compatibility of tagged Gtid_log_event.
+#
+# ==== REQUIREMENTS ====
+#
+# When processing COM_BINLOG_DUMP_GTIDS, when replica has more GTIDs with
+# source's UUID than the source, the source shall generate
+# ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE.
+#
+# ==== IMPLEMENTATION ====
+#
+# T1.
+#     Test steps:
+#
+#     1. On the source: generate several transactions, tagged and untagged
+#     2. Synchronize replica with the source, stop replication threads
+#     3. On the source: reset all GTIDs, re-execute a subset of transactions
+#     4. Start replication threads, observe the
+#        ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
+#
+#     Test pass conditions:
+#
+#     - step 4
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 9
+#
+
+# This test does not depend on binlog format
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--echo
+--echo # T1.1. On the source: generate several transactions, tagged and untagged
+--echo
+
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:aa:1';
+CREATE TABLE t1 (f1 INT);
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:bb:1';
+INSERT INTO t1 VALUES(1);
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(2);
+# SET GTID_NEXT= 'server_uuid:bb:2';
+INSERT INTO t1 VALUES(3);
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES(4);
+
+--echo
+--echo # T1.2. Synchronize replica with the source, stop replication threads
+--echo
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--echo
+--echo # T1.3. On the source: reset all GTIDs, re-execute a subset of transactions
+--echo
+
+--source include/rpl_connection_master.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:aa:1';
+INSERT INTO t1 VALUES(5);
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:bb:1';
+INSERT INTO t1 VALUES(6);
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(7);
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES(9);
+
+--echo
+--echo # T1.4. Start replication threads, observe the
+--echo #       ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
+--echo
+
+--source include/rpl_connection_slave.inc
+START REPLICA;
+
+--let $slave_io_errno= 13114
+call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
+--source include/wait_for_slave_io_error.inc
+
+--let $is_replica_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= "IO thread should be stopped"
+--let $assert_cond= "$is_replica_thread_running" = "No"
+--source include/assert.inc
+
+--let $last_io_error= query_get_value(SHOW REPLICA STATUS, Last_IO_Error, 1)
+--let $search_result = `SELECT LOCATE("Replica has more GTIDs than the source has", "$last_io_error")`
+--let $assert_text= "Error message is as expected"
+--let $assert_cond= $search_result > 0
+--source include/assert.inc
+
+--echo
+--echo # Clean-up
+--echo
+
+--source include/rpl_connection_master.inc
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(8);
+SET GTID_NEXT= 'AUTOMATIC';
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -26,14 +26,19 @@
 #include <map>
 
 #include <mysql/components/services/log_builtins.h>
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysql/gtid/tsid.h"
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_metadata_message_compressed_parts.h"
 #include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
+#include "scope_guard.h"
+
+using namespace gr;
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
 const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
@@ -258,8 +263,6 @@ Certifier::Certifier()
       parallel_applier_last_committed_global(1),
       parallel_applier_sequence_number(2),
       certifying_already_applied_transactions(false),
-      gtid_assignment_block_size(1),
-      gtids_assigned_in_blocks_counter(1),
       conflict_detection_enable(!local_member_info->in_primary_mode()) {
   last_conflict_free_transaction.clear();
 
@@ -280,7 +283,7 @@ Certifier::Certifier()
                   same_member_message_discarded = true;);
 #endif
 
-  certification_info_sid_map = new Sid_map(nullptr);
+  certification_info_tsid_map = new Tsid_map(nullptr);
   incoming = new Synchronized_queue<Data_packet *>(key_certification_data_gc);
 
   stable_gtid_set_lock = new Checkable_rwlock(
@@ -288,13 +291,13 @@ Certifier::Certifier()
       key_GR_RWLOCK_cert_stable_gtid_set
 #endif
   );
-  stable_sid_map = new Sid_map(stable_gtid_set_lock);
-  stable_gtid_set = new Gtid_set(stable_sid_map, stable_gtid_set_lock);
+  stable_tsid_map = new Tsid_map(stable_gtid_set_lock);
+  stable_gtid_set = new Gtid_set(stable_tsid_map, stable_gtid_set_lock);
   broadcast_thread = new Certifier_broadcast_thread();
 
-  group_gtid_sid_map = new Sid_map(nullptr);
-  group_gtid_executed = new Gtid_set(group_gtid_sid_map, nullptr);
-  group_gtid_extracted = new Gtid_set(group_gtid_sid_map, nullptr);
+  group_gtid_tsid_map = new Tsid_map(nullptr);
+  group_gtid_executed = new Gtid_set(group_gtid_tsid_map, nullptr);
+  group_gtid_extracted = new Gtid_set(group_gtid_tsid_map, nullptr);
 
   mysql_mutex_init(key_GR_LOCK_certification_info, &LOCK_certification_info,
                    MY_MUTEX_INIT_FAST);
@@ -303,15 +306,15 @@ Certifier::Certifier()
 
 Certifier::~Certifier() {
   clear_certification_info();
-  delete certification_info_sid_map;
+  delete certification_info_tsid_map;
 
   delete stable_gtid_set;
-  delete stable_sid_map;
+  delete stable_tsid_map;
   delete stable_gtid_set_lock;
   delete broadcast_thread;
   delete group_gtid_executed;
   delete group_gtid_extracted;
-  delete group_gtid_sid_map;
+  delete group_gtid_tsid_map;
 
   mysql_mutex_lock(&LOCK_members);
   clear_members();
@@ -331,19 +334,19 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   std::string gtid_executed;
   std::string applier_retrieved_gtids;
 
-  rpl_sid group_sid;
+  gr::Gtid_tsid group_tsid;
   const char *group_name = get_group_name_var();
-  rpl_sid view_sid;
+  gr::Gtid_tsid view_tsid;
   const char *view_uuid = get_view_change_uuid_var();
-  if (group_sid.parse(group_name, strlen(group_name)) != RETURN_STATUS_OK) {
+  if (group_tsid.from_cstring(group_name) == 0) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_GROUP_NAME_PARSE_ERROR); /* purecov: inspected */
     error = 1;                                       /* purecov: inspected */
     goto end;                                        /* purecov: inspected */
   }
 
-  group_gtid_sid_map_group_sidno = group_gtid_sid_map->add_sid(group_sid);
-  if (group_gtid_sid_map_group_sidno < 0) {
+  group_gtid_tsid_map_group_sidno = group_gtid_tsid_map->add_tsid(group_tsid);
+  if (group_gtid_tsid_map_group_sidno < 0) {
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR); /* purecov: inspected */
@@ -351,7 +354,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     goto end;                                           /* purecov: inspected */
   }
 
-  if (group_gtid_executed->ensure_sidno(group_gtid_sid_map_group_sidno) !=
+  if (group_gtid_executed->ensure_sidno(group_gtid_tsid_map_group_sidno) !=
       RETURN_STATUS_OK) {
     LogPluginErr(
         ERROR_LEVEL,
@@ -360,7 +363,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     goto end;                                      /* purecov: inspected */
   }
 
-  if (group_gtid_extracted->ensure_sidno(group_gtid_sid_map_group_sidno) !=
+  if (group_gtid_extracted->ensure_sidno(group_gtid_tsid_map_group_sidno) !=
       RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_DONOR_TRANS_INFO_ERROR); /* purecov: inspected */
@@ -369,10 +372,10 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   }
 
   if (strcmp(view_uuid, "AUTOMATIC") == 0) {
-    views_sidno_group_representation = group_gtid_sid_map_group_sidno;
+    views_sidno_group_representation = group_gtid_tsid_map_group_sidno;
     views_sidno_server_representation = get_group_sidno();
   } else {
-    if (view_sid.parse(view_uuid, strlen(view_uuid)) != RETURN_STATUS_OK) {
+    if (view_tsid.from_cstring(view_uuid) == 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_PARSE_ERROR);
       error = 1;
@@ -380,7 +383,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
       /* purecov: end */
     }
 
-    views_sidno_group_representation = group_gtid_sid_map->add_sid(view_sid);
+    views_sidno_group_representation = group_gtid_tsid_map->add_tsid(view_tsid);
     if (views_sidno_group_representation < 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
@@ -451,7 +454,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     }
   }
 
-  compute_group_available_gtid_intervals();
+  gtid_generator.recompute(*get_group_gtid_set());
 
 end:
   delete get_system_variable;
@@ -459,99 +462,11 @@ end:
   return error;
 }
 
-void Certifier::compute_group_available_gtid_intervals() {
-  DBUG_TRACE;
-  mysql_mutex_assert_owner(&LOCK_certification_info);
-
-  gtids_assigned_in_blocks_counter = 1;
-  member_gtids.clear();
-  group_available_gtid_intervals.clear();
-
-  /*
-    Compute the GTID intervals that are available by inverting the
-    group_gtid_executed or group_gtid_extracted intervals.
-  */
-  Gtid_set::Const_interval_iterator ivit(certifying_already_applied_transactions
-                                             ? group_gtid_extracted
-                                             : group_gtid_executed,
-                                         group_gtid_sid_map_group_sidno);
-#ifndef NDEBUG
-  if (certifying_already_applied_transactions)
-    DBUG_PRINT(
-        "Certifier::compute_group_available_gtid_intervals()",
-        ("Generating group transaction intervals from group_gtid_extracted"));
-#endif
-
-  const Gtid_set::Interval *iv = nullptr, *iv_next = nullptr;
-
-  // The fist interval: UUID:100 -> we have the interval 1-99
-  if ((iv = ivit.get()) != nullptr) {
-    if (iv->start > 1) {
-      Gtid_set::Interval interval = {1, iv->start - 1, nullptr};
-      group_available_gtid_intervals.push_back(interval);
-    }
-  }
-
-  // For each used interval find the upper bound and from there
-  // add the free GTIDs up to the next interval or GNO_END.
-  while ((iv = ivit.get()) != nullptr) {
-    ivit.next();
-    iv_next = ivit.get();
-
-    rpl_gno start = iv->end;
-    rpl_gno end = GNO_END;
-    if (iv_next != nullptr) end = iv_next->start - 1;
-
-    assert(start <= end);
-    Gtid_set::Interval interval = {start, end, nullptr};
-    group_available_gtid_intervals.push_back(interval);
-  }
-
-  // No GTIDs used, so the available interval is the complete set.
-  if (group_available_gtid_intervals.size() == 0) {
-    Gtid_set::Interval interval = {1, GNO_END, nullptr};
-    group_available_gtid_intervals.push_back(interval);
-  }
-}
-
-Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
-  DBUG_TRACE;
-  assert(block_size > 1);
-  mysql_mutex_assert_owner(&LOCK_certification_info);
-
-  Gtid_set::Interval result;
-
-  // We are out of intervals, we need to force intervals computation.
-  if (group_available_gtid_intervals.size() == 0)
-    compute_group_available_gtid_intervals();
-
-  std::list<Gtid_set::Interval>::iterator it =
-      group_available_gtid_intervals.begin();
-  assert(it != group_available_gtid_intervals.end());
-
-  /*
-    We always have one or more intervals, the only thing to check
-    is if the first interval is exhausted, if so we need to purge
-    it to avoid future use.
-  */
-  if (block_size > it->end - it->start) {
-    result = *it;
-    group_available_gtid_intervals.erase(it);
-  } else {
-    result.start = it->start;
-    result.end = it->start + block_size - 1;
-    it->start = result.end + 1;
-    assert(result.start <= result.end);
-    assert(result.start < it->start);
-  }
-
-  return result;
-}
-
 void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
                                                     rpl_gno gno) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
+
   group_gtid_executed->_add_gtid(sidno, gno);
   /*
     We only need to track certified transactions on
@@ -562,7 +477,7 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
      3) the transactions use the view UUID
   */
   if (certifying_already_applied_transactions &&
-      (sidno == group_gtid_sid_map_group_sidno ||
+      (sidno == group_gtid_tsid_map_group_sidno ||
        sidno == views_sidno_group_representation))
     group_gtid_extracted->_add_gtid(sidno, gno);
 }
@@ -596,15 +511,15 @@ void Certifier::clear_members() {
 int Certifier::initialize(ulonglong gtid_assignment_block_size) {
   DBUG_TRACE;
   int error = 0;
-  mysql_mutex_lock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
 
   if (is_initialized()) {
-    error = 1; /* purecov: inspected */
-    goto end;  /* purecov: inspected */
+    return 1;
   }
 
   assert(gtid_assignment_block_size >= 1);
-  this->gtid_assignment_block_size = gtid_assignment_block_size;
+
+  gtid_generator.initialize(gtid_assignment_block_size);
 
   /*
     We need to initialize group_gtid_executed from both GTID_EXECUTED
@@ -614,15 +529,11 @@ int Certifier::initialize(ulonglong gtid_assignment_block_size) {
   */
   if (initialize_server_gtid_set(true)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFICATION_INITIALIZATION_FAILURE);
-    error = 1;
-    goto end;
+    return 1;
   }
 
   error = broadcast_thread->initialize();
   initialized = !error;
-
-end:
-  mysql_mutex_unlock(&LOCK_certification_info);
   return error;
 }
 
@@ -648,22 +559,284 @@ void Certifier::increment_parallel_applier_sequence_number(
   parallel_applier_sequence_number++;
 }
 
-rpl_gno Certifier::certify(Gtid_set *snapshot_version,
-                           std::list<const char *> *write_set,
-                           bool generate_group_id, const char *member_uuid,
-                           Gtid_log_event *gle, bool local_transaction) {
+namespace {
+
+/// @brief This function will add a given tsid into the gtid_set
+/// In case adding tsid fails, plugin will report error_code
+/// @param tsid Tsid to be added into gtid_set
+/// @param gtid_set Gtid set into which tsid will be added
+std::pair<rpl_sidno, mysql::utils::Return_status>
+add_tsid_to_gtid_set_and_sid_map(gr::Gtid_tsid &tsid, Gtid_set &gtid_set) {
+  // Add received transaction GTID tsid to TSID map in gtid_set
+  auto certification_state = mysql::utils::Return_status::ok;
+  auto sidno = gtid_set.get_tsid_map()->add_tsid(tsid);
+  if (sidno < 1) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    certification_state = mysql::utils::Return_status::error;
+    sidno = 0;
+  }
+  if (gtid_set.ensure_sidno(sidno) != RETURN_STATUS_OK) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    certification_state = mysql::utils::Return_status::error;
+    sidno = 0;
+  }
+  return std::make_pair(sidno, certification_state);
+}
+
+}  // namespace
+
+std::tuple<rpl_sidno, rpl_sidno, rpl_sidno, mysql::utils::Return_status>
+Certifier::extract_sidno(Gtid_log_event &gle, bool is_gtid_specified,
+                         Gtid_set &snapshot_gtid_set,
+                         Gtid_set &group_gtid_set) {
+  std::tuple<rpl_sidno, rpl_sidno, rpl_sidno, mysql::utils::Return_status>
+      result = std::make_tuple(0, 0, 0, mysql::utils::Return_status::error);
+
+  // Get the tsid: either the specified one or the group's one.
+  gr::Gtid_tsid tsid;
+  rpl_sidno server_sidno;
+  if (is_gtid_specified) {
+    // SPECIFIED GTID
+    tsid = gle.get_tsid();
+    server_sidno = gle.get_sidno(true);
+  } else {
+    // AUTOMATIC tagged/untagged
+    const char *group_name = get_group_name_var();
+    server_sidno = get_group_sidno();
+    std::ignore = tsid.from_cstring(group_name);
+    if (gle.is_tagged()) {
+      tsid.set_tag(gle.get_tsid().get_tag());
+      server_sidno = get_sidno_from_global_tsid_map(tsid);
+    }
+  }
+
+  if (server_sidno == -1) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    return result;
+  }
+
+  // get snapshot sidno
+  auto [snapshot_sidno, snapshot_add_code] =
+      add_tsid_to_gtid_set_and_sid_map(tsid, snapshot_gtid_set);
+  if (snapshot_add_code == mysql::utils::Return_status::error) {
+    return result;
+  }
+
+  // get group sidno
+  auto [group_sidno, group_add_code] =
+      add_tsid_to_gtid_set_and_sid_map(tsid, group_gtid_set);
+  if (group_add_code == mysql::utils::Return_status::error) {
+    return result;
+  }
+
+  return std::make_tuple(group_sidno, snapshot_sidno, server_sidno,
+                         mysql::utils::Return_status::ok);
+}
+
+Certified_gtid Certifier::end_certification_result(
+    const rpl_sidno &gtid_global_sidno, const rpl_sidno &gtid_group_sidno,
+    const rpl_gno &generated_gno, bool is_gtid_specified,
+    bool local_transaction, const Certification_result &certification_result) {
+  rpl_gno gno = generated_gno;
+  if (certification_result == Certification_result::error) {
+    gno = -1;
+  } else if (certification_result == Certification_result::negative) {
+    gno = 0;
+  }
+  DBUG_PRINT(
+      "info",
+      ("Group replication Certifier: certification result: %" PRId64, gno));
+  Gtid server_gtid, group_gtid;
+  server_gtid.clear();
+  group_gtid.clear();
+  server_gtid.sidno = gtid_global_sidno;
+  group_gtid.sidno = gtid_group_sidno;
+  server_gtid.gno = group_gtid.gno = gno;
+  return Certified_gtid(server_gtid, group_gtid, is_gtid_specified,
+                        local_transaction, certification_result);
+}
+
+Certification_result Certifier::add_writeset_to_certification_info(
+    int64 &transaction_last_committed, Gtid_set *snapshot_version,
+    std::list<const char *> *write_set, bool local_transaction) {
+  // Only consider remote transactions for parallel applier indexes.
+  int64 transaction_sequence_number =
+      local_transaction ? -1 : parallel_applier_sequence_number;
+  Gtid_set_ref *snapshot_version_value = new Gtid_set_ref(
+      certification_info_tsid_map, transaction_sequence_number);
+  if (snapshot_version_value->add_gtid_set(snapshot_version) !=
+      RETURN_STATUS_OK) {
+    delete snapshot_version_value;
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_REF_VER_ERROR);
+    return Certification_result::error;
+  }
+
+  for (std::list<const char *>::iterator it = write_set->begin();
+       it != write_set->end(); ++it) {
+    int64 item_previous_sequence_number = -1;
+
+    add_item(*it, snapshot_version_value, &item_previous_sequence_number);
+
+    /*
+      Exclude previous sequence number that are smaller than global
+      last committed and that are the current sequence number.
+      transaction_last_committed is initialized with
+      parallel_applier_last_committed_global on the beginning of
+      "certify" method.
+    */
+    if (item_previous_sequence_number > transaction_last_committed &&
+        item_previous_sequence_number != parallel_applier_sequence_number)
+      transaction_last_committed = item_previous_sequence_number;
+  }
+  return Certification_result::positive;
+}
+
+namespace {
+
+/*
+  Only throw the error if the gtid is both on group_gtid_executed
+  and executed_gtids due to the following scenario(bug#34157846):
+
+  It is possible that gtid can be present in group_gtid_executed but
+  not in executed_gtids(i.e the gtid is not logged in the binary
+  log).
+   1)replica-worker - starts transaction execution,
+                      slave_worker_exec_event()->..calls
+                      group_replication_trans_before_commit.
+   2)gr-applier     - certifies the transaction and add gtid to
+                      group_gtid_executed.
+   3)replica-worker - proceeds to commit but commit order deadlock
+                      occurred and rollbacked the transaction.
+   4)replica-worker - retries the transaction,
+                      i) calls group_replication_trans_before_commit.
+                      ii) gr-applier tries to certify again the retried
+                          transaction.
+                      iii) retry certification would fail, if there is no
+                           check on gtid present in both executed_gtids
+                           and group_gtid_executed, since gtid is already
+                           added to group_gtid_executed as part of initial
+                           try(step 2).
+*/
+[[NODISCARD]] Certification_result check_gtid_collision(
+    rpl_sidno gtid_group_sidno, rpl_sidno gtid_global_sidno, rpl_gno gno,
+    Gtid_set &group_gtid_executed, const std::string &sid_str) {
+  if (group_gtid_executed.contains_gtid(gtid_group_sidno, gno)) {
+    // sidno is relative to global_tsid_map.
+    Gtid gtid = {gtid_global_sidno, gno};
+    if (is_gtid_committed(gtid)) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, sid_str.c_str(),
+                   gno);
+      return Certification_result::negative;
+    }
+  }
+  return Certification_result::positive;
+}
+
+}  // namespace
+
+void Certifier::update_transaction_dependency_timestamps(
+    Gtid_log_event &gle, bool has_write_set, int64 transaction_last_committed) {
+  bool update_parallel_applier_last_committed_global = false;
+
+  /*
+    'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
+    is DDL + DML, which write-sets do not capture all dependencies.
+    It is flagged through gle->last_committed and gle->sequence_number so
+    that it is only executed on parallel applier after all precedent
+    transactions like any other DDL.
+  */
+  if (0 == gle.last_committed && 0 == gle.sequence_number) {
+    update_parallel_applier_last_committed_global = true;
+  }
+
+  if (!has_write_set || update_parallel_applier_last_committed_global) {
+    /*
+      DDL does not have write-set, so we need to ensure that it
+      is applied without any other transaction in parallel.
+    */
+    transaction_last_committed = parallel_applier_sequence_number - 1;
+  }
+
+  gle.last_committed = transaction_last_committed;
+  gle.sequence_number = parallel_applier_sequence_number;
+  assert(gle.last_committed >= 0);
+  assert(gle.sequence_number > 0);
+  assert(gle.last_committed < gle.sequence_number);
+
+  increment_parallel_applier_sequence_number(
+      !has_write_set || update_parallel_applier_last_committed_global);
+
+  /*
+    Every Group Replication is started and the first remote transaction
+    is queued on replication_group_applier channel, we need to reset
+    applier internal previous sequence_number. Otherwise, if during the
+    start there was backlog to apply on replication_group_applier channel,
+    the previous sequence_number will be greater than the new one, which
+    is considered a error case.
+    Previously this reset was done by the View_change_log_event transaction,
+    but now that transaction may not be logged.
+  */
+  if (is_first_remote_transaction_certified) {
+    is_first_remote_transaction_certified = false;
+    gle.last_committed = 0;
+    gle.sequence_number = 0;
+  }
+}
+
+void debug_print_group_gtid_sets(const Gtid_set &group_gtid_executed,
+                                 const Gtid_set &group_gtid_extracted,
+                                 bool set_value) {
+#ifndef NDEBUG
+  char *group_gtid_executed_string = nullptr;
+  char *group_gtid_extracted_string = nullptr;
+  group_gtid_executed.to_string(&group_gtid_executed_string, true);
+  group_gtid_extracted.to_string(&group_gtid_extracted_string, true);
+  DBUG_PRINT(
+      "info",
+      ("Set certifying_already_applied_transactions to %d. "
+       "group_gtid_executed: \"%s\"; group_gtid_extracted_string: \"%s\"",
+       set_value, group_gtid_executed_string, group_gtid_extracted_string));
+  my_free(group_gtid_executed_string);
+  my_free(group_gtid_extracted_string);
+#endif
+}
+
+Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
+                                  std::list<const char *> *write_set,
+                                  bool is_gtid_specified,
+                                  const char *member_uuid, Gtid_log_event *gle,
+                                  bool local_transaction) {
   DBUG_TRACE;
-  rpl_gno result = 0;
+
+  rpl_sidno gtid_group_sidno = 0, gtid_snapshot_sidno = 0,
+            gtid_global_sidno = 0;
+
+  rpl_gno gtid_gno = 0;
+
   const bool has_write_set = !write_set->empty();
 
-  if (!is_initialized()) return -1; /* purecov: inspected */
+  auto end_certification = [
+    &is_gtid_specified, &gtid_global_sidno, &gtid_group_sidno, &gtid_gno,
+    local_transaction,
+    this
+  ](Certification_result result) -> auto {
+    update_certified_transaction_count(result == Certification_result::positive,
+                                       local_transaction);
+    return end_certification_result(gtid_global_sidno, gtid_group_sidno,
+                                    gtid_gno, is_gtid_specified,
+                                    local_transaction, result);
+  };
 
-  mysql_mutex_lock(&LOCK_certification_info);
+  if (!is_initialized()) {
+    return end_certification(Certification_result::error);
+  }
+
+  MUTEX_LOCK(guard, &LOCK_certification_info);
   int64 transaction_last_committed = parallel_applier_last_committed_global;
 
   DBUG_EXECUTE_IF("certifier_force_1_negative_certification", {
     DBUG_SET("-d,certifier_force_1_negative_certification");
-    goto end;
+    return end_certification(Certification_result::negative);
   });
 
   if (conflict_detection_enable) {
@@ -681,7 +854,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       */
       if (certified_write_set_snapshot_version != nullptr &&
           !certified_write_set_snapshot_version->is_subset(snapshot_version))
-        goto end;
+        return end_certification(Certification_result::negative);
     }
   }
 
@@ -689,19 +862,18 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       !group_gtid_extracted->is_subset_not_equals(group_gtid_executed)) {
     certifying_already_applied_transactions = false;
 
-#ifndef NDEBUG
-    char *group_gtid_executed_string = nullptr;
-    char *group_gtid_extracted_string = nullptr;
-    group_gtid_executed->to_string(&group_gtid_executed_string, true);
-    group_gtid_extracted->to_string(&group_gtid_extracted_string, true);
-    DBUG_PRINT(
-        "Certifier::certify()",
-        ("Set certifying_already_applied_transactions to false. "
-         "group_gtid_executed: \"%s\"; group_gtid_extracted_string: \"%s\"",
-         group_gtid_executed_string, group_gtid_extracted_string));
-    my_free(group_gtid_executed_string);
-    my_free(group_gtid_extracted_string);
-#endif
+    debug_print_group_gtid_sets(*group_gtid_executed, *group_gtid_extracted,
+                                false);
+  }
+
+  mysql::utils::Return_status certification_state;
+  std::tie(gtid_group_sidno, gtid_snapshot_sidno, gtid_global_sidno,
+           certification_state) =
+      extract_sidno(*gle, is_gtid_specified, *snapshot_version,
+                    *group_gtid_executed);
+
+  if (certification_state == mysql::utils::Return_status::error) {
+    return end_certification(Certification_result::error);
   }
 
   /*
@@ -710,419 +882,84 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     This situation happens when transactions are executed with
     GTID_NEXT equal to AUTOMATIC_GTID (the default case).
   */
-  if (generate_group_id) {
-    /*
-      We need to ensure that group sidno does exist on snapshot
-      version due to the following scenario:
-        1) Member joins the group.
-        2) Goes through recovery procedure, view change is queued to
-           apply, member is marked ONLINE. This requires
-             --group_replication_recovery_complete_at=TRANSACTIONS_CERTIFIED
-           to happen.
-        3) Despite the view change log event is still being applied,
-           since the member is already ONLINE it can execute
-           transactions. The first transaction from this member will
-           not include any group GTID, since no group transaction is
-           yet applied.
-        4) As a result of this sequence snapshot_version will not
-           contain any group GTID and the below instruction
-             snapshot_version->_add_gtid(group_sidno, result);
-           would fail because of that.
-    */
-    if (snapshot_version->ensure_sidno(get_group_sidno()) != RETURN_STATUS_OK) {
-      LogPluginErr(
-          ERROR_LEVEL,
-          ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR); /* purecov: inspected */
-      goto end;                                        /* purecov: inspected */
+  if (!is_gtid_specified) {
+    mysql::utils::Return_status gno_generation_result;
+    std::tie(gtid_gno, gno_generation_result) =
+        gtid_generator.get_next_available_gtid(member_uuid, gtid_group_sidno,
+                                               *get_group_gtid_set());
+    if (gno_generation_result != mysql::utils::Return_status::ok) {
+      return end_certification(Certification_result::error);
     }
-
-    result = get_group_next_available_gtid(member_uuid);
-    if (result < 0) goto end;
-
-    /*
-      Add generated transaction GTID to transaction snapshot version.
-    */
-    snapshot_version->_add_gtid(get_group_sidno(), result);
-
-    /*
-      Store last conflict free transaction identification.
-      sidno must be relative to group_gtid_sid_map.
-    */
-    last_conflict_free_transaction.set(group_gtid_sid_map_group_sidno, result);
-
     DBUG_PRINT("info", ("Group replication Certifier: generated transaction "
                         "identifier: %" PRId64,
-                        result));
+                        gtid_gno));
   } else {
-    /*
-      Check if it is an already used GTID
-    */
-    rpl_sidno sidno_for_group_gtid_sid_map = gle->get_sidno(group_gtid_sid_map);
-    if (sidno_for_group_gtid_sid_map < 1) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_SIDNO_FETCH_ERROR); /* purecov: inspected */
-      goto end;                                   /* purecov: inspected */
+    gtid_gno = gle->get_gno();
+    auto tsid_str = gle->get_tsid().to_string();
+    auto gtid_collision_check_code =
+        check_gtid_collision(gtid_group_sidno, gtid_global_sidno, gtid_gno,
+                             *group_gtid_executed, tsid_str);
+    if (gtid_collision_check_code == Certification_result::negative) {
+      return end_certification(Certification_result::negative);
     }
-
-    /*
-      Only throw the error if the gtid is both on group_gtid_executed
-      and executed_gtids due to the following scenario(bug#34157846):
-
-      It is possible that gtid can present in group_gtid_executed but
-      not in executed_gtids(i.e the gtid is not logged in the binary
-      log).
-       1)replica-worker - starts transaction execution,
-                          slave_worker_exec_event()->..calls
-                          group_replication_trans_before_commit.
-       2)gr-applier     - certifies the transaction and add gtid to
-                          group_gtid_executed.
-       3)replica-worker - proceeds to commit but commit order deadlock
-                          occurred and rollbacked the transaction.
-       4)replica-worker - retries the transaction,
-                          i) calls group_replication_trans_before_commit.
-                          ii) gr-applier tries to certify again the retried
-                              transaction.
-                          iii) retry certification would fail, if there is no
-                               check on gtid present in both executed_gtids
-                               and group_gtid_executed, since gtid is already
-                               added to group_gtid_executed as part of initial
-                               try(step 2).
-    */
-    if (group_gtid_executed->contains_gtid(sidno_for_group_gtid_sid_map,
-                                           gle->get_gno())) {
-      // sidno is relative to global_sid_map.
-      Gtid gtid = {gle->get_sidno(true), gle->get_gno()};
-      if (is_gtid_committed(gtid)) {
-        char buf[rpl_sid::TEXT_LENGTH + 1];
-        gle->get_sid()->to_string(buf);
-
-        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, buf,
-                     gle->get_gno());
-        goto end;
-      }
-    }
-    /*
-      Add received transaction GTID to transaction snapshot version.
-    */
-    rpl_sidno sidno = gle->get_sidno(snapshot_version->get_sid_map());
-    if (sidno < 1) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_SIDNO_FETCH_ERROR); /* purecov: inspected */
-      goto end;                                   /* purecov: inspected */
-    }
-
-    if (snapshot_version->ensure_sidno(sidno) != RETURN_STATUS_OK) {
-      LogPluginErr(
-          ERROR_LEVEL,
-          ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR); /* purecov: inspected */
-      goto end;                                        /* purecov: inspected */
-    }
-    snapshot_version->_add_gtid(sidno, gle->get_gno());
-
-    /*
-      Store last conflict free transaction identification.
-      sidno must be relative to group_gtid_sid_map.
-    */
-    rpl_sidno last_conflict_free_transaction_sidno =
-        gle->get_sidno(group_gtid_sid_map);
-    if (last_conflict_free_transaction_sidno < 1) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_UPDATE_LAST_CONFLICT_FREE_TRANS_ERROR); /* purecov:
-                                                                inspected */
-    } else {
-      last_conflict_free_transaction.set(last_conflict_free_transaction_sidno,
-                                         gle->get_gno());
-    }
-
-    result = 1;
     DBUG_PRINT(
         "info",
         ("Group replication Certifier: there was no transaction identifier "
          "generated since transaction already had a GTID specified"));
   }
 
+  // Add received transaction GTID to transaction snapshot version.
+  snapshot_version->_add_gtid(gtid_snapshot_sidno, gtid_gno);
+
+  // Store last conflict free transaction identification.
+  // sidno must be relative to group_gtid_sid_map.
+  last_conflict_free_transaction.set(gtid_group_sidno, gtid_gno);
+
   /*
     Add the transaction's write set to certification info.
   */
   if (has_write_set) {
-    // Only consider remote transactions for parallel applier indexes.
-    int64 transaction_sequence_number =
-        local_transaction ? -1 : parallel_applier_sequence_number;
-    Gtid_set_ref *snapshot_version_value = new Gtid_set_ref(
-        certification_info_sid_map, transaction_sequence_number);
-    if (snapshot_version_value->add_gtid_set(snapshot_version) !=
-        RETURN_STATUS_OK) {
-      result = 0;                    /* purecov: inspected */
-      delete snapshot_version_value; /* purecov: inspected */
-      LogPluginErr(
-          ERROR_LEVEL,
-          ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_REF_VER_ERROR); /* purecov: inspected
-                                                            */
-      goto end; /* purecov: inspected */
-    }
-
-    for (std::list<const char *>::iterator it = write_set->begin();
-         it != write_set->end(); ++it) {
-      int64 item_previous_sequence_number = -1;
-
-      add_item(*it, snapshot_version_value, &item_previous_sequence_number);
-
-      /*
-        Exclude previous sequence number that are smaller than global
-        last committed and that are the current sequence number.
-        transaction_last_committed is initialized with
-        parallel_applier_last_committed_global on the beginning of
-        this method.
-      */
-      if (item_previous_sequence_number > transaction_last_committed &&
-          item_previous_sequence_number != parallel_applier_sequence_number)
-        transaction_last_committed = item_previous_sequence_number;
+    auto add_writeset_code = add_writeset_to_certification_info(
+        transaction_last_committed, snapshot_version, write_set,
+        local_transaction);
+    if (add_writeset_code != Certification_result::positive) {
+      return end_certification(Certification_result::error);
     }
   }
 
-  /*
-    Update parallel applier indexes.
-  */
+  // Update parallel applier indexes for local transactions
   if (!local_transaction) {
-    /*
-      'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
-      is DDL + DML, which write-sets do not capture all dependencies.
-      It is flagged through gle->last_committed and gle->sequence_number so
-      that it is only executed on parallel applier after all precedent
-      transactions like any other DDL.
-    */
-    bool update_parallel_applier_last_committed_global = false;
-    if (0 == gle->last_committed && 0 == gle->sequence_number) {
-      update_parallel_applier_last_committed_global = true;
-    }
-
-    if (!has_write_set || update_parallel_applier_last_committed_global) {
-      /*
-        DDL does not have write-set, so we need to ensure that it
-        is applied without any other transaction in parallel.
-      */
-      transaction_last_committed = parallel_applier_sequence_number - 1;
-    }
-
-    gle->last_committed = transaction_last_committed;
-    gle->sequence_number = parallel_applier_sequence_number;
-    assert(gle->last_committed >= 0);
-    assert(gle->sequence_number > 0);
-    assert(gle->last_committed < gle->sequence_number);
-
-    increment_parallel_applier_sequence_number(
-        !has_write_set || update_parallel_applier_last_committed_global);
-
-    /*
-      Every Group Replication is started and the first remote transaction
-      is queued on replication_group_applier channel, we need to reset
-      applier internal previous sequence_number. Otherwise, if during the
-      start there was backlog to apply on replication_group_applier channel,
-      the previous sequence_number will be greater than the new one, which
-      is considered a error case.
-      Previously this reset was done by the View_change_log_event transaction,
-      but now that transaction may not be logged.
-    */
-    if (is_first_remote_transaction_certified) {
-      is_first_remote_transaction_certified = false;
-      gle->last_committed = 0;
-      gle->sequence_number = 0;
-    }
+    update_transaction_dependency_timestamps(*gle, has_write_set,
+                                             transaction_last_committed);
   }
 
-end:
-  update_certified_transaction_count(result > 0, local_transaction);
-
-  mysql_mutex_unlock(&LOCK_certification_info);
-  DBUG_PRINT(
-      "info",
-      ("Group replication Certifier: certification result: %" PRId64, result));
-  return result;
+  return end_certification(Certification_result::positive);
 }
 
-int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle) {
+int Certifier::add_gtid_to_group_gtid_executed(const Gtid &gtid) {
   DBUG_TRACE;
-
-  mysql_mutex_lock(&LOCK_certification_info);
-  rpl_sidno sidno = gle->get_sidno(group_gtid_sid_map);
-
-  if (sidno < 1) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_FETCH_TRANS_SIDNO_ERROR); /* purecov: inspected */
-    mysql_mutex_unlock(&LOCK_certification_info);     /* purecov: inspected */
-    return 1;                                         /* purecov: inspected */
-  }
-
-  if (group_gtid_executed->ensure_sidno(sidno) != RETURN_STATUS_OK) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_ERROR_VERIFYING_SIDNO); /* purecov: inspected */
-    mysql_mutex_unlock(&LOCK_certification_info);   /* purecov: inspected */
-    return 1;                                       /* purecov: inspected */
-  }
-
-  add_to_group_gtid_executed_internal(sidno, gle->get_gno());
-
-  mysql_mutex_unlock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
+  add_to_group_gtid_executed_internal(gtid.sidno, gtid.gno);
   return 0;
 }
 
-int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno) {
-  DBUG_TRACE;
-  mysql_mutex_lock(&LOCK_certification_info);
-  add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, gno);
-  mysql_mutex_unlock(&LOCK_certification_info);
-  return 0;
+const Gtid_set *Certifier::get_group_gtid_set() const {
+  return certifying_already_applied_transactions ? group_gtid_extracted
+                                                 : group_gtid_executed;
 }
 
-/*
-  This method will return the next GNO for the current transaction, it
-  will work with two behaviours:
-
-  1) member_uuid == NULL || gtid_assignment_block_size <= 1
-     View_change_log_events creation does call this method with
-     member_uuid set to NULL to force it to be created with the
-     first available GNO of the group. This will ensure that all
-     members do use the same GNO for it.
-     After a View_change_log_event is created we recompute available
-     GNOs to ensure that all members do have the same available GNOs
-     set.
-     This branch is also used when gtid_assignment_block_size is
-     set to 1, meaning that GNO will be assigned sequentially
-     according with certification order.
-
-  2) On the second branch we assign GNOs according to intervals
-     assigned to each member.
-     To avoid having eternal gaps when a member do use all of its
-     assigned GNOs, periodically we recompute the intervals, this
-     will make that GNOs available to other members.
-     The GNO is generated within the interval of available GNOs for
-     a given member.
-     When a member exhaust its assigned GNOs we reserve more for it
-     from the available GNOs set.
-*/
-rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
-  return get_next_available_gtid(member_uuid, group_gtid_sid_map_group_sidno);
+Gtid_set *Certifier::get_group_gtid_set() {
+  return certifying_already_applied_transactions ? group_gtid_extracted
+                                                 : group_gtid_executed;
 }
 
 void Certifier::gtid_intervals_computation() {
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_certification_info);
-  if (gtid_assignment_block_size > 1) compute_group_available_gtid_intervals();
+  if (gtid_generator.get_gtid_assignment_block_size() > 1) {
+    gtid_generator.recompute(*get_group_gtid_set());
+  }
   mysql_mutex_unlock(&LOCK_certification_info);
-}
-
-rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
-                                           rpl_sidno sidno) {
-  DBUG_TRACE;
-  mysql_mutex_assert_owner(&LOCK_certification_info);
-  rpl_gno result = 0;
-
-  if (member_uuid == nullptr || gtid_assignment_block_size <= 1) {
-    result = get_next_available_gtid_candidate(sidno, 1, GNO_END);
-    if (result < 0) {
-      assert(result == -1);
-      return result;
-    }
-
-    /*
-      If we did log a view change event we need to recompute
-      intervals, so that all members start from the same
-      intervals.
-    */
-    if (member_uuid == nullptr && gtid_assignment_block_size > 1)
-      compute_group_available_gtid_intervals();
-  } else {
-    /*
-      After a number of rounds equal to block size the blocks are
-      collected back so that the GTID holes can be filled up by
-      following transactions from other members.
-    */
-    if (gtids_assigned_in_blocks_counter % (gtid_assignment_block_size + 1) ==
-        0)
-      compute_group_available_gtid_intervals();
-
-    /*
-      GTID is assigned in blocks to each member and are consumed
-      from that block unless a new block is needed.
-    */
-    std::string member(member_uuid);
-    std::map<std::string, Gtid_set::Interval>::iterator it =
-        member_gtids.find(member);
-
-    if (it == member_gtids.end()) {
-      // There is no block assigned to this member so get one.
-      std::pair<std::map<std::string, Gtid_set::Interval>::iterator, bool>
-          insert_ret;
-      std::pair<std::string, Gtid_set::Interval> member_pair(
-          member, reserve_gtid_block(gtid_assignment_block_size));
-      insert_ret = member_gtids.insert(member_pair);
-      assert(insert_ret.second == true);
-      it = insert_ret.first;
-    }
-
-    result = get_next_available_gtid_candidate(sidno, it->second.start,
-                                               it->second.end);
-    while (result == -2) {
-      // Block has no available GTIDs, reserve more.
-      it->second = reserve_gtid_block(gtid_assignment_block_size);
-      result = get_next_available_gtid_candidate(sidno, it->second.start,
-                                                 it->second.end);
-    }
-    if (result < 0) return result;
-
-    it->second.start = result;
-    gtids_assigned_in_blocks_counter++;
-  }
-
-  assert(result > 0);
-  return result;
-}
-
-rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
-                                                     rpl_gno start,
-                                                     rpl_gno end) const {
-  DBUG_TRACE;
-  assert(start > 0);
-  assert(start <= end);
-  mysql_mutex_assert_owner(&LOCK_certification_info);
-
-  rpl_gno candidate = start;
-  Gtid_set::Const_interval_iterator ivit(certifying_already_applied_transactions
-                                             ? group_gtid_extracted
-                                             : group_gtid_executed,
-                                         sidno);
-#ifndef NDEBUG
-  if (certifying_already_applied_transactions)
-    DBUG_PRINT("Certifier::get_next_available_gtid_candidate()",
-               ("Generating group transaction id from group_gtid_extracted"));
-#endif
-
-  /*
-    Walk through available intervals until we find the correct one
-    or return GNO exhausted error.
-  */
-  while (true) {
-    assert(candidate >= start);
-    const Gtid_set::Interval *iv = ivit.get();
-    rpl_gno next_interval_start = iv != nullptr ? iv->start : GNO_END;
-
-    // Correct interval.
-    if (candidate < next_interval_start) {
-      if (candidate <= end)
-        return candidate;
-      else
-        return -2;
-    }
-
-    if (iv == nullptr) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_GENERATE_GTID);
-      return -1;
-    }
-
-    candidate = std::max(candidate, iv->end);
-    ivit.next();
-  }
 }
 
 bool Certifier::add_item(const char *item, Gtid_set_ref *snapshot_version,
@@ -1408,8 +1245,8 @@ int Certifier::stable_set_handle() {
   Data_packet *packet = nullptr;
   int error = 0;
 
-  Sid_map sid_map(nullptr);
-  Gtid_set executed_set(&sid_map, nullptr);
+  Tsid_map tsid_map(nullptr);
+  Gtid_set executed_set(&tsid_map, nullptr);
 
   /*
     Compute intersection between all received sets.
@@ -1425,8 +1262,8 @@ int Certifier::stable_set_handle() {
     }
 
     uchar *payload = packet->payload;
-    Gtid_set member_set(&sid_map, nullptr);
-    Gtid_set intersection_result(&sid_map, nullptr);
+    Gtid_set member_set(&tsid_map, nullptr);
+    Gtid_set intersection_result(&tsid_map, nullptr);
 
     if (member_set.add_gtid_encoding(payload, packet->len) !=
         RETURN_STATUS_OK) {
@@ -1526,7 +1363,7 @@ void Certifier::handle_view_change() {
 void Certifier::get_certification_info(
     std::map<std::string, std::string> *cert_info) {
   DBUG_TRACE;
-  mysql_mutex_lock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
 
   for (Certification_info::iterator it = certification_info.begin();
        it != certification_info.end(); ++it) {
@@ -1550,8 +1387,6 @@ void Certifier::get_certification_info(
   my_free(buf);
   (*cert_info)
       .insert(std::pair<std::string, std::string>(GTID_EXTRACTED_NAME, value));
-
-  mysql_mutex_unlock(&LOCK_certification_info);
 }
 
 bool Certifier::set_certification_info_recovery_metadata(
@@ -1735,7 +1570,7 @@ bool Certifier::set_certification_info_part(
          ++it) {
       std::string key = it->first;
 
-      Gtid_set_ref *value = new Gtid_set_ref(certification_info_sid_map, -1);
+      Gtid_set_ref *value = new Gtid_set_ref(certification_info_tsid_map, -1);
       if (value->add_gtid_encoding(
               reinterpret_cast<const uchar *>(it->second.c_str()),
               it->second.length()) != RETURN_STATUS_OK) {
@@ -1904,22 +1739,26 @@ err:
   return error;
 }
 
-Gtid Certifier::generate_view_change_group_gtid() {
+std::pair<Gtid, mysql::utils::Return_status>
+Certifier::generate_view_change_group_gtid() {
   DBUG_TRACE;
 
-  mysql_mutex_lock(&LOCK_certification_info);
-  rpl_gno result =
-      get_next_available_gtid(nullptr, views_sidno_group_representation);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
+  auto [generated_gno, generation_code] =
+      gtid_generator.get_next_available_gtid(
+          nullptr, views_sidno_group_representation, *get_group_gtid_set());
 
-  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5", assert(result == 5););
-  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7", assert(result == 7););
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5",
+                  assert(generated_gno == 5););
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7",
+                  assert(generated_gno == 7););
 
-  if (result > 0)
+  if (generation_code == mysql::utils::Return_status::ok)
     add_to_group_gtid_executed_internal(views_sidno_group_representation,
-                                        result);
-  mysql_mutex_unlock(&LOCK_certification_info);
+                                        generated_gno);
 
-  return {views_sidno_server_representation, result};
+  Gtid resulting_gtid{views_sidno_server_representation, generated_gno};
+  return std::make_pair(resulting_gtid, generation_code);
 }
 
 int Certifier::set_certification_info(
@@ -1938,7 +1777,7 @@ int Certifier::set_certification_info(
     }
   }
 
-  mysql_mutex_lock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
 
   clear_certification_info();
   for (std::map<std::string, std::string>::iterator it = cert_info->begin();
@@ -1957,21 +1796,19 @@ int Certifier::set_certification_info(
         LogPluginErr(
             ERROR_LEVEL,
             ER_GRP_RPL_CANT_READ_GRP_GTID_EXTRACTED); /* purecov: inspected */
-        mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
         return 1;                                     /* purecov: inspected */
       }
       continue;
     }
 
-    Gtid_set_ref *value = new Gtid_set_ref(certification_info_sid_map, -1);
+    Gtid_set_ref *value = new Gtid_set_ref(certification_info_tsid_map, -1);
     if (value->add_gtid_encoding(
             reinterpret_cast<const uchar *>(it->second.c_str()),
             it->second.length()) != RETURN_STATUS_OK) {
       delete value; /* purecov: inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM,
-                   key.c_str());                    /* purecov: inspected */
-      mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
-      return 1;                                     /* purecov: inspected */
+                   key.c_str()); /* purecov: inspected */
+      return 1;                  /* purecov: inspected */
     }
     value->link();
     certification_info.insert(
@@ -1982,30 +1819,17 @@ int Certifier::set_certification_info(
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE); /* purecov: inspected */
-    mysql_mutex_unlock(&LOCK_certification_info);    /* purecov: inspected */
     return 1;                                        /* purecov: inspected */
   }
 
   if (group_gtid_extracted->is_subset_not_equals(group_gtid_executed)) {
     certifying_already_applied_transactions = true;
-    compute_group_available_gtid_intervals();
+    gtid_generator.recompute(*get_group_gtid_set());
 
-#ifndef NDEBUG
-    char *group_gtid_executed_string = nullptr;
-    char *group_gtid_extracted_string = nullptr;
-    group_gtid_executed->to_string(&group_gtid_executed_string, true);
-    group_gtid_extracted->to_string(&group_gtid_extracted_string, true);
-    DBUG_PRINT(
-        "Certifier::set_certification_info()",
-        ("Set certifying_already_applied_transactions to true. "
-         "group_gtid_executed: \"%s\"; group_gtid_extracted_string: \"%s\"",
-         group_gtid_executed_string, group_gtid_extracted_string));
-    my_free(group_gtid_executed_string);
-    my_free(group_gtid_extracted_string);
-#endif
+    debug_print_group_gtid_sets(*group_gtid_executed, *group_gtid_extracted,
+                                true);
   }
 
-  mysql_mutex_unlock(&LOCK_certification_info);
   return 0;
 }
 
@@ -2058,44 +1882,37 @@ void Certifier::get_last_conflict_free_transaction(std::string *value) {
   int length = 0;
   char buffer[Gtid::MAX_TEXT_LENGTH + 1];
 
-  mysql_mutex_lock(&LOCK_certification_info);
-  if (last_conflict_free_transaction.is_empty()) goto end;
+  MUTEX_LOCK(guard, &LOCK_certification_info);
+  if (last_conflict_free_transaction.is_empty()) return;
 
-  length = last_conflict_free_transaction.to_string(group_gtid_sid_map, buffer);
+  length =
+      last_conflict_free_transaction.to_string(group_gtid_tsid_map, buffer);
   if (length > 0) value->assign(buffer);
-
-end:
-  mysql_mutex_unlock(&LOCK_certification_info);
 }
 
 void Certifier::enable_conflict_detection() {
   DBUG_TRACE;
 
-  mysql_mutex_lock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
   conflict_detection_enable = true;
   local_member_info->enable_conflict_detection();
-  mysql_mutex_unlock(&LOCK_certification_info);
 }
 
 void Certifier::disable_conflict_detection() {
   DBUG_TRACE;
   assert(local_member_info->in_primary_mode());
-
-  mysql_mutex_lock(&LOCK_certification_info);
-  conflict_detection_enable = false;
-  local_member_info->disable_conflict_detection();
-  mysql_mutex_unlock(&LOCK_certification_info);
-
+  {
+    MUTEX_LOCK(guard, &LOCK_certification_info);
+    conflict_detection_enable = false;
+    local_member_info->disable_conflict_detection();
+  }
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFLICT_DETECTION_DISABLED);
 }
 
 bool Certifier::is_conflict_detection_enable() {
   DBUG_TRACE;
-
-  mysql_mutex_lock(&LOCK_certification_info);
+  MUTEX_LOCK(guard, &LOCK_certification_info);
   bool result = conflict_detection_enable;
-  mysql_mutex_unlock(&LOCK_certification_info);
-
   return result;
 }
 

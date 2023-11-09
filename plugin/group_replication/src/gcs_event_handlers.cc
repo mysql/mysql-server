@@ -257,9 +257,22 @@ void Plugin_gcs_events_handler::handle_transaction_prepared_message(
       message.get_message_data().get_payload(),
       message.get_message_data().get_payload_length());
 
+  if (transaction_prepared_message.is_valid() == false) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DECODING_FAILED,
+                 "Transaction_prepared_message",
+                 transaction_prepared_message.get_error()->get_message());
+    auto error_msg =
+        "Failure when processing a received transaction prepared message from "
+        "the communication layer.";
+    Error_action_packet *error_action = new Error_action_packet(error_msg);
+    this->applier_module->add_packet(error_action);
+    return;
+  }
+
   Transaction_prepared_action_packet *transaction_prepared_action =
       new Transaction_prepared_action_packet(
-          transaction_prepared_message.get_sid(),
+          transaction_prepared_message.get_tsid(),
+          transaction_prepared_message.is_tsid_specified(),
           transaction_prepared_message.get_gno(), message.get_origin());
   this->applier_module->add_transaction_prepared_action_packet(
       transaction_prepared_action);
@@ -1864,10 +1877,10 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
 int Plugin_gcs_events_handler::compare_member_transaction_sets() const {
   int result = 0;
 
-  Sid_map local_sid_map(nullptr);
-  Sid_map group_sid_map(nullptr);
-  Gtid_set local_member_set(&local_sid_map, nullptr);
-  Gtid_set group_set(&group_sid_map, nullptr);
+  Tsid_map local_tsid_map(nullptr);
+  Tsid_map group_tsid_map(nullptr);
+  Gtid_set local_member_set(&local_tsid_map, nullptr);
+  Gtid_set group_set(&group_tsid_map, nullptr);
 
   Group_member_info_list *all_members = group_member_mgr->get_all_members();
   Group_member_info_list_iterator all_members_it;

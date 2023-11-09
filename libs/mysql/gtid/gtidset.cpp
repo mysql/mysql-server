@@ -109,48 +109,70 @@ Gtid_set &Gtid_set::operator=(const Gtid_set &other) {
   return *this;
 }
 
-Gtid_set::Gtid_set(const Gtid_set &other) { *this = other; }
-
 bool Gtid_set::operator==(const Gtid_set &other) const {
-  const auto &other_interval_list = other.get_gtid_set();
-  const auto &this_interval_list = m_gtid_set;
+  const auto &other_set = other.get_gtid_set();
+  const auto &this_set = m_gtid_set;
 
-  if (other_interval_list.size() != this_interval_list.size()) return false;
+  if (other_set.size() != this_set.size()) return false;
 
-  for (auto const &[uuid, other_intervals] : other_interval_list) {
-    auto it = this_interval_list.find(uuid);
-
+  for (auto const &[other_uuid, other_tag_map] : other_set) {
+    auto tag_map_it = this_set.find(other_uuid);
     // uuid does not exist in this set
-    if (it == this_interval_list.end()) return false;
+    if (tag_map_it == this_set.end()) {
+      return false;
+    }
 
-    // uuid exists, lets check if the set of intervals match
-    const auto &this_intervals = it->second;
-    if (this_intervals.size() != other_intervals.size()) return false;
+    const auto &this_tag_map = tag_map_it->second;
 
-    // check each interval for this uuid
-    for (const auto &interval : this_intervals) {
-      if (other_intervals.find(interval) == other_intervals.end()) return false;
+    // the number of tags
+    if (this_tag_map.size() != other_tag_map.size()) {
+      return false;
+    }
+
+    for (auto const &[other_tag, other_intervals] : other_tag_map) {
+      auto it = this_tag_map.find(other_tag);
+      // tsid does not exist in this set
+      if (it == this_tag_map.end()) {
+        return false;
+      }
+
+      // tsid exists, lets check if the set of intervals match
+      const auto &this_intervals = it->second;
+      if (this_intervals.size() != other_intervals.size()) return false;
+
+      // check each interval for this tsid
+      for (const auto &interval : this_intervals) {
+        if (other_intervals.find(interval) == other_intervals.end())
+          return false;
+      }
     }
   }
 
   return true;
 }
 
-bool Gtid_set::Uuid_comparator::operator()(const Uuid &lhs,
-                                           const Uuid &rhs) const {
-  return memcmp(rhs.bytes, lhs.bytes, Uuid::BYTE_LENGTH) > 0;
-}
-
-const Gtid_set::Gno_interval_list &Gtid_set::get_gtid_set() const {
+const Gtid_set::Tsid_interval_map &Gtid_set::get_gtid_set() const {
   return m_gtid_set;
 }
 
-bool Gtid_set::do_add(const Uuid &uuid, const Gno_interval &interval) {
-  auto it = m_gtid_set.find(uuid);
-  if (it == m_gtid_set.end()) {
+bool Gtid_set::do_add(const Tsid &tsid, const Gno_interval &interval) {
+  return this->do_add(tsid.get_uuid(), tsid.get_tag(), interval);
+}
+
+bool Gtid_set::do_add(const Uuid &uuid, const Tag &tag,
+                      const Gno_interval &interval) {
+  const auto &sid = uuid;
+  auto gtid_set_it = m_gtid_set.find(sid);
+  if (gtid_set_it == m_gtid_set.end()) {
+    auto ret = m_gtid_set.insert(std::make_pair(sid, Tag_interval_map()));
+    gtid_set_it = ret.first;
+  }
+
+  auto it = gtid_set_it->second.find(tag);
+  if (it == gtid_set_it->second.end()) {
     std::set<Gno_interval> intervals;
     intervals.insert(interval);
-    m_gtid_set.insert(std::pair<Uuid, std::set<Gno_interval>>(uuid, intervals));
+    gtid_set_it->second.insert(std::make_pair(tag, intervals));
     return false;
   }
 
@@ -179,14 +201,16 @@ bool Gtid_set::do_add(const Uuid &uuid, const Gno_interval &interval) {
   return false;
 }
 
-bool Gtid_set::add(const Uuid &uuid, const Gno_interval &interval) {
-  return do_add(uuid, interval);
+bool Gtid_set::add(const Tsid &tsid, const Gno_interval &interval) {
+  return do_add(tsid, interval);
 }
 
 bool Gtid_set::add(const Gtid_set &other) {
-  for (auto const &[uuid, intervals] : other.m_gtid_set) {
-    for (auto &interval : intervals) {
-      if (do_add(uuid, interval)) return true;
+  for (auto const &[uuid, tag_map] : other.m_gtid_set) {
+    for (auto const &[tag, intervals] : tag_map) {
+      for (auto &interval : intervals) {
+        if (do_add(uuid, tag, interval)) return true;
+      }
     }
   }
 
@@ -194,33 +218,42 @@ bool Gtid_set::add(const Gtid_set &other) {
 }
 
 bool Gtid_set::add(const Gtid &gtid) {
-  return do_add(gtid.get_uuid(), Gno_interval{gtid.get_gno(), gtid.get_gno()});
+  return do_add(gtid.get_tsid(), Gno_interval{gtid.get_gno(), gtid.get_gno()});
 }
 
 std::string Gtid_set::to_string() const {
   if (m_gtid_set.empty()) {
-    return EMPTY_GTID_SET;
+    return empty_gtid_set_str;
   }
 
   std::stringstream ss;
-  for (auto &[uuid, intervals] : m_gtid_set) {
-    ss << uuid.to_string() << Gtid::SEPARATOR_UUID_SEQNO;
-    assert(!intervals.empty());
-
-    for (auto &interval : intervals) {
-      ss << interval.to_string() << SEPARATOR_SEQNO_INTERVALS;
+  for (auto const &[uuid, tag_map] : m_gtid_set) {
+    ss << uuid.to_string();
+    ss << Gtid::separator_gtid;
+    assert(!tag_map.empty());
+    for (auto const &[tag, intervals] : tag_map) {
+      if (tag.is_empty() == false) {
+        ss << tag.to_string() << Gtid::separator_gtid;
+      }
+      assert(!intervals.empty());
+      for (auto &interval : intervals) {
+        ss << interval.to_string() << separator_interval;
+      }
+      ss.seekp(-1, std::ios_base::end);
+      ss << Gtid::separator_gtid;
     }
     ss.seekp(-1, std::ios_base::end);
-    ss << SEPARATOR_UUID_SETS;
+    ss << separator_uuid_set;
   }
-
-  ss.seekp(-1, std::ios_base::end);
   return std::string(ss.str(), 0, ss.str().size() - 1);
 }
 
 bool Gtid_set::contains(const Gtid &gtid) const {
-  auto it = m_gtid_set.find(gtid.get_uuid());
-  if (it == m_gtid_set.end()) return false;
+  auto tag_map_it = m_gtid_set.find(gtid.get_uuid());
+  if (tag_map_it == m_gtid_set.end()) return false;
+
+  auto it = tag_map_it->second.find(gtid.get_tag());
+  if (it == tag_map_it->second.end()) return false;
 
   for (const auto &interval : it->second) {
     if (gtid.get_gno() >= interval.get_start() &&
@@ -230,14 +263,24 @@ bool Gtid_set::contains(const Gtid &gtid) const {
   return false;
 }
 
+std::size_t Gtid_set::get_num_tsids() const {
+  std::size_t tsid_num = 0;
+  for (auto const &[uuid, tag_map] : m_gtid_set) {
+    tsid_num += tag_map.size();
+  }
+  return tsid_num;
+}
+
 bool Gtid_set::is_empty() const { return m_gtid_set.empty(); }
 
 std::size_t Gtid_set::count() const {
   std::size_t count{0};
 
-  for (auto const &[uuid, intervals] : m_gtid_set) {
-    for (auto &interval : intervals) {
-      count += interval.count();
+  for (auto const &[uuid, tag_map] : m_gtid_set) {
+    for (auto const &[tag, intervals] : tag_map) {
+      for (auto &interval : intervals) {
+        count += interval.count();
+      }
     }
   }
 
@@ -245,5 +288,16 @@ std::size_t Gtid_set::count() const {
 }
 
 void Gtid_set::reset() { m_gtid_set.clear(); }
+
+Gtid_format Gtid_set::get_gtid_set_format() const {
+  for (auto const &[uuid, tag_map] : m_gtid_set) {
+    for (auto const &[tag, intervals] : tag_map) {
+      if (tag.is_defined()) {
+        return Gtid_format::tagged;
+      }
+    }
+  }
+  return Gtid_format::untagged;
+}
 
 }  // namespace mysql::gtid

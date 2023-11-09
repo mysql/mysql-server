@@ -372,6 +372,16 @@ typedef struct MYSQL_RES {
 #define USE_HEARTBEAT_EVENT_V2 (1 << 1)
 
 /**
+ Flag to indicate that tagged GTIDS will be skipped in COM_BINLOG_DUMP_GTIDS
+*/
+#define MYSQL_RPL_SKIP_TAGGED_GTIDS (1 << 2)
+
+/**
+ Tagged GTIDS are supported starting from below version of MySQL
+*/
+#define MYSQL_TAGGED_GTIDS_VERSION_SUPPORT 80300
+
+/**
   Struct for information about a replication stream.
 
   @sa mysql_binlog_open()

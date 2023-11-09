@@ -42,7 +42,15 @@
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/compression/base.h"  // mysql::binlog::event::compression::type
 #include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"  // Buffer_sequence_view
+#include "mysql/gtid/gtid_constants.h"
+#include "mysql/gtid/tsid.h"
 #include "mysql/gtid/uuid.h"
+#include "mysql/serialization/field_definition_helpers.h"
+#include "mysql/serialization/field_functor.h"
+#include "mysql/serialization/read_archive_binary.h"
+#include "mysql/serialization/serializable.h"
+#include "mysql/serialization/serializer_default.h"
+#include "mysql/serialization/write_archive_binary.h"
 #include "template_utils.h"
 
 /// @addtogroup GroupLibsMysqlBinlogEvent
@@ -918,7 +926,7 @@ class Transaction_payload_event : public Binary_log_event {
   @class Gtid_event
   GTID stands for Global Transaction IDentifier
   It is composed of two parts:
-    - SID for Source Identifier, and
+    - TSID for Transaction Source Identifier, and
     - GNO for Group Number.
   The basic idea is to
      -  Associate an identifier, the Global Transaction IDentifier or GTID,
@@ -1003,7 +1011,8 @@ class Transaction_payload_event : public Binary_log_event {
   </table>
 
 */
-class Gtid_event : public Binary_log_event {
+class Gtid_event : public Binary_log_event,
+                   public mysql::serialization::Serializable<Gtid_event> {
  public:
   /*
     The transaction's logical timestamps used for MTS: see
@@ -1011,19 +1020,23 @@ class Gtid_event : public Binary_log_event {
     Transaction_ctx::sequence_number for details.
     Note: Transaction_ctx is in the MySQL server code.
   */
-  long long int last_committed;
-  long long int sequence_number;
+  int64_t last_committed;
+  int64_t sequence_number;
   /** GTID flags constants */
   unsigned const char FLAG_MAY_HAVE_SBR = 1;
   /** Transaction might have changes logged with SBR */
   bool may_have_sbr_stmts;
-  /** Timestamp when the transaction was committed on the originating master. */
-  unsigned long long int original_commit_timestamp;
-  /** Timestamp when the transaction was committed on the nearest master. */
-  unsigned long long int immediate_commit_timestamp;
+  /// GTID flags, used bits:
+  /// - FLAG_MAY_HAVE_SBR (1st bit)
+  unsigned char gtid_flags = 0;
+  /// Timestamp when the transaction was committed on the originating source.
+  uint64_t original_commit_timestamp;
+  /// Timestamp when the transaction was committed on the nearest source.
+  uint64_t immediate_commit_timestamp;
+  /// Flag indicating whether this event contains commit timestamps
   bool has_commit_timestamps;
-  /** The length of the transaction in bytes. */
-  unsigned long long int transaction_length;
+  /// The length of the transaction in bytes.
+  uint64_t transaction_length;
 
  public:
   /**
@@ -1061,7 +1074,11 @@ class Gtid_event : public Binary_log_event {
         immediate_commit_timestamp(immediate_commit_timestamp_arg),
         transaction_length(0),
         original_server_version(original_server_version_arg),
-        immediate_server_version(immediate_server_version_arg) {}
+        immediate_server_version(immediate_server_version_arg) {
+    if (may_have_sbr_stmts_arg) {
+      gtid_flags = FLAG_MAY_HAVE_SBR;
+    }
+  }
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
@@ -1079,6 +1096,99 @@ class Gtid_event : public Binary_log_event {
     being used.
   */
   static constexpr std::uint64_t kGroupTicketUnset = 0;
+
+  using Field_missing_functor = mysql::serialization::Field_missing_functor;
+  using Field_encode_predicate = mysql::serialization::Field_encode_predicate;
+  using Uuid = mysql::gtid::Uuid;
+  using Tag_plain = mysql::gtid::Tag_plain;
+
+  /*
+    Function defining how to deserialize GTID_TAGGED_LOG_EVENT
+    For optional fields, we define what value to assign in case field is not
+    present in the packet
+  */
+  decltype(auto) define_fields() {
+    return std::make_tuple(
+        mysql::serialization::define_field(gtid_flags),
+        mysql::serialization::define_field_with_size<Uuid::BYTE_LENGTH>(
+            tsid_parent_struct.get_uuid().bytes),
+        mysql::serialization::define_field(gtid_info_struct.rpl_gtid_gno),
+        mysql::serialization::define_field_with_size<
+            mysql::gtid::tag_max_length>(
+            tsid_parent_struct.get_tag_ref().get_data()),
+        mysql::serialization::define_field(last_committed),
+        mysql::serialization::define_field(sequence_number),
+        mysql::serialization::define_field(immediate_commit_timestamp),
+        mysql::serialization::define_field(
+            original_commit_timestamp, Field_missing_functor([this]() -> auto {
+              this->original_commit_timestamp =
+                  this->immediate_commit_timestamp;
+            })),
+        mysql::serialization::define_field(transaction_length),
+        mysql::serialization::define_field(immediate_server_version),
+        mysql::serialization::define_field(
+            original_server_version, Field_missing_functor([this]() -> auto {
+              this->original_server_version = this->immediate_server_version;
+            })),
+        mysql::serialization::define_field(
+            commit_group_ticket, Field_missing_functor([this]() -> auto {
+              this->commit_group_ticket = Gtid_event::kGroupTicketUnset;
+            })));
+  }
+
+  /*
+    Function defining how to serialize GTID_TAGGED_LOG_EVENT
+    For optional fields, we define function that will tell serializer whether
+    or not to include fields in the packet. Although binlogevents do not define
+    how to serialize an event, Gtid_event class defines functions that are
+    used during event serialization (set transaction length related functions).
+    We need to define how data is serialized in order to automatically calculate
+    event size
+  */
+  decltype(auto) define_fields() const {
+    return std::make_tuple(
+        mysql::serialization::define_field(gtid_flags),
+        mysql::serialization::define_field_with_size<Uuid::BYTE_LENGTH>(
+            tsid_parent_struct.get_uuid().bytes),
+        mysql::serialization::define_field(gtid_info_struct.rpl_gtid_gno),
+        mysql::serialization::define_field_with_size<
+            mysql::gtid::tag_max_length>(
+            tsid_parent_struct.get_tag().get_data()),
+        mysql::serialization::define_field(last_committed),
+        mysql::serialization::define_field(sequence_number),
+        mysql::serialization::define_field(immediate_commit_timestamp),
+        mysql::serialization::define_field(
+            original_commit_timestamp, Field_encode_predicate([this]() -> bool {
+              return this->original_commit_timestamp ==
+                     this->immediate_commit_timestamp;
+            })),
+        mysql::serialization::define_field(transaction_length),
+        mysql::serialization::define_field(immediate_server_version),
+        mysql::serialization::define_field(
+            original_server_version, Field_encode_predicate([this]() -> bool {
+              return this->original_server_version !=
+                     this->immediate_server_version;
+            })),
+        mysql::serialization::define_field(
+            commit_group_ticket, Field_encode_predicate([this]() -> bool {
+              return this->commit_group_ticket != Gtid_event::kGroupTicketUnset;
+            })));
+  }
+
+  /// @brief Function that reads GTID_TAGGED_LOG_EVENT event type from the
+  /// given buffer
+  /// @param buf Buffer to read from
+  /// @param buf_size Number of bytes in the buffer
+  void read_gtid_tagged_log_event(const char *buf, std::size_t buf_size);
+
+  /// @brief Updates transaction length which was not yet considered
+  void update_untagged_transaction_length();
+
+  /// @brief Updated transaction length based on transaction length without
+  /// event length
+  /// @param[in] trx_len_without_event_len Transaction length without event body
+  /// length
+  void update_tagged_transaction_length(std::size_t trx_len_without_event_len);
 
  protected:
   static const int ENCODED_FLAG_LENGTH = 1;
@@ -1129,7 +1239,7 @@ class Gtid_event : public Binary_log_event {
   }
 
   gtid_info gtid_info_struct;
-  mysql::gtid::Uuid Uuid_parent_struct;
+  mysql::gtid::Tsid tsid_parent_struct;
 
   /* Minimum GNO expected in a serialized GTID event */
   static const int64_t MIN_GNO = 1;
@@ -1138,7 +1248,7 @@ class Gtid_event : public Binary_log_event {
 
  public:
   virtual std::int64_t get_gno() const { return gtid_info_struct.rpl_gtid_gno; }
-  mysql::gtid::Uuid get_uuid() const { return Uuid_parent_struct; }
+  mysql::gtid::Tsid get_tsid() const { return tsid_parent_struct; }
   /// Total length of post header
   static const int POST_HEADER_LENGTH =
       ENCODED_FLAG_LENGTH +               /* flags */
@@ -1147,6 +1257,36 @@ class Gtid_event : public Binary_log_event {
       LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
       LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
+  using Write_archive_type = mysql::serialization::Write_archive_binary;
+  using Read_archive_type = mysql::serialization::Read_archive_binary;
+  using Encoder_type =
+      mysql::serialization::Serializer_default<Write_archive_type>;
+  using Decoder_type =
+      mysql::serialization::Serializer_default<Read_archive_type>;
+
+  Tag_plain generate_tag_specification() const {
+    return Tag_plain(tsid_parent_struct.get_tag());
+  }
+
+  /// @brief Get maximum size of event
+  /// @return Maximum size of the event in bytes
+  static constexpr std::size_t get_max_event_length() {
+    return LOG_EVENT_HEADER_LEN + get_max_payload_size();
+  }
+
+  /// @brief Get maximum size of event payload
+  /// @return Maximum size of event payload (withouth log event header length)
+  /// in bytes
+  static constexpr std::size_t get_max_payload_size() {
+    constexpr std::size_t max_tagged_length =
+        Encoder_type::get_max_size<Gtid_event>();
+    if constexpr (max_tagged_length > MAX_DATA_LENGTH + POST_HEADER_LENGTH) {
+      return max_tagged_length;
+    }
+    return MAX_DATA_LENGTH + POST_HEADER_LENGTH;
+  }
+
+ private:
   /*
     We keep the commit timestamps in the body section because they can be of
     variable length.
@@ -1158,8 +1298,7 @@ class Gtid_event : public Binary_log_event {
       FULL_SERVER_VERSION_LENGTH +
       COMMIT_GROUP_TICKET_LENGTH; /* 64-bit unsigned integer */
 
-  static const int MAX_EVENT_LENGTH =
-      LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
+ public:
   /**
    Set the transaction length information.
 
@@ -1172,6 +1311,8 @@ class Gtid_event : public Binary_log_event {
     transaction_length = transaction_length_arg;
   }
 
+  unsigned long long get_trx_length() const { return transaction_length; }
+
   /** The version of the server where the transaction was originally executed */
   uint32_t original_server_version;
   /** The version of the immediate server */
@@ -1183,7 +1324,7 @@ class Gtid_event : public Binary_log_event {
   /**
     Returns the length of the packed `commit_group_ticket` field. It may be
     8 bytes or 0 bytes, depending on whether or not the value is
-    instantiated.
+    instantiated. This function may be used only for untagged GTID events
 
     @return The length of the packed `commit_group_ticket` field
   */
@@ -1198,6 +1339,10 @@ class Gtid_event : public Binary_log_event {
   */
   void set_commit_group_ticket_and_update_transaction_length(
       std::uint64_t value);
+
+  /// @brief Checks whether this Gtid log event contains a tag
+  /// @return True in case this event is tagged. False otherwise.
+  bool is_tagged() const;
 };
 
 /**
@@ -1334,11 +1479,10 @@ class Transaction_context_event : public Binary_log_event {
   Transaction_context_event(const char *buf,
                             const Format_description_event *fde);
 
-  Transaction_context_event(unsigned int thread_id_arg,
-                            bool is_gtid_specified_arg)
+  Transaction_context_event(unsigned int thread_id_arg, bool is_gtid_specified)
       : Binary_log_event(TRANSACTION_CONTEXT_EVENT),
         thread_id(thread_id_arg),
-        gtid_specified(is_gtid_specified_arg) {}
+        gtid_specified(is_gtid_specified) {}
 
   ~Transaction_context_event() override;
 

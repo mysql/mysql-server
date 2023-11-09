@@ -127,9 +127,8 @@ class Observe_transmission_guard {
         }
         case mysql::binlog::event::QUERY_EVENT: {
           bool first_event_after_gtid =
-              prev_event_type ==
-                  mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT ||
-              prev_event_type == mysql::binlog::event::GTID_LOG_EVENT;
+              mysql::binlog::event::Log_event_type_helper::is_any_gtid_event(
+                  prev_event_type);
 
           Format_description_log_event fd_ev;
           fd_ev.common_footer->checksum_alg = checksum_alg;
@@ -725,7 +724,8 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       set_fatal_error(buf);
       return true;
     }
-  } else if (type == mysql::binlog::event::GTID_LOG_EVENT) {
+  } else if (mysql::binlog::event::Log_event_type_helper::
+                 is_assigned_gtid_event(type)) {
     /*
       Normally, there will not be any GTID events when master has
       GTID_MODE=OFF, since GTID events are not generated when
@@ -751,12 +751,13 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr,
 
   uint8 event_type = (Log_event_type)event_ptr[LOG_EVENT_OFFSET];
   switch (event_type) {
-    case mysql::binlog::event::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
       Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg = m_event_checksum_alg;
       Gtid_log_event gtid_ev(reinterpret_cast<const char *>(event_ptr), &fd_ev);
       Gtid gtid;
-      gtid.sidno = gtid_ev.get_sidno(m_exclude_gtid->get_sid_map());
+      gtid.sidno = gtid_ev.get_sidno(m_exclude_gtid->get_tsid_map());
       gtid.gno = gtid_ev.get_gno();
       return m_exclude_gtid->contains_gtid(gtid);
     }
@@ -869,26 +870,23 @@ int Binlog_sender::check_start_file() {
     name_ptr = index_entry_name;
   } else if (m_using_gtid_protocol) {
     /*
-      In normal scenarios, it is not possible that Slave will
-      contain more gtids than Master with resepctive to Master's
-      UUID. But it could be possible case if Master's binary log
-      is truncated(due to raid failure) or Master's binary log is
+      In normal scenarios, it is not possible that Replica will
+      contain more gtids than Source with respective to Source's
+      UUID. But it could be possible case if Source's binary log
+      is truncated(due to raid failure) or Source's binary log is
       deleted but GTID_PURGED was not set properly. That scenario
       needs to be validated, i.e., it should *always* be the case that
-      Slave's gtid executed set (+retrieved set) is a subset of
-      Master's gtid executed set with respective to Master's UUID.
+      Replica's gtid executed set (+retrieved set) is a subset of
+      Source's gtid executed set with respective to Source's UUID.
       If it happens, dump thread will be stopped during the handshake
-      with Slave (thus the Slave's I/O thread will be stopped with the
-      error. Otherwise, it can lead to data inconsistency between Master
-      and Slave.
+      with Replica (thus the Replica's I/O thread will be stopped with the
+      error. Otherwise, it can lead to data inconsistency between Source
+      and Replica.
     */
-    Sid_map *slave_sid_map = m_exclude_gtid->get_sid_map();
-    assert(slave_sid_map);
-    global_sid_lock->wrlock();
-    const rpl_sid &server_sid = gtid_state->get_server_sid();
-    rpl_sidno subset_sidno = slave_sid_map->sid_to_sidno(server_sid);
+    global_tsid_lock->wrlock();
+    const auto &server_tsid = gtid_state->get_server_tsid();
     Gtid_set gtid_executed_and_owned(
-        gtid_state->get_executed_gtids()->get_sid_map());
+        gtid_state->get_executed_gtids()->get_tsid_map());
 
     // gtids = executed_gtids & owned_gtids
     if (gtid_executed_and_owned.add_gtid_set(
@@ -898,9 +896,8 @@ int Binlog_sender::check_start_file() {
     gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
 
     if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
-                                           gtid_state->get_server_sidno(),
-                                           subset_sidno)) {
-      global_sid_lock->unlock();
+                                           server_tsid.get_uuid())) {
+      global_tsid_lock->unlock();
       set_fatal_error(ER_THD(m_thd, ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE));
       return 1;
     }
@@ -932,11 +929,11 @@ int Binlog_sender::check_start_file() {
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
       mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, errmsg);
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       set_fatal_error(errmsg.c_str());
       return 1;
     }
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     Gtid first_gtid = {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(
             index_entry_name, m_exclude_gtid, &first_gtid, errmsg)) {

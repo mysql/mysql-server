@@ -30,44 +30,124 @@
 
 #ifdef MYSQL_SERVER
 
-enum_return_status Gtid_specification::parse(Sid_map *sid_map,
-                                             const char *text) {
+using mysql::gtid::Tag;
+using mysql::gtid::Tsid;
+using mysql::utils::Return_status;
+
+// This helper will return non-zero characters parsed in case text is prefixed
+// with AUTOMATIC: (AUTOMATIC with a tag). Otherwise, it will return 0
+std::size_t parse_automatic_prefix(const char *text) {
+  auto chset = &my_charset_utf8mb3_general_ci;
+  const auto &pattern = Gtid_specification::str_automatic_tagged;
+  auto pattern_len = strlen(pattern);
+  std::size_t pos = 0;
+  while (pos < pattern_len) {
+    if (text[pos] == '\0' ||
+        my_tolower(chset, Gtid_specification::str_automatic_tagged[pos]) !=
+            my_tolower(chset, text[pos])) {
+      return 0;
+    }
+    ++pos;
+  }
+  return pos;
+}
+
+Tag Gtid_specification::generate_tag() const { return Tag(automatic_tag); }
+
+bool Gtid_specification::is_automatic_tagged() const {
+  return is_automatic() && automatic_tag.is_defined();
+}
+
+Return_status Gtid_specification::parse(Tsid_map *tsid_map, const char *text) {
   DBUG_TRACE;
+  Return_status status = Return_status::ok;
   assert(text != nullptr);
+  automatic_tag.clear();
+  auto automatic_prefix_len = parse_automatic_prefix(text);
+  gtid = {0, 0};
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0) {
     type = AUTOMATIC_GTID;
-    gtid.sidno = 0;
-    gtid.gno = 0;
+  } else if (automatic_prefix_len) {
+    type = AUTOMATIC_GTID;
+    Tag defined_tag;
+    // for AUTOMATIC: tag must be non-empty
+    std::tie(defined_tag, std::ignore) =
+        Gtid::parse_tag_str(text, automatic_prefix_len);
+    if (defined_tag.is_empty()) {
+      Gtid::report_parsing_error(text);
+      return Return_status::error;
+    }
+    automatic_tag.set(defined_tag);
   } else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0) {
     type = ANONYMOUS_GTID;
-    gtid.sidno = 0;
-    gtid.gno = 0;
   } else {
-    PROPAGATE_REPORTED_ERROR(gtid.parse(sid_map, text));
-    type = ASSIGNED_GTID;
+    status = gtid.parse(tsid_map, text);
+    if (status == Return_status::ok) type = ASSIGNED_GTID;
   }
-  RETURN_OK;
+  return status;
+}
+
+void Gtid_specification::set(const Gtid_specification &other) {
+  type = other.type;
+  automatic_tag = other.automatic_tag;
+  gtid = other.gtid;
 }
 
 bool Gtid_specification::is_valid(const char *text) {
   DBUG_TRACE;
   assert(text != nullptr);
+  auto automatic_prefix_len = parse_automatic_prefix(text);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
     return true;
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
     return true;
-  else
+  else if (automatic_prefix_len) {
+    Tag parsed_tag;
+    std::tie(parsed_tag, std::ignore) =
+        Gtid::parse_tag_str(text, automatic_prefix_len);
+    return parsed_tag.is_defined();
+  } else {
     return Gtid::is_valid(text);
+  }
+}
+
+bool Gtid_specification::is_tagged(const char *text) {
+  DBUG_TRACE;
+  assert(text != nullptr);
+  auto automatic_prefix_len = parse_automatic_prefix(text);
+  if (automatic_prefix_len) {
+    Tag parsed_tag;
+    std::tie(parsed_tag, std::ignore) =
+        Gtid::parse_tag_str(text, automatic_prefix_len);
+    return parsed_tag.is_defined();
+  } else {
+    auto [status, gtid] = Gtid::parse_gtid_from_cstring(text);
+    return (status == Return_status::ok) && gtid.get_tsid().is_tagged();
+  }
 }
 
 #endif  // ifdef MYSQL_SERVER
 
-int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
+std::size_t Gtid_specification::automatic_to_string(char *buf) const {
+  assert(type == AUTOMATIC_GTID);
+  std::size_t pos = 0;
+  auto str_auto_len = strlen(Gtid_specification::str_automatic);
+  strncpy(buf + pos, Gtid_specification::str_automatic, str_auto_len + 1);
+  pos += str_auto_len;
+  if (automatic_tag.is_defined()) {
+    auto sep_len = strlen(Gtid_specification::str_automatic_sep);
+    strncpy(buf + pos, Gtid_specification::str_automatic_sep, sep_len + 1);
+    pos += sep_len;
+    pos += automatic_tag.to_string(buf + pos);
+  }
+  return pos;
+}
+
+int Gtid_specification::to_string(const Tsid &tsid, char *buf) const {
   DBUG_TRACE;
   switch (type) {
     case AUTOMATIC_GTID:
-      strcpy(buf, "AUTOMATIC");
-      return 9;
+      return automatic_to_string(buf);
     case NOT_YET_DETERMINED_GTID:
       /*
         This can happen if user issues SELECT @@SESSION.GTID_NEXT
@@ -85,7 +165,7 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
     */
     case UNDEFINED_GTID:
     case ASSIGNED_GTID:
-      return gtid.to_string(*sid, buf);
+      return gtid.to_string(tsid, buf);
     case PRE_GENERATE_GTID:
       strcpy(buf, "PRE_GENERATE_GTID");
       return 17;
@@ -94,10 +174,10 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
   return 0;
 }
 
-int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,
+int Gtid_specification::to_string(const Tsid_map *tsid_map, char *buf,
                                   bool need_lock) const {
-  return to_string(type == ASSIGNED_GTID || type == UNDEFINED_GTID
-                       ? &sid_map->sidno_to_sid(gtid.sidno, need_lock)
-                       : nullptr,
+  return to_string(is_assigned() || is_undefined()
+                       ? tsid_map->sidno_to_tsid(gtid.sidno, need_lock)
+                       : Tsid(),
                    buf);
 }

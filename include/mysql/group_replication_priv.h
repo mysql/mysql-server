@@ -40,6 +40,12 @@
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_write_set_handler.h"
 
+namespace gr {
+using Gtid_tsid = mysql::gtid::Tsid;
+using Gtid_tag = mysql::gtid::Tag;
+using Gtid_format = mysql::gtid::Gtid_format;
+}  // namespace gr
+
 /**
   Server side initializations.
 */
@@ -157,9 +163,9 @@ char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
 /**
-  Return sidno for a given sid, see Sid_map::add_sid() for details.
+  Return sidno for a given tsid, see Tsid_map::add_tsid() for details.
 */
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+rpl_sidno get_sidno_from_global_tsid_map(const mysql::gtid::Tsid &tsid);
 
 /**
   Set slave thread default options.

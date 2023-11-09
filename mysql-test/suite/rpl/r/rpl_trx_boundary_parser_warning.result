@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection slave]
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
-call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 include/stop_slave.inc
@@ -173,7 +173,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 495, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 496, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#8):
@@ -200,7 +200,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 495, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 496, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#8):
@@ -227,7 +227,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 699, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 700, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#10):
@@ -254,7 +254,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 778, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 779, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#11):
@@ -281,7 +281,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 778, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 779, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#11):
@@ -308,7 +308,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -335,7 +335,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -362,7 +362,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -389,7 +389,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -416,7 +416,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 962, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 963, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#13):
@@ -443,7 +443,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1451, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 1452, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#19):
@@ -470,7 +470,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	User var	#	#	@`var`=10
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2038, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2039, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#26):
@@ -497,7 +497,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2]
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2038, RELAY_LOG_FILE = 'slave-relay-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 2039, RELAY_LOG_FILE = 'slave-relay-bin.000001';
 include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 # Restarted queuing the following event (#26):

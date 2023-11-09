@@ -274,16 +274,16 @@ int Applier_module::apply_view_change_packet(
   const auto garbage_collection_begin = Metrics_handler::get_current_time();
 
   Gtid_set *group_executed_set = nullptr;
-  Sid_map *sid_map = nullptr;
+  Tsid_map *tsid_map = nullptr;
   if (!view_change_packet->group_executed_set.empty()) {
-    sid_map = new Sid_map(nullptr);
-    group_executed_set = new Gtid_set(sid_map, nullptr);
+    tsid_map = new Tsid_map(nullptr);
+    group_executed_set = new Gtid_set(tsid_map, nullptr);
     if (intersect_group_executed_sets(view_change_packet->group_executed_set,
                                       group_executed_set)) {
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO); /* purecov: inspected */
-      delete sid_map;                            /* purecov: inspected */
+      delete tsid_map;                           /* purecov: inspected */
       delete group_executed_set;                 /* purecov: inspected */
       group_executed_set = nullptr;              /* purecov: inspected */
     }
@@ -296,7 +296,7 @@ int Applier_module::apply_view_change_packet(
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_CERTIFICATE_SIZE_ERROR); /* purecov: inspected */
     }
-    delete sid_map;
+    delete tsid_map;
     delete group_executed_set;
   }
 
@@ -439,7 +439,8 @@ int Applier_module::apply_transaction_prepared_action_packet(
     Transaction_prepared_action_packet *packet) {
   DBUG_TRACE;
   return transaction_consistency_manager->handle_remote_prepare(
-      packet->get_sid(), packet->m_gno, packet->m_gcs_member_id);
+      packet->get_tsid(), packet->is_tsid_specified(), packet->m_gno,
+      packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_sync_before_execution_action_packet(
@@ -592,6 +593,13 @@ int Applier_module::applier_thread_handle() {
       case RECOVERY_METADATA_PROCESSING_PACKET_TYPE:
         packet_application_error = apply_metadata_processing_packet(
             static_cast<Recovery_metadata_processing_packets *>(packet));
+        this->incoming->pop();
+        break;
+      case ERROR_PACKET_TYPE:
+        packet_application_error = 1;
+        LogPluginErr(
+            ERROR_LEVEL, ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED,
+            static_cast<Error_action_packet *>(packet)->get_error_message());
         this->incoming->pop();
         break;
       default:
@@ -1002,13 +1010,13 @@ Certification_handler *Applier_module::get_certification_handler() {
 
 int Applier_module::intersect_group_executed_sets(
     std::vector<std::string> &gtid_sets, Gtid_set *output_set) {
-  Sid_map *sid_map = output_set->get_sid_map();
+  Tsid_map *tsid_map = output_set->get_tsid_map();
 
   std::vector<std::string>::iterator set_iterator;
   for (set_iterator = gtid_sets.begin(); set_iterator != gtid_sets.end();
        set_iterator++) {
-    Gtid_set member_set(sid_map, nullptr);
-    Gtid_set intersection_result(sid_map, nullptr);
+    Gtid_set member_set(tsid_map, nullptr);
+    Gtid_set intersection_result(tsid_map, nullptr);
 
     std::string exec_set_str = (*set_iterator);
 

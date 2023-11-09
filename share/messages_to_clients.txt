@@ -10120,11 +10120,19 @@ ER_QUALIFY_WITHOUT_WINDOW_FUNCTION
 ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
   eng "'%s' can be used only if the hypergraph optimizer is enabled."
 
+ER_SPECIFIC_ACCESS_DENIED
+  eng "Access denied; you need %-.256s privilege(s) for this operation"
+
+ER_CANT_SET_GTID_NEXT_TO_AUTOMATIC_TAGGED_WHEN_GTID_MODE_IS_OFF
+  eng "@@SESSION.GTID_NEXT cannot be set to AUTOMATIC:<TAG> when @@GLOBAL.GTID_MODE = OFF or OFF_PERMISSIVE"
+
+ER_GTID_NEXT_TAG_GTID_MODE_OFF
+  eng "@@SESSION.GTID_NEXT cannot be set to UUID:TAG:NUMBER when @@GLOBAL.GTID_MODE = OFF."
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
 #
-
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;

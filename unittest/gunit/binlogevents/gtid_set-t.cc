@@ -30,12 +30,12 @@ class GtidSetTest : public ::testing::Test {
 
 TEST_F(GtidSetTest, Gtid_set_create_destroy) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -58,12 +58,12 @@ TEST_F(GtidSetTest, Gtid_set_create_destroy) {
 
 TEST_F(GtidSetTest, Gtid_set_add_sets) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -97,12 +97,12 @@ TEST_F(GtidSetTest, Gtid_set_add_sets) {
 
 TEST_F(GtidSetTest, Gtid_set_remove_sets) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -136,12 +136,12 @@ TEST_F(GtidSetTest, Gtid_set_remove_sets) {
 
 TEST_F(GtidSetTest, Gtid_set_remove_add_sets) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -176,12 +176,12 @@ TEST_F(GtidSetTest, Gtid_set_remove_add_sets) {
 
 TEST_F(GtidSetTest, Gtid_set_is_subset_true) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -206,12 +206,12 @@ TEST_F(GtidSetTest, Gtid_set_is_subset_true) {
 
 TEST_F(GtidSetTest, Gtid_set_is_subset_false) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -237,12 +237,12 @@ TEST_F(GtidSetTest, Gtid_set_is_subset_false) {
 
 TEST_F(GtidSetTest, Gtid_set_is_subset_not_equals_false) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -270,12 +270,12 @@ TEST_F(GtidSetTest, Gtid_set_is_subset_not_equals_false) {
 
 TEST_F(GtidSetTest, Gtid_set_is_subset_not_equals_true) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -301,12 +301,12 @@ TEST_F(GtidSetTest, Gtid_set_is_subset_not_equals_true) {
 
 TEST_F(GtidSetTest, Gtid_set_add_gtid_text) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -326,12 +326,12 @@ TEST_F(GtidSetTest, Gtid_set_add_gtid_text) {
 
 TEST_F(GtidSetTest, Gtid_set_add_gtid_text_interval) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -355,12 +355,12 @@ TEST_F(GtidSetTest, Gtid_set_add_gtid_text_interval) {
 
 TEST_F(GtidSetTest, Gtid_set_add_gtid_text_memory) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -383,12 +383,12 @@ TEST_F(GtidSetTest, Gtid_set_add_gtid_text_memory) {
 
 TEST_F(GtidSetTest, Gtid_set_add_remove_gtid_text_memory) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   Gtid_set set1(&sm, nullptr);
@@ -426,12 +426,12 @@ TEST_F(GtidSetTest, Gtid_set_add_remove_gtid_text_memory) {
 
 TEST_F(GtidSetTest, Gtid_set_add_remove_gtid_text_memory_loop) {
   Checkable_rwlock smap_lock;
-  Sid_map sm(&smap_lock);
-  rpl_sid sid;
+  Tsid_map sm(&smap_lock);
+  mysql::gtid::Tsid tsid;
 
   smap_lock.wrlock();
-  sid.parse("d3a98502-756b-4b08-bdd2-a3d3938ba90f", 36);
-  rpl_sidno sidno = sm.add_sid(sid);
+  ASSERT_TRUE(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f") > 0);
+  rpl_sidno sidno = sm.add_tsid(tsid);
   smap_lock.unlock();
 
   for (int i = 0; i < 1000; i++) {
@@ -466,5 +466,134 @@ TEST_F(GtidSetTest, Gtid_set_add_remove_gtid_text_memory_loop) {
     ASSERT_TRUE(set1.contains_gtid(sidno, 6));
     ASSERT_FALSE(set1.contains_gtid(sidno, 10));
     ASSERT_FALSE(set1.contains_gtid(sidno, 11));
+  }
+}
+
+TEST_F(GtidSetTest, GtidSetParsingTestFormat) {
+  auto valid_sets = {
+      "11111111-1111-1111-1111-111111111111:tag_1 : 1-2 , "
+      "11111111-1111-1111-1111-111111111111, "
+      "11111111-1111-1111-1111-111111111111:tag_1 ",
+      "11111111-1111-1111-1111-111111111112:tag_1 : 1-2 , "
+      "11111111-1111-1111-1111-111111111111:1-2, "
+      "11111111-1111-1111-1111-111111111112:tag_1 ",
+      "11111111-1111-1111-1111-111111111112:tag_1 : 1-2 : 3-4 : tag_2: 1-2 , "
+      "11111111-1111-1111-1111-111111111111:1-2, "
+      "11111111-1111-1111-1111-111111111112:tag_1  ,,, ",
+      "11111111-1111-1111-1111-111111111111:tag_1 : 2 ,, "
+      "11111111-1111-1111-1111-111111111111:tag_1:1, "
+      "11111111-1111-1111-1111-111111111111:tag_1 ",
+      "11111111-1111-1111-1111-111111111112:tag_1 : 1-2 , "
+      "11111111-1111-1111-1111-111111111111:1-2, "
+      "11111111-1111-1111-1111-111111111111 ",
+      "11111111-1111-1111-1111-111111111112:tag_1 : 1 : 2 : 3 : 4 : tag_2: "
+      "1-2 , 11111111-1111-1111-1111-111111111111:1-2, "
+      "11111111-1111-1111-1111-111111111112:tag_1  ,,, ",
+      "11111111-1111-1111-1111-111111111111:1-2,"
+      "11111111-1111-1111-1111-111111111112:tag_1:1-4:tag_2:1-2, "
+      "11111111-1111-1111-1111-111111111112:tag_1  ,,, "};
+
+  mysql::gtid::Tsid tsid_tmp;
+  std::vector<mysql::gtid::Tsid> tsids;
+  ASSERT_TRUE(tsid_tmp.from_cstring("11111111-1111-1111-1111-111111111111") >
+              0);  // 0
+  tsids.push_back(tsid_tmp);
+  ASSERT_TRUE(tsid_tmp.from_cstring(
+                  "11111111-1111-1111-1111-111111111111:tag_1") > 0);  // 1
+  tsids.push_back(tsid_tmp);
+  ASSERT_TRUE(tsid_tmp.from_cstring(
+                  "11111111-1111-1111-1111-111111111111:tag_2") > 0);  // 2
+  tsids.push_back(tsid_tmp);
+  ASSERT_TRUE(tsid_tmp.from_cstring("11111111-1111-1111-1111-111111111112") >
+              0);  // 3
+  tsids.push_back(tsid_tmp);
+  ASSERT_TRUE(tsid_tmp.from_cstring(
+                  "11111111-1111-1111-1111-111111111112:tag_1") > 0);  // 4
+  tsids.push_back(tsid_tmp);
+  ASSERT_TRUE(tsid_tmp.from_cstring(
+                  "11111111-1111-1111-1111-111111111112:tag_2") > 0);  // 5
+  tsids.push_back(tsid_tmp);
+
+  std::vector<std::unique_ptr<Tsid_map>> sid_maps_expected;
+
+  std::size_t num_sets = 3;
+  std::vector<std::unique_ptr<Gtid_set>> gtid_sets_expected;
+  for (std::size_t id = 0; id < num_sets; ++id) {
+    sid_maps_expected.emplace_back(std::make_unique<Tsid_map>(nullptr));
+    gtid_sets_expected.emplace_back(
+        std::make_unique<Gtid_set>(sid_maps_expected.at(id).get()));
+  }
+
+  rpl_sidno sidno;
+  // prepare 0
+  {
+    std::size_t current = 0;
+    auto &gtid_set = gtid_sets_expected.at(current);
+    auto *tsid_map = gtid_set->get_tsid_map();
+    sidno = tsid_map->add_tsid(tsids.at(1));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+    sidno = tsid_map->add_tsid(tsids.at(0));
+    gtid_set->ensure_sidno(sidno);
+  }
+  // prepare 1
+  {
+    std::size_t current = 1;
+    auto &gtid_set = gtid_sets_expected.at(current);
+    auto *tsid_map = gtid_set->get_tsid_map();
+    assert(tsid_map != nullptr);
+
+    sidno = tsid_map->add_tsid(tsids.at(4));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+    sidno = tsid_map->add_tsid(tsids.at(0));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+  }
+  // prepare 2
+  {
+    std::size_t current = 2;
+    auto &gtid_set = gtid_sets_expected.at(current);
+    auto *tsid_map = gtid_set->get_tsid_map();
+
+    sidno = tsid_map->add_tsid(tsids.at(4));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+    gtid_set->_add_gtid(sidno, 3);
+    gtid_set->_add_gtid(sidno, 4);
+    sidno = tsid_map->add_tsid(tsids.at(5));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+    sidno = tsid_map->add_tsid(tsids.at(0));
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, 1);
+    gtid_set->_add_gtid(sidno, 2);
+    sidno = tsid_map->add_tsid(tsids.at(1));
+    gtid_set->ensure_sidno(sidno);
+  }
+
+  std::vector<std::size_t> gtid_set_verification;
+  gtid_set_verification.push_back(0);
+  gtid_set_verification.push_back(1);
+  gtid_set_verification.push_back(2);
+  gtid_set_verification.push_back(0);
+  gtid_set_verification.push_back(1);
+  gtid_set_verification.push_back(2);
+  gtid_set_verification.push_back(2);
+
+  std::size_t id = 0;
+  for (const auto &valid_str : valid_sets) {
+    Tsid_map tsid_map(nullptr);
+    Gtid_set gtid_set(&tsid_map);
+    auto status = gtid_set.add_gtid_text(valid_str);
+    ASSERT_TRUE(status == RETURN_STATUS_OK);
+    std::cout << "comparing : " << id << " text: " << valid_str << std::endl;
+    EXPECT_TRUE(gtid_set.equals(
+        (gtid_sets_expected.at(gtid_set_verification.at(id++)).get())));
   }
 }

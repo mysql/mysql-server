@@ -566,6 +566,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.thread_id = thd->thread_id();
   param.gtid_info.type = thd->variables.gtid_next.type;
   param.gtid_info.sidno = thd->variables.gtid_next.gtid.sidno;
+  param.gtid_info.automatic_tag = thd->variables.gtid_next.automatic_tag;
   param.gtid_info.gno = thd->variables.gtid_next.gtid.gno;
   param.trx_cache_log = trx_cache_log;
   param.stmt_cache_log = stmt_cache_log;
@@ -812,8 +813,9 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
   param.gtid_info.sidno = gtid.sidno;
   param.gtid_info.gno = gtid.gno;
 
-  thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().get_last_used_sid(
-      param.gtid_info.sid);
+  mysql::gtid::Tsid tsid;
+  thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().get_last_used_tsid(tsid);
+  param.gtid_info.tsid = mysql::gtid::Tsid_plain(tsid);
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

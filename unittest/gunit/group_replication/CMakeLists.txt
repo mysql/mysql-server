@@ -36,6 +36,7 @@ SET(TESTS
   group_replication_member_version
   group_replication_mysql_version_gcs_protocol_map
   group_replication_gcs_mysql_network_provider
+  group_replication_certifier_auto
   )
 
 FOREACH(test ${TESTS})
@@ -50,6 +51,7 @@ FOREACH(test ${TESTS})
     server_unittest_library
     mysqlclient
     mysqlgcs
+    mysql_gtid
     )
 ENDFOREACH()
 

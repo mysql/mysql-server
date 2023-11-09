@@ -501,7 +501,7 @@ void get_server_startup_prerequirements(Trans_context_info &requirements) {
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length) {
-  Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::WRITE_LOCK);
+  Checkable_rwlock::Guard g(*global_tsid_lock, Checkable_rwlock::WRITE_LOCK);
 
   assert(global_gtid_mode.get() != Gtid_mode::OFF);
 
@@ -517,9 +517,9 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
 #if !defined(NDEBUG)
 char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length) {
-  /* No sid_lock because this is a completely local object. */
-  Sid_map sid_map(nullptr);
-  Gtid_set set(&sid_map);
+  /* No tsid_lock because this is a completely local object. */
+  Tsid_map tsid_map(nullptr);
+  Gtid_set set(&tsid_map);
 
   if (set.add_gtid_encoding(encoded_gtid_set, length) != RETURN_STATUS_OK)
     return nullptr;
@@ -539,7 +539,7 @@ void global_thd_manager_remove_thd(THD *thd) {
 }
 
 bool is_gtid_committed(const Gtid &gtid) {
-  Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::READ_LOCK);
+  Checkable_rwlock::Guard g(*global_tsid_lock, Checkable_rwlock::READ_LOCK);
 
   assert(global_gtid_mode.get() != Gtid_mode::OFF);
 
@@ -553,12 +553,12 @@ bool is_gtid_committed(const Gtid &gtid) {
 bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
                                  bool update_thd_status) {
   THD *thd = current_thd;
-  Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
+  Gtid_set wait_for_gtid_set(global_tsid_map, nullptr);
 
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
 
   if (wait_for_gtid_set.add_gtid_text(gtid_set_text) != RETURN_STATUS_OK) {
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return true;
   }
 
@@ -569,7 +569,7 @@ bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
   */
   if (thd->owned_gtid.sidno > 0 &&
       wait_for_gtid_set.contains_gtid(thd->owned_gtid)) {
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return true;
   }
 
@@ -578,7 +578,7 @@ bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
                                               update_thd_status);
   gtid_state->end_gtid_wait();
 
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   return result;
 }

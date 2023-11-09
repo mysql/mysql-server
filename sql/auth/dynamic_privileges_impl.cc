@@ -316,6 +316,7 @@ bool dynamic_privilege_init(void) {
   ret += service->register_privilege(STRING_WITH_LEN("SET_ANY_DEFINER"));
   ret +=
       service->register_privilege(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"));
+  ret += service->register_privilege(STRING_WITH_LEN("TRANSACTION_GTID_TAG"));
 
   // Set up default dynamic privileges deprecations
   my_service<SERVICE_TYPE(dynamic_privilege_deprecation)> deprecation_service(

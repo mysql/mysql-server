@@ -152,6 +152,7 @@ Transaction_boundary_parser::get_event_boundary_type(
   switch (event_info.event_type) {
     case mysql::binlog::event::GTID_LOG_EVENT:
     case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       boundary_type = EVENT_BOUNDARY_TYPE_GTID;
       break;
 
@@ -328,7 +329,8 @@ bool Transaction_boundary_parser::update_state(
               if (current_parser_state == EVENT_PARSER_GTID)
                 log_server_warning(
                     ER_TRX_BOUND_GTID_LOG_EVENT_IN_STREAM,
-                    "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT");
+                    "after a GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or an "
+                    "ANONYMOUS_GTID_LOG_EVENT");
               else {
                 if (current_parser_state == EVENT_PARSER_DDL)
                   log_server_warning(ER_TRX_BOUND_GTID_LOG_EVENT_IN_STREAM,

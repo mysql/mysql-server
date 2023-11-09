@@ -61,7 +61,7 @@ Plugin_table table_replication_applier_status_by_coordinator::m_table_def(
     "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
     "  KEY (THREAD_ID) USING HASH,\n"
-    "  LAST_PROCESSED_TRANSACTION CHAR(57),\n"
+    "  LAST_PROCESSED_TRANSACTION CHAR(90),\n"
     "  LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                       not null,\n"
     "  LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
@@ -70,7 +70,7 @@ Plugin_table table_replication_applier_status_by_coordinator::m_table_def(
     "                                                    not null,\n"
     "  LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP TIMESTAMP(6)\n"
     "                                                  not null,\n"
-    "  PROCESSING_TRANSACTION CHAR(57),\n"
+    "  PROCESSING_TRANSACTION CHAR(90),\n"
     "  PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                   not null,\n"
     "  PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
@@ -319,7 +319,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   mysql_mutex_unlock(&mi->rli->data_lock);
 
   last_processed_trx.copy_to_ps_table(
-      global_sid_map, m_row.last_processed_trx,
+      global_tsid_map, m_row.last_processed_trx,
       &m_row.last_processed_trx_length,
       &m_row.last_processed_trx_original_commit_timestamp,
       &m_row.last_processed_trx_immediate_commit_timestamp,
@@ -327,7 +327,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
       &m_row.last_processed_trx_end_buffer_timestamp);
 
   processing_trx.copy_to_ps_table(
-      global_sid_map, m_row.processing_trx, &m_row.processing_trx_length,
+      global_tsid_map, m_row.processing_trx, &m_row.processing_trx_length,
       &m_row.processing_trx_original_commit_timestamp,
       &m_row.processing_trx_immediate_commit_timestamp,
       &m_row.processing_trx_start_buffer_timestamp);

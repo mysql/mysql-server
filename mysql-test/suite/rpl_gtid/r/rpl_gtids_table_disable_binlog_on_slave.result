@@ -37,9 +37,9 @@ include/assert.inc [committed gtids SOURCE_UUID:1-6:17-18]
 SET GTID_NEXT='AUTOMATIC';
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-SOURCE_UUID	1	6
-SOURCE_UUID	17	18
+source_uuid	interval_start	interval_end	gtid_tag
+SOURCE_UUID	1	6	
+SOURCE_UUID	17	18	
 include/sync_slave_sql_with_master.inc
 #
 # connection slave
@@ -79,9 +79,9 @@ FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-SOURCE_UUID	1	6
-SOURCE_UUID	17	20
+source_uuid	interval_start	interval_end	gtid_tag
+SOURCE_UUID	1	6	
+SOURCE_UUID	17	20	
 #
 # Verify that gtid_executed and gtid_purged are always same
 # when binlog is disabled.
@@ -98,9 +98,9 @@ DROP TABLE t3;
 # Stored gtids SOURCE_UUID:1-6:17-20 in gtid_executed table
 # on slave.
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-SOURCE_UUID	1	6
-SOURCE_UUID	17	20
+source_uuid	interval_start	interval_end	gtid_tag
+SOURCE_UUID	1	6	
+SOURCE_UUID	17	20	
 SET @@SESSION.GTID_NEXT = 'automatic';
 XA START   'xid_1';
 INSERT INTO t1 VALUES(1);
@@ -169,9 +169,9 @@ FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-SOURCE_UUID	1	15
-SOURCE_UUID	17	23
+source_uuid	interval_start	interval_end	gtid_tag
+SOURCE_UUID	1	15	
+SOURCE_UUID	17	23	
 DROP TABLE t3;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 DROP TABLE t3;

@@ -763,8 +763,8 @@ class Slave_worker : public Relay_log_info {
         gtid_next=automatic. In this scenario, there is no reason to execute a
         Format_description_log_event. So we generate an error.
       */
-      if (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-          info_thd->variables.gtid_next.type == UNDEFINED_GTID) {
+      if (info_thd->variables.gtid_next.is_automatic() ||
+          info_thd->variables.gtid_next.is_undefined()) {
         bool in_active_multi_stmt =
             info_thd->in_active_multi_stmt_transaction();
 

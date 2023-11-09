@@ -100,14 +100,14 @@ Plugin_table table_replication_connection_status::m_table_def(
     "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
     "  KEY (THREAD_ID) USING HASH,\n"
-    "  LAST_QUEUED_TRANSACTION CHAR(57),\n"
+    "  LAST_QUEUED_TRANSACTION CHAR(90),\n"
     "  LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                    not null,\n"
     "  LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                     not null,\n"
     "  LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
     "  LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
-    "  QUEUEING_TRANSACTION CHAR(57),\n"
+    "  QUEUEING_TRANSACTION CHAR(90),\n"
     "  QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,\n"
     "  QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                  not null,\n"
@@ -344,12 +344,12 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
   {
     const Gtid_set *io_gtid_set = mi->rli->get_gtid_set();
-    Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
+    Checkable_rwlock *tsid_lock = mi->rli->get_tsid_lock();
 
-    sid_lock->wrlock();
+    tsid_lock->wrlock();
     m_row.received_transaction_set_length =
         io_gtid_set->to_string(&m_row.received_transaction_set);
-    sid_lock->unlock();
+    tsid_lock->unlock();
 
     if (m_row.received_transaction_set_length < 0) {
       my_free(m_row.received_transaction_set);
@@ -382,14 +382,14 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
   mysql_mutex_unlock(&mi->data_lock);
 
-  queueing_trx.copy_to_ps_table(mi->rli->get_sid_map(), m_row.queueing_trx,
+  queueing_trx.copy_to_ps_table(mi->rli->get_tsid_map(), m_row.queueing_trx,
                                 &m_row.queueing_trx_length,
                                 &m_row.queueing_trx_original_commit_timestamp,
                                 &m_row.queueing_trx_immediate_commit_timestamp,
                                 &m_row.queueing_trx_start_queue_timestamp);
 
   last_queued_trx.copy_to_ps_table(
-      mi->rli->get_sid_map(), m_row.last_queued_trx,
+      mi->rli->get_tsid_map(), m_row.last_queued_trx,
       &m_row.last_queued_trx_length,
       &m_row.last_queued_trx_original_commit_timestamp,
       &m_row.last_queued_trx_immediate_commit_timestamp,

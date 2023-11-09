@@ -286,6 +286,42 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
 }
 
 /**
+  Check if correct privileges for GTID_NEXT tagged are granted.
+  Throw SQL error if not.
+
+  Use this when setting session variables that are to be protected within
+  replication applier context.
+
+  @retval true failure
+  @retval false success
+
+  @param self the system variable to set value for
+  @param thd the session context
+  @param setv the SET operations metadata
+ */
+static bool check_tagged_gtid_next_privileges(sys_var *self [[maybe_unused]],
+                                              THD *thd, set_var *setv) {
+  assert(self->scope() != sys_var::GLOBAL);
+  Security_context *sctx = thd->security_context();
+  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
+      ((!sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+             .first &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+             .first &&
+        !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER"))
+             .first) ||
+       !sctx->has_global_grant(STRING_WITH_LEN("TRANSACTION_GTID_TAG"))
+            .first)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED, MYF(0),
+             "the TRANSACTION_GTID_TAG and at least one of the: "
+             "SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
+             "REPLICATION_APPLIER");
+    return true;
+  }
+  return false;
+}
+
+/**
   Check if REPLICATION_APPLIER granted. Throw SQL error if not.
 
   Use this when setting session variables that are to be protected within
@@ -1248,7 +1284,7 @@ static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (!thd->owned_gtid_is_empty()) {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     if (thd->owned_gtid.sidno > 0)
-      thd->owned_gtid.to_string(thd->owned_sid, buf);
+      thd->owned_gtid.to_string(thd->owned_tsid, buf);
     else
       strcpy(buf, "ANONYMOUS");
     my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->name.str, buf);
@@ -1311,6 +1347,22 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
   if (!is_prepared_trx && thd->in_active_multi_stmt_transaction()) {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
+  }
+  // we need to parse var in order to know which privileges are required
+  char buf[Gtid::MAX_TEXT_LENGTH + 1];
+  // Get the value
+  String str(buf, sizeof(buf), &my_charset_latin1);
+  char *res = nullptr;
+  if (!var->value) {
+    res = var->save_result.string_value.str;
+  } else if (var->value->val_str(&str))
+    res = var->value->val_str(&str)->c_ptr_safe();
+  bool is_tagged = false;
+  if (res) {
+    is_tagged = Gtid_specification::is_tagged(res);
+  }
+  if (is_tagged) {
+    return check_tagged_gtid_next_privileges(self, thd, var);
   }
   return check_session_admin_or_replication_applier(self, thd, var);
 }
@@ -4097,15 +4149,15 @@ bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
     return true;
   }
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
   Gtid_specification spec;
-  if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK) {
-    global_sid_lock->unlock();
+  if (spec.parse(global_tsid_map, res) != mysql::utils::Return_status::ok) {
+    global_tsid_lock->unlock();
     return true;
   }
 
   bool ret = set_gtid_next(thd, spec);
-  // set_gtid_next releases global_sid_lock
+  // set_gtid_next releases global_tsid_lock
   return ret;
 }
 
@@ -4117,7 +4169,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
   if (value == nullptr)
     gsn->set_null();
   else {
-    Gtid_set *gs = gsn->set_non_null(global_sid_map);
+    Gtid_set *gs = gsn->set_non_null(global_tsid_map);
     if (gs == nullptr) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // allocation failed
       return true;
@@ -4132,9 +4184,9 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
     else
       gs->clear();
     // Add specified set of groups to Gtid_set.
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     enum_return_status ret = gs->add_gtid_text(value);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     if (ret != RETURN_STATUS_OK) {
       gsn->set_null();
       return true;
@@ -4210,7 +4262,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     AUTO_POSITION.  If gtid_mode was changed between these calls,
     auto_position could be set incompatible with gtid_mode.
 
-    Hold global_sid_lock.wrlock so that:
+    Hold global_tsid_lock.wrlock so that:
     - other transactions cannot acquire ownership of any gtid.
 
     Hold Gtid_mode::lock so that all places that don't want to hold
@@ -4230,7 +4282,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   int lock_count = 4;
 
   auto old_gtid_mode = global_gtid_mode.get();
@@ -4459,10 +4511,20 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
+  // Can't set GTID_MODE=OFF_PERMISSIVE when there is any session executing
+  // transactions with automatic, tagged GTIDs
+  if (new_gtid_mode == Gtid_mode::OFF_PERMISSIVE &&
+      gtid_state->is_any_session_assigning_automatic_tagged_gtids()) {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF/OFF_PERMISSIVE",
+             "there is an ongoing session with GTID_NEXT "
+             "set to AUTOMATIC:<TAG>");
+    goto err;
+  }
+
   // Update the mode
   global_var(ulong) = new_gtid_mode;
   global_gtid_mode.set(new_gtid_mode);
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   lock_count = 3;
 
   // Generate note in log
@@ -4481,7 +4543,7 @@ end:
 err:
   assert(lock_count >= 0);
   assert(lock_count <= 4);
-  if (lock_count == 4) global_sid_lock->unlock();
+  if (lock_count == 4) global_tsid_lock->unlock();
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
   Gtid_mode::lock.unlock();
@@ -4493,10 +4555,10 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
   bool ret = true;
 
   /*
-    Hold global_sid_lock.wrlock so that other transactions cannot
+    Hold global_tsid_lock.wrlock so that other transactions cannot
     acquire ownership of any gtid.
   */
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   DBUG_PRINT("info", ("var->save_result.ulonglong_value=%llu",
                       var->save_result.ulonglong_value));
@@ -4559,7 +4621,7 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
 end:
   ret = false;
 err:
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   return ret;
 }
 
@@ -6435,7 +6497,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   bool error = false;
   bool gtid_threshold_breach = false;
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   /*
     ensures the commit of the transaction started when saving the
@@ -6453,7 +6515,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
        *current_gtid_executed = nullptr, *current_gtid_purged = nullptr;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
-  Gtid_set gtid_set(global_sid_map, global_sid_lock);
+  Gtid_set gtid_set(global_tsid_map, global_tsid_lock);
   bool starts_with_plus = false;
   enum_return_status ret = gtid_set.add_gtid_text(
       var->save_result.string_value.str, nullptr, &starts_with_plus);
@@ -6481,7 +6543,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
          current_gtid_executed);
 
 end:
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   my_free(previous_gtid_executed);
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);

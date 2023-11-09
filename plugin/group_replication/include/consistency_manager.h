@@ -32,6 +32,7 @@
 #include <atomic>
 #include <list>
 #include <map>
+#include <memory>
 #include <utility>
 
 #include "plugin/group_replication/include/hold_transactions.h"
@@ -39,6 +40,10 @@
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+
+class Transaction_consistency_info;
+using Transaction_consistency_info_uptr =
+    std::unique_ptr<Transaction_consistency_info>;
 
 /**
   @class Transaction_consistency_info
@@ -112,7 +117,8 @@ class Transaction_consistency_info {
     @param[in]  thread_id         the thread that is executing the transaction
     @param[in]  local_transaction true if this transaction did originate from
                                   this server
-    @param[in]  sid               transaction sid
+    @param[in]  tsid              transaction tsid
+    @param[in]  is_tsid_specified information on whether tsid is specified
     @param[in]  sidno             transaction sidno
     @param[in]  gno               transaction gno
     @param[in]  consistency_level the transaction consistency
@@ -121,8 +127,8 @@ class Transaction_consistency_info {
                                   transaction before it is allowed to commit
   */
   Transaction_consistency_info(
-      my_thread_id thread_id, bool local_transaction, const rpl_sid *sid,
-      rpl_sidno sidno, rpl_gno gno,
+      my_thread_id thread_id, bool local_transaction, const gr::Gtid_tsid &tsid,
+      bool is_tsid_specified, rpl_sidno sidno, rpl_gno gno,
       enum_group_replication_consistency_level consistency_level,
       Members_list *members_that_must_prepare_the_transaction);
 
@@ -243,8 +249,8 @@ class Transaction_consistency_info {
  private:
   my_thread_id m_thread_id;
   const bool m_local_transaction;
-  const bool m_sid_specified;
-  rpl_sid m_sid;
+  const bool m_tsid_specified;
+  gr::Gtid_tsid m_tsid;
   const rpl_sidno m_sidno;
   const rpl_gno m_gno;
   const enum_group_replication_consistency_level m_consistency_level;
@@ -258,15 +264,15 @@ class Transaction_consistency_info {
 
 typedef std::pair<rpl_sidno, rpl_gno> Transaction_consistency_manager_key;
 typedef std::pair<Transaction_consistency_manager_key,
-                  Transaction_consistency_info *>
+                  Transaction_consistency_info_uptr>
     Transaction_consistency_manager_pair;
 typedef std::pair<Pipeline_event *, Transaction_consistency_manager_key>
     Transaction_consistency_manager_pevent_pair;
 typedef std::map<
-    Transaction_consistency_manager_key, Transaction_consistency_info *,
+    Transaction_consistency_manager_key, Transaction_consistency_info_uptr,
     std::less<Transaction_consistency_manager_key>,
     Malloc_allocator<std::pair<const Transaction_consistency_manager_key,
-                               Transaction_consistency_info *>>>
+                               Transaction_consistency_info_uptr>>>
     Transaction_consistency_manager_map;
 
 /**
@@ -302,7 +308,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  int after_certification(Transaction_consistency_info *transaction_info);
+  int after_certification(
+      std::unique_ptr<Transaction_consistency_info> transaction_info);
 
   /**
     Call action after a transaction being prepared on this member
@@ -327,7 +334,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
     If this sid is NULL that means this transaction sid is the group
     name.
 
-    @param[in]  sid            the transaction sid
+    @param[in]  tsid           the transaction tsid
+    @param[in]  is_tsid_specified information on whether tsid is specified
     @param[in]  gno            the transaction gno
     @param[in]  gcs_member_id  the member id
 
@@ -335,7 +343,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  int handle_remote_prepare(const rpl_sid *sid, rpl_gno gno,
+  int handle_remote_prepare(const gr::Gtid_tsid &tsid, bool is_tsid_specified,
+                            rpl_gno gno,
                             const Gcs_member_identifier &gcs_member_id);
 
   /**

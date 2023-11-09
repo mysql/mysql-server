@@ -5549,7 +5549,7 @@ void LO_rwlock_lock_rw::set_locked(PSI_rwlock_operation op,
 
 void LO_rwlock_lock_rw::merge_lock(PSI_rwlock_operation op,
                                    const char *src_file, int src_line) {
-  // gtid_sid_lock is recursive, should not be
+  // gtid_tsid_lock is recursive, should not be
   set_locked(op, src_file, src_line);
 }
 

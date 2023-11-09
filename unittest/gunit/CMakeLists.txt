@@ -234,6 +234,7 @@ SET(SERVER_TESTS
   gis_wkb_parser
   gis_wkb_writer
   graph_simplification
+  gtid_specification_parsing
   handler
   hash_join
   histograms
@@ -425,3 +426,5 @@ ADD_SUBDIRECTORY(memory)
 ADD_SUBDIRECTORY(containers)
 ADD_SUBDIRECTORY(locks)
 ADD_SUBDIRECTORY(changestreams)
+ADD_SUBDIRECTORY(libs/utils)
+ADD_SUBDIRECTORY(libs/serialization)

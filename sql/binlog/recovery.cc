@@ -86,7 +86,7 @@ binlog::Binlog_recovery &binlog::Binlog_recovery::recover() {
     // Whenever the current position is at a transaction boundary, save it
     // to m_valid_pos
     if (!this->m_is_malformed && !this->m_in_transaction &&
-        !is_gtid_event(ev.get()) && !is_session_control_event(ev.get()))
+        !is_any_gtid_event(ev.get()) && !is_session_control_event(ev.get()))
       this->m_valid_pos = this->m_reader.position();
 
     if (this->m_is_malformed) break;

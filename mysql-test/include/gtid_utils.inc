@@ -173,18 +173,20 @@ BEGIN
   DECLARE next_dash_pos INT;
   DECLARE next_colon_pos INT;
   DECLARE next_comma_pos INT;
+  DECLARE is_tag INT;
   SET gtid_set = GTID_NORMALIZE(gtid_set);
   SET colon_pos = LOCATE2(':', gtid_set, 1);
   WHILE colon_pos != LENGTH(gtid_set) + 1 DO
      SET next_dash_pos = LOCATE2('-', gtid_set, colon_pos + 1);
      SET next_colon_pos = LOCATE2(':', gtid_set, colon_pos + 1);
      SET next_comma_pos = LOCATE2(',', gtid_set, colon_pos + 1);
-     IF next_dash_pos < next_colon_pos AND next_dash_pos < next_comma_pos THEN
+     SET is_tag = REGEXP_LIKE(SUBSTR(gtid_set, colon_pos + 1, 1), '^[a-zA-Z_]');
+     IF next_dash_pos < next_colon_pos AND next_dash_pos < next_comma_pos AND is_tag = 0 THEN
        SET result = result +
          SUBSTR(gtid_set, next_dash_pos + 1,
                 LEAST(next_colon_pos, next_comma_pos) - (next_dash_pos + 1)) -
          SUBSTR(gtid_set, colon_pos + 1, next_dash_pos - (colon_pos + 1)) + 1;
-     ELSE
+     ELSEIF is_tag = 0 THEN
        SET result = result + 1;
      END IF;
      SET colon_pos = next_colon_pos;

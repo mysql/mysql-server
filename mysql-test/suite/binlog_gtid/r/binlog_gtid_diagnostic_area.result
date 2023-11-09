@@ -21,6 +21,6 @@ DROP TABLE t0;
 # Adding debug point 'disable_gtid_background_persister' to @@GLOBAL.debug
 ALTER TABLE mysql.gtid_executed DROP COLUMN interval_end;
 FLUSH BINARY LOGS;
-ERROR HY000: Column count of mysql.gtid_executed is wrong. Expected 3, found 2. The table is probably corrupted
+ERROR HY000: Column count of mysql.gtid_executed is wrong. Expected 4, found 3. The table is probably corrupted
 ALTER TABLE mysql.gtid_executed ADD  interval_end BIGINT NOT NULL COMMENT 'Last number of interval.' AFTER interval_start;
 # Removing debug point 'disable_gtid_background_persister' from @@GLOBAL.debug

@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include "my_compiler.h"
 #include "my_config.h"
+#include "mysql/serialization/byte_order_helpers.h"
 #ifndef STANDALONE_BINLOG
 #define HAVE_MYSYS 1
 #endif
@@ -96,24 +97,6 @@ uint32_t inline be32toh(uint32_t x) {
           ((x << 24) & 0xff000000));
 #else
   return x;
-#endif
-}
-#endif
-
-#if !defined(le64toh)
-/**
-  Converting a 64 bit integer from little-endian byte order to host byteorder
-
-  @param x  64-bit integer in little endian byte order
-  @return  64-bit integer in host byte order
-*/
-uint64_t inline le64toh(uint64_t x) {
-#ifndef WORDS_BIGENDIAN
-  return x;
-#else
-  x = ((x << 8) & 0xff00ff00ff00ff00ULL) | ((x >> 8) & 0x00ff00ff00ff00ffULL);
-  x = ((x << 16) & 0xffff0000ffff0000ULL) | ((x >> 16) & 0x0000ffff0000ffffULL);
-  return (x << 32) | (x >> 32);
 #endif
 }
 #endif

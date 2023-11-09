@@ -23,7 +23,12 @@
 #ifndef MYSQL_UTILS_DEPRECATE_HEADER
 #define MYSQL_UTILS_DEPRECATE_HEADER
 
-/// @brief Contains macro that can be used to deprecate a header
+/// @file
+/// Experimental API header
+/// Contains macro that can be used to deprecate a header
+
+/// @addtogroup GroupLibsMysqlUtils
+/// @{
 
 #define DEPRECATE_HEADER(header_name)                              \
   namespace {                                                      \
@@ -32,5 +37,7 @@
   constexpr static int header_name##_header_is_deprecated =        \
       header_name##_header_deprecation;                            \
   }  // namespace
+
+/// @}
 
 #endif  // MYSQL_UTILS_DEPRECATE_HEADER

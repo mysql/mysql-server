@@ -121,6 +121,7 @@ static Decompressing_event_object_istream::Status_t binlog_read_error_to_status(
     case Binlog_read_error::CANNOT_GET_FILE_PASSWORD:
     case Binlog_read_error::READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED:
     case Binlog_read_error::ERROR_DECRYPTING_FILE:
+    case Binlog_read_error::EVENT_UNSUPPORTED_NEW_VERSION:
       return Decompressing_event_object_istream::Status_t::corrupted;
     case Binlog_read_error::TRUNC_EVENT:
     case Binlog_read_error::TRUNC_FD_EVENT:

@@ -18,7 +18,7 @@
 --echo # Verify that explicit insert into mysql.gtid_executed
 --echo # is causing a warning.
 --echo #
---eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1)
+--eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1, '')
 --echo #
 --echo # Verify that explicit update to mysql.gtid_executed
 --echo # is causing a warning.
@@ -46,7 +46,7 @@ call mtr.add_suppression("You need to use --log-bin to make "
 call mtr.add_suppression("The transaction owned GTID is already in the "
                          "gtid_executed table, which is caused by an "
                          "explicit modifying from user client.");
---eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1)
+--eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1, '')
 --echo #
 --echo # Verify that the GTID is inserted into table, but
 --echo # is not inserted into GLOBAL.GTID_EXECUTED.

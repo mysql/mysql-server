@@ -1,0 +1,35 @@
+
+# Start GR on servers in defined replication topology: 3 members,
+# including one primary
+
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# T1.1 On the primary: execute transactions with AUTOMATIC GTID and
+#      specified tag
+
+[connection server1]
+SET GTID_NEXT='AUTOMATIC:aa';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+# T1.2 On each primary: check Pass condition 1:
+#      Verify that executed GTIDs exist in the gtid_executed global
+#      variable
+
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [Verify that executed GTIDs exist in the gtid_executed global variable. T1, pass condition 1]
+[connection server3]
+include/assert.inc [Verify that executed GTIDs exist in the gtid_executed global variable. T1, pass condition 1]
+
+# Perform a clean up
+
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -69,35 +69,55 @@ bool Mysql_protocol::setup() {
   return false;
 }
 
+uint64_t calculate_encoded_num_tsids_value(
+    const mysql::gtid::Gtid_set &gtid_set,
+    const mysql::gtid::Gtid_format &format) {
+  uint64_t num_tsids = gtid_set.get_num_tsids();
+  uint64_t format_encoded =
+      static_cast<uint64_t>(mysql::utils::to_underlying(format));
+  uint64_t value_encoded = num_tsids | (format_encoded << 56);
+  if (format == mysql::gtid::Gtid_format::tagged) {
+    value_encoded = (format_encoded << 56) | (num_tsids << 8) | format_encoded;
+  }
+  return value_encoded;
+}
+
 bool Mysql_protocol::encode_gtid_set_to_mysql_protocol(
     const mysql::gtid::Gtid_set &gtid_set, std::string &buffer) const {
   char tmp[8];
+  char tsid_tmp[mysql::gtid::Tsid::get_max_encoded_length()];
   const auto &contents = gtid_set.get_gtid_set();
+
+  auto format = gtid_set.get_gtid_set_format();
 
   if (contents.size() == 0) {
     return false;
   }
 
-  // serialize number of uuids
-  int8store(tmp, static_cast<ulonglong>(contents.size()));
+  // serialize number of tsids
+  int8store(tmp, calculate_encoded_num_tsids_value(gtid_set, format));
   buffer.append(tmp, 8);
 
   // for every uuid, serialize it and its intervals
-  for (auto const &[uuid, intervals] : contents) {
-    buffer.append(reinterpret_cast<const char *>(uuid.bytes),
-                  mysql::gtid::Uuid::BYTE_LENGTH);
+  for (auto const &[uuid, tag_map] : contents) {
+    for (auto const &[tag, intervals] : tag_map) {
+      mysql::gtid::Tsid tsid(uuid, tag);
+      auto tsid_bytes =
+          tsid.encode_tsid(reinterpret_cast<unsigned char *>(tsid_tmp), format);
+      buffer.append(tsid_tmp, tsid_bytes);
 
-    // serialize the number of intervals and append the intervals data
-    int8store(tmp, intervals.size());
-    buffer.append(tmp, 8);
-
-    // for every interval serialize start, end
-    for (auto const &intv : intervals) {
-      int8store(tmp, intv.get_start());
+      // serialize the number of intervals and append the intervals data
+      int8store(tmp, intervals.size());
       buffer.append(tmp, 8);
 
-      int8store(tmp, intv.get_end() + 1);
-      buffer.append(tmp, 8);
+      // for every interval serialize start, end
+      for (auto const &intv : intervals) {
+        int8store(tmp, intv.get_start());
+        buffer.append(tmp, 8);
+
+        int8store(tmp, intv.get_end() + 1);
+        buffer.append(tmp, 8);
+      }
     }
   }
   return false;

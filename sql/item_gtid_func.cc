@@ -86,10 +86,10 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return error_int();
   }
 
-  Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
+  Gtid_set wait_for_gtid_set(global_tsid_map, nullptr);
 
-  const Checkable_rwlock::Guard global_sid_lock_guard(
-      *global_sid_lock, Checkable_rwlock::READ_LOCK);
+  const Checkable_rwlock::Guard global_tsid_lock_guard(
+      *global_tsid_lock, Checkable_rwlock::READ_LOCK);
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     return error_int();
@@ -107,7 +107,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   if (thd->owned_gtid.sidno > 0 &&
       wait_for_gtid_set.contains_gtid(thd->owned_gtid)) {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
-    thd->owned_gtid.to_string(global_sid_map, buf);
+    thd->owned_gtid.to_string(global_tsid_map, buf);
     my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
              buf);
     return error_int();
@@ -145,11 +145,11 @@ longlong Item_func_gtid_subset::val_int() {
   int ret = 1;
   enum_return_status status;
 
-  Sid_map sid_map(nullptr /*no rwlock*/);
+  Tsid_map tsid_map(nullptr /*no rwlock*/);
   // compute sets while holding locks
-  const Gtid_set sub_set(&sid_map, charp1, &status);
+  const Gtid_set sub_set(&tsid_map, charp1, &status);
   if (status == RETURN_STATUS_OK) {
-    const Gtid_set super_set(&sid_map, charp2, &status);
+    const Gtid_set super_set(&tsid_map, charp2, &status);
     if (status == RETURN_STATUS_OK) {
       ret = sub_set.is_subset(&super_set) ? 1 : 0;
     }
@@ -197,11 +197,11 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
 
   enum_return_status status;
 
-  Sid_map sid_map(nullptr /*no rwlock*/);
+  Tsid_map tsid_map(nullptr /*no rwlock*/);
   // compute sets while holding locks
-  Gtid_set set1(&sid_map, charp1, &status);
+  Gtid_set set1(&tsid_map, charp1, &status);
   if (status == RETURN_STATUS_OK) {
-    const Gtid_set set2(&sid_map, charp2, &status);
+    const Gtid_set set2(&tsid_map, charp2, &status);
     size_t length;
     // subtract, save result, return result
     if (status == RETURN_STATUS_OK) {

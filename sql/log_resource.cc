@@ -86,13 +86,13 @@ bool Log_resource_binlog_wrapper::collect_info() {
   return error;
 }
 
-void Log_resource_gtid_state_wrapper::lock() { global_sid_lock->wrlock(); }
+void Log_resource_gtid_state_wrapper::lock() { global_tsid_lock->wrlock(); }
 
-void Log_resource_gtid_state_wrapper::unlock() { global_sid_lock->unlock(); }
+void Log_resource_gtid_state_wrapper::unlock() { global_tsid_lock->unlock(); }
 
 bool Log_resource_gtid_state_wrapper::collect_info() {
   bool error = false;
-  global_sid_lock->assert_some_wrlock();
+  global_tsid_lock->assert_some_wrlock();
 
   char *gtid_executed_string;
   Json_object *json_local = static_cast<Json_object *>(get_json());

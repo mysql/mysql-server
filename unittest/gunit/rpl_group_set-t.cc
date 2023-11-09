@@ -69,14 +69,14 @@ class GroupTest : public ::testing::Test {
   /*
     Test that different, equivalent ways to construct a Gtid_set give
     the same resulting Gtid_set.  This is used to test Gtid_set,
-    Sid_map, Group_cache, Group_log_state, and Owned_groups.
+    Tsid_map, Group_cache, Group_log_state, and Owned_groups.
 
     We will generate sets of groups in *stages*.  Each stage is
     divided into a number of *sub-stages* (the number of substages is
     taken uniformly at random from the set 1, 2, ..., 200).  In each
     sub-stage, we randomly sample one sub-group from a fixed set of
     groups.  The fixed set of groups consists of groups from 16
-    different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
+    different TSIDs.  For the Nth TSID (1 <= N <= 16), the fixed set of
     groups contains all GNOS from the closed interval [N, N - 1 + N *
     N].  The stage consists of the set of groups from all the
     sub-stages.
@@ -117,7 +117,7 @@ class GroupTest : public ::testing::Test {
   */
   struct Stage {
     class GroupTest *group_test;
-    Sid_map *sid_map;
+    Tsid_map *tsid_map;
 
     // List of groups added in the present stage.
     static const int MAX_SUBSTAGES = 200;
@@ -134,9 +134,9 @@ class GroupTest : public ::testing::Test {
     // The subset of groups that cannot be added as automatic groups.
     Gtid_set non_automatic_groups;
 
-    Stage(class GroupTest *gt, Sid_map *sm)
+    Stage(class GroupTest *gt, Tsid_map *sm)
         : group_test(gt),
-          sid_map(sm),
+          tsid_map(sm),
           set(sm),
           str_len(0),
           str(nullptr),
@@ -145,7 +145,7 @@ class GroupTest : public ::testing::Test {
       init(sm);
     }
 
-    void init(Sid_map *sm) {
+    void init(Tsid_map *sm) {
       rpl_sidno max_sidno = sm->get_max_sidno();
       ASSERT_OK(set.ensure_sidno(max_sidno));
       ASSERT_OK(automatic_groups.ensure_sidno(max_sidno));
@@ -169,9 +169,9 @@ class GroupTest : public ::testing::Test {
 
       @param done_groups The set of all groups added in previous
       stages.
-      @param other_sm Sid_map to which groups should be added.
+      @param other_sm Tsid_map to which groups should be added.
     */
-    void new_stage(const Gtid_set *done_groups, Sid_map *other_sm) {
+    void new_stage(const Gtid_set *done_groups, Tsid_map *other_sm) {
       set.clear();
       automatic_groups.clear();
       non_automatic_groups.clear();
@@ -182,7 +182,7 @@ class GroupTest : public ::testing::Test {
         substage.sidno = 1 + (rand() % N_SIDS);
         substage.gno = 1 + (rand() % (substage.sidno * substage.sidno));
         // compute alternative forms
-        substage.sid = sid_map->sidno_to_sid(substage.sidno);
+        substage.sid = tsid_map->sidno_to_sid(substage.sidno);
         ASSERT_NE((rpl_sid *)nullptr, substage.sid) << group_test->errtext;
         substage.sid->to_string(substage.sid_str);
         substage.sid->to_string(substage.gtid_str);
@@ -308,9 +308,9 @@ TEST_F(GroupTest, Uuid) {
   EXPECT_NOK(u.parse("ffffFFFFfffff-FFFF-ffff-ffffffffFFFF"));
 }
 
-TEST_F(GroupTest, Sid_map) {
+TEST_F(GroupTest, Tsid_map) {
   Checkable_rwlock lock;
-  Sid_map sm(&lock);
+  Tsid_map sm(&lock);
 
   lock.rdlock();
   ASSERT_OK(sm.open("sid-map-0"));
@@ -319,17 +319,18 @@ TEST_F(GroupTest, Sid_map) {
   while (sm.get_max_sidno() < N_SIDS)
     ASSERT_LE(1, sm.add_permanent(&sids[rand() % N_SIDS])) << errtext;
 
-  // Check that all N_SID SIDs are in the map, and that
+  std::size_t i = 0;
+  // Check that all N_TSID TSIDs are in the map, and that
   // get_sorted_sidno() has the correct order.  This implies that no
-  // SID was added twice.
-  for (int i = 0; i < N_SIDS; i++) {
-    rpl_sidno sidno = sm.get_sorted_sidno(i);
+  // TSID was added twice.
+  for (const auto &sid_it : tsid_map->get_sorted_sidno()) {
+    rpl_sidno sidno = tsid_map->get_sidno(sid_it);
     const rpl_sid *sid;
     char buf[100];
     EXPECT_NE((rpl_sid *)nullptr, sid = sm.sidno_to_sid(sidno)) << errtext;
     const int max_len = mysql::gtid::Uuid::TEXT_LENGTH;
     EXPECT_EQ(max_len, sid->to_string(buf)) << errtext;
-    EXPECT_STRCASEEQ(uuids[i], buf) << errtext;
+    EXPECT_STRCASEEQ(uuids[i++], buf) << errtext;
     EXPECT_EQ(sidno, sm.sid_to_sidno(sid)) << errtext;
   }
   lock.unlock();
@@ -346,7 +347,7 @@ TEST_F(GroupTest, Group_containers) {
 
     We add groups in the two ways:
 
-    A. Test Gtid_sets and Sid_maps.  We vary two parameters:
+    A. Test Gtid_sets and Tsid_maps.  We vary two parameters:
 
        Parameter 1: vary the way that groups are added:
         0. Add one group at a time, using add(sidno, gno).
@@ -357,9 +358,9 @@ TEST_F(GroupTest, Group_containers) {
            gs_new.to_string(). in each stage, we set gs[4] to a new
            Gtid_set created from this string.
 
-       Parameter 2: vary the Sid_map object:
-        0. Use a Sid_map that has all the SIDs in order.
-        1. Use a Sid_map where SIDs are added in the order they appear.
+       Parameter 2: vary the Tsid_map object:
+        0. Use a Tsid_map that has all the TSIDs in order.
+        1. Use a Tsid_map where TSIDs are added in the order they appear.
 
        We vary these parameters in all combinations; thus we construct
        10 Gtid_sets.
@@ -372,8 +373,8 @@ TEST_F(GroupTest, Group_containers) {
     METHOD_ALL_TEXTS_CONCATENATED,
     MAX_METHOD
   };
-  enum enum_sets_sid_map { SID_MAP_0 = 0, SID_MAP_1, MAX_SID_MAP };
-  const int N_COMBINATIONS_SETS = MAX_METHOD * MAX_SID_MAP;
+  enum enum_sets_tsid_map { TSID_MAP_0 = 0, TSID_MAP_1, MAX_TSID_MAP };
+  const int N_COMBINATIONS_SETS = MAX_METHOD * MAX_TSID_MAP;
   /*
     B. Test Group_cache, Group_log_state, and Owned_groups.  All
        sub-groups for the stage are added to the Group_cache, the
@@ -393,9 +394,9 @@ TEST_F(GroupTest, Group_containers) {
            chance.  Set GTID_NEXT_LIST to the list of all groups in
            the stage.
         3. Automatic groups: add all groups to the stmt group cache,
-           but make the group automatic if possible, i.e., if the SID
+           but make the group automatic if possible, i.e., if the TSID
            and GNO are unlogged and there is no smaller unlogged GNO
-           for this SID.  Set GTID_NEXT_LIST = NULL.
+           for this TSID.  Set GTID_NEXT_LIST = NULL.
 
        Parameter 2: ended or non-ended sub-groups:
         0. All sub-groups are unended (except automatic sub-groups).
@@ -442,17 +443,17 @@ TEST_F(GroupTest, Group_containers) {
   const int N_COMBINATIONS = N_COMBINATIONS_SETS + N_COMBINATIONS_CACHES;
 
   // Auxiliary macros to loop through all combinations of parameters.
-#define BEGIN_LOOP_A                                                        \
-  push_errtext();                                                           \
-  for (int method_i = 0, combination_i = 0; method_i < MAX_METHOD;          \
-       method_i++) {                                                        \
-    for (int sid_map_i = 0; sid_map_i < MAX_SID_MAP;                        \
-         sid_map_i++, combination_i++) {                                    \
-      Gtid_set &gtid_set [[maybe_unused]] =                                 \
-          containers[combination_i]->gtid_set;                              \
-      Sid_map *&sid_map [[maybe_unused]] = sid_maps[sid_map_i];             \
-      append_errtext(__LINE__, "sid_map_i=%d method_i=%d combination_i=%d", \
-                     sid_map_i, method_i, combination_i);
+#define BEGIN_LOOP_A                                                         \
+  push_errtext();                                                            \
+  for (int method_i = 0, combination_i = 0; method_i < MAX_METHOD;           \
+       method_i++) {                                                         \
+    for (int tsid_map_i = 0; tsid_map_i < MAX_TSID_MAP;                      \
+         tsid_map_i++, combination_i++) {                                    \
+      Gtid_set &gtid_set [[maybe_unused]] =                                  \
+          containers[combination_i]->gtid_set;                               \
+      Tsid_map *&tsid_map [[maybe_unused]] = tsid_maps[tsid_map_i];          \
+      append_errtext(__LINE__, "tsid_map_i=%d method_i=%d combination_i=%d", \
+                     tsid_map_i, method_i, combination_i);
 
 #define END_LOOP_A \
   }                \
@@ -493,22 +494,22 @@ TEST_F(GroupTest, Group_containers) {
 
   mysql_bin_log.server_uuid_sidno = 1;
 
-  // Create Sid_maps.
-  Checkable_rwlock &lock = mysql_bin_log.sid_lock;
-  Sid_map **sid_maps = new Sid_map *[2];
-  sid_maps[0] = &mysql_bin_log.sid_map;
-  sid_maps[1] = new Sid_map(&lock);
+  // Create Tsid_maps.
+  Checkable_rwlock &lock = mysql_bin_log.tsid_lock;
+  Tsid_map **tsid_maps = new Tsid_map *[2];
+  tsid_maps[0] = &mysql_bin_log.tsid_map;
+  tsid_maps[1] = new Tsid_map(&lock);
 
   lock.rdlock();
-  ASSERT_OK(sid_maps[0]->open("sid-map-1"));
-  ASSERT_OK(sid_maps[1]->open("sid-map-2"));
+  ASSERT_OK(tsid_maps[0]->open("sid-map-1"));
+  ASSERT_OK(tsid_maps[1]->open("sid-map-2"));
   /*
-    Make sid_maps[0] and sid_maps[1] different: sid_maps[0] is
-    generated in order; sid_maps[1] is generated in the order that
+    Make tsid_maps[0] and tsid_maps[1] different: tsid_maps[0] is
+    generated in order; tsid_maps[1] is generated in the order that
     SIDS are inserted in the Gtid_set.
   */
   for (int i = 0; i < N_SIDS; i++)
-    ASSERT_LE(1, sid_maps[0]->add_permanent(&sids[i])) << errtext;
+    ASSERT_LE(1, tsid_maps[0]->add_permanent(&sids[i])) << errtext;
 
   // Create list of container objects.  These are the objects that we
   // test.
@@ -517,17 +518,17 @@ TEST_F(GroupTest, Group_containers) {
     Group_cache stmt_cache;
     Group_cache trx_cache;
     Group_log_state group_log_state;
-    Containers(Checkable_rwlock *lock, Sid_map *sm)
+    Containers(Checkable_rwlock *lock, Tsid_map *sm)
         : gtid_set(sm), group_log_state(lock, sm) {
       init();
     }
     void init() { ASSERT_OK(group_log_state.ensure_sidno()); };
   };
   Containers **containers = new Containers *[N_COMBINATIONS];
-  BEGIN_LOOP_A { containers[combination_i] = new Containers(&lock, sid_map); }
+  BEGIN_LOOP_A { containers[combination_i] = new Containers(&lock, tsid_map); }
   END_LOOP_A;
   BEGIN_LOOP_B {
-    containers[combination_i] = new Containers(&lock, sid_maps[0]);
+    containers[combination_i] = new Containers(&lock, tsid_maps[0]);
   }
   END_LOOP_B;
 
@@ -541,12 +542,12 @@ TEST_F(GroupTest, Group_containers) {
   for (rpl_sidno sidno = 2; sidno <= N_SIDS; sidno++)
     s += sprintf(s, ",\n%s:1-%d", uuids[sidno - 1], sidno * sidno);
   enum_return_status status;
-  Gtid_set all_groups(sid_maps[0], all_groups_str, &status);
+  Gtid_set all_groups(tsid_maps[0], all_groups_str, &status);
   ASSERT_OK(status) << errtext;
 
   // The set of groups that were added in some previous stage.
-  Gtid_set done_groups(sid_maps[0]);
-  ASSERT_OK(done_groups.ensure_sidno(sid_maps[0]->get_max_sidno()));
+  Gtid_set done_groups(tsid_maps[0]);
+  ASSERT_OK(done_groups.ensure_sidno(tsid_maps[0]->get_max_sidno()));
 
   /*
     Iterate through stages. In each stage, create the "stage group
@@ -557,7 +558,7 @@ TEST_F(GroupTest, Group_containers) {
   */
   char *done_str = nullptr;
   int done_str_len = 0;
-  Stage stage(this, sid_maps[0]);
+  Stage stage(this, tsid_maps[0]);
   int stage_i = 0;
 
   /*
@@ -582,7 +583,7 @@ TEST_F(GroupTest, Group_containers) {
   while (!all_groups.equals(&done_groups)) {
     stage_i++;
     append_errtext(__LINE__, "stage_i=%d", stage_i);
-    stage.new_stage(&done_groups, sid_maps[1]);
+    stage.new_stage(&done_groups, tsid_maps[1]);
 
     if (verbose) {
       printf("======== stage %d ========\n", stage_i);
@@ -600,7 +601,7 @@ TEST_F(GroupTest, Group_containers) {
       switch (method_i) {
         case METHOD_SIDNO_GNO:
           BEGIN_SUBSTAGE_LOOP(this, &stage, true) {
-            rpl_sidno sidno_1 = sid_map->sid_to_sidno(substage.sid);
+            rpl_sidno sidno_1 = tsid_map->sid_to_sidno(substage.sid);
             ASSERT_LE(1, sidno_1) << errtext;
             ASSERT_OK(gtid_set.ensure_sidno(sidno_1));
             ASSERT_OK(gtid_set._add(sidno_1, substage.gno));
@@ -637,13 +638,13 @@ TEST_F(GroupTest, Group_containers) {
         printf("group log state:\n");
         group_log_state.print();
         printf("trx cache:\n");
-        trx_cache.print(sid_maps[0]);
+        trx_cache.print(tsid_maps[0]);
         printf("stmt cache:\n");
-        stmt_cache.print(sid_maps[0]);
+        stmt_cache.print(tsid_maps[0]);
 #endif  // ifdef NDEBUG
       }
 
-      Gtid_set ended_groups(sid_maps[0]);
+      Gtid_set ended_groups(tsid_maps[0]);
       bool trx_contains_logged_subgroup = false;
       bool stmt_contains_logged_subgroup = false;
       BEGIN_SUBSTAGE_LOOP(this, &stage, true) {
@@ -768,7 +769,7 @@ TEST_F(GroupTest, Group_containers) {
 #ifndef NDEBUG
         if (verbose) {
           printf("stmt_cache:\n");
-          stmt_cache.print(sid_maps[0]);
+          stmt_cache.print(tsid_maps[0]);
         }
 #endif  // ifndef NDEBUG
         if (!stmt_cache.is_empty())
@@ -787,7 +788,7 @@ TEST_F(GroupTest, Group_containers) {
 #ifndef NDEBUG
           if (verbose) {
             printf("trx_cache:\n");
-            trx_cache.print(sid_maps[0]);
+            trx_cache.print(tsid_maps[0]);
             printf(
                 "trx_cache.is_empty=%d n_subgroups=%d "
                 "trx_contains_logged_subgroup=%d\n",
@@ -903,9 +904,9 @@ TEST_F(GroupTest, Group_containers) {
   free(done_str);
   for (int i = 0; i < N_COMBINATIONS; i++) delete containers[i];
   delete containers;
-  delete sid_maps[1];
-  delete sid_maps;
+  delete tsid_maps[1];
+  delete tsid_maps;
   free(thd);
 
-  mysql_bin_log.sid_lock.assert_no_lock();
+  mysql_bin_log.tsid_lock.assert_no_lock();
 }

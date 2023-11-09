@@ -1029,6 +1029,7 @@ SET(BINLOG_SOURCE
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
+  changestreams/index/locked_sidno_set.cc
   changestreams/misc/replicated_columns_view.cc
   changestreams/misc/replicated_columns_view_with_gipk_on_source.cc
   changestreams/misc/column_filters/column_filter_inbound_func_indexes.cc
@@ -1044,7 +1045,7 @@ SET(BINLOG_SOURCE
   rpl_gtid_owned.cc
   rpl_gtid_persist.cc
   rpl_gtid_set.cc
-  rpl_gtid_sid_map.cc
+  rpl_gtid_tsid_map.cc
   rpl_gtid_specification.cc
   rpl_gtid_state.cc
   rpl_injector.cc

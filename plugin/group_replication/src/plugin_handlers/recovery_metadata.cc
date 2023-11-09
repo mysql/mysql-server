@@ -80,8 +80,8 @@ enum_gcs_error Recovery_metadata_module::send_recovery_metadata(
     assert(recovery_metadata_msg->get_encode_compressor_list().size() > 0);
 
     std::string decode_gtid_executed{};
-    Sid_map gtid_executed_sid_map(nullptr);
-    Gtid_set gtid_executed_set(&gtid_executed_sid_map, nullptr);
+    Tsid_map gtid_executed_tsid_map(nullptr);
+    Gtid_set gtid_executed_set(&gtid_executed_tsid_map, nullptr);
     std::string gtid_executed_aux{
         recovery_metadata_msg->get_encode_group_gtid_executed()};
     if (gtid_executed_set.add_gtid_encoding(

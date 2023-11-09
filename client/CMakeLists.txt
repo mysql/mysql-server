@@ -1,5 +1,5 @@
 # Copyright (c) 2006, 2023, Oracle and/or its affiliates.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -228,7 +228,7 @@ SET(MYSQLBINLOG_SOURCES
   mysqlbinlog.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
-  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_tsid_map.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_misc.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc

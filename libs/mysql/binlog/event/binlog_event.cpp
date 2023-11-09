@@ -73,6 +73,7 @@ static const std::unordered_map<Log_event_type, const std::string>
                             {XA_PREPARE_LOG_EVENT, "XA_prepare"},
                             {PARTIAL_UPDATE_ROWS_EVENT, "Update_rows_partial"},
                             {TRANSACTION_PAYLOAD_EVENT, "Transaction_payload"},
+                            {GTID_TAGGED_LOG_EVENT, "Gtid_tagged_log_event"},
                             {UNKNOWN_EVENT, "Unknown"}};
 
 const std::string &get_event_type_as_string(Log_event_type type) {
@@ -283,6 +284,15 @@ Log_event_header::Log_event_header(Event_reader &reader)
                (type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F));
 
   BAPI_VOID_RETURN;
+}
+
+const Event_decoding_error &Log_event_header::get_decoding_error() const {
+  return m_decoding_error;
+}
+
+void Log_event_header::set_decoding_error(
+    const Event_decoding_error &decoding_error) {
+  m_decoding_error = decoding_error;
 }
 
 Binary_log_event::Binary_log_event(const char **buf,

@@ -1172,6 +1172,7 @@ uint64_t net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
+uint64_t net_length_size_including_self(uint64_t length_without_self);
 
 #define NULL_LENGTH ((unsigned long)~0) /**< For ::net_store_length() */
 #define MYSQL_STMT_HEADER 4

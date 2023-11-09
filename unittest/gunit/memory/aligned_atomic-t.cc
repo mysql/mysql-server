@@ -25,24 +25,35 @@
 #include <chrono>
 #include <vector>
 
-#define private public
 #include "sql/memory/aligned_atomic.h"
-#undef private
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace memory {
-namespace unittests {
 
-class Aligned_atomic_test : public ::testing::Test {
+struct Aligned_atomic_accessor_token {};
+
+template <>
+class Aligned_atomic_accessor<Aligned_atomic_accessor_token> {
+ public:
+  template <class T>
+  static auto get_underlying(memory::Aligned_atomic<T> &atm) {
+    return atm.m_underlying;
+  }
+};
+
+using Aligned_atomic_accessor_ut =
+    Aligned_atomic_accessor<Aligned_atomic_accessor_token>;
+
+class AlignedAtomicTest : public ::testing::Test {
  protected:
-  Aligned_atomic_test() = default;
+  AlignedAtomicTest() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
 };
 
-TEST_F(Aligned_atomic_test, Class_template_test) {
+TEST_F(AlignedAtomicTest, Class_template_test) {
   std::string str{"012345678"};
   memory::Aligned_atomic<int> atm{1};
   EXPECT_EQ(atm->load(), 1);
@@ -59,7 +70,7 @@ TEST_F(Aligned_atomic_test, Class_template_test) {
   EXPECT_EQ(atm3->load(), 2);
 }
 
-TEST_F(Aligned_atomic_test, minimum_cacheline_for) {
+TEST_F(AlignedAtomicTest, MinimumCachelineFor) {
   EXPECT_EQ(memory::minimum_cacheline_for<char>(), memory::cache_line_size());
   EXPECT_EQ(memory::minimum_cacheline_for<int>(), memory::cache_line_size());
   EXPECT_EQ(memory::minimum_cacheline_for<std::atomic<bool>>(),
@@ -68,28 +79,33 @@ TEST_F(Aligned_atomic_test, minimum_cacheline_for) {
             memory::cache_line_size());
 }
 
-TEST_F(Aligned_atomic_test, aligned_allocation) {
+TEST_F(AlignedAtomicTest, AlignedAllocation) {
+  Aligned_atomic_accessor_ut accessor;
   memory::Aligned_atomic<int> atm1{1};
-  EXPECT_EQ((unsigned long long)atm1.m_underlying % memory::cache_line_size(),
+  EXPECT_EQ((unsigned long long)accessor.get_underlying(atm1) %
+                memory::cache_line_size(),
             0);
 
   memory::Aligned_atomic<bool> atm2{true};
-  EXPECT_EQ((unsigned long long)atm2.m_underlying % memory::cache_line_size(),
+  EXPECT_EQ((unsigned long long)accessor.get_underlying(atm2) %
+                memory::cache_line_size(),
             0);
 
   memory::Aligned_atomic<short> atm3{0};
-  EXPECT_EQ((unsigned long long)atm3.m_underlying % memory::cache_line_size(),
+  EXPECT_EQ((unsigned long long)accessor.get_underlying(atm3) %
+                memory::cache_line_size(),
             0);
 }
 
-TEST_F(Aligned_atomic_test, aligned_allocation_array) {
+TEST_F(AlignedAtomicTest, AlignedAllocationArray) {
+  Aligned_atomic_accessor_ut accessor;
   static const int array_size = 10;
   memory::Aligned_atomic<int> atm[array_size];
 
   for (int i = 0; i < array_size; i++)
-    EXPECT_EQ(
-        (unsigned long long)atm[i].m_underlying % memory::cache_line_size(), 0);
+    EXPECT_EQ((unsigned long long)accessor.get_underlying(atm[i]) %
+                  memory::cache_line_size(),
+              0);
 }
 
-}  // namespace unittests
 }  // namespace memory
