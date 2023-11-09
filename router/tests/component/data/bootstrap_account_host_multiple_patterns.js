@@ -15,7 +15,6 @@ var common_stmts = require("common_statements");
           "router_select_schema_version",
           "router_select_cluster_type_v2",
           "router_select_current_instance_attributes",
-          "router_select_metadata_v2",
           "router_count_clusters_v2",
           "router_check_member_state",
           "router_select_members_count",

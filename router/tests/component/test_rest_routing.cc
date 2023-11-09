@@ -1099,7 +1099,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   std::vector<uint16_t> node_classic_ports;
   uint16_t first_node_http_port{0};
   const std::string json_metadata =
-      get_data_dir().join("metadata_dynamic_nodes.js").str();
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
   for (size_t i = 0; i < 3; ++i) {
     node_classic_ports.push_back(port_pool_.get_next_available());
     if (i == 0) first_node_http_port = port_pool_.get_next_available();

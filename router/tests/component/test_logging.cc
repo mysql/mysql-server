@@ -2123,7 +2123,7 @@ TEST_F(MetadataCacheLoggingTest,
   // Launch metadata server
   const auto http_port = cluster_nodes_http_ports[0];
   auto &server = launch_mysql_server_mock(
-      get_data_dir().join("metadata_dynamic_nodes.js").str(),
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str(),
       cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -2212,7 +2212,7 @@ TEST_F(MetadataCacheLoggingTest,
   server.wait_for_exit();
 
   auto &new_server = launch_mysql_server_mock(
-      get_data_dir().join("metadata_dynamic_nodes.js").str(),
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str(),
       cluster_nodes_ports[0], EXIT_SUCCESS, false, cluster_nodes_http_ports[0]);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(new_server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(cluster_nodes_http_ports[0])

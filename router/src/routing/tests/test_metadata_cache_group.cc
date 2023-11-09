@@ -137,7 +137,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       uint64_t /*view_id*/ = 0) override {}
 
   mysqlrouter::ClusterType cluster_type() const override {
-    return mysqlrouter::ClusterType::GR_V1;
+    return mysqlrouter::ClusterType::GR_V2;
   }
 
   MOCK_METHOD(void, cache_start, (), (override));

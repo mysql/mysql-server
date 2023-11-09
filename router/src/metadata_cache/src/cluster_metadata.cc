@@ -181,22 +181,8 @@ ClusterMetadata::get_and_check_metadata_schema_version(
   if (!metadata_schema_version_is_compatible(
           mysqlrouter::kRequiredRoutingMetadataSchemaVersion, version)) {
     throw metadata_cache::metadata_error(mysql_harness::utility::string_format(
-        "Unsupported metadata schema on %s. Expected Metadata Schema version "
-        "compatible to %s, got %s",
-        session.get_address().c_str(),
-        to_string(mysqlrouter::kRequiredRoutingMetadataSchemaVersion).c_str(),
-        to_string(version).c_str()));
-  }
-
-  if (metadata_schema_version_is_deprecated(version)) {
-    const auto instance = session.get_address();
-    const auto message =
-        "Instance '" + instance +
-        "': " + mysqlrouter::get_metadata_schema_deprecated_msg(version);
-
-    LogSuppressor::instance().log_message(
-        LogSuppressor::MessageId::kDeprecatedMetadataVersion, instance, message,
-        true);
+        "Instance '%s': %s", session.get_address().c_str(),
+        mysqlrouter::get_metadata_schema_uncompatible_msg(version).c_str()));
   }
 
   return version;
@@ -277,35 +263,18 @@ bool ClusterMetadata::update_router_attributes(
   // MetadataUpgradeInProgressException
   get_and_check_metadata_schema_version(*connection);
 
-  sqlstring query;
-  if (get_cluster_type() == ClusterType::GR_V1) {
-    query =
-        "UPDATE mysql_innodb_cluster_metadata.routers "
-        "SET attributes = "
-        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
-        "IF(attributes IS NULL, '{}', attributes), "
-        "'$.version', ?), "
-        "'$.RWEndpoint', ?), "
-        "'$.ROEndpoint', ?), "
-        "'$.RWSplitEndpoint', ?), "
-        "'$.RWXEndpoint', ?), "
-        "'$.ROXEndpoint', ?), "
-        "'$.MetadataUser', ?) "
-        "WHERE router_id = ?";
-  } else {
-    query =
-        "UPDATE mysql_innodb_cluster_metadata.v2_routers "
-        "SET version = ?, last_check_in = NOW(), attributes = "
-        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
-        "IF(attributes IS NULL, '{}', attributes), "
-        "'$.RWEndpoint', ?), "
-        "'$.ROEndpoint', ?), "
-        "'$.RWSplitEndpoint', ?), "
-        "'$.RWXEndpoint', ?), "
-        "'$.ROXEndpoint', ?), "
-        "'$.MetadataUser', ?) "
-        "WHERE router_id = ?";
-  }
+  sqlstring query =
+      "UPDATE mysql_innodb_cluster_metadata.v2_routers "
+      "SET version = ?, last_check_in = NOW(), attributes = "
+      "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+      "IF(attributes IS NULL, '{}', attributes), "
+      "'$.RWEndpoint', ?), "
+      "'$.ROEndpoint', ?), "
+      "'$.RWSplitEndpoint', ?), "
+      "'$.RWXEndpoint', ?), "
+      "'$.ROXEndpoint', ?), "
+      "'$.MetadataUser', ?) "
+      "WHERE router_id = ?";
 
   const auto &ra{router_attributes};
   query << MYSQL_ROUTER_VERSION << ra.rw_classic_port << ra.ro_classic_port
@@ -322,9 +291,6 @@ bool ClusterMetadata::update_router_attributes(
 bool ClusterMetadata::update_router_last_check_in(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
-  // only relevant to for metadata V2
-  if (get_cluster_type() == ClusterType::GR_V1) return true;
-
   auto connection = std::make_unique<MySQLSession>(
       std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   if (!do_connect(*connection, rw_server)) {

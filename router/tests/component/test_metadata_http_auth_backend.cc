@@ -362,7 +362,7 @@ TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
 
 TEST_F(BasicMetadataHttpAuthTest, UnsupportedMetadataSchemaVersion) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, view_id, {1, 0, 0});
+                    cluster_node_port, false, view_id, {2, 0, 0});
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase);

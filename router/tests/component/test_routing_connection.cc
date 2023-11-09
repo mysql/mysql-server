@@ -459,6 +459,15 @@ static std::vector<std::string> vec_from_lines(const std::string &s) {
  * too old.
  */
 TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
+  RecordProperty("Worklog", "15868");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty("Requirement",
+                 "When MySQLRouter connects to the Cluster with metadata "
+                 "version 1.x, it MUST disable the routing and log an error");
+  RecordProperty("Description",
+                 "Testing that the Router disables the Routing and logs an "
+                 "error for unsupported metadata version.");
+
   // preparation
   //
   SCOPED_TRACE("// [prep] creating router config");
@@ -506,19 +515,11 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
                MySQLSession::Error);
 
   SCOPED_TRACE("// [test] expect router log to contain error message");
-
-  // posix RE has [0-9], but no \\d
-  // simple RE has \\d, but no [0-9]
   constexpr const char log_msg_re[]{
-#ifdef GTEST_USES_POSIX_RE
-      "Unsupported metadata schema on .*\\. Expected Metadata Schema version "
-      "compatible to [0-9]\\.[0-9]\\.[0-9], [0-9]\\.[0-9]\\.[0-9], got "
-      "0\\.0\\.1"
-#else
-      "Unsupported metadata schema on .*\\. Expected Metadata Schema version "
-      "compatible to \\d\\.\\d\\.\\d, \\d\\.\\d\\.\\d, got 0\\.0\\.1"
-#endif
-  };
+      "The target Cluster's Metadata version \\('1\\.0\\.1'\\) is not "
+      "supported\\. Please use the latest MySQL Shell to upgrade it using "
+      "'dba\\.upgradeMetadata\\(\\)'\\. Expected metadata version compatible "
+      "with '2\\.0\\.0'"};
 
   ASSERT_THAT(vec_from_lines(router.get_logfile_content()),
               ::testing::Contains(::testing::ContainsRegex(log_msg_re)));
@@ -654,13 +655,9 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
 INSTANTIATE_TEST_SUITE_P(
     IsConnectionsClosedWhenPrimaryRemovedFromCluster,
     IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
-    ::testing::Values(
-        TracefileTestParam(
-            "metadata_3_secondaries_server_removed_from_cluster_v2_gr.js",
-            ClusterType::GR_V2),
-        TracefileTestParam(
-            "metadata_3_secondaries_server_removed_from_cluster.js",
-            ClusterType::GR_V1)));
+    ::testing::Values(TracefileTestParam(
+        "metadata_3_secondaries_server_removed_from_cluster_v2_gr.js",
+        ClusterType::GR_V2)));
 
 class IsConnectionsClosedWhenSecondaryRemovedFromClusterTest
     : public RouterRoutingConnectionTest,
@@ -732,13 +729,9 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
 INSTANTIATE_TEST_SUITE_P(
     IsConnectionsClosedWhenSecondaryRemovedFromCluster,
     IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
-    ::testing::Values(
-        TracefileTestParam(
-            "metadata_3_secondaries_server_removed_from_cluster_v2_gr.js",
-            ClusterType::GR_V2),
-        TracefileTestParam(
-            "metadata_3_secondaries_server_removed_from_cluster.js",
-            ClusterType::GR_V1)));
+    ::testing::Values(TracefileTestParam(
+        "metadata_3_secondaries_server_removed_from_cluster_v2_gr.js",
+        ClusterType::GR_V2)));
 
 class IsRWConnectionsClosedWhenPrimaryFailoverTest
     : public RouterRoutingConnectionTest,
@@ -788,14 +781,11 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    IsRWConnectionsClosedWhenPrimaryFailover,
-    IsRWConnectionsClosedWhenPrimaryFailoverTest,
-    ::testing::Values(
-        TracefileTestParam("metadata_3_secondaries_primary_failover_v2_gr.js",
-                           ClusterType::GR_V2),
-        TracefileTestParam("metadata_3_secondaries_primary_failover.js",
-                           ClusterType::GR_V1)));
+INSTANTIATE_TEST_SUITE_P(IsRWConnectionsClosedWhenPrimaryFailover,
+                         IsRWConnectionsClosedWhenPrimaryFailoverTest,
+                         ::testing::Values(TracefileTestParam(
+                             "metadata_3_secondaries_primary_failover_v2_gr.js",
+                             ClusterType::GR_V2)));
 
 class RWDestinationUnreachableTest
     : public RouterRoutingConnectionTest,
@@ -847,9 +837,7 @@ TEST_P(RWDestinationUnreachableTest, RWDestinationUnreachable) {
 INSTANTIATE_TEST_SUITE_P(
     RWDestinationUnreachable, RWDestinationUnreachableTest,
     ::testing::Values(TracefileTestParam("metadata_1_node_repeat_v2_gr.js",
-                                         ClusterType::GR_V2),
-                      TracefileTestParam("metadata_1_node_repeat.js",
-                                         ClusterType::GR_V1)));
+                                         ClusterType::GR_V2)));
 
 class IsROConnectionsKeptWhenPrimaryFailoverTest
     : public RouterRoutingConnectionTest,
@@ -903,14 +891,11 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    IsROConnectionsKeptWhenPrimaryFailover,
-    IsROConnectionsKeptWhenPrimaryFailoverTest,
-    ::testing::Values(
-        TracefileTestParam("metadata_3_secondaries_primary_failover_v2_gr.js",
-                           ClusterType::GR_V2),
-        TracefileTestParam("metadata_3_secondaries_primary_failover.js",
-                           ClusterType::GR_V1)));
+INSTANTIATE_TEST_SUITE_P(IsROConnectionsKeptWhenPrimaryFailover,
+                         IsROConnectionsKeptWhenPrimaryFailoverTest,
+                         ::testing::Values(TracefileTestParam(
+                             "metadata_3_secondaries_primary_failover_v2_gr.js",
+                             ClusterType::GR_V2)));
 
 class RouterRoutingConnectionPromotedTest
     : public RouterRoutingConnectionCommonTest,
@@ -974,13 +959,8 @@ INSTANTIATE_TEST_SUITE_P(
         TracefileTestParam("metadata_3_secondaries_primary_failover_v2_gr.js",
                            ClusterType::GR_V2,
                            "&disconnect_on_promoted_to_primary=no"),
-        TracefileTestParam("metadata_3_secondaries_primary_failover.js",
-                           ClusterType::GR_V1,
-                           "&disconnect_on_promoted_to_primary=no"),
         TracefileTestParam("metadata_3_secondaries_primary_failover_v2_gr.js",
-                           ClusterType::GR_V2, ""),
-        TracefileTestParam("metadata_3_secondaries_primary_failover.js",
-                           ClusterType::GR_V1, "")));
+                           ClusterType::GR_V2, "")));
 
 class IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest
     : public RouterRoutingConnectionTest,
@@ -1040,14 +1020,11 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    IsConnectionToSecondaryClosedWhenPromotedToPrimary,
-    IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
-    ::testing::Values(
-        TracefileTestParam("metadata_3_secondaries_primary_failover_v2_gr.js",
-                           ClusterType::GR_V2),
-        TracefileTestParam("metadata_3_secondaries_primary_failover.js",
-                           ClusterType::GR_V1)));
+INSTANTIATE_TEST_SUITE_P(IsConnectionToSecondaryClosedWhenPromotedToPrimary,
+                         IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
+                         ::testing::Values(TracefileTestParam(
+                             "metadata_3_secondaries_primary_failover_v2_gr.js",
+                             ClusterType::GR_V2)));
 
 class IsConnectionToMinorityClosedWhenClusterPartitionTest
     : public RouterRoutingConnectionTest,
@@ -1127,14 +1104,11 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    IsConnectionToMinorityClosedWhenClusterPartition,
-    IsConnectionToMinorityClosedWhenClusterPartitionTest,
-    ::testing::Values(
-        TracefileTestParam("metadata_4_secondaries_partitioning_v2_gr.js",
-                           ClusterType::GR_V2),
-        TracefileTestParam("metadata_4_secondaries_partitioning.js",
-                           ClusterType::GR_V1)));
+INSTANTIATE_TEST_SUITE_P(IsConnectionToMinorityClosedWhenClusterPartition,
+                         IsConnectionToMinorityClosedWhenClusterPartitionTest,
+                         ::testing::Values(TracefileTestParam(
+                             "metadata_4_secondaries_partitioning_v2_gr.js",
+                             ClusterType::GR_V2)));
 
 class IsConnectionClosedWhenClusterOverloadedTest
     : public RouterRoutingConnectionCommonTest,
@@ -1198,9 +1172,7 @@ INSTANTIATE_TEST_SUITE_P(
     IsConnectionClosedWhenClusterOverloaded,
     IsConnectionClosedWhenClusterOverloadedTest,
     ::testing::Values(TracefileTestParam("metadata_3_secondaries_pass_v2_gr.js",
-                                         ClusterType::GR_V2),
-                      TracefileTestParam("metadata_3_secondaries_pass.js",
-                                         ClusterType::GR_V1)));
+                                         ClusterType::GR_V2)));
 
 class RouterRoutingConnectionMDUnavailableTest
     : public RouterRoutingConnectionCommonTest,
@@ -1266,12 +1238,8 @@ INSTANTIATE_TEST_SUITE_P(
         TracefileTestParam("metadata_3_secondaries_pass_v2_gr.js",
                            ClusterType::GR_V2,
                            "&disconnect_on_metadata_unavailable=no"),
-        TracefileTestParam("metadata_3_secondaries_pass.js", ClusterType::GR_V1,
-                           "&disconnect_on_metadata_unavailable=no"),
         TracefileTestParam("metadata_3_secondaries_pass_v2_gr.js",
-                           ClusterType::GR_V2, ""),
-        TracefileTestParam("metadata_3_secondaries_pass.js", ClusterType::GR_V1,
-                           "")));
+                           ClusterType::GR_V2, "")));
 
 using server_globals = RouterRoutingConnectionCommonTest::server_globals;
 
@@ -1392,28 +1360,14 @@ MDRefreshTestParam steps[] = {
                        "metadata_3_secondaries_pass_v2_gr.js",
                        server_globals().set_MD_failed()),
 
-    MDRefreshTestParam(
-        ClusterType::GR_V1, "metadata_3_secondaries_failed_to_update.js",
-        "metadata_3_secondaries_pass.js", server_globals().set_MD_failed()),
-
     MDRefreshTestParam(ClusterType::GR_V2,
                        "metadata_3_secondaries_failed_to_update_v2_gr.js",
                        "metadata_3_secondaries_pass_v2_gr.js",
                        server_globals().set_GR_primary_failed()),
 
-    MDRefreshTestParam(ClusterType::GR_V1,
-                       "metadata_3_secondaries_failed_to_update.js",
-                       "metadata_3_secondaries_pass.js",
-                       server_globals().set_GR_primary_failed()),
-
     MDRefreshTestParam(ClusterType::GR_V2,
                        "metadata_3_secondaries_failed_to_update_v2_gr.js",
                        "metadata_3_secondaries_pass_v2_gr.js",
-                       server_globals().set_GR_health_failed()),
-
-    MDRefreshTestParam(ClusterType::GR_V1,
-                       "metadata_3_secondaries_failed_to_update.js",
-                       "metadata_3_secondaries_pass.js",
                        server_globals().set_GR_health_failed())};
 
 INSTANTIATE_TEST_SUITE_P(RouterRoutingIsConnectionNotDisabledWhenMDRefresh,

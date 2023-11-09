@@ -441,19 +441,8 @@ void ConfigGenerator::init(
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
                                              schema_version_)) {
-    throw std::runtime_error(mysql_harness::utility::string_format(
-        "This version of MySQL Router is not compatible with the provided "
-        "MySQL InnoDB cluster metadata. Expected metadata version %s, "
-        "got %s",
-        to_string(kRequiredBootstrapSchemaVersion).c_str(),
-        to_string(schema_version_).c_str()));
-  }
-
-  if (metadata_schema_version_is_deprecated(schema_version_)) {
-    std::cout << "\n"
-              << Vt100::foreground(Vt100::Color::BrightRed) << "WARNING: "
-              << get_metadata_schema_deprecated_msg(schema_version_)
-              << Vt100::render(Vt100::Render::ForegroundDefault) << "\n\n";
+    throw std::runtime_error(
+        mysqlrouter::get_metadata_schema_uncompatible_msg(schema_version_));
   }
 
   metadata_ = mysqlrouter::create_metadata(schema_version_, mysql_.get(),

@@ -205,9 +205,7 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
 INSTANTIATE_TEST_SUITE_P(
     InvalidGRState, MetadataServerInvalidGRState,
     ::testing::Values(GRStateTestParams("metadata_dynamic_nodes_v2_gr.js",
-                                        "GR_V2", ClusterType::GR_V2),
-                      GRStateTestParams("metadata_dynamic_nodes.js", "GR_V1",
-                                        ClusterType::GR_V1)),
+                                        "GR_V2", ClusterType::GR_V2)),
     get_test_description);
 
 class MetadataServerNoQuorum
@@ -310,9 +308,7 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
 INSTANTIATE_TEST_SUITE_P(
     NoQuorum, MetadataServerNoQuorum,
     ::testing::Values(GRStateTestParams("metadata_dynamic_nodes_v2_gr.js",
-                                        "GR_V2", ClusterType::GR_V2),
-                      GRStateTestParams("metadata_dynamic_nodes.js", "GR_V1",
-                                        ClusterType::GR_V1)),
+                                        "GR_V2", ClusterType::GR_V2)),
     get_test_description);
 
 class MetadataServerGRErrorStates

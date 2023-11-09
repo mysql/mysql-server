@@ -524,7 +524,8 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   // launch server
   /*auto &server =*/launch_mysql_server_mock(
-      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port);
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str(),
+      server_port);
 
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");

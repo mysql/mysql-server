@@ -386,14 +386,10 @@ INSTANTIATE_TEST_SUITE_P(
     MetadataServersChangedInRuntime,
     StateFileMetadataServersChangedInRuntimeTest,
     ::testing::Values(
-        StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
-                           ClusterType::GR_V1},
         StateFileTestParam{"gr_v2", "metadata_dynamic_nodes_v2_gr.js",
                            ClusterType::GR_V2},
         StateFileTestParam{"ar_v2", "metadata_dynamic_nodes_v2_ar.js",
                            ClusterType::RS_V2},
-        StateFileTestParam{"gr_ipv6", "metadata_dynamic_nodes.js",
-                           ClusterType::GR_V1, /*ipv6=*/true},
         StateFileTestParam{"gr_v2_ipv6", "metadata_dynamic_nodes_v2_gr.js",
                            ClusterType::GR_V2, /*ipv6=*/true},
         StateFileTestParam{"ar_v2_ipv6", "metadata_dynamic_nodes_v2_ar.js",
@@ -468,9 +464,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
 
 INSTANTIATE_TEST_SUITE_P(
     MetadataServersInaccessible, StateFileMetadataServersInaccessibleTest,
-    ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
-                                         ClusterType::GR_V1},
-                      StateFileTestParam{"gr_v2",
+    ::testing::Values(StateFileTestParam{"gr_v2",
                                          "metadata_dynamic_nodes_v2_gr.js",
                                          ClusterType::GR_V2},
                       StateFileTestParam{"ar_v2",
@@ -557,9 +551,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
 
 INSTANTIATE_TEST_SUITE_P(
     GroupReplicationIdDiffers, StateFileGroupReplicationIdDiffersTest,
-    ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
-                                         ClusterType::GR_V1},
-                      StateFileTestParam{"gr_v2",
+    ::testing::Values(StateFileTestParam{"gr_v2",
                                          "metadata_dynamic_nodes_v2_gr.js",
                                          ClusterType::GR_V2},
                       StateFileTestParam{"ar_v2",
@@ -669,14 +661,11 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
                port_connected.c_str());
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    SplitBrainScenario, StateFileSplitBrainScenarioTest,
-    ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
-                                         ClusterType::GR_V1},
-                      StateFileTestParam{"gr_v2",
-                                         "metadata_dynamic_nodes_v2_gr.js",
-                                         ClusterType::GR_V2}),
-    get_test_description);
+INSTANTIATE_TEST_SUITE_P(SplitBrainScenario, StateFileSplitBrainScenarioTest,
+                         ::testing::Values(StateFileTestParam{
+                             "gr_v2", "metadata_dynamic_nodes_v2_gr.js",
+                             ClusterType::GR_V2}),
+                         get_test_description);
 
 /**
  * @test
@@ -1138,7 +1127,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // check the state file that was produced, if it contains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+  check_state_file(state_file, ClusterType::GR_V2, "cluster-specific-id",
                    {5500, 5510, 5520});
 
   // check that static file has a proper reference to the dynamic file
@@ -1197,7 +1186,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+  check_state_file(state_file, ClusterType::GR_V2, "cluster-specific-id",
                    {5500, 5510, 5520});
 }
 

@@ -49,11 +49,14 @@ var options = {
 
 var common_responses = undefined;
 var common_responses_regex = undefined;
-var router_select_metadata = undefined;
 
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 var router_commit = common_stmts.get("router_commit", options);
+var router_rollback = common_stmts.get("router_rollback", options);
+var router_select_metadata =
+    common_stmts.get("router_select_metadata_v2_gr", options);
+
 
 if (mysqld.global.use_new_metadata === 1) {
   common_responses = common_stmts.prepare_statement_responses(
@@ -71,33 +74,20 @@ if (mysqld.global.use_new_metadata === 1) {
 
   common_responses_regex = common_stmts.prepare_statement_responses_regex(
       [
-        "router_update_attributes_v1",
+        "router_update_attributes_v2",
+        "router_update_last_check_in_v2",
       ],
       options);
-
-  router_select_metadata =
-      common_stmts.get("router_select_metadata_v2_gr", options);
 } else {
   common_responses = common_stmts.prepare_statement_responses(
       [
         "router_set_session_options",
         "router_set_gr_consistency_level",
-        "select_port",
         "router_select_schema_version",
-        "router_select_group_membership",
-        "router_check_member_state",
-        "router_select_members_count",
       ],
       options);
 
-  common_responses_regex = common_stmts.prepare_statement_responses_regex(
-      [
-        "router_update_attributes_v2",
-        "router_update_last_check_in_v2",
-      ],
-      options);
-
-  router_select_metadata = common_stmts.get("router_select_metadata", options);
+  common_responses_regex = {};
 }
 
 
@@ -119,6 +109,9 @@ if (mysqld.global.use_new_metadata === 1) {
     } else if (stmt === router_commit.stmt) {
       mysqld.global.inside_transaction = 0;
       return router_commit;
+    } else if (stmt === router_rollback.stmt) {
+      mysqld.global.inside_transaction = 0;
+      return router_rollback;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

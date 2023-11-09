@@ -22,7 +22,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_replication_group_name",
       "router_select_view_id_bootstrap_ar",
       "router_select_cluster_id_v2_ar",
-      "router_select_metadata_v2",
       "router_count_clusters_v2_ar",
       "router_show_cipher_status",
       "router_select_cluster_instances_v2_ar",

@@ -18,7 +18,7 @@ var cluster_nodes = gr_memberships.single_host_cluster_nodes(
     gr_node_host, [[mysqld.session.port]], "uuid");
 
 var options = {
-  metadata_schema_version: [0, 0, 1],
+  metadata_schema_version: [1, 0, 1],
   group_replication_members: group_replication_members_online,
   innodb_cluster_instances: cluster_nodes,
 };
@@ -32,7 +32,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "select_port",
       "router_select_schema_version",
-      "router_select_metadata",
       "router_check_member_state",
       "router_select_members_count",
       "router_select_group_membership",

@@ -9,7 +9,7 @@ if (mysqld.global.innodb_cluster_name === undefined) {
 
 
 var options = {
-  metadata_schema_version: [1, 0, 2],
+  metadata_schema_version: [2, 1, 0],
   innodb_cluster_name: mysqld.global.innodb_cluster_name,
   group_replication_members:
       gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes),
@@ -33,7 +33,9 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_start_transaction",
       "router_commit",
       "router_select_schema_version",
-      "router_select_metadata",
+      "router_select_cluster_type_v2",
+      "router_clusterset_present",
+      "router_select_metadata_v2_gr",
       "router_check_member_state",
       "router_select_members_count",
     ],
@@ -47,7 +49,8 @@ var router_select_group_membership_primary_unavailable = common_stmts.get(
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    } else if (stmt === router_select_group_membership.stmt) {
+    } else if (
+        stmt === router_select_group_membership_primary_unavailable.stmt) {
       return router_select_group_membership_primary_unavailable;
     } else {
       return common_stmts.unknown_statement_response(stmt);

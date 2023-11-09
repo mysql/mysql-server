@@ -53,7 +53,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "select_port",
       "router_commit",
       "router_rollback",
-      "router_select_metadata",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
       "router_check_member_state",

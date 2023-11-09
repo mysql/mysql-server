@@ -438,19 +438,10 @@ INSTANTIATE_TEST_SUITE_P(
                                 "SECONDARY", "round-robin", "", {1, 2, 3},
                                 /*round-robin=*/true),
 
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
-                                "round-robin", "", {1, 2, 3},
-                                /*round-robin=*/true),
-
         // test first-available on SECONDARY servers
         // we expect 3 connections to node 1.
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "SECONDARY", "first-available", "", {1, 1, 1}),
-
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
-                                "first-available", "", {1, 1, 1}),
 
         // *basic* test round-robin-with-fallback
         // we expect 1 connection to node-1, node-2 and node-3
@@ -461,21 +452,10 @@ INSTANTIATE_TEST_SUITE_P(
                                 {1, 2, 3},
                                 /*round-robin=*/true),
 
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
-                                "round-robin-with-fallback", "", {1, 2, 3},
-                                /*round-robin=*/true),
-
         // test round-robin on PRIMARY_AND_SECONDARY
         // we expect the primary to participate in the round-robin from the
         // beginning. 1 connection to node-0, node-1, node-2 and node-3.
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
-                                "PRIMARY_AND_SECONDARY", "round-robin", "",
-                                {0, 1, 2, 3},
-                                /*round-robin=*/true),
-
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js",
                                 "PRIMARY_AND_SECONDARY", "round-robin", "",
                                 {0, 1, 2, 3},
                                 /*round-robin=*/true),
@@ -485,18 +465,10 @@ INSTANTIATE_TEST_SUITE_P(
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "PRIMARY", "first-available", "", {0, 0}),
 
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "PRIMARY",
-                                "first-available", "", {0, 0}),
-
         // test round-robin on PRIMARY
         // there is single primary so we expect all connections to node-0
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
-                                "PRIMARY", "round-robin", "", {0, 0}),
-
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "PRIMARY",
-                                "round-robin", "", {0, 0})));
+                                "PRIMARY", "round-robin", "", {0, 0})));
 
 ////////////////////////////////////////
 /// STATIC ROUTING TESTS

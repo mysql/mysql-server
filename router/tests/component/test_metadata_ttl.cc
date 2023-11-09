@@ -240,31 +240,23 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "0_gr_v2",
                               ClusterType::GR_V2, "0.2", 150ms, 490ms),
-        MetadataTTLTestParams("metadata_1_node_repeat.js", "0_gr",
-                              ClusterType::GR_V1, "0.2", 150ms, 490ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "0_ar_v2",
                               ClusterType::RS_V2, "0.2", 150ms, 490ms),
 
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "1_gr_v2",
                               ClusterType::GR_V2, "1", 700ms, 1800ms),
-        MetadataTTLTestParams("metadata_1_node_repeat.js", "1_gr",
-                              ClusterType::GR_V1, "1", 700ms, 1800ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "1_ar_v2",
                               ClusterType::RS_V2, "1", 700ms, 1800ms),
 
         // check that default is 0.5 if not provided:
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "2_gr_v2",
                               ClusterType::GR_V2, "", 450ms, 900ms),
-        MetadataTTLTestParams("metadata_1_node_repeat.js", "2_gr",
-                              ClusterType::GR_V1, "", 450ms, 900ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "2_ar_v2",
                               ClusterType::RS_V2, "", 450ms, 900ms),
 
         // check that for 0 the delay between the refresh is very short
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "3_gr_v2",
                               ClusterType::GR_V2, "0", 0ms, 450ms),
-        MetadataTTLTestParams("metadata_1_node_repeat.js", "3_gr",
-                              ClusterType::GR_V1, "0", 0ms, 450ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "3_ar_v2",
                               ClusterType::RS_V2, "0", 0ms, 450ms)),
     get_test_description);
@@ -319,9 +311,19 @@ INSTANTIATE_TEST_SUITE_P(
 
 /**
  * @test Checks that the router operates smoothly when the metadata version has
- * changed between the metadata refreshes.
+ * changed between the metadata refreshes from usupported to the supported one.
  */
 TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
+  RecordProperty("Worklog", "15868");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty("Requirement",
+                 "When MySQLRouter connects to the Cluster with metadata "
+                 "version 1.x, it MUST disable the routing and log an error");
+  RecordProperty(
+      "Description",
+      "Testing that the Router will enable the Routing when the metadata is "
+      "upgraded from unsupported to supported version while it is running.");
+
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
       "node)");
@@ -337,36 +339,40 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   const auto router_port = port_pool_.get_next_available();
 
   const std::string metadata_cache_section =
-      get_metadata_cache_section(ClusterType::GR_V1, "0.5");
+      get_metadata_cache_section(ClusterType::GR_V2, "0.5");
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   auto &router = launch_router(metadata_cache_section, routing_section,
                                {md_server_port}, EXIT_SUCCESS,
-                               /*wait_for_notify_ready=*/30s);
+                               /*wait_for_notify_ready=*/-1s);
 
   // keep the router running for a while and change the metadata version
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
+
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "The target Cluster's Metadata version \\('1\\.0\\.2'\\) is not "
+      "supported. Please use the latest MySQL Shell to upgrade it using "
+      "'dba\\.upgradeMetadata\\(\\)'\\. Expected metadata version compatible "
+      "with '2\\.0\\.0'",
+      1s));
 
   MockServerRestClient(md_server_http_port)
       .set_globals("{\"new_metadata\" : 1}");
 
   // let the router run a bit more
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
-
-  const std::string log_content = router.get_logfile_content();
-
-  SCOPED_TRACE(
-      "// check that the router really saw the version upgrade at some point");
-  std::string needle =
-      "Metadata version change was discovered. New metadata version is 2.0.0";
-  EXPECT_GE(1, count_str_occurences(log_content, needle));
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 4));
 
   SCOPED_TRACE(
       "// there should be no cluster change reported caused by the version "
       "upgrade");
-  needle = "Potential changes detected in cluster";
+  const std::string log_content = router.get_logfile_content();
+  const std::string needle = "Potential changes detected in cluster";
   // 1 is expected, that comes from the initial reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle));
+
+  // the Router should start handling connections
+  make_new_connection_ok(router_port, md_server_port);
 
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));

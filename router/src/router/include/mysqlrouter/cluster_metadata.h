@@ -78,12 +78,11 @@ struct MetadataSchemaVersion {
 std::string ROUTER_LIB_EXPORT to_string(const MetadataSchemaVersion &version);
 
 // Semantic version numbers that this Router version supports for bootstrap mode
-constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{1, 0, 0},
-                                                                  {2, 0, 0}};
+constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{2, 0, 0}};
 
 // Semantic version number that this Router version supports for routing mode
 constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion[]{
-    {1, 0, 0}, {2, 0, 0}};
+    {2, 0, 0}};
 
 // Version that introduced views and support for ReplicaSet cluster type
 constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
@@ -101,10 +100,7 @@ bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
 
-bool ROUTER_LIB_EXPORT metadata_schema_version_is_deprecated(
-    const mysqlrouter::MetadataSchemaVersion &version);
-
-std::string ROUTER_LIB_EXPORT get_metadata_schema_deprecated_msg(
+std::string ROUTER_LIB_EXPORT get_metadata_schema_uncompatible_msg(
     const mysqlrouter::MetadataSchemaVersion &version);
 
 // throws std::logic_error, MySQLSession::Error
@@ -139,7 +135,6 @@ std::string to_string(const mysqlrouter::MetadataSchemaVersion (&version)[N]) {
 }
 
 enum class ClusterType {
-  GR_V1, /* based on Group Replication (metadata 1.x) */
   GR_V2, /* based on Group Replication (metadata 2.x) */
   GR_CS, /* based on Group Replication, part of ClusterSet (metadata 2.1+) */
   RS_V2  /* ReplicaSet (metadata 2.x) */

@@ -155,8 +155,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_gr.js",
                                   "unordered_gr_v2", ClusterType::GR_V2, "0.1"),
-        ClusterMetadataTestParams("metadata_dynamic_nodes.js", "unordered_gr",
-                                  ClusterType::GR_V1, "0.1"),
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_ar.js",
                                   "unordered_ar_v2", ClusterType::RS_V2,
                                   "0.1")),
@@ -216,8 +214,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_gr.js", "gr_v2",
                                   ClusterType::GR_V2, "5"),
-        ClusterMetadataTestParams("metadata_dynamic_nodes.js", "gr",
-                                  ClusterType::GR_V1, "5"),
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_ar.js", "ar_v2",
                                   ClusterType::RS_V2, "5")),
     get_test_description);
@@ -301,7 +297,7 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
   EXPECT_STREQ("SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
                queries.at(3).c_str());
 
-  if (GetParam().cluster_type != ClusterType::GR_V1) {
+  {
     SCOPED_TRACE(
         "// last_check_in should be attempted at least twice (first update is "
         "done on start)");
@@ -315,16 +311,14 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
 
 INSTANTIATE_TEST_SUITE_P(
     CheckRouterInfoUpdates, CheckRouterInfoUpdatesTest,
-    ::testing::Values(
-        ClusterMetadataTestParams("metadata_dynamic_nodes_version_update.js",
-                                  "router_version_update_once_gr_v1",
-                                  ClusterType::GR_V1, "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_gr.js",
-            "router_version_update_once_gr_v2", ClusterType::GR_V2, "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_ar.js",
-            "router_version_update_once_ar_v2", ClusterType::RS_V2, "0.1")),
+    ::testing::Values(ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_gr.js",
+                          "router_version_update_once_gr_v2",
+                          ClusterType::GR_V2, "0.1"),
+                      ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_ar.js",
+                          "router_version_update_once_ar_v2",
+                          ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 /**
@@ -404,8 +398,12 @@ TEST_F(RouterComponenClustertMetadataTest,
 /**
  * @test verify if appropriate warning messages are logged when the Cluster has
  * deprecated metadata version.
+ *
+ * Disabled as there is currently no deprecated version. Version 1.x is no
+ * longer supported.
  */
-TEST_F(RouterComponenClustertMetadataTest, LogWarningWhenMetadataIsDeprecated) {
+TEST_F(RouterComponenClustertMetadataTest,
+       DISABLED_LogWarningWhenMetadataIsDeprecated) {
   RecordProperty("Worklog", "15876");
   RecordProperty("RequirementId", "FR1");
   RecordProperty("Description",
@@ -534,18 +532,14 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
 
 INSTANTIATE_TEST_SUITE_P(
     PermissionErrorOnVersionUpdate, PermissionErrorOnVersionUpdateTest,
-    ::testing::Values(
-        ClusterMetadataTestParams("metadata_dynamic_nodes_version_update.js",
-                                  "router_version_update_fail_on_perm_gr_v1",
-                                  ClusterType::GR_V1, "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_gr.js",
-            "router_version_update_fail_on_perm_gr_v2", ClusterType::GR_V2,
-            "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_ar.js",
-            "router_version_update_fail_on_perm_ar_v2", ClusterType::RS_V2,
-            "0.1")),
+    ::testing::Values(ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_gr.js",
+                          "router_version_update_fail_on_perm_gr_v2",
+                          ClusterType::GR_V2, "0.1"),
+                      ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_ar.js",
+                          "router_version_update_fail_on_perm_ar_v2",
+                          ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 class UpgradeInProgressTest
@@ -629,16 +623,14 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
 INSTANTIATE_TEST_SUITE_P(
     UpgradeInProgress, UpgradeInProgressTest,
-    ::testing::Values(
-        ClusterMetadataTestParams("metadata_dynamic_nodes_version_update.js",
-                                  "metadata_upgrade_in_progress_gr_v1",
-                                  ClusterType::GR_V1, "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_gr.js",
-            "metadata_upgrade_in_progress_gr_v2", ClusterType::GR_V2, "0.1"),
-        ClusterMetadataTestParams(
-            "metadata_dynamic_nodes_version_update_v2_ar.js",
-            "metadata_upgrade_in_progress_ar_v2", ClusterType::RS_V2, "0.1")),
+    ::testing::Values(ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_gr.js",
+                          "metadata_upgrade_in_progress_gr_v2",
+                          ClusterType::GR_V2, "0.1"),
+                      ClusterMetadataTestParams(
+                          "metadata_dynamic_nodes_version_update_v2_ar.js",
+                          "metadata_upgrade_in_progress_ar_v2",
+                          ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 /**
@@ -836,9 +828,7 @@ INSTANTIATE_TEST_SUITE_P(
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_gr.js", "GR_V2",
                                   ClusterType::GR_V2),
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_ar.js", "AR",
-                                  ClusterType::RS_V2),
-        ClusterMetadataTestParams("metadata_dynamic_nodes.js", "GR_V1",
-                                  ClusterType::GR_V1)),
+                                  ClusterType::RS_V2)),
     get_test_description);
 
 class MetadataCacheChangeClusterName
@@ -939,9 +929,7 @@ INSTANTIATE_TEST_SUITE_P(
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_gr.js", "GR_V2",
                                   ClusterType::GR_V2),
         ClusterMetadataTestParams("metadata_dynamic_nodes_v2_ar.js", "AR",
-                                  ClusterType::RS_V2),
-        ClusterMetadataTestParams("metadata_dynamic_nodes.js", "GR_V1",
-                                  ClusterType::GR_V1)),
+                                  ClusterType::RS_V2)),
     get_test_description);
 
 struct SessionReuseTestParams {

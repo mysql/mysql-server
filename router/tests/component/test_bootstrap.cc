@@ -198,20 +198,6 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
       "# Bootstrapping MySQL Router "s + MYSQL_ROUTER_VERSION + " \\(" +
       MYSQL_ROUTER_VERSION_EDITION + "\\) instance at"};
 
-  // For metadata version 1.x we should get deprecation warning
-  if (param.cluster_type == ClusterType::GR_V1) {
-    RecordProperty("Worklog", "15876");
-    RecordProperty("RequirementId", "FR2");
-    RecordProperty("Description",
-                   "Checks that the Router prints a deprecation warning for "
-                   "metadata version 1.x");
-
-    expected_output.push_back(
-        "WARNING: The target Cluster's Metadata version \\('1.0.2'\\) is "
-        "deprecated. Please use the latest MySQL Shell to upgrade it using "
-        "'dba.upgradeMetadata\\(\\)'.");
-  }
-
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type, {},
                                              EXIT_SUCCESS, expected_output));
 
@@ -376,11 +362,10 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOkTest, RouterBootstrapOkTest,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""}),
     get_test_description);
 
 struct BootstrapOkBasePortTestParam {
@@ -780,11 +765,10 @@ TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapUserIsCurrentUser, RouterBootstrapUserIsCurrentUser,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""}),
     get_test_description);
 #endif
 
@@ -824,11 +808,7 @@ INSTANTIATE_TEST_SUITE_P(
                            "bootstrap_failover_super_read_only_1_gr.js", ""},
         BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
-                           "bootstrap_failover_super_read_only_1_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                           "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           ""}),
+                           "bootstrap_failover_super_read_only_1_ar.js", ""}),
     get_test_description);
 
 /**
@@ -876,11 +856,10 @@ TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOnlySockets, RouterBootstrapOnlySockets,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""}),
     get_test_description);
 
 class BootstrapUnsupportedSchemaVersionTest
@@ -895,6 +874,12 @@ class BootstrapUnsupportedSchemaVersionTest
  */
 TEST_P(BootstrapUnsupportedSchemaVersionTest,
        BootstrapUnsupportedSchemaVersion) {
+  RecordProperty("Worklog", "15868");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty("Requirement",
+                 "When MySQLRouter is used to bootstrap against the Cluster "
+                 "with metadata version 1.x, it MUST fail and log an error");
+
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -906,17 +891,19 @@ TEST_P(BootstrapUnsupportedSchemaVersionTest,
   // check that it failed as expected
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       mock_servers, ClusterType::GR_V2, {}, EXIT_FAILURE,
-      {"^Error: This version of MySQL Router is not compatible "
-       "with the provided MySQL InnoDB cluster metadata. "
-       "Expected metadata version 1.0.0, 2.0.0, got " +
-       to_string(version)},
+      {"Error: The target Cluster's Metadata version \\('" +
+       to_string(version) +
+       "'\\) is not supported\\. Please use the latest MySQL Shell to upgrade "
+       "it using 'dba\\.upgradeMetadata\\(\\)'\\. Expected metadata version "
+       "compatible with '2\\.0\\.0'"},
       10s, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapUnsupportedSchemaVersion, BootstrapUnsupportedSchemaVersionTest,
-    ::testing::Values(mysqlrouter::MetadataSchemaVersion{3, 0, 0},
-                      mysqlrouter::MetadataSchemaVersion{0, 0, 1},
+    ::testing::Values(mysqlrouter::MetadataSchemaVersion{0, 0, 1},
+                      mysqlrouter::MetadataSchemaVersion{1, 0, 0},
+                      mysqlrouter::MetadataSchemaVersion{1, 0, 1},
                       mysqlrouter::MetadataSchemaVersion{3, 1, 0}));
 
 /**
@@ -1121,10 +1108,7 @@ INSTANTIATE_TEST_SUITE_P(
                            "bootstrap_gr.js", ""},
         BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
-                           "bootstrap_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                           "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           "bootstrap_gr_v1.js", ""}),
+                           "bootstrap_ar.js", ""}),
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonly2ndNodeDead
@@ -1190,10 +1174,7 @@ INSTANTIATE_TEST_SUITE_P(
                            "bootstrap_gr.js", ""},
         BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
-                           "bootstrap_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                           "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           "bootstrap_gr_v1.js", ""}),
+                           "bootstrap_ar.js", ""}),
     get_test_description);
 
 class RouterBootstrapFailoverPrimaryUnreachable
@@ -1246,9 +1227,6 @@ INSTANTIATE_TEST_SUITE_P(
                            ""},
         BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js", "",
-                           ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                           "bootstrap_failover_super_read_only_1_gr_v1.js", "",
                            ""}),
     get_test_description);
 
@@ -1301,11 +1279,7 @@ INSTANTIATE_TEST_SUITE_P(
         BootstrapTestParam{
             ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
-            "bootstrap_failover_reconfigure_ok.js", ""},
-        BootstrapTestParam{
-            ClusterType::GR_V1, "gr_v1",
-            "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
-            "bootstrap_failover_reconfigure_ok_v1.js", ""}),
+            "bootstrap_failover_reconfigure_ok.js", ""}),
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails
@@ -1350,13 +1324,12 @@ TEST_P(RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails,
 INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonlyCreateAccountGrantFails,
     RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
-                           "bootstrap_failover_at_grant_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
-                           "bootstrap_failover_at_grant_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                           "bootstrap_failover_at_grant_gr_v1.js", "", ""}),
+    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+                                         "bootstrap_failover_at_grant_gr.js",
+                                         "", ""},
+                      BootstrapTestParam{ClusterType::RS_V2, "ar",
+                                         "bootstrap_failover_at_grant_ar.js",
+                                         "", ""}),
     get_test_description);
 
 /**
@@ -1446,12 +1419,7 @@ INSTANTIATE_TEST_SUITE_P(
             ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
             "bootstrap_failover_at_crash.js",
-            "bootstrap_failover_reconfigure_ok.js"},
-        BootstrapTestParam{
-            ClusterType::GR_V1, "gr_v1",
-            "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
-            "bootstrap_failover_at_crash_v1.js",
-            "bootstrap_failover_reconfigure_ok_v1.js"}),
+            "bootstrap_failover_reconfigure_ok.js"}),
     get_test_description);
 
 /**
@@ -1589,14 +1557,12 @@ TEST_P(RouterBootstrapBootstrapNoGroupReplicationSetup,
                          {"to have Group Replication running"}));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    BootstrapNoGroupReplicationSetup,
-    RouterBootstrapBootstrapNoGroupReplicationSetup,
-    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
-                                         "bootstrap_no_gr.js", "", ""},
-                      BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                                         "bootstrap_no_gr_v1.js", "", ""}),
-    get_test_description);
+INSTANTIATE_TEST_SUITE_P(BootstrapNoGroupReplicationSetup,
+                         RouterBootstrapBootstrapNoGroupReplicationSetup,
+                         ::testing::Values(BootstrapTestParam{
+                             ClusterType::GR_V2, "gr", "bootstrap_no_gr.js", "",
+                             ""}),
+                         get_test_description);
 
 /**
  * @test
@@ -2133,49 +2099,6 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
       router.expect_output("Could not delete directory .*", true, 0ms));
 
   EXPECT_FALSE(router.expect_output("Could not delete file .*", true, 0ms));
-}
-
-TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
-  TempDirectory bootstrap_directory;
-  const auto server_port = port_pool_.get_next_available();
-  const auto http_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_gr_v1.js").str();
-
-  // launch mock server that is our metadata server for the bootstrap
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
-                           http_port);
-
-  set_mock_metadata(http_port, "cluster-specific-id",
-                    classic_ports_to_gr_nodes({server_port}), 0, {server_port},
-                    0, false, "127.0.0.1", "", {1, 0, 0});
-
-  const auto base_listening_port = port_pool_.get_next_available();
-  std::vector<std::string> bootsrtap_params{
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
-      bootstrap_directory.name(),
-      "--conf-base-port=" + std::to_string(base_listening_port)};
-
-  // launch the router in bootstrap mode
-  auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_SUCCESS,
-                                             /*disable rest*/ false);
-
-  check_exit_code(router, EXIT_SUCCESS);
-
-  const std::string conf_file =
-      bootstrap_directory.name() + "/mysqlrouter.conf";
-
-  // check if valid authentication backend option was added to the config file
-  auto conf_file_content = get_file_output(conf_file);
-  auto conf_lines = mysql_harness::split_string(conf_file_content, '\n');
-  const auto passwd_file = mysql_harness::Path{
-      bootstrap_directory.name() + "/data/auth_backend_passwd_file"};
-  EXPECT_THAT(conf_lines,
-              ::testing::IsSupersetOf(
-                  {::testing::ContainsRegex("backend=file"),
-                   ::testing::ContainsRegex(std::string{"filename=.*"} +
-                                            passwd_file.str())}));
-  ASSERT_TRUE(passwd_file.exists());
 }
 
 class ConfSetOptionTest : public RouterBootstrapTest {};

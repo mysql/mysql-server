@@ -361,7 +361,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_uri = GetParam().uri;
 
   /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
-      get_data_dir().join("metadata_1_node_repeat.js").str(),
+      get_data_dir().join("metadata_1_node_repeat_v2_gr.js").str(),
       metadata_server_port_, EXIT_SUCCESS, false, metadata_server_http_port_);
 
   const std::string userfile = create_password_file();
