@@ -41,8 +41,8 @@
 --source include/start_group_replication.inc
 
 # Make sure server1 is Primary
---let $assert_text= Verify group_replication_primary_member is SERVER_UUID
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server1_uuid"
+--let $assert_text= Verify server1 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$server1_uuid"
 --source include/assert.inc
 
 --echo #

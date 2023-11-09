@@ -60,19 +60,19 @@ include/assert.inc [Assert that server has group_replication_member_weight=97 af
 #    based on member weight.
 [connection server1]
 include/gr_wait_primary_member_uuid.inc
-include/assert.inc [Verify group_replication_primary_member is server1]
+include/assert.inc [Verify server1 is primary]
 include/stop_group_replication.inc
 [connection server4]
 include/gr_wait_primary_member_uuid.inc
-include/assert.inc [Verify group_replication_primary_member is server4]
+include/assert.inc [Verify server4 is primary]
 include/stop_group_replication.inc
 [connection server2]
 include/gr_wait_primary_member_uuid.inc
-include/assert.inc [Verify group_replication_primary_member is server2]
+include/assert.inc [Verify server2 is primary]
 include/stop_group_replication.inc
 [connection server3]
 include/gr_wait_primary_member_uuid.inc
-include/assert.inc [Verify group_replication_primary_member is server3]
+include/assert.inc [Verify server3 is primary]
 include/stop_group_replication.inc
 [connection server1]
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;

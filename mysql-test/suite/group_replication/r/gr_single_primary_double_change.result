@@ -42,7 +42,7 @@ INSERT INTO t1 VALUES(1,1);
 include/stop_group_replication.inc
 [connection server2]
 include/rpl_gr_wait_for_number_of_members.inc
-include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+include/assert.inc [Verify server2 is primary]
 
 ###########################################################
 # 4. Configure server 1 with recovery credentials from server

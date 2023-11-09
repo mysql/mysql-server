@@ -41,15 +41,13 @@ while ($_i)
          WHERE MEMBER_ID = @@server_uuid AND
          MEMBER_STATE != "ERROR"`;
 
-  let $_is_primary= `SELECT COUNT(*)=1 FROM performance_schema.global_status
-                            WHERE VARIABLE_NAME = "group_replication_primary_member" AND
-                            VARIABLE_VALUE = @@server_uuid`;
+  let $_is_primary= `SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
+                     WHERE MEMBER_ROLE="PRIMARY" AND
+                           MEMBER_ID=@@server_uuid`;
 
-  let $_is_secondary= `SELECT COUNT(*)=1 FROM performance_schema.global_status
-                            WHERE VARIABLE_NAME = "group_replication_primary_member" AND
-                            VARIABLE_VALUE != @@server_uuid AND
-                            VARIABLE_VALUE != ""`;
-
+  let $_is_secondary= `SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
+                       WHERE MEMBER_ROLE="SECONDARY" AND
+                             MEMBER_ID=@@server_uuid`;
   if ($_has_no_errors)
   {
     if ($_is_primary)

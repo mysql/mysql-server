@@ -108,8 +108,8 @@ INSERT INTO t1 VALUES(1,1);
 --source include/gr_wait_for_number_of_members.inc
 
 # Make sure server2 is the primary now
---let $assert_text= Verify group_replication_primary_member is SERVER_UUID
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$member2_uuid"
+--let $assert_text= Verify server2 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$member2_uuid"
 --source include/assert.inc
 
 

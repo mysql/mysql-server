@@ -47,7 +47,6 @@ Gr_transactions_consistency_after_termination_count	0
 Gr_transactions_consistency_after_termination_time_sum	0
 Gr_transactions_consistency_before_begin_count	0
 Gr_transactions_consistency_before_begin_time_sum	0
-group_replication_primary_member	
 SHOW GLOBAL STATUS LIKE 'Gr\_%';
 Variable_name	Value
 Gr_all_consensus_proposals_count	0

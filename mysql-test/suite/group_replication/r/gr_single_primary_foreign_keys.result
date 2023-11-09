@@ -11,7 +11,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
-include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+include/assert.inc [Verify server1 is primary]
 
 ############################################################
 # 2. Create two tables, one with a foreign key

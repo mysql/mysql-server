@@ -845,8 +845,6 @@ Source_IO_monitor::get_online_members(
     MYSQL_RES_VAL sender_membership_res{};
     std::tie(error, sender_membership_res) = execute_query(conn, qtag);
 
-    /* Simulate that sources are 5.7 servers. */
-    DBUG_EXECUTE_IF("rpl_acf_simulate_57_source", error = ER_BAD_FIELD_ERROR;);
     if (error == ER_BAD_FIELD_ERROR) {
       qtag = enum_sql_query_tag::GR_MEMBER_ALL_DETAILS_FETCH_FOR_57;
       std::tie(error, sender_membership_res) = execute_query(conn, qtag);

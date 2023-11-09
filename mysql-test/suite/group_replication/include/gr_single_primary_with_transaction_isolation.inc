@@ -32,7 +32,7 @@
 #     between server1 and server2
 #
 #   $test_parameter_primary_uuid
-#     Test verifies if the group_replication_primary_member has this uuid
+#     Test verifies if the primary member has this uuid
 #
 
 --let $include_filename= gr_single_primary_with_transaction_isolation.inc
@@ -49,8 +49,20 @@
 
 --source include/start_and_bootstrap_group_replication.inc
 
---let $group_replication_expected_uuid= $test_parameter_primary_uuid
---source include/gr_wait_primary_member_uuid.inc
+if ($test_parameter_single_primary_mode == TRUE)
+{
+  --let $group_replication_expected_uuid= $test_parameter_primary_uuid
+  --source include/gr_wait_primary_member_uuid.inc
+}
+
+if ($test_parameter_single_primary_mode == FALSE)
+{
+  #if multi-primary the members ONLINE in the group all should be primary
+  --let $_gr_wait_primary_member_uuid_online_count = query_get_value(SELECT COUNT(*) COUNT FROM performance_schema.replication_group_members WHERE member_state="ONLINE", COUNT, 1)
+  --let $wait_condition= SELECT COUNT(*)=$_gr_wait_primary_member_uuid_online_count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY"
+  --source include/wait_condition_or_abort.inc
+}
+
 
 --echo # CONFIGURE SERVER 2
 --let $rpl_connection_name= server2
@@ -60,8 +72,19 @@
 --eval SET SESSION transaction_isolation=$test_parameter_tx_isolation
 --source include/start_group_replication.inc
 
---let $group_replication_expected_uuid= $test_parameter_primary_uuid
---source include/gr_wait_primary_member_uuid.inc
+if ($test_parameter_single_primary_mode == TRUE)
+{
+  --let $group_replication_expected_uuid= $test_parameter_primary_uuid
+  --source include/gr_wait_primary_member_uuid.inc
+}
+
+if ($test_parameter_single_primary_mode == FALSE)
+{
+  #if multi-primary the members ONLINE in the group all should be primary
+  --let $_gr_wait_primary_member_uuid_online_count = query_get_value(SELECT COUNT(*) COUNT FROM performance_schema.replication_group_members WHERE member_state="ONLINE", COUNT, 1)
+  --let $wait_condition= SELECT COUNT(*)=$_gr_wait_primary_member_uuid_online_count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY"
+  --source include/wait_condition_or_abort.inc
+}
 
 --echo # WRITE DATA ON SERVER 1 (ISOLATION LEVEL $test_parameter_tx_isolation)
 --echo # AND VERIFY PRESENCE OF THE DATA ON SERVER 2

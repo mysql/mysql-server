@@ -5372,27 +5372,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     nullptr,
 };
 
-static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_CHAR;
-  var->value = nullptr;
-
-  if (group_member_mgr && ov.single_primary_mode_var &&
-      plugin_is_group_replication_running()) {
-    string primary_member_uuid;
-    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
-
-    strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
-    buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
-
-    var->value = buff;
-  }
-
-  return 0;
-}
-
 static SHOW_VAR group_replication_status_vars[] = {
-    {"group_replication_primary_member", (char *)&show_primary_member,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Gr_control_messages_sent_count",
      (char *)&Plugin_status_variables::get_control_messages_sent_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},

@@ -10,8 +10,7 @@
 #   - set expected trace errors
 #   - create the group, one by one. The PRIMARY is the first
 #     server in the group
-#     - check if each server points to SERVER1 UUID's
-#       in system variable group_replication_primary_member_uuid
+#     - check if each server has server1 as primary
 #
 # - Stage #2
 #   - create table
@@ -23,9 +22,7 @@
 #   - verify number of primaries and secondaries (with non ERROR
 #     state)
 #     - find the primary server in the group
-#   - verify old primary server status variable
-#     group_replication_primary_member which value should be set
-#     to 'UNDEFINED'
+#   - verify primary is not defined when member is in error state
 #
 # - Stage #4
 #   - clean up
@@ -121,8 +118,8 @@ INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 --let $assert_cond= [SELECT MEMBER_STATE="ERROR" as `Result` FROM performance_schema.replication_group_members WHERE MEMBER_ID = @@server_uuid, Result, 1] = 1
 --source include/assert.inc
 
---let $assert_text= 'group_replication_primary_member should be set to UNDEFINED when replication node is in error state';
---let $assert_cond= [SELECT VARIABLE_VALUE = "UNDEFINED" as `Result` FROM performance_schema.global_status WHERE VARIABLE_NAME = "group_replication_primary_member", Result, 1] = 1
+--let $assert_text= 'No primary defined when replication node is in error state';
+--let $assert_cond= [SELECT COUNT(*)=0 as `Result` FROM performance_schema.replication_group_members WHERE MEMBER_ROLE = "PRIMARY", Result, 1] = 1
 --source include/assert.inc
 
 --echo #

@@ -235,8 +235,8 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --source include/gr_wait_primary_member_uuid.inc
 
 # 3.2. Assert first primary is server1 as it bootstrapped the group
---let $assert_text= Verify group_replication_primary_member is server1
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid1"
+--let $assert_text= Verify server1 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$server_uuid1"
 --source include/assert.inc
 
 # 3.3. stop group replication on server1
@@ -251,8 +251,8 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --source include/gr_wait_primary_member_uuid.inc
 
 # 3.5. Assert next primary is server4 as it has highest member_weight=97
---let $assert_text= Verify group_replication_primary_member is server4
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid4"
+--let $assert_text= Verify server4 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$server_uuid4"
 --source include/assert.inc
 
 # 3.6. stop group replication on server4
@@ -267,8 +267,8 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --source include/gr_wait_primary_member_uuid.inc
 
 # 3.8. Assert next primary is server2 as it has next highest member_weight=93
---let $assert_text= Verify group_replication_primary_member is server2
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid2"
+--let $assert_text= Verify server2 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$server_uuid2"
 --source include/assert.inc
 
 # 3.9. stop group replication on server2
@@ -283,8 +283,8 @@ SET @@GLOBAL.group_replication_member_weight= 40.1;
 --source include/gr_wait_primary_member_uuid.inc
 
 # 3.11. Assert next primary is server3 as it has next highest member_weight=87
---let $assert_text= Verify group_replication_primary_member is server3
---let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid3"
+--let $assert_text= Verify server3 is primary
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_ROLE=\'PRIMARY\', MEMBER_ID, 1]" = "$server_uuid3"
 --source include/assert.inc
 
 # 3.12. stop group replication on server3
