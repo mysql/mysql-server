@@ -2461,7 +2461,7 @@ class Item_ntile : public Item_non_framing_wf {
 /**
   LEAD/LAG window functions, cf. SQL 2011 Section 6.10 \<window function\>
 */
-class Item_lead_lag : public Item_non_framing_wf {
+class Item_lead_lag final : public Item_non_framing_wf {
   enum_null_treatment m_null_treatment;
   bool m_is_lead;  ///< if true, the function is LEAD, else LAG
   int64 m_n;       ///< canonicalized offset value
@@ -2502,6 +2502,7 @@ class Item_lead_lag : public Item_non_framing_wf {
 
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
+  TYPELIB *get_typelib() const override;
   void update_after_wf_arguments_changed(THD *thd) override;
   void clear() override;
   bool check_wf_semantics1(THD *thd, Query_block *select,

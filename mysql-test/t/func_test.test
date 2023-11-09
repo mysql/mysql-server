@@ -531,3 +531,43 @@ GROUP BY BIN_TO_UUID( c1 ),
          CAST( LEAST( c1, CONVERT(c1, UNSIGNED) ) AS DECIMAL );
 DROP TABLE t1;
 SET SESSION sql_mode=default;
+
+--echo #
+--echo # Bug#33045412: ASSERTION `M_TYPELIB != NULLPTR' FAILED|SQL/ITEM.CC
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY,
+               set_col SET('a', 'b', 'c'),
+               enum_col ENUM('d', 'e'));
+
+INSERT INTO t VALUES (1, 'a,b', 'd'), (2, 'b,c', 'e');
+
+--sorted_result
+SELECT LEAST(set_col, NULL) AS col1,
+       LEAST(NULL, set_col) AS col2,
+       LEAST(set_col, set_col) AS col3,
+       LEAST(set_col, enum_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+
+--sorted_result
+SELECT GREATEST(set_col, NULL) AS col1,
+       GREATEST(NULL, set_col) AS col2,
+       GREATEST(set_col, set_col) AS col3,
+       GREATEST(set_col, enum_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+
+--sorted_result
+SELECT LEAST(enum_col, NULL) AS col1,
+       LEAST(NULL, enum_col) AS col2,
+       LEAST(enum_col, enum_col) AS col3,
+       LEAST(enum_col, set_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+
+--sorted_result
+SELECT GREATEST(enum_col, NULL) AS col1,
+       GREATEST(NULL, enum_col) AS col2,
+       GREATEST(enum_col, enum_col) AS col3,
+       GREATEST(enum_col, set_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+
+DROP TABLE t;

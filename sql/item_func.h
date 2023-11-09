@@ -70,6 +70,7 @@ class THD;
 class sp_rcontext;
 struct MY_BITMAP;
 struct Parse_context;
+struct TYPELIB;
 
 template <class T>
 class List;
@@ -1573,6 +1574,7 @@ class Item_func_min_max : public Item_func_numhybrid {
   bool resolve_type_inner(THD *thd) override;
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
+  TYPELIB *get_typelib() const override;
 
   /**
     Make CAST(LEAST_OR_GREATEST(datetime_expr, varchar_expr))

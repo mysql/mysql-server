@@ -40,6 +40,7 @@
 #include <utility>  // std::forward
 
 #include "decimal.h"
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
@@ -5559,6 +5560,23 @@ bool Item_lead_lag::fix_fields(THD *thd, Item **items) {
 
   fixed = true;
   return false;
+}
+
+TYPELIB *Item_lead_lag::get_typelib() const {
+  switch (data_type()) {
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+      if (TYPELIB *typelib = args[0]->get_typelib(); typelib != nullptr) {
+        return typelib;
+      } else {
+        assert(arg_count >= 3);
+        typelib = args[2]->get_typelib();
+        assert(typelib != nullptr);
+        return typelib;
+      }
+    default:
+      return nullptr;
+  }
 }
 
 bool Item_lead_lag::check_wf_semantics2(Window_evaluation_requirements *r) {

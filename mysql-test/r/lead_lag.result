@@ -1909,3 +1909,55 @@ SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER());
 JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER())
 1
 # End of test for Bug#26740557
+#
+# Bug#33045412: ASSERTION `M_TYPELIB != NULLPTR' FAILED|SQL/ITEM.CC
+#
+CREATE TABLE t(id INT PRIMARY KEY,
+set_col SET('a', 'b', 'c'),
+enum_col ENUM('d', 'e'));
+INSERT INTO t VALUES (1, 'a,b', 'd'), (2, 'b,c', 'e');
+SELECT LEAD(set_col) OVER w AS col1,
+LEAD(set_col, 1, set_col) OVER w AS col2,
+LEAD(set_col, 1, enum_col) OVER w AS col3,
+LEAD(set_col, 1, NULL) OVER w AS col4,
+LEAD(set_col, 1, '') OVER w AS col5,
+LEAD(NULL, 1, set_col) OVER w AS col6
+FROM t WINDOW w AS (ORDER BY id) UNION SELECT 1, 2, 3, 4, 5, 6;
+col1	col2	col3	col4	col5	col6
+1	2	3	4	5	6
+NULL	b,c	e	NULL		b,c
+b,c	b,c	b,c	b,c	b,c	NULL
+SELECT LAG(set_col) OVER w AS col1,
+LAG(set_col, 1, set_col) OVER w AS col2,
+LAG(set_col, 1, enum_col) OVER w AS col3,
+LAG(set_col, 1, NULL) OVER w AS col4,
+LAG(set_col, 1, '') OVER w AS col5,
+LAG(NULL, 1, set_col) OVER w AS col6
+FROM t WINDOW w AS (ORDER BY id) UNION SELECT 1, 2, 3, 4, 5, 6;
+col1	col2	col3	col4	col5	col6
+1	2	3	4	5	6
+NULL	a,b	d	NULL		a,b
+a,b	a,b	a,b	a,b	a,b	NULL
+SELECT LEAD(enum_col) OVER w AS col1,
+LEAD(enum_col, 1, enum_col) OVER w AS col2,
+LEAD(enum_col, 1, set_col) OVER w AS col3,
+LEAD(enum_col, 1, NULL) OVER w AS col4,
+LEAD(enum_col, 1, '') OVER w AS col5,
+LEAD(NULL, 1, enum_col) OVER w AS col6
+FROM t WINDOW w AS (ORDER BY id) UNION SELECT 1, 2, 3, 4, 5, 6;
+col1	col2	col3	col4	col5	col6
+1	2	3	4	5	6
+NULL	e	b,c	NULL		e
+e	e	e	e	e	NULL
+SELECT LAG(enum_col) OVER w AS col1,
+LAG(enum_col, 1, enum_col) OVER w AS col2,
+LAG(enum_col, 1, set_col) OVER w AS col3,
+LAG(enum_col, 1, NULL) OVER w AS col4,
+LAG(enum_col, 1, '') OVER w AS col5,
+LAG(NULL, 1, enum_col) OVER w AS col6
+FROM t WINDOW w AS (ORDER BY id) UNION SELECT 1, 2, 3, 4, 5, 6;
+col1	col2	col3	col4	col5	col6
+1	2	3	4	5	6
+NULL	d	a,b	NULL		d
+d	d	d	d	d	NULL
+DROP TABLE t;

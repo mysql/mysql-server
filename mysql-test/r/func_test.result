@@ -888,3 +888,47 @@ CAST( LEAST( c1, CONVERT(c1, UNSIGNED) ) AS DECIMAL );
 ERROR HY000: Incorrect string value: '2007-05-16 19:15:59' for function bin_to_uuid
 DROP TABLE t1;
 SET SESSION sql_mode=default;
+#
+# Bug#33045412: ASSERTION `M_TYPELIB != NULLPTR' FAILED|SQL/ITEM.CC
+#
+CREATE TABLE t(id INT PRIMARY KEY,
+set_col SET('a', 'b', 'c'),
+enum_col ENUM('d', 'e'));
+INSERT INTO t VALUES (1, 'a,b', 'd'), (2, 'b,c', 'e');
+SELECT LEAST(set_col, NULL) AS col1,
+LEAST(NULL, set_col) AS col2,
+LEAST(set_col, set_col) AS col3,
+LEAST(set_col, enum_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+col1	col2	col3	col4
+1	2	3	4
+NULL	NULL	a,b	a,b
+NULL	NULL	b,c	b,c
+SELECT GREATEST(set_col, NULL) AS col1,
+GREATEST(NULL, set_col) AS col2,
+GREATEST(set_col, set_col) AS col3,
+GREATEST(set_col, enum_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+col1	col2	col3	col4
+1	2	3	4
+NULL	NULL	a,b	d
+NULL	NULL	b,c	e
+SELECT LEAST(enum_col, NULL) AS col1,
+LEAST(NULL, enum_col) AS col2,
+LEAST(enum_col, enum_col) AS col3,
+LEAST(enum_col, set_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+col1	col2	col3	col4
+1	2	3	4
+NULL	NULL	d	a,b
+NULL	NULL	e	b,c
+SELECT GREATEST(enum_col, NULL) AS col1,
+GREATEST(NULL, enum_col) AS col2,
+GREATEST(enum_col, enum_col) AS col3,
+GREATEST(enum_col, set_col) AS col4
+FROM t UNION SELECT 1, 2, 3, 4;
+col1	col2	col3	col4
+1	2	3	4
+NULL	NULL	d	d
+NULL	NULL	e	e
+DROP TABLE t;

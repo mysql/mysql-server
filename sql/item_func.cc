@@ -3747,6 +3747,17 @@ bool Item_func_min_max::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
+TYPELIB *Item_func_min_max::get_typelib() const {
+  if (data_type() == MYSQL_TYPE_ENUM || data_type() == MYSQL_TYPE_SET) {
+    for (const Item *arg : make_array(args, arg_count)) {
+      TYPELIB *typelib = arg->get_typelib();
+      if (typelib != nullptr) return typelib;
+    }
+    assert(false);
+  }
+  return nullptr;
+}
+
 /*
   "rank" the temporal types, to get consistent results for cases like
   greatest(year, date) vs. greatest(date, year)
