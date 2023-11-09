@@ -84,6 +84,7 @@ class Mgmd {
   BaseString m_name;
   BaseString m_exe;
   NdbMgmd m_mgmd_client;
+  bool m_verbose{true};
 
   Mgmd(const Mgmd &other) = delete;
 
@@ -110,6 +111,8 @@ class Mgmd {
   const char *name(void) const { return m_name.c_str(); }
 
   const char *exe(void) const { return m_exe.c_str(); }
+
+  void verbose(bool f) { m_verbose = f; }
 
   bool start(const char *working_dir, NdbProcess::Args &args) {
     g_info << "Starting " << name() << " ";
@@ -143,7 +146,7 @@ class Mgmd {
     }
     args.add("--nodaemon");
     args.add("--log-name=", name());
-    args.add("--verbose");
+    if (m_verbose) args.add("--verbose");
 
     if (first_extra_arg) {
       // Append any extra args
@@ -166,7 +169,7 @@ class Mgmd {
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
     args.add("--log-name=", name());
-    args.add("--verbose");
+    if (m_verbose) args.add("--verbose");
 
     if (first_extra_arg) {
       // Append any extra args
@@ -301,7 +304,6 @@ class MgmdProcessList : public Vector<Mgmd *> {
       Mgmd *mgmd = this->operator[](i);
       delete mgmd;
     }
-    //  delete this->[i];
     clear();
   }
 };
@@ -450,6 +452,7 @@ int runTestBug45495(NDBT_Context *ctx, NDBT_Step *step) {
   MgmdProcessList mgmds;
   for (int i = 1; i <= 2; i++) {
     Mgmd *mgmd = new Mgmd(i);
+    mgmd->verbose(false);
     mgmds.push_back(mgmd);
     CHECK(mgmd->start_from_config_ini(wd.path()));
   }
