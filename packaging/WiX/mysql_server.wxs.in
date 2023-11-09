@@ -57,6 +57,8 @@
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
         IncludeMinimum="no"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.999"
+        IncludeMaximum="no"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
