@@ -425,19 +425,6 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                 testing::UnorderedElementsAreArray(expected_ports));
   }
 
-  if (GetParam().role.find("allow_primary_reads") != std::string::npos) {
-    RecordProperty("Worklog", "15871");
-    RecordProperty("RequirementId", "FR1");
-    RecordProperty("Description",
-                   "Checks that the Router logs a deprecation warning if "
-                   "allow_primary_reads parameter is used in the "
-                   "[routing].destinations URI");
-
-    check_log_contains(router,
-                       "allow_primary_reads is deprecated, use "
-                       "role=PRIMARY_AND_SECONDARY instead");
-  }
-
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
@@ -491,20 +478,6 @@ INSTANTIATE_TEST_SUITE_P(
         MetadataCacheTestParams("metadata_3_secondaries_pass.js",
                                 "PRIMARY_AND_SECONDARY", "round-robin", "",
                                 {0, 1, 2, 3},
-                                /*round-robin=*/true),
-
-        // test round-robin with allow-primary-reads=yes
-        // this should work similar to PRIMARY_AND_SECONDARY
-        // we expect 1 connection to node-0, node-1, node-2 and node-3
-        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
-                                "SECONDARY&allow_primary_reads=yes", "",
-                                "read-only", {0, 1, 2, 3},
-                                /*round-robin=*/true),
-
-        // the same for old metadata
-        MetadataCacheTestParams("metadata_3_secondaries_pass.js",
-                                "SECONDARY&allow_primary_reads=yes", "",
-                                "read-only", {0, 1, 2, 3},
                                 /*round-robin=*/true),
 
         // test first-available on PRIMARY

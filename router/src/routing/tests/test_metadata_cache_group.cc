@@ -865,71 +865,6 @@ TEST_F(DestMetadataCacheTest,
 }
 
 /*****************************************/
-/*allow_primary_reads=yes                */
-/*****************************************/
-TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
-  DestMetadataCacheGroup dest(
-      io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
-      mysqlrouter::URI("metadata-cache://cache-name/"
-                       "default?role=SECONDARY&allow_primary_reads=yes")
-          .query,
-      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
-      &metadata_cache_api_);
-
-  Destination w1("W1", "W1", 3306);
-  Destination r1("R1", "R1", 3307);
-  Destination r2("R2", "R2", 3308);
-
-  fill_instance_vector({
-      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, w1.hostname(),
-       w1.port(), 33060},
-      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, r1.hostname(),
-       r1.port(), 33061},
-      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, r2.hostname(),
-       r2.port(), 33062},
-  });
-
-  // we expect round-robin on all the servers (PRIMARY and SECONDARY)
-  //
-  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
-  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
-  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
-  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r2, r1));
-  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
-  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
-  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
-}
-
-TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
-  DestMetadataCacheGroup dest(
-      io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
-      mysqlrouter::URI("metadata-cache://cache-name/"
-                       "default?role=SECONDARY&allow_primary_reads=yes")
-          .query,
-      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
-      &metadata_cache_api_);
-
-  fill_instance_vector({
-      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, "3306", 3306,
-       33060},
-  });
-
-  // we expect the PRIMARY being used
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
-  }
-
-  // ... no change
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
-  }
-}
-
-/*****************************************/
 /*DEFAULT_STRATEGIES                     */
 /*****************************************/
 TEST_F(DestMetadataCacheTest, PrimaryDefault) {
@@ -1470,34 +1405,6 @@ TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
       std::runtime_error, "Unsupported routing strategy: next-available");
 }
 
-TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithPrimaryRouting) {
-  ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest_mc_group(
-          io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
-          mysqlrouter::URI("metadata-cache://cache-name/"
-                           "default?role=PRIMARY&allow_primary_reads=yes")
-              .query,
-          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
-          &metadata_cache_api_),
-      std::runtime_error,
-      "allow_primary_reads is supported only for SECONDARY routing");
-}
-
-TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithRoutingStrategy) {
-  ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest_mc_group(
-          io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
-          mysqlrouter::URI("metadata-cache://cache-name/"
-                           "default?role=SECONDARY&allow_primary_reads=yes")
-              .query,
-          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
-          &metadata_cache_api_),
-      std::runtime_error,
-      "allow_primary_reads is only supported for backward compatibility: "
-      "without routing_strategy but with mode defined, use "
-      "role=PRIMARY_AND_SECONDARY instead");
-}
-
 TEST_F(DestMetadataCacheTest, RoundRobinWitFallbackStrategyWithPrimaryRouting) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
@@ -1563,37 +1470,25 @@ TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
 /*****************************************/
 /*URI parsing tests                      */
 /*****************************************/
-TEST_F(DestMetadataCacheTest, MetadataCacheGroupAllowPrimaryReads) {
-  // yes
+TEST_F(DestMetadataCacheTest,
+       MetadataCacheGroupAllowPrimaryReadsNoLongerSupported) {
   {
+    RecordProperty("Worklog", "15872");
+    RecordProperty("RequirementId", "FR1");
+    RecordProperty("Description",
+                   "Checks that the Router logs a proper error message when "
+                   "allow_primary_reads parameter is used in the "
+                   "[routing].destinations URI");
+
     mysqlrouter::URI uri(
         "metadata-cache://test/default?allow_primary_reads=yes&role=SECONDARY");
-    ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        io_ctx_, "metadata_cache_name", routing::RoutingStrategy::kUndefined,
-        uri.query, Protocol::Type::kClassicProtocol));
-  }
-
-  // no
-  {
-    mysqlrouter::URI uri(
-        "metadata-cache://test/default?allow_primary_reads=no&role=SECONDARY");
-    ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        io_ctx_, "metadata_cache_name", routing::RoutingStrategy::kUndefined,
-        uri.query, Protocol::Type::kClassicProtocol));
-  }
-
-  // invalid value
-  {
-    mysqlrouter::URI uri(
-        "metadata-cache://test/"
-        "default?allow_primary_reads=yes,xxx&role=SECONDARY");
-    ASSERT_THROW_LIKE(
-        DestMetadataCacheGroup dest(io_ctx_, "metadata_cache_name",
-                                    routing::RoutingStrategy::kUndefined,
-                                    uri.query,
-                                    Protocol::Type::kClassicProtocol),
-        std::runtime_error,
-        "Invalid value for allow_primary_reads option: 'yes,xxx'");
+    ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
+                          io_ctx_, "metadata_cache_name",
+                          routing::RoutingStrategy::kUndefined, uri.query,
+                          Protocol::Type::kClassicProtocol),
+                      std::runtime_error,
+                      "allow_primary_reads is no longer supported, use "
+                      "role=PRIMARY_AND_SECONDARY instead");
   }
 }
 

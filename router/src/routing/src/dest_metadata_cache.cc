@@ -52,7 +52,9 @@ IMPORT_LOG_FUNCTIONS()
 // TODO: possibly this should be made into a configurable option
 static const auto kPrimaryFailoverTimeout = 10s;
 
-static const std::set<std::string> supported_params{
+// we keep the allow_primary_reads on this list even though we no longer support
+// it, so that we give more specific error message for it
+static constexpr std::array supported_params{
     "role", "allow_primary_reads", "disconnect_on_promoted_to_primary",
     "disconnect_on_metadata_unavailable"};
 
@@ -319,7 +321,8 @@ DestMetadataCacheGroup::get_available_primaries(
 void DestMetadataCacheGroup::init() {
   // check if URI does not contain parameters that we don't understand
   for (const auto &uri_param : uri_query_) {
-    if (supported_params.count(uri_param.first) == 0) {
+    if (std::find(supported_params.begin(), supported_params.end(),
+                  uri_param.first) == supported_params.end()) {
       throw std::runtime_error(
           "Unsupported 'metadata-cache' parameter in URI: '" + uri_param.first +
           "'");
@@ -333,11 +336,9 @@ void DestMetadataCacheGroup::init() {
         "option 'mode' is not allowed together with 'routing_strategy' option");
   }
 
-  bool routing_strategy_default{false};
   // if the routing_strategy is not set we go with the default based on the role
   if (routing_strategy_ == routing::RoutingStrategy::kUndefined) {
     routing_strategy_ = get_default_routing_strategy(server_role_);
-    routing_strategy_default = true;
   }
 
   // check that mode (if present) is correct for the role
@@ -349,36 +350,11 @@ void DestMetadataCacheGroup::init() {
         "' is not valid for 'role=" + get_server_role_name(server_role_) + "'");
   }
 
-  // this is for backward compatibility
-  // old(allow_primary_reads + role=SECONDARY) = new
-  // (role=PRIMARY_AND_SECONDARY)
   auto query_part = uri_query_.find("allow_primary_reads");
   if (query_part != uri_query_.end()) {
-    if (server_role_ != ServerRole::Secondary) {
-      throw std::runtime_error(
-          "allow_primary_reads is supported only for SECONDARY routing");
-    }
-    if (!routing_strategy_default) {
-      throw std::runtime_error(
-          "allow_primary_reads is only supported for backward compatibility: "
-          "without routing_strategy but with mode defined, use "
-          "role=PRIMARY_AND_SECONDARY instead");
-    }
-    auto value = query_part->second;
-    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-    if (value == "yes") {
-      server_role_ = ServerRole::PrimaryAndSecondary;
-    } else if (value == "no") {
-      // it's a default but we allow it for consistency
-    } else {
-      throw std::runtime_error(
-          "Invalid value for allow_primary_reads option: '" +
-          query_part->second + "'");
-    }
-
-    log_warning(
-        "allow_primary_reads is deprecated, use role=PRIMARY_AND_SECONDARY "
-        "instead");
+    throw std::runtime_error(
+        "allow_primary_reads is no longer supported, use "
+        "role=PRIMARY_AND_SECONDARY instead");
   }
 
   // validate routing strategy:

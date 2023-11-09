@@ -138,9 +138,9 @@ class DestMetadataCacheGroup final
    *     [routing:metadata_read_only]
    *     ..
    *     destination =
-   * metadata_cache:///cluster_name/replicaset_name?allow_primary_reads=yes
+   * metadata_cache:///cluster_name/replicaset_name?role=PRIMARY_AND_SECONDARY
    *
-   * The 'allow_primary_reads' is part of uri_query_.
+   * The 'role' is part of uri_query_.
    */
   const mysqlrouter::URIQuery uri_query_;
 
