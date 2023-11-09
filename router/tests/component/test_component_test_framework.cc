@@ -222,7 +222,8 @@ TEST_F(ComponentTestFrameworkTest, sleepy_blind_tester) {
    */
 
   ProcessWrapper &testee = launch_command(
-      g_this_exec_path, {arglist_prefix_ + "sleepy_blind_testee"});
+      g_this_exec_path, {"--gtest_also_run_disabled_tests",
+                         arglist_prefix_ + "sleepy_blind_testee"});
 
   EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);
 }
@@ -250,9 +251,11 @@ TEST_F(ComponentTestFrameworkTest, sleepy_blind_autoresponder_tester) {
         return "";
       }};
 
-  auto &testee = launch_command(
-      g_this_exec_path, {arglist_prefix_ + "sleepy_blind_autoresponder_testee"},
-      EXIT_SUCCESS, true, -1ms, responder);
+  auto &testee =
+      launch_command(g_this_exec_path,
+                     {"--gtest_also_run_disabled_tests",
+                      arglist_prefix_ + "sleepy_blind_autoresponder_testee"},
+                     EXIT_SUCCESS, true, -1ms, responder);
 
   // wait for child (while reading and issuing autoresponses)
   EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);
@@ -271,7 +274,8 @@ TEST_F(ComponentTestFrameworkTest, wait_for_exit_with_low_timeout_tester) {
 
   ProcessWrapper &testee = launch_command(
       g_this_exec_path,
-      {arglist_prefix_ + "wait_for_exit_with_low_timeout_testee"});
+      {"--gtest_also_run_disabled_tests",
+       arglist_prefix_ + "wait_for_exit_with_low_timeout_testee"});
 
   // wait with very short timeout
   EXPECT_THROW_LIKE(testee.wait_for_exit(std::chrono::seconds(0)),
