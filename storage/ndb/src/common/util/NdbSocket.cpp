@@ -268,14 +268,21 @@ ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const {
   size_t nread = 0;
   int err;
   {
-    Guard guard(mutex);
+    if (NdbMutex_Trylock(mutex)) {
+      return TLS_BUSY_TRY_AGAIN;
+    }
     if (unlikely(ssl == nullptr ||
-                 SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN))
+                 SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN)) {
+      NdbMutex_Unlock(mutex);
       return 0;
-
+    }
     r = SSL_read_ex(ssl, buf, len, &nread);
-    if (r) return nread;
+    if (r) {
+      NdbMutex_Unlock(mutex);
+      return nread;
+    }
     err = SSL_get_error(ssl, r);
+    NdbMutex_Unlock(mutex);
   }
 
   Debug_Log("SSL_read(%zd): ERR %d", len, err);
@@ -307,12 +314,20 @@ ssize_t NdbSocket::ssl_send(const char *buf, size_t len) const {
 
   /* Locked section */
   {
-    Guard guard(mutex);
-    if (unlikely(ssl == nullptr || SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN))
+    if (NdbMutex_Trylock(mutex)) {
+      return TLS_BUSY_TRY_AGAIN;
+    }
+    if (unlikely(ssl == nullptr ||
+                 SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN)) {
+      NdbMutex_Unlock(mutex);
       return -1;
-
-    if (SSL_write_ex(ssl, buf, len, &nwrite)) return nwrite;
+    }
+    if (SSL_write_ex(ssl, buf, len, &nwrite)) {
+      NdbMutex_Unlock(mutex);
+      return nwrite;
+    }
     err = SSL_get_error(ssl, 0);
+    NdbMutex_Unlock(mutex);
   }
 
   require(err != SSL_ERROR_WANT_READ);
