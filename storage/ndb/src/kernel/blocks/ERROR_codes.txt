@@ -31,7 +31,7 @@ Next DBDIH 7251
 Next DBTC 8123
 Next CMVMI 9000
 Next TRPMAN 9501
-Next BACKUP 10055
+Next BACKUP 10057
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13060
@@ -668,6 +668,14 @@ Backup Stuff:
 10052: Same as 10051 for START_BACKUP_REQ
 10053: Same as 10051 for STOP_BACKUP_REQ
 10054: Insert error 2002 in NDBFS for backup datafile
+10055: Stall LCP at start of fragment scan [on table id]
+       Table id supplied in ERROR insert extra.
+       Can be supplied with DUMP 13003
+10056: Stall LCP part way through fragment scan [on table id]
+       Table id supplied in ERROR insert extra.
+       Can be supplied with DUMP 13003
+       Only works if SCAN_NEXTREQ required ( > 1 batch of
+       LCP scan results from fragment)
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
