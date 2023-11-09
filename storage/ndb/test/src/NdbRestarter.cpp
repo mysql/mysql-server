@@ -258,6 +258,15 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
   return 0;
 }
 
+int NdbRestarter::getNumReplicas()
+{
+  Vector<int> node_group_list;
+  int replicas;
+  (void)getNodeGroups(node_group_list, &replicas);
+  return replicas;
+}
+
+
 int
 NdbRestarter::getNextMasterNodeId(int nodeId){
   if (!isConnected())
