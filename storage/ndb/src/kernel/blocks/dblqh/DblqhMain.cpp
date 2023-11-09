@@ -32662,7 +32662,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
         if (i == ZLCP_CHECK_INDEX)
         {
           jam();
-          g_eventLogger->info("LCP Scan have stalled for %u seconds, last"
+          g_eventLogger->info("LCP Scan has stalled for %u seconds, "
                               "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
                               c_check_scanptr_save_line[i],
@@ -32671,7 +32671,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
         else if (i == ZBACKUP_CHECK_INDEX)
         {
           jam();
-          g_eventLogger->info("Backup Scan have stalled for %u seconds, "
+          g_eventLogger->info("Backup Scan has stalled for %u seconds, "
                               "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
                               c_check_scanptr_save_line[i],
@@ -32680,7 +32680,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
         else if (i == ZCOPY_FRAGREQ_CHECK_INDEX)
         {
           jam();
-          g_eventLogger->info("COPY_FRAGREQ Scan have stalled for %u seconds,"
+          g_eventLogger->info("COPY_FRAGREQ Scan has stalled for %u seconds,"
                               "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
                               c_check_scanptr_save_line[i],
