@@ -1926,7 +1926,7 @@ int runBug24664(NDBT_Context *ctx, NDBT_Step *step) {
       return NDBT_FAILED;
     }
 
-    restarter.insertErrorInAllNodes(10039);  // Hang LCP
+    restarter.insertErrorInAllNodes(10055);  // Hang LCP
     CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
     while (ndb_logevent_get_next(handle, &event, 0) >= 0 &&
            event.type != NDB_LE_LocalCheckpointStarted)
@@ -1937,7 +1937,7 @@ int runBug24664(NDBT_Context *ctx, NDBT_Step *step) {
       return NDBT_FAILED;
     }
 
-    restarter.insertErrorInAllNodes(10040);  // Resume LCP
+    restarter.insertErrorInAllNodes(0);  // Resume LCP
     while (ndb_logevent_get_next(handle, &event, 0) >= 0 &&
            event.type != NDB_LE_LocalCheckpointCompleted)
       ;

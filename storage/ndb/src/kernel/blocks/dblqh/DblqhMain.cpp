@@ -33425,21 +33425,21 @@ void Dblqh::handle_check_system_scans(Signal *signal) {
         if (i == ZLCP_CHECK_INDEX) {
           jam();
           g_eventLogger->info(
-              "LCP Scan have stalled for %u milliseconds, last"
+              "LCP Scan has stalled for %u milliseconds, "
               "last seen on line %u, check_lcp_stop_count: %u",
               time_stalled, c_check_scanptr_save_line[i],
               loc_scanptr.p->scan_check_lcp_stop);
         } else if (i == ZBACKUP_CHECK_INDEX) {
           jam();
           g_eventLogger->info(
-              "Backup Scan have stalled for %u milliseconds, "
+              "Backup Scan has stalled for %u milliseconds, "
               "last seen on line %u, check_lcp_stop_count: %u",
               time_stalled, c_check_scanptr_save_line[i],
               loc_scanptr.p->scan_check_lcp_stop);
         } else if (i == ZCOPY_FRAGREQ_CHECK_INDEX) {
           jam();
           g_eventLogger->info(
-              "COPY_FRAGREQ Scan have stalled for %u "
+              "COPY_FRAGREQ Scan has stalled for %u "
               "milliseconds, "
               "last seen on line %u, check_lcp_stop_count: %u",
               time_stalled, c_check_scanptr_save_line[i],

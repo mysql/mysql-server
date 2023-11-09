@@ -5686,8 +5686,8 @@ int runTestScanFragWatchdog(NDBT_Context *ctx, NDBT_Step *step) {
       break;
     }
 
-    if (restarter.insertErrorInNode(victim, 10039) !=
-        0) /* Cause LCP/backup frag scan to halt */
+    if (restarter.insertErrorInNode(victim, 10055) !=
+        0) /* Cause LCP frag scan to halt */
     {
       g_err << "Error insert failed." << endl;
       break;
@@ -6067,7 +6067,7 @@ int runTestScanFragWatchdogDisable(NDBT_Context *ctx, NDBT_Step *step) {
 
     g_err << "Injecting fault in node " << victim;
     g_err << " to suspend LCP frag scan..." << endl;
-    if (restarter.insertErrorInNode(victim, 10039) != 0) {
+    if (restarter.insertErrorInNode(victim, 10055) != 0) {
       g_err << "Error insert failed." << endl;
       break;
     }
@@ -6122,7 +6122,7 @@ int runTestScanFragWatchdogDisable(NDBT_Context *ctx, NDBT_Step *step) {
   } while (0);
 
   // Insert error code to resume LCP in case node halted
-  if (restarter.insertErrorInNode(victim, 10040) != 0) {
+  if (restarter.insertErrorInNode(victim, 0) != 0) {
     g_err << "Test cleanup failed: failed to resume LCP." << endl;
   }
   ctx->stopTest();

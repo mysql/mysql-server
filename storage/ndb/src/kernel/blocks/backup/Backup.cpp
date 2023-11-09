@@ -2078,6 +2078,8 @@ void Backup::execCHECK_NODE_RESTARTCONF(Signal *signal) {
   }
 }
 
+static constexpr Uint32 ContinueBDelayHeaderWords = 6;
+
 void Backup::execCONTINUEB(Signal *signal) {
   jamEntry();
   const Uint32 Tdata0 = signal->theData[0];
@@ -2305,9 +2307,73 @@ void Backup::execCONTINUEB(Signal *signal) {
       delete_lcp_file_processing(signal);
       return;
     }
+    case BackupContinueB::ZERROR_DELAY_SEND_SIGNAL: {
+      jam();
+      const Uint32 errorCode = signal->theData[1];
+      const Uint32 intervalMillis = signal->theData[2];
+      const Uint32 gsn = signal->theData[3];
+      const Uint32 dest = signal->theData[4];
+      const Uint32 jbuf = signal->theData[5];
+      const Uint32 sigLenWords =
+          signal->getLength() - ContinueBDelayHeaderWords;
+      SectionHandle handle(this, signal);
+
+      if (ERROR_INSERT_VALUE == errorCode) {
+        jam();
+        g_eventLogger->info(
+            "Backup %u : Error code %u delaying send of GSN %u to reference "
+            "0x%x "
+            "for another %u millis",
+            instance(), errorCode, gsn, dest, intervalMillis);
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, intervalMillis,
+                            signal->getLength(), &handle);
+        return;
+      }
+
+      g_eventLogger->info(
+          "Backup %u : Sending GSN %u to reference 0x%x via jbuf %u",
+          instance(), gsn, dest, jbuf);
+      memmove(&signal->theData[0], &signal->theData[ContinueBDelayHeaderWords],
+              sigLenWords * 4);
+
+      sendSignal((BlockReference)dest, (GlobalSignalNumber)gsn, signal,
+                 sigLenWords, (JobBufferLevel)jbuf, &handle);
+      return;
+    }
     default:
       ndbabort();
   }  // switch
+}
+
+/**
+ * Delay send of a signal until given error condition
+ * is cleared.
+ * Check if cleared every intervalMillis.
+ * Destination can be local, remote etc...
+ */
+void Backup::sendSignalAfterErrorCondCleared(
+    BlockReference ref, GlobalSignalNumber gsn, Signal *signal, Uint32 length,
+    JobBufferLevel jbuf, SectionHandle *sections, Uint32 errorCode,
+    Uint32 intervalMillis) {
+  jam();
+  ndbrequire(length <= 25 - ContinueBDelayHeaderWords);
+  ndbrequire(ERROR_INSERT_VALUE == errorCode);
+  SectionHandle dummy(this);
+  if (sections == nullptr) {
+    sections = &dummy;
+  }
+
+  /* Send as CONTINUEB to self where the condition will be checked */
+  memmove(&signal->theData[ContinueBDelayHeaderWords], &signal->theData[0],
+          length * 4);
+  signal->theData[0] = BackupContinueB::ZERROR_DELAY_SEND_SIGNAL;
+  signal->theData[1] = errorCode;
+  signal->theData[2] = intervalMillis;
+  signal->theData[3] = gsn;
+  signal->theData[4] = ref;
+  signal->theData[5] = jbuf;
+  sendSignal(reference(), GSN_CONTINUEB, signal,
+             length + ContinueBDelayHeaderWords, JBB, sections);
 }
 
 void Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal) {
@@ -7808,13 +7874,30 @@ void Backup::sendScanFragReq(Signal *signal, Ptr<BackupRecord> ptr,
 
     Uint32 attrInfo[25];
     memcpy(attrInfo, table.attrInfo, 4 * table.attrInfoLen);
-    LinearSectionPtr ptr[3];
-    ptr[0].p = attrInfo;
-    ptr[0].sz = table.attrInfoLen;
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = attrInfo;
+    lsptr[0].sz = table.attrInfoLen;
     if (delay_possible) {
       SectionHandle handle(this);
-      ndbrequire(import(handle.m_ptr[0], ptr[0].p, ptr[0].sz));
+      ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
       handle.m_cnt = 1;
+      if (ERROR_INSERTED(10055) && ptr.p->is_lcp() &&
+          (ERROR_INSERT_EXTRA == 0 || (ERROR_INSERT_EXTRA == table.tableId))) {
+        jam();
+        /**
+         * Delay signal send while error 10055 set
+         * Activate for any table via :
+         *  ERROR 10055
+         * Activate for specific table via :
+         *  DUMP 13003 10055 <tableid>
+         * Clear via
+         *  ERROR 0
+         */
+        sendSignalAfterErrorCondCleared(lqhRef, GSN_SCAN_FRAGREQ, signal,
+                                        ScanFragReq::SignalLength, JBB, &handle,
+                                        10055, 1000);
+        return;
+      }
       if (delay == 0) {
         jam();
         sendSignalWithDelay(lqhRef, GSN_SCAN_FRAGREQ, signal, BOUNDED_DELAY,
@@ -7832,7 +7915,7 @@ void Backup::sendScanFragReq(Signal *signal, Ptr<BackupRecord> ptr,
        */
       jam();
       sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, ScanFragReq::SignalLength,
-                 JBB, ptr, 1);
+                 JBB, lsptr, 1);
     }
   }
 }
@@ -9295,6 +9378,25 @@ void Backup::checkScan(Signal *signal, BackupRecordPtr ptr,
           prio_level = JBA;
         }
       }
+      if (ERROR_INSERTED(10056) && ptr.p->is_lcp() &&
+          (ERROR_INSERT_EXTRA == 0 ||
+           (ERROR_INSERT_EXTRA == filePtr.p->tableId))) {
+        jam();
+        /**
+         * Delay signal send while error 10056 set
+         * Activate for any table via :
+         *   ERROR 10056
+         * Activate for specific table via :
+         *   DUMP 13003 10056 <tableid>
+         * Clear via
+         *   ERROR 0
+         */
+        sendSignalAfterErrorCondCleared(lqhRef, GSN_SCAN_NEXTREQ, signal,
+                                        ScanFragNextReq::SignalLength,
+                                        prio_level, NULL, 10056, 1000);
+        return;
+      }
+
       if (lqhRef == calcInstanceBlockRef(DBLQH) && (prio_level == JBB)) {
         if (ptr.p->is_lcp()) {
           pausing_lcp(1,
