@@ -25899,11 +25899,7 @@ void Dbdih::execNDB_TAMPER(Signal *signal) {
     calculateKeepGciLab(signal, 0, 0);
     return;
   }  // if
-  if (signal->getLength() == 1) {
-    SET_ERROR_INSERT_VALUE2(signal->theData[0], 0);
-  } else {
-    SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
-  }
+  SimulatedBlock::execNDB_TAMPER(signal);
   return;
 }  // Dbdih::execNDB_TAMPER()
 

@@ -199,7 +199,9 @@ Cmvmi::~Cmvmi() { m_shared_page_pool.clear(); }
 
 void Cmvmi::execNDB_TAMPER(Signal *signal) {
   jamEntry();
-  SET_ERROR_INSERT_VALUE(signal->theData[0]);
+
+  SimulatedBlock::execNDB_TAMPER(signal);
+
   if (ERROR_INSERTED(9999)) {
     CRASH_INSERTION(9999);
   }
@@ -1148,12 +1150,13 @@ void Cmvmi::execTAMPER_ORD(Signal *signal) {
   TamperOrd *const tamperOrd = (TamperOrd *)&signal->theData[0];
   Uint32 errNo = tamperOrd->errorNo;
 
-  if (errNo == 0) {
+  if (errNo <= 1) {
     jam();
-    signal->theData[0] = 0;
+    signal->theData[0] = errNo;
     for (Uint32 i = 0; blocks[i] != 0; i++) {
       sendSignal(blocks[i], GSN_NDB_TAMPER, signal, 1, JBB);
     }
+    sendSignal(CMVMI_REF, GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
 

@@ -634,12 +634,8 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
 
 void Trpman::execNDB_TAMPER(Signal *signal) {
   jamEntry();
+  SimulatedBlock::execNDB_TAMPER(signal);
 #ifdef ERROR_INSERT
-  if (signal->getLength() == 1) {
-    SET_ERROR_INSERT_VALUE(signal->theData[0]);
-  } else {
-    SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
-  }
 
   if (signal->theData[0] == 9003) {
     if (MAX_RECEIVED_SIGNALS < 1024) {
