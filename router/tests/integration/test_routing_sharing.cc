@@ -7190,6 +7190,14 @@ class ChangeUserTest
       public ::testing::WithParamInterface<std::tuple<
           bool, ShareConnectionParam, ChangeUserParam, std::string>> {
  public:
+  void SetUp() override {
+    for (auto &s : shared_servers()) {
+      if (s->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
+      }
+    }
+  }
+
   static void TearDownTestSuite() {
     cli_.reset();
     ShareConnectionTestBase::TearDownTestSuite();
