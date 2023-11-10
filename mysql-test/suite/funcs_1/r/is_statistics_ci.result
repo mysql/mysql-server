@@ -100,6 +100,7 @@ def	mysql	global_grants	mysql	PRIMARY
 def	mysql	global_grants	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
+def	mysql	gtid_executed	mysql	PRIMARY
 def	mysql	help_category	mysql	PRIMARY
 def	mysql	help_category	mysql	name
 def	mysql	help_keyword	mysql	PRIMARY
