@@ -219,15 +219,16 @@ const std::shared_ptr<Network_provider> Network_provider_manager::get_provider(
 }
 
 connection_descriptor *Network_provider_manager::open_xcom_connection(
-    const char *server, xcom_port port, bool use_ssl, int connection_timeout) {
+    const char *server, xcom_port port, bool use_ssl, int connection_timeout,
+    network_provider_dynamic_log_level log_level) {
   auto provider = Network_provider_manager::getInstance().get_active_provider();
   connection_descriptor *xcom_connection = nullptr;
 
   if (provider) {
     Network_security_credentials credentials{"", "", use_ssl};
 
-    auto connection = provider.get()->open_connection(server, port, credentials,
-                                                      connection_timeout);
+    auto connection = provider.get()->open_connection(
+        server, port, credentials, connection_timeout, log_level);
 
     xcom_connection = new_connection(connection->fd
 #ifndef XCOM_WITHOUT_OPENSSL

@@ -102,11 +102,12 @@ int close_open_connection(connection_descriptor *conn) {
   return Network_provider_manager::getInstance().close_xcom_connection(conn);
 }
 
-connection_descriptor *open_new_connection(const char *server, xcom_port port,
-                                           int connection_timeout) {
+connection_descriptor *open_new_connection(
+    const char *server, xcom_port port, int connection_timeout,
+    network_provider_dynamic_log_level log_level) {
   return Network_provider_manager::getInstance().open_xcom_connection(
       server, port, Network_provider_manager::getInstance().is_xcom_using_ssl(),
-      connection_timeout);
+      connection_timeout, log_level);
 }
 
 /* purecov: begin deadcode */
@@ -788,7 +789,8 @@ int incoming_connection_task(task_arg arg [[maybe_unused]]) {
 void server_detected(server *s) { s->detected = task_now(); }
 
 /* Try to connect to another node */
-static int dial(server *s) {
+static int dial(server *s,
+                network_provider_dynamic_log_level dial_call_log_level) {
   DECL_ENV
   int dummy;
   ENV_INIT
@@ -804,7 +806,7 @@ static int dial(server *s) {
   X_FREE(s->con);
   s->con = nullptr;
 
-  s->con = open_new_connection(s->srv, s->port, 1000);
+  s->con = open_new_connection(s->srv, s->port, 1000, dial_call_log_level);
   if (!s->con) {
     s->con = new_connection(-1, nullptr);
   }
@@ -1410,7 +1412,35 @@ linkage connect_wait = {
 
 void wakeup_sender() { task_wakeup(&connect_wait); }
 
+static server *find_server(server *table[], int n, char *name, xcom_port port) {
+  int i;
+  for (i = 0; i < n; i++) {
+    server *s = table[i];
+    if (s && strcmp(s->srv, name) == 0 &&
+        s->port == port) /* FIXME should use IP address */
+      return s;
+  }
+  return nullptr;
+}
+
 #define TAG_START 313
+
+/**
+ * @brief Checks if a given server is currently in use in the current view
+ *
+ * @param sp the server to check
+ *
+ * @return true if it is in the current view, false otherwise.
+ */
+bool is_server_in_current_view(server *sp) {
+  if (site_def *current_site_def = get_site_def_rw(); current_site_def) {
+    return find_server(current_site_def->servers,
+                       current_site_def->nodes.node_list_len, sp->srv,
+                       sp->port);
+  }
+
+  return false;
+}
 
 /* Fetch messages from queue and send to other server.  Having a
    separate queue and task for doing this simplifies the logic since we
@@ -1425,12 +1455,15 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
   bool was_connected;
 #endif
+  network_provider_dynamic_log_level dial_call_log_level;
   ENV_INIT
   END_ENV_INIT
   END_ENV;
 
   int64_t ret_code{0};
   TASK_BEGIN
+
+  ep->dial_call_log_level = network_provider_dynamic_log_level::PROVIDED;
 
   ep->channel_empty_time = task_now();
   ep->dtime = INITIAL_CONNECT_WAIT; /* Initial wait is short, to avoid
@@ -1450,7 +1483,7 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
       if (!ep->was_connected) {
 #endif
-        TASK_CALL(dial(ep->s));
+        TASK_CALL(dial(ep->s, ep->dial_call_log_level));
 #if defined(_WIN32)
       } else {
         ep->s->reconnect = true;
@@ -1458,8 +1491,17 @@ int sender_task(task_arg arg) {
 #endif
       if (is_connected(ep->s->con)) break;
 
+      // Check, for each reconnect loop, if we belong to this configuration
+      ep->dial_call_log_level =
+          is_server_in_current_view(ep->s)
+              ? network_provider_dynamic_log_level::PROVIDED
+              : network_provider_dynamic_log_level::DEBUG;
+
       if (ep->dtime < MAX_CONNECT_WAIT) {
-        G_MESSAGE("Connection to %s:%d failed", ep->s->srv, ep->s->port);
+        if (ep->dial_call_log_level !=
+            network_provider_dynamic_log_level::DEBUG) {
+          G_MESSAGE("Connection to %s:%d failed", ep->s->srv, ep->s->port);
+        }
       }
 
       TIMED_TASK_WAIT(&connect_wait, ep->dtime);
@@ -1591,6 +1633,7 @@ int tcp_reconnection_task(task_arg arg [[maybe_unused]]) {
   int dummy;
   server *s;
   int i;
+  network_provider_dynamic_log_level dial_call_log_level;
   ENV_INIT
   END_ENV_INIT
   END_ENV;
@@ -1598,14 +1641,22 @@ int tcp_reconnection_task(task_arg arg [[maybe_unused]]) {
 
   ep->s = nullptr;
   ep->i = 0;
+  ep->dial_call_log_level = network_provider_dynamic_log_level::PROVIDED;
 
   while (!xcom_shutdown) {
     {
       ep->s = nullptr;
       for (ep->i = 0; ep->i < maxservers; ep->i++) {
         ep->s = all_servers[ep->i];
+
         if (ep->s && ep->s->reconnect && !is_connected(ep->s->con)) {
-          TASK_CALL(dial(ep->s));
+          // Check if the server belongs in the current view
+          ep->dial_call_log_level =
+              is_server_in_current_view(ep->s)
+                  ? network_provider_dynamic_log_level::PROVIDED
+                  : network_provider_dynamic_log_level::DEBUG;
+
+          TASK_CALL(dial(ep->s, ep->dial_call_log_level));
           if (is_connected(ep->s->con)) {
             ep->s->reconnect = false;
           }
@@ -1662,17 +1713,6 @@ int local_sender_task(task_arg arg) {
   if (ep->link) msg_link_delete(&ep->link);
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
-}
-
-static server *find_server(server *table[], int n, char *name, xcom_port port) {
-  int i;
-  for (i = 0; i < n; i++) {
-    server *s = table[i];
-    if (s && strcmp(s->srv, name) == 0 &&
-        s->port == port) /* FIXME should use IP address */
-      return s;
-  }
-  return nullptr;
 }
 
 void update_servers(site_def *s, cargo_type operation) {

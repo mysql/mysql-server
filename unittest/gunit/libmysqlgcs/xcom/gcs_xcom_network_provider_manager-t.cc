@@ -39,7 +39,8 @@ class mock_network_provider : public Network_provider {
   MOCK_METHOD(std::unique_ptr<Network_connection>, open_connection,
               (const std::string &address, const unsigned short port,
                const Network_security_credentials &security_credentials,
-               int connection_timeout),
+               int connection_timeout,
+               network_provider_dynamic_log_level log_level),
               (override));
   MOCK_METHOD(int, close_connection, (const Network_connection &connection),
               (override));
@@ -298,7 +299,8 @@ TEST_F(XComNetworkProviderManagerTest,
       .Times(1)
       .WillOnce(testing::Return(true));
   EXPECT_CALL(*mock_provider,
-              open_connection(testing::_, testing::_, testing::_, testing::_))
+              open_connection(testing::_, testing::_, testing::_, testing::_,
+                              testing::_))
       .Times(1)
       .WillOnce(testing::Return(
           testing::ByMove(std::make_unique<Network_connection>(fd_number))));
