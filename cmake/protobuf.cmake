@@ -191,6 +191,22 @@ MACRO(MYSQL_CHECK_PROTOBUF)
       )
   ENDIF()
 
+  # fix protobuf version 22 and up in Linux
+  IF(LINUX AND WITH_PROTOBUF STREQUAL "system" AND PB_MINOR_VERSION VERSION_GREATER 21)
+    FIND_OBJECT_DEPENDENCIES("${PROTOBUF_LIBRARY}" protobuf_dependencies)
+    SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${protobuf_dependencies}"
+      )
+    FIND_OBJECT_DEPENDENCIES("${PROTOBUF_LITE_LIBRARY}" lite_dependencies)
+    SET_TARGET_PROPERTIES(ext::libprotobuf-lite PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${lite_dependencies}"
+      )
+    FIND_OBJECT_DEPENDENCIES("${Protobuf_PROTOC_LIBRARY}" protoc_dependencies)
+    SET_TARGET_PROPERTIES(ext::libprotoc PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${protoc_dependencies}"
+      )
+  ENDIF()
+
   IF("${PROTOBUF_VERSION}" VERSION_LESS "${MIN_PROTOBUF_VERSION_REQUIRED}")
     COULD_NOT_FIND_PROTOBUF()
   ENDIF()
