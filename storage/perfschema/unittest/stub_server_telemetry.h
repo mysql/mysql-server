@@ -33,4 +33,4 @@ SERVICE_TYPE(mysql_server_telemetry_traces_v1)
 SERVICE_IMPLEMENTATION(performance_schema, mysql_server_telemetry_traces_v1){
     nullptr, nullptr, nullptr};
 
-std::atomic<telemetry_t *> g_telemetry = nullptr;
+PFS_cacheline_atomic_ptr<telemetry_t *> g_telemetry;

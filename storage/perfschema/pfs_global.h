@@ -102,6 +102,18 @@ struct PFS_cacheline_atomic_size_t {
   PFS_cacheline_atomic_size_t() : m_size_t(0) {}
 };
 
+/**
+  An atomic<T> variable, guaranteed to be alone in a CPU cache line.
+  This is for performance, for variables accessed very frequently.
+*/
+template <class T>
+struct PFS_cacheline_atomic_ptr {
+  std::atomic<T> m_ptr;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<T>)];
+
+  PFS_cacheline_atomic_ptr() : m_ptr(nullptr) {}
+};
+
 struct PFS_builtin_memory_class;
 
 /** Memory allocation for the performance schema. */
