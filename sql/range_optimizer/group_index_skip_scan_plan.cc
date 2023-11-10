@@ -42,6 +42,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/opt_costmodel.h"
@@ -344,6 +345,9 @@ void collect_group_skip_scans(
     bool &have_min, bool &have_max) {
   JOIN *join = param->query_block->join;
   TABLE *table = param->table;
+
+  if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) return;
+
   Item_field *min_max_arg_item =
       nullptr; /* The argument of all MIN/MAX functions */
   uint key_part_nr;
