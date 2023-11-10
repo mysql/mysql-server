@@ -3845,6 +3845,13 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
 
           close_connections();
         }
+#if defined(HAVE_GCOV) && !defined(NDEBUG)
+        fprintf(stderr, "Dumping gcov data\n");
+        fflush(stderr);
+        _db_flush_gcov_();
+        fprintf(stderr, "gcov data dumped\n");
+        fflush(stderr);
+#endif
         my_thread_end();
         my_thread_exit(nullptr);
         return nullptr;  // Avoid compiler warnings

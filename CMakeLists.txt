@@ -1176,7 +1176,13 @@ IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -DHAVE_GCOV")
   STRING_APPEND(CMAKE_CXX_FLAGS
   " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -DHAVE_GCOV")
+  STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--dynamic-list-data")
+  STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--dynamic-list-data")
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS
+  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
+  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS
+  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
+  STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS
   " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
 ENDIF()
 

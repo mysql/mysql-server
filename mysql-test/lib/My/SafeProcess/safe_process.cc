@@ -45,22 +45,22 @@
      parent does not need to properly cleanup any child, it is handled
      automatically.
 
-  3. Signal's recieced by the process will trigger same action as 2)
+  3. Signals received by the process will trigger same action as 2)
 
 */
 
-#include <errno.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <csignal>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include "my_config.h"
@@ -108,14 +108,38 @@ static void die(const char *fmt, ...) {
   exit(1);
 }
 
-static void wait_pid(void) {
+static void wait_pid(bool should_sigkill) {
   int status = 0;
+  pid_t ret_pid = -1;
+  bool skip_waitpid = false;
 
-  pid_t ret_pid;
-  while ((ret_pid = waitpid(child_pid, &status, 0)) < 0) {
-    if (errno != EINTR)
-      die("Failure to wait for child %d, errno %d", static_cast<int>(child_pid),
-          errno);
+  if (should_sigkill) {
+    // Wait for up to 10 seconds for the child to terminate
+    int32_t timeout = 10;
+    while (((ret_pid = waitpid(child_pid, &status, WNOHANG)) == 0) &&
+           (timeout-- > 0)) {
+      message("[TERM] Timeout: %u", timeout);
+      sleep(1);
+    }
+
+    message("[TERM] ret_pid: %d, status: %d", ret_pid, status);
+
+    if (ret_pid == 0) {
+      // SIGKILL the child if it's still running after timeout
+      message("Killing child: %d", static_cast<int>(child_pid));
+      kill(-child_pid, SIGKILL);
+    } else if (ret_pid > 0) {
+      // Process is reaped, no need to call waitpid again
+      skip_waitpid = true;
+    }
+  }
+
+  if (!skip_waitpid) {
+    while ((ret_pid = waitpid(child_pid, &status, 0)) < 0) {
+      if (errno != EINTR)
+        die("Failure to wait for child %d, errno %d",
+            static_cast<int>(child_pid), errno);
+    }
   }
 
   if (ret_pid == child_pid) {
@@ -150,14 +174,14 @@ static void wait_pid(void) {
 static void abort_child(void) {
   message("Aborting child: %d", static_cast<int>(child_pid));
   kill(-child_pid, SIGABRT);
-  wait_pid();
+  wait_pid(false);
 }
 
 static void kill_child(void) {
   // Terminate whole process group
-  message("Killing child: %d", static_cast<int>(child_pid));
-  kill(-child_pid, SIGKILL);
-  wait_pid();
+  message("Terminating child: %d", static_cast<int>(child_pid));
+  kill(-child_pid, SIGTERM);
+  wait_pid(true);
 }
 
 extern "C" void handle_abort(int sig) {
@@ -166,9 +190,28 @@ extern "C" void handle_abort(int sig) {
                 static_cast<int>(child_pid), sig);
 }
 
-extern "C" void handle_signal(int sig) {
+extern "C" void handle_signal(int sig, siginfo_t *si,
+                              void *arg [[maybe_unused]]) {
   terminated = sig;
-  message("Got SIGCHLD from process: %d", static_cast<int>(child_pid));
+  const char *sig_str = "??";
+  switch (sig) {
+    case SIGTERM:
+      sig_str = "SIGTERM";
+      break;
+    case SIGSEGV:
+      sig_str = "SIGSEGV";
+      break;
+    case SIGINT:
+      sig_str = "SIGINT";
+      break;
+    case SIGCHLD:
+      sig_str = "SIGCHLD";
+      break;
+    default:
+      break;
+  }
+  message("Got %s from process: %d for child: %d", sig_str, si->si_pid,
+          static_cast<int>(child_pid));
 }
 
 int main(int argc, char *const argv[]) {
@@ -178,8 +221,8 @@ int main(int argc, char *const argv[]) {
   bool nocore = false;
   struct sigaction sa, sa_abort;
 
-  sa.sa_handler = handle_signal;
-  sa.sa_flags = SA_NOCLDSTOP;
+  sa.sa_sigaction = handle_signal;
+  sa.sa_flags = SA_NOCLDSTOP | SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
 
   sa_abort.sa_handler = handle_abort;
