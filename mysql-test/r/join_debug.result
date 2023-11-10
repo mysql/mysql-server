@@ -18,3 +18,19 @@ WHERE (dt.f2 <> ANY (SELECT t1.f1 FROM t1 WHERE t1.f2 = dt.f2));
 MIN(t3.f1)
 NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug#35991384: Mysqld crash from Query_block::optimize()
+#               Assertion `join == nullptr'
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET debug = '+d,kill_query_in_hash_join_iterator';
+SELECT COUNT(*) WHERE (
+SELECT 1 FROM (SELECT COUNT(*) FROM t AS t1, t AS t2 WHERE t1.x=t2.x) AS dt
+);
+ERROR 70100: Query execution was interrupted
+SET debug = '-d,kill_query_in_hash_join_iterator';
+DROP TABLE t;

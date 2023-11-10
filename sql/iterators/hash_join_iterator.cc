@@ -32,6 +32,7 @@
 #include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "my_alloc.h"
+#include "my_dbug.h"
 #include "my_xxhash.h"
 
 #include "my_inttypes.h"
@@ -955,6 +956,8 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
 }
 
 int HashJoinIterator::ReadJoinedRow() {
+  DBUG_EXECUTE_IF("kill_query_in_hash_join_iterator",
+                  thd()->killed = THD::KILL_QUERY;);
   if (m_current_row == nullptr) {
     // Signal that we have reached the end of hash table entries. Let the caller
     // determine which state we end up in.
@@ -1025,8 +1028,12 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
     // we return a row.
     if (res == 0) {
       passes_extra_conditions = JoinedRowPassesExtraConditions();
-      if (thd()->is_error() || thd()->killed) {
+      if (thd()->is_error()) {
         // Evaluation of extra conditions raised an error, so abort the join.
+        return 1;
+      }
+      if (thd()->killed) {
+        thd()->send_kill_message();
         return 1;
       }
 
