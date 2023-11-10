@@ -85,6 +85,9 @@ class Query_result_union : public Query_result_interceptor {
   ///
   /// @param limit_rows the effective limit, or HA_POS_ERROR if none.
   void set_limit(ha_rows limit_rows) override;
+
+  // For assignment of tmp_table_param for CTE clones
+  friend class Common_table_expr;
 };
 
 #endif /* SQL_UNION_INCLUDED */

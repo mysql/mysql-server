@@ -224,6 +224,12 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, Table_ref *tl) {
 
   if (tmp_tables.push_back(tl)) return nullptr; /* purecov: inspected */
 
+  if (tl->derived_result != nullptr) {
+    // Make clone's copy of tmp_table_param contain correct info, so copy
+    tl->derived_result->tmp_table_param =
+        tmp_tables[0]->derived_result->tmp_table_param;
+  }
+
   return t;
 }
 
