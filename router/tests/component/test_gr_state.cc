@@ -1151,7 +1151,7 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
       .spawn({"-c", conf_file});
 
   if (sync_point == ProcessManager::Spawner::SyncPoint::RUNNING) {
-    EXPECT_TRUE(wait_for_transaction_count_increase(http_port, 1));
+    EXPECT_TRUE(wait_for_transaction_count(http_port, 1));
   }
 
   if (GetParam().expect_rw_connection_ok) {
