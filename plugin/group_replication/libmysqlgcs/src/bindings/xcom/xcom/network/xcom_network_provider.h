@@ -99,8 +99,9 @@ class Xcom_network_provider : public Network_provider {
   std::unique_ptr<Network_connection> open_connection(
       const std::string &address, const unsigned short port,
       const Network_security_credentials &security_credentials,
-      int connection_timeout =
-          Network_provider::default_connection_timeout()) override;
+      int connection_timeout = Network_provider::default_connection_timeout(),
+      network_provider_dynamic_log_level log_level =
+          network_provider_dynamic_log_level::PROVIDED) override;
 
   int close_connection(const Network_connection &connection) override;
 

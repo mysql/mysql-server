@@ -453,4 +453,30 @@ TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
   vio_delete(active_vio);
 }
 
+TEST_F(MySQLNetworkProviderTest, LogMappingTest) {
+  // Test for default return
+  int coded_log_level = ERROR_LEVEL;
+  network_provider_dynamic_log_level provided_log_level =
+      network_provider_dynamic_log_level::PROVIDED;
+
+  ASSERT_EQ(ERROR_LEVEL, Gcs_mysql_network_provider_util::log_level_adaptation(
+                             coded_log_level, provided_log_level));
+
+  // Test for transformed return
+  coded_log_level = ERROR_LEVEL;
+  provided_log_level = network_provider_dynamic_log_level::WARNING;
+
+  ASSERT_EQ(WARNING_LEVEL,
+            Gcs_mysql_network_provider_util::log_level_adaptation(
+                coded_log_level, provided_log_level));
+
+  // Test for out of range transformed return
+  coded_log_level = ERROR_LEVEL;
+  provided_log_level = network_provider_dynamic_log_level::DEBUG;
+
+  ASSERT_EQ(Gcs_mysql_network_provider_util::OUT_OF_RANGE_LOG_LEVEL,
+            Gcs_mysql_network_provider_util::log_level_adaptation(
+                coded_log_level, provided_log_level));
+}
+
 }  // namespace group_replication_gcs_mysql_networkprovidertest

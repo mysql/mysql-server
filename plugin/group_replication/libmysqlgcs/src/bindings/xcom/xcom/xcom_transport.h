@@ -164,7 +164,9 @@ void close_connection(connection_descriptor *con);
 int close_open_connection(connection_descriptor *conn);
 connection_descriptor *open_new_connection(
     const char *server, xcom_port port,
-    int connection_timeout = Network_provider::default_connection_timeout());
+    int connection_timeout = Network_provider::default_connection_timeout(),
+    network_provider_dynamic_log_level log_level =
+        network_provider_dynamic_log_level::PROVIDED);
 connection_descriptor *open_new_local_connection(const char *server,
                                                  xcom_port port);
 

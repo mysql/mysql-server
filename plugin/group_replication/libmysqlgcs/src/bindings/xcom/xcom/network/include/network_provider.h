@@ -74,6 +74,43 @@ enum ssl_enum_fips_mode_options {
 };
 
 /**
+ * @brief Dynamic log level enum values
+ *
+ * Network Provider will allow external entities to change a given log level,
+ * determined by an external condition.
+ *
+ * For that, we create an enumeration that contains all possible generic log
+ * levels that we have seen in all implementations of a Network Provider.
+ *
+ * Each Network Provider specialization must provide a mapping between
+ * network_provider_dynamic_log_level and their specific log level.
+ *
+ * An example of this mechanism is as follows:
+ *
+ * Let us consider that a coder decided that a certain log output in
+ * open_connection, on an implementation of a network provider, is ERROR.
+ *
+ * At the same time, that developer allows an external entity that calls
+ * open_connection to override that log output. That could happen because the
+ * caller of open_connection wants to lower the verbosity due to too many errors
+ * in a short amount of time.
+ *
+ * The developer must then use the implemented mapping referenced above on
+ * that instruction and consume the input parameter of open_connection that
+ * refers to an external network_provider_dynamic_log_level.
+ */
+enum class network_provider_dynamic_log_level {
+  PROVIDED = 0,
+  FATAL,
+  ERROR,
+  WARNING,
+  INFO,
+  DEBUG,
+  TRACE,
+  LAST_NETWORK_PROVIDER_DYNAMIC_LOG_LEVEL
+};
+
+/**
  * @brief This class is a helper to translate a Communication Stack to a
  string
  *
@@ -362,13 +399,17 @@ class Network_provider {
    * @param security_credentials security credentials to connect to the remote
    *                             endpoint
    * @param connection_timeout connection timeout
+   * @param log_level @see network_provider_dynamic_log_level for more
+   *                        information
    * @return std::unique_ptr<Network_connection> an established connection.
    *                                                 nullptr in case of failure.
    */
   virtual std::unique_ptr<Network_connection> open_connection(
       const std::string &address, const unsigned short port,
       const Network_security_credentials &security_credentials,
-      int connection_timeout = default_connection_timeout()) = 0;
+      int connection_timeout = default_connection_timeout(),
+      network_provider_dynamic_log_level log_level =
+          network_provider_dynamic_log_level::PROVIDED) = 0;
 
   /**
    * @brief Closes an open connection to another XCom endpoint served by the

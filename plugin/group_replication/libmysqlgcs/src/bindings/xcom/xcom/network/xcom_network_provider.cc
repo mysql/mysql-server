@@ -179,7 +179,8 @@ int Xcom_network_provider::close_connection(
 std::unique_ptr<Network_connection> Xcom_network_provider::open_connection(
     const std::string &address, const unsigned short port,
     const Network_security_credentials &security_credentials,
-    int connection_timeout) {
+    int connection_timeout,
+    network_provider_dynamic_log_level log_level [[maybe_unused]]) {
   result fd = {0, 0};
   result ret = {0, 0};
 

@@ -196,7 +196,7 @@ bool Gcs_mysql_network_provider::finalize_secure_connections_context() {
 std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
     const std::string &address, const unsigned short port,
     const Network_security_credentials &security_credentials [[maybe_unused]],
-    int connection_timeout) {
+    int connection_timeout, network_provider_dynamic_log_level log_level) {
   MYSQL *mysql_connection = nullptr;
   ulong client_flag = CLIENT_REMEMBER_OPTIONS;
   auto retval = std::make_unique<Network_connection>(-1, nullptr);
@@ -294,7 +294,11 @@ std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
   if (!m_native_interface->mysql_real_connect(
           mysql_connection, address.c_str(), recovery_username.c_str(),
           recovery_password.c_str(), nullptr, port, nullptr, client_flag)) {
-    LogPluginErr(ERROR_LEVEL,
+    // This Log Output might have its log level changed due to
+    // @see network_provider_dynamic_log_level input parameter of
+    // this method.
+    LogPluginErr(Gcs_mysql_network_provider_util::log_level_adaptation(
+                     ERROR_LEVEL, log_level),
                  ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_CLIENT_ERROR_CONN_ERR);
     goto err;
   }
@@ -302,7 +306,11 @@ std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
   if (m_native_interface->send_command(mysql_connection,
                                        COM_SUBSCRIBE_GROUP_REPLICATION_STREAM,
                                        nullptr, 0, 0)) {
-    LogPluginErr(ERROR_LEVEL,
+    // This Log Output might have its log level changed due to
+    // @see network_provider_dynamic_log_level input parameter of
+    // this method.
+    LogPluginErr(Gcs_mysql_network_provider_util::log_level_adaptation(
+                     ERROR_LEVEL, log_level),
                  ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_CLIENT_ERROR_COMMAND_ERR);
     goto err;
   }
