@@ -8960,7 +8960,7 @@ ER_DEPENDENT_BY_FUNCTIONAL_INDEX
   eng "Column '%s' has a functional index dependency and cannot be dropped or renamed."
 
 ER_PLUGIN_NOT_EARLY
-  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  eng "Plugin '%s' is not to be used as an \"early\" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
 
 ER_INNODB_REDO_LOG_ARCHIVE_START_SUBDIR_PATH
@@ -9383,10 +9383,10 @@ ER_GROUP_REPLICATION_PASSWORD_LENGTH
   eng "The START GROUP_REPLICATION command failed since the password provided for the recovery channel exceeds the maximum length of 32 characters."
 
 ER_SUBQUERY_TRANSFORM_REJECTED
-  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on".
+  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on."
 
 ER_DA_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
-  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)."
 
 ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
   eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
@@ -9401,7 +9401,7 @@ ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT
   eng "Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement."
 
 ER_NOT_ALLOWED_WITH_START_TRANSACTION
-  eng "START TRANSACTION clause cannot be used %.128s".
+  eng "START TRANSACTION clause cannot be used %.128s"
 
 ER_INVALID_JSON_ATTRIBUTE
   eng "Invalid json attribute, error: \"%s\" at pos %u: '%s'"
@@ -9621,7 +9621,7 @@ ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
   eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
 
 ER_INVALID_MFA_PLUGIN_SPECIFIED
-  eng "Invalid plugin \"%s\" specified as %d factor during \"%s\"."D
+  eng "Invalid plugin \"%s\" specified as %d factor during \"%s\"."
 
 ER_IDENTIFIED_BY_UNSUPPORTED
   eng "IDENTIFIED BY clause during \"%s\" not supported for plugin \"%s\"."
@@ -9813,7 +9813,7 @@ ER_COMMAND_BACKEND_FAILED_TO_FETCH_SECURITY_CTX
   eng "Error when trying to fetch information from security context object, when trying to connect the server."
 
 ER_COMMAND_SERVICE_BACKEND_FAILED
-  eng "Error in command service backend interface, because of : "%s""
+  eng "Error in command service backend interface, because of : \"%s\""
 
 ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
   eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on source. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
@@ -9914,7 +9914,7 @@ ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_ENDING_ENCLOSED_BY
   eng "Unexpected characters after ending ENCLOSED BY character found at row %ld in file '%s'."
 
 ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_NULL_ESCAPE
-  eng "Unexpected characters after NULL escape (\N) found at row %ld in file '%s'."
+  eng "Unexpected characters after NULL escape (\\N) found at row %ld in file '%s'."
 
 ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_COLUMN_TERMINATOR
   eng "Unexpected characters after column terminator found at row %ld in file '%s'."

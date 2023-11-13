@@ -291,7 +291,7 @@ ER_SECURE_AUTH_VALUE_UNSUPPORTED
   eng "Unsupported value 0 for secure-auth"
 
 ER_INVALID_INSTRUMENT
-  eng "Invalid instrument name or value for performance_schema_instrument '%s'",
+  eng "Invalid instrument name or value for performance_schema_instrument '%s'."
 
 ER_INNODB_MANDATORY
   eng "The use of InnoDB is mandatory since MySQL 5.7. The former options like '--innodb=0/1/OFF/ON' or '--skip-innodb' are ignored."
@@ -7682,8 +7682,8 @@ ER_IB_MSG_715
 ER_IB_MSG_716
   eng "%s"
 
-ER_IB_MSG_717
-  eng "An optimized(without redo logging) DDL operation has been performed. All modified pages may not have been flushed to the disk yet.\nThis offline backup may not be consistent"
+OBSOLETE_ER_IB_MSG_717
+  eng "An optimized (without redo logging) DDL operation has been performed. All modified pages may not have been flushed to the disk yet. This offline backup may not be consistent."
 
 ER_IB_MSG_718
   eng "Extending tablespace : %lu space name: %s to new size: %lu pages during recovery."
@@ -7704,7 +7704,7 @@ ER_IB_MSG_723
   eng "Log parsing buffer overflow. Recovery may have failed! Please set log_buffer_size to a value higher than %lu."
 
 ER_IB_MSG_724
-  eng "Set innodb_force_recovery to ignore this error.";
+  eng "Set innodb_force_recovery to ignore this error."
 
 ER_IB_MSG_725
   eng "Doing recovery: scanned up to log sequence number %llu"
@@ -9486,7 +9486,7 @@ ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
   eng "The column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
 
 ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted."
 
 ER_SERVER_ACL_TABLE_ERROR
   eng ""
@@ -10108,7 +10108,7 @@ ER_LDAP_MAPPING_PROCESS_DELIMITER_EQUAL_NOT_FOUND
   eng "Processing delimiter, separator = not found, resetting position"
 
 ER_LDAP_MAPPING_PROCESS_DELIMITER_TRY_COMMA
-  eng ""Processing delimiter, failed to get data for = separator try for separator ,.""
+  eng "Processing delimiter, failed to get data for = separator try for separator ,."
 
 ER_LDAP_MAPPING_PROCESS_DELIMITER_COMMA_NOT_FOUND
   eng "Processing delimiter, separator , not found, resetting position"
@@ -10330,7 +10330,7 @@ ER_IB_MSG_CLOCK_GETTIME_FAILED
   eng "clock_gettime() failed: %s"
 
 ER_PLUGIN_NOT_EARLY_DUP
-  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  eng "Plugin '%s' is not to be used as an \"early\" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
 
 ER_PLUGIN_NO_INSTALL_DUP
@@ -10837,16 +10837,16 @@ ER_GRP_RPL_IS_STARTING
   eng "Plugin 'group_replication' is starting."
 
 ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE
-  eng "Cannot create tablespace %s because the directory is not a valid location. %s";
+  eng "Cannot create tablespace %s because the directory is not a valid location. %s"
 
 ER_IB_MSG_INVALID_LOCATION_WRONG_DB
-  eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema.");
+  eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema."
 
 ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE
   eng "Cannot find undo tablespace %s with filename '%s' as indicated by the Data Dictionary. Did you move or delete this tablespace? Any undo logs in it cannot be used."
 
 ER_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
-  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)."
 
 ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID
   eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
@@ -11266,13 +11266,13 @@ ER_NET_WAIT_ERROR2
   eng "'wait_timeout' period of %s seconds was exceeded for %s. The idle time since last command was too long."
 
 ER_GRP_RPL_MEMBER_ACTION_TRIGGERED
-  eng "The member action "%s" for event "%s" with priority "%u" will be run."
+  eng "The member action \"%s\" for event \"%s\" with priority \"%u\" will be run."
 
 ER_GRP_RPL_MEMBER_ACTION_FAILURE_IGNORE
-  eng "The member action "%s" for event "%s" with priority "%u" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about what could have caused this failure."
+  eng "The member action \"%s\" for event \"%s\" with priority \"%u\" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about what could have caused this failure."
 
 ER_GRP_RPL_MEMBER_ACTION_FAILURE
-  eng "The member action "%s" for event "%s" with priority "%u" failed. Please check previous messages in the error log for hints about what could have caused this failure."
+  eng "The member action \"%s\" for event \"%s\" with priority \"%u\" failed. Please check previous messages in the error log for hints about what could have caused this failure."
 
 ER_GRP_RPL_MEMBER_ACTION_PARSE_ON_RECEIVE
   eng "Unable to parse the member actions configuration sent by the primary."
@@ -11299,10 +11299,10 @@ ER_GRP_RPL_MEMBER_ACTION_INVALID_ACTIONS_ON_MEMBER_JOIN
   eng "The group members were unable to send their member actions configuration. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version' on all members."
 
 ER_GRP_RPL_MEMBER_ACTION_ENABLED
-  eng "Member action enabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+  eng "Member action enabled: \"%s\", type: \"%s\", event: \"%s\", priority: \"%u\", error_handling: \"%s\"."
 
 ER_GRP_RPL_MEMBER_ACTION_DISABLED
-  eng "Member action disabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+  eng "Member action disabled: \"%s\", type: \"%s\", event: \"%s\", priority: \"%u\", error_handling: \"%s\"."
 
 ER_GRP_RPL_MEMBER_ACTIONS_RESET
   eng "Member actions configuration was reset."
@@ -11489,7 +11489,7 @@ ER_AUTHENTICATION_PLUGIN_OOM
   eng "Out of memory."
 
 ER_AUTHENTICATION_PLUGIN_LOG
-  eng "Can't initialize logging service".
+  eng "Can't initialize logging service."
 
 ER_WARN_REPLICA_GTID_ONLY_AND_GTID_MODE_NOT_ON
   eng "Replication channel '%.192s' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. If you intend to disable GTIDs in the replication topology, change GTID_ONLY to 0."
@@ -11887,7 +11887,7 @@ ER_IB_MSG_PARSE_OLD_REDO_INDEX_VERSION
   eng "Recovery: Generating index information for INSTANT DDL Table in 8.0.29 format"
 
 OBSOLETE_ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP
-  eng "Failed to switch resource group. %s".
+  eng "Failed to switch resource group. %s"
 
 OBSOLETE_ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_GLOBAL_LOCK
   eng "Failed to switch resource group. Could not acquire resource groups global lock."
@@ -11962,7 +11962,7 @@ ER_IB_BUFFER_POOL_OVERUSE
   eng "%s: Over 67 percent of the buffer pool (curr_size=%zu MB) is occupied by lock heaps or the adaptive hash index or BUF_BLOCK_MEMORY pages. Check that your transactions do not set too many row locks. Maybe you should make the buffer pool bigger?. Starting the InnoDB Monitor to print diagnostics."
 
 ER_IB_BUFFER_POOL_FULL
-  eng "%s: Over 95 percent of the buffer pool (curr_size=%zu MB) is occupied by lock heaps or the adaptive hash index or BUF_BLOCK_MEMORY pages. Check that your transactions do not set too many row locks. Maybe you should make the buffer pool bigger?. We intentionally generate a seg fault to print a stack trace on Linux!";
+  eng "%s: Over 95 percent of the buffer pool (curr_size=%zu MB) is occupied by lock heaps or the adaptive hash index or BUF_BLOCK_MEMORY pages. Check that your transactions do not set too many row locks. Maybe you should make the buffer pool bigger?. We intentionally generate a seg fault to print a stack trace on Linux!"
 
 ER_IB_DUPLICATE_KEY
   eng "%s: table=%s, index=%s, n_uniq=%zu, n_fields=%zu, lhs=(%s), rhs=(%s)"
@@ -12013,7 +12013,7 @@ ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_ENDING_ENCLOSED_BY_LOG
   eng "Unexpected characters after ending ENCLOSED BY character found at row %ld in file '%s'."
 
 ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_NULL_ESCAPE_LOG
-  eng "Unexpected characters after NULL escape (\N) found at row %ld in file '%s'."
+  eng "Unexpected characters after NULL escape (\\N) found at row %ld in file '%s'."
 
 ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_COLUMN_TERMINATOR_LOG
   eng "Unexpected characters after column terminator found at row %ld in file '%s'."

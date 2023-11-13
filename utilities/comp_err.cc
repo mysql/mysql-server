@@ -222,7 +222,8 @@ static struct my_option my_long_options[] = {
 static struct languages *parse_charset_string(char *str);
 static struct errors *parse_error_string(char *str, int er_count,
                                          PFS_error_stat error_stat);
-static struct message *parse_message_string(struct message *new_message,
+static struct message *parse_message_string(const struct errors *current_error,
+                                            struct message *new_message,
                                             char *str);
 static struct languages *find_language(struct languages *languages,
                                        const char *short_name);
@@ -236,7 +237,7 @@ static int get_options(int *argc, char ***argv);
 static void usage();
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument);
-static char *parse_text_line(char *pos);
+static char *parse_text_line(char *pos, bool allow_newline_escape);
 static int copy_rows(FILE *to, char *row, long start_pos,
                      std::vector<uint> *file_pos);
 static char *parse_default_language(char *str);
@@ -728,6 +729,14 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
   if (!(file = my_fopen(file_name, O_RDONLY, MYF(MY_WME)))) return 0;
 
   while ((str = fgets(buff, sizeof(buff), file))) {
+    if (strlen(buff) >= sizeof(buff) - 1) {
+      fprintf(stderr,
+              "A line longer than %zu characters is not supported. Increase "
+              "`buff` size in `parse_input_file()` in `comp_err.cc`.",
+              sizeof(buff));
+      fail = "\n";
+      goto done;
+    }
     if (is_prefix(str, "language")) {
       if (*top_lang != nullptr) {
         fail = "More than one languages directive found.\n";
@@ -793,7 +802,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
         fail = "Error in the input file format\n";
         goto done;
       }
-      if (!parse_message_string(&current_message, str)) {
+      if (!parse_message_string(current_error, &current_message, str)) {
         fprintf(stderr, "Failed to parse message string for error '%s'",
                 current_error->er_name);
         fail = "\n";
@@ -1053,7 +1062,6 @@ static struct message *find_message(struct errors *err, const char *lang,
 
     if (!strcmp(tmp->lang_short_name, lang)) return tmp;
     if (!strcmp(tmp->lang_short_name, default_language)) {
-      assert(tmp->text[0] != 0);
       return_val = tmp;
     }
   }
@@ -1200,7 +1208,8 @@ static char *get_word(char **str) {
   remember to which error does the text belong
 */
 
-static struct message *parse_message_string(struct message *new_message,
+static struct message *parse_message_string(const struct errors *current_error,
+                                            struct message *new_message,
                                             char *str) {
   char *start;
 
@@ -1230,18 +1239,21 @@ static struct message *parse_message_string(struct message *new_message,
   while (*str == ' ' || *str == '\t' || *str == '\n') str++;
 
   if (*str != '"') {
-    fprintf(stderr, "Unexpected EOL.\n");
+    fprintf(stderr,
+            "Unexpected character at start of the message, expected '\"', "
+            "found '%c'\n",
+            *str);
     DBUG_PRINT("info", ("str: %s", str));
     return nullptr;
   }
 
   /* reading the text */
   start = str + 1;
-  str = parse_text_line(start);
+  str = parse_text_line(start, current_error->d_code < BASE_ERROR_LOG);
 
-  if (!(new_message->text =
-            my_strndup(PSI_NOT_INSTRUMENTED, start, (uint)(str - start),
-                       MYF(MY_WME | MY_FAE))))
+  if (!str || !(new_message->text =
+                    my_strndup(PSI_NOT_INSTRUMENTED, start, (uint)(str - start),
+                               MYF(MY_WME | MY_FAE))))
     return nullptr; /* Fatal error */
   DBUG_PRINT("info", ("msg_text: %s", new_message->text));
 
@@ -1451,23 +1463,32 @@ static int get_options(int *argc, char ***argv) {
   row as a C-compiler would convert a textstring
 */
 
-static char *parse_text_line(char *pos) {
+static char *parse_text_line(char *pos, bool allow_newline_escape) {
   int i, nr;
   char *row = pos;
   size_t len;
   DBUG_TRACE;
 
   len = strlen(pos);
-  while (*pos) {
+  while (*pos && *pos != '"') {
     if (*pos == '\\') {
       switch (*++pos) {
         case '\\':
         case '"':
+        case '\'':
           (void)memmove(pos - 1, pos, len - (row - pos));
           break;
         case 'n':
+          if (!allow_newline_escape) {
+            fprintf(stderr,
+                    "Found newline escaped character in a message to the Error "
+                    "Log.\nThis is highly discouraged, the newline characters "
+                    "in messages to Error Log are replaced with a space in "
+                    "`log_sink_trad.cc`.\n");
+            return nullptr;
+          }
           pos[-1] = '\n';
-          (void)memmove(pos, pos + 1, len - (row - pos));
+          (void)memmove(pos, pos + 1, len - (row - (pos + 1)));
           break;
         default:
           if (*pos >= '0' && *pos < '8') {
@@ -1477,13 +1498,28 @@ static char *parse_text_line(char *pos) {
             pos -= i;
             pos[-1] = nr;
             (void)memmove(pos, pos + i, len - (row - pos));
-          } else if (*pos)
-            (void)memmove(pos - 1, pos, len - (row - pos)); /* Remove '\' */
+          } else if (*pos) {
+            fprintf(stderr, "Found incorrect escape character: %c\n", *pos);
+            return nullptr;
+          }
       }
     } else
       pos++;
   }
-  while (pos > row + 1 && *pos != '"') pos--;
+  /* Remove endline and expect a closing '"' character. */
+  if (*pos != '"') {
+    fprintf(stderr, "Could not find a '\"' on the end of the message\n");
+    return nullptr;
+  }
+  for (auto end_of_line = pos + 1; *end_of_line; end_of_line++) {
+    if (*end_of_line != '\n' && *end_of_line != '\r') {
+      fprintf(stderr,
+              "Unexpected character at the end of the line, expected newline, "
+              "found  '%c' (0x%02x)\n",
+              *end_of_line < 32 ? '?' : *end_of_line, (int)*end_of_line);
+      return nullptr;
+    }
+  }
   *pos = 0;
   return pos;
 }

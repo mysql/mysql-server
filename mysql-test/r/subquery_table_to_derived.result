@@ -338,7 +338,7 @@ WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b);
 a
 EXPLAIN SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) OR t1.a>0;
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on.
 EXPLAIN SELECT * FROM t1
 WHERE NOT EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -354,7 +354,7 @@ a
 EXPLAIN
 SELECT * FROM t1
 WHERE EXISTS(SELECT * FROM t2 WHERE t1.a<>t2.b) AND t1.a>0;
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on.
 # Verify that >=, <=, >, < are also decorrelated.
 EXPLAIN
 SELECT * FROM t1

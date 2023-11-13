@@ -30,7 +30,7 @@ include/assert_grep.inc [invalid configuration used on recovery endpoints]
 
 # 7. START GROUP_REPLICATION , it will fail due invalid format.
 START GROUP_REPLICATION;
-ERROR HY000: Invalid input value for recovery socket endpoints '127.0.0.1:3600a'. Please, provide a valid, comma separated, list of endpoints (IP:port)
+ERROR HY000: Invalid input value for recovery socket endpoints '127.0.0.1:3600a'. Please, provide a valid, comma separated, list of endpoints (IP:port).
 
 # 8. Restart server and start Group Replication with command START
 #    GROUP_REPLICATION , it will fail due invalid endpoint
