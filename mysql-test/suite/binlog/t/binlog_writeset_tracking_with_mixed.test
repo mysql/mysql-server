@@ -1,0 +1,77 @@
+# ==== PURPOSE ====
+#
+# This test validates that transactions that mix row and statement based
+# logging have correctly calculated dependencies against concurrent transactions
+#
+# ==== REQUIREMENTS ====
+#
+# When using Mixed mode, even if the transactions is unsafe, do not use writeset
+# info to calculate transaction inter dependencies
+#
+# ==== IMPLEMENTATION ====
+#
+# 1. Setup
+#    Set dependency tracking to WRITESET
+# 2. Create a table
+#    Execute transactions that are not conflicting according to their writesets
+# 3. Change the binlog format to Mixed
+#    Execute a transaction that has a statement part that conflicts with a previous transaction
+#    and an unsafe part that is logged as row but is non conflicting
+# 4. Check the last transaction is marked as conflicting with the previous
+# 5. Clean up
+#
+# ==== REFERENCES ====
+#
+# Bug#35931702: When binlog_format=MIXED, writeset dependency tracking is broken because statement part is ignored
+#
+
+# While the test depends on mixed we manually set the mode
+--source include/have_binlog_format_row.inc
+
+# Avoid inter test contamination
+RESET BINARY LOGS AND GTIDS;
+
+--echo #
+--echo # 1. Setup
+--echo #    Set dependency tracking to WRITESET
+
+--let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_tracking" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+
+--echo #
+--echo # 2. Create a table
+--echo #    Execute transactions that are not conflicting according to their writesets
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT, b INT);
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
+INSERT INTO t1 (b) VALUES(4), (5), (6);
+
+--echo #
+--echo # 3. Change the binlog format to Mixed
+--echo #    Execute a transaction that has a statement part that conflicts with a previous transaction
+--echo #    and an unsafe part that is logged as row but is non conflicting
+
+SET binlog_format=MIXED;
+
+BEGIN;
+UPDATE t1 SET b=55 WHERE a=5;
+INSERT INTO t1 (b) VALUES(ceil(rand()*100));
+COMMIT;
+
+--echo #
+--echo # 4. Check the last transaction is marked as conflicting with the previous
+
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $logical_timestamps=0 1;1 2;1 3;3 4
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # 5. Clean up
+
+DROP TABLE t1;
+
+--source include/restore_sysvars.inc
+--source include/destroy_json_functions.inc
