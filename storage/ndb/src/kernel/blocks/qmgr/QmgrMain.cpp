@@ -8239,20 +8239,20 @@ void Qmgr::execISOLATE_ORD(Signal *signal) {
   IsolateOrd *sig = (IsolateOrd *)signal->theData;
 
   ndbrequire(sig->senderRef != 0);
-  Uint32 senderNode = refToNode(sig->senderRef);
   Uint32 sz;
   Uint32 num_sections = signal->getNoOfSections();
   SectionHandle handle(this, signal);
-  if (ndbd_send_node_bitmask_in_section(getNodeInfo(senderNode).m_version)) {
+  if (num_sections) {
     jam();
     ndbrequire(num_sections == 1);
     SegmentedSectionPtr ptr;
     ndbrequire(handle.getSection(ptr, 0));
-    copy(sig->nodesToIsolate, ptr);
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(sig->nodesToIsolate, ptr);
     sz = ptr.sz;
   } else {
     jam();
+    ndbrequire(signal->getLength() == IsolateOrd::SignalLengthWithBitmask48);
     memset(sig->nodesToIsolate + NdbNodeBitmask48::Size, 0,
            _NDB_NBM_DIFF_BYTES);
     sz = NdbNodeBitmask::Size;
