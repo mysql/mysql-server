@@ -231,6 +231,8 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
          they can be executed in parallel.
        */
        is_empty_transaction_in_binlog_cache(thd)) &&
+      // binlog format must be ROW
+      thd->variables.binlog_format == BINLOG_FORMAT_ROW &&
       // must not use foreign keys
       !write_set_ctx->get_has_related_foreign_keys() &&
       // it did not broke past the capacity already
