@@ -29,7 +29,6 @@
 #include <iomanip>
 #include <memory>
 #include <ostream>
-#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -296,7 +295,7 @@ class SharedRouter {
   integration_tests::Procs &process_manager() { return procs_; }
 
   static std::vector<std::string> destinations_from_shared_servers(
-      const std::span<const SharedServer *const> &servers) {
+      const std::array<SharedServer *, 1> &servers) {
     std::vector<std::string> dests;
     dests.reserve(servers.size());
 
@@ -565,16 +564,14 @@ TestEnv *test_env{};
  */
 class TestWithSharedRouter {
  public:
-  static void SetUpTestSuite(
-      const std::span<const SharedServer *const> &servers) {
+  static void SetUpTestSuite(TcpPortPool &port_pool,
+                             const std::array<SharedServer *, 1> &servers) {
     for (const auto &s : servers) {
       if (s->mysqld_failed_to_start()) GTEST_SKIP();
     }
 
-    port_pool_ = new TcpPortPool;
-
     if (shared_router_ == nullptr) {
-      shared_router_ = new SharedRouter(*port_pool_);
+      shared_router_ = new SharedRouter(port_pool);
 
       SCOPED_TRACE("// spawn router");
       shared_router_->spawn_router(
@@ -585,24 +582,15 @@ class TestWithSharedRouter {
   static void TearDownTestSuite() {
     delete shared_router_;
     shared_router_ = nullptr;
-
-    delete port_pool_;
-    port_pool_ = nullptr;
   }
 
   static SharedRouter *router() { return shared_router_; }
 
  protected:
   static SharedRouter *shared_router_;
-
-  // TcpPortPool for this test-suite.
-  //
-  // As the router's get stopped, the port-pool has to be destroyed too.
-  static TcpPortPool *port_pool_;
 };
 
 SharedRouter *TestWithSharedRouter::shared_router_ = nullptr;
-TcpPortPool *TestWithSharedRouter::port_pool_{};
 
 class TracingTestBase : public RouterComponentTest {
  public:
@@ -613,7 +601,8 @@ class TracingTestBase : public RouterComponentTest {
       if (s->mysqld_failed_to_start()) GTEST_SKIP();
     }
 
-    TestWithSharedRouter::SetUpTestSuite(shared_servers());
+    TestWithSharedRouter::SetUpTestSuite(test_env->port_pool(),
+                                         shared_servers());
 
     schema_doc_ = std::make_unique<rapidjson::Document>();
     schema_doc_->Parse(schema_json.data(), schema_json.size());

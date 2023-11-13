@@ -29,7 +29,6 @@
 #include <iomanip>
 #include <memory>
 #include <ostream>
-#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -274,8 +273,9 @@ class SharedRouter {
 
   integration_tests::Procs &process_manager() { return procs_; }
 
+  template <size_t N>
   static std::vector<std::string> destinations_from_shared_servers(
-      const std::span<const SharedServer *const> &servers) {
+      const std::array<SharedServer *, N> &servers) {
     std::vector<std::string> dests;
     for (const auto &s : servers) {
       dests.push_back(s->server_host() + ":" +
@@ -599,16 +599,16 @@ TestEnv *test_env{};
  */
 class TestWithSharedRouter {
  public:
-  static void SetUpTestSuite(
-      const std::span<const SharedServer *const> &servers, uint64_t pool_size) {
+  template <size_t N>
+  static void SetUpTestSuite(TcpPortPool &port_pool,
+                             const std::array<SharedServer *, N> &servers,
+                             uint64_t pool_size) {
     for (const auto &s : servers) {
       if (s->mysqld_failed_to_start()) GTEST_SKIP();
     }
 
-    port_pool_ = new TcpPortPool;
-
     if (shared_router_ == nullptr) {
-      shared_router_ = new SharedRouter(*port_pool_, pool_size);
+      shared_router_ = new SharedRouter(port_pool, pool_size);
 
       SCOPED_TRACE("// spawn router");
       shared_router_->spawn_router(
@@ -619,24 +619,15 @@ class TestWithSharedRouter {
   static void TearDownTestSuite() {
     delete shared_router_;
     shared_router_ = nullptr;
-
-    delete port_pool_;
-    port_pool_ = nullptr;
   }
 
   static SharedRouter *router() { return shared_router_; }
 
  protected:
   static SharedRouter *shared_router_;
-
-  // TcpPortPool for this test-suite.
-  //
-  // As the router's get stopped, the port-pool has to be destroyed too.
-  static TcpPortPool *port_pool_;
 };
 
 SharedRouter *TestWithSharedRouter::shared_router_ = nullptr;
-TcpPortPool *TestWithSharedRouter::port_pool_{};
 
 /*
  * check if router behaves correctly if the server fails after a connection was
