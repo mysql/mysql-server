@@ -292,6 +292,15 @@ sub fix_rsa_public_key {
   return "$std_data/rsa_public_key.pem";
 }
 
+sub fix_bind_address {
+  my ($self) = @_;
+  if ($self->{ARGS}->{bind_local}) {
+    # Listen only for incoming network connections from local machine
+    return "localhost";
+  }
+  return undef;
+}
+
 # Rules to run for each mysqld in the config
 #  - some rules depend on each other and thus need to be run
 #    in the order listed here
@@ -308,9 +317,11 @@ my @mysqld_rules = (
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
   { 'admin-port'                                   => \&fix_admin_port },
+  { 'bind-address'                                 => \&fix_bind_address },
   { 'general_log'                                  => \&fix_general_log },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
+  { 'loose-mysqlx-bind-address'                    => \&fix_bind_address },
   { 'loose-mysqlx-socket'                          => \&fix_x_socket },
   { 'loose-mysqlx-ssl'                             => \&fix_ssl_disabled },
   { 'loose-mysqlx-ssl-ca'                          => "" },
@@ -758,7 +769,9 @@ sub new_config {
                            @ndb_mgmd_rules);
 
   $self->run_section_rules($config, 'ndb_mgmd.',
-    ({ 'cluster-config-suffix' => \&fix_cluster_config_suffix },));
+    ({ 'cluster-config-suffix' => \&fix_cluster_config_suffix },
+     { 'bind-address' => \&fix_bind_address },
+    ));
 
   $self->run_section_rules($config, 'cluster_config.ndbd', @ndbd_rules);
 

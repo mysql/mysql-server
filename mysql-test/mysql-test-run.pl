@@ -146,6 +146,7 @@ my $opt_max_test_fail      = env_or_val(MTR_MAX_TEST_FAIL => 10);
 my $opt_mysqlx_baseport    = $ENV{'MYSQLXPLUGIN_PORT'} || "auto";
 my $opt_port_base          = $ENV{'MTR_PORT_BASE'} || "auto";
 my $opt_port_exclude       = $ENV{'MTR_PORT_EXCLUDE'} || "none";
+my $opt_bind_local         = $ENV{'MTR_BIND_LOCAL'};
 my $opt_reorder            = 1;
 my $opt_retry              = 3;
 my $opt_retry_failure      = env_or_val(MTR_RETRY_FAILURE => 2);
@@ -1664,6 +1665,7 @@ sub command_line_setup {
     'mysqlx-port=i'                   => \$opt_mysqlx_baseport,
     'port-base|mtr-port-base=i'       => \$opt_port_base,
     'port-exclude|mtr-port-exclude=s' => \$opt_port_exclude,
+    'bind-local!'                     => \$opt_bind_local,
 
     # Test case authoring
     'check-testcases!' => \$opt_check_testcases,
@@ -4180,6 +4182,7 @@ sub default_mysqld {
                                     baseport      => 0,
                                     user          => $opt_user,
                                     password      => '',
+                                    bind_local    => $opt_bind_local
                                   });
 
   my $mysqld = $config->group('mysqld.1') or
@@ -4975,6 +4978,7 @@ sub run_testcase ($) {
                            tmpdir              => $opt_tmpdir,
                            user                => $opt_user,
                            vardir              => $opt_vardir,
+                           bind_local          => $opt_bind_local
                          });
 
       # Write the new my.cnf
@@ -7904,6 +7908,11 @@ Options that specify ports
                         and is not "auto", it overrides build-thread.
   port-exclude=#-#      Specify the range of ports to exclude when searching
                         for available port ranges to use.
+  bind-local            Bind listening ports to localhost, i.e disallow
+                        "incoming network connections" which might cause
+                        firewall to display annoying popups.
+                        Can be set in environment variable MTR_BIND_LOCAL=1.
+                        To disable use --no-bind-local.
 
 Options for test case authoring
 
