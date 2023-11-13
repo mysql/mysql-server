@@ -1857,6 +1857,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
  */
 TEST_P(ShareConnectionTestWithRestartedServer,
        classic_protocol_kill_my_backend_reconnect_select) {
+  const bool can_share = GetParam().can_share();
+
   SCOPED_TRACE("// connecting to server");
   std::array<MysqlClient, 4> clis;  // more clients then destinations.
 
@@ -1876,14 +1878,20 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
   uint16_t my_port = *my_port_num_res;
 
-  // shut down the server connection is for while the connection is pooled.
+  if (can_share) {
+    // wait for all connections to be pooled.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_idle_server_connections(clis.size(), 10s));
+  }
+
+  // shut down the server connection while the connection is pooled.
   // wait for the server to shutdown
   int nodes_shutdown{0};
   // shut down the intermediate router while the connection is pooled
 
   for (auto [ndx, s] : stdx::views::enumerate(shared_servers())) {
     if (s->server_port() == my_port) {
-      auto inter = intermediate_routers()[ndx];
+      auto *inter = intermediate_routers()[ndx];
 
       ASSERT_NO_FATAL_FAILURE(this->stop_intermediate_router(inter));
 
@@ -1896,7 +1904,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
   {
     auto cmd_res = query_one<1>(clis[0], "SELECT @@port");
     ASSERT_ERROR(cmd_res);
-    if (!GetParam().can_share()) {
+    if (!can_share) {
       // not pooled, the connection is closed directly.
       EXPECT_EQ(cmd_res.error().value(), 2013) << cmd_res.error();
       EXPECT_THAT(cmd_res.error().message(),
@@ -1927,7 +1935,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     auto cmd_res = query_one<1>(clis[3], "SELECT @@port");
     ASSERT_ERROR(cmd_res);
 
-    if (!GetParam().can_share()) {
+    if (!can_share) {
       // not pooled, the connection is closed directly.
       EXPECT_EQ(cmd_res.error().value(), 2013) << cmd_res.error();
       EXPECT_THAT(cmd_res.error().message(),
