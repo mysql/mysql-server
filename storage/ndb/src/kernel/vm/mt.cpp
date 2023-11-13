@@ -3185,24 +3185,20 @@ bool thr_send_threads::handle_send_trp(
   {
     /**
      * The only transporter ready for send was a transporter that still
-     * required waiting. We will only send if we have enough data to
-     * send without delay.
+     * required waiting. We will not send yet if:
+     * 1) We are overloaded,   ...or...
+     * 2) Size of the buffered sends has not yet reached the limit where
+     *    we cancel the wait for a larger send message to be collected.
      */
-    if (m_trp_state[trp_id].m_send_overload)  // Pause overloaded trp
-    {
-      return false;
-    }
-
-    if (mt_get_send_buffer_bytes(trp_id) >= MAX_SEND_BUFFER_SIZE_TO_DELAY)
-      set_max_delay(trp_id, now, 0);  // Large packet -> Send now
-    else                              // Sleep, let last awake send
-    {
-      if (thr_no >= glob_num_threads) {
+    if (m_trp_state[trp_id].m_send_overload ||  // 1) Pause overloaded trp
+        mt_get_send_buffer_bytes(trp_id) <      // 2)
+            MAX_SEND_BUFFER_SIZE_TO_DELAY) {
+      if (is_send_thread(thr_no)) {
         /**
          * When encountering max_send_delay from send thread we
          * will let the send thread go to sleep for as long as
          * this trp has to wait (it is the shortest sleep we
-         * we have. For non-send threads the trp will simply
+         * have. For non-send threads the trp will simply
          * be reinserted and someone will pick up later to handle
          * things.
          *
@@ -3213,6 +3209,11 @@ bool thr_send_threads::handle_send_trp(
       }
       return false;
     }
+    /**
+     * We waited for a larger payload to accumulate. We have
+     * met the limit and now cancel any further delays.
+     */
+    set_max_delay(trp_id, now, 0);  // Large packet -> Send now
   }
 
   /**
