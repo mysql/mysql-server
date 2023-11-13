@@ -63,7 +63,7 @@ void test_one_value(const Type &value, const std::string &answer = "") {
     else
       std::cout << std::setw(20) << value;
     std::cout << " encoded with " << bytes_written
-              << " bytes, ";  //<< std::endl
+              << " bytes, ";  // << std::endl
   }
   if (answer != "") {
     std::string bytes_str = to_binary_string(arr);
