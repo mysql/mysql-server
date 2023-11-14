@@ -307,6 +307,10 @@ SET(SERVER_TESTS
   xid_extract
   log_event_status_size
 )
+# Endless loop in FatalSignalDeathTest
+IF(LINUX_ALPINE)
+  LIST(REMOVE_ITEM SERVER_TESTS segfault)
+ENDIF()
 
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
   ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")

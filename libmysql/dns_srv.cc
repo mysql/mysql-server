@@ -40,16 +40,24 @@
 // POSIX version
 
 static bool get_dns_srv(Dns_srv_data &data, const char *dnsname, int &error) {
+#ifdef LINUX_ALPINE
+  res_init();
+#else
   struct __res_state state {};
   res_ninit(&state);
+#endif
   unsigned char query_buffer[NS_PACKETSZ];
   bool ret = true;
 
   data.clear();
 
+#ifdef LINUX_ALPINE
+  int res = res_search(dnsname, ns_c_in, ns_t_srv, query_buffer,
+                       sizeof(query_buffer));
+#else
   int res = res_nsearch(&state, dnsname, ns_c_in, ns_t_srv, query_buffer,
                         sizeof(query_buffer));
-
+#endif
   if (res >= 0) {
     ns_msg msg;
     ns_initparse(query_buffer, res, &msg);
@@ -84,7 +92,11 @@ static bool get_dns_srv(Dns_srv_data &data, const char *dnsname, int &error) {
     error = h_errno;
   }
 
+#ifdef LINUX_ALPINE
+  // nothing
+#else
   res_nclose(&state);
+#endif
   return ret;
 }
 

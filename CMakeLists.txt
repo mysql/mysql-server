@@ -789,7 +789,7 @@ IF(WITH_DEFAULT_COMPILER_OPTIONS)
 ENDIF()
 
 # Assume, for now at least, that we want build-id for all kinds of Linux builds.
-IF(LINUX)
+IF(LINUX AND NOT LINUX_ALPINE)
   OPTION(WITH_BUILD_ID "Add --build-id=sha1 to all executables." ON)
   IF(WITH_BUILD_ID)
     SET(HAVE_BUILD_ID_SUPPORT 1)
