@@ -31,69 +31,53 @@
 /// Please refer to the readme.md of the mysql_serialization library to find
 /// more information about the format
 
-#include "my_byteorder.h"
-#include "mysql/utils/bit_operations.h"
-
-#include <limits.h>
-#include <bitset>
-#include <iostream>
+#include <bit>
+#include <concepts>
 #include <limits>
-#include <type_traits>
+#include "my_byteorder.h"
 
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{
 
 namespace mysql::serialization::detail {
 
-/// @brief Calculates a number of bytes necessary to store data
+/// @brief Calculates the number of bytes necessary to store data
 /// @tparam Type Integer type
-/// @param data A Number to be stored into the memory
-/// @details When bits_in_number == N, the output buffer uses N bits, plus
-/// a prefix of ceil(N / 7) bits; except in the case N>56, where we save one
-/// bit and use an 8-bit prefix only. And the number of bytes required for
-/// M bits is ceil(M / 8). In integer arithmetic,
-/// ceil(X / Y) == (X + Y - 1) / Y, and X / 2^K == X >> K.
-/// So the following algorithm would work:
-///   if (bits_in_number > 56) return 9;
-///   bits_needed = bits_in_number + (bits_in_number + 6) / 7;
-///   return (bits_needed + 7) >> 3;
-/// The code here is an optimization: by altering the numbers to
-///   bits_needed = bits_in_number + (bits_in_number + 7) / 8;
-/// the intermediate value changes, but the end result does not change, except
-/// in the case where bits_in_number > 56, where this formula gives the correct
-/// number. This is faster because we remove the need for a branch
-/// (the `if` statement), and we can use >> instead of /.
-/// @return A number of bytes necessary to store data
-template <class Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == false>>
-size_t get_size_integer_varlen_unsigned(const Type &data) {
-  int bits_in_number = utils::bitops::bit_width(static_cast<uint64_t>(data));
-  int bits_needed = bits_in_number + ((bits_in_number + 7) >> 3);
-  return (bits_needed + 7) >> 3;
+/// @param data The number to be stored into the memory
+/// @return The number of bytes necessary to store data.
+size_t get_size_integer_varlen_unsigned(
+    const std::unsigned_integral auto &data) {
+  // @details When bit_width(data) == N, the output buffer uses:
+  // * 1 byte, if N==0;
+  // * 1 + ceil((N-1)/7) bytes, if 1<=N<=63;
+  // * 9 bytes, if N==64.
+  // For the case 1<=N<=63, the function follows a straight line. It
+  // is a little above that line when N==0 and a little below that
+  // line when N==63. Therefore, it can be approximated by a line with
+  // slightly lower slope.  The slope 575/4096 gives correct results
+  // for all values between 0 and 64, inclusive, and can be computed
+  // with just 1 multiplication and 1 shift.
+  int bits_in_number = std::bit_width(data);
+  return ((bits_in_number * 575) >> 12) + 1;
 }
 
 /// @copydoc get_size_integer_varlen_unsigned
 /// @details Version for signed integers
-template <class Type, typename = std::enable_if_t<std::is_signed_v<Type>>>
-size_t get_size_integer_varlen_signed(const Type &data) {
-  uint64_t data_cpy = data;
-  Type sign_mask = Type(data_cpy) >> (sizeof(data) * 8 - 1);
-  return get_size_integer_varlen_unsigned((data_cpy ^ sign_mask) << 1);
+size_t get_size_integer_varlen_signed(const std::signed_integral auto &data) {
+  // sign_mask = (data < 0) ? ~0 : 0
+  auto sign_mask = data >> (sizeof(data) * 8 - 1);
+  return get_size_integer_varlen_unsigned(uint64_t(data ^ sign_mask) << 1);
 }
 
 /// @copydoc get_size_integer_varlen_unsigned
 /// @details Enabled for unsigned integers
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == false>>
-size_t get_size_integer_varlen(const Type &data) {
+size_t get_size_integer_varlen(const std::unsigned_integral auto &data) {
   return get_size_integer_varlen_unsigned(data);
 }
 
 /// @copydoc get_size_integer_varlen_unsigned
 /// @details Enabled for signed integers
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == true>>
-size_t get_size_integer_varlen(const Type &data, int = 0) {
+size_t get_size_integer_varlen(const std::signed_integral auto &data) {
   return get_size_integer_varlen_signed(data);
 }
 
@@ -101,8 +85,8 @@ size_t get_size_integer_varlen(const Type &data, int = 0) {
 /// @param[in] stream Encoded data stream
 /// @param[out] data Integer to write
 /// @return Number of bytes written to the stream
-template <typename Type>
-size_t write_varlen_bytes_unsigned(unsigned char *stream, const Type &data) {
+size_t write_varlen_bytes_unsigned(unsigned char *stream,
+                                   const std::unsigned_integral auto &data) {
   uint64_t data_cpy = data;
   int byte_count = get_size_integer_varlen_unsigned(data);
   stream[0] = ((1 << (byte_count - 1)) - 1) |
@@ -122,11 +106,11 @@ size_t write_varlen_bytes_unsigned(unsigned char *stream, const Type &data) {
 
 /// @copydoc write_varlen_bytes_unsigned
 /// @details Version for signed integers
-template <typename Type>
-size_t write_varlen_bytes_signed(unsigned char *stream, const Type &data) {
+size_t write_varlen_bytes_signed(unsigned char *stream,
+                                 const std::signed_integral auto &data) {
   // convert negatives into positive numbers
   // sign_mask is 0 if data >= 0 and ~0 if data < 0
-  Type sign_mask = (data >> (sizeof(Type) * 8 - 1));
+  auto sign_mask = (data >> (sizeof(data) * 8 - 1));
   uint64_t data_cpy = (data ^ sign_mask);
   // insert sign bit as least significant bit
   data_cpy = (data_cpy << 1) | (sign_mask & 1);
@@ -135,17 +119,15 @@ size_t write_varlen_bytes_signed(unsigned char *stream, const Type &data) {
 
 /// @copydoc write_varlen_bytes_unsigned
 /// @details Enabled for unsigned integers
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == false>>
-size_t write_varlen_bytes(unsigned char *stream, const Type &data) {
+size_t write_varlen_bytes(unsigned char *stream,
+                          const std::unsigned_integral auto &data) {
   return write_varlen_bytes_unsigned(stream, data);
 }
 
 /// @copydoc write_varlen_bytes_unsigned
 /// @details Enabled for signed integers
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == true>>
-size_t write_varlen_bytes(unsigned char *stream, const Type &data, int = 0) {
+size_t write_varlen_bytes(unsigned char *stream,
+                          const std::signed_integral auto &data) {
   return write_varlen_bytes_signed(stream, data);
 }
 
@@ -156,13 +138,14 @@ size_t write_varlen_bytes(unsigned char *stream, const Type &data, int = 0) {
 /// @return Number of bytes read from the stream or 0 on error. Error occurs
 /// if the stream ends before or in the middle of the encoded numbers.
 template <typename Type>
-size_t read_varlen_bytes_unsigned(const unsigned char *stream,
-                                  std::size_t stream_bytes, Type &data) {
+size_t read_varlen_bytes_unsigned(
+    const unsigned char *stream, std::size_t stream_bytes,
+    Type &data) requires std::unsigned_integral<Type> {
   if (stream_bytes == 0) {
     return stream_bytes;
   }
   uint8_t first_byte = stream[0];
-  std::size_t num_bytes = utils::bitops::countr_one(uint32_t(first_byte)) + 1;
+  std::size_t num_bytes = std::countr_one(first_byte) + 1;
   if (num_bytes > stream_bytes) {
     return 0;
   }
@@ -187,13 +170,15 @@ size_t read_varlen_bytes_unsigned(const unsigned char *stream,
 
 /// @copydoc read_varlen_bytes_unsigned
 template <typename Type>
-size_t read_varlen_bytes_signed(const unsigned char *stream,
-                                std::size_t stream_bytes, Type &data) {
+size_t read_varlen_bytes_signed(
+    const unsigned char *stream, std::size_t stream_bytes,
+    Type &data) requires std::signed_integral<Type> {
   using Type_unsigned = std::make_unsigned_t<Type>;
   Type_unsigned data_tmp = 0;
   std::size_t num_bytes =
       read_varlen_bytes_unsigned(stream, stream_bytes, data_tmp);
   // 0 if positive, ~0 if negative
+  // static_cast is needed to avoid compilation warning on Windows.
   Type_unsigned sign_mask = -static_cast<Type>(data_tmp & 1);
   // the result if it is nonnegative, or -(result + 1) if it is negative.
   data_tmp = data_tmp >> 1;
@@ -204,18 +189,14 @@ size_t read_varlen_bytes_signed(const unsigned char *stream,
 }
 
 /// @copydoc read_varlen_bytes_unsigned
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == false>>
 size_t read_varlen_bytes(const unsigned char *stream, std::size_t stream_bytes,
-                         Type &data) {
+                         std::unsigned_integral auto &data) {
   return read_varlen_bytes_unsigned(stream, stream_bytes, data);
 }
 
 /// @copydoc read_varlen_bytes_unsigned
-template <typename Type,
-          typename = std::enable_if_t<std::is_signed_v<Type> == true>>
 size_t read_varlen_bytes(const unsigned char *stream, std::size_t stream_bytes,
-                         Type &data, int = 0) {
+                         std::signed_integral auto &data) {
   return read_varlen_bytes_signed(stream, stream_bytes, data);
 }
 

@@ -192,7 +192,7 @@ TEST(Serialization, Basic) {
 // 3. Check that data read is equal to data written
 TEST(Serialization, DefaultSerializer) {
   Format_a var_a;
-  var_a.field_a = 10;
+  var_a.field_a = ~0ULL;
   var_a.field_b = 11;
   var_a.field_c = 12;
   var_a.compound_field_1.field_a_1 = 13;
