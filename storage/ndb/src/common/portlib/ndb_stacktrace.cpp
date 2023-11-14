@@ -36,7 +36,9 @@
 #include <link.h>
 #endif
 
+#ifdef HAVE_STACKTRACE
 static unsigned long long ndb_get_program_base_address();
+#endif
 
 void ndb_init_stacktrace() {
 #ifdef HAVE_STACKTRACE
@@ -76,6 +78,8 @@ unsigned long long ndb_get_program_base_address() {
 #elif defined(_WIN32)
 unsigned long long ndb_get_program_base_address() { return ULLONG_MAX; }
 #else
+
+#ifdef HAVE_STACKTRACE
 static int ndb_get_program_base_address_callback(struct dl_phdr_info *info,
                                                  size_t /* size */,
                                                  void *data) {
@@ -90,6 +94,8 @@ unsigned long long ndb_get_program_base_address() {
   dl_iterate_phdr(&ndb_get_program_base_address_callback, callback_data);
   return base_address;
 }
+#endif  // HAVE_STACKTRACE
+
 #endif
 
 #endif
