@@ -1130,13 +1130,10 @@ int remote_signing_method(BaseString &cmd, NdbProcess::Args &args,
       args.add(opt_remote_path ? opt_remote_path : "openssl");
       args.add("x509");
       args.add("-req");
-      args.add("-CA");
-      args.add(opt_ca_cert);  // full pathname on remote server
-      args.add("-CAkey");
-      args.add(opt_ca_key);  // full pathname on remote server
-      args.add("-days ", csr->duration() / CertLifetime::SecondsPerDay);
-      args.add("-set_serial ");
-      args.add(hexSerial.c_str());
+      args.add2("-CA", opt_ca_cert);    // full pathname on remote server
+      args.add2("-CAkey", opt_ca_key);  // full pathname on remote server
+      args.add2("-days", csr->duration() / CertLifetime::SecondsPerDay);
+      args.add2("-set_serial", hexSerial.c_str());
       return 2;
     case SIGN_CO_PROCESS:  // 3: Run the signing utility co-process
       cmd.assign(opt_ca_tool);
@@ -1169,7 +1166,7 @@ int fetch_CA_cert_from_remote_openssl(stack_st_X509 *CA_certs) {
   args.add(opt_ca_host);
   args.add(opt_remote_path ? opt_remote_path : "openssl");
   args.add("x509");
-  args.add("-in ", opt_ca_cert);
+  args.add2("-in", opt_ca_cert);
 
   auto proc = NdbProcess::create("OpensslFetchCA", cmd, nullptr, args, &pipes);
   if (!proc) return 133;

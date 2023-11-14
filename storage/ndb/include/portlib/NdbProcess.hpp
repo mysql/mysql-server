@@ -77,9 +77,24 @@ class NdbProcess {
 
    public:
     void add(const char *str);
+    /*
+     * For '--name=value' options which will be passed as one argument.
+     * Example: args.add("--id=", 7);
+     */
     void add(const char *str, const char *str2);
     void add(const char *str, int val);
+    /*
+     * For '-name value' options which will be passed as two arguments.
+     * Example: args.add2("-id",7);
+     */
+    void add2(const char *str, const char *str2);
+    void add2(const char *str, int val);
+
+    /*
+     * Add arguments one by one from another argument list.
+     */
     void add(const Args &args);
+
     const Vector<BaseString> &args(void) const { return m_args; }
     void clear() { m_args.clear(); }
   };
@@ -187,9 +202,22 @@ inline void NdbProcess::Args::add(const char *str, const char *str2) {
   m_args.push_back(tmp);
 }
 
+inline void NdbProcess::Args::add2(const char *str, const char *str2) {
+  BaseString tmp;
+  m_args.push_back(str);
+  m_args.push_back(str2);
+}
+
 inline void NdbProcess::Args::add(const char *str, int val) {
   BaseString tmp;
   tmp.assfmt("%s%d", str, val);
+  m_args.push_back(tmp);
+}
+
+inline void NdbProcess::Args::add2(const char *str, int val) {
+  m_args.push_back(str);
+  BaseString tmp;
+  tmp.assfmt("%d", val);
   m_args.push_back(tmp);
 }
 

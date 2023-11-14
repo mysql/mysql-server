@@ -144,7 +144,7 @@ class Mgmd {
   void common_args(NdbProcess::Args &args, const char *working_dir) {
     args.add("--no-defaults");
     args.add("--configdir=", working_dir);
-    args.add("-f config.ini");
+    args.add("--config-file=", "config.ini");
     if (with_nodeid) {
       args.add("--ndb-nodeid=", m_nodeid);
     }
@@ -427,7 +427,7 @@ static bool create_expired_cert(NDBT_Workingdir &wd) {
   args.add("--ndb-tls-search-path=", wd.path());
   args.add("--passphrase=", "Trondheim");
   args.add("-l");                     // no-config mode
-  args.add("-t db");                  // type db
+  args.add("--node-type=", "db");     // type db
   args.add("--duration=", "-50000");  // negative seconds; already expired
 
   auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
@@ -619,7 +619,7 @@ int runTestBug45495(NDBT_Context *ctx, NDBT_Step *step) {
   for (unsigned i = 0; i < mgmds.size(); i++) {
     CHECK(mgmds[i]->stop());
     // Start from config2.ini
-    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f config2.ini",
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f", "config2.ini",
                                           "--initial", NULL));
 
     // Wait for mgmd to exit and check return status
@@ -646,7 +646,7 @@ int runTestBug45495(NDBT_Context *ctx, NDBT_Step *step) {
   for (unsigned i = 0; i < mgmds.size(); i++) {
     CHECK(mgmds[i]->stop());
     // Start from config2.ini
-    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f config2.ini",
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f", "config2.ini",
                                           "--reload", NULL));
     CHECK(mgmds[i]->connect(config));
     CHECK(mgmds[i]->wait_confirmed_config());
@@ -664,7 +664,7 @@ int runTestBug45495(NDBT_Context *ctx, NDBT_Step *step) {
   g_err << "** Reload mgmd initial(from generation=2)" << endl;
   for (unsigned i = 0; i < mgmds.size(); i++) {
     CHECK(mgmds[i]->stop());
-    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f config2.ini",
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(), "-f", "config2.ini",
                                           "--reload", "--initial", NULL));
 
     CHECK(mgmds[i]->connect(config));
@@ -888,8 +888,8 @@ int runTestNowaitNodes(NDBT_Context *ctx, NDBT_Step *step) {
     Mgmd *mgmd2 = mgmds[1];
     CHECK(mgmd2->stop());
     // Start from config2.ini
-    CHECK(mgmd2->start_from_config_ini(wd.path(), "-f config2.ini", "--reload",
-                                       NULL));
+    CHECK(mgmd2->start_from_config_ini(wd.path(), "-f", "config2.ini",
+                                       "--reload", NULL));
     CHECK(mgmd2->connect(config));
     CHECK(mgmd1->wait_confirmed_config());
     CHECK(mgmd2->wait_confirmed_config());
@@ -939,16 +939,18 @@ int runTestNowaitNodes2(NDBT_Context *ctx, NDBT_Step *step) {
   g_err << "** Start mgmd2 from config2.ini" << endl;
   Mgmd *mgmd2 = new Mgmd(2);
   mgmds.push_back(mgmd2);
-  CHECK(mgmd2->start_from_config_ini(wd.path(), "-f config2.ini", "--initial",
-                                     "--nowait-nodes=1-255", NULL));
+  CHECK(mgmd2->start_from_config_ini(wd.path(), "-f", "config2.ini",
+                                     "--initial", "--nowait-nodes=1-255",
+                                     NULL));
   CHECK(mgmd2->wait(ret));
   CHECK(ret == 1);
 
   CHECK(mgmd1->stop());
 
   g_err << "** Start mgmd2 again from config2.ini" << endl;
-  CHECK(mgmd2->start_from_config_ini(wd.path(), "-f config2.ini", "--initial",
-                                     "--nowait-nodes=1-255", NULL));
+  CHECK(mgmd2->start_from_config_ini(wd.path(), "-f", "config2.ini",
+                                     "--initial", "--nowait-nodes=1-255",
+                                     NULL));
 
   CHECK(mgmd2->connect(config));
   CHECK(mgmd2->wait_confirmed_config());
@@ -1011,7 +1013,7 @@ int runBug56844(NDBT_Context *ctx, NDBT_Step *step) {
     for (unsigned i = 0; i < mgmds.size(); i++) {
       // Start from config2.ini
       CHECK(mgmds[i]->start_from_config_ini(
-          wd.path(), (l & 1) == 1 ? "-f config.ini" : "-f config2.ini",
+          wd.path(), "-f", (l & 1) == 1 ? "config.ini" : "config2.ini",
           "--reload", NULL));
     }
     for (unsigned i = 0; i < mgmds.size(); i++) {
@@ -1469,7 +1471,7 @@ int runTestMgmdwithoutnodeid(NDBT_Context *ctx, NDBT_Step *step) {
   CHECK(ConfigFactory::write_config_ini(
       config, path(wd.path(), "config2.ini", NULL).c_str()));
   with_nodeid = false;
-  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config2.ini", "--initial",
+  CHECK(mgmd.start_from_config_ini(wd.path(), "-f", "config2.ini", "--initial",
                                    NULL));
   CHECK(mgmd.wait(exit_value));
   CHECK(exit_value == 1);
@@ -1493,7 +1495,7 @@ int runTestMgmdwithoutnodeid(NDBT_Context *ctx, NDBT_Step *step) {
   CHECK(ConfigFactory::write_config_ini(
       config3, path(wd.path(), "config3.ini", NULL).c_str()));
   with_nodeid = false;
-  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config3.ini", "--initial",
+  CHECK(mgmd.start_from_config_ini(wd.path(), "-f", "config3.ini", "--initial",
                                    NULL));
   CHECK(mgmd.wait(exit_value));
   CHECK(exit_value == 1);
