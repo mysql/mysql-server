@@ -123,7 +123,7 @@ class NdbProcess {
   }
 
  private:
-  process_handle_t m_proc;
+  process_handle_t m_proc{InvalidHandle};
   BaseString m_name;
   Pipes *m_pipes;
 
@@ -292,7 +292,13 @@ inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
           &pid)         // lpProcessInformation
   ) {
     printerror();
+    if (pipes) pipes->closeChildHandles();
     free(command_line);
+    // CreateProcess zero fills pid on failure, reinitialize it
+    pid.hProcess = INVALID_HANDLE_VALUE;
+    pid.hThread = INVALID_HANDLE_VALUE;
+    pid.dwProcessId = 0;
+    pid.dwThreadId = 0;
     return false;
   }
 
