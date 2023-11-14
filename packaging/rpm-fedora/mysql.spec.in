@@ -1246,8 +1246,6 @@ fi
 %changelog
 * Tue Nov 14 2023 Gipson Pulla <gipson.pulla@oracle.com> - 8.3.0-1
 - Removed the tool pathfix.py wich is deprecated in Python-3.12
-
-* Tue Sep 19 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.3.0-1
 - Some C API removed, so increase the libmysqlclient major version to 23.
 
 * Mon Jul 24 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.2.0-1
