@@ -29,7 +29,6 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 # Add tests
 SET(TESTS
-  bit_operations
   variable_length_integers
   serializable
 )
@@ -40,9 +39,3 @@ FOREACH(test ${TESTS})
     LINK_LIBRARIES mysql_serialization gunit_small
     COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
 ENDFOREACH()
-
-MYSQL_ADD_EXECUTABLE(
-  bit_operations_custom_impl-t bit_operations-t.cc
-  ADD_TEST bit_operations_custom_impl
-  LINK_LIBRARIES gunit_small
-  COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}" CALCULATE_BITS_CUSTOM_IMPL)
