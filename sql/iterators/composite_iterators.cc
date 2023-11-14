@@ -910,8 +910,10 @@ bool MaterializeIterator<Profiler>::Init() {
   // initialize scanning of the index over that hash field. (This is entirely
   // separate from any index usage when reading back the materialized table;
   // m_table_iterator will do that for us.)
-  auto end_unique_index =
-      create_scope_guard([&] { table()->file->ha_index_end(); });
+  auto end_unique_index = create_scope_guard([&] {
+    if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
+  });
+
   if (doing_hash_deduplication()) {
     if (table()->file->ha_index_init(0, /*sorted=*/false)) {
       return true;

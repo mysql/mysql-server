@@ -1949,3 +1949,56 @@ DROP TABLE t;
 --error ER_BAD_FIELD_ERROR
 SELECT(SELECT SIN(a.c7)),c7;
 
+--echo #
+--echo # Bug#35877600: Assertion failure at handler::ha_index_end() at handler.cc
+--echo #
+
+let $q1 = CREATE TABLE t( c0 int AUTO_INCREMENT primary key;
+let $n= 1;
+while ($n<100)
+{
+  let $q1 = $q1 , c$n CHAR(50);
+  inc $n;
+}
+let $q1 = $q1) ENGINE InnoDB;
+--eval $q1
+let $n=2;
+while ($n<100)
+{
+  let $q2 = $q2 , c$n;
+  let $q3 = $q3 , $n;
+  inc $n;
+}
+let $q4 = INSERT INTO t(c1 $q2 ) SELECT c0 $q2 from t;
+let $q2 = INSERT INTO t(c1 $q2);
+let $q3 = values(1 $q3);
+let $q2 = $q2 $q3;
+--eval $q2
+let $n=9;
+while ($n>0)
+{
+  --eval $q4
+  dec $n;
+}
+let $n=0;
+let $n1=0;
+while($n1<199)
+{
+  while ($n<100)
+  {
+    if($n1<199)
+    {
+    let $q5 = $q5 c$n AS col$n1,;
+    }
+    inc $n;
+    inc $n1;
+  }
+  let $n=0;
+}
+let $query = SELECT * FROM (SELECT $q5 c99 AS col199 FROM t UNION SELECT $q5 c99 AS col199 FROM t) t1;
+SELECT @@log_error_verbosity INTO @old_val;
+SET GLOBAL log_error_verbosity = 1;
+--ERROR 1118
+--eval $query
+SET GLOBAL log_error_verbosity = @old_val;
+drop table t;
