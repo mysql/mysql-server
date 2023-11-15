@@ -2482,15 +2482,6 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   SET(MYSQL_DOCS_LOCATION "" CACHE PATH
     "Location from where documentation is copied")
   MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
-  INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
-    COMPONENT Documentation
-    PATTERN "Makefile.*" EXCLUDE
-    PATTERN "glibc*" EXCLUDE
-    PATTERN "linuxthreads.txt" EXCLUDE
-    PATTERN "myisam.txt" EXCLUDE
-    PATTERN "sp-imp-spec.txt" EXCLUDE
-    PATTERN "README.build" EXCLUDE
-  )
 ENDIF()
 
 # Now that we're done with all ADD_SUBDIRECTORY and thus all feature tests,

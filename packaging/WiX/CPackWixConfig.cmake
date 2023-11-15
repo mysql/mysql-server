@@ -1,5 +1,5 @@
 # Copyright (c) 2010, 2023, Oracle and/or its affiliates.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -60,9 +60,13 @@ FOREACH(comp1 ${CPACK_COMPONENTS_USED})
 ENDFOREACH()
 SET(CPACK_COMPONENTS_ALL ${CPACK_ALL})
 
-# Always install (hidden), includes Readme files
+# Always install (hidden)
 SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+
+# Feature Readme, Info and Documentation (hidden, always install)
 SET(CPACK_COMPONENT_README_GROUP "AlwaysInstall")
+SET(CPACK_COMPONENT_INFO_GROUP "AlwaysInstall")
+SET(CPACK_COMPONENT_DOCUMENTATION_GROUP "AlwaysInstall") # Likely empty
 
 # Feature MySQL Server
 SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DISPLAY_NAME "MySQL Server")
@@ -74,36 +78,34 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  # Subfeature "Shared libraries" (hidden)
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_HIDDEN 1)
- # Subfeature "Client" 
+ # Subfeature "Client"
  SET(CPACK_COMPONENT_CLIENT_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_CLIENT_DISPLAY_NAME "Client Programs")
- SET(CPACK_COMPONENT_CLIENT_DESCRIPTION 
+ SET(CPACK_COMPONENT_CLIENT_DESCRIPTION
    "Various helpful (commandline) tools including the mysql command line client" )
 
- # Subfeature "Meb" 
- SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+ # Subfeature "Meb" (hidden, always install)
  SET(CPACK_COMPONENT_MEB_GROUP "AlwaysInstall")
- # Subfeature "MebReadme" 
- SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+
+ # Subfeature "MebReadme" (hidden, always install)
  SET(CPACK_COMPONENT_MEBREADME_GROUP "AlwaysInstall")
 
- #Subfeature MySQL Router
- SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+ #Subfeature MySQL Router (hidden, always install)
  SET(CPACK_COMPONENT_ROUTER_GROUP "AlwaysInstall")
-    
- #Subfeature "Data Files" 
+
+ #Subfeature "Data Files"
  SET(CPACK_COMPONENT_DATAFILES_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_DATAFILES_DISPLAY_NAME "Server data files")
  SET(CPACK_COMPONENT_DATAFILES_DESCRIPTION "Server data files" )
  SET(CPACK_COMPONENT_DATAFILES_HIDDEN 1)
-  
+
 #Feature "Devel"
 SET(CPACK_COMPONENT_GROUP_DEVEL_DISPLAY_NAME "Development Components")
 SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and libraries")
  #Subfeature "Development"
  SET(CPACK_COMPONENT_DEVELOPMENT_GROUP "Devel")
  SET(CPACK_COMPONENT_DEVELOPMENT_HIDDEN 1)
-  
+
  #Subfeature "Embedded"
  SET(CPACK_COMPONENT_EMBEDDED_GROUP "Devel")
  SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded server library")
@@ -116,11 +118,6 @@ SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DESCRIPTION "Installs Debug Symbols")
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_WIX_LEVEL 2)
  SET(CPACK_COMPONENT_DEBUGINFO_GROUP "DebugSymbols")
  SET(CPACK_COMPONENT_DEBUGINFO_HIDDEN 1)
-
-#Feature Documentation
-SET(CPACK_COMPONENT_DOCUMENTATION_DISPLAY_NAME "Documentation")
-SET(CPACK_COMPONENT_DOCUMENTATION_DESCRIPTION "Installs documentation")
-SET(CPACK_COMPONENT_DOCUMENTATION_WIX_LEVEL 2) # Not to install by default
 
 #Feature tests
 SET(CPACK_COMPONENT_TEST_DISPLAY_NAME "Tests")
