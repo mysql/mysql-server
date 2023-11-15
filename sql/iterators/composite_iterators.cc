@@ -80,6 +80,7 @@
 
 #include "extra/robin-hood-hashing/robin_hood.h"
 using pack_rows::TableCollection;
+using std::any_of;
 using std::string;
 using std::vector;
 
@@ -912,19 +913,28 @@ bool MaterializeIterator<Profiler>::Init() {
   // If this is a CTE, it could be referred to multiple times in the same query.
   // If so, check if we have already been materialized through any of our alias
   // tables.
-  if (!table()->materialized && m_cte != nullptr) {
-    for (Table_ref *table_ref : m_cte->tmp_tables) {
-      if (table_ref->table != nullptr && table_ref->table->materialized) {
-        table()->materialized = true;
-        break;
-      }
+  const bool use_shared_cte_materialization =
+      !table()->materialized && m_cte != nullptr && !m_rematerialize &&
+      any_of(m_cte->tmp_tables.begin(), m_cte->tmp_tables.end(),
+             [](const Table_ref *table_ref) {
+               return table_ref->table != nullptr &&
+                      table_ref->table->materialized;
+             });
+
+  if (use_shared_cte_materialization) {
+    // If using an already materialized shared CTE table, update the
+    // invalidators with the latest generation.
+    for (Invalidator &invalidator : m_invalidators) {
+      invalidator.generation_at_last_materialize =
+          invalidator.iterator->generation();
     }
+    table()->materialized = true;
   }
 
   if (table()->materialized) {
     bool rematerialize = m_rematerialize;
 
-    if (!rematerialize) {
+    if (!rematerialize && !use_shared_cte_materialization) {
       // See if any lateral tables that we depend on have changed since
       // last time (which would force a rematerialization).
       //
