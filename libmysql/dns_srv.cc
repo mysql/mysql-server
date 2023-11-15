@@ -37,6 +37,17 @@
 #include <netdb.h>
 #include <resolv.h>
 
+/* we don't have anything else but the non-thread-safe variants */
+#if !defined(HAVE_RES_NINIT)
+#define res_ninit(X)              (void)X
+#endif
+#if !defined(HAVE_RES_NSEARCH)
+#define res_nsearch(X,D,I,S,B,L)  res_search(D,I,S,B,L)
+#endif
+#if !defined(HAVE_RES_NCLOSE)
+#define res_nclose(X)             (void)X
+#endif
+
 // POSIX version
 
 static bool get_dns_srv(Dns_srv_data &data, const char *dnsname, int &error) {

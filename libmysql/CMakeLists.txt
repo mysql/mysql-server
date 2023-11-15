@@ -441,6 +441,19 @@ IF(HAS_WARN_FLAG)
     )
 ENDIF()
 
+check_symbol_exists(res_ninit "resolv.h" HAVE_RES_NINIT_FUNCTION)
+check_symbol_exists(res_nsearch "resolv.h" HAVE_RES_NSEARCH_FUNCTION)
+check_symbol_exists(res_nclose "resolv.h" HAVE_RES_NCLOSE_FUNCTION)
+IF (HAVE_RES_NINIT_FUNCTION)
+	add_compile_definitions(HAVE_RES_NINIT)
+ENDIF(HAVE_RES_NINIT_FUNCTION)
+IF (HAVE_RES_NSEARCH_FUNCTION)
+	add_compile_definitions(HAVE_RES_NSEARCH)
+ENDIF(HAVE_RES_NSEARCH_FUNCTION)
+IF (HAVE_RES_NCLOSE_FUNCTION)
+	add_compile_definitions(HAVE_RES_NCLOSE)
+ENDIF(HAVE_RES_NCLOSE_FUNCTION)
+
 # Verify that libmysql_api_test runs OK
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
