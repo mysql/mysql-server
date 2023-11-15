@@ -71,6 +71,8 @@ int My_xp_thread_server::join(void **value_ptr) {
 
 int My_xp_thread_server::cancel() { return my_thread_cancel(m_thread_handle); }
 
+bool My_xp_thread_util::init() { return my_thread_init(); }
+
 void My_xp_thread_util::exit(void *value_ptr) {
   my_thread_end();
   my_thread_exit(value_ptr);

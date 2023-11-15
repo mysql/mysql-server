@@ -1556,12 +1556,10 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
       terminate_wait_on_start_process(
           WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER);
 
-      my_thread_init();
       error = member_actions_handler->replace_all_actions(
           exchanged_members_actions_serialized_configuration);
       error |= static_cast<int>(set_replication_failover_channels_configuration(
           exchanged_replication_failover_channels_serialized_configuration));
-      my_thread_end();
     }
   }
 
@@ -1640,11 +1638,9 @@ sending:
     exchangeable data.
   */
   if (!joining && local_member_info->in_primary_mode()) {
-    my_thread_init();
     DBUG_EXECUTE_IF(
         "group_replication_skip_add_member_actions_to_exchangeable_data",
         joining = true;);
-    my_thread_end();
   }
 #endif
 
@@ -1652,13 +1648,11 @@ sending:
     std::string member_actions_serialized_configuration;
     std::string replication_failover_channels_serialized_configuration;
 
-    my_thread_init();
     bool error_reading_member_actions = member_actions_handler->get_all_actions(
         member_actions_serialized_configuration);
     bool error_reading_failover_channels_configuration =
         get_replication_failover_channels_configuration(
             replication_failover_channels_serialized_configuration);
-    my_thread_end();
 
     if (error_reading_member_actions) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA);
