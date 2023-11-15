@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <typeinfo>
 
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/attribute.h"
 
 #define SKIP_GIT_TESTS(COND)                                       \
@@ -169,7 +170,14 @@ void init_windows_sockets();
  *
  * @returns true if the selected port can be bind to, false otherwise
  */
-[[nodiscard]] bool is_port_bindable(const uint16_t port);
+[[nodiscard]] stdx::expected<void, std::error_code> is_port_bindable(
+    const uint16_t port);
+
+[[nodiscard]] stdx::expected<void, std::error_code> is_port_bindable(
+    const net::ip::tcp::endpoint &ep);
+
+[[nodiscard]] stdx::expected<void, std::error_code> is_port_bindable(
+    net::io_context &io_ctx, const net::ip::tcp::endpoint &ep);
 
 /** @brief Check if a given unix socket can be bind to.
  *

@@ -213,6 +213,10 @@ UniqueId::UniqueId(UniqueId &&other) {
 }
 
 uint16_t TcpPortPool::get_next_available() {
+  net::io_context io_ctx;
+
+  constexpr const auto bind_address = net::ip::address_v4::loopback();
+
   while (true) {
     if (number_of_ids_used_ % kPortsPerFile == 0) {
       number_of_ids_used_ = 0;
@@ -226,9 +230,10 @@ uint16_t TcpPortPool::get_next_available() {
 
     // this is the formula that mysql-test also uses to map lock filename to
     // actual port number, they currently start from 13000 though
-    unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
-                      number_of_ids_used_++;
 
-    if (is_port_bindable(result)) return result;
+    uint16_t port = 10000 + unique_ids_.back().get() * kPortsPerFile +
+                    number_of_ids_used_++;
+
+    if (is_port_bindable(io_ctx, {bind_address, port})) return port;
   }
 }

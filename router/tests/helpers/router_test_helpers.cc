@@ -58,6 +58,7 @@
 #include "mysql/harness/net_ts.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/filesystem.h"
@@ -256,29 +257,33 @@ bool wait_for_socket_ready(const std::string &socket,
   return status >= 0;
 }
 
-bool is_port_bindable(const uint16_t port) {
+stdx::expected<void, std::error_code> is_port_bindable(const uint16_t port) {
+  return is_port_bindable(
+      net::ip::tcp::endpoint(net::ip::address_v4::loopback(), port));
+}
+
+stdx::expected<void, std::error_code> is_port_bindable(
+    const net::ip::tcp::endpoint &ep) {
   net::io_context io_ctx;
+
+  return is_port_bindable(io_ctx, ep);
+}
+
+stdx::expected<void, std::error_code> is_port_bindable(
+    net::io_context &io_ctx, const net::ip::tcp::endpoint &ep) {
   net::ip::tcp::acceptor acceptor(io_ctx);
 
-  net::ip::tcp::resolver resolver(io_ctx);
-  const auto &resolve_res = resolver.resolve("127.0.0.1", std::to_string(port));
-  if (!resolve_res) {
-    throw std::runtime_error(std::string("resolve failed: ") +
-                             resolve_res.error().message());
-  }
-
   acceptor.set_option(net::socket_base::reuse_address(true));
-  const auto &open_res =
-      acceptor.open(resolve_res->begin()->endpoint().protocol());
-  if (!open_res) return false;
+  auto open_res = acceptor.open(ep.protocol());
+  if (!open_res) return stdx::unexpected(open_res.error());
 
-  const auto &bind_res = acceptor.bind(resolve_res->begin()->endpoint());
-  if (!bind_res) return false;
+  auto bind_res = acceptor.bind(ep);
+  if (!bind_res) return stdx::unexpected(bind_res.error());
 
-  const auto &listen_res = acceptor.listen(128);
-  if (!listen_res) return false;
+  auto listen_res = acceptor.listen(128);
+  if (!listen_res) return stdx::unexpected(listen_res.error());
 
-  return true;
+  return {};
 }
 
 bool is_port_unused(const uint16_t port) {
@@ -299,7 +304,7 @@ bool is_port_unused(const uint16_t port) {
   if (std::system(cmd.c_str()) != 0) {
     // netstat command failed, do the check by trying to bind to the port
     // instead
-    return is_port_bindable(port);
+    return !!is_port_bindable(port);
   }
 
   std::ifstream file{filename};
