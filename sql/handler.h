@@ -2443,6 +2443,16 @@ using secondary_engine_modify_access_path_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
 /**
+  Checks whether the tables used in an explain query are loaded in the secondary
+  engine.
+  @param thd thread context.
+
+  @retval true if there is a table not loaded to the secondary engine, false
+  otherwise
+*/
+using external_engine_explain_check_t = bool (*)(THD *thd);
+
+/**
   Looks up and returns a specific secondary engine query offload or exec
   failure reason as a string given a thread context (representing the query)
   when the offloaded query fails in the secondary storage engine.
@@ -2913,6 +2923,12 @@ struct handlerton {
   /// optimizer. If it is empty, it means that the secondary engine
   /// does not support the hypergraph join optimizer.
   SecondaryEngineFlags secondary_engine_flags;
+
+  /// Pointer to a function that checks if the table is loaded in the
+  /// secondary engine in the case of an explain statement.
+  ///
+  /// @see external_engine_explain_check_t for function signature.
+  external_engine_explain_check_t external_engine_explain_check;
 
   /// Pointer to a function that evaluates the cost of executing an access path
   /// in a secondary storage engine.
