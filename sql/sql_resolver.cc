@@ -4752,14 +4752,65 @@ bool WalkAndReplace(
       }
     }
   } else if (item->type() == Item::SUBQUERY_ITEM) {
+    Item_subselect *const subquery = down_cast<Item_subselect *>(item);
     const Item_subselect::Subquery_type subquery_type =
-        down_cast<Item_subselect *>(item)->subquery_type();
+        subquery->subquery_type();
+
     if (subquery_type == Item_subselect::IN_SUBQUERY ||
         subquery_type == Item_subselect::ALL_SUBQUERY ||
         subquery_type == Item_subselect::ANY_SUBQUERY) {
-      return WalkAndReplaceInner(
-          thd, item, /*argument_idx=*/0, get_new_item,
-          &down_cast<Item_in_subselect *>(item)->left_expr);
+      if (WalkAndReplaceInner(thd, item, /*argument_idx=*/0, get_new_item,
+                              &down_cast<Item_in_subselect *>(item)->left_expr))
+        return true;
+    }
+
+    if (thd->lex->splitting_window_expression() &&
+        subquery->contains_outer_references()) {
+      // Other clients of WalkAndReplace than those doing
+      // splitting_window_expression() are not ready for this walk, so skip
+      // this dive for them.  But for the splitting_window_expression use case,
+      // subquery contains outer references, so we can't skip walking it: it
+      // contains desired replacement targets.
+
+      for (auto qt :
+           down_cast<Item_subselect *>(item)->query_expr()->query_terms<>()) {
+        Query_block *const qb = qt->query_block();
+        for (auto &it : qb->fields) {
+          if (WalkAndReplaceInner(thd, item, 0, get_new_item, &it)) return true;
+        }
+        if (qb->where_cond() != nullptr &&
+            WalkAndReplaceInner(thd, item, 0, get_new_item,
+                                qb->where_cond_ref()))
+          return true;
+        if (qb->having_cond() != nullptr &&
+            WalkAndReplaceInner(thd, item, 0, get_new_item,
+                                qb->having_cond_ref()))
+          return true;
+        if (qb->qualify_cond() != nullptr &&
+            WalkAndReplaceInner(thd, item, 0, get_new_item,
+                                qb->qualify_cond_ref()))
+          return true;
+        for (ORDER *o = qb->group_list.first; o != nullptr; o = o->next) {
+          if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+            return true;
+        }
+        for (ORDER *o = qb->order_list.first; o != nullptr; o = o->next) {
+          if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+            return true;
+        }
+        for (auto &win : qb->m_windows) {
+          for (ORDER *o = win.effective_order_by()->value.first; o != nullptr;
+               o = o->next) {
+            if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+              return true;
+          }
+          for (ORDER *o = win.effective_partition_by()->value.first;
+               o != nullptr; o = o->next) {
+            if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+              return true;
+          }
+        }
+      }
     }
   }
   return false;

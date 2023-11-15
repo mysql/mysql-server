@@ -177,6 +177,33 @@ string RefToString(const Index_lookup &ref, const KEY &key,
   return ret;
 }
 
+#ifndef NDEBUG
+[[maybe_unused]] static const char *cft_name(Copy_func_type type) {
+  switch (type) {
+    case CFT_ALL:
+      return "CFT_ALL";
+    case CFT_WF_FRAMING:
+      return "CFT_WF_FRAMING";
+    case CFT_WF_NON_FRAMING:
+      return "CFT_WF_NON_FRAMING";
+    case CFT_WF_NEEDS_PARTITION_CARDINALITY:
+      return "CFT_WF_NEEDS_PARTITION_CARDINALITY";
+    case CFT_WF_USES_ONLY_ONE_ROW:
+      return "CFT_WF_USES_ONLY_ONE_ROW";
+    case CFT_HAS_NO_WF:
+      return "CFT_HAS_NO_WF";
+    case CFT_HAS_WF:
+      return "CFT_HAS_WF";
+    case CFT_WF:
+      return "CFT_WF";
+    case CFT_FIELDS:
+      return "CFT_FIELDS";
+    default:
+      assert(false);
+  }
+}
+#endif
+
 bool JOIN::create_intermediate_table(
     QEP_TAB *const tab, const mem_root_deque<Item *> &tmp_table_fields,
     ORDER_with_src &tmp_table_group, bool save_sum_fields, const char *alias) {

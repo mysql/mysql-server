@@ -974,6 +974,23 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
   return false;
 }
 
+bool Item_field::collect_outer_field_processor(uchar *arg) {
+  if (!is_outer_reference()) return false;
+
+  // Check that the outer reference belongs to the current query block
+  if (depended_from != current_thd->lex->current_query_block()) return false;
+
+  Mem_root_array<Item_field *> *item_list =
+      reinterpret_cast<Mem_root_array<Item_field *> *>(arg);
+
+  for (Item_field *curr_item : *item_list) {
+    if (curr_item->eq(this)) return false; /* Already in the set. */
+  }
+
+  if (item_list->push_back(this)) return true;
+  return false;
+}
+
 /**
    When collecting information about columns when transforming correlated
    scalar subqueries using derived tables, we need to decide which duplicates,
@@ -2261,7 +2278,7 @@ class Item_aggregate_ref : public Item_ref {
   }
 };
 
-static bool subquery_split(Item *item) {
+static bool subquery_split(Item *item, bool *outer_refs_wf) {
   assert(item->type() == Item::SUBQUERY_ITEM);
   Item_subselect *subq = down_cast<Item_subselect *>(item);
   switch (subq->subquery_type()) {
@@ -2274,21 +2291,26 @@ static bool subquery_split(Item *item) {
     case Item_subselect::IN_SUBQUERY:
     case Item_subselect::ANY_SUBQUERY:
     case Item_subselect::ALL_SUBQUERY: {
-      // If left has a wf, we must wait with evaluation. In such a case, if the
-      // subquery is correlated, we need to handle outer references: a priori
-      // they point to the windowing input tables, but need to point to
-      // fields in the out table/frame buffer, which need adding FIXME.
-      // E.g. : table with rows (1),(2) gives 0,1 for the below (correct: 1,1)
+      // If left has a wf, we must wait with evaluation until after
+      // windowing. In such a case, if the subquery is correlated, we need to
+      // handle outer references: a priori they point to the windowing input
+      // tables, but if the window needs frame buffering they need to point to
+      // fields in the out table/frame buffer.  E.g.
       //
       //   SELECT AVG(f1) OVER (PARTITION BY f1) IN
       //          (SELECT outer_t.f1 FROM t1) FROM t1 AS outer_t;
       //
-      // 'having' check below: we must check that we are not in a HAVING
+      // Re 'having' check below: we must check that we are not in a HAVING
       // context, in which case we do not have window functions anyway.
       Item_in_subselect *iis = down_cast<Item_in_subselect *>(subq);
-      return !iis->left_expr->has_wf() &&
-             (current_thd->lex->current_query_block()->resolve_place !=
-              Query_block::RESOLVE_HAVING);
+      if (!iis->left_expr->has_wf() &&
+          (current_thd->lex->current_query_block()->resolve_place !=
+           Query_block::RESOLVE_HAVING)) {
+        return true;
+      }
+      *outer_refs_wf =
+          iis->left_expr->has_wf() && iis->used_tables() & ~PSEUDO_TABLE_BITS;
+      break;
     }
     default:
       assert(false);
@@ -2418,6 +2440,10 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                               Item_func::ROLLUP_GROUP_ITEM_FUNC)) {
     return false;
   }
+
+  // We need to handle outer references in subqueries in presence of wf with
+  // frame buffering
+  bool outer_refs_wf = false;
   /*
     For an expressions that is not itself an aggregate function, a
     grouping function or a window function but contain underlying
@@ -2442,7 +2468,7 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
               down_cast<Item_ref *>(this)->ref_type() ==  //
                   Item_ref::VIEW_REF) &&                  //
              (type() != SUBQUERY_ITEM ||                  //
-              subquery_split(this))) {                    // (3)
+              subquery_split(this, &outer_refs_wf))) {    // (3)
     /*
       (1) Replace non-constant item with a reference so that we can easily
       calculate it (in case of aggregate functions, grouping functions or
@@ -2458,9 +2484,10 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                      /   \
                subquery   wf
 
-      we need to move subqueries to hidden fields too. Note that IN/ALL/ANY
-      subqueries are wrapped as functions at this point so they will often
-      have been split already.
+      we need to move subqueries to hidden fields too, if not correlated
+      or when they are needed in conjunction with wf, e.g.
+                wf-expr IN correlated-subquery
+      cf. outer_refs_wf.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 
@@ -2521,6 +2548,31 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     */
     if (m_is_window_function && split_sum_func(thd, ref_item_array, fields)) {
       return true;
+    }
+  } else if (outer_refs_wf) {
+    // Make sure outer referenced fields are added to tmp table fields, so
+    // we can replace such fields with corresponding in windowing tmp table
+    // in presence of windowing frame buffers. If no frame buffering, this is
+    // redundant, could be omitted.
+    Item_in_subselect *iis = down_cast<Item_in_subselect *>(this);
+    Mem_root_array<Item_field *> outer_flds(thd->mem_root);
+    if (iis->walk(&Item::collect_outer_field_processor,
+                  enum_walk::SUBQUERY_PREFIX,
+                  pointer_cast<uchar *>(&outer_flds)))
+      return true;
+    for (auto of : outer_flds) {
+      // Add referenced field as a hidden field if not already present
+      if (std::find_if((*fields).begin(), (*fields).end(),
+                       [of](Item *f) -> bool {
+                         return f->type() == FIELD_ITEM &&
+                                down_cast<Item_field *>(f)->field == of->field;
+                       }) == (*fields).end()) {
+        Item_field *new_field = new (thd->mem_root) Item_field(of->field);
+        if (new_field == nullptr) return true;
+        new_field->hidden = true;
+        ref_item_array[fields->size()] = new_field;
+        if (fields->push_front(new_field)) return true;
+      }
     }
   }
   return false;

@@ -72,7 +72,8 @@ Item *FindReplacementOrReplaceMaterializedItems(
  */
 void ReplaceMaterializedItems(THD *thd, Item *item,
                               const Func_ptr_array &items_to_copy,
-                              bool need_exact_match);
+                              bool need_exact_match,
+                              bool window_frame_buffer = false);
 
 /**
   Replace "@var:=<expr>" with "@var:=<tmp_table_column>" rather than

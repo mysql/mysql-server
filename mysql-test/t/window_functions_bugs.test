@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 --echo #
 --echo # Bug#26475312 VALGRIND MEMORY LEAK ( CMP_FIELD_VALUE(FIELD*, LONG) (SQL_EXECUTOR.CC:3598)
 --echo #
@@ -1411,8 +1413,122 @@ SELECT ref_0.c5 >=
 FROM
 t1 AS ref_0;
 
---echo # Still wrong FIXME
+--echo # Bug#35855294 Inconsistent results of SELECT statement with
+--echo #              EXISTS clause - part II: IN/ALL/ANY
+--echo #
+--echo # Outer reference in subquery involving window function. The
+--echo # subquery cannot be evaluated before the window function
+let $query=
 SELECT AVG(vkey) OVER (PARTITION BY vkey)
   IN (SELECT outer_t.vkey FROM t1) FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Outer field reference in subquery's join condition:
+--echo # outer_t.vkey
+let $query=
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+  IN (SELECT ta.vkey
+      FROM t1 ta
+           JOIN
+           t1 tb
+           ON (ta.vkey=outer_t.vkey)) AS window_in_result
+FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Outer alias reference in subquery: ov
+--echo #
+let $query=
+SELECT outer_t.vkey AS ov,
+       AVG(vkey) OVER (PARTITION BY vkey) IN
+          (SELECT ta.vkey
+           FROM t1 ta
+                JOIN
+                t1 tb
+                ON (ta.vkey=ov)) AS window_in_result
+FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Only reference to c5 is an outer reference: verify it is
+--echo # added to windowing output table: it wasn't before
+let $query=
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+  IN (SELECT ta.vkey
+      FROM t1 ta
+           JOIN
+           t1 tb
+           ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Add value that should yield true for one row
+--echo #
+INSERT INTO t1 VALUES (20, 30000, 20, NULL);
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+let $query=
+SELECT pkey, c5, AVG(vkey) OVER (PARTITION BY vkey)
+  IN (SELECT ta.vkey
+      FROM t1 ta
+           JOIN
+           t1 tb
+           ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Check that outer reference is correct also *without* framebuffer
+--echo # used by AVG window function above: ROW_NUMBER doesn't need framing
+let $query =
+SELECT ROW_NUMBER() OVER (PARTITION BY vkey) + 18 IN
+   (SELECT ta.vkey
+    FROM t1 ta
+         JOIN
+         t1 tb
+         ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN format=tree $query;
+
+--echo # Illegal forward reference of alias: a2
+--error ER_ILLEGAL_REFERENCE
+SELECT AVG(vkey) OVER (PARTITION BY vkey) IN
+          (SELECT ta.vkey
+           FROM t1 ta
+                JOIN
+                t1 tb
+                ON (ta.vkey=a2))  AS a1,
+       AVG(vkey) OVER (PARTITION BY vkey) IN
+          (SELECT ta.vkey
+           FROM t1 ta
+                JOIN
+                t1 tb
+                ON (ta.vkey=a1))  AS a2
+FROM t1 AS outer_t;
 
 DROP TABLE t1;

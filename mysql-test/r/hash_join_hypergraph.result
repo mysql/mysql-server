@@ -1704,8 +1704,8 @@ alias1.col_int_key DESC, field1
 LIMIT 2 OFFSET 2;
 EXPLAIN
 -> Limit/Offset: 2/2 row(s)  (rows=2)
-    -> Sort: cc.col_int_key DESC, cc.field1, limit input to 4 row(s) per chunk  (rows=4)
-        -> Filter: (cc.field1 <> 0)  (rows=4.59)
+    -> Sort: alias1.col_int_key DESC, alias1.field1, limit input to 4 row(s) per chunk  (rows=4)
+        -> Filter: (alias1.field1 <> 0)  (rows=4.59)
             -> Table scan on <temporary>  (rows=5.1)
                 -> Temporary table with deduplication  (rows=5.1)
                     -> Nested loop semijoin  (rows=24)

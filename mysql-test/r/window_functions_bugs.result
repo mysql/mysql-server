@@ -2003,11 +2003,252 @@ t1 AS ref_0;
 c_6
 0
 NULL
-# Still wrong FIXME
+# Bug#35855294 Inconsistent results of SELECT statement with
+#              EXISTS clause - part II: IN/ALL/ANY
+#
+# Outer reference in subquery involving window function. The
+# subquery cannot be evaluated before the window function
 SELECT AVG(vkey) OVER (PARTITION BY vkey)
 IN (SELECT outer_t.vkey FROM t1) FROM t1 AS outer_t;
 AVG(vkey) OVER (PARTITION BY vkey)
 IN (SELECT outer_t.vkey FROM t1)
+1
+1
+EXPLAIN format=tree SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT outer_t.vkey FROM t1) FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=2)
+    -> Sort: outer_t.vkey  (rows=2)
+        -> Table scan on outer_t  (rows=2)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(outer_t.vkey), true)  (rows=2)
+                -> Filter: <if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = outer_t.vkey) or (outer_t.vkey is null)), true)  (rows=2)
+                    -> Table scan on t1  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.vkey' of SELECT #2 was resolved in SELECT #1
+# Outer field reference in subquery's join condition:
+# outer_t.vkey
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.vkey)) AS window_in_result
+FROM t1 AS outer_t;
+window_in_result
+1
+1
+EXPLAIN format=tree SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.vkey)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=2)
+    -> Sort: outer_t.vkey  (rows=2)
+        -> Table scan on outer_t  (rows=2)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(ta.vkey), true)  (rows=2)
+                -> Inner hash join (no condition)  (rows=2)
+                    -> Table scan on tb  (rows=2)
+                    -> Hash
+                        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = ta.vkey) or (ta.vkey is null)), true) and (ta.vkey = outer_t.vkey))  (rows=1)
+                            -> Table scan on ta  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.vkey' of SELECT #2 was resolved in SELECT #1
+# Outer alias reference in subquery: ov
+#
+SELECT outer_t.vkey AS ov,
+AVG(vkey) OVER (PARTITION BY vkey) IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=ov)) AS window_in_result
+FROM t1 AS outer_t;
+ov	window_in_result
+20	1
+59	1
+EXPLAIN format=tree SELECT outer_t.vkey AS ov,
+AVG(vkey) OVER (PARTITION BY vkey) IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=ov)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=2)
+    -> Sort: outer_t.vkey  (rows=2)
+        -> Table scan on outer_t  (rows=2)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(ta.vkey), true)  (rows=2)
+                -> Inner hash join (no condition)  (rows=2)
+                    -> Table scan on tb  (rows=2)
+                    -> Hash
+                        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = ta.vkey) or (ta.vkey is null)), true) and (ta.vkey = outer_t.vkey))  (rows=1)
+                            -> Table scan on ta  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'ov' of SELECT #2 was resolved in SELECT #1
+# Only reference to c5 is an outer reference: verify it is
+# added to windowing output table: it wasn't before
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+window_in_result
+0
+0
+EXPLAIN format=tree SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=2)
+    -> Sort: outer_t.vkey  (rows=2)
+        -> Table scan on outer_t  (rows=2)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(ta.vkey), true)  (rows=2)
+                -> Inner hash join (no condition)  (rows=2)
+                    -> Table scan on tb  (rows=2)
+                    -> Hash
+                        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = ta.vkey) or (ta.vkey is null)), true) and (ta.vkey = outer_t.c5))  (rows=1)
+                            -> Table scan on ta  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+# Add value that should yield true for one row
+#
+INSERT INTO t1 VALUES (20, 30000, 20, NULL);
+SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+window_in_result
 0
 1
+0
+EXPLAIN format=tree SELECT AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=3)
+    -> Sort: outer_t.vkey  (rows=3)
+        -> Table scan on outer_t  (rows=3)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(ta.vkey), true)  (rows=3)
+                -> Inner hash join (no condition)  (rows=3)
+                    -> Table scan on tb  (rows=3)
+                    -> Hash
+                        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = ta.vkey) or (ta.vkey is null)), true) and (ta.vkey = outer_t.c5))  (rows=1)
+                            -> Table scan on ta  (rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+SELECT pkey, c5, AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+pkey	c5	window_in_result
+30000	59	0
+30000	20	1
+69000	NULL	0
+EXPLAIN format=tree SELECT pkey, c5, AVG(vkey) OVER (PARTITION BY vkey)
+IN (SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate with buffering: avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey )   (rows=3)
+    -> Sort: outer_t.vkey  (rows=3)
+        -> Table scan on outer_t  (rows=3)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(ta.vkey), true)  (rows=3)
+                -> Inner hash join (no condition)  (rows=3)
+                    -> Table scan on tb  (rows=3)
+                    -> Hash
+                        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(avg(outer_t.vkey) OVER (PARTITION BY outer_t.vkey ) ) = ta.vkey) or (ta.vkey is null)), true) and (ta.vkey = outer_t.c5))  (rows=1)
+                            -> Table scan on ta  (rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+# Check that outer reference is correct also *without* framebuffer
+# used by AVG window function above: ROW_NUMBER doesn't need framing
+SELECT ROW_NUMBER() OVER (PARTITION BY vkey) + 18 IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+window_in_result
+0
+1
+0
+EXPLAIN format=tree SELECT ROW_NUMBER() OVER (PARTITION BY vkey) + 18 IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=outer_t.c5)) AS window_in_result
+FROM t1 AS outer_t;
+EXPLAIN
+-> Window aggregate: row_number() OVER (PARTITION BY outer_t.vkey )   (rows=3)
+    -> Sort: outer_t.vkey  (rows=3)
+        -> Table scan on outer_t  (rows=3)
+    -> Select #2 (subquery in projection; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: <is_not_null_test>(ta.vkey)  (rows=3)
+                -> Inner hash join (no condition)  (rows=3)
+                    -> Table scan on tb  (rows=3)
+                    -> Hash
+                        -> Filter: (((<cache>((row_number() OVER (PARTITION BY outer_t.vkey )  + 18)) = ta.vkey) or (ta.vkey is null)) and (ta.vkey = outer_t.c5))  (rows=1)
+                            -> Table scan on ta  (rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.outer_t.c5' of SELECT #2 was resolved in SELECT #1
+# Illegal forward reference of alias: a2
+SELECT AVG(vkey) OVER (PARTITION BY vkey) IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=a2))  AS a1,
+AVG(vkey) OVER (PARTITION BY vkey) IN
+(SELECT ta.vkey
+FROM t1 ta
+JOIN
+t1 tb
+ON (ta.vkey=a1))  AS a2
+FROM t1 AS outer_t;
+ERROR 42S22: Reference 'a2' not supported (forward reference in item list)
 DROP TABLE t1;

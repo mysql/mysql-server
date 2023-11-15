@@ -3868,6 +3868,8 @@ struct LEX : public Query_tables_list {
   execute_only_in_hypergraph_reasons m_execute_only_in_hypergraph_reason =
       SUPPORTED_IN_BOTH_OPTIMIZERS;
 
+  bool m_splitting_window_expression = false;
+
  public:
   inline Query_block *current_query_block() const {
     return m_current_query_block;
@@ -3902,6 +3904,25 @@ struct LEX : public Query_tables_list {
 
   void set_using_hypergraph_optimizer(bool use_hypergraph) {
     m_using_hypergraph_optimizer = use_hypergraph;
+  }
+
+  /// RAII class to set state \c m_splitting_window_expression for a scope
+  class Splitting_window_expression {
+   private:
+    LEX *m_lex{nullptr};
+
+   public:
+    explicit Splitting_window_expression(LEX *lex, bool v) {
+      m_lex = lex;
+      m_lex->m_splitting_window_expression = v;
+    }
+    ~Splitting_window_expression() {
+      m_lex->m_splitting_window_expression = false;
+    }
+  };
+
+  bool splitting_window_expression() const {
+    return m_splitting_window_expression;
   }
 
  private:

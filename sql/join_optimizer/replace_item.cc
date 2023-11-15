@@ -22,10 +22,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/join_optimizer/replace_item.h"
+#include "sql/current_thd.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/sql_resolver.h"
 #include "sql/temp_table_param.h"
+
+static Item *possibly_outerize_replacement(Item *sub_item, Item *replacement) {
+  Query_block *dep_from = nullptr;
+  switch (sub_item->type()) {
+    case Item::FIELD_ITEM:
+    case Item::REF_ITEM:
+      dep_from = down_cast<Item_ident *>(sub_item)->depended_from;
+      break;
+    default:;
+  }
+  if (dep_from != nullptr) {
+    if (replacement->real_item()->type() == Item::FIELD_ITEM) {
+      Item_field *real_field =
+          down_cast<Item_field *>(replacement->real_item());
+      Item_field *res = new Item_field(current_thd, real_field);
+      res->depended_from = dep_from;
+      res->m_table_ref =
+          down_cast<Item_field *>(sub_item->real_item())->m_table_ref;
+      replacement = res;
+    }
+  }
+  return replacement;
+}
 
 /**
   Check what field the given item will be materialized into under the given
@@ -132,14 +156,17 @@ Item *FindReplacementOrReplaceMaterializedItems(
 
 void ReplaceMaterializedItems(THD *thd, Item *item,
                               const Func_ptr_array &items_to_copy,
-                              bool need_exact_match) {
+                              bool need_exact_match, bool window_frame_buffer) {
   bool modified = false;
-  const auto replace_functor = [thd, &modified, &items_to_copy,
-                                need_exact_match](Item *sub_item, Item *,
-                                                  unsigned) -> ReplaceResult {
+  const auto replace_functor =
+      [thd, &modified, &items_to_copy, need_exact_match, window_frame_buffer](
+          Item *sub_item, Item *, unsigned) -> ReplaceResult {
     Item *replacement = FindReplacementItem(sub_item->real_item(),
                                             items_to_copy, need_exact_match);
     if (replacement != nullptr) {
+      if (window_frame_buffer) {
+        replacement = possibly_outerize_replacement(sub_item, replacement);
+      }
       modified = true;
       // We want to avoid losing the was_null information for items having
       // such information. So for such item, create a copy of it that
@@ -159,7 +186,13 @@ void ReplaceMaterializedItems(THD *thd, Item *item,
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
   };
-  WalkAndReplace(thd, item, std::move(replace_functor));
+
+  if (window_frame_buffer) {
+    LEX::Splitting_window_expression s(thd->lex, true);
+    WalkAndReplace(thd, item, std::move(replace_functor));
+  } else {
+    WalkAndReplace(thd, item, std::move(replace_functor));
+  }
 
   // If the item was modified to reference temporary tables, we need to update
   // its used tables to account for that.

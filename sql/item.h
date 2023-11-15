@@ -2736,6 +2736,7 @@ class Item : public Parse_tree_node {
 
   virtual bool collect_item_field_processor(uchar *) { return false; }
   virtual bool collect_item_field_or_ref_processor(uchar *) { return false; }
+  virtual bool collect_outer_field_processor(uchar *) { return false; }
 
   class Collect_item_fields_or_refs : public Item_tree_walker {
    public:
@@ -4531,6 +4532,7 @@ class Item_field : public Item_ident {
   bool collect_item_field_processor(uchar *arg) override;
   bool collect_item_field_or_ref_processor(uchar *arg) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+  bool collect_outer_field_processor(uchar *arg) override;
   bool add_field_to_set_processor(uchar *arg) override;
   bool add_field_to_cond_set_processor(uchar *) override;
   bool remove_column_from_bitmap(uchar *arg) override;

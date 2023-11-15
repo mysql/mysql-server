@@ -2992,6 +2992,11 @@ void Func_ptr::set_func(Item *func) {
 Item *Func_ptr::result_item() const {
   if (m_result_item == nullptr) {
     m_result_item = new Item_field(m_result_field);
+    if (func()->type() == Item::FIELD_ITEM) {
+      // Improves explain precision
+      down_cast<Item_field *>(m_result_item)->table_name =
+          down_cast<Item_field *>(func())->table_name;
+    }
   }
   return m_result_item;
 }

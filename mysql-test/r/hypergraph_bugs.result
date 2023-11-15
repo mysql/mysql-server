@@ -1612,7 +1612,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
--> Sort: t.x  (rows=7.96)
+-> Sort: t2.x  (rows=7.96)
     -> Table scan on <temporary>  (rows=7.96)
         -> Temporary table with deduplication  (rows=7.96)
             -> Nested loop inner join  (rows=12)
@@ -1630,7 +1630,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
--> Sort: t.x  (rows=9.36)
+-> Sort: t1.x  (rows=9.36)
     -> Table scan on <temporary>  (rows=9.36)
         -> Temporary table with deduplication  (rows=9.36)
             -> Nested loop inner join  (rows=12)
@@ -1648,7 +1648,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
--> Sort: t.x  (rows=3.46)
+-> Sort: t2.x  (rows=3.46)
     -> Table scan on <temporary>  (rows=3.46)
         -> Temporary table with deduplication  (rows=3.46)
             -> Nested loop inner join  (rows=12)

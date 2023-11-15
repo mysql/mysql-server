@@ -15382,7 +15382,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) OVER (ORDER BY `test`.`t1`.`a` )  AS `SUM(t2.b) OVER(ORDER BY t1.a)` from `test`.`t1` join `test`.`t1` `t2` order by `test`.`t2`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t2`.`b`) OVER (ORDER BY `test`.`t1`.`a` )  AS `SUM(t2.b) OVER(ORDER BY t1.a)` from `test`.`t1` join `test`.`t1` `t2` order by `test`.`t2`.`a`
 DROP TABLE t1;
 #
 # Bug#26612356 WINDOW FUNCTIONS: FIX COST ESTIMATES

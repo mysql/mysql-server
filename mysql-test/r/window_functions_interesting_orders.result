@@ -100,7 +100,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT t1.a, SUM(t1.a) OVER (ORDER BY t1.a), SUM(t2.b) OVER (ORDER BY t2.b) FROM t1 JOIN t1 AS t2 ON t1.a = t2.b;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.b) OVER (ORDER BY t1.b )
+-> Window aggregate with buffering: sum(t2.b) OVER (ORDER BY t2.b )
     -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a )
         -> Nested loop inner join
             -> Covering index scan on t1 using idx

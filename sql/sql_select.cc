@@ -4331,7 +4331,8 @@ bool CreateFramebufferTable(
     if (ptr.func()->has_wf()) {
       ReplaceMaterializedItems(thd, ptr.func(),
                                *mapping_from_source_to_window_output,
-                               /*need_exact_match=*/false);
+                               /*need_exact_match=*/false,
+                               /*window_frame_buffer*/ true);
     }
   }
   return false;
