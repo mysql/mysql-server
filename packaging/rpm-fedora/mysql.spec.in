@@ -735,7 +735,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
@@ -787,7 +786,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -1239,7 +1237,7 @@ fi
 %endif # with_router
 
 %changelog
-* Mon Nov 14 2023 Gabor Buella <gabor.buella@oracle.com> - 8.3.0-1
+* Tue Nov 14 2023 Gabor Buella <gabor.buella@oracle.com> - 8.3.0-1
 - Removed libmemcached plugin
 
 * Tue Nov 14 2023 Gipson Pulla <gipson.pulla@oracle.com> - 8.3.0-1
