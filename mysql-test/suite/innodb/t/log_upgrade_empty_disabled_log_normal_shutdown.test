@@ -1,0 +1,66 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data
+# This is a file created by mysql-8.0.29 on Windows using following steps:
+#   mysqld --initialize-insecure --lower-case-table-names=1 --innodb-log-file-size=4194304
+#   mysqld --lower-case-table-names=1 --innodb-log-file-size=4194304
+#   connect to it and execute:
+#     ALTER INSTANCE DISABLE INNODB REDO_LOG;
+#     CREATE DATABASE test;
+#     use test;
+#     CREATE TABLE t(id INT PRIMARY KEY);
+#     INSERT INTO t VALUES (42);
+#     SHUTDOWN;
+#   $ cd mysql-bin;
+#   $ sed -i -s 's@\\@/@g' data/binlog.index
+#   $ zip -qr -9 data_80029_empty_disabled_log_normal_shutdown.zip data
+# The idea is that the redo log is logically empty, because all dirty pages were written back to disc,
+# so the instance *is* crash safe, even though the redo logging is disabled.
+# This should result in LOG_HEADER_FLAG_NO_LOGGING being set, but
+# also LOG_HEADER_FLAG_CRASH_UNSAFE not being set.
+# Also the flushed_lsn in system tablepsace's header should match the checkpoint_lsn in ib_logfile0.
+# You can use xxd -l $((512*4)) ib_logfile0 to verify that the relevant pieces of info are as needed for this scenario:
+# The flags are at offset 48 = 0x30, and LOG_HEADER_FLAG_NO_LOGGING == 1:
+# 00000030: 0000 0001 0000 0000 0000 0000 0000 0000  ................
+# The checkpoint is stored in two places, at offset 512 + 8:
+# 00000200: 0000 0000 0000 0012 0000 0000 011f 6592  ..............e.
+# and at offset 512*3 + 8 :
+# 00000600: 0000 0000 0000 0013 0000 0000 0125 822f  .............%./
+# where the preceeding 8 bytes indicate the checkpoint number, and we pick the larger (0x12 vs 0x13).
+# Thus the checkpoint is 0x0125822f
+--let $ZIP_FILE= $MYSQLTEST_VARDIR/std_data/upgrade/data_80029_empty_disabled_log_normal_shutdown.zip
+--let $MYSQLD_LOG = $MYSQLD_DATADIR1/mysqld.err
+--let SEARCH_FILE= $MYSQLD_LOG
+--let $args=--datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --log-error-verbosity=3 --lower-case-table-names=1
+
+# Stop current instance
+--source include/kill_mysqld.inc
+# Unpack the zipped datadir:
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+# Now, perform the upgrade:
+
+--let $restart_parameters = restart: $args
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SELECT * FROM test.t;
+SET GLOBAL innodb_monitor_enable = module_log;
+SELECT 0x0125822f <= `COUNT` FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_last_checkpoint';
+SELECT 0x0125822f <= `COUNT` FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_current';
+# As a side effect of upgrade, the redo log gets enabled again (because we clear the flag)
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_enabled';
+--source include/kill_mysqld.inc
+
+--let $error_name=ER_IB_MSG_LOG_FILES_UPGRADE
+--source include/get_error_id.inc
+# The checkpoint_lsn in ib_logfile0 is 0x0125822f = 19235375, and this should be found and reported during upgrade
+--let SEARCH_PATTERN=$error_id\b.*\bLSN=19235375
+--echo # Expect found
+--source include/search_pattern.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+
+# Start the server with original settings
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
