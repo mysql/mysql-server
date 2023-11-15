@@ -28,6 +28,7 @@
 // codecs for classic_protocol::wire::
 
 #include <algorithm>     // find
+#include <bit>           // endian
 #include <cstddef>       // size_t
 #include <cstdint>       // uint8_t
 #include <system_error>  // error_code
@@ -35,8 +36,8 @@
 #include <utility>  // move
 
 #include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/stdx/bit.h"  // byteswap
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/type_traits.h"  // endian
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
@@ -72,7 +73,7 @@ class Codec<borrowable::wire::FixedInt<IntSize>> {
 
     auto int_val = v_.value();
 
-    if (stdx::endian::native == stdx::endian::big) {
+    if (std::endian::native == std::endian::big) {
       int_val = stdx::byteswap(int_val);
     }
 
@@ -100,7 +101,7 @@ class Codec<borrowable::wire::FixedInt<IntSize>> {
     std::copy_n(static_cast<const std::byte *>(buffer.data()), int_size,
                 reinterpret_cast<std::byte *>(&value));
 
-    if (stdx::endian::native == stdx::endian::big) {
+    if (std::endian::native == std::endian::big) {
       value = stdx::byteswap(value);
     }
 

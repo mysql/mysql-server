@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>  // endian
 #include <bitset>
 #include <cstddef>  // ptrdiff_t
 #include <cstring>  // memset
@@ -53,7 +54,6 @@
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/bit.h"  // byteswap
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/type_traits.h"  // endian
 
 namespace net {
 namespace ip {
@@ -66,7 +66,7 @@ namespace ip {
 template <class T>
 constexpr T host_to_network(const T t) noexcept {
   // no need to swap, host has network byte-order
-  if (stdx::endian::native == stdx::endian::big) return t;
+  if (std::endian::native == std::endian::big) return t;
 
   return stdx::byteswap(t);
 }
@@ -79,7 +79,7 @@ constexpr T host_to_network(const T t) noexcept {
 template <class T>
 constexpr T network_to_host(const T t) noexcept {
   // no need to swap, host has network byte-order
-  if (stdx::endian::native == stdx::endian::big) return t;
+  if (std::endian::native == std::endian::big) return t;
 
   return stdx::byteswap(t);
 }
