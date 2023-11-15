@@ -1235,7 +1235,6 @@ ulong slow_start_timeout;
 bool opt_no_monitor = false;
 #endif
 
-bool opt_no_dd_upgrade = false;
 long opt_upgrade_mode = UPGRADE_AUTO;
 bool opt_initialize = false;
 bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
@@ -10715,11 +10714,6 @@ struct my_option my_long_early_options[] = {
      "Migrate from keyring plugin to keyring component.",
      &opt_keyring_migration_to_component, &opt_keyring_migration_to_component,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"no-dd-upgrade", 0,
-     "Abort restart if automatic upgrade or downgrade of the data dictionary "
-     "is needed. Deprecated option. Use --upgrade=NONE instead.",
-     &opt_no_dd_upgrade, &opt_no_dd_upgrade, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
-     nullptr, 0, nullptr},
     {"validate-config", 0,
      "Validate the server configuration specified by the user.",
      &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,

@@ -172,7 +172,6 @@ extern bool opt_help;
 extern bool opt_verbose;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32>
     connection_events_loop_aborted_flag;
-extern bool opt_no_dd_upgrade;
 extern long opt_upgrade_mode;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;

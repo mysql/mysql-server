@@ -1233,11 +1233,6 @@ bool initialize_dd_properties(THD *thd) {
     if (actual_dd_version != dd::DD_VERSION) {
       bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
           actual_dd_version);
-      if (opt_no_dd_upgrade) {
-        push_deprecated_warn(thd, "--no-dd-upgrade", "--upgrade=NONE");
-        LogErr(ERROR_LEVEL, ER_DD_UPGRADE_OFF);
-        return true;
-      }
 
       if (!bootstrap::DD_bootstrap_ctx::instance().supported_dd_version()) {
         /*
