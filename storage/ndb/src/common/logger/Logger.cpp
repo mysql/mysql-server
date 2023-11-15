@@ -44,14 +44,102 @@
 const char *Logger::LoggerLevelNames[] = {"ON      ", "DEBUG   ", "INFO    ",
                                           "WARNING ", "ERROR   ", "CRITICAL",
                                           "ALERT   ", "ALL     "};
+
+/**
+ * LogHandler that passes log events to every log handler
+ * in a list.
+ */
+class InternalLogListHandler : public LogHandler {
+ public:
+  InternalLogListHandler()
+      : m_pHandlerList(new LogHandlerList()), m_listMutex(NdbMutex_Create()) {}
+
+  ~InternalLogListHandler() override {
+    delete m_pHandlerList;
+    NdbMutex_Destroy(m_listMutex);
+  }
+
+  bool open() override { return true; }
+
+  bool close() override { return true; }
+
+  bool is_open() override { return true; }
+
+  bool setParam(const BaseString & /*param*/,
+                const BaseString & /*value*/) override {
+    return true;
+  }
+
+  /**
+   * Here we pass the message to all bound in LogHandlers
+   */
+  void append(const char *pCategory, Logger::LoggerLevel level,
+              const char *pMsg, time_t now) override {
+    Guard g(m_listMutex);
+
+    LogHandler *pHandler = NULL;
+    while ((pHandler = m_pHandlerList->next()) != NULL) {
+      pHandler->append(pCategory, level, pMsg, now);
+    }
+  }
+
+  bool addHandler(LogHandler *pHandler) {
+    Guard g(m_listMutex);
+    assert(pHandler != NULL);
+
+    if (!pHandler->is_open() && !pHandler->open()) {
+      // Failed to open
+      return false;
+    }
+
+    if (!m_pHandlerList->add(pHandler)) return false;
+
+    return true;
+  }
+
+  bool removeHandler(LogHandler *pHandler) {
+    Guard g(m_listMutex);
+    return m_pHandlerList->remove(pHandler);
+  }
+
+  void removeAllHandlers() {
+    Guard g(m_listMutex);
+    m_pHandlerList->removeAll();
+  }
+
+  void setRepeatFrequency(unsigned val) override {
+    Guard g(m_listMutex);
+    LogHandler *pHandler;
+    while ((pHandler = m_pHandlerList->next()) != NULL) {
+      pHandler->setRepeatFrequency(val);
+    }
+  }
+
+ protected:
+  void writeHeader(const char * /*pCategory*/, Logger::LoggerLevel /*level*/,
+                   time_t /*now*/) override {}
+  void writeMessage(const char * /*pMsg*/) override {}
+  void writeFooter() override {}
+
+ private:
+  LogHandlerList *m_pHandlerList;
+  /* Mutex to protect concurrent list modification / iteration */
+  NdbMutex *m_listMutex;
+
+  /** Prohibit*/
+  InternalLogListHandler(const InternalLogListHandler &);
+  InternalLogListHandler operator=(const InternalLogListHandler &);
+  bool operator==(const InternalLogListHandler &);
+};
+
 Logger::Logger()
     : m_pCategory("Logger"),
       m_pConsoleHandler(nullptr),
       m_pFileHandler(nullptr),
       m_pSyslogHandler(nullptr) {
-  m_pHandlerList = new LogHandlerList();
-  m_mutex = NdbMutex_Create();
-  m_handler_mutex = NdbMutex_Create();
+  m_internalLogListHandler = new InternalLogListHandler();
+  m_log_mutex = NdbMutex_Create();
+  m_handler_creation_mutex = NdbMutex_Create();
   disable(LL_ALL);
   enable(LL_ON);
   enable(LL_INFO);
@@ -59,18 +147,18 @@ Logger::Logger()
 
 Logger::~Logger() {
   removeAllHandlers();
-  delete m_pHandlerList;
-  NdbMutex_Destroy(m_handler_mutex);
-  NdbMutex_Destroy(m_mutex);
+  delete m_internalLogListHandler;
+  NdbMutex_Destroy(m_handler_creation_mutex);
+  NdbMutex_Destroy(m_log_mutex);
 }
 
 void Logger::setCategory(const char *pCategory) {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   m_pCategory = pCategory;
 }
 
 bool Logger::createConsoleHandler(NdbOut &out) {
-  Guard g(m_handler_mutex);
+  Guard g(m_handler_creation_mutex);
 
   if (m_pConsoleHandler) return true;  // Ok, already exist
 
@@ -86,16 +174,11 @@ bool Logger::createConsoleHandler(NdbOut &out) {
   return true;
 }
 
-void Logger::removeConsoleHandler() {
-  Guard g(m_handler_mutex);
-  if (removeHandler(m_pConsoleHandler)) {
-    m_pConsoleHandler = nullptr;
-  }
-}
+void Logger::removeConsoleHandler() { removeHandler(m_pConsoleHandler); }
 
 #ifdef _WIN32
 bool Logger::createEventLogHandler(const char *source_name) {
-  Guard g(m_handler_mutex);
+  Guard g(m_handler_creation_mutex);
 
   LogHandler *log_handler = new EventLogHandler(source_name);
   if (!log_handler) return false;
@@ -110,7 +193,7 @@ bool Logger::createEventLogHandler(const char *source_name) {
 #endif
 
 bool Logger::createFileHandler(char *filename) {
-  Guard g(m_handler_mutex);
+  Guard g(m_handler_creation_mutex);
 
   if (m_pFileHandler) return true;  // Ok, already exist
 
@@ -126,18 +209,13 @@ bool Logger::createFileHandler(char *filename) {
   return true;
 }
 
-void Logger::removeFileHandler() {
-  Guard g(m_handler_mutex);
-  if (removeHandler(m_pFileHandler)) {
-    m_pFileHandler = nullptr;
-  }
-}
+void Logger::removeFileHandler() { removeHandler(m_pFileHandler); }
 
 bool Logger::createSyslogHandler() {
 #ifdef _WIN32
   return false;
 #else
-  Guard g(m_handler_mutex);
+  Guard g(m_handler_creation_mutex);
 
   if (m_pSyslogHandler) return true;  // Ok, already exist
 
@@ -154,44 +232,29 @@ bool Logger::createSyslogHandler() {
 #endif
 }
 
-void Logger::removeSyslogHandler() {
-  Guard g(m_handler_mutex);
-  if (removeHandler(m_pSyslogHandler)) {
-    m_pSyslogHandler = nullptr;
-  }
-}
+void Logger::removeSyslogHandler() { removeHandler(m_pSyslogHandler); }
 
 bool Logger::addHandler(LogHandler *pHandler) {
-  Guard g(m_mutex);
-  assert(pHandler != nullptr);
-
-  if (!pHandler->is_open() && !pHandler->open()) {
-    // Failed to open
-    return false;
-  }
-
-  if (!m_pHandlerList->add(pHandler)) return false;
-
-  return true;
+  return m_internalLogListHandler->addHandler(pHandler);
 }
 
 bool Logger::removeHandler(LogHandler *pHandler) {
-  Guard g(m_mutex);
+  Guard g(m_handler_creation_mutex);
   int rc = false;
   if (pHandler != nullptr) {
     if (pHandler == m_pConsoleHandler) m_pConsoleHandler = nullptr;
     if (pHandler == m_pFileHandler) m_pFileHandler = nullptr;
     if (pHandler == m_pSyslogHandler) m_pSyslogHandler = nullptr;
 
-    rc = m_pHandlerList->remove(pHandler);
+    rc = m_internalLogListHandler->removeHandler(pHandler);
   }
 
   return rc;
 }
 
 void Logger::removeAllHandlers() {
-  Guard g(m_mutex);
-  m_pHandlerList->removeAll();
+  Guard g(m_handler_creation_mutex);
+  m_internalLogListHandler->removeAllHandlers();
 
   m_pConsoleHandler = nullptr;
   m_pFileHandler = nullptr;
@@ -199,7 +262,7 @@ void Logger::removeAllHandlers() {
 }
 
 bool Logger::isEnable(LoggerLevel logLevel) const {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   if (logLevel == LL_ALL) {
     for (unsigned i = 1; i < MAX_LOG_LEVELS; i++)
       if (!m_logLevels[i]) return false;
@@ -209,7 +272,7 @@ bool Logger::isEnable(LoggerLevel logLevel) const {
 }
 
 void Logger::enable(LoggerLevel logLevel) {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   if (logLevel == LL_ALL) {
     for (unsigned i = 0; i < MAX_LOG_LEVELS; i++) {
       m_logLevels[i] = true;
@@ -220,7 +283,7 @@ void Logger::enable(LoggerLevel logLevel) {
 }
 
 void Logger::enable(LoggerLevel fromLogLevel, LoggerLevel toLogLevel) {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   if (fromLogLevel > toLogLevel) {
     LoggerLevel tmp = toLogLevel;
     toLogLevel = fromLogLevel;
@@ -233,7 +296,7 @@ void Logger::enable(LoggerLevel fromLogLevel, LoggerLevel toLogLevel) {
 }
 
 void Logger::disable(LoggerLevel logLevel) {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   if (logLevel == LL_ALL) {
     for (unsigned i = 0; i < MAX_LOG_LEVELS; i++) {
       m_logLevels[i] = false;
@@ -284,23 +347,17 @@ void Logger::debug(const char *pMsg, ...) const {
 }
 
 void Logger::log(LoggerLevel logLevel, const char *pMsg, va_list ap) const {
-  Guard g(m_mutex);
+  Guard g(m_log_mutex);
   if (m_logLevels[LL_ON] && m_logLevels[logLevel]) {
     char buf[MAX_LOG_MESSAGE_SIZE];
     BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
-    LogHandler *pHandler = nullptr;
-    while ((pHandler = m_pHandlerList->next()) != nullptr) {
-      time_t now = ::time((time_t *)nullptr);
-      pHandler->append(m_pCategory, logLevel, buf, now);
-    }
+    time_t now = ::time((time_t *)nullptr);
+    m_internalLogListHandler->append(m_pCategory, logLevel, buf, now);
   }
 }
 
 void Logger::setRepeatFrequency(unsigned val) {
-  LogHandler *pHandler;
-  while ((pHandler = m_pHandlerList->next()) != nullptr) {
-    pHandler->setRepeatFrequency(val);
-  }
+  m_internalLogListHandler->setRepeatFrequency(val);
 }
 
 void Logger::format_timestamp(const time_t epoch, char *str, size_t len) {

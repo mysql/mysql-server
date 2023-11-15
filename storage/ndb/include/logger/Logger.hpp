@@ -34,7 +34,7 @@
 #define MAX_LOG_MESSAGE_SIZE 1024
 
 class LogHandler;
-class LogHandlerList;
+class InternalLogListHandler;
 
 /**
  * Logger should be used whenever you need to log a message like
@@ -317,7 +317,8 @@ class Logger {
   virtual void setRepeatFrequency(unsigned val);
 
  protected:
-  NdbMutex *m_mutex;
+  /* Serialises the Logger front-end API calls */
+  NdbMutex *m_log_mutex;
 
   void log(LoggerLevel logLevel, const char *msg, va_list ap) const
       ATTRIBUTE_FORMAT(printf, 3, 0);
@@ -332,11 +333,11 @@ class Logger {
 
   bool m_logLevels[MAX_LOG_LEVELS];
 
-  LogHandlerList *m_pHandlerList;
   const char *m_pCategory;
 
   /* Default handlers */
-  NdbMutex *m_handler_mutex;
+  NdbMutex *m_handler_creation_mutex;
+  InternalLogListHandler *m_internalLogListHandler;
   LogHandler *m_pConsoleHandler;
   LogHandler *m_pFileHandler;
   LogHandler *m_pSyslogHandler;

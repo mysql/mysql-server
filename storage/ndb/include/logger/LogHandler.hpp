@@ -92,8 +92,8 @@ class LogHandler {
    * @param level the log level.
    * @param pMsg the log message.
    */
-  void append(const char *pCategory, Logger::LoggerLevel level,
-              const char *pMsg, time_t now);
+  virtual void append(const char *pCategory, Logger::LoggerLevel level,
+                      const char *pMsg, time_t now);
   void append_impl(const char *pCategory, Logger::LoggerLevel level,
                    const char *pMsg, time_t now);
 
