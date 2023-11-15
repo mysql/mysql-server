@@ -11071,7 +11071,7 @@ void Dblqh::execCOMMIT(Signal *signal) {
       tablePtr.i = tcConnectptr.p->tableref;
       ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
       if (tcConnectptr.p->operation == ZUPDATE &&
-          tablePtr.p->tableType == DictTabInfo::UserTable) {
+          (ERROR_INSERT_EXTRA == 0 || ERROR_INSERT_EXTRA == tablePtr.i)) {
         g_eventLogger->info("COMMIT an UPDATE on table:%u", tablePtr.i);
         CRASH_INSERTION(5048);
         if (ERROR_INSERTED(5049)) {

@@ -3073,7 +3073,8 @@ int runBug34216(NDBT_Context *ctx, NDBT_Step *step) {
       return NDBT_FAILED;
     }
 
-    if (restarter.insertErrorInNode(nodeId, err) != 0) {
+    const Uint32 tableId = ctx->getTab()->getTableId();
+    if (restarter.insertError2InNode(nodeId, err, tableId) != 0) {
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
