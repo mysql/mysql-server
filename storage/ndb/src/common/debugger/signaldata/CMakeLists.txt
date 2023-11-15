@@ -114,5 +114,3 @@ ADD_CONVENIENCE_LIBRARY(ndbsignaldata
   UtilPrepare.cpp
   UtilSequence.cpp
   )
-# Exclude ndbsignaldata_objlib from PGO on Windows to avoid linker error LNK1248
-EXCLUDE_FROM_MSVC_PGO(ndbsignaldata_objlib)

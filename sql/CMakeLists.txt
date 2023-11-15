@@ -985,8 +985,6 @@ IF(COMPRESS_DEBUG_SECTIONS)
     TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
   ENDIF()
 ENDIF()
-# Exclude sql_gis from PGO on Windows to avoid linker error LNK1248
-EXCLUDE_FROM_MSVC_PGO(sql_gis)
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
