@@ -106,6 +106,10 @@ if ($lctn == 2)
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
+# It should have created a file in the MySQL Servers datadir
+--let $MYSQLD_DATADIR= `select @@datadir`
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_history
+
 --echo ###########################################################################
 --echo # Test upgrade of help tables
 --echo ###########################################################################
@@ -159,6 +163,10 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --let SEARCH_FILE= $MYSQLD_LOG
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
+
+# It should have created a file in the MySQL Servers datadir
+--let $MYSQLD_DATADIR= `select @@datadir`
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_history
 
 --echo # Stop DB server
 --let $shutdown_server_timeout = 300

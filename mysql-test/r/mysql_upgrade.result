@@ -1,6 +1,7 @@
 # restart:--upgrade=FORCE --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,ANSI_QUOTES --log-error=MYSQLD_LOG
 # There should be no errors
 Pattern "\[ERROR\]" not found
+# mysql_upgrade_history file should be created successfully.
 # Restart server with defaults
 # restart:
 #

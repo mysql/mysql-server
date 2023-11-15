@@ -27,6 +27,10 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 #include "sql/dd/upgrade/server.h"
 #ifdef HAVE_UNISTD_H
@@ -35,9 +39,14 @@
 #include <vector>
 
 #include "my_dbug.h"
+#include "my_rapidjson_size_t.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 #include "scripts/mysql_fix_privilege_tables_sql.h"
 #include "scripts/sql_commands_system_tables_data_fix.h"
 #include "scripts/sql_firewall_sp_firewall_group_delist.h"
@@ -811,7 +820,144 @@ static bool check_views(THD *thd, std::unique_ptr<Schema> &schema,
   return thd->dd_client()->foreach<dd::View>(view_key.get(), process_view);
 }
 
+/* Make sure the old unsupported "mysql_upgrade_info" file is removed. */
+static void remove_legacy_upgrade_info_file() {
+  char upgrade_file[FN_REFLEN] = {0};
+  fn_format(upgrade_file, "mysql_upgrade_info", mysql_real_data_home_ptr, "",
+            MYF(0));
+  if (!my_access(upgrade_file, F_OK))
+    std::ignore = mysql_file_delete(key_file_misc, upgrade_file, MYF(0));
+}
 }  // namespace
+
+/*
+  Maintain a file named "mysql_upgrade_history" in the data directory.
+
+  The file will contain one entry for each upgrade. The format is structured
+  text on JSON format.
+
+  Errors will be written as warnings to the error log; if we e.g. fail to
+  open the upgrade history file, we will not abort the server since this file
+  is not considered a critical feature of the server.
+
+  @param initialize   If this is the initialization of the data directory.
+*/
+void update_upgrade_history_file(bool initialize) {
+  /* Name of the "mysql_upgrade_history" file. */
+  char upgrade_file[FN_REFLEN] = {0};
+  fn_format(upgrade_file, "mysql_upgrade_history", mysql_real_data_home_ptr, "",
+            MYF(0));
+
+  /* JSON keys. */
+  constexpr char k_file_format[] = "file_format";
+  constexpr char k_upgrade_history[] = "upgrade_history";
+  constexpr char k_date[] = "date";
+  constexpr char k_version[] = "version";
+  constexpr char k_maturity[] = "maturity";
+  constexpr char k_initialize[] = "initialize";
+  constexpr char v_file_format[] = "1";
+
+  /* If > max entries, we keep the first and the (max - 1)  last ones. */
+  constexpr int MAX_HISTORY_SIZE = 1000;
+  static_assert(MAX_HISTORY_SIZE >= 2,
+                "The upgrade history should contain at least the first "
+                "and last entry.");
+  using namespace rapidjson;
+  Document doc;
+
+  /* Open file if it exists, auto close on return. */
+  auto deleter = [&](FILE *ptr) {
+    if (ptr != nullptr) my_fclose(ptr, MYF(0));
+  };
+  std::unique_ptr<FILE, decltype(deleter)> fp(nullptr, deleter);
+
+  MY_STAT sa;
+  char errbuf[MYSYS_STRERROR_SIZE];
+  bool file_exists = (my_stat(upgrade_file, &sa, MYF(0)) != nullptr);
+  bool append = file_exists;  // Append to current doc if possible.
+
+  /* If the file exists, read the doc and see if it is valid. */
+  if (file_exists) {
+    fp.reset(my_fopen(upgrade_file, O_RDONLY, MYF(0)));
+    if (fp == nullptr) {
+      LogErr(WARNING_LEVEL, ER_SERVER_CANT_OPEN_FILE, upgrade_file, my_errno(),
+             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      return;
+    }
+
+    /* Read contents into buffer. */
+    char buff[512] = {0};
+    std::string parsed_value;
+    do {
+      parsed_value.append(buff);
+      buff[0] = '\0';
+    } while (fgets(buff, sizeof(buff) - 1, fp.get()));
+
+    /* Parse JSON, check expected format. */
+    ParseResult ok = doc.Parse(parsed_value.c_str());
+    if (!(ok && doc.IsObject() && doc[k_file_format].IsString() &&
+          doc[k_upgrade_history].IsArray())) {
+      LogErr(WARNING_LEVEL, ER_INVALID_FILE_FORMAT, upgrade_file);
+      append = false;  // Cannot append, must overwrite with an empty doc.
+    }
+  }
+
+  /* If the file existed with valid contents, append, otherwise, overwrite. */
+  if (append) {
+    /* If current version is same as last entry, return. */
+    Value &hist = doc[k_upgrade_history].GetArray();
+    int count = hist.Size();
+    if (count > 0 &&
+        !strcmp(hist[count - 1][k_version].GetString(), server_version))
+      return;
+
+    /* If the doc contains too many entries, remove from the second and on. */
+    int remove_count = (count - MAX_HISTORY_SIZE) + 1;
+    if (remove_count > 0) {
+      hist.Erase(hist.Begin() + 1, hist.Begin() + remove_count + 1);
+    }
+  } else {
+    /* Otherwise, if no file existed, initialize an empty JSON document. */
+    doc.SetObject();
+    doc.AddMember(k_file_format, v_file_format, doc.GetAllocator());
+    Value history(kArrayType);
+    doc.AddMember(k_upgrade_history, history, doc.GetAllocator());
+  }
+
+  /* Append timestamp, MYSQL_SERVER_VERSION and LTS info to version array. */
+  std::stringstream str;
+  std::time_t sec = my_micro_time() / 1000000;
+  str << std::put_time(std::gmtime(&sec), "%F %T");
+  Value date(str.str().c_str(), str.str().size(), doc.GetAllocator());
+  Value version(server_version, strlen(server_version), doc.GetAllocator());
+  Value maturity(MYSQL_VERSION_MATURITY);
+
+  Value new_version;
+  new_version.SetObject();
+  new_version.AddMember(k_date, date, doc.GetAllocator());
+  new_version.AddMember(k_version, version, doc.GetAllocator());
+  new_version.AddMember(k_maturity, maturity, doc.GetAllocator());
+  if (initialize) {
+    Value init(true);
+    new_version.AddMember(k_initialize, init, doc.GetAllocator());
+  }
+  doc[k_upgrade_history].GetArray().PushBack(new_version, doc.GetAllocator());
+
+  /* Reopen the file, which is auto closed on function return. */
+  fp.reset(my_fopen(upgrade_file, O_CREAT | O_TRUNC | O_WRONLY, MYF(0)));
+  if (fp == nullptr) {
+    LogErr(WARNING_LEVEL, ER_SERVER_CANT_OPEN_FILE, upgrade_file, my_errno(),
+           my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    return;
+  }
+
+  /* Write JSON document to a buffer and further to file with a newline. */
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+  doc.Accept(writer);
+  fputs(buffer.GetString(), fp.get());
+  fputs("\n", fp.get());
+}
 
 /*
   This function runs checks on the database before running the upgrade to make
@@ -1040,6 +1186,8 @@ bool upgrade_system_schemas(THD *thd) {
           dd::tables::DD_properties::instance().set(
               thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID);
   }
+
+  remove_legacy_upgrade_info_file();
   bootstrap_error_handler.set_log_error(true);
 
   if (dd::bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade()) {

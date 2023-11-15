@@ -12683,6 +12683,9 @@ ER_IB_LONG_ROLLBACK_FULL
 ER_IB_LONG_ROLLBACK
   eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete)."
 
+ER_INVALID_FILE_FORMAT
+  eng "Invalid format of file '%s'."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

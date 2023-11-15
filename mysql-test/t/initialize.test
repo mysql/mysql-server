@@ -7,6 +7,7 @@ let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
 let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
+let UPGRADE_HISTORY_FILE=$DDIR/mysql_upgrade_history;
 
 --echo # Save the count of columns in mysql
 --let $mysql_cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql'`
@@ -23,6 +24,15 @@ let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
 --echo # Run the server with --initialize
 --exec $MYSQLD $extra_args --initialize --datadir=$DDIR --log-error-verbosity=1 > $MYSQLD_LOG 2>&1
+
+--echo # Make sure the mysql_upgrade_history file is created with "initialize" tag
+--file_exists $UPGRADE_HISTORY_FILE
+--let SEARCH_FILE= $UPGRADE_HISTORY_FILE
+--let SEARCH_PATTERN= initialize
+--source include/search_pattern.inc
+
+--echo # Remove the upgrade history file
+--remove_file $UPGRADE_HISTORY_FILE
 
 --echo extract the root password
 --perl
@@ -65,6 +75,17 @@ SELECT 1;
 --echo # reset the password
 SET PASSWORD='';
 
+--echo # Make sure the mysql_upgrade_history file is recreated without "initialize"
+--file_exists $DDIR/mysql_upgrade_history
+--let $assert_text= Assert that the mysql_upgrade_history file does not contain the initialize tag after restart
+--let $assert_file= $UPGRADE_HISTORY_FILE
+--let $assert_select= 'initialize'
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+--echo # Copy upgrade history file
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/old_upgrade_history_file
+
 --echo # Check the count of columns in mysql
 --let $cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql';`
 if ($cnt != $mysql_cnt)
@@ -93,6 +114,13 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TA
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 
 CREATE DATABASE test;
+
+--echo # Restart the server against DDIR again
+--exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--echo # Make sure the upgrade history file has not changed since the version is the same
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/old_upgrade_history_file
 
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -129,10 +157,24 @@ EOF
 --echo # Run the server with --initialize-insecure --init-file
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
 
+--echo # Make sure the mysql_upgrade_history file is created
+--file_exists $DDIR/mysql_upgrade_history
+
+--echo # Create history file with fake verson and make copy
+--echo # This will make sure the file is changed upon restart
+--remove_file $UPGRADE_HISTORY_FILE
+--write_file $UPGRADE_HISTORY_FILE
+{"file_format":"1","upgrade_history":[{"date":"2024-01-08 13:27:26","version":"fake_version","stability":"LTS","initialize":true}]}
+EOF
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/fake_upgrade_history_file
 
 --echo # Restart the server against DDIR
 --exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
+
+--echo # Make sure the upgrade history file has changed
+--error 2
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/fake_upgrade_history_file
 
 --echo # connect as root
 connect(root_con,localhost,root,,mysql);

@@ -22,6 +22,9 @@
 --let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
+--echo # mysql_upgrade_history file should be created successfully.
+--file_exists $MYSQLD_DATADIR/mysql_upgrade_history
+
 --remove_file $MYSQLD_LOG
 
 --echo # Restart server with defaults

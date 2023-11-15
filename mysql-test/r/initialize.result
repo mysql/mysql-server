@@ -5,6 +5,9 @@
 # Try --initialize
 #
 # Run the server with --initialize
+# Make sure the mysql_upgrade_history file is created with "initialize" tag
+Pattern "initialize" found
+# Remove the upgrade history file
 extract the root password
 password found
 # Restart the server against DDIR
@@ -14,6 +17,9 @@ SELECT 1;
 ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # reset the password
 SET PASSWORD='';
+# Make sure the mysql_upgrade_history file is recreated without "initialize"
+include/assert_grep.inc [Assert that the mysql_upgrade_history file does not contain the initialize tag after restart]
+# Copy upgrade history file
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
@@ -46,6 +52,8 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 COUNT(*)
 2
 CREATE DATABASE test;
+# Restart the server against DDIR again
+# Make sure the upgrade history file has not changed since the version is the same
 # shut server down
 # Server is down
 # close the test connection
@@ -57,7 +65,11 @@ CREATE DATABASE test;
 #
 # create bootstrap file
 # Run the server with --initialize-insecure --init-file
+# Make sure the mysql_upgrade_history file is created
+# Create history file with fake verson and make copy
+# This will make sure the file is changed upon restart
 # Restart the server against DDIR
+# Make sure the upgrade history file has changed
 # connect as root
 # must pass: no password expiration
 SELECT 1;

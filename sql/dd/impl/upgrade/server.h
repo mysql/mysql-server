@@ -150,6 +150,20 @@ class Routine_event_context_guard {
 };
 
 /**
+  Maintain a file named "mysql_upgrade_history" in the data directory.
+
+  The file will contain one entry for each upgrade. The format is structured
+  text on JSON format.
+
+  Errors will be written as warnings to the error log; if we e.g. fail to
+  open the upgrade history file, we will not abort the server since this file
+  is not considered a critical feature of the server.
+
+  @param initialize   If this is the initialization of the data directory.
+*/
+void update_upgrade_history_file(bool initialize);
+
+/**
   Performs validation on server metadata.
 
   @param thd    Thread context.

@@ -112,6 +112,11 @@ verify_ready() {
 			chown --reference="${MYSQLDATA}" "${MYSQLDATA}/mysql_upgrade_info"
 		fi
 
+		# Ensures that the mysql_upgrade_history file is owned by the database
+		if [ -O "${MYSQLDATA}/mysql_upgrade_history" ]; then
+			chown --reference="${MYSQLDATA}" "${MYSQLDATA}/mysql_upgrade_history"
+		fi
+
 		if [ "${MYSQLFILES}" != "NULL" -a ! -d "${MYSQLFILES}" -a ! -L "${MYSQLFILES}" ]; then
 			if [ "$(dirname ${MYSQLFILES})" = "/var/lib" ]; then
 				install -d -m0770 -omysql -gmysql "${MYSQLFILES}"

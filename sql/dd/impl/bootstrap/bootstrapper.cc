@@ -1181,12 +1181,12 @@ bool initialize_dd_properties(THD *thd) {
       Get information from DD properties. Do this after 8.2.0 / 8.0.35.
       Older versions do not have the required information available.
     */
-    String_type mysql_version_stability{"INNOVATION"};
+    String_type mysql_version_maturity{"INNOVATION"};
     uint server_downgrade_threshold = 0;
     uint server_upgrade_threshold = 0;
     /* purecov: begin inspected */
     if (actual_server_version >= 80035 && actual_server_version != 80100) {
-      (void)getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_stability,
+      (void)getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_maturity,
                     false, WARNING_LEVEL);
       (void)getprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                     &server_downgrade_threshold, false, WARNING_LEVEL);
@@ -1199,7 +1199,7 @@ bool initialize_dd_properties(THD *thd) {
       if (MYSQL_VERSION_ID > actual_server_version) {
         // This is an upgrade attempt.
         if ((MYSQL_VERSION_ID / 10000) != (actual_server_version / 10000) &&
-            (mysql_version_stability != "LTS" ||
+            (mysql_version_maturity != "LTS" ||
              actual_server_version / 100 == 800 ||
              MYSQL_VERSION_ID / 10000 != actual_server_version / 10000 + 1)) {
           LogErr(ERROR_LEVEL, ER_INVALID_SERVER_UPGRADE_NOT_LTS,
@@ -1862,7 +1862,7 @@ bool update_versions(THD *thd) {
                 dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD) ||
         setprop(thd, "SDI_VERSION", dd::SDI_VERSION) ||
         setprop(thd, "LCTN", lower_case_table_names) ||
-        setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_STABILITY) ||
+        setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_MATURITY) ||
         setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                 SERVER_DOWNGRADE_THRESHOLD) ||
         setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD) ||
@@ -1899,7 +1899,7 @@ bool update_versions(THD *thd) {
          setprop(thd, "MYSQLD_VERSION_HI", MYSQL_VERSION_ID)) ||
         (mysqld_version != MYSQL_VERSION_ID &&
          (setprop(thd, "MYSQLD_VERSION", MYSQL_VERSION_ID) ||
-          setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_STABILITY) ||
+          setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_MATURITY) ||
           setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                   SERVER_DOWNGRADE_THRESHOLD) ||
           setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD))))
@@ -1952,6 +1952,9 @@ bool update_versions(THD *thd) {
       return dd::end_transaction(thd, true);
     }
   }
+
+  /* Keep a record of upgrades, including update releases. */
+  upgrade::update_upgrade_history_file(opt_initialize);
 
 #ifndef NDEBUG
   /*
