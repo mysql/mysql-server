@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <map>
 #include <vector>
 
+#include <scope_guard.h>
 #include "dict0stats.h"
 #include "dyn0buf.h"
 #include "ha_prototypes.h"
@@ -171,22 +172,20 @@ static inline bool dict_stats_should_ignore_index(
 This function will free the pinfo object.
 @param[in,out]  pinfo   pinfo to pass to que_eval_sql() must already
 have any literals bound to it
-@param[in]      sql     SQL string to execute
-@param[in,out]  trx     in case of NULL the function will allocate and
-free the trx object. If it is not NULL then it will be rolled back
-only in the case of error, but not freed.
+@param[in]      sql   SQL string to execute
+@param[in,out]  trx   in case of NULL the function will allocate and free the
+                      trx object.
 @return DB_SUCCESS or error code */
 static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
                                    trx_t *trx) {
   dberr_t err;
-  bool trx_started = false;
+  const bool trx_started = (trx == nullptr);
 
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
   ut_ad(!dict_sys_mutex_own());
 
   if (trx == nullptr) {
     trx = trx_allocate_for_background();
-    trx_started = true;
 
     if (srv_read_only_mode) {
       trx_start_internal_read_only(trx, UT_LOCATION_HERE);
@@ -197,14 +196,25 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
 
   err = que_eval_sql(pinfo, sql, trx); /* pinfo is freed here */
 
+  DBUG_EXECUTE_IF("dict_stats_exec_sql_lock_timeout", {
+    static thread_local int execution_counter{0};
+
+    execution_counter++;
+
+    err = DB_LOCK_WAIT_TIMEOUT;
+    if (execution_counter > 3) {
+      DBUG_SET("-d,dict_stats_exec_sql_lock_timeout");
+    }
+  });
+
   DBUG_EXECUTE_IF(
       "stats_index_error", if (!trx_started) {
         err = DB_STATS_DO_NOT_EXIST;
         trx->error_state = DB_STATS_DO_NOT_EXIST;
       });
 
-  if (!trx_started && err == DB_SUCCESS) {
-    return (DB_SUCCESS);
+  if (!trx_started) {
+    return err;
   }
 
   if (err == DB_SUCCESS) {
@@ -218,9 +228,7 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
     ut_a(trx->error_state == DB_SUCCESS);
   }
 
-  if (trx_started) {
-    trx_free_for_background(trx);
-  }
+  trx_free_for_background(trx);
 
   return (err);
 }
@@ -1662,7 +1670,7 @@ static inline void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
  members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
  stat_n_leaf_pages, based on the specified n_sample_pages.
 @param[in,out] n_sample_pages   number of leaf pages to sample. and suggested
-next value to retry if aborted.
+                next value to retry if aborted.
 @param[in,out] index            index to analyze.
 @return false if aborted */
 static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
@@ -2218,6 +2226,30 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
   pars_info_add_ull_literal(pinfo, "sum_of_other_index_sizes",
                             table->stat_sum_of_other_index_sizes);
 
+  if (local_trx) {
+    trx = trx_allocate_for_background();
+
+    if (srv_read_only_mode) {
+      trx_start_internal_read_only(trx, UT_LOCATION_HERE);
+    } else {
+      trx_start_internal(trx, UT_LOCATION_HERE);
+    }
+  }
+
+  auto guard = create_scope_guard([&]() {
+    if (local_trx) {
+      if (ret == DB_SUCCESS) {
+        trx_commit_for_mysql(trx);
+      } else {
+        trx_rollback_to_savepoint(trx, nullptr);
+      }
+      trx_free_for_background(trx);
+    }
+    rw_lock_x_unlock(dict_operation_lock);
+
+    dict_stats_snapshot_free(table);
+  });
+
   ret = dict_stats_exec_sql(pinfo,
                             "PROCEDURE TABLE_STATS_SAVE () IS\n"
                             "BEGIN\n"
@@ -2246,21 +2278,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
     ib::error(ER_IB_MSG_223) << "Cannot save table statistics for table "
                              << table->name << ": " << ut_strerr(ret);
 
-    rw_lock_x_unlock(dict_operation_lock);
-
-    dict_stats_snapshot_free(table);
-
     return (ret);
-  }
-
-  if (local_trx) {
-    trx = trx_allocate_for_background();
-
-    if (srv_read_only_mode) {
-      trx_start_internal_read_only(trx, UT_LOCATION_HERE);
-    } else {
-      trx_start_internal(trx, UT_LOCATION_HERE);
-    }
   }
 
   dict_index_t *index;
@@ -2324,7 +2342,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
           &index->stat_n_sample_sizes[i], stat_description, trx);
 
       if (ret != DB_SUCCESS) {
-        goto end;
+        return ret;
       }
     }
 
@@ -2334,7 +2352,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                                      "in the index",
                                      trx);
     if (ret != DB_SUCCESS) {
-      goto end;
+      return ret;
     }
 
     ret = dict_stats_save_index_stat(index, now, "size", index->stat_index_size,
@@ -2343,22 +2361,9 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                                      "in the index",
                                      trx);
     if (ret != DB_SUCCESS) {
-      goto end;
+      return ret;
     }
   }
-
-  if (local_trx) {
-    trx_commit_for_mysql(trx);
-  }
-
-end:
-  if (local_trx) {
-    trx_free_for_background(trx);
-  }
-
-  rw_lock_x_unlock(dict_operation_lock);
-
-  dict_stats_snapshot_free(table);
 
   return (ret);
 }
