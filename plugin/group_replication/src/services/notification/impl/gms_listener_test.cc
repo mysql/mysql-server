@@ -49,7 +49,33 @@ my_h_service h_gms_listener_example =
 my_h_service h_gmst_listener_example =
     reinterpret_cast<my_h_service>(const_cast<svc_gmst_t *>(&svc_gmst_def));
 
-bool log_notification_to_test_table(std::string msg) {
+int Gms_listener_test_parameters::get_error() { return m_error; }
+
+void Gms_listener_test_parameters::set_error(int error) { m_error = error; }
+
+const std::string &Gms_listener_test_parameters::get_message() {
+  return m_message;
+}
+
+bool Gms_listener_test::log_notification_to_test_table(
+    const std::string &message) {
+  int error = 1;
+
+  if (nullptr == mysql_thread_handler) {
+    return true;
+  }
+
+  Gms_listener_test_parameters *parameters =
+      new Gms_listener_test_parameters(message);
+  Mysql_thread_task *task = new Mysql_thread_task(this, parameters);
+  error = mysql_thread_handler->trigger(task);
+  error |= parameters->get_error();
+
+  delete task;
+  return error != 0;
+}
+
+void Gms_listener_test::run(Mysql_thread_body_parameters *parameters) {
   int res = 0;
   Sql_resultset rset;
   ulong srv_err = 0;
@@ -57,14 +83,15 @@ bool log_notification_to_test_table(std::string msg) {
   bool read_only_mode = false, super_read_only_mode = false;
   Sql_service_command_interface *sql_cmd = new Sql_service_command_interface();
   Sql_service_interface *sql_intf = nullptr;
-  enum_plugin_con_isolation trx_iso =
-      current_thd == nullptr ? PSESSION_INIT_THREAD : PSESSION_USE_THREAD;
   std::stringstream ss;
+  Gms_listener_test_parameters *param =
+      (Gms_listener_test_parameters *)parameters;
+  const std::string &msg = param->get_message();
 
   ss.str("");
   ss.clear();
   ss << "Openning session.";
-  if (sql_cmd->establish_session_connection(trx_iso, GROUPREPL_USER,
+  if (sql_cmd->establish_session_connection(PSESSION_USE_THREAD, GROUPREPL_USER,
                                             get_plugin_pointer())) {
     res = 1;  /* purecov: inspected */
     goto end; /* purecov: inspected */
@@ -138,7 +165,7 @@ end:
   }
 
   delete sql_cmd;
-  return res != 0;
+  param->set_error(res);
 }
 
 /**
@@ -150,7 +177,8 @@ DEFINE_BOOL_METHOD(group_membership_listener_example_impl::notify_view_change,
                    (const char *v)) {
   std::stringstream ss;
   ss << "VIEW CHANGED: " << v;
-  log_notification_to_test_table(ss.str());
+  Gms_listener_test gms_listener_test;
+  gms_listener_test.log_notification_to_test_table(ss.str());
 
   return false;
 }
@@ -159,7 +187,8 @@ DEFINE_BOOL_METHOD(group_membership_listener_example_impl::notify_quorum_lost,
                    (const char *v)) {
   std::stringstream ss;
   ss << "QUORUM LOST: " << v;
-  log_notification_to_test_table(ss.str());
+  Gms_listener_test gms_listener_test;
+  gms_listener_test.log_notification_to_test_table(ss.str());
 
   return false;
 }
@@ -169,7 +198,8 @@ DEFINE_BOOL_METHOD(
     (const char *v)) {
   std::stringstream ss;
   ss << "ROLE CHANGED: " << v;
-  log_notification_to_test_table(ss.str());
+  Gms_listener_test gms_listener_test;
+  gms_listener_test.log_notification_to_test_table(ss.str());
 
   return false;
 }
@@ -179,7 +209,8 @@ DEFINE_BOOL_METHOD(
     (const char *v)) {
   std::stringstream ss;
   ss << "STATE CHANGED: " << v;
-  log_notification_to_test_table(ss.str());
+  Gms_listener_test gms_listener_test;
+  gms_listener_test.log_notification_to_test_table(ss.str());
 
   return false;
 }

@@ -144,6 +144,14 @@ class My_xp_thread_impl : public My_xp_thread_server
 class My_xp_thread_util {
  public:
   /**
+    Initialize a MySQL context on the invoking thread.
+
+    @return success status
+  */
+
+  static bool init();
+
+  /**
     Terminate invoking thread.
 
     @param value_ptr thread exit value pointer

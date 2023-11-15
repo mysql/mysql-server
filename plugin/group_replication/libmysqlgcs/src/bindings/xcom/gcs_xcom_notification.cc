@@ -155,6 +155,14 @@ void Protocol_change_notification::do_execute() {
 
 void *process_notification_thread(void *ptr_object) {
   Gcs_xcom_engine *engine = static_cast<Gcs_xcom_engine *>(ptr_object);
+
+  /*
+    This thread will invoke the event handlers on Group Replication,
+    which may call operations that on debug builds do require a
+    MySQL context to be initialized only once during this thread life.
+  */
+  My_xp_thread_util::init();
+
   engine->process();
 
   My_xp_thread_util::exit(nullptr);
