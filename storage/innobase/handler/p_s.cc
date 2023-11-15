@@ -43,6 +43,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0i_s.h"
 #include "trx0sys.h"
 
+#include <algorithm>
+#include <array>
+#include <limits>
+
 #include "my_io.h"
 
 /**
@@ -121,25 +125,42 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
   What is implemented is:
   - Take all necessary locks
-  - Resume the scan on innodb internal locks,
-  for a given record range
-  - Report all the records in the range to the performance schema
+  - Resume the scan on innodb internal locks, for a range containing at most
+    RANGE transactions
+  - Report all the records of transactions in the range to the p_s
   - Release all the locks taken
 
   This is a compromise, with the following properties:
   - Memory consumption is bounded,
-    by the number of records returned in each range.
+    by the number of transactions processed in each range.
   - The duration of mutex locks on innodb structures is bounded
     by the number of records in each range
   - The data returned is not consistent,
     but at least it is "consistent by chunks"
-  - The overall scan complexity is (N/RANGE)^2, where RANGE is the range size.
-  This is still technically O(N^2), but in practice should be reasonable.
-
-  For example with N = 10,000 transactions and RANGE = 256,
-  there are 40 batches at the trx list,
-  where each batch reports (up to) 256 trx, with the trx locks.
-  The total number of operations on the list is 400 thousands.
+  - As the trx_sys->rw_trx_list and trx_sys->mysql_trx_list lists we iterate
+    over are in constant flux (transactions can start or end, when we don't hold
+    trx_sys->mutex), and the lists aren't sorted by id nor by address, we can't
+    use position within the list, nor pointer to trx, nor trx->id, as a
+    "persistent cursor". Instead we use trx_immutable_id(trx) to map them to
+    space of natural numbers, and divide that space into ranges, so that each
+    range contains RANGE transactions (except for the last which can have less).
+  - The overall scan complexity is O(N/RANGE)*N*lg(RANGE), as there will be at
+    most (N/RANGE) ranges, and establishing where each range ends requires
+    O(Nlg(RANGE)) operations. It could be O(N) if we used n_th_element, but that
+    would require a Omega(N) memory, so instead we use a heap of size O(RANGE)
+    to figure out the RANGE-th smallest not yet processed transaction. Each
+    operation on this heap takes O(lg(RANGE)) and in worst case we need O(N) of
+    them. In practice, if the sequence is random, the number of operations on
+    the heap is expected to be sum(RANGE/i)=O(RANGE*lg(N)) as i-th element of
+    the sequence has roughly RANGE/i chance of being among the RANGE smallest
+    so far. So the total expected time for random sequences is around
+    (N/RANGE)*(N+RANGE*lg(N)*lg(RANGE)) which is O(N^2/RANGE + Nlg(N)lg(RANGE)).
+    This is still technically O(N^2), but as the RANGE is 256, in practice it
+    should be reasonable. For example with N = 10,000 transactions, there are 40
+    batches at the trx list, where each batch reports (up to) 256 trx, with the
+    trx locks. The total number of operations on the list is 400 thousands plus
+    some number of operations on the heap, which we expect to be ~160 thousands
+    and each takes ~8 steps within the heap.
 */
 
 static const char *g_engine = "INNODB";
@@ -159,94 +180,154 @@ enum scan_pass {
   DONE_SCANNING
 };
 
+/* A class used to find the maximum of the N smallest elements of a sequence.
+You pass elements of the sequence to Max_of_n_smallest::visit(e), and check the
+value with Max_of_n_smallest::get().
+If the sequence is empty (visit wasn't called) the maximum value of the Element
+type is returned.
+Otherwise if the sequence has less than N elements, then the maximum of them is
+returned. */
+template <size_t N, typename Element>
+class Max_of_n_smallest {
+  /* These are N smallest elements visited so far.
+  If there are less than N of them, we don't bother to heapify until asked
+  for the max of them, so that we pay only O(1) per visit.
+  Once there are N of them, we heapify this collection in O(N), so that the
+  the largest of them is in [0].
+  From this point onward each visit(e) will compare e to n_smallest[0], to
+  know if it is among the N smallest. If so, we pop [0], and insert e,
+  instead. This exchange requires O(lgN) at most. */
+  std::array<Element, N> n_smallest;
+  size_t cnt{0};
+
+ public:
+  void visit(const Element &e) {
+    if (cnt < N) {
+      n_smallest[cnt++] = e;
+      if (cnt == N) {
+        std::make_heap(n_smallest.begin(), n_smallest.end());
+      }
+    } else if (e < n_smallest[0]) {
+      std::pop_heap(n_smallest.begin(), n_smallest.end());
+      n_smallest.back() = e;
+      std::push_heap(n_smallest.begin(), n_smallest.end());
+    }
+  }
+  Element get() {
+    if (cnt == 0) {
+      return std::numeric_limits<Element>::max();
+    }
+    if (cnt < N) {
+      std::make_heap(n_smallest.begin(), n_smallest.begin() + cnt);
+    }
+    return n_smallest[0];
+  }
+};
+
 /** State of a given scan.
 Scans are restartable, and done in multiple calls.
 Overall, the code scans separately:
 - the RW trx list
 - the MySQL trx list
-For each list, the scan is done by ranges of trx_id values.
-Saving the current scan state allows to resume where the previous
-scan ended.
+For each list, the scan is done by ranges of trx_immutable_id(trx) values.
+Saving the current scan state allows to resume where the previous scan ended.
+The typical usage is:
+state.prepare_scan();
+for (trx : trx list for state.get_pass() ){
+  if(state.trx_in_range(trx)){
+    process trx
+  }
+}
+It's callers responsibility to handle that the two lists aren't disjoint.
+The range of trx_immutable_id(..) values to be included in scan is decided by
+prepare_scan(..) so that it contains SCAN_RANGE transactions from current list.
 */
 class Innodb_trx_scan_state {
  public:
-  const trx_id_t SCAN_RANGE = 256;
+  static constexpr trx_id_t SCAN_RANGE = 256;
 
   Innodb_trx_scan_state()
       : m_scan_pass(INIT_SCANNING),
-        m_start_trx_id_range(0),
-        m_end_trx_id_range(SCAN_RANGE),
-        m_next_trx_id_range(TRX_ID_MAX) {}
+        m_start_trx_immutable_id_range(0),
+        m_end_trx_immutable_id_range(0) {}
 
   ~Innodb_trx_scan_state() = default;
 
   scan_pass get_pass() { return m_scan_pass; }
 
-  /** Prepare the next scan.
-  When there are TRX after the current range,
-  compute the next range.
-  When there are no more TRX for this pass,
-  advance to the next pass.
-  */
-  void prepare_next_scan() {
-    if (m_next_trx_id_range != TRX_ID_MAX) {
-      m_start_trx_id_range =
-          m_next_trx_id_range - (m_next_trx_id_range % SCAN_RANGE);
-      m_end_trx_id_range = m_start_trx_id_range + SCAN_RANGE;
-      m_next_trx_id_range = TRX_ID_MAX;
-    } else {
-      switch (m_scan_pass) {
-        case INIT_SCANNING:
-          m_scan_pass = SCANNING_RW_TRX_LIST;
-          m_start_trx_id_range = 0;
-          m_end_trx_id_range = SCAN_RANGE;
-          m_next_trx_id_range = TRX_ID_MAX;
-          break;
-        case SCANNING_RW_TRX_LIST:
-          m_scan_pass = SCANNING_MYSQL_TRX_LIST;
-          m_start_trx_id_range = 0;
-          m_end_trx_id_range = SCAN_RANGE;
-          m_next_trx_id_range = TRX_ID_MAX;
-          break;
-        case SCANNING_MYSQL_TRX_LIST:
-          m_scan_pass = DONE_SCANNING;
-          break;
-        case DONE_SCANNING:
-        default:
-          ut_error;
-          break;
-      }
+  /** Prepare the scan:
+  Sets the m_scan_pass used by get_pass() to determine which list caller should
+  iterate, and [m_start_trx_id_range, m_end_trx_id_range) range used by
+  trx_in_range(trx), which the caller should use to check if trx is in range.
+  The range will contain at most SCAN_RANGE elements.
+  Caller must hold trx_sys->mutex.
+  When there are no more TRX for this pass, advances to the next pass. */
+  void prepare_scan() {
+    ut_ad(trx_sys_mutex_own());
+    switch (m_scan_pass) {
+      case INIT_SCANNING:
+        m_scan_pass = SCANNING_RW_TRX_LIST;
+        m_end_trx_immutable_id_range = 0;
+        [[fallthrough]];
+      case SCANNING_RW_TRX_LIST:
+        m_start_trx_immutable_id_range = m_end_trx_immutable_id_range;
+        if (prepare_end_of_range(trx_sys->rw_trx_list)) {
+          return;
+        }
+        m_scan_pass = SCANNING_MYSQL_TRX_LIST;
+        m_end_trx_immutable_id_range = 0;
+        [[fallthrough]];
+      case SCANNING_MYSQL_TRX_LIST:
+        m_start_trx_immutable_id_range = m_end_trx_immutable_id_range;
+        if (prepare_end_of_range(trx_sys->mysql_trx_list)) {
+          return;
+        }
+        m_scan_pass = DONE_SCANNING;
+        m_end_trx_immutable_id_range = 0;
+        [[fallthrough]];
+      case DONE_SCANNING:
+        break;
+      default:
+        ut_error;
+        break;
     }
   }
 
   /** Check if a transaction belongs to the current range.
-  As a side effect, compute the next range.
-  @param[in] trx_id     Transaction id to evaluate
+  @param[in] trx     Transaction to evaluate
   @return True if transaction is within range.
   */
-  bool trx_id_in_range(trx_id_t trx_id) {
-    ut_ad(trx_id < TRX_ID_MAX);
-
-    if ((m_start_trx_id_range <= trx_id) && (trx_id < m_end_trx_id_range)) {
-      return true;
-    }
-
-    if ((m_end_trx_id_range <= trx_id) && (trx_id < m_next_trx_id_range)) {
-      m_next_trx_id_range = trx_id;
-    }
-
-    return false;
+  bool trx_in_range(const trx_t *trx) {
+    const uint64_t id = trx_immutable_id(trx);
+    return ((m_start_trx_immutable_id_range <= id) &&
+            (id < m_end_trx_immutable_id_range));
   }
 
  private:
+  template <typename Trx_list>
+  bool prepare_end_of_range(Trx_list &trx_list) {
+    Max_of_n_smallest<SCAN_RANGE, uint64_t> guess_last_in_next_batch;
+    ut_ad(trx_sys_mutex_own());
+    bool found_something = false;
+    for (const trx_t *trx : trx_list) {
+      const uint64_t id = trx_immutable_id(trx);
+      if (m_start_trx_immutable_id_range <= id) {
+        guess_last_in_next_batch.visit(id);
+        found_something = true;
+      }
+    }
+    if (found_something) {
+      m_end_trx_immutable_id_range = guess_last_in_next_batch.get() + 1;
+    }
+    return found_something;
+  }
+
   /** Current scan pass. */
   scan_pass m_scan_pass;
-  /** Start of the current range. */
-  trx_id_t m_start_trx_id_range;
-  /** End of the current range. */
-  trx_id_t m_end_trx_id_range;
-  /** Next range. */
-  trx_id_t m_next_trx_id_range;
+  /** Start of the current range (inclusive). */
+  uint64_t m_start_trx_immutable_id_range;
+  /** End of the current range (exclusive). */
+  uint64_t m_end_trx_immutable_id_range;
 };
 
 /** Inspect data locks for the innodb storage engine. */
@@ -582,8 +663,6 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
     if (!container->accept_engine(g_engine, g_engine_length)) {
       return true;
     }
-
-    m_scan_state.prepare_next_scan();
   }
 
   if (m_scan_state.get_pass() == DONE_SCANNING) {
@@ -593,22 +672,25 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
   /* We want locks reported in a single scan to be a consistent snapshot. */
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
-  trx_sys_mutex_enter();
+  IB_mutex_guard trx_sys_mutex_guard{&trx_sys->mutex, UT_LOCATION_HERE};
 
   size_t found = 0;
-
-  while ((m_scan_state.get_pass() == SCANNING_RW_TRX_LIST) && (found == 0)) {
-    found = scan_trx_list(container, with_lock_data, &trx_sys->rw_trx_list);
-    m_scan_state.prepare_next_scan();
+  while (found == 0) {
+    m_scan_state.prepare_scan();
+    switch (m_scan_state.get_pass()) {
+      case SCANNING_RW_TRX_LIST:
+        found = scan_trx_list(container, with_lock_data, &trx_sys->rw_trx_list);
+        break;
+      case SCANNING_MYSQL_TRX_LIST:
+        found =
+            scan_trx_list(container, with_lock_data, &trx_sys->mysql_trx_list);
+        break;
+      case DONE_SCANNING:
+        return true;
+      default:
+        ut_error;
+    }
   }
-
-  while ((m_scan_state.get_pass() == SCANNING_MYSQL_TRX_LIST) && (found == 0)) {
-    found = scan_trx_list(container, with_lock_data, &trx_sys->mysql_trx_list);
-    m_scan_state.prepare_next_scan();
-  }
-
-  trx_sys_mutex_exit();
-
   return false;
 }
 
@@ -662,7 +744,6 @@ template <typename Trx_list>
 size_t Innodb_data_lock_iterator::scan_trx_list(
     PSI_server_data_lock_container *container, bool with_lock_data,
     Trx_list *trx_list) {
-  trx_id_t trx_id;
   size_t found = 0;
   constexpr bool read_write = is_read_write<Trx_list>();
   /* We are about to scan over various locks of multiple transactions not
@@ -678,9 +759,7 @@ size_t Innodb_data_lock_iterator::scan_trx_list(
     values and does not bring any guarantee after it is finished, because state
     of read-only transaction might be modified outside the trx_sys->mutex. */
 
-    trx_id = trx_get_id_for_print(trx);
-
-    if (!m_scan_state.trx_id_in_range(trx_id)) {
+    if (!m_scan_state.trx_in_range(trx)) {
       continue;
     }
 
@@ -845,8 +924,6 @@ bool Innodb_data_lock_wait_iterator::scan(
     if (!container->accept_engine(g_engine, g_engine_length)) {
       return true;
     }
-
-    m_scan_state.prepare_next_scan();
   }
 
   if (m_scan_state.get_pass() == DONE_SCANNING) {
@@ -856,22 +933,24 @@ bool Innodb_data_lock_wait_iterator::scan(
   /* We want locks reported in a single scan to be a consistent snapshot. */
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
-  trx_sys_mutex_enter();
+  IB_mutex_guard trx_sys_mutex_guard{&trx_sys->mutex, UT_LOCATION_HERE};
 
   size_t found = 0;
-
-  while ((m_scan_state.get_pass() == SCANNING_RW_TRX_LIST) && (found == 0)) {
-    found = scan_trx_list(container, &trx_sys->rw_trx_list);
-    m_scan_state.prepare_next_scan();
+  while (found == 0) {
+    m_scan_state.prepare_scan();
+    switch (m_scan_state.get_pass()) {
+      case SCANNING_RW_TRX_LIST:
+        found = scan_trx_list(container, &trx_sys->rw_trx_list);
+        break;
+      case SCANNING_MYSQL_TRX_LIST:
+        found = scan_trx_list(container, &trx_sys->mysql_trx_list);
+        break;
+      case DONE_SCANNING:
+        return true;
+      default:
+        ut_error;
+    }
   }
-
-  while ((m_scan_state.get_pass() == SCANNING_MYSQL_TRX_LIST) && (found == 0)) {
-    found = scan_trx_list(container, &trx_sys->mysql_trx_list);
-    m_scan_state.prepare_next_scan();
-  }
-
-  trx_sys_mutex_exit();
-
   return false;
 }
 
@@ -940,7 +1019,6 @@ bool Innodb_data_lock_wait_iterator::fetch(
 template <typename Trx_list>
 size_t Innodb_data_lock_wait_iterator::scan_trx_list(
     PSI_server_data_lock_wait_container *container, Trx_list *trx_list) {
-  trx_id_t trx_id;
   size_t found = 0;
   constexpr bool read_write = is_read_write<Trx_list>();
 
@@ -957,9 +1035,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx_list(
     values and does not bring any guarantee after it is finished, because state
     of read-only transaction might be modified outside the trx_sys->mutex. */
 
-    trx_id = trx_get_id_for_print(trx);
-
-    if (!m_scan_state.trx_id_in_range(trx_id)) {
+    if (!m_scan_state.trx_in_range(trx)) {
       continue;
     }
 
