@@ -720,7 +720,7 @@ test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
 EXPLAIN
 -> Limit: 3 row(s)  (actual rows=1 loops=1)
-    -> Sort: (a.b + b.a), limit input to 3 row(s) per chunk  (actual rows=1 loops=1)
+    -> Sort: `(a.b + b.a)`, limit input to 3 row(s) per chunk  (actual rows=1 loops=1)
         -> Stream results  (cost=1.6 rows=3) (actual rows=1 loops=1)
             -> Nested loop inner join  (cost=1.6 rows=3) (actual rows=1 loops=1)
                 -> Filter: (b.b is not null)  (cost=0.55 rows=3) (actual rows=3 loops=1)
