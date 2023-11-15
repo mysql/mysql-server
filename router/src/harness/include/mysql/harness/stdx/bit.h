@@ -25,20 +25,17 @@
 #ifndef MYSQL_HARNESS_STDX_BIT_H_
 #define MYSQL_HARNESS_STDX_BIT_H_
 
-#include <climits>      // CHAR_BIT
-#include <cstdint>      // uint64_t
-#include <limits>       // numeric_limits
-#include <type_traits>  // enable_if, is_unsigned
+#include <concepts>  // integral
+#include <cstdint>   // UINT64_C
 
 namespace stdx {
 
-// implementation 'byteswap()' and 'bitops' from std c++20
+// implementation 'byteswap()' from std c++23
 //
 // see:
 // - http://wg21.link/P1272
-// - http://wg21.link/P0553
 
-// bswap() functions translate into
+// byteswap() functions translate into
 //
 // - `bswap` on x86 with
 //   - clang -O1 since 3.5
@@ -50,97 +47,44 @@ namespace stdx {
 //   - gcc
 //   - msvc /O1 for 4 byte
 
-namespace impl {
-// two implementations are provided:
-//
-// 1. std::enable_if_t<> preselects valid int-sizes for impl::bswap() which
-//    selects impl::bswap_N() with an 'if'
-// 2. impl::bswap() is automatically selected with std::if_enable_t<>
-//
-// implementation for
-//
-// - gcc [
-//   2 byte: 1x rol
-//   4 byte: 1x bswap
-//   8 byte: 1x bswap
-//   ]
-// - clang [
-//   2 byte: 1x rol
-//   4 byte: 1x bswap
-//   8 byte: 1x bswap
-//   ]
-// - msvc [
-//   2 byte: 1x rol
-//   4 byte: 1x bswap
-//   8 byte: lots of shifts, or and ands
-//   ]
-//
-// the GCC/Clang variant can use __builtin_bswap*() which translates to
-// the right asm instructions on all platforms and optimization levels.
-//
-// The fallback variant with shift-or only gets translated to BSWAP
-// on higher optimization levels.
-//
-// MSVC provides _byteswap_uint64() and friends as instrincts, but they aren't
-// marked as constexpr.
-//
-template <class T>
-constexpr std::enable_if_t<sizeof(T) == 1, T> bswap(T t) noexcept {
-  return t;
-}
+template <std::integral T>
+constexpr T byteswap(T num) noexcept {
+  static_assert(std::has_unique_object_representations_v<decltype(num)>,
+                "T may not have padding bits");
 
-template <class T>
-constexpr std::enable_if_t<sizeof(T) == 2, T> bswap(T t) noexcept {
+  if constexpr (sizeof(T) == 1) {
+    return num;
 #if defined(__GNUC__)
-  return __builtin_bswap16(t);
-#else
-  return (t & UINT16_C(0x00ff)) << (1 * 8) | (t & UINT16_C(0xff00)) >> (1 * 8);
+  } else if constexpr (sizeof(T) == 2) {
+    return __builtin_bswap16(num);
+  } else if constexpr (sizeof(T) == 4) {
+    return __builtin_bswap32(num);
+  } else if constexpr (sizeof(T) == 8) {
+    return __builtin_bswap64(num);
 #endif
-}
-
-// for all types that are 4 byte long
-//
-// unsigned long and unsigned int are both 4 byte on windows, but different
-// types
-template <class T>
-constexpr std::enable_if_t<sizeof(T) == 4, T> bswap(T t) noexcept {
-#if defined(__GNUC__)
-  return __builtin_bswap32(t);
-#else
-  return (t & UINT32_C(0x0000'00ff)) << (3 * 8) |
-         (t & UINT32_C(0x0000'ff00)) << (1 * 8) |
-         (t & UINT32_C(0x00ff'0000)) >> (1 * 8) |
-         (t & UINT32_C(0xff00'0000)) >> (3 * 8);
-#endif
-}
-
-// for all types that are 8 byte long
-//
-// unsigned long and unsigned long long are both 8 byte on unixes, but different
-// types
-template <class T>
-constexpr std::enable_if_t<sizeof(T) == 8, T> bswap(T t) noexcept {
-#if defined(__GNUC__)
-  return __builtin_bswap64(t);
-#else
-  return (t & UINT64_C(0x0000'0000'0000'00ff)) << (7 * 8) |
-         (t & UINT64_C(0x0000'0000'0000'ff00)) << (5 * 8) |
-         (t & UINT64_C(0x0000'0000'00ff'0000)) << (3 * 8) |
-         (t & UINT64_C(0x0000'0000'ff00'0000)) << (1 * 8) |
-         (t & UINT64_C(0x0000'00ff'0000'0000)) >> (1 * 8) |
-         (t & UINT64_C(0x0000'ff00'0000'0000)) >> (3 * 8) |
-         (t & UINT64_C(0x00ff'0000'0000'0000)) >> (5 * 8) |
-         (t & UINT64_C(0xff00'0000'0000'0000)) >> (7 * 8);
-#endif
-}
-
-}  // namespace impl
-
-template <class IntegerType>
-std::enable_if_t<std::is_integral<IntegerType>::value,
-                 IntegerType> constexpr byteswap(IntegerType t) noexcept {
-  return impl::bswap(static_cast<std::make_unsigned_t<IntegerType>>(t));
+  } else if constexpr (sizeof(T) == 2) {
+    return (num & UINT16_C(0x00ff)) << (1 * 8) |
+           (num & UINT16_C(0xff00)) >> (1 * 8);
+  } else if constexpr (sizeof(T) == 4) {
+    return (num & UINT32_C(0x0000'00ff)) << (3 * 8) |
+           (num & UINT32_C(0x0000'ff00)) << (1 * 8) |
+           (num & UINT32_C(0x00ff'0000)) >> (1 * 8) |
+           (num & UINT32_C(0xff00'0000)) >> (3 * 8);
+  } else if constexpr (sizeof(T) == 8) {
+    return (num & UINT64_C(0x0000'0000'0000'00ff)) << (7 * 8) |
+           (num & UINT64_C(0x0000'0000'0000'ff00)) << (5 * 8) |
+           (num & UINT64_C(0x0000'0000'00ff'0000)) << (3 * 8) |
+           (num & UINT64_C(0x0000'0000'ff00'0000)) << (1 * 8) |
+           (num & UINT64_C(0x0000'00ff'0000'0000)) >> (1 * 8) |
+           (num & UINT64_C(0x0000'ff00'0000'0000)) >> (3 * 8) |
+           (num & UINT64_C(0x00ff'0000'0000'0000)) >> (5 * 8) |
+           (num & UINT64_C(0xff00'0000'0000'0000)) >> (7 * 8);
+  } else {
+    static_assert(sizeof(num) == 0,
+                  "byteswap not implemented for integral types of this size");
+  }
 }
 
 }  // namespace stdx
+
 #endif
