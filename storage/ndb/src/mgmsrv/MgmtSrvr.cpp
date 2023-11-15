@@ -579,7 +579,9 @@ void MgmtSrvr::configure_eventlogger(const BaseString &logdestination) const {
           continue;
         }
 
-        handler = new BufferedLogHandler(file_handler);
+        handler =
+            new BufferedLogHandler(file_handler, true, /* file_handler owned */
+                                   "MgmtSrvr");
       } else {
         handler = file_handler;
       }
