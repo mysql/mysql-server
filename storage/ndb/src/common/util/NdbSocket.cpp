@@ -200,6 +200,7 @@ bool NdbSocket::ssl_handshake() {
 // ssl_close
 void NdbSocket::ssl_close() {
   Guard guard(mutex);
+  require(ssl != nullptr);
   if (SSL_is_init_finished(ssl)) {
     const int mode = SSL_get_shutdown(ssl);
     if (!(mode & SSL_SENT_SHUTDOWN)) {
@@ -247,6 +248,7 @@ int NdbSocket::ssl_shutdown() const {
   int err;
   {
     Guard guard(mutex);
+    require(ssl != nullptr);
     /*
      * SSL_is_init_finished may return false if either TLS handshake have not
      * finished, or an unexpected eof was seen.

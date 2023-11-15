@@ -480,8 +480,8 @@ void Transporter::doDisconnect() {
   if (!m_connected) {
     return;
   }
-  update_connect_state(false);
-  disconnectImpl();
+  disconnectImpl();             // Do the disconnect
+  update_connect_state(false);  // Announce disconnect
 }
 
 void Transporter::disconnectImpl() {
