@@ -143,7 +143,7 @@ template <>
 template <Field_size field_size>
 size_t Primitive_type_codec<std::string>::write_bytes(unsigned char *stream,
                                                       const std::string &data) {
-  if (data.length() > field_size) {
+  if (data.length() > field_size && field_size != 0) {
     return 0;
   }
   std::size_t bytes_written = detail::write_varlen_bytes(stream, data.length());
@@ -161,7 +161,7 @@ size_t Primitive_type_codec<std::string>::read_bytes(
   uint64_t string_length = 0;
   std::size_t bytes_read =
       detail::read_varlen_bytes(stream, stream_bytes, string_length);
-  if (bytes_read == 0 || string_length > field_size ||
+  if (bytes_read == 0 || (string_length > field_size && field_size != 0) ||
       stream_bytes < bytes_read + string_length) {
     return 0;
   }

@@ -2840,4 +2840,57 @@ TEST(Serialization, BoundedLengthStringReadError) {
   }
 }
 
+// Simple message format with an unbounded string
+struct Unbounded_string_message
+    : public Serializable<Unbounded_string_message> {
+  uint32_t field_a = 10;
+  uint32_t field_b = 11;
+  float field_c = 0.0;
+  std::string field_d = "hello";
+
+  decltype(auto) define_fields() {
+    return std::make_tuple(define_field(field_a), define_field(field_b),
+                           define_field(field_c), define_field(field_d));
+  }
+
+  decltype(auto) define_fields() const {
+    return std::make_tuple(define_field(field_a), define_field(field_b),
+                           define_field(field_c), define_field(field_d));
+  }
+};
+
+// Test verifying binary format implementation, reading and writing
+// of unbounded string fields
+//
+// R23. When using binary format, serialization framework shall correctly
+//     decode and encode unbounded string fields
+//
+// T1.
+// 1. Define an unbounded string field to write from
+// 2. Define an unbounded string field to read into
+// 2. Fill string field with values with more data than allowed in decoder field
+//    definition
+// 3. Encode a message, check that encoding passed with no error
+// 4. Decode a message, check that decoding failed with no error
+// 5. Check that decoded message fields match encoded data fields
+TEST(Serialization, UnboundedLengthString) {
+  Serializer_default<Archive_binary> serializer;
+
+  Unbounded_string_message data_sent, data_received;
+  data_sent.field_a = 1;
+  data_sent.field_b = 1;
+  data_sent.field_c = 0.5;
+  data_sent.field_d = "bye";
+
+  serializer << data_sent;
+  ASSERT_TRUE(serializer.is_good());
+  serializer >> data_received;
+  ASSERT_TRUE(serializer.is_good());
+
+  ASSERT_EQ(data_sent.field_a, data_received.field_a);
+  ASSERT_EQ(data_sent.field_b, data_received.field_b);
+  ASSERT_EQ(data_sent.field_c, data_received.field_c);
+  ASSERT_EQ(data_sent.field_d, data_received.field_d);
+}
+
 }  // namespace mysql::serialization
