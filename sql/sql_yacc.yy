@@ -16468,7 +16468,7 @@ table_lock:
 
             if (lock_type >= TL_WRITE_ALLOW_WRITE)
             {
-              /* LOCK TABLE ... WRITE/LOW_PRIORITY WRITE */
+              /* LOCK TABLE ... WRITE */
               mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
             }
             else if (lock_type == TL_READ)
@@ -16491,11 +16491,6 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
-        | LOW_PRIORITY WRITE_SYM
-          {
-            $$= TL_WRITE_LOW_PRIORITY;
-            push_deprecated_warn(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
-          }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;
 

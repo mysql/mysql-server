@@ -436,23 +436,6 @@ UNLOCK TABLES;
 DROP TABLE t1, t2;
 disconnect con2;
 
---echo #
---echo # Bug#13586314 - RUNTIME - HIBISCUS: ISSUE DEPRECATION
---echo # WARNING FOR LOW_PRIORITY MODIFIER
---echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a INT);
---echo # Below statement should return a deprecation warning
-LOCK TABLES t1 LOW_PRIORITY WRITE;
-UNLOCK TABLES;
-DROP TABLE t1;
-
---echo # End of Bug#13586314
-
 
 --echo #
 --echo # End of 6.0 tests.
