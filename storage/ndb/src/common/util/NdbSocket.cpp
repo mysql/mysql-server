@@ -131,6 +131,7 @@ int NdbSocket::set_nonblocking(int on) const {
 // ssl_close
 void NdbSocket::ssl_close() {
   Guard guard(mutex);
+  require(ssl != nullptr);
   ndb_socket_nonblock(s, false);  // set blocking BIO
   SSL_shutdown(ssl);              // wait for close
   SSL_free(ssl);
@@ -220,6 +221,7 @@ int NdbSocket::ssl_shutdown() const {
   int err;
   {
     Guard guard(mutex);
+    require(ssl != nullptr);
     ndb_socket_nonblock(s, false);  // set blocking BIO
     const int r = SSL_shutdown(ssl);
     if (r >= 0) return 0;
