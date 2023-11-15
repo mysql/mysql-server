@@ -48,7 +48,7 @@ namespace upgrade {
   1. mysql_system_tables.sql - Creates the system tables
   2. mysql_system_tables_fix.sql - Updates the system table
   3. mysql_system_tables_data_fix.sql - Fills the system tables with meta data
-  4. mysql_sys_schema.sql - Create and/or updates the sys schema
+  4. ALL_SYS_SCHEMA.sql - Create and/or updates the sys schema
 
   Then the system tables are checked by executing CHECK TABLE SQL statements.
 

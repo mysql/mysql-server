@@ -74,17 +74,6 @@ MY_ADD_CUSTOM_TARGET(GenFixPrivs
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
-  COMMAND comp_sql
-  mysql_sys_schema
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  sql_commands_sys_schema.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  )
-
-ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
   COMMAND comp_sql
   mysql_system_data
