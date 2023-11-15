@@ -3725,7 +3725,7 @@ class LEX_GRANT_AS {
   "execute_only_in_secondary_reasons" retains the explanations for queries that
   cannot be executed using the primary engine.
 */
-enum execute_only_in_secondary_reasons { SUPPORTED_IN_PRIMARY, CUBE, EXTERNAL };
+enum execute_only_in_secondary_reasons { SUPPORTED_IN_PRIMARY, CUBE };
 
 /*
   Some queries can be executed only in using the hypergraph optimizer. The enum
@@ -3873,10 +3873,6 @@ struct LEX : public Query_tables_list {
   /// Leaf table being inserted into (always a base table)
   Table_ref *insert_table_leaf;
 
-  bool has_external_tables() const {
-    return (m_execute_only_in_secondary_engine_reason == EXTERNAL);
-  }
-
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_query_block;
 
@@ -3955,8 +3951,15 @@ struct LEX : public Query_tables_list {
            reason == SUPPORTED_IN_PRIMARY);
   }
 
-  const char *get_not_supported_in_primary_reason();
-
+  const char *get_not_supported_in_primary_reason() {
+    assert(can_execute_only_in_secondary_engine());
+    switch (m_execute_only_in_secondary_engine_reason) {
+      case CUBE:
+        return "CUBE";
+      default:
+        return "UNDEFINED";
+    }
+  }
   bool can_execute_only_in_hypergraph_optimizer() const {
     return m_can_execute_only_in_hypergraph_optimizer;
   }

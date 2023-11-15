@@ -377,19 +377,6 @@ std::string_view get_secondary_engine_fail_reason(const LEX *lex) {
   return {};
 }
 
-void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
-  if (!lex->thd->is_secondary_engine_forced() && reason != nullptr) {
-    for (Table_ref *ref = lex->query_tables; ref != nullptr;
-         ref = ref->next_global) {
-      if (ref->is_external()) {
-        ref->table->get_primary_handler()->set_external_table_offload_error(
-            reason);
-        break;
-      }
-    }
-  }
-}
-
 std::string_view find_secondary_engine_fail_reason(const LEX *lex) {
   const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
@@ -673,6 +660,19 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
+bool has_external_table(const LEX *lex) {
+  if (lex->m_sql_cmd == nullptr) {
+    return false;
+  }
+  for (Table_ref *ref = lex->query_tables; ref != nullptr;
+       ref = ref->next_global) {
+    if (ref->is_external()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
@@ -909,8 +909,11 @@ static bool retry_with_secondary_engine(THD *thd) {
 
   // Only attempt to use the secondary engine if the estimated cost of the query
   // is higher than the specified cost threshold.
-  if (thd->m_current_query_cost <=
-      thd->variables.secondary_engine_cost_threshold) {
+  // We allow any query to be executed in the secondary_engine when it involves
+  // external tables.
+  if (!has_external_table(thd->lex) &&
+      (thd->m_current_query_cost <=
+       thd->variables.secondary_engine_cost_threshold)) {
     Opt_trace_context *const trace = &thd->opt_trace;
     if (trace->is_started()) {
       const Opt_trace_object wrapper(trace);
@@ -1000,6 +1003,16 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   // We know by now that execution will complete (successful or with error)
   lex->set_exec_completed();
   if (lex->is_explain()) {
+    for (Table_ref *ref = lex->query_tables; ref != nullptr;
+         ref = ref->next_global) {
+      if (ref->table != nullptr && ref->table->file != nullptr) {
+        handlerton *hton = ref->table->file->ht;
+        if (hton->external_engine_explain_check != nullptr) {
+          if (hton->external_engine_explain_check(thd)) return true;
+        }
+      }
+    }
+
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
   } else {
     if (unit->execute(thd)) return true;
