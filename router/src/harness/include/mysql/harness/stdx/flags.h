@@ -25,9 +25,9 @@
 #ifndef MYSQL_HARNESS_STDX_FLAGS_INCLUDED
 #define MYSQL_HARNESS_STDX_FLAGS_INCLUDED
 
+#include <bit>  // popcount
 #include <type_traits>
 
-#include "mysql/harness/stdx/bit.h"          // popcount
 #include "mysql/harness/stdx/type_traits.h"  // is_scoped_enum_v
 
 namespace stdx {
@@ -250,7 +250,7 @@ class flags {
    * @return bits set to true.
    */
   [[nodiscard]] constexpr size_type count() const noexcept {
-    return stdx::popcount(v_);
+    return std::popcount(v_);
   }
 
   /**
