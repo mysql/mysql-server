@@ -130,12 +130,20 @@ IF(MSVC)
   #     extern C functions never throw a C++ exception.
   # - Choose debugging information:
   #     /Z7
-  #     Produces an .obj file containing full symbolic debugging
+  #     Used for non-PGO builds, as it embeds debug information in .obj
+  #     files which makes .lib files contain their own debug information.
+  #     /Zi
+  #     Used for PGO builds (of mysqld.exe)
+  #     Produces a .pdb file containing full symbolic debugging
   #     information for use with the debugger. The symbolic debugging
   #     information includes the names and types of variables, as well as
-  #     functions and line numbers. No .pdb file is produced by the compiler.
+  #     functions and line numbers.
   #     We can't use /ZI too since it's causing __LINE__ macros to be non-
   #     constant on visual studio and hence XCom stops building correctly.
+  #     We can't use /Z7 with PGO builds as that places debug information
+  #     in the .obj files which results in .lib and .exe files exceeding
+  #     file size limitsimposed by the linker and lib tools when PGO
+  #     builds are attempted.
   # - Enable explicit inline:
   #     /Ob1
   #     Expands explicitly inlined functions. By default /Ob0 is used,
@@ -144,7 +152,11 @@ IF(MSVC)
   #     30% or so. If you do want to keep inlining off, set the
   #     cmake flag WIN_DEBUG_NO_INLINE.
   FOREACH(lang C CXX)
-    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Zi")
+    ELSE()
+      SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
+    ENDIF()
   ENDFOREACH()
 
   FOREACH(flag
@@ -157,8 +169,12 @@ IF(MSVC)
     IF(LINK_STATIC_RUNTIME_LIBRARIES)
       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
     ENDIF()
-    STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
-    STRING(REPLACE "/ZI"  "/Z7" "${flag}" "${${flag}}")
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      STRING(REPLACE "/ZI"  "/Zi" "${flag}" "${${flag}}")
+    ELSE()
+      STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+      STRING(REPLACE "/ZI"  "/Z7" "${flag}" "${${flag}}")
+    ENDIF()
     IF (NOT WIN_DEBUG_NO_INLINE)
       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
     ENDIF()

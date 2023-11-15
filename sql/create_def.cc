@@ -329,6 +329,7 @@ void Unique_symbol_map::insert(const std::string &symbol_line) {
       "_VInfreq_?",  // special label (exception handler?) for Intel compiler
       "?_E",         // vector deleting destructor
       "<lambda_",    // anything that is lambda-related
+      "__isa_available_default",  // strange symbol that breaks PGO
   };
   if (symbol_line.find("External") == std::string::npos) {
     return;
