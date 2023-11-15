@@ -26,13 +26,13 @@
 #define ROUTER_HELPER_MYSQL_CLIENT_H
 
 #include <iterator>
+#include <span>
 #include <string>
 #include <string_view>
 
 #include <mysql.h>
 
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/span.h"
 
 class MysqlError {
  public:
@@ -786,8 +786,8 @@ class MysqlClient {
     };
 
     stdx::expected<void, MysqlError> bind_params(
-        const stdx::span<MYSQL_BIND> &params,
-        const stdx::span<const char *> &names) {
+        const std::span<MYSQL_BIND> &params,
+        const std::span<const char *> &names) {
       auto err =
           mysql_bind_param(m_, params.size(), params.data(), names.data());
 
@@ -866,8 +866,8 @@ class MysqlClient {
   }
 
   stdx::expected<Statement::Result, MysqlError> query(
-      std::string_view stmt, const stdx::span<MYSQL_BIND> &params,
-      const stdx::span<const char *> &names) {
+      std::string_view stmt, const std::span<MYSQL_BIND> &params,
+      const std::span<const char *> &names) {
     Statement st(m_.get());
 
     const auto bind_res = st.bind_params(params, names);
@@ -926,8 +926,8 @@ class MysqlClient {
     }
 
     stdx::expected<void, MysqlError> bind_params(
-        const stdx::span<MYSQL_BIND> &params,
-        const stdx::span<const char *> &names) {
+        const std::span<MYSQL_BIND> &params,
+        const std::span<const char *> &names) {
       auto *stmt = st_.get();
 
       if (params.size() != param_count()) {
@@ -948,7 +948,7 @@ class MysqlClient {
     }
 
     stdx::expected<void, MysqlError> bind_params(
-        const stdx::span<MYSQL_BIND> &params) {
+        const std::span<MYSQL_BIND> &params) {
       auto *stmt = st_.get();
 
       if (params.size() != param_count()) {

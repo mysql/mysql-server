@@ -611,7 +611,8 @@ struct DuktapeStatementReader::Pimpl {
           }
 
           trackers.emplace_back(
-              classic_protocol::session_track::TransactionState(state));
+              classic_protocol::session_track::TransactionState(
+                  std::span<char, 8>(state)));
         } else if (type == "schema") {
           auto schema = get_object_string_value(-1, "schema");
 

@@ -147,7 +147,6 @@ SET(TESTS
   test_stdx_flags.cc
   test_stdx_io_file_handle.cc
   test_stdx_monitor.cc
-  test_stdx_span.cc
   test_stdx_ranges.cc
 )
 

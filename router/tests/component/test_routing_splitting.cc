@@ -25,6 +25,7 @@
 #include <charconv>
 #include <chrono>
 #include <fstream>
+#include <span>
 #include <thread>
 
 #include <gmock/gmock.h>
@@ -118,8 +119,7 @@ query_one_result(MysqlClient &cli, std::string_view stmt) {
 
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt,
-                 stdx::span<MYSQL_BIND> params,
-                 stdx::span<const char *> names) {
+                 std::span<MYSQL_BIND> params, std::span<const char *> names) {
   auto cmd_res = cli.query(stmt, params, names);
   if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
 

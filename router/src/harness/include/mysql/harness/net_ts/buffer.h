@@ -27,7 +27,8 @@
 
 #include <algorithm>  // copy
 #include <array>
-#include <limits>     // std::numeric_limits
+#include <limits>  // std::numeric_limits
+#include <span>
 #include <stdexcept>  // length_error
 #include <string>
 #include <string_view>
@@ -39,7 +40,6 @@
 #include "mysql/harness/net_ts/executor.h"               // async_completion
 #include "mysql/harness/net_ts/impl/socket_constants.h"  // wait_write
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/span.h"
 
 namespace net {
 
@@ -496,7 +496,7 @@ inline const_buffer buffer(
 }
 
 template <class T, std::size_t E>
-inline const_buffer buffer(const stdx::span<T, E> &data) noexcept {
+inline const_buffer buffer(const std::span<T, E> &data) noexcept {
   return data.empty() ? const_buffer{}
                       : impl::to_const_buffer(data.data(), data.size());
 }
@@ -552,7 +552,7 @@ inline const_buffer buffer(
 }
 
 template <class T, std::size_t E>
-inline const_buffer buffer(const stdx::span<T, E> &data, size_t n) noexcept {
+inline const_buffer buffer(const std::span<T, E> &data, size_t n) noexcept {
   return buffer(buffer(data), n);
 }
 

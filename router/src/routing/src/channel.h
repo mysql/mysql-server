@@ -42,7 +42,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "mysql/harness/default_init_allocator.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/span.h"
 #include "mysql/harness/tls_types.h"
 #include "mysqlrouter/classic_protocol.h"
 
@@ -66,7 +65,7 @@ class Channel {
 
   using recv_buffer_type =
       std::vector<uint8_t, default_init_allocator<uint8_t>>;
-  using recv_view_type = stdx::span<typename recv_buffer_type::value_type>;
+  using recv_view_type = std::span<typename recv_buffer_type::value_type>;
   using Ssl = mysql_harness::Ssl;
 
   explicit Channel(Ssl ssl) : ssl_{std::move(ssl)} {}
