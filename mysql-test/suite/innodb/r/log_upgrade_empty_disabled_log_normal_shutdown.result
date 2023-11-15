@@ -1,0 +1,21 @@
+# Kill the server
+ib_logfile0
+ib_logfile1
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err --log-error-verbosity=3 --lower-case-table-names=1
+SELECT * FROM test.t;
+id
+42
+SET GLOBAL innodb_monitor_enable = module_log;
+SELECT 0x0125822f <= `COUNT` FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_last_checkpoint';
+0x0125822f <= `COUNT`
+1
+SELECT 0x0125822f <= `COUNT` FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_current';
+0x0125822f <= `COUNT`
+1
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+# Kill the server
+# Expect found
+Pattern "MY-013888\b.*\bLSN=19235375" found
+# restart:

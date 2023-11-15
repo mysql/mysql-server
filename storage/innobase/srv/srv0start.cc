@@ -1534,11 +1534,6 @@ static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
 
   fil_open_system_tablespace_files();
 
-  err = log_start(*log_sys, flushed_lsn, flushed_lsn);
-  if (err != DB_SUCCESS) {
-    return err;
-  }
-
   return DB_SUCCESS;
 }
 
