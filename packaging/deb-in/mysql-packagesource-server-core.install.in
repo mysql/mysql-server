@@ -79,7 +79,6 @@ usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/ddl_rewriter.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/mysql_no_login.so
-usr/lib/mysql/plugin/innodb_engine.so
 usr/lib/mysql/plugin/rewriter.so
 usr/lib/mysql/plugin/mypluglib.so
 usr/lib/mysql/plugin/locking_service.so

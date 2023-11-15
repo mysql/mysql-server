@@ -74,7 +74,6 @@ usr/lib/mysql/plugin/debug/component_reference_cache.so
 usr/lib/mysql/plugin/debug/ddl_rewriter.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
-usr/lib/mysql/plugin/debug/innodb_engine.so
 usr/lib/mysql/plugin/debug/keyring_file.so
 usr/lib/mysql/plugin/debug/keyring_udf.so
 usr/lib/mysql/plugin/debug/libpluginmecab.so
