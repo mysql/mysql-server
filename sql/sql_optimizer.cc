@@ -61,6 +61,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -79,6 +80,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key.h"
@@ -299,6 +301,27 @@ bool JOIN::check_access_path_with_fts() const {
   }
 
   return false;
+}
+
+/// Move unstructured trace text (as used by Hypergraph) into the JSON tree.
+static void MoveUnstructuredToStructuredTrace(THD *thd) {
+  assert(thd->opt_trace.is_started());
+  const Opt_trace_object trace_wrapper{&thd->opt_trace};
+  Opt_trace_array join_optimizer{&thd->opt_trace, "join_optimizer"};
+  Mem_root_array<char> line{thd->mem_root};
+
+  thd->opt_trace.unstructured_trace()->contents().ForEachRemove([&](char ch) {
+    if (ch == '\n') {
+      join_optimizer.add_utf8(line.data(), line.size());
+      line.clear();
+    } else {
+      line.push_back(ch);
+    }
+  });
+
+  // The last line should also be terminated by '\n'.
+  assert(line.empty());
+  thd->opt_trace.set_unstructured_trace(nullptr);
 }
 
 /**
@@ -621,12 +644,22 @@ bool JOIN::optimize(bool finalize_access_paths) {
     Item *where_cond_no_in2exists = remove_in2exists_conds(where_cond);
     Item *having_cond_no_in2exists = remove_in2exists_conds(having_cond);
 
-    std::string trace_str;
-    std::string *trace_ptr = thd->opt_trace.is_started() ? &trace_str : nullptr;
+    UnstructuredTrace unstructured_trace;
+    if (thd->opt_trace.is_started()) {
+      thd->opt_trace.set_unstructured_trace(&unstructured_trace);
+    }
+
+    // Add the contents of unstructured_trace to the JSON tree when we exit
+    // this scope.
+    const auto copy_trace = create_scope_guard([&]() {
+      if (thd->opt_trace.is_started()) {
+        MoveUnstructuredToStructuredTrace(thd);
+      }
+    });
 
     SaveCondEqualLists(cond_equal);
 
-    m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
+    m_root_access_path = FindBestQueryPlan(thd, query_block);
     if (finalize_access_paths && m_root_access_path != nullptr) {
       if (FinalizePlanForQueryBlock(thd, query_block)) {
         return true;
@@ -653,30 +686,18 @@ bool JOIN::optimize(bool finalize_access_paths) {
     // gain it would bring.
     if (where_cond != where_cond_no_in2exists ||
         having_cond != having_cond_no_in2exists) {
-      if (trace_ptr != nullptr) {
-        *trace_ptr +=
-            "\nPlanning an alternative with in2exists conditions removed:\n";
+      if (TraceStarted(thd)) {
+        Trace(thd)
+            << "\nPlanning an alternative with in2exists conditions removed:\n";
       }
       where_cond = where_cond_no_in2exists;
       having_cond = having_cond_no_in2exists;
       assert(!finalize_access_paths);
-      m_root_access_path_no_in2exists =
-          FindBestQueryPlan(thd, query_block, trace_ptr);
+      m_root_access_path_no_in2exists = FindBestQueryPlan(thd, query_block);
     } else {
       m_root_access_path_no_in2exists = nullptr;
     }
 
-    if (trace != nullptr) {
-      const Opt_trace_object trace_wrapper2(&thd->opt_trace);
-      Opt_trace_array join_optimizer(&thd->opt_trace, "join_optimizer");
-
-      // Split by newlines.
-      for (size_t pos = 0; pos < trace_str.size();) {
-        const size_t len = strcspn(trace_str.data() + pos, "\n");
-        join_optimizer.add_utf8(trace_str.data() + pos, len);
-        pos += len + 1;
-      }
-    }
     if (m_root_access_path == nullptr) {
       return true;
     }

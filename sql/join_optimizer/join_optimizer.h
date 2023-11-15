@@ -134,18 +134,14 @@ struct JoinHypergraph;
 
   @param thd Thread handle.
   @param query_block The query block to find a plan for.
-  @param trace If not nullptr, will be filled with human-readable optimizer
-    trace showing some of the inner workings of the code.
  */
-AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
-                              std::string *trace);
+AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block);
 
 // See comment in .cc file.
 bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block);
 
 // Exposed for unit testing only.
-void FindSargablePredicates(THD *thd, std::string *trace,
-                            JoinHypergraph *graph);
+void FindSargablePredicates(THD *thd, JoinHypergraph *graph);
 
 void EstimateAggregateCost(AccessPath *path);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);

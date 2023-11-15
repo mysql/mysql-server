@@ -46,6 +46,7 @@
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
@@ -455,7 +456,7 @@ void BuildInterestingOrders(
     int *order_by_ordering_idx, int *group_by_ordering_idx,
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
     Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
-    Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
+    Mem_root_array<FullTextIndexInfo> *fulltext_searches) {
   JOIN *const join = query_block->join;
 
   // Collect ordering from ORDER BY.
@@ -657,12 +658,11 @@ void BuildInterestingOrders(
 
   // Early exit if we don't have any interesting orderings.
   if (orderings->num_orderings() <= 1) {
-    if (trace != nullptr) {
-      *trace +=
-          "\nNo interesting orders found. Not collecting functional "
-          "dependencies.\n\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "\nNo interesting orders found. Not collecting functional "
+                    "dependencies.\n\n";
     }
-    orderings->Build(thd, trace);
+    orderings->Build(thd);
     return;
   }
 
@@ -803,7 +803,7 @@ void BuildInterestingOrders(
   }
   orderings->SetRollup(join->rollup_state != JOIN::RollupState::NONE);
 
-  orderings->Build(thd, trace);
+  orderings->Build(thd);
 
   if (*order_by_ordering_idx != -1) {
     *order_by_ordering_idx =

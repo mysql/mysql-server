@@ -26,8 +26,6 @@
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/node_map.h"
 
-#include <string>
-
 class Item_func_match;
 template <class T>
 class Mem_root_array;
@@ -129,7 +127,7 @@ void BuildInterestingOrders(
     int *order_by_ordering_idx, int *group_by_ordering_idx,
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
     Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
-    Mem_root_array<FullTextIndexInfo> *fulltext_searches, std::string *trace);
+    Mem_root_array<FullTextIndexInfo> *fulltext_searches);
 
 // Build an ORDER * that we can give to Filesort. It is only suitable for
 // sort-ahead, since it assumes no temporary tables have been inserted.

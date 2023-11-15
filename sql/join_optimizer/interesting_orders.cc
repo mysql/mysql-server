@@ -35,6 +35,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_tree_nodes.h"
@@ -50,6 +51,7 @@ using std::lower_bound;
 using std::make_pair;
 using std::max;
 using std::none_of;
+using std::ostream;
 using std::pair;
 using std::sort;
 using std::string;
@@ -294,7 +296,7 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
   return m_fds.size() - 1;
 }
 
-void LogicalOrderings::Build(THD *thd, string *trace) {
+void LogicalOrderings::Build(THD *thd) {
   // If we have no interesting orderings or groupings, just create a DFSM
   // directly with a single state for the empty ordering.
   if (m_orderings.size() == 1) {
@@ -321,35 +323,35 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
   CreateOrderingsFromGroupings(thd);
   CreateHomogenizedOrderings(thd);
   PruneFDs(thd);
-  if (trace != nullptr) {
-    PrintFunctionalDependencies(trace);
+  if (TraceStarted(thd)) {
+    PrintFunctionalDependencies(&Trace(thd));
   }
   FindElementsThatCanBeAddedByFDs();
   PruneUninterestingOrders(thd);
-  if (trace != nullptr) {
-    PrintInterestingOrders(trace);
+  if (TraceStarted(thd)) {
+    PrintInterestingOrders(&Trace(thd));
   }
   BuildNFSM(thd);
-  if (trace != nullptr) {
-    *trace += "NFSM for interesting orders, before pruning:\n";
-    PrintNFSMDottyGraph(trace);
+  if (TraceStarted(thd)) {
+    Trace(thd) << "NFSM for interesting orders, before pruning:\n";
+    PrintNFSMDottyGraph(&Trace(thd));
     if (m_states.size() >= kMaxNFSMStates) {
-      *trace += "NOTE: NFSM is incomplete, because it became too big.\n";
+      Trace(thd) << "NOTE: NFSM is incomplete, because it became too big.\n";
     }
   }
   PruneNFSM(thd);
-  if (trace != nullptr) {
-    *trace += "\nNFSM for interesting orders, after pruning:\n";
-    PrintNFSMDottyGraph(trace);
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\nNFSM for interesting orders, after pruning:\n";
+    PrintNFSMDottyGraph(&Trace(thd));
   }
   ConvertNFSMToDFSM(thd);
-  if (trace != nullptr) {
-    *trace += "\nDFSM for interesting orders:\n";
-    PrintDFSMDottyGraph(trace);
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\nDFSM for interesting orders:\n";
+    PrintDFSMDottyGraph(&Trace(thd));
     if (m_dfsm_states.size() >= kMaxDFSMStates) {
-      *trace +=
-          "NOTE: DFSM does not contain all NFSM states, because it became too "
-          "big.\n";
+      Trace(thd) << "NOTE: DFSM does not contain all NFSM states, because it "
+                    "became too "
+                    "big.\n";
     }
   }
   FindInitialStatesForOrdering();
@@ -2173,40 +2175,40 @@ string LogicalOrderings::PrintFunctionalDependency(
   return "";
 }
 
-void LogicalOrderings::PrintFunctionalDependencies(string *trace) {
+void LogicalOrderings::PrintFunctionalDependencies(ostream *trace) {
   if (m_fds.size() <= 1) {
-    *trace += "\nNo functional dependencies (after pruning).\n\n";
+    *trace << "\nNo functional dependencies (after pruning).\n\n";
   } else {
-    *trace += "\nFunctional dependencies (after pruning):\n";
+    *trace << "\nFunctional dependencies (after pruning):\n";
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
-      *trace +=
-          " - " + PrintFunctionalDependency(m_fds[fd_idx], /*html=*/false);
+      *trace << " - " +
+                    PrintFunctionalDependency(m_fds[fd_idx], /*html=*/false);
       if (m_fds[fd_idx].always_active) {
-        *trace += " [always active]";
+        *trace << " [always active]";
       }
-      *trace += "\n";
+      *trace << "\n";
     }
-    *trace += "\n";
+    *trace << "\n";
   }
 }
 
-void LogicalOrderings::PrintInterestingOrders(string *trace) {
-  *trace += "Interesting orders:\n";
+void LogicalOrderings::PrintInterestingOrders(ostream *trace) {
+  *trace << "Interesting orders:\n";
   for (size_t order_idx = 0; order_idx < m_orderings.size(); ++order_idx) {
     const OrderingWithInfo &ordering = m_orderings[order_idx];
     if (order_idx == 0 && ordering.type == OrderingWithInfo::UNINTERESTING) {
       continue;
     }
 
-    *trace += StringPrintf(" - %zu: ", order_idx);
+    *trace << StringPrintf(" - %zu: ", order_idx);
     bool first = true;
     switch (ordering.ordering.GetKind()) {
       case Ordering::Kind::kRollup:
-        *trace += "rollup ";
+        *trace << "rollup ";
         break;
 
       case Ordering::Kind::kGroup:
-        *trace += "group ";
+        *trace << "group ";
         break;
 
       default:
@@ -2214,31 +2216,31 @@ void LogicalOrderings::PrintInterestingOrders(string *trace) {
     }
     for (OrderElement element : ordering.ordering.GetElements()) {
       if (!first) {
-        *trace += ", ";
+        *trace << ", ";
       }
       first = false;
-      *trace += ItemToString(m_items[element.item].item);
+      *trace << ItemToString(m_items[element.item].item);
       if (element.direction == ORDER_ASC) {
-        *trace += " ASC";
+        *trace << " ASC";
       } else if (element.direction == ORDER_DESC) {
-        *trace += " DESC";
+        *trace << " DESC";
       }
     }
     if (ordering.ordering.GetElements().empty()) {
-      *trace += "()";
+      *trace << "()";
     }
     if (ordering.type == OrderingWithInfo::HOMOGENIZED) {
-      *trace += " [homogenized from other ordering]";
+      *trace << " [homogenized from other ordering]";
     } else if (ordering.type == OrderingWithInfo::UNINTERESTING) {
-      *trace += " [support order]";
+      *trace << " [support order]";
     }
-    *trace += "\n";
+    *trace << "\n";
   }
-  *trace += "\n";
+  *trace << "\n";
 }
 
-void LogicalOrderings::PrintNFSMDottyGraph(string *trace) const {
-  *trace += "digraph G {\n";
+void LogicalOrderings::PrintNFSMDottyGraph(ostream *trace) const {
+  *trace << "digraph G {\n";
   for (size_t state_idx = 0; state_idx < m_states.size(); ++state_idx) {
     const NFSMState &state = m_states[state_idx];
     if (state.type == NFSMState::DELETED) {
@@ -2246,73 +2248,73 @@ void LogicalOrderings::PrintNFSMDottyGraph(string *trace) const {
     }
 
     // We're printing the NFSM.
-    *trace += StringPrintf("  s%zu [label=\"%s\"", state_idx,
+    *trace << StringPrintf("  s%zu [label=\"%s\"", state_idx,
                            PrintOrdering(state.satisfied_ordering).c_str());
     if (state.type == NFSMState::INTERESTING) {
-      *trace += ", peripheries=2";
+      *trace << ", peripheries=2";
     }
-    *trace += "]\n";
+    *trace << "]\n";
 
     for (const NFSMEdge &edge : state.outgoing_edges) {
       if (edge.required_fd_idx < 0) {
         // Pseudo-edge without a FD (from initial state only).
-        *trace +=
-            StringPrintf("  s%zu -> s%d [label=\"ordering %d\"]\n", state_idx,
-                         edge.state_idx, edge.required_fd_idx - INT_MIN);
+        *trace << StringPrintf("  s%zu -> s%d [label=\"ordering %d\"]\n",
+                               state_idx, edge.state_idx,
+                               edge.required_fd_idx - INT_MIN);
       } else {
         const FunctionalDependency *fd = edge.required_fd(this);
-        *trace += StringPrintf(
+        *trace << StringPrintf(
             "  s%zu -> s%d [label=\"%s\"]\n", state_idx, edge.state_idx,
             PrintFunctionalDependency(*fd, /*html=*/true).c_str());
       }
     }
   }
 
-  *trace += "}\n";
+  *trace << "}\n";
 }
 
-void LogicalOrderings::PrintDFSMDottyGraph(string *trace) const {
-  *trace += "digraph G {\n";
+void LogicalOrderings::PrintDFSMDottyGraph(ostream *trace) const {
+  *trace << "digraph G {\n";
   for (size_t state_idx = 0; state_idx < m_dfsm_states.size(); ++state_idx) {
     const DFSMState &state = m_dfsm_states[state_idx];
-    *trace += StringPrintf("  s%zu [label=< ", state_idx);
+    *trace << StringPrintf("  s%zu [label=< ", state_idx);
 
     bool any_interesting = false;
     for (size_t i = 0; i < state.nfsm_states.size(); ++i) {
       const NFSMState &nsfm_state = m_states[state.nfsm_states[i]];
       if (i != 0) {
-        *trace += ", ";
+        *trace << ", ";
       }
       if (nsfm_state.type == NFSMState::INTERESTING) {
         any_interesting = true;
-        *trace += "<b>";
+        *trace << "<b>";
       }
-      *trace += PrintOrdering(nsfm_state.satisfied_ordering);
+      *trace << PrintOrdering(nsfm_state.satisfied_ordering);
       if (nsfm_state.type == NFSMState::INTERESTING) {
-        *trace += "</b>";
+        *trace << "</b>";
       }
     }
-    *trace += " >";
+    *trace << " >";
     if (any_interesting) {
-      *trace += ", peripheries=2";
+      *trace << ", peripheries=2";
     }
-    *trace += "]\n";
+    *trace << "]\n";
 
     for (size_t edge_idx : state.outgoing_edges) {
       const DFSMEdge &edge = m_dfsm_edges[edge_idx];
       if (edge.required_fd_idx < 0) {
         // Pseudo-edge without a FD (from initial state only).
-        *trace +=
-            StringPrintf("  s%zu -> s%d [label=\"ordering %d\"]\n", state_idx,
-                         edge.state_idx, edge.required_fd_idx - INT_MIN);
+        *trace << StringPrintf("  s%zu -> s%d [label=\"ordering %d\"]\n",
+                               state_idx, edge.state_idx,
+                               edge.required_fd_idx - INT_MIN);
       } else {
         const FunctionalDependency *fd = edge.required_fd(this);
-        *trace += StringPrintf(
+        *trace << StringPrintf(
             "  s%zu -> s%d [label=\"%s\"]\n", state_idx, edge.state_idx,
             PrintFunctionalDependency(*fd, /*html=*/true).c_str());
       }
     }
   }
 
-  *trace += "}\n";
+  *trace << "}\n";
 }

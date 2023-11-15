@@ -1224,7 +1224,7 @@ static AccessPath *add_materialized_access_path(
                                   /*rematerialize=*/true, limit,
                                   /*reject_multiple_rows=*/false);
   EstimateMaterializeCost(thd, path);
-  return MoveCompositeIteratorsFromTablePath(path, *qt->query_block());
+  return MoveCompositeIteratorsFromTablePath(thd, path, *qt->query_block());
 }
 
 /**

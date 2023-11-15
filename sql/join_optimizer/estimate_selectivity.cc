@@ -37,6 +37,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/key.h"
@@ -54,7 +55,7 @@ namespace {
    Return the selectivity of 'field' derived from a histogram, or -1.0 if there
    was no histogram.
 */
-double HistogramSelectivity(const Field &field, string *trace) {
+double HistogramSelectivity(THD *thd, const Field &field) {
   const histograms::Histogram *const histogram =
       field.table->find_histogram(field.field_index());
 
@@ -69,16 +70,13 @@ double HistogramSelectivity(const Field &field, string *trace) {
         histogram->get_non_null_values_fraction() /
         std::max<double>(1.0, histogram->get_num_distinct_values());
 
-    if (trace != nullptr) {
-      std::ostringstream stream;
-      stream << " - estimating selectivity " << selectivity << " for field "
-             << field.table->alias << "." << field.field_name
-             << " from histogram showing "
-             << histogram->get_num_distinct_values()
-             << " distinct values and non-null fraction "
-             << histogram->get_non_null_values_fraction() << ".\n";
-
-      *trace += stream.str();
+    if (TraceStarted(thd)) {
+      Trace(thd) << " - estimating selectivity " << selectivity << " for field "
+                 << field.table->alias << "." << field.field_name
+                 << " from histogram showing "
+                 << histogram->get_num_distinct_values()
+                 << " distinct values and non-null fraction "
+                 << histogram->get_non_null_values_fraction() << ".\n";
     }
     return selectivity;
   } else {
@@ -92,7 +90,7 @@ double HistogramSelectivity(const Field &field, string *trace) {
   selectivity of 'field' (i.e. 1/'number of rows in table') and return
   that. If there is no such index, return 1.0.
 */
-double KeyCap(const Field &field, uint key_no, string *trace) {
+double KeyCap(THD *thd, const Field &field, uint key_no) {
   assert(key_no < field.table->s->keys);
   const KEY &key = field.table->key_info[key_no];
 
@@ -114,8 +112,8 @@ double KeyCap(const Field &field, uint key_no, string *trace) {
   const double field_cap =
       1.0 / std::max<double>(1.0, field.table->file->stats.records);
 
-  if (trace != nullptr) {
-    *trace += StringPrintf(
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf(
         " - capping selectivity to %g since index is unique\n", field_cap);
   }
 
@@ -127,10 +125,10 @@ double KeyCap(const Field &field, uint key_no, string *trace) {
   upper bound on the selectivity of field (i.e. 1/'number of rows in table'). If
   there is no such index, return 1.0.
 */
-double FindSelectivityCap(const Field &field, string *trace) {
+double FindSelectivityCap(THD *thd, const Field &field) {
   for (uint i = field.key_start.get_first_set(); i != MY_BIT_NONE;
        i = field.key_start.get_next_set(i)) {
-    const double key_cap = KeyCap(field, i, trace);
+    const double key_cap = KeyCap(thd, field, i);
 
     if (key_cap < 1.0) {
       return key_cap;
@@ -206,8 +204,8 @@ using EqualFieldArray = Bounds_checked_array<const Field *const>;
   exploit the correlation between the fields in the prefix.
 */
 KeySelectivityResult EstimateSelectivityFromIndexStatistics(
-    const Field &equal_field, const CompanionSet &companion_set,
-    const TABLE &table, uint key_no, string *trace) {
+    THD *thd, const Field &equal_field, const CompanionSet &companion_set,
+    const TABLE &table, uint key_no) {
   const KEY &key = table.key_info[key_no];
   table_map joined_tables{~PSEUDO_TABLE_BITS};
 
@@ -261,14 +259,12 @@ KeySelectivityResult EstimateSelectivityFromIndexStatistics(
         }
       }();
 
-      if (trace != nullptr) {
-        std::ostringstream stream;
-        stream << " - found " << (part_no + 1)
-               << "-field prefix of candidate index " << key.name
-               << " with selectivity " << field_selectivity
-               << " for last field " << key_field.table->alias << "."
-               << key_field.field_name << "\n";
-        *trace += stream.str();
+      if (TraceStarted(thd)) {
+        Trace(thd) << " - found " << (part_no + 1)
+                   << "-field prefix of candidate index " << key.name
+                   << " with selectivity " << field_selectivity
+                   << " for last field " << key_field.table->alias << "."
+                   << key_field.field_name << "\n";
       }
 
       return {field_selectivity, part_no + 1};
@@ -304,16 +300,16 @@ KeySelectivityResult EstimateSelectivityFromIndexStatistics(
   Returns -1.0 if no index or no histogram was found. Lifted from
   Item_equal::get_filtering_effect.
 
+  @param[in] thd The current thread.
   @param[in] equal_fields  The equijoined fields for which we calculate
   selectivity.
   @param[in] companion_set The CompanionSet of the join.
-  @param[in,out] trace Optimizer trace.
   @returns The estimated selectivity of 'field' (or -1.0 if there was no
   suitable index or histogram).
 */
-double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
-                                         const CompanionSet &companion_set,
-                                         string *trace) {
+double EstimateEqualPredicateSelectivity(THD *thd,
+                                         const EqualFieldArray &equal_fields,
+                                         const CompanionSet &companion_set) {
   uint longest_prefix = 0;
   double selectivity = -1.0;
   double selectivity_cap = 1.0;
@@ -325,12 +321,12 @@ double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
       const KEY &key = equal_field->table->key_info[key_no];
       KeySelectivityResult key_data{-1.0, 0};
 
-      const double key_cap = KeyCap(*equal_field, key_no, trace);
+      const double key_cap = KeyCap(thd, *equal_field, key_no);
       if (key_cap < 1.0) {
         key_data = {key_cap, 1};
       } else if (key.has_records_per_key(0)) {
         key_data = EstimateSelectivityFromIndexStatistics(
-            *equal_field, companion_set, *equal_field->table, key_no, trace);
+            thd, *equal_field, companion_set, *equal_field->table, key_no);
       }
 
       selectivity_cap = std::min(selectivity_cap, key_cap);
@@ -349,7 +345,7 @@ double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
   } else {
     // Look for histograms if there was no suitable index.
     for (const Field *field : equal_fields) {
-      selectivity = std::max(selectivity, HistogramSelectivity(*field, trace));
+      selectivity = std::max(selectivity, HistogramSelectivity(thd, *field));
     }
   }
 
@@ -363,7 +359,7 @@ double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
   on a 0..1 scale (where 1.0 lets all records through).
  */
 double EstimateSelectivity(THD *thd, Item *condition,
-                           const CompanionSet &companion_set, string *trace) {
+                           const CompanionSet &companion_set) {
   // If the item is a true constant, we can say immediately whether it passes
   // or filters all rows. (Actually, calling get_filtering_effect() below
   // would crash if used_tables() is zero, which it is for const items.)
@@ -391,12 +387,12 @@ double EstimateSelectivity(THD *thd, Item *condition,
                                  down_cast<Item_field *>(right)->field};
 
         double selectivity = EstimateEqualPredicateSelectivity(
-            EqualFieldArray(fields, array_elements(fields)), companion_set,
-            trace);
+            thd, EqualFieldArray(fields, array_elements(fields)),
+            companion_set);
 
         if (selectivity >= 0.0) {
-          if (trace != nullptr) {
-            *trace += StringPrintf(
+          if (TraceStarted(thd)) {
+            Trace(thd) << StringPrintf(
                 " - used an index or a histogram for %s, selectivity = %g\n",
                 ItemToString(condition).c_str(), selectivity);
           }
@@ -409,12 +405,12 @@ double EstimateSelectivity(THD *thd, Item *condition,
         // index on this field.
         selectivity_cap = std::min(
             selectivity_cap,
-            FindSelectivityCap(*down_cast<Item_field *>(left)->field, trace));
+            FindSelectivityCap(thd, *down_cast<Item_field *>(left)->field));
       } else if (right->type() == Item::FIELD_ITEM) {
         // Same, for <anything> = field.
         selectivity_cap = std::min(
             selectivity_cap,
-            FindSelectivityCap(*down_cast<Item_field *>(right)->field, trace));
+            FindSelectivityCap(thd, *down_cast<Item_field *>(right)->field));
       }
     }
   }
@@ -460,11 +456,11 @@ double EstimateSelectivity(THD *thd, Item *condition,
     }
 
     double selectivity = EstimateEqualPredicateSelectivity(
-        EqualFieldArray(&fields[0], fields.size()), companion_set, trace);
+        thd, EqualFieldArray(&fields[0], fields.size()), companion_set);
 
     if (selectivity >= 0.0) {
-      if (trace != nullptr) {
-        *trace += StringPrintf(
+      if (TraceStarted(thd)) {
+        Trace(thd) << StringPrintf(
             " - used an index or a histogram for %s, selectivity = %g\n",
             ItemToString(condition).c_str(), selectivity);
       }
@@ -495,9 +491,9 @@ double EstimateSelectivity(THD *thd, Item *condition,
       /*rows_in_table=*/1000.0);
 
   selectivity = std::min(selectivity, selectivity_cap);
-  if (trace != nullptr) {
-    *trace += StringPrintf(" - fallback selectivity for %s = %g\n",
-                           ItemToString(condition).c_str(), selectivity);
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf(" - fallback selectivity for %s = %g\n",
+                               ItemToString(condition).c_str(), selectivity);
   }
   return selectivity;
 }

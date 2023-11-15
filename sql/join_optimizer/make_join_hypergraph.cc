@@ -52,6 +52,7 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/hypergraph.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
@@ -1289,10 +1290,11 @@ bool CanonicalizeConditions(THD *thd, table_map visible_tables,
   This function works recursively, and returns true if the condition
   was pushed.
  */
-bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
+bool AddJoinConditionPossiblyWithRewrite(THD *thd, RelationalExpression *expr,
+                                         Item *cond,
                                          AssociativeRewritesAllowed allowed,
                                          bool used_commutativity,
-                                         bool *need_flatten, string *trace) {
+                                         bool *need_flatten) {
   // We should never reach this from a top-level caller, and due to the call
   // to UnflattenInnerJoins() below, we should also never see it through
   // rotates.
@@ -1308,8 +1310,8 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
     }
 
     expr->join_conditions.push_back(cond);
-    if (trace != nullptr && allowed != AssociativeRewritesAllowed::ANY) {
-      *trace += StringPrintf(
+    if (TraceStarted(thd) && allowed != AssociativeRewritesAllowed::ANY) {
+      Trace(thd) << StringPrintf(
           "- applied associativity%s to better push condition %s\n",
           used_commutativity ? " and commutativity" : "",
           ItemToString(cond).c_str());
@@ -1344,8 +1346,8 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
                   expr->right->right->tables_in_subtree)) {
       RotateRight(expr);
       if (AddJoinConditionPossiblyWithRewrite(
-              expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
-              used_commutativity, need_flatten, trace)) {
+              thd, expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
+              used_commutativity, need_flatten)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1357,8 +1359,8 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       swap(expr->right->left, expr->right->right);
       RotateRight(expr);
       if (AddJoinConditionPossiblyWithRewrite(
-              expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
-              /*used_commutativity=*/false, need_flatten, trace)) {
+              thd, expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
+              /*used_commutativity=*/false, need_flatten)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1379,8 +1381,8 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
                   expr->left->left->tables_in_subtree)) {
       RotateLeft(expr);
       if (AddJoinConditionPossiblyWithRewrite(
-              expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
-              used_commutativity, need_flatten, trace)) {
+              thd, expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
+              used_commutativity, need_flatten)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1392,8 +1394,8 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       swap(expr->left->left, expr->left->right);
       RotateLeft(expr);
       if (AddJoinConditionPossiblyWithRewrite(
-              expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
-              /*used_commutativity=*/true, need_flatten, trace)) {
+              thd, expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
+              /*used_commutativity=*/true, need_flatten)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1466,12 +1468,12 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   (e.g., because it hit an outer join), we will resolve it at the latest
   in CanonicalizeCondition().
  */
-void PushDownCondition(Item *cond, RelationalExpression *expr,
+void PushDownCondition(THD *thd, Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
                        const CompanionSetCollection &companion_collection,
                        Mem_root_array<Item *> *table_filters,
                        Mem_root_array<Item *> *cycle_inducing_edges,
-                       Mem_root_array<Item *> *remaining_parts, string *trace) {
+                       Mem_root_array<Item *> *remaining_parts) {
   if (expr->type == RelationalExpression::TABLE) {
     assert(!IsMultipleEquals(cond));
     table_filters->push_back(cond);
@@ -1495,10 +1497,10 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     // See if we can push this condition down to a single child.
     for (RelationalExpression *child : expr->multi_children) {
       if (IsSubset(used_tables, child->tables_in_subtree)) {
-        PushDownCondition(cond, child,
+        PushDownCondition(thd, cond, child,
                           /*is_join_condition_for_expr=*/false,
                           companion_collection, table_filters,
-                          cycle_inducing_edges, remaining_parts, trace);
+                          cycle_inducing_edges, remaining_parts);
         return;
       }
     }
@@ -1533,10 +1535,10 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       }
       return;
     }
-    PushDownCondition(cond, expr->left,
+    PushDownCondition(thd, cond, expr->left,
                       /*is_join_condition_for_expr=*/false,
                       companion_collection, table_filters, cycle_inducing_edges,
-                      remaining_parts, trace);
+                      remaining_parts);
     return;
   }
 
@@ -1564,10 +1566,10 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       }
       return;
     }
-    PushDownCondition(cond, expr->right,
+    PushDownCondition(thd, cond, expr->right,
                       /*is_join_condition_for_expr=*/false,
                       companion_collection, table_filters, cycle_inducing_edges,
-                      remaining_parts, trace);
+                      remaining_parts);
     return;
   }
 
@@ -1595,11 +1597,11 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
         current_thd, cond, expr->left->tables_in_subtree, /*used_table=*/0,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
-      PushDownCondition(partial_cond, expr->left,
+      PushDownCondition(thd, partial_cond, expr->left,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,
                         cycle_inducing_edges,
-                        /*remaining_parts=*/nullptr, trace);
+                        /*remaining_parts=*/nullptr);
     }
   }
 
@@ -1610,11 +1612,11 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
         current_thd, cond, expr->right->tables_in_subtree, /*used_table=*/0,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
-      PushDownCondition(partial_cond, expr->right,
+      PushDownCondition(thd, partial_cond, expr->right,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,
                         cycle_inducing_edges,
-                        /*remaining_parts=*/nullptr, trace);
+                        /*remaining_parts=*/nullptr);
     }
   }
 
@@ -1633,16 +1635,16 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     table_map right_tables =
         cond->used_tables() & expr->right->tables_in_subtree;
     if (popcount(left_tables) >= 2 && can_push_into_left) {
-      PushDownCondition(cond, expr->left,
+      PushDownCondition(thd, cond, expr->left,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,
-                        cycle_inducing_edges, remaining_parts, trace);
+                        cycle_inducing_edges, remaining_parts);
     }
     if (popcount(right_tables) >= 2 && can_push_into_right) {
-      PushDownCondition(cond, expr->right,
+      PushDownCondition(thd, cond, expr->right,
                         /*is_join_condition_for_expr=*/false,
                         companion_collection, table_filters,
-                        cycle_inducing_edges, remaining_parts, trace);
+                        cycle_inducing_edges, remaining_parts);
     }
   }
 
@@ -1667,8 +1669,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     // as a filter.
     bool need_flatten = false;
     if (!AddJoinConditionPossiblyWithRewrite(
-            expr, cond, AssociativeRewritesAllowed::ANY,
-            /*used_commutativity=*/false, &need_flatten, trace)) {
+            thd, expr, cond, AssociativeRewritesAllowed::ANY,
+            /*used_commutativity=*/false, &need_flatten)) {
       if (remaining_parts != nullptr) {
         remaining_parts->push_back(cond);
       }
@@ -1698,8 +1700,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
 
   bool need_flatten = false;
   if (!AddJoinConditionPossiblyWithRewrite(
-          expr, cond, AssociativeRewritesAllowed::ANY,
-          /*used_commutativity=*/false, &need_flatten, trace)) {
+          thd, expr, cond, AssociativeRewritesAllowed::ANY,
+          /*used_commutativity=*/false, &need_flatten)) {
     if (expr->type == RelationalExpression::INNER_JOIN &&
         IsCandidateForCycle(expr, cond, companion_collection)) {
       // We couldn't push the condition to this join without broadening its
@@ -1710,8 +1712,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       if (IsMultipleEquals(cond)) {
         // Some of these may induce cycles and some may not.
         // We need to split and push them separately.
-        if (trace != nullptr) {
-          *trace += StringPrintf(
+        if (TraceStarted(thd)) {
+          Trace(thd) << StringPrintf(
               "- condition %s may induce hypergraph cycles, splitting\n",
               ItemToString(cond).c_str());
         }
@@ -1720,15 +1722,16 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
                                       expr->tables_in_subtree,
                                       &possible_cycle_edges);
         for (Item *sub_cond : possible_cycle_edges) {
-          PushDownCondition(sub_cond, expr,
+          PushDownCondition(thd, sub_cond, expr,
                             /*is_join_condition_for_expr=*/false,
                             companion_collection, table_filters,
-                            cycle_inducing_edges, remaining_parts, trace);
+                            cycle_inducing_edges, remaining_parts);
         }
       } else {
-        if (trace != nullptr) {
-          *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
-                                 ItemToString(cond).c_str());
+        if (TraceStarted(thd)) {
+          Trace(thd) << StringPrintf(
+              "- condition %s induces a hypergraph cycle\n",
+              ItemToString(cond).c_str());
         }
         cycle_inducing_edges->push_back(CanonicalizeCondition(
             cond, expr->tables_in_subtree, expr->tables_in_subtree));
@@ -1738,8 +1741,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       }
       return;
     }
-    if (trace != nullptr) {
-      *trace += StringPrintf(
+    if (TraceStarted(thd)) {
+      Trace(thd) << StringPrintf(
           "- condition %s makes join reference more relations, "
           "but could not do anything about it\n",
           ItemToString(cond).c_str());
@@ -1836,7 +1839,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
     bool is_join_condition_for_expr,
     const CompanionSetCollection &companion_collection,
     Mem_root_array<Item *> *table_filters,
-    Mem_root_array<Item *> *cycle_inducing_edges, string *trace) {
+    Mem_root_array<Item *> *cycle_inducing_edges) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
     if (popcount(item->used_tables() & ~PSEUDO_TABLE_BITS) < 2 &&
@@ -1858,9 +1861,9 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // pushed (this can only happen with semijoins).
       remaining_parts.push_back(item);
     } else {
-      PushDownCondition(item, expr, is_join_condition_for_expr,
+      PushDownCondition(thd, item, expr, is_join_condition_for_expr,
                         companion_collection, table_filters,
-                        cycle_inducing_edges, &remaining_parts, trace);
+                        cycle_inducing_edges, &remaining_parts);
     }
   }
 
@@ -1890,8 +1893,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
 void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
                             const CompanionSetCollection &companion_collection,
                             Mem_root_array<Item *> *table_filters,
-                            Mem_root_array<Item *> *cycle_inducing_edges,
-                            string *trace) {
+                            Mem_root_array<Item *> *cycle_inducing_edges) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
@@ -1901,18 +1903,18 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
     expr->join_conditions = PushDownAsMuchAsPossible(
         thd, std::move(expr->join_conditions), expr,
         /*is_join_condition_for_expr=*/true, companion_collection,
-        table_filters, cycle_inducing_edges, trace);
+        table_filters, cycle_inducing_edges);
   }
   if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
     for (RelationalExpression *child : expr->multi_children) {
       PushDownJoinConditions(thd, child, companion_collection, table_filters,
-                             cycle_inducing_edges, trace);
+                             cycle_inducing_edges);
     }
   } else {
     PushDownJoinConditions(thd, expr->left, companion_collection, table_filters,
-                           cycle_inducing_edges, trace);
+                           cycle_inducing_edges);
     PushDownJoinConditions(thd, expr->right, companion_collection,
-                           table_filters, cycle_inducing_edges, trace);
+                           table_filters, cycle_inducing_edges);
   }
 }
 
@@ -2828,7 +2830,7 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
                  int source_multiple_equality_idx,
                  const RelationalExpression *root,
                  const CompanionSetCollection *companion_collection,
-                 JoinHypergraph *graph, string *trace) {
+                 JoinHypergraph *graph) {
   if (source_multiple_equality_idx != -1) {
     assert(was_join_condition);
   }
@@ -2863,10 +2865,9 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
     companion_set = companion_collection->Find(used_tables);
   }
 
-  pred.selectivity =
-      companion_set != nullptr
-          ? EstimateSelectivity(thd, condition, *companion_set, trace)
-          : EstimateSelectivity(thd, condition, CompanionSet(), trace);
+  pred.selectivity = companion_set != nullptr
+                         ? EstimateSelectivity(thd, condition, *companion_set)
+                         : EstimateSelectivity(thd, condition, CompanionSet());
 
   pred.was_join_condition = was_join_condition;
   pred.source_multiple_equality_idx = source_multiple_equality_idx;
@@ -2882,19 +2883,19 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
 
   graph->predicates.push_back(std::move(pred));
 
-  if (trace != nullptr) {
-    *trace += StringPrintf("Total eligibility set for %s: {",
-                           ItemToString(condition).c_str());
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf("Total eligibility set for %s: {",
+                               ItemToString(condition).c_str());
     bool first = true;
     for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
          tl = tl->next_leaf) {
       if (tl->map() & total_eligibility_set) {
-        if (!first) *trace += ',';
-        *trace += tl->alias;
+        if (!first) Trace(thd) << ',';
+        Trace(thd) << tl->alias;
         first = false;
       }
     }
-    *trace += "}\n";
+    Trace(thd) << "}\n";
   }
 
   return graph->predicates.size() - 1;
@@ -2982,7 +2983,7 @@ bool IsPartOfCycle(const JoinHypergraph *graph, int edge_idx) {
  */
 void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
                    CompanionSetCollection &companion_collection,
-                   JoinHypergraph *graph, string *trace) {
+                   JoinHypergraph *graph) {
   for (Item *cond : cycle_inducing_edges) {
     const NodeMap used_nodes = GetNodeMapFromTableMap(
         cond->used_tables(), graph->table_num_to_node_num);
@@ -3021,8 +3022,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
 
       expr->companion_set = companion_collection.Find(expr->tables_in_subtree);
 
-      double selectivity =
-          EstimateSelectivity(thd, cond, *expr->companion_set, trace);
+      double selectivity = EstimateSelectivity(thd, cond, *expr->companion_set);
       const size_t estimated_bytes_per_row =
           EstimateRowWidthForJoin(*graph, expr);
       graph->edges.push_back(JoinPredicate{
@@ -3050,8 +3050,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       if (dup) {
         continue;
       }
-      pred->selectivity *=
-          EstimateSelectivity(thd, cond, *expr->companion_set, trace);
+      pred->selectivity *= EstimateSelectivity(thd, cond, *expr->companion_set);
     }
     if (cond->type() == Item::FUNC_ITEM &&
         down_cast<Item_func *>(cond)->contains_only_equi_join_condition()) {
@@ -3097,8 +3096,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
 void PromoteCycleJoinPredicates(
     THD *thd, const RelationalExpression *root,
     const Mem_root_array<Item_equal *> &multiple_equalities,
-    const CompanionSetCollection &companion_collection, JoinHypergraph *graph,
-    string *trace) {
+    const CompanionSetCollection &companion_collection, JoinHypergraph *graph) {
   for (size_t edge_idx = 0; edge_idx < graph->graph.edges.size();
        edge_idx += 2) {
     if (!IsPartOfCycle(graph, edge_idx)) {
@@ -3109,12 +3107,12 @@ void PromoteCycleJoinPredicates(
     for (Item *condition : expr->equijoin_conditions) {
       AddPredicate(thd, condition, /*was_join_condition=*/true,
                    FindSourceMultipleEquality(condition, multiple_equalities),
-                   root, &companion_collection, graph, trace);
+                   root, &companion_collection, graph);
     }
     for (Item *condition : expr->join_conditions) {
       AddPredicate(thd, condition, /*was_join_condition=*/true,
                    FindSourceMultipleEquality(condition, multiple_equalities),
-                   root, &companion_collection, graph, trace);
+                   root, &companion_collection, graph);
     }
     expr->join_predicate_last = graph->predicates.size();
     SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
@@ -3134,7 +3132,6 @@ void PromoteCycleJoinPredicates(
   FindHyperedgeAndJoinConflicts().
  */
 void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
-                                           string *trace,
                                            JoinHypergraph *graph) {
   if (expr->type == RelationalExpression::TABLE) {
     graph->graph.AddNode();
@@ -3150,8 +3147,8 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
     return;
   }
 
-  MakeJoinGraphFromRelationalExpression(thd, expr->left, trace, graph);
-  MakeJoinGraphFromRelationalExpression(thd, expr->right, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->left, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->right, graph);
   expr->nodes_in_subtree =
       expr->left->nodes_in_subtree | expr->right->nodes_in_subtree;
 
@@ -3189,22 +3186,20 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
                         });
   }
 
-  if (trace != nullptr) {
-    *trace += StringPrintf("Selectivity of join %s:\n",
-                           GenerateExpressionLabel(expr).c_str());
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf("Selectivity of join %s:\n",
+                               GenerateExpressionLabel(expr).c_str());
   }
   double selectivity = 1.0;
   for (Item *item : expr->equijoin_conditions) {
-    selectivity *=
-        EstimateSelectivity(current_thd, item, *expr->companion_set, trace);
+    selectivity *= EstimateSelectivity(current_thd, item, *expr->companion_set);
   }
   for (Item *item : expr->join_conditions) {
-    selectivity *=
-        EstimateSelectivity(current_thd, item, CompanionSet(), trace);
+    selectivity *= EstimateSelectivity(current_thd, item, CompanionSet());
   }
-  if (trace != nullptr &&
+  if (TraceStarted(thd) &&
       expr->equijoin_conditions.size() + expr->join_conditions.size() > 1) {
-    *trace += StringPrintf("  - total: %.g\n", selectivity);
+    Trace(thd) << StringPrintf("  - total: %.g\n", selectivity);
   }
 
   const size_t estimated_bytes_per_row = EstimateRowWidthForJoin(*graph, expr);
@@ -3307,12 +3302,10 @@ void AddMultipleEqualityPredicate(THD *thd,
  */
 void CompleteFullMeshForMultipleEqualities(
     THD *thd, const Mem_root_array<Item_equal *> &multiple_equalities,
-    CompanionSetCollection &companion_collection, JoinHypergraph *graph,
-    string *trace) {
+    CompanionSetCollection &companion_collection, JoinHypergraph *graph) {
   for (Item_equal *item_equal : multiple_equalities) {
     double selectivity = EstimateSelectivity(
-        thd, item_equal, *companion_collection.Find(item_equal->used_tables()),
-        trace);
+        thd, item_equal, *companion_collection.Find(item_equal->used_tables()));
 
     for (Item_field &left_field : item_equal->get_fields()) {
       const int left_table_idx =
@@ -3440,7 +3433,7 @@ bool ExtractWhereConditionsForSingleTable(THD *thd, Item *condition,
 /// Fast path for MakeJoinHypergraph() when the query accesses a single table or
 /// no table.
 bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
-                               string *trace, JoinHypergraph *graph,
+                               JoinHypergraph *graph,
                                bool *where_is_always_false) {
   RelationalExpression *root = nullptr;
   if (Table_ref *const table_ref = query_block->leaf_tables;
@@ -3452,7 +3445,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
       return true;
     }
     root = MakeRelationalExpression(thd, table_ref);
-    MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+    MakeJoinGraphFromRelationalExpression(thd, root, graph);
   }
 
   if (Item *const where_cond = query_block->join->where_cond;
@@ -3466,16 +3459,15 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
     for (Item *item : where_conditions) {
       AddPredicate(thd, item, /*was_join_condition=*/false,
                    /*source_multiple_equality_idx=*/-1, root,
-                   /*companion_collection=*/nullptr, graph, trace);
+                   /*companion_collection=*/nullptr, graph);
     }
     graph->num_where_predicates = graph->predicates.size();
 
     SortPredicates(graph->predicates.begin(), graph->predicates.end());
   }
 
-  if (trace != nullptr) {
-    *trace += "\nConstructed hypergraph:\n";
-    *trace += PrintDottyHypergraph(*graph);
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\nConstructed hypergraph:\n" << PrintDottyHypergraph(*graph);
   }
 
   return false;
@@ -3485,17 +3477,16 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 
-bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
+bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
                         bool *where_is_always_false) {
   const Query_block *query_block = graph->query_block();
 
-  if (trace != nullptr) {
+  if (TraceStarted(thd)) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
     // It's only useful for debugging, not as much for understanding what's
     // going on.
-    *trace += "Join list after simplification:\n";
-    *trace += PrintJoinList(query_block->m_table_nest, /*level=*/0);
-    *trace += "\n";
+    Trace(thd) << "Join list after simplification:\n"
+               << PrintJoinList(query_block->m_table_nest, /*level=*/0) << "\n";
   }
 
   const size_t num_tables = query_block->leaf_table_count;
@@ -3507,7 +3498,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // Fast path for single-table queries. We can skip all the logic that analyzes
   // join conditions, as there is no join.
   if (num_tables <= 1) {
-    return MakeSingleTableHypergraph(thd, query_block, trace, graph,
+    return MakeSingleTableHypergraph(thd, query_block, graph,
                                      where_is_always_false);
   }
 
@@ -3518,24 +3509,23 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   FlattenInnerJoins(root);
 
   const JOIN *join = query_block->join;
-  if (trace != nullptr) {
+  if (TraceStarted(thd)) {
     // TODO(sgunders): Same question as above; perhaps the version after
     // pushdown is sufficient.
-    *trace +=
-        StringPrintf("Made this relational tree; WHERE condition is %s:\n",
-                     ItemToString(join->where_cond).c_str());
-    *trace += PrintRelationalExpression(root, 0);
-    *trace += "\n";
+    Trace(thd) << StringPrintf(
+                      "Made this relational tree; WHERE condition is %s:\n",
+                      ItemToString(join->where_cond).c_str())
+               << PrintRelationalExpression(root, 0) << "\n";
   }
 
-  if (trace != nullptr) {
-    *trace += StringPrintf("Pushing conditions down.\n");
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf("Pushing conditions down.\n");
   }
 
   Mem_root_array<Item *> table_filters(thd->mem_root);
   Mem_root_array<Item *> cycle_inducing_edges(thd->mem_root);
   PushDownJoinConditions(thd, root, companion_collection, &table_filters,
-                         &cycle_inducing_edges, trace);
+                         &cycle_inducing_edges);
 
   // Split up WHERE conditions, and push them down into the tree as much as
   // we can. (They have earlier been hoisted up as far as possible; see
@@ -3558,7 +3548,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     where_conditions = PushDownAsMuchAsPossible(
         thd, std::move(where_conditions), root,
         /*is_join_condition_for_expr=*/false, companion_collection,
-        &table_filters, &cycle_inducing_edges, trace);
+        &table_filters, &cycle_inducing_edges);
 
     // We're done pushing, so unflatten so that the rest of the algorithms
     // don't need to worry about it.
@@ -3595,14 +3585,13 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   FindConditionsUsedTables(thd, root);
   MakeHashJoinConditions(thd, root);
 
-  if (trace != nullptr) {
-    *trace += StringPrintf(
-        "\nAfter pushdown; remaining WHERE conditions are %s, "
-        "table filters are %s:\n",
-        ItemsToString(where_conditions).c_str(),
-        ItemsToString(table_filters).c_str());
-    *trace += PrintRelationalExpression(root, 0);
-    *trace += '\n';
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf(
+                      "\nAfter pushdown; remaining WHERE conditions are %s, "
+                      "table filters are %s:\n",
+                      ItemsToString(where_conditions).c_str(),
+                      ItemsToString(table_filters).c_str())
+               << PrintRelationalExpression(root, 0) << '\n';
   }
 
   // Ask the storage engine to update stats.records, if needed.
@@ -3638,8 +3627,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     }
   });
 
-  if (trace != nullptr) {
-    *trace += companion_collection.ToString();
+  if (TraceStarted(thd)) {
+    Trace(thd) << companion_collection.ToString();
   }
 
   // Construct the hypergraph from the relational expression.
@@ -3647,7 +3636,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   std::fill(begin(graph->table_num_to_node_num),
             end(graph->table_num_to_node_num), -1);
 #endif
-  MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, root, graph);
 
   // Now that we have the hypergraph construction done, it no longer hurts
   // to remove impossible conditions.
@@ -3659,8 +3648,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // Add cycles.
   size_t old_graph_edges = graph->graph.edges.size();
   if (!cycle_inducing_edges.empty()) {
-    AddCycleEdges(thd, cycle_inducing_edges, companion_collection, graph,
-                  trace);
+    AddCycleEdges(thd, cycle_inducing_edges, companion_collection, graph);
   }
   // Now that all trivial conditions have been removed and all equijoin
   // conditions extracted, go ahead and extract all the multiple
@@ -3679,27 +3667,26 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
       std::unique(multiple_equalities.begin(), multiple_equalities.end()),
       multiple_equalities.end());
   CompleteFullMeshForMultipleEqualities(thd, multiple_equalities,
-                                        companion_collection, graph, trace);
+                                        companion_collection, graph);
   if (graph->graph.edges.size() != old_graph_edges) {
     // We added at least one cycle-inducing edge.
     PromoteCycleJoinPredicates(thd, root, multiple_equalities,
-                               companion_collection, graph, trace);
+                               companion_collection, graph);
   }
 
-  if (trace != nullptr) {
-    *trace += "\nConstructed hypergraph:\n";
-    *trace += PrintDottyHypergraph(*graph);
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\nConstructed hypergraph:\n" << PrintDottyHypergraph(*graph);
 
     if (DEBUGGING_DPHYP) {
       // DPhyp printouts talk mainly about R1, R2, etc., so if debugging
       // the algorithm, it is useful to have a link to the table names.
-      *trace += "Node mappings, for reference:\n";
+      Trace(thd) << "Node mappings, for reference:\n";
       for (size_t i = 0; i < graph->nodes.size(); ++i) {
-        *trace +=
-            StringPrintf("  R%zu = %s\n", i + 1, graph->nodes[i].table->alias);
+        Trace(thd) << StringPrintf("  R%zu = %s\n", i + 1,
+                                   graph->nodes[i].table->alias);
       }
     }
-    *trace += "\n";
+    Trace(thd) << "\n";
   }
 
 #ifndef NDEBUG
@@ -3727,7 +3714,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   for (Item *condition : where_conditions) {
     AddPredicate(thd, condition, /*was_join_condition=*/false,
                  /*source_multiple_equality_idx=*/-1, root,
-                 &companion_collection, graph, trace);
+                 &companion_collection, graph);
   }
 
   // Table filters should be applied at the bottom, without extending the TES.
@@ -3739,8 +3726,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
         graph->table_num_to_node_num);
     assert(has_single_bit(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(
-        thd, condition, *companion_collection.Find(condition->used_tables()),
-        trace);
+        thd, condition, *companion_collection.Find(condition->used_tables()));
     pred.functional_dependencies_idx.init(thd->mem_root);
     graph->predicates.push_back(std::move(pred));
   }

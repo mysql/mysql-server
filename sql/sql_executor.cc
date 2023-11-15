@@ -1479,10 +1479,11 @@ static AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
 
 /**
    Recalculate the cost of 'path'.
+   @param thd Current thread.
    @param path the access path for which we update the cost numbers.
    @param outer_query_block the query block to which 'path' belongs.
 */
-static void RecalculateTablePathCost(AccessPath *path,
+static void RecalculateTablePathCost(THD *thd, AccessPath *path,
                                      const Query_block &outer_query_block) {
   switch (path->type) {
     case AccessPath::FILTER: {
@@ -1501,7 +1502,7 @@ static void RecalculateTablePathCost(AccessPath *path,
     } break;
 
     case AccessPath::SORT:
-      EstimateSortCost(path);
+      EstimateSortCost(thd, path);
       break;
 
     case AccessPath::LIMIT_OFFSET:
@@ -1534,7 +1535,7 @@ static void RecalculateTablePathCost(AccessPath *path,
 }
 
 AccessPath *MoveCompositeIteratorsFromTablePath(
-    AccessPath *path, const Query_block &outer_query_block) {
+    THD *thd, AccessPath *path, const Query_block &outer_query_block) {
   assert(path->cost() >= 0.0);
   AccessPath *table_path = path->materialize().table_path;
   AccessPath *bottom_of_table_path = nullptr;
@@ -1630,7 +1631,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
     // includes the cost of its descendants.
     for (auto ancestor = ancestor_paths.end() - 1;
          ancestor >= ancestor_paths.begin(); ancestor--) {
-      RecalculateTablePathCost(*ancestor, outer_query_block);
+      RecalculateTablePathCost(thd, *ancestor, outer_query_block);
     }
   }
 
@@ -1692,7 +1693,7 @@ AccessPath *GetAccessPathForDerivedTable(
             : false);
     EstimateMaterializeCost(thd, path);
     path = MoveCompositeIteratorsFromTablePath(
-        path, *query_expression->outer_query_block());
+        thd, path, *query_expression->outer_query_block());
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
@@ -1736,7 +1737,7 @@ AccessPath *GetAccessPathForDerivedTable(
         query_expression->m_reject_multiple_rows);
     EstimateMaterializeCost(thd, path);
     path = MoveCompositeIteratorsFromTablePath(
-        path, *query_expression->outer_query_block());
+        thd, path, *query_expression->outer_query_block());
   }
 
   path->set_cost_before_filter(path->cost());
@@ -1834,7 +1835,7 @@ static AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab,
         /*reject_multiple_rows=*/false);
     EstimateMaterializeCost(thd, table_path);
     table_path = MoveCompositeIteratorsFromTablePath(
-        table_path, *qep_tab->join()->query_block);
+        thd, table_path, *qep_tab->join()->query_block);
 
 #ifndef NDEBUG
     // Make sure we clear this table out when the join is reset,
@@ -3097,7 +3098,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       // see below. We won't be aggregating twice, though.)
       if (!qep_tab->tmp_table_param->precomputed_group_by) {
         path = NewAggregateAccessPath(thd, path, query_block->olap);
-        EstimateAggregateCost(path, query_block);
+        EstimateAggregateCost(thd, path, query_block);
       }
     }
 
@@ -3341,7 +3342,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
 #endif
     if (!tmp_table_param.precomputed_group_by) {
       path = NewAggregateAccessPath(thd, path, query_block->olap);
-      EstimateAggregateCost(path, query_block);
+      EstimateAggregateCost(thd, path, query_block);
     }
   }
 

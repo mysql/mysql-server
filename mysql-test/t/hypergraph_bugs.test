@@ -1094,6 +1094,35 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 
 DROP TABLE t1,t2;
 
+
+--echo #
+--echo # Bug#35997316 Hypergraph: Incomplete and inconvenient optimizer trace
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n+1<30) SELECT n, n%10 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+ANALYZE TABLE t1;
+
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+  WHERE x1.a IN (SELECT x2.b FROM t1 x2);
+
+# Check that how we estimate the number of distinct values for x2.b are
+# logged in the optimizer trace.
+SELECT REGEXP_SUBSTR(
+  trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET SESSION OPTIMIZER_TRACE='enabled=off';
+
+DROP TABLE t1;
+
 --echo # Bug#5889990: Setting secondary_engine to OFF causes offload issues
 
 CREATE TABLE t(x INT, y INT);

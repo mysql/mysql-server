@@ -66,7 +66,6 @@
 
 #include <stddef.h>
 
-#include <string>
 #include <vector>
 
 #include "my_compiler.h"
@@ -85,7 +84,7 @@ class Mem_root_allocator;
 // Exposed for unit testing.
 class GraphSimplifier {
  public:
-  GraphSimplifier(JoinHypergraph *graph, MEM_ROOT *mem_root);
+  GraphSimplifier(THD *thd, JoinHypergraph *graph);
 
   // Do a single simplification step. The return enum is mostly for unit tests;
   // general code only needs to care about whether it returned
@@ -200,6 +199,7 @@ class GraphSimplifier {
   SimplificationStep ConcretizeSimplificationStep(
       GraphSimplifier::ProposedSimplificationStep step);
 
+  THD *m_thd;
   // Steps that we have applied so far, in chronological order.
   // Used so that we can undo them easily on UndoSimplificationStep().
   Mem_root_array<SimplificationStep> m_done_steps;
@@ -304,7 +304,6 @@ void SetNumberOfSimplifications(int num_simplifications,
 
 // See comment in .cc file.
 void SimplifyQueryGraph(THD *thd, int subgraph_pair_limit,
-                        JoinHypergraph *graph, GraphSimplifier *simplifier,
-                        std::string *trace);
+                        JoinHypergraph *graph, GraphSimplifier *simplifier);
 
 #endif  // SQL_JOIN_OPTIMIZER_GRAPH_SIMPLIFICATION_H_

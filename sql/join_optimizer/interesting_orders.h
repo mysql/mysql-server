@@ -146,6 +146,7 @@
 #include "sql/sql_array.h"
 
 #include <bitset>
+#include <sstream>
 #include <string>
 
 class LogicalOrderings;
@@ -403,10 +404,7 @@ class LogicalOrderings {
   // actual interesting order later, after the FDs have been applied). These are
   // usually at the end, but may also be deduplicated against uninteresting
   // orders, which will then be marked as interesting.
-  //
-  // trace can be nullptr; if not, it get human-readable optimizer trace
-  // appended to it.
-  void Build(THD *thd, std::string *trace);
+  void Build(THD *thd);
 
   // These are only available after Build() has been called.
   // They are stateless and used in the actual planning phase.
@@ -845,10 +843,10 @@ class LogicalOrderings {
   std::string PrintOrdering(const Ordering &ordering) const;
   std::string PrintFunctionalDependency(const FunctionalDependency &fd,
                                         bool html) const;
-  void PrintFunctionalDependencies(std::string *trace);
-  void PrintInterestingOrders(std::string *trace);
-  void PrintNFSMDottyGraph(std::string *trace) const;
-  void PrintDFSMDottyGraph(std::string *trace) const;
+  void PrintFunctionalDependencies(std::ostream *trace);
+  void PrintInterestingOrders(std::ostream *trace);
+  void PrintNFSMDottyGraph(std::ostream *trace) const;
+  void PrintDFSMDottyGraph(std::ostream *trace) const;
 };
 
 inline bool operator==(const LogicalOrderings::NFSMEdge &a,

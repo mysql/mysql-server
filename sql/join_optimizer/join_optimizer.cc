@@ -78,6 +78,7 @@
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/optimizer_trace.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -189,8 +190,7 @@ class CostingReceiver {
       SecondaryEngineFlags engine_flags, int subgraph_pair_limit,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       secondary_engine_check_optimizer_request_t
-          secondary_engine_planning_complexity_check_hook,
-      string *trace)
+          secondary_engine_planning_complexity_check_hook)
       : m_thd(thd),
         m_query_block(query_block),
         m_access_paths(thd->mem_root),
@@ -211,8 +211,7 @@ class CostingReceiver {
         m_subgraph_pair_limit(subgraph_pair_limit),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
         m_secondary_engine_planning_complexity_check(
-            secondary_engine_planning_complexity_check_hook),
-        m_trace(trace) {
+            secondary_engine_planning_complexity_check_hook) {
     // At least one join type must be supported.
     assert(Overlaps(engine_flags,
                     MakeSecondaryEngineFlags(
@@ -445,9 +444,6 @@ class CostingReceiver {
   /// for optimization with secondary storage engine, or nullptr otherwise.
   secondary_engine_check_optimizer_request_t
       m_secondary_engine_planning_complexity_check;
-
-  /// If not nullptr, we store human-readable optimizer trace information here.
-  string *m_trace;
 
   /// A map of tables that can never be on the right side of any join,
   /// ie., they have to be leftmost in the tree. This only affects recursive
@@ -709,25 +705,22 @@ bool IsUpdateStatement(const THD *thd) {
 void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
   auto it = m_access_paths.find(nodes);
   if (it == m_access_paths.end()) {
-    *m_trace += " - ";
-    *m_trace += PrintSet(nodes);
-    *m_trace += " has no access paths (this should not normally happen)\n";
+    Trace(m_thd) << " - " << PrintSet(nodes)
+                 << " has no access paths (this should not normally happen)\n";
     return;
   }
 
-  *m_trace += " - current access paths for ";
-  *m_trace += PrintSet(nodes);
-  *m_trace += ": ";
+  Trace(m_thd) << " - current access paths for " << PrintSet(nodes) << ": ";
 
   bool first = true;
   for (const AccessPath *path : it->second.paths) {
     if (!first) {
-      *m_trace += ", ";
+      Trace(m_thd) << ", ";
     }
-    *m_trace += PrintAccessPath(*path, *m_graph, "");
+    Trace(m_thd) << PrintAccessPath(*path, *m_graph, "");
     first = false;
   }
-  *m_trace += ")\n";
+  Trace(m_thd) << ")\n";
 }
 
 /**
@@ -748,10 +741,10 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   TABLE *table = m_graph->nodes[node_idx].table;
   Table_ref *tl = table->pos_in_table_list;
 
-  if (m_trace != nullptr) {
-    *m_trace += StringPrintf("\nFound node %s [rows=%llu]\n",
-                             m_graph->nodes[node_idx].table->alias,
-                             table->file->stats.records);
+  if (TraceStarted(m_thd)) {
+    Trace(m_thd) << StringPrintf("\nFound node %s [rows=%llu]\n",
+                                 m_graph->nodes[node_idx].table->alias,
+                                 table->file->stats.records);
   }
 
   // First look for unique index lookups that use only constants.
@@ -767,7 +760,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     // better. Returning early to reduce time spent planning the query, which is
     // especially beneficial for point selects.
     if (found_eq_ref) {
-      if (m_trace != nullptr) {
+      if (TraceStarted(m_thd)) {
         TraceAccessPaths(TableBitmap(node_idx));
       }
       return false;
@@ -829,7 +822,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
             m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
         ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
                                        /*obsolete_orderings=*/0, zero_path, "");
-        if (m_trace != nullptr) {
+        if (TraceStarted(m_thd)) {
           TraceAccessPaths(TableBitmap(node_idx));
         }
         return false;
@@ -844,7 +837,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) ||
       tl->is_recursive_reference()) {
     // We can't use any indexes, so end here.
-    if (m_trace != nullptr) {
+    if (TraceStarted(m_thd)) {
       TraceAccessPaths(TableBitmap(node_idx));
     }
     return false;
@@ -946,7 +939,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     }
   }
 
-  if (m_trace != nullptr) {
+  if (TraceStarted(m_thd)) {
     TraceAccessPaths(TableBitmap(node_idx));
   }
   return false;
@@ -1154,7 +1147,7 @@ bool CollectPossibleRangeScans(
 double EstimateOutputRowsFromRangeTree(
     THD *thd, const RANGE_OPT_PARAM &param, ha_rows total_rows,
     const Mem_root_array<PossibleRangeScan> &possible_scans,
-    const JoinHypergraph &graph, OverflowBitset predicates, string *trace) {
+    const JoinHypergraph &graph, OverflowBitset predicates) {
   MutableOverflowBitset remaining_predicates = predicates.Clone(thd->mem_root);
   double selectivity = 1.0;
   while (!IsEmpty(remaining_predicates)) {
@@ -1197,30 +1190,31 @@ double EstimateOutputRowsFromRangeTree(
       remaining_predicates.ClearBit(predicate_idx);
     }
 
-    if (trace != nullptr) {
+    if (TraceStarted(thd)) {
       const unsigned keynr = param.real_keynr[best_scan->idx];
       KEY *key = &param.table->key_info[keynr];
-      *trace += StringPrintf(
+      Trace(thd) << StringPrintf(
           " - using selectivity %.3f (%llu rows) from range scan on index %s "
           "to cover ",
           best_selectivity, best_scan->num_rows, key->name);
       bool first = true;
       for (int predicate_idx : BitsSetIn(best_scan->applied_predicates)) {
         if (!first) {
-          *trace += " AND ";
+          Trace(thd) << " AND ";
         }
         first = false;
-        *trace +=
-            "(" + ItemToString(graph.predicates[predicate_idx].condition) + ")";
+        Trace(thd) << "("
+                   << ItemToString(graph.predicates[predicate_idx].condition)
+                   << ")";
       }
-      *trace += "\n";
+      Trace(thd) << "\n";
     }
   }
 
   // Cover any remaining predicates by single-predicate estimates.
   for (int predicate_idx : BitsSetIn(std::move(remaining_predicates))) {
-    if (trace != nullptr) {
-      *trace += StringPrintf(
+    if (TraceStarted(thd)) {
+      Trace(thd) << StringPrintf(
           " - using existing selectivity %.3f from outside range scan "
           "to cover %s\n",
           graph.predicates[predicate_idx].selectivity,
@@ -1561,7 +1555,7 @@ bool CostingReceiver::FindIndexRangeScans(
   }
   *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
       m_thd, param, table->file->stats.records, possible_scans, *m_graph,
-      all_predicates_fixed, m_trace);
+      all_predicates_fixed);
 
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
     // We only wanted to use the index for estimation, and now we've done that.
@@ -2588,8 +2582,8 @@ bool CostingReceiver::ProposeRefAccess(
 
   if (matched_keyparts < usable_keyparts &&
       (table->file->index_flags(key_idx, 0, false) & HA_ONLY_WHOLE_INDEX)) {
-    if (m_trace != nullptr) {
-      *m_trace += StringPrintf(
+    if (TraceStarted(m_thd)) {
+      Trace(m_thd) << StringPrintf(
           " - %s is whole-key only, and we could only match %d/%d "
           "key parts for ref access\n",
           key->name, matched_keyparts, usable_keyparts);
@@ -2597,14 +2591,14 @@ bool CostingReceiver::ProposeRefAccess(
     return false;
   }
 
-  if (m_trace != nullptr) {
+  if (TraceStarted(m_thd)) {
     if (matched_keyparts < usable_keyparts) {
-      *m_trace += StringPrintf(
+      Trace(m_thd) << StringPrintf(
           " - %s is applicable for ref access (using %d/%d key parts only)\n",
           key->name, matched_keyparts, usable_keyparts);
     } else {
-      *m_trace +=
-          StringPrintf(" - %s is applicable for ref access\n", key->name);
+      Trace(m_thd) << StringPrintf(" - %s is applicable for ref access\n",
+                                   key->name);
     }
   }
 
@@ -2692,15 +2686,16 @@ bool CostingReceiver::ProposeRefAccess(
       return true;
     }
     if (subsumes) {
-      if (m_trace != nullptr) {
-        *m_trace += StringPrintf(" - %s is subsumed by ref access on %s.%s\n",
-                                 ItemToString(pred.condition).c_str(),
-                                 table->alias, keypart.field->field_name);
+      if (TraceStarted(m_thd)) {
+        Trace(m_thd) << StringPrintf(
+            " - %s is subsumed by ref access on %s.%s\n",
+            ItemToString(pred.condition).c_str(), table->alias,
+            keypart.field->field_name);
       }
       subsumed_predicates.SetBit(i);
     } else {
-      if (m_trace != nullptr) {
-        *m_trace += StringPrintf(
+      if (TraceStarted(m_thd)) {
+        Trace(m_thd) << StringPrintf(
             " - %s is not fully subsumed by ref access on %s.%s, keeping\n",
             ItemToString(pred.condition).c_str(), table->alias,
             keypart.field->field_name);
@@ -3742,13 +3737,19 @@ bool IsEmptyJoin(const RelationalExpression::Type join_type, bool left_is_empty,
 }
 
 bool CostingReceiver::evaluate_secondary_engine_optimizer_state_request() {
+  std::string secondary_trace;
+
   SecondaryEngineGraphSimplificationRequestParameters restart_parameters =
       m_secondary_engine_planning_complexity_check(
           m_thd, *m_graph, /*ap = */ nullptr,
           /*current_num_sg_pairs = */ m_num_seen_subgraph_pairs,
           /*current_sg_pairs_limit = */ m_subgraph_pair_limit,
           /*is_root_ap=*/false,
-          /*requested_num_sg_pairs = */ m_trace);
+          /*trace = */ TraceStarted(m_thd) ? &secondary_trace : nullptr);
+
+  if (TraceStarted(m_thd)) {
+    Trace(m_thd) << secondary_trace;
+  }
 
   switch (restart_parameters.secondary_engine_optimizer_request) {
     case SecondaryEngineGraphSimplificationRequest::kRestart:
@@ -4066,7 +4067,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
     }
   }
 
-  if (m_trace != nullptr) {
+  if (TraceStarted(m_thd)) {
     TraceAccessPaths(left | right);
   }
   return false;
@@ -4079,8 +4080,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
  */
 AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
                                    Item **semijoin_group,
-                                   int semijoin_group_size,
-                                   std::string *trace) {
+                                   int semijoin_group_size) {
   AccessPath *dedup_path;
   if (semijoin_group_size == 0) {
     dedup_path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
@@ -4092,8 +4092,8 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
                                                semijoin_group_size);
     CopyBasicProperties(*path, dedup_path);
     dedup_path->set_num_output_rows(EstimateDistinctRows(
-        path->num_output_rows(),
-        {semijoin_group, static_cast<size_t>(semijoin_group_size)}, trace));
+        thd, path->num_output_rows(),
+        {semijoin_group, static_cast<size_t>(semijoin_group_size)}));
     dedup_path->set_cost(dedup_path->cost() +
                          kAggregateOneRowCost * path->num_output_rows());
   }
@@ -4255,9 +4255,8 @@ void CostingReceiver::ProposeHashJoin(
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
     CommitBitsetsToHeap(left_path);
-    join_path.hash_join().outer =
-        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
-                               edge->semijoin_group_size, m_trace);
+    join_path.hash_join().outer = DeduplicateForSemijoin(
+        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
   }
 
   // TODO(sgunders): Consider removing redundant join conditions.
@@ -4283,7 +4282,7 @@ void CostingReceiver::ProposeHashJoin(
     }
 
     num_output_rows =
-        FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
+        FindOutputRowsForJoin(m_thd, outer_input_rows, inner_input_rows, edge);
   }
 
   // left_path and join_path.hash_join().outer are intentionally different if
@@ -4384,8 +4383,8 @@ void CostingReceiver::ProposeHashJoin(
       std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
 
   // Only trace once; the rest ought to be identical.
-  if (m_trace != nullptr && !*wrote_trace) {
-    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
+  if (TraceStarted(m_thd) && !*wrote_trace) {
+    Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
     *wrote_trace = true;
   }
 
@@ -4749,9 +4748,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
-    join_path.nested_loop_join().outer =
-        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
-                               edge->semijoin_group_size, m_trace);
+    join_path.nested_loop_join().outer = DeduplicateForSemijoin(
+        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
   } else if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
     join_path.nested_loop_join().join_type = JoinType::INNER;
   } else {
@@ -4859,7 +4857,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
     }
 
     join_path.num_output_rows_before_filter =
-        FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
+        FindOutputRowsForJoin(m_thd, outer_input_rows, inner_input_rows, edge);
     join_path.set_num_output_rows(join_path.num_output_rows_before_filter);
   }
 
@@ -4905,8 +4903,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
   }
 
   // Only trace once; the rest ought to be identical.
-  if (m_trace != nullptr && !*wrote_trace) {
-    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
+  if (TraceStarted(m_thd) && !*wrote_trace) {
+    Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
     *wrote_trace = true;
   }
 
@@ -4921,7 +4919,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
                                                     new_fd_set | filter_fd_set);
 
     const char *description_for_trace = "";
-    if (m_trace != nullptr) {
+    if (TraceStarted(m_thd)) {
       if (materialize_subqueries && rewrite_semi_to_inner) {
         description_for_trace = "dedup to inner nested loop, mat. subq";
       } else if (rewrite_semi_to_inner) {
@@ -4972,10 +4970,11 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
     } else if (RedundantThroughSargable(
                    properties.redundant_against_sargable_predicates, left_path,
                    right_path, left, right)) {
-      if (m_trace != nullptr) {
-        *m_trace += " - " + PrintAccessPath(*right_path, *m_graph, "") +
-                    " has a sargable predicate that is redundant with our join "
-                    "predicate, skipping\n";
+      if (TraceStarted(m_thd)) {
+        Trace(m_thd)
+            << " - " << PrintAccessPath(*right_path, *m_graph, "")
+            << " has a sargable predicate that is redundant with our join "
+               "predicate, skipping\n";
       }
       return -1.0;
     }
@@ -5459,10 +5458,10 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   });
 
   if (existing_paths->empty()) {
-    if (m_trace != nullptr) {
-      *m_trace += " - " +
-                  PrintAccessPath(*path, *m_graph, description_for_trace) +
-                  " is first alternative, keeping\n";
+    if (TraceStarted(m_thd)) {
+      Trace(m_thd) << " - "
+                   << PrintAccessPath(*path, *m_graph, description_for_trace)
+                   << " is first alternative, keeping\n";
     }
     AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->push_back(insert_position);
@@ -5481,7 +5480,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   const bool has_known_row_count_inconsistency_bugs =
       m_graph->has_reordered_left_joins || has_clamped_multipart_eq_ref ||
       has_semijoin_with_possibly_clamped_child;
-  bool verify_consistency = (m_trace != nullptr);
+  bool verify_consistency = TraceStarted(m_thd);
 #ifndef NDEBUG
   if (!has_known_row_count_inconsistency_bugs) {
     // Assert that we are consistent, even if we are not tracing.
@@ -5499,14 +5498,14 @@ AccessPath *CostingReceiver::ProposeAccessPath(
       if (other_path->parameter_tables == 0 &&
           (other_path->num_output_rows() < path->num_output_rows() * 0.99 ||
            other_path->num_output_rows() > path->num_output_rows() * 1.01)) {
-        if (m_trace != nullptr) {
-          *m_trace += " - WARNING: " + PrintAccessPath(*path, *m_graph, "") +
-                      " has inconsistent row counts with " +
-                      PrintAccessPath(*other_path, *m_graph, "") + ".";
+        if (TraceStarted(m_thd)) {
+          Trace(m_thd) << " - WARNING: " << PrintAccessPath(*path, *m_graph, "")
+                       << " has inconsistent row counts with "
+                       << PrintAccessPath(*other_path, *m_graph, "") << ".";
           if (has_known_row_count_inconsistency_bugs) {
-            *m_trace += "\n   This is a bug, but probably a known one.\n";
+            Trace(m_thd) << "\n   This is a bug, but probably a known one.\n";
           } else {
-            *m_trace += " This is a bug.\n";
+            Trace(m_thd) << " This is a bug.\n";
           }
         }
         if (!has_known_row_count_inconsistency_bugs) {
@@ -5528,12 +5527,12 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
     if (result == PathComparisonResult::IDENTICAL ||
         result == PathComparisonResult::SECOND_DOMINATES) {
-      if (m_trace != nullptr) {
-        *m_trace += " - " +
-                    PrintAccessPath(*path, *m_graph, description_for_trace) +
-                    " is not better than existing path " +
-                    PrintAccessPath(*(*existing_paths)[i], *m_graph, "") +
-                    ", discarding\n";
+      if (TraceStarted(m_thd)) {
+        Trace(m_thd) << " - "
+                     << PrintAccessPath(*path, *m_graph, description_for_trace)
+                     << " is not better than existing path "
+                     << PrintAccessPath(*(*existing_paths)[i], *m_graph, "")
+                     << ", discarding\n";
       }
       return nullptr;
     }
@@ -5557,10 +5556,10 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   }
 
   if (insert_position == nullptr) {
-    if (m_trace != nullptr) {
-      *m_trace += " - " +
-                  PrintAccessPath(*path, *m_graph, description_for_trace) +
-                  " is potential alternative, keeping\n";
+    if (TraceStarted(m_thd)) {
+      Trace(m_thd) << " - "
+                   << PrintAccessPath(*path, *m_graph, description_for_trace)
+                   << " is potential alternative, keeping\n";
     }
     insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->emplace_back(insert_position);
@@ -5568,21 +5567,22 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     return insert_position;
   }
 
-  if (m_trace != nullptr) {
+  if (TraceStarted(m_thd)) {
     if (existing_paths->size() == 1) {  // Only one left.
       if (num_dominated == 1) {
-        *m_trace +=
-            " - " + PrintAccessPath(*path, *m_graph, description_for_trace) +
-            " is better than previous " +
-            PrintAccessPath(*insert_position, *m_graph, "") + ", replacing\n";
+        Trace(m_thd) << " - "
+                     << PrintAccessPath(*path, *m_graph, description_for_trace)
+                     << " is better than previous "
+                     << PrintAccessPath(*insert_position, *m_graph, "")
+                     << ", replacing\n";
       } else {
-        *m_trace +=
-            " - " + PrintAccessPath(*path, *m_graph, description_for_trace) +
-            " is better than all previous alternatives, replacing all\n";
+        Trace(m_thd)
+            << " - " << PrintAccessPath(*path, *m_graph, description_for_trace)
+            << " is better than all previous alternatives, replacing all\n";
       }
     } else {
       assert(num_dominated > 0);
-      *m_trace += StringPrintf(
+      Trace(m_thd) << StringPrintf(
           " - %s is better than %d others, replacing them\n",
           PrintAccessPath(*path, *m_graph, description_for_trace).c_str(),
           num_dominated);
@@ -5619,7 +5619,7 @@ AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
   sort_path.sort().limit = HA_POS_ERROR;
   sort_path.sort().force_sort_rowids = false;
   sort_path.has_group_skip_scan = child->has_group_skip_scan;
-  EstimateSortCost(&sort_path);
+  EstimateSortCost(thd, &sort_path);
   return sort_path;
 }
 
@@ -5712,7 +5712,7 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
                                     new_state, m_graph->num_where_predicates);
 
     char buf[256];
-    if (m_trace != nullptr) {
+    if (TraceStarted(m_thd)) {
       if (description_for_trace[0] == '\0') {
         snprintf(buf, sizeof(buf), "sort(%d)",
                  sort_ahead_ordering.ordering_idx);
@@ -6228,12 +6228,11 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
   @param olap contains the GROUP BY modifier type
   @param row_estimate estimated number of output rows, so that we do not
          need to recalculate it, or kUnknownRowCount if unknown.
-  @param trace Optimizer trace.
   @returns The AGGREGATE AccessPath.
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
                                           JOIN *join, olap_type olap,
-                                          double row_estimate, string *trace) {
+                                          double row_estimate) {
   AccessPath *child_path = path;
   const Query_block *query_block = join->query_block;
 
@@ -6253,7 +6252,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.aggregate().olap = olap;
   aggregate_path.set_num_output_rows(row_estimate);
   aggregate_path.has_group_skip_scan = child_path->has_group_skip_scan;
-  EstimateAggregateCost(&aggregate_path, query_block, trace);
+  EstimateAggregateCost(thd, &aggregate_path, query_block);
   return aggregate_path;
 }
 
@@ -6295,15 +6294,15 @@ void SplitHavingCondition(THD *thd, Item *cond, Item **having_cond,
 
 void ApplyHavingOrQualifyCondition(
     THD *thd, Item *having_cond, Query_block *query_block,
-    const char *description_for_trace, string *trace,
+    const char *description_for_trace,
     Prealloced_array<AccessPath *, 4> *root_candidates,
     CostingReceiver *receiver) {
   if (having_cond == nullptr) {
     return;
   }
 
-  if (trace != nullptr) {
-    *trace += description_for_trace;
+  if (TraceStarted(thd)) {
+    Trace(thd) << description_for_trace;
   }
 
   Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
@@ -6317,7 +6316,7 @@ void ApplyHavingOrQualifyCondition(
     filter_path.filter().materialize_subqueries = false;
     filter_path.set_num_output_rows(
         root_path->num_output_rows() *
-        EstimateSelectivity(thd, having_cond, CompanionSet(), trace));
+        EstimateSelectivity(thd, having_cond, CompanionSet()));
 
     const FilterCost filter_cost = EstimateFilterCost(
         thd, root_path->num_output_rows(), having_cond, query_block);
@@ -6376,7 +6375,7 @@ AccessPath MakeSortPathForDistinct(
   // the reduced ordering is always non-empty here.
   assert(sort_path.sort().order != nullptr);
 
-  EstimateSortCost(&sort_path);
+  EstimateSortCost(thd, &sort_path);
   return sort_path;
 }
 
@@ -6395,8 +6394,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     int order_by_ordering_idx, int distinct_ordering_idx,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     FunctionalDependencySet fd_set, Query_block *query_block, bool need_rowid,
-    bool force_sort_rowids, Prealloced_array<AccessPath *, 4> root_candidates,
-    string *trace) {
+    bool force_sort_rowids, Prealloced_array<AccessPath *, 4> root_candidates) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || join->order.order != nullptr);
 
@@ -6445,8 +6443,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
   // Now create iterators for DISTINCT, if applicable.
   if (join->select_distinct) {
-    if (trace != nullptr) {
-      *trace += "Applying sort for DISTINCT\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Applying sort for DISTINCT\n";
     }
 
     // Remove redundant elements from the grouping before it is applied.
@@ -6495,9 +6493,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
 
-        dedup_path->set_num_output_rows(EstimateDistinctRows(
-            root_path->num_output_rows(),
-            {group_items, grouping.GetElements().size()}, trace));
+        dedup_path->set_num_output_rows(
+            EstimateDistinctRows(thd, root_path->num_output_rows(),
+                                 {group_items, grouping.GetElements().size()}));
 
         dedup_path->set_cost(dedup_path->cost() +
                              kAggregateOneRowCost *
@@ -6570,8 +6568,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     }
     Mem_root_array<TABLE *> tables = CollectTables(
         thd, root_candidates[0]);  // Should be same for all paths.
-    if (trace != nullptr) {
-      *trace += "Applying sort for ORDER BY\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Applying sort for ORDER BY\n";
     }
 
     // If we have LIMIT or OFFSET, we apply them here. This is done so that we
@@ -6615,7 +6613,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
         sort_path->sort().order = join->order.order;
         sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
-        EstimateSortCost(sort_path);
+        EstimateSortCost(thd, sort_path);
 
         // If this is a DELETE or UPDATE statement, row IDs must be preserved
         // through the ORDER BY clause, so that we know which rows to delete or
@@ -6898,7 +6896,7 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
     int distinct_ordering_idx, const JoinHypergraph &graph,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     Query_block *query_block, int num_where_predicates, bool need_rowid,
-    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
+    Prealloced_array<AccessPath *, 4> root_candidates) {
   JOIN *join = query_block->join;
 
   // Figure out if windows need row IDs or not; we won't create
@@ -6930,14 +6928,14 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
   auto included_windows =
       Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
 
-  if (trace) {
-    *trace += "\n";
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\n";
   }
   Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
   for (AccessPath *root_path : root_candidates) {
-    if (trace) {
-      *trace += "Considering window order on top of " +
-                PrintAccessPath(*root_path, graph, "") + "\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Considering window order on top of "
+                 << PrintAccessPath(*root_path, graph, "") << "\n";
     }
 
     // First, go through and check which windows we can do without
@@ -6949,9 +6947,9 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
       if (window->m_ordering_idx == -1 || join->implicit_grouping ||
           orderings.DoesFollowOrder(root_path->ordering_state,
                                     window->m_ordering_idx)) {
-        if (trace) {
-          *trace += std::string(" - window ") + window->printable_name() +
-                    " does not need further sorting\n";
+        if (TraceStarted(thd)) {
+          Trace(thd) << std::string(" - window ") << window->printable_name()
+                     << " does not need further sorting\n";
         }
         root_path =
             ApplyWindow(thd, root_path, window, join, need_rowid_for_window);
@@ -7036,8 +7034,8 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
     receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                /*obsolete_orderings=*/0, "");
   }
-  if (trace) {
-    *trace += "\n";
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\n";
   }
   return new_root_candidates;
 }
@@ -7078,12 +7076,9 @@ static bool CompatibleTypesForIndexLookup(Item_func_eq *eq_item, Field *field,
      (predicate_index = -1). This will never happen for WHERE conditions,
      only for join conditions.
  */
-static void PossiblyAddSargableCondition(THD *thd, Item *item,
-                                         const CompanionSet &companion_set,
-                                         TABLE *force_table,
-                                         int predicate_index,
-                                         bool is_join_condition,
-                                         JoinHypergraph *graph, string *trace) {
+static void PossiblyAddSargableCondition(
+    THD *thd, Item *item, const CompanionSet &companion_set, TABLE *force_table,
+    int predicate_index, bool is_join_condition, JoinHypergraph *graph) {
   if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
     return;
   }
@@ -7143,12 +7138,12 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       break;
     }
 
-    if (trace != nullptr) {
+    if (TraceStarted(thd)) {
       if (is_join_condition) {
-        *trace += "Found sargable join condition " + ItemToString(item) +
-                  " on " + node->table->alias + "\n";
+        Trace(thd) << "Found sargable join condition " << ItemToString(item)
+                   << " on " << node->table->alias << "\n";
       } else {
-        *trace += "Found sargable condition " + ItemToString(item) + "\n";
+        Trace(thd) << "Found sargable condition " << ItemToString(item) << "\n";
       }
     }
 
@@ -7159,7 +7154,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       // to it in bitmaps.
       Predicate p;
       p.condition = eq_item;
-      p.selectivity = EstimateSelectivity(thd, eq_item, companion_set, trace);
+      p.selectivity = EstimateSelectivity(thd, eq_item, companion_set);
       p.used_nodes =
           GetNodeMapFromTableMap(eq_item->used_tables() & ~PSEUDO_TABLE_BITS,
                                  graph->table_num_to_node_num);
@@ -7196,9 +7191,9 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
 //
 // TODO(sgunders): Integrate with the range optimizer, or find some other way
 // of accepting <, >, <= and >= predicates.
-void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
-  if (trace != nullptr) {
-    *trace += "\n";
+void FindSargablePredicates(THD *thd, JoinHypergraph *graph) {
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\n";
   }
 
   for (unsigned i = 0; i < graph->num_where_predicates; ++i) {
@@ -7206,7 +7201,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
       PossiblyAddSargableCondition(thd, graph->predicates[i].condition,
                                    CompanionSet(),
                                    /*force_table=*/nullptr, i,
-                                   /*is_join_condition=*/false, graph, trace);
+                                   /*is_join_condition=*/false, graph);
     }
   }
   for (JoinHypergraph::Node &node : graph->nodes) {
@@ -7216,7 +7211,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
           (it == graph->sargable_join_predicates.end()) ? -1 : it->second;
       PossiblyAddSargableCondition(thd, cond, *node.companion_set, node.table,
                                    predicate_index,
-                                   /*is_join_condition=*/true, graph, trace);
+                                   /*is_join_condition=*/true, graph);
     }
   }
 }
@@ -7237,15 +7232,14 @@ static bool ComesFromSameMultiEquality(Item *cond1, Item_eq_base *cond2) {
  */
 static void CacheCostInfoForJoinConditions(THD *thd,
                                            const Query_block *query_block,
-                                           JoinHypergraph *graph,
-                                           string *trace) {
+                                           JoinHypergraph *graph) {
   for (JoinPredicate &edge : graph->edges) {
     edge.expr->properties_for_equijoin_conditions.init(thd->mem_root);
     edge.expr->properties_for_join_conditions.init(thd->mem_root);
     for (Item_eq_base *cond : edge.expr->equijoin_conditions) {
       CachedPropertiesForPredicate properties;
       properties.selectivity =
-          EstimateSelectivity(thd, cond, *edge.expr->companion_set, trace);
+          EstimateSelectivity(thd, cond, *edge.expr->companion_set);
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
           cond, query_block, [&properties](const ContainedSubquery &subquery) {
@@ -7271,8 +7265,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
     }
     for (Item *cond : edge.expr->join_conditions) {
       CachedPropertiesForPredicate properties;
-      properties.selectivity =
-          EstimateSelectivity(thd, cond, CompanionSet(), trace);
+      properties.selectivity = EstimateSelectivity(thd, cond, CompanionSet());
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
           cond, query_block, [&properties](const ContainedSubquery &subquery) {
@@ -7308,7 +7301,7 @@ bool ApplyAggregation(
     const LogicalOrderings &orderings,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     FunctionalDependencySet fd_set, Query_block *query_block,
-    Prealloced_array<AccessPath *, 4> &root_candidates, string *trace) {
+    Prealloced_array<AccessPath *, 4> &root_candidates) {
   JOIN *join = query_block->join;
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
@@ -7320,8 +7313,8 @@ bool ApplyAggregation(
   graph->secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::CONTAINS_AGGREGATION_ACCESSPATH;
 
-  if (trace != nullptr) {
-    *trace += "Applying aggregation for GROUP BY\n";
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Applying aggregation for GROUP BY\n";
   }
 
   // AggregateIterator and EstimateAggregateRows() need join->group_fields to
@@ -7343,7 +7336,7 @@ bool ApplyAggregation(
 
     if (!group_needs_sort) {
       AccessPath aggregate_path = CreateStreamingAggregationPath(
-          thd, root_path, join, query_block->olap, aggregate_rows, trace);
+          thd, root_path, join, query_block->olap, aggregate_rows);
       aggregate_rows = aggregate_path.num_output_rows();
       receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "sort elided");
@@ -7379,18 +7372,18 @@ bool ApplyAggregation(
       sort_path->sort().force_sort_rowids = false;
       sort_path->sort().order = sort_ahead_ordering.order;
       sort_path->has_group_skip_scan = root_path->has_group_skip_scan;
-      EstimateSortCost(sort_path);
+      EstimateSortCost(thd, sort_path);
       assert(!aggregation_is_unordered);
       sort_path->ordering_state = ordering_state;
 
       char description[256];
-      if (trace != nullptr) {
+      if (TraceStarted(thd)) {
         snprintf(description, sizeof(description), "sort(%d)",
                  sort_ahead_ordering.ordering_idx);
       }
 
       AccessPath aggregate_path = CreateStreamingAggregationPath(
-          thd, sort_path, join, query_block->olap, aggregate_rows, trace);
+          thd, sort_path, join, query_block->olap, aggregate_rows);
       aggregate_rows = aggregate_path.num_output_rows();
       receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, description);
@@ -7443,8 +7436,8 @@ bool ApplyAggregation(
   and only pick out the winning candidate based on cost at the very end.
  */
 static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
-                                          bool *retry, int *subgraph_pair_limit,
-                                          string *trace) {
+                                          bool *retry,
+                                          int *subgraph_pair_limit) {
   JOIN *join = query_block->join;
   if (CheckSupportedQuery(thd)) return nullptr;
 
@@ -7477,24 +7470,24 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root, query_block);
   bool where_is_always_false = false;
-  if (MakeJoinHypergraph(thd, trace, &graph, &where_is_always_false)) {
+  if (MakeJoinHypergraph(thd, &graph, &where_is_always_false)) {
     return nullptr;
   }
 
   if (where_is_always_false) {
-    if (trace != nullptr) {
-      *trace +=
-          "Skipping join order optimization because an always false condition "
-          "was found in the WHERE clause.\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Skipping join order optimization because an always false "
+                    "condition "
+                    "was found in the WHERE clause.\n";
     }
     return CreateZeroRowsForEmptyJoin(join, "WHERE condition is always false");
   }
 
-  FindSargablePredicates(thd, trace, &graph);
+  FindSargablePredicates(thd, &graph);
 
   // Now that we have all join conditions, cache some properties
   // that we'd like to use many times.
-  CacheCostInfoForJoinConditions(thd, query_block, &graph, trace);
+  CacheCostInfoForJoinConditions(thd, query_block, &graph);
 
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
@@ -7559,18 +7552,18 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   int order_by_ordering_idx = -1;
   int group_by_ordering_idx = -1;
   int distinct_ordering_idx = -1;
-  BuildInterestingOrders(
-      thd, &graph, query_block, &orderings, &sort_ahead_orderings,
-      &order_by_ordering_idx, &group_by_ordering_idx, &distinct_ordering_idx,
-      &active_indexes, &spatial_indexes, &fulltext_searches, trace);
+  BuildInterestingOrders(thd, &graph, query_block, &orderings,
+                         &sort_ahead_orderings, &order_by_ordering_idx,
+                         &group_by_ordering_idx, &distinct_ordering_idx,
+                         &active_indexes, &spatial_indexes, &fulltext_searches);
 
   if (InjectCastNodes(&graph)) return nullptr;
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
   // hopefully optimal execution time), with all pushable predicates applied.
-  if (trace != nullptr) {
-    *trace += "\nEnumerating subplans:\n";
+  if (TraceStarted(thd)) {
+    Trace(thd) << "\nEnumerating subplans:\n";
   }
   for (const JoinHypergraph::Node &node : graph.nodes) {
     node.table->init_cost_model(thd->cost_model());
@@ -7586,7 +7579,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       sargable_fulltext_predicates, update_delete_target_tables,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
       *subgraph_pair_limit, secondary_engine_cost_hook,
-      secondary_engine_optimizer_request_state_hook, trace);
+      secondary_engine_optimizer_request_state_hook);
   if (graph.nodes.size() == 1) {
     // Fast path for single-table queries. No need to run the join enumeration
     // when there is no join. Just visit the only node directly.
@@ -7595,15 +7588,15 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     }
   } else if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
              !thd->is_error() && join->zero_result_cause == nullptr) {
-    GraphSimplifier simplifier(&graph, thd->mem_root);
+    GraphSimplifier simplifier(thd, &graph);
     do {
       *subgraph_pair_limit = receiver.subgraph_pair_limit();
       SetNumberOfSimplifications(0, &simplifier);
-      SimplifyQueryGraph(thd, *subgraph_pair_limit, &graph, &simplifier, trace);
-      if (trace != nullptr) {
-        *trace += "Simplified hypergraph:\n";
-        *trace += PrintDottyHypergraph(graph);
-        *trace += "\nRestarting query planning with the new graph.\n";
+      SimplifyQueryGraph(thd, *subgraph_pair_limit, &graph, &simplifier);
+      if (TraceStarted(thd)) {
+        Trace(thd) << "Simplified hypergraph:\n"
+                   << PrintDottyHypergraph(graph)
+                   << "\nRestarting query planning with the new graph.\n";
       }
       if (secondary_engine_optimizer_request_state_hook == nullptr) {
         /** ensure full enumeration is done for primary engine. */
@@ -7631,7 +7624,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
           need_rowid, EngineFlags(thd),
           /*subgraph_pair_limit=*/*subgraph_pair_limit,
           secondary_engine_cost_hook,
-          secondary_engine_optimizer_request_state_hook, trace);
+          secondary_engine_optimizer_request_state_hook);
       // Reset the secondary engine planning flags
       graph.secondary_engine_costing_flags = {};
     } while (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
@@ -7640,8 +7633,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   if (thd->is_error()) return nullptr;
 
   if (join->zero_result_cause != nullptr) {
-    if (trace != nullptr) {
-      *trace += "The join returns zero rows. Final cost is 0.0.\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "The join returns zero rows. Final cost is 0.0.\n";
     }
     return CreateZeroRowsForEmptyJoin(join, join->zero_result_cause);
   }
@@ -7677,8 +7670,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   }
   assert(!root_candidates.empty());
   thd->m_current_query_partial_plans += receiver.num_subplans();
-  if (trace != nullptr) {
-    *trace += StringPrintf(
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf(
         "\nEnumerated %zu subplans keeping a total of %zu access paths, "
         "got %zu candidate(s) to finalize:\n",
         receiver.num_subplans(), receiver.num_access_paths(),
@@ -7691,8 +7684,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   if (receiver.always_empty()) {
     for (AccessPath *root_path : root_candidates) {
       if (root_path->type == AccessPath::ZERO_ROWS) {
-        if (trace != nullptr) {
-          *trace += "The join returns zero rows. Final cost is 0.0.\n";
+        if (TraceStarted(thd)) {
+          Trace(thd) << "The join returns zero rows. Final cost is 0.0.\n";
         }
         return CreateZeroRowsForEmptyJoin(join, root_path->zero_rows().cause);
       }
@@ -7710,8 +7703,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // fewer candidates in each step, but this part is so cheap that it's
   // unlikely to be worth it. We go through ProposeAccessPath() mainly
   // because it gives us better tracing.
-  if (trace != nullptr) {
-    *trace += "Adding final predicates\n";
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Adding final predicates\n";
   }
   FunctionalDependencySet fd_set = receiver.active_fds_at_root();
   bool has_final_predicates = false;
@@ -7812,7 +7805,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   if (ApplyAggregation(thd, &graph, receiver, group_by_ordering_idx, need_rowid,
                        aggregation_is_unordered, orderings,
                        sort_ahead_orderings, fd_set, query_block,
-                       root_candidates, trace)) {
+                       root_candidates)) {
     return nullptr;
   }
 
@@ -7833,7 +7826,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   Item *having_cond_wf;
   SplitHavingCondition(thd, join->having_cond, &having_cond, &having_cond_wf);
   ApplyHavingOrQualifyCondition(thd, having_cond, query_block,
-                                "Applying filter for HAVING\n", trace,
+                                "Applying filter for HAVING\n",
                                 &root_candidates, &receiver);
 
   // If we have GROUP BY followed by a window function (which might include
@@ -7859,7 +7852,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
         thd, receiver, orderings, fd_set, aggregation_is_unordered,
         order_by_ordering_idx, distinct_ordering_idx, graph,
         sort_ahead_orderings, query_block, graph.num_where_predicates,
-        need_rowid, std::move(root_candidates), trace);
+        need_rowid, std::move(root_candidates));
   }
 
   // A filter node has to be added for window functions.
@@ -7894,8 +7887,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   description_for_trace += "\n";
 
   ApplyHavingOrQualifyCondition(thd, post_window_filter, query_block,
-                                description_for_trace.c_str(), trace,
-                                &root_candidates, &receiver);
+                                description_for_trace.c_str(), &root_candidates,
+                                &receiver);
 
   graph.secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::HANDLING_DISTINCT_ORDERBY_LIMITOFFSET;
@@ -7908,7 +7901,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
         thd, receiver, orderings, aggregation_is_unordered,
         order_by_ordering_idx, distinct_ordering_idx, sort_ahead_orderings,
         fd_set, query_block, need_rowid, force_sort_rowids,
-        std::move(root_candidates), trace);
+        std::move(root_candidates));
   }
 
   // Apply LIMIT and OFFSET, if applicable. If the query block is ordered, they
@@ -7917,8 +7910,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   if (join->order.order == nullptr &&
       (query_expression->select_limit_cnt != HA_POS_ERROR ||
        query_expression->offset_limit_cnt != 0)) {
-    if (trace != nullptr) {
-      *trace += "Applying LIMIT\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Applying LIMIT\n";
     }
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
@@ -7994,11 +7987,19 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
                         });
 
   if (secondary_engine_optimizer_request_state_hook != nullptr) {
+    std::string secondary_trace;
+
     SecondaryEngineGraphSimplificationRequestParameters
         root_path_quality_status =
             secondary_engine_optimizer_request_state_hook(
                 thd, graph, root_path, *subgraph_pair_limit,
-                *subgraph_pair_limit, /*is_root_ap=*/true, trace);
+                *subgraph_pair_limit, /*is_root_ap=*/true,
+                TraceStarted(thd) ? &secondary_trace : nullptr);
+
+    if (TraceStarted(thd)) {
+      Trace(thd) << secondary_trace;
+    }
+
     if (root_path_quality_status.secondary_engine_optimizer_request ==
         SecondaryEngineGraphSimplificationRequest::kRestart) {
       *retry = true;
@@ -8014,8 +8015,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   if (query_block->active_options() & OPTION_BUFFER_RESULT &&
       is_topmost_query_block && !IsMaterializationPath(root_path) &&
       IteratorsAreNeeded(thd, root_path)) {
-    if (trace != nullptr) {
-      *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
+    if (TraceStarted(thd)) {
+      Trace(thd) << "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }
 
     // If we have windows, we may need to add a materialization for the last
@@ -8027,8 +8028,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
                                   /*temp_table_param=*/nullptr, copy_items);
   }
 
-  if (trace != nullptr) {
-    *trace += StringPrintf("Final cost is %.1f.\n", root_path->cost());
+  if (TraceStarted(thd)) {
+    Trace(thd) << StringPrintf("Final cost is %.1f.\n", root_path->cost());
   }
 
 #ifndef NDEBUG
@@ -8056,18 +8057,17 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   return root_path;
 }
 
-AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
-                              string *trace) {
+AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block) {
   assert(thd->variables.optimizer_max_subgraph_pairs <
          ulong{std::numeric_limits<int>::max()});
   int next_retry_subgraph_pairs =
       static_cast<int>(thd->variables.optimizer_max_subgraph_pairs);
   bool retry = false;
-  AccessPath *root_path = FindBestQueryPlanInner(
-      thd, query_block, &retry, &next_retry_subgraph_pairs, trace);
+  AccessPath *root_path = FindBestQueryPlanInner(thd, query_block, &retry,
+                                                 &next_retry_subgraph_pairs);
   if (retry) {
     root_path = FindBestQueryPlanInner(thd, query_block, &retry,
-                                       &next_retry_subgraph_pairs, trace);
+                                       &next_retry_subgraph_pairs);
   }
   return root_path;
 }

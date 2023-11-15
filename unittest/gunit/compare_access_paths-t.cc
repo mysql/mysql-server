@@ -59,9 +59,9 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
   my_testing::Server_initializer m_initializer;
   m_initializer.SetUp();
   THD *thd = m_initializer.thd();
+  my_testing::TraceGuard trace(thd);
   LogicalOrderings orderings(thd);
-  std::string trace;
-  orderings.Build(thd, &trace);
+  orderings.Build(thd);
   OrderingSet obsolete_orderings;
 
   AccessPath a;

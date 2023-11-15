@@ -33,6 +33,7 @@
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 
+using my_testing::TraceGuard;
 using std::array;
 using std::unique_ptr;
 
@@ -178,9 +179,9 @@ TEST(InterestingOrderingTest, PruneFunctionalDependencies) {
   fd_24.tail = i4;
   int fd_24_idx = orderings.AddFunctionalDependency(thd, fd_24);
 
-  string trace;
-  orderings.Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  orderings.Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   EXPECT_TRUE(orderings.GetFDSet(fd_13_idx).none());
   EXPECT_FALSE(orderings.GetFDSet(fd_create_1_idx).none());
@@ -278,9 +279,9 @@ TEST_F(InterestingOrderingTableTest, HomogenizeOrderings) {
   EXPECT_EQ(
       3, AddOrdering(thd, order_acac, /*interesting=*/true, m_orderings.get()));
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ASSERT_EQ(7, m_orderings->num_orderings());
 
@@ -326,9 +327,9 @@ TEST_F(InterestingOrderingTableTest, SetOrder) {
   int bc_idx =
       AddOrdering(thd, order_bc, /*interesting=*/true, m_orderings.get());
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   a_idx = m_orderings->RemapOrderingIndex(a_idx);
   a_desc_idx = m_orderings->RemapOrderingIndex(a_desc_idx);
@@ -416,9 +417,9 @@ TEST_F(InterestingOrderingTableTest, BasicTest) {
   fd_empty_d.tail = d;
   int fd_empty_d_idx = m_orderings->AddFunctionalDependency(thd, fd_empty_d);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
   abc_idx = m_orderings->RemapOrderingIndex(abc_idx);
@@ -490,9 +491,9 @@ TEST_F(InterestingOrderingTableTest, AddReverseElement) {
   fd_ab.tail = b;
   int fd_ab_idx = m_orderings->AddFunctionalDependency(thd, fd_ab);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   a_idx = m_orderings->RemapOrderingIndex(a_idx);
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
@@ -542,9 +543,9 @@ TEST_F(InterestingOrderingTableTest, AddReverseElementThroughEquivalences) {
   fd_equiv.tail = c;
   int fd_equiv_idx = m_orderings->AddFunctionalDependency(thd, fd_equiv);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   a_idx = m_orderings->RemapOrderingIndex(a_idx);
   ac_idx = m_orderings->RemapOrderingIndex(ac_idx);
@@ -597,9 +598,9 @@ TEST_F(InterestingOrderingTableTest, DoesNotStrictlyPruneOnPrefixes) {
   fd_empty_a.tail = a;
   int fd_empty_a_idx = m_orderings->AddFunctionalDependency(thd, fd_empty_a);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   dc_idx = m_orderings->RemapOrderingIndex(dc_idx);
   abcd_idx = m_orderings->RemapOrderingIndex(abcd_idx);
@@ -666,9 +667,9 @@ TEST_F(InterestingOrderingTableTest, TwoEquivalences) {
   fd_be.tail = e;
   int fd_be_idx = m_orderings->AddFunctionalDependency(thd, fd_be);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   abc_idx = m_orderings->RemapOrderingIndex(abc_idx);
   dec_idx = m_orderings->RemapOrderingIndex(dec_idx);
@@ -724,9 +725,9 @@ TEST_F(InterestingOrderingTableTest, SortByConst) {
   fd_empty_c.tail = c;
   int fd_empty_c_idx = m_orderings->AddFunctionalDependency(thd, fd_empty_c);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
 
@@ -779,9 +780,9 @@ TEST_F(InterestingOrderingTableTest, AlwaysActiveFD) {
   fd_equiv.tail = b;
   int fd_equiv_idx = m_orderings->AddFunctionalDependency(thd, fd_equiv);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
   b_idx = m_orderings->RemapOrderingIndex(b_idx);
@@ -836,9 +837,9 @@ TEST_F(InterestingOrderingTableTest, FDsFromComputedItems) {
   fd_ab.always_active = true;
   int fd_ab_idx = m_orderings->AddFunctionalDependency(thd, fd_ab);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   a_idx = m_orderings->RemapOrderingIndex(a_idx);
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
@@ -874,9 +875,9 @@ TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   fd_equiv.tail = c;
   int fd_equiv_idx = m_orderings->AddFunctionalDependency(thd, fd_equiv);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   a_order_idx = m_orderings->RemapOrderingIndex(a_order_idx);
   ab_order_idx = m_orderings->RemapOrderingIndex(ab_order_idx);
@@ -979,9 +980,9 @@ TEST_F(InterestingOrderingTableTest, HomogenizedOrderingsAreEquallyGood) {
   EXPECT_EQ(1, AddOrdering(thd, order_a,
                            /*interesting=*/true, m_orderings.get()));
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   // Just make sure we have the right indexes.
   ASSERT_EQ(4, m_orderings->num_orderings());
@@ -1055,9 +1056,9 @@ TEST_F(InterestingOrderingTableTest, PruneUninterestingOrders) {
   int abc_idx =
       AddOrdering(thd, order_abc, /*interesting=*/false, m_orderings.get());
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   EXPECT_EQ(0, m_orderings->RemapOrderingIndex(c_idx));
   EXPECT_NE(0, m_orderings->RemapOrderingIndex(b_idx));
@@ -1093,9 +1094,9 @@ TEST_F(InterestingOrderingTableTest, Groupings) {
   fd_bc.tail = c;
   int fd_bc_idx = m_orderings->AddFunctionalDependency(thd, fd_bc);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
   group_a_idx = m_orderings->RemapOrderingIndex(group_a_idx);
@@ -1138,9 +1139,9 @@ TEST_F(InterestingOrderingTableTest, UninterestingOrderingsCanBecomeGroupings) {
   fd_ca.tail = a;
   int fd_ca_idx = m_orderings->AddFunctionalDependency(thd, fd_ca);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   // cba should not be pruned away entirely, since we can use (c) to convert
   // into {c} and then continue on to {ac} later.
@@ -1174,9 +1175,9 @@ TEST_F(InterestingOrderingTableTest, GroupCover) {
   AddOrdering(thd, group_d, /*interesting=*/true, m_orderings.get());
   AddOrdering(thd, order_ba, /*interesting=*/true, m_orderings.get());
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   // We should have two new orderings: (b↓ac) and (d).
   ASSERT_EQ(6, m_orderings->num_orderings());
@@ -1215,9 +1216,9 @@ TEST_F(InterestingOrderingTableTest, NoGroupCoverWithNondeterminism) {
   int f_idx =
       AddOrdering(thd, order_f, /*interesting=*/true, m_orderings.get());
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   // We will have covered {rf} with (fr), but that ordering should
   // _not_ be used to satisfy (f). In this case, (rf) would also be
@@ -1260,9 +1261,9 @@ TEST_F(InterestingOrderingTableTest, GroupReordering) {
   fd_ba.tail = a;
   int fd_ba_idx = m_orderings->AddFunctionalDependency(thd, fd_ba);
 
-  string trace;
-  m_orderings->Build(thd, &trace);
-  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  TraceGuard trace(thd);
+  m_orderings->Build(thd);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   b_idx = m_orderings->RemapOrderingIndex(b_idx);
   bc_idx = m_orderings->RemapOrderingIndex(bc_idx);
@@ -1373,7 +1374,7 @@ static void BM_BuildInterestingOrders(size_t num_iterations) {
     }
 
     // Build the state machines.
-    orderings.Build(thd, /*trace=*/nullptr);
+    orderings.Build(thd);
   }
 
   StopBenchmarkTiming();

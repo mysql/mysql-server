@@ -1342,6 +1342,35 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
 
 DROP TABLE t1,t2;
+#
+# Bug#35997316 Hypergraph: Incomplete and inconvenient optimizer trace
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n+1<30) SELECT n, n%10 FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.a IN (SELECT x2.b FROM t1 x2);
+EXPLAIN
+-> Hash semijoin (x1.a = x2.b)  (rows=10)
+    -> Index scan on x1 using PRIMARY  (rows=30)
+    -> Hash
+        -> Table scan on x2  (rows=30)
+
+SELECT REGEXP_SUBSTR(
+trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(
+trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
+distinct values for field 'b' from histogram."
+SET SESSION OPTIMIZER_TRACE='enabled=off';
+DROP TABLE t1;
 # Bug#5889990: Setting secondary_engine to OFF causes offload issues
 CREATE TABLE t(x INT, y INT);
 INSERT INTO t VALUES (1, 2), (2, 3);
