@@ -749,10 +749,6 @@ class ExpectedImpl : public ExpectedImplBase {
     return std::move(storage_.error());
   }
 
-  constexpr unexpected_type get_unexpected() const {
-    return make_unexpected(storage_.error());
-  }
-
  private:
   base::storage_t<T, E> storage_;
 };
@@ -865,10 +861,6 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
   constexpr error_type &&error() && {
     RESO_ASSUME(!has_value());
     return std::move(storage_.error());
-  }
-
-  constexpr unexpected_type get_unexpected() const {
-    return make_unexpected(storage_.error());
   }
 
  private:
@@ -1099,7 +1091,7 @@ template <class T1, class E1, class E2>
 inline bool operator==(const expected<T1, E1> &a, const unexpected<E2> &b) {
   if (a.has_value()) return false;
 
-  return a.get_unexpected() == b;
+  return a.error() == b.value();
 }
 
 template <class T1, class E1, class E2>

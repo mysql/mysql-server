@@ -67,7 +67,7 @@ stdx::expected<size_t, std::error_code> MySQLXProtocol::decode_frame(
   auto buf = net::buffer(recv_buffer_);
   auto decode_res =
       classic_protocol::decode<classic_protocol::wire::FixedInt<4>>(buf, {});
-  if (!decode_res) return decode_res.get_unexpected();
+  if (!decode_res) return stdx::unexpected(decode_res.error());
 
   auto hdr_size = decode_res->first;
   auto payload_size = decode_res->second.value();

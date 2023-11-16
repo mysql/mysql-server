@@ -26,6 +26,7 @@
 
 #include <gtest/gtest.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/utils.h"  // copy_file
 #include "stdx_expected_no_error.h"
@@ -255,7 +256,7 @@ stdx::expected<MysqlClient, MysqlError> SharedServer::admin_cli() {
   cli.password(account.password);
 
   auto connect_res = cli.connect(server_host(), server_port());
-  if (!connect_res) return connect_res.get_unexpected();
+  if (!connect_res) return stdx::unexpected(connect_res.error());
 
   return cli;
 }

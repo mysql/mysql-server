@@ -479,7 +479,7 @@ stdx::expected<security_descriptor_type, std::error_code> AclBuilder::build() {
 
     if (!s.is_self_relative()) {
       auto self_rel_res = s.make_self_relative();
-      if (!self_rel_res) return self_rel_res.get_unexpected();
+      if (!self_rel_res) return stdx::unexpected(self_rel_res.error());
 
       old_desc_ = std::move(self_rel_res.value());
     }
@@ -569,7 +569,7 @@ stdx::expected<void, std::error_code> AllowUserReadWritableVerifier::operator()(
   SecurityDescriptor sec_desc{desc.get()};
 
   auto dacl_res = sec_desc.dacl();
-  if (!dacl_res) return dacl_res.get_unexpected();
+  if (!dacl_res) return stdx::unexpected(dacl_res.error());
 
   auto optional_dacl = std::move(dacl_res.value());
 
@@ -585,7 +585,9 @@ stdx::expected<void, std::error_code> AllowUserReadWritableVerifier::operator()(
 
   // get the current user sid
   auto current_user_sid_res = current_user_sid();
-  if (!current_user_sid_res) return current_user_sid_res.get_unexpected();
+  if (!current_user_sid_res) {
+    return stdx::unexpected(current_user_sid_res.error());
+  }
 
   auto allocated_current_user_sid = std::move(current_user_sid_res.value());
 
@@ -593,7 +595,9 @@ stdx::expected<void, std::error_code> AllowUserReadWritableVerifier::operator()(
 
   // local system
   auto local_system_sid_res = create_well_known_sid(WinLocalSystemSid);
-  if (!local_system_sid_res) return local_system_sid_res.get_unexpected();
+  if (!local_system_sid_res) {
+    return stdx::unexpected(local_system_sid_res.error());
+  }
 
   auto allocated_local_system_sid = std::move(local_system_sid_res.value());
 
@@ -601,7 +605,9 @@ stdx::expected<void, std::error_code> AllowUserReadWritableVerifier::operator()(
 
   // local service
   auto local_service_sid_res = create_well_known_sid(WinLocalServiceSid);
-  if (!local_service_sid_res) return local_service_sid_res.get_unexpected();
+  if (!local_service_sid_res) {
+    return stdx::unexpected(local_service_sid_res.error());
+  }
 
   auto allocated_local_service_sid = std::move(local_service_sid_res.value());
 
@@ -649,7 +655,7 @@ stdx::expected<void, std::error_code> AllowUserReadWritableVerifier::operator()(
 stdx::expected<void, std::error_code> DenyOtherReadWritableVerifier::operator()(
     const security_descriptor_type &desc) {
   auto dacl_res = SecurityDescriptor(desc.get()).dacl();
-  if (!dacl_res) return dacl_res.get_unexpected();
+  if (!dacl_res) return stdx::unexpected(dacl_res.error());
 
   auto optional_dacl = std::move(dacl_res.value());
 
@@ -665,7 +671,7 @@ stdx::expected<void, std::error_code> DenyOtherReadWritableVerifier::operator()(
 
   // everyone
   auto sid_res = create_well_known_sid(WinWorldSid);
-  if (!sid_res) return sid_res.get_unexpected();
+  if (!sid_res) return stdx::unexpected(sid_res.error());
 
   auto allocated_everyone_sid = std::move(sid_res.value());
 

@@ -62,7 +62,7 @@ static stdx::expected<std::string, std::error_code> endpoint_to_name(
       buf.size(), nullptr, 0, NI_NAMEREQD);
 
   if (!resolve_res) {
-    return resolve_res.get_unexpected();
+    return stdx::unexpected(resolve_res.error());
   }
 
   shrink(buf);

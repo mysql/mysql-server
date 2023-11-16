@@ -34,6 +34,7 @@
 #include "dim.h"
 #include "keyring/keyring_memory.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/stdx/expected.h"
 #include "random_generator.h"
 #include "test/helpers.h"
 #include "test/temp_directory.h"
@@ -66,7 +67,7 @@ class TemporaryFileCleaner {
 static stdx::expected<void, std::error_code> check_file_private(
     const std::string &filename) {
   const auto rights_res = mysql_harness::access_rights_get(filename);
-  if (!rights_res) return rights_res.get_unexpected();
+  if (!rights_res) return stdx::unexpected(rights_res.error());
 
   const auto verify_res = mysql_harness::access_rights_verify(
       rights_res.value(), mysql_harness::AllowUserReadWritableVerifier());

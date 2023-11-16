@@ -364,7 +364,7 @@ class SharedServer {
     cli.password(account.password);
 
     auto connect_res = cli.connect(server_host(), server_port());
-    if (!connect_res) return connect_res.get_unexpected();
+    if (!connect_res) return stdx::unexpected(connect_res.error());
 
     return cli;
   }
@@ -770,7 +770,7 @@ TcpPortPool ReuseConnectionTest::port_pool_;
 static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
     MysqlClient &cli) {
   auto query_res = cli.query("SELECT connection_id()");
-  if (!query_res) return query_res.get_unexpected();
+  if (!query_res) return stdx::unexpected(query_res.error());
 
   // get the first field, of the first row of the first resultset.
   for (const auto &result : *query_res) {

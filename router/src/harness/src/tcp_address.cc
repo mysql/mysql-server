@@ -111,7 +111,7 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
   const auto addr = endpoint.substr(1, pos - 1);
   const auto addr_res = net::ip::make_address_v6(addr.c_str());
   if (!addr_res) {
-    return addr_res.get_unexpected();
+    return stdx::unexpected(addr_res.error());
   }
 
   ++pos;
@@ -128,7 +128,7 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
   const auto port_res = from_chars<uint16_t>(port_str);
 
   if (!port_res) {
-    return port_res.get_unexpected();
+    return stdx::unexpected(port_res.error());
   }
 
   auto port = port_res.value();
@@ -148,7 +148,7 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
     // IPv6 without port
     const auto addr_res = net::ip::make_address_v6(endpoint.c_str());
     if (!addr_res) {
-      return addr_res.get_unexpected();
+      return stdx::unexpected(addr_res.error());
     }
 
     return {std::in_place, endpoint, 0};
@@ -164,7 +164,7 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
     auto port_str = endpoint.substr(pos + 1);
     const auto port_res = from_chars<uint16_t>(port_str);
     if (!port_res) {
-      return port_res.get_unexpected();
+      return stdx::unexpected(port_res.error());
     }
 
     return {std::in_place, addr, port_res.value()};

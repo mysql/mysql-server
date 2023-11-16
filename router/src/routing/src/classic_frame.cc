@@ -26,6 +26,7 @@
 
 #include "classic_connection_base.h"
 #include "classic_session_tracker.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 
 static bool has_frame_header(ClassicProtocolState *src_protocol) {
@@ -48,7 +49,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_has_msg_prefix(
   if (!has_frame_header(src_protocol)) {
     auto decode_frame_res = ensure_frame_header(src_channel, src_protocol);
     if (!decode_frame_res) {
-      return decode_frame_res.get_unexpected();
+      return stdx::unexpected(decode_frame_res.error());
     }
   }
 
@@ -70,7 +71,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_has_msg_prefix(
     if (msg_type_pos >= recv_buf.size()) {
       // read some more data.
       auto read_res = src_channel->read_to_plain(1);
-      if (!read_res) return read_res.get_unexpected();
+      if (!read_res) return stdx::unexpected(read_res.error());
 
       if (msg_type_pos >= recv_buf.size()) {
         return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
@@ -104,7 +105,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
     if (ec == classic_protocol::codec_errc::not_enough_input) {
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
     }
-    return decode_res.get_unexpected();
+    return stdx::unexpected(decode_res.error());
   }
 
   const auto frame_header_res = decode_res.value();
@@ -133,7 +134,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_frame_header(
   if (cur_size < min_size) {
     // read the rest of the header.
     auto read_res = src_channel->read_to_plain(min_size - cur_size);
-    if (!read_res) return read_res.get_unexpected();
+    if (!read_res) return stdx::unexpected(read_res.error());
 
     if (recv_buf.size() < min_size) {
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
@@ -141,7 +142,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_frame_header(
   }
 
   const auto decode_frame_res = decode_frame_header(net::buffer(recv_buf));
-  if (!decode_frame_res) return decode_frame_res.get_unexpected();
+  if (!decode_frame_res) return stdx::unexpected(decode_frame_res.error());
 
   src_protocol->current_frame() = decode_frame_res->second;
 
@@ -161,7 +162,7 @@ ClassicFrame::ensure_has_full_frame(Channel *src_channel,
   if (cur_size >= min_size) return {};
 
   auto read_res = src_channel->read_to_plain(min_size - cur_size);
-  if (!read_res) return read_res.get_unexpected();
+  if (!read_res) return stdx::unexpected(read_res.error());
 
   if (recv_buf.size() >= min_size) return {};
 
@@ -186,7 +187,7 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
     // fill the recv-buf with the expected bytes.
     if (recv_buf_size < expected_size) {
       auto read_res = src_channel->read_to_plain(expected_size - recv_buf_size);
-      if (!read_res) return read_res.get_unexpected();
+      if (!read_res) return stdx::unexpected(read_res.error());
 
       if (src_channel->recv_plain_view().size() < expected_size) {
         return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
@@ -198,7 +199,7 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
       const auto hdr_res =
           classic_protocol::decode<classic_protocol::frame::Header>(
               net::buffer(recv_buf) + (expected_size - hdr_size), 0);
-      if (!hdr_res) return hdr_res.get_unexpected();
+      if (!hdr_res) return stdx::unexpected(hdr_res.error());
 
       auto hdr = *hdr_res;
       seq_id = hdr.second.seq_id();

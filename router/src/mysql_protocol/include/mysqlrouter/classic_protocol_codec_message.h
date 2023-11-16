@@ -1913,11 +1913,12 @@ class Codec<borrowable::message::client::Query<Borrowed>>
     if (caps.test(capabilities::pos::query_attributes)) {
       //
       auto param_count_res = accu.template step<bw::VarInt>();
-      if (!param_count_res) return param_count_res.get_unexpected();
+      if (!param_count_res) return stdx::unexpected(param_count_res.error());
 
       // currently always 1.
       auto param_set_count_res = accu.template step<bw::VarInt>();
-      if (!param_set_count_res) return param_set_count_res.get_unexpected();
+      if (!param_set_count_res)
+        return stdx::unexpected(param_set_count_res.error());
 
       if (param_set_count_res->value() != 1) {
         return stdx::make_unexpected(
@@ -2050,7 +2051,7 @@ class Codec<borrowable::message::client::SendFile<Borrowed>>
     namespace bw = borrowable::wire;
 
     auto payload_res = accu.template step<bw::String<Borrowed>>();
-    if (!accu.result()) return accu.result().get_unexpected();
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(payload_res->value()));

@@ -778,7 +778,7 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
     if (!is_destination_standalone_) destination_->handle_sockets_acceptors();
     // If we failed to start accepting connections on startup then router
     // should fail.
-    if (!res) return res.get_unexpected();
+    if (!res) return stdx::unexpected(res.error());
   }
   mysql_harness::on_service_ready(env);
 

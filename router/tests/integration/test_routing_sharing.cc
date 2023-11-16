@@ -786,7 +786,7 @@ SharedRouter *TestWithSharedRouter::shared_router_ = nullptr;
 static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
     MysqlClient &cli) {
   auto query_res = cli.query("SELECT connection_id()");
-  if (!query_res) return query_res.get_unexpected();
+  if (!query_res) return stdx::unexpected(query_res.error());
 
   // get the first field, of the first row of the first resultset.
   for (const auto &result : *query_res) {

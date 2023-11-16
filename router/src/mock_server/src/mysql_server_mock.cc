@@ -112,22 +112,22 @@ class Acceptor {
     net::ip::tcp::resolver resolver(io_ctx_);
 
     auto resolve_res = resolver.resolve(address, std::to_string(port));
-    if (!resolve_res) return resolve_res.get_unexpected();
+    if (!resolve_res) return stdx::unexpected(resolve_res.error());
 
     for (auto ainfo : resolve_res.value()) {
       net::ip::tcp::acceptor sock(io_ctx_);
 
       auto res = sock.open(ainfo.endpoint().protocol());
-      if (!res) return res.get_unexpected();
+      if (!res) return stdx::unexpected(res.error());
 
       res = sock.set_option(net::socket_base::reuse_address{true});
-      if (!res) return res.get_unexpected();
+      if (!res) return stdx::unexpected(res.error());
 
       res = sock.bind(ainfo.endpoint());
-      if (!res) return res.get_unexpected();
+      if (!res) return stdx::unexpected(res.error());
 
       res = sock.listen(256);
-      if (!res) return res.get_unexpected();
+      if (!res) return stdx::unexpected(res.error());
 
       sock_ = std::move(sock);
 

@@ -25,6 +25,7 @@
 #include "unreachable_destinations_quarantine.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -362,19 +363,19 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
   switch (func_) {
     case Function::kInitDestination: {
       auto init_res = resolve();
-      if (!init_res) return init_res.get_unexpected();
+      if (!init_res) return stdx::unexpected(init_res.error());
 
     } break;
     case Function::kConnectFinish: {
       auto connect_res = connect_finish();
-      if (!connect_res) return connect_res.get_unexpected();
+      if (!connect_res) return stdx::unexpected(connect_res.error());
 
     } break;
   }
 
   if (!connected_) {
     auto connect_res = try_connect();
-    if (!connect_res) return connect_res.get_unexpected();
+    if (!connect_res) return stdx::unexpected(connect_res.error());
   }
 
   return {};
@@ -387,7 +388,7 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
       resolver.resolve(address_.address(), std::to_string(address_.port()));
 
   if (!resolve_res) {
-    return resolve_res.get_unexpected();
+    return stdx::unexpected(resolve_res.error());
   }
 
   endpoints_ = resolve_res.value();
@@ -424,10 +425,10 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
   };
 
   auto open_res = server_sock_.open(server_endpoint_.protocol(), socket_flags);
-  if (!open_res) return open_res.get_unexpected();
+  if (!open_res) return stdx::unexpected(open_res.error());
 
   const auto non_block_res = server_sock_.native_non_blocking(true);
-  if (!non_block_res) return non_block_res.get_unexpected();
+  if (!non_block_res) return stdx::unexpected(non_block_res.error());
 
   server_sock_.set_option(net::ip::tcp::no_delay{true});
 
@@ -438,7 +439,7 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
         ec == make_error_condition(std::errc::operation_would_block)) {
       // connect in progress, wait for completion.
       func_ = Function::kConnectFinish;
-      return connect_res.get_unexpected();
+      return stdx::unexpected(connect_res.error());
     } else {
       last_ec_ = ec;
       return next_endpoint();

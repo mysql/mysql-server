@@ -405,7 +405,7 @@ class Codec<borrowable::session_track::Gtid<Borrowed>>
     auto spec_res = accu.template step<bw::FixedInt<1>>();
     auto gtid_res = accu.template step<bw::VarString<Borrowed>>();
 
-    if (!accu.result()) return accu.result().get_unexpected();
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(spec_res->value(), gtid_res->value()));

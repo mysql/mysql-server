@@ -871,7 +871,7 @@ class MysqlClient {
     Statement st(m_.get());
 
     const auto bind_res = st.bind_params(params, names);
-    if (!bind_res) return bind_res.get_unexpected();
+    if (!bind_res) return stdx::unexpected(bind_res.error());
 
     return st.query(stmt);
   }
@@ -1171,7 +1171,7 @@ class MysqlClient {
 
     auto res = st.prepare(stmt);
 
-    if (!res) return res.get_unexpected();
+    if (!res) return stdx::unexpected(res.error());
 
     return st;
   }

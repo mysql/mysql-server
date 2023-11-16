@@ -1816,8 +1816,7 @@ class ChangeRouterAccountPlugin {
       log_error_msg(
           "Failed getting default authentication plugin while changing "
           "the authentication plugin for account '" +
-          username + "'@'" + hostname +
-          "': " + result.get_unexpected().value());
+          username + "'@'" + hostname + "': " + result.error());
       return;
     }
 

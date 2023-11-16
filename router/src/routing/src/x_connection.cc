@@ -39,6 +39,7 @@
 
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
 #include "mysqlrouter/connection_pool_component.h"
@@ -107,7 +108,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
     if (ec == classic_protocol::codec_errc::not_enough_input) {
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
     }
-    return decode_res.get_unexpected();
+    return stdx::unexpected(decode_res.error());
   }
 
   const auto frame_header_res = decode_res.value();
@@ -128,7 +129,7 @@ static stdx::expected<size_t, std::error_code> ensure_frame_header(
   if (cur_size < min_size) {
     // read the rest of the header.
     auto read_res = src_channel->read_to_plain(min_size - cur_size);
-    if (!read_res) return read_res.get_unexpected();
+    if (!read_res) return stdx::unexpected(read_res.error());
 
     if (recv_buf.size() < min_size) {
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
@@ -136,7 +137,7 @@ static stdx::expected<size_t, std::error_code> ensure_frame_header(
   }
 
   auto decode_frame_res = decode_frame_header(net::buffer(recv_buf));
-  if (!decode_frame_res) return decode_frame_res.get_unexpected();
+  if (!decode_frame_res) return stdx::unexpected(decode_frame_res.error());
 
   const size_t header_size = decode_frame_res.value().first;
   src_protocol->current_frame() = decode_frame_res.value().second;
@@ -163,7 +164,7 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
   if (!has_frame_header(src_protocol)) {
     const auto decode_frame_res =
         ensure_frame_header(src_channel, src_protocol);
-    if (!decode_frame_res) return decode_frame_res.get_unexpected();
+    if (!decode_frame_res) return stdx::unexpected(decode_frame_res.error());
   }
 
   if (!has_msg_type(src_protocol)) {
@@ -184,7 +185,7 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
     if (msg_type_pos >= recv_buf.size()) {
       // read some more data.
       auto read_res = src_channel->read_to_plain(1);
-      if (!read_res) return read_res.get_unexpected();
+      if (!read_res) return stdx::unexpected(read_res.error());
 
       if (msg_type_pos >= recv_buf.size()) {
         return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
@@ -217,7 +218,7 @@ static stdx::expected<void, std::error_code> ensure_has_full_frame(
 
   auto read_res = src_channel->read_to_plain(min_size - cur_size);
 
-  if (!read_res) return read_res.get_unexpected();
+  if (!read_res) return stdx::unexpected(read_res.error());
 
   return {};
 }
@@ -590,7 +591,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     Channel *src_channel, XProtocolState *src_protocol, Channel *dst_channel,
     [[maybe_unused]] XProtocolState *dst_protocol) {
   auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
-  if (!read_res) return read_res.get_unexpected();
+  if (!read_res) return stdx::unexpected(read_res.error());
 
   auto &current_frame = src_protocol->current_frame().value();
 
@@ -606,7 +607,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
       // ... not more than 16k to avoid reading all 16M at once.
       auto read_res = src_channel->read_to_plain(
           std::min(rest_of_frame_size - recv_buf.size(), size_t{16 * 1024}));
-      if (!read_res) return read_res.get_unexpected();
+      if (!read_res) return stdx::unexpected(read_res.error());
     }
 
     if (recv_buf.empty()) {
@@ -615,7 +616,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
     const auto write_res =
         dst_channel->write(net::buffer(recv_buf, rest_of_frame_size));
-    if (!write_res) return write_res.get_unexpected();
+    if (!write_res) return stdx::unexpected(write_res.error());
 
     size_t transferred = write_res.value();
     current_frame.forwarded_frame_size_ += transferred;
@@ -653,7 +654,7 @@ forward_frame(Channel *src_channel, XProtocolState *src_protocol,
       return MysqlRoutingXConnection::ForwardResult::kWantRecvSource;
     }
 
-    return forward_res.get_unexpected();
+    return stdx::unexpected(forward_res.error());
   }
 
   const auto src_is_done = forward_res.value();

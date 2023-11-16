@@ -259,20 +259,20 @@ class HttpRequestMainThread : public HttpRequestThread {
       sock.close();
 
       auto open_res = sock.open(resolved.endpoint().protocol());
-      if (!open_res) return open_res.get_unexpected();
+      if (!open_res) return stdx::unexpected(open_res.error());
 
       sock.native_non_blocking(true);
       auto setop_res = sock.set_option(net::socket_base::reuse_address(true));
-      if (!setop_res) return setop_res.get_unexpected();
+      if (!setop_res) return stdx::unexpected(setop_res.error());
 
       setop_res = sock.set_option(net::socket_base::keep_alive(true));
-      if (!setop_res) return setop_res.get_unexpected();
+      if (!setop_res) return stdx::unexpected(setop_res.error());
 
       auto bind_res = sock.bind(resolved.endpoint());
-      if (!bind_res) return bind_res.get_unexpected();
+      if (!bind_res) return stdx::unexpected(bind_res.error());
 
       auto listen_res = sock.listen(128);
-      if (!listen_res) return listen_res.get_unexpected();
+      if (!listen_res) return stdx::unexpected(listen_res.error());
 
       return listen_res;
     }

@@ -115,7 +115,7 @@ class Channel {
 
     auto write_res = write_plain(dyn_buf.data(0, orig_size));
     if (!write_res) {
-      return write_res.get_unexpected();
+      return stdx::unexpected(write_res.error());
     }
 
     transferred += write_res.value();
@@ -152,7 +152,7 @@ class Channel {
     const auto res_res = read_plain(dyn_buf.data(orig_size, grow_size));
     if (!res_res) {
       dyn_buf.shrink(grow_size);
-      return res_res.get_unexpected();
+      return stdx::unexpected(res_res.error());
     }
 
     transferred += res_res.value();

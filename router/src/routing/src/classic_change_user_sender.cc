@@ -109,7 +109,7 @@ classic_proto_verify_connection_attributes(const std::string &attrs) {
     const auto decode_res =
         classic_protocol::decode<classic_protocol::wire::VarString>(attr_buf,
                                                                     {});
-    if (!decode_res) return decode_res.get_unexpected();
+    if (!decode_res) return stdx::unexpected(decode_res.error());
 
     const auto bytes_read = decode_res->first;
     const auto kv = decode_res->second;
@@ -134,7 +134,7 @@ static stdx::expected<size_t, std::error_code> classic_proto_append_attribute(
       classic_protocol::encode(classic_protocol::wire::VarString(key), {},
                                net::dynamic_buffer(attrs_buf));
   if (!encode_res) {
-    return encode_res.get_unexpected();
+    return stdx::unexpected(encode_res.error());
   }
 
   size_t encoded_bytes = encode_res.value();
@@ -143,7 +143,7 @@ static stdx::expected<size_t, std::error_code> classic_proto_append_attribute(
       classic_protocol::encode(classic_protocol::wire::VarString(value), {},
                                net::dynamic_buffer(attrs_buf));
   if (!encode_res) {
-    return encode_res.get_unexpected();
+    return stdx::unexpected(encode_res.error());
   }
 
   encoded_bytes += encode_res.value();
@@ -179,12 +179,12 @@ classic_proto_decode_and_add_connection_attributes(
     const std::vector<std::pair<std::string, std::string>> &extra_attributes) {
   // add attributes if they are sane.
   const auto verify_res = classic_proto_verify_connection_attributes(attrs);
-  if (!verify_res) return verify_res.get_unexpected();
+  if (!verify_res) return stdx::unexpected(verify_res.error());
 
   for (const auto &attr : extra_attributes) {
     const auto append_res =
         classic_proto_append_attribute(attrs, attr.first, attr.second);
-    if (!append_res) return append_res.get_unexpected();
+    if (!append_res) return stdx::unexpected(append_res.error());
   }
 
   return {attrs};

@@ -70,7 +70,7 @@ stdx::expected<size_t, std::error_code> MySQLClassicProtocol::read_packet(
 
   auto decode_res =
       classic_protocol::decode<classic_protocol::frame::Header>(buf, {});
-  if (!decode_res) return decode_res.get_unexpected();
+  if (!decode_res) return stdx::unexpected(decode_res.error());
 
   const auto hdr_frame = decode_res.value();
 

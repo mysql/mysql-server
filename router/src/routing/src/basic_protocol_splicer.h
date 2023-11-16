@@ -552,7 +552,7 @@ class ProtocolSplicerBase {
 
     {
       const auto flush_res = channel->flush_from_recv_buf();
-      if (!flush_res) return flush_res.get_unexpected();
+      if (!flush_res) return stdx::unexpected(flush_res.error());
     }
 
     if (!channel->tls_init_is_finished()) {
@@ -564,13 +564,13 @@ class ProtocolSplicerBase {
         if (!flush_res) {
           const auto ec = flush_res.error();
           if (ec != make_error_code(std::errc::operation_would_block)) {
-            return flush_res.get_unexpected();
+            return stdx::unexpected(flush_res.error());
           }
         }
       }
 
       if (!res) {
-        return res.get_unexpected();
+        return stdx::unexpected(res.error());
       }
     }
 

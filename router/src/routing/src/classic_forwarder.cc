@@ -27,6 +27,7 @@
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -51,7 +52,7 @@ static stdx::expected<size_t, std::error_code> write_frame_header(
       classic_protocol::encode<classic_protocol::frame::Header>(
           frame_header, {}, net::dynamic_buffer(dest_header));
   if (!encode_res) {
-    return encode_res.get_unexpected();
+    return stdx::unexpected(encode_res.error());
   }
 
   return dst_channel->write(net::buffer(dest_header));
@@ -66,7 +67,7 @@ static stdx::expected<size_t, std::error_code> forward_header(
   } else {
     auto write_res =
         write_frame_header(dst_channel, {payload_size, dst_protocol->seq_id()});
-    if (!write_res) return write_res.get_unexpected();
+    if (!write_res) return stdx::unexpected(write_res.error());
 
     // return the bytes that were skipped from the recv_buffer.
     return header_size;
@@ -82,7 +83,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
   if (!has_frame_header(src_protocol)) {
     auto read_res =
         ClassicFrame::ensure_frame_header(src_channel, src_protocol);
-    if (!read_res) return read_res.get_unexpected();
+    if (!read_res) return stdx::unexpected(read_res.error());
   }
 
   auto &current_frame = src_protocol->current_frame().value();
@@ -100,7 +101,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
     auto forward_res = forward_header(src_channel, src_protocol, dst_channel,
                                       dst_protocol, header_size, payload_size);
-    if (!forward_res) return forward_res.get_unexpected();
+    if (!forward_res) return stdx::unexpected(forward_res.error());
 
     const size_t transferred = forward_res.value();
 
@@ -132,7 +133,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     if (rest_of_frame_size > recv_buf.size()) {
       auto read_res = src_channel->read_to_plain(
           std::min(rest_of_frame_size - recv_buf.size(), kMaxForwardSize));
-      if (!read_res) return read_res.get_unexpected();
+      if (!read_res) return stdx::unexpected(read_res.error());
     }
 
     if (recv_buf.empty()) {
@@ -141,7 +142,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
     const auto write_res =
         dst_channel->write(net::buffer(recv_buf, rest_of_frame_size));
-    if (!write_res) return write_res.get_unexpected();
+    if (!write_res) return stdx::unexpected(write_res.error());
 
     size_t transferred = write_res.value();
     current_frame.forwarded_frame_size_ += transferred;
@@ -197,7 +198,7 @@ forward_frame_sequence(Channel *src_channel, ClassicProtocolState *src_protocol,
       return Forwarder::ForwardResult::kWantRecvSource;
     }
 
-    return forward_res.get_unexpected();
+    return stdx::unexpected(forward_res.error());
   }
 
   // if forward-frame succeeded, the send-plain-buffer should contain some data

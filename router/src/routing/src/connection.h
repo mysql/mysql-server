@@ -37,6 +37,7 @@
 #include "destination_error.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/timer.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/monitor.h"
 
 class MySQLRoutingConnectionBase {
@@ -265,12 +266,12 @@ class Connector : public ConnectorBase {
     switch (func_) {
       case Function::kInitDestination: {
         auto init_res = init_destination();
-        if (!init_res) return init_res.get_unexpected();
+        if (!init_res) return stdx::unexpected(init_res.error());
 
       } break;
       case Function::kConnectFinish: {
         auto connect_res = connect_finish();
-        if (!connect_res) return connect_res.get_unexpected();
+        if (!connect_res) return stdx::unexpected(connect_res.error());
 
       } break;
     }
@@ -279,7 +280,7 @@ class Connector : public ConnectorBase {
       // stops at 'connect_init()
       {
         auto connect_res = try_connect();
-        if (!connect_res) return connect_res.get_unexpected();
+        if (!connect_res) return stdx::unexpected(connect_res.error());
       }
     }
 
@@ -303,12 +304,12 @@ class PooledConnector : public ConnectorBase {
     switch (func_) {
       case Function::kInitDestination: {
         auto init_res = init_destination();
-        if (!init_res) return init_res.get_unexpected();
+        if (!init_res) return stdx::unexpected(init_res.error());
 
       } break;
       case Function::kConnectFinish: {
         auto connect_res = connect_finish();
-        if (!connect_res) return connect_res.get_unexpected();
+        if (!connect_res) return stdx::unexpected(connect_res.error());
 
       } break;
     }
@@ -322,7 +323,7 @@ class PooledConnector : public ConnectorBase {
 
       {
         auto connect_res = try_connect();
-        if (!connect_res) return connect_res.get_unexpected();
+        if (!connect_res) return stdx::unexpected(connect_res.error());
       }
     }
 

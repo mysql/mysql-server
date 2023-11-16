@@ -482,7 +482,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
         classic_protocol::borrowed::session_track::Field>(session_trackers,
                                                           caps);
     if (!decode_session_res) {
-      return decode_session_res.get_unexpected();
+      return stdx::unexpected(decode_session_res.error());
     }
 
     const auto decoded_size = decode_session_res->first;

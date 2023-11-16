@@ -106,7 +106,7 @@ stdx::expected<ProcessManager::notify_socket_t, std::error_code> accept_until(
                                               std::system_category()};
 
       if (ec != ec_pipe_listening) {
-        return accept_res.get_unexpected();
+        return stdx::unexpected(accept_res.error());
       }
 
       // nothing is connected yet, sleep a bit an retry.
@@ -132,7 +132,7 @@ ProcessManager::Spawner::wait_for_notified(
   do {
     auto accept_res = accept_until<clock_type>(sock, end_time);
     if (!accept_res) {
-      return accept_res.get_unexpected();
+      return stdx::unexpected(accept_res.error());
     }
 
     auto accepted = std::move(accept_res.value());
@@ -140,7 +140,7 @@ ProcessManager::Spawner::wait_for_notified(
     // make the read non-blocking.
     const auto non_block_res = accepted.native_non_blocking(true);
     if (!non_block_res) {
-      return non_block_res.get_unexpected();
+      return stdx::unexpected(non_block_res.error());
     }
 
     const size_t BUFF_SIZE = 512;
@@ -151,7 +151,7 @@ ProcessManager::Spawner::wait_for_notified(
     if (!read_res) {
       if (read_res.error() !=
           std::error_code{ERROR_NO_DATA, std::system_category()}) {
-        return read_res.get_unexpected();
+        return stdx::unexpected(read_res.error());
       }
 
       // there was no data. Wait a bit and try again.
@@ -193,13 +193,13 @@ ProcessManager::Spawner::wait_for_notified(
     const auto poll_res =
         net::impl::poll::poll(fds.data(), fds.size(), timeout);
     if (!poll_res) {
-      return poll_res.get_unexpected();
+      return stdx::unexpected(poll_res.error());
     }
 
     const auto read_res =
         net::read(sock, net::buffer(buff), net::transfer_at_least(1));
     if (!read_res) {
-      return read_res.get_unexpected();
+      return stdx::unexpected(read_res.error());
     } else {
       const auto bytes_read = read_res.value();
 

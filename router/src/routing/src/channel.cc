@@ -254,7 +254,7 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
       if (read_res.error() != TlsErrc::kWantRead &&
           read_res.error() !=
               make_error_code(std::errc::operation_would_block)) {
-        return read_res.get_unexpected();
+        return stdx::unexpected(read_res.error());
       }
 
       break;
