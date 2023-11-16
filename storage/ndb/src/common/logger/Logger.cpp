@@ -39,6 +39,8 @@
 #include <SysLogHandler.hpp>
 #endif
 
+#include <BufferedLogHandler.hpp>
+
 #include <portlib/ndb_localtime.h>
 
 const char *Logger::LoggerLevelNames[] = {"ON      ", "DEBUG   ", "INFO    ",
@@ -133,19 +135,21 @@ class InternalLogListHandler : public LogHandler {
 };
 
 Logger::Logger()
-    : m_pCategory("Logger"),
+    : m_log_mutex(NdbMutex_Create()),
+      m_pCategory("Logger"),
+      m_handler_creation_mutex(NdbMutex_Create()),
+      m_internalLogListHandler(new InternalLogListHandler()),
+      m_internalBufferedHandler(nullptr),
       m_pConsoleHandler(nullptr),
       m_pFileHandler(nullptr),
       m_pSyslogHandler(nullptr) {
-  m_internalLogListHandler = new InternalLogListHandler();
-  m_log_mutex = NdbMutex_Create();
-  m_handler_creation_mutex = NdbMutex_Create();
+  m_logHandler = m_internalLogListHandler;
   disable(LL_ALL);
   enable(LL_ON);
   enable(LL_INFO);
 }
-
 Logger::~Logger() {
+  stopAsync();
   removeAllHandlers();
   delete m_internalLogListHandler;
   NdbMutex_Destroy(m_handler_creation_mutex);
@@ -233,6 +237,35 @@ bool Logger::createSyslogHandler() {
 }
 
 void Logger::removeSyslogHandler() { removeHandler(m_pSyslogHandler); }
+
+void Logger::startAsync(unsigned buffer_kb) {
+  Guard g(m_log_mutex);
+
+  if (m_internalBufferedHandler == nullptr) {
+    BufferedLogHandler *blh =
+        new BufferedLogHandler(m_internalLogListHandler,
+                               false, /* m_internalLogListHandler not owned */
+                               m_pCategory, buffer_kb);
+    if (blh == nullptr) {
+      abort();
+    }
+
+    /* No repeat filtering in the Buffered Handler */
+    blh->setRepeatFrequency(0);
+
+    m_internalBufferedHandler = blh;
+    m_logHandler = m_internalBufferedHandler;
+  }
+}
+
+void Logger::stopAsync() {
+  Guard g(m_log_mutex);
+  if (m_internalBufferedHandler != nullptr) {
+    delete m_internalBufferedHandler;
+    m_internalBufferedHandler = nullptr;
+    m_logHandler = m_internalLogListHandler;
+  }
+}
 
 bool Logger::addHandler(LogHandler *pHandler) {
   return m_internalLogListHandler->addHandler(pHandler);
@@ -352,11 +385,12 @@ void Logger::log(LoggerLevel logLevel, const char *pMsg, va_list ap) const {
     char buf[MAX_LOG_MESSAGE_SIZE];
     BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
     time_t now = ::time((time_t *)nullptr);
-    m_internalLogListHandler->append(m_pCategory, logLevel, buf, now);
+    m_logHandler->append(m_pCategory, logLevel, buf, now);
   }
 }
 
 void Logger::setRepeatFrequency(unsigned val) {
+  /* Set repeat frequency on the list of handlers */
   m_internalLogListHandler->setRepeatFrequency(val);
 }
 

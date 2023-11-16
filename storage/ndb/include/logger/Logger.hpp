@@ -35,7 +35,7 @@
 
 class LogHandler;
 class InternalLogListHandler;
-
+class BufferedLogHandler;
 /**
  * Logger should be used whenever you need to log a message like
  * general information or debug messages. By creating/adding different
@@ -207,6 +207,18 @@ class Logger {
   void removeSyslogHandler();
 
   /**
+   * Invoke handlers asynchronously
+   *
+   * @param buffer_kb  kb of buffer to use
+   */
+  void startAsync(unsigned buffer_kb = 32);
+
+  /**
+   * Invoke handlers synchronously
+   */
+  void stopAsync();
+
+  /**
    * Add a new log handler.
    *
    * @param pHandler a log handler.
@@ -337,7 +349,13 @@ class Logger {
 
   /* Default handlers */
   NdbMutex *m_handler_creation_mutex;
+  /* List of user defined handlers */
   InternalLogListHandler *m_internalLogListHandler;
+  /* Buffered handler used in async mode */
+  BufferedLogHandler *m_internalBufferedHandler;
+  /* Pointer to List or Buffered handler */
+  LogHandler *m_logHandler;
+
   LogHandler *m_pConsoleHandler;
   LogHandler *m_pFileHandler;
   LogHandler *m_pSyslogHandler;
