@@ -51,14 +51,6 @@ inline constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
 
 // C++20
 template <class T>
-struct remove_cvref {
-  using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
-
-template <class T>
-using remove_cvref_t = typename remove_cvref<T>::type;
-
-template <class T>
 struct type_identity {
   using type = T;
 };

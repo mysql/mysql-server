@@ -40,7 +40,6 @@
 #include <utility>  // std::forward
 
 #include "my_compiler.h"
-#include "mysql/harness/stdx/type_traits.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define RESO_ASSUME(x) \
@@ -532,9 +531,9 @@ class ExpectedImpl : public ExpectedImplBase {
 
   template <class U>
   using can_construct_from_value_type = std::conjunction<
-      std::negation<std::is_same<std::in_place_t, stdx::remove_cvref_t<U>>>,
-      std::negation<std::is_same<ExpectedImpl<T, E>, stdx::remove_cvref_t<U>>>,
-      std::negation<std::is_same<unexpected<E>, stdx::remove_cvref_t<U>>>,
+      std::negation<std::is_same<std::in_place_t, std::remove_cvref_t<U>>>,
+      std::negation<std::is_same<ExpectedImpl<T, E>, std::remove_cvref_t<U>>>,
+      std::negation<std::is_same<unexpected<E>, std::remove_cvref_t<U>>>,
       std::is_constructible<T, U>>;
 
   template <class U>
@@ -621,7 +620,7 @@ class ExpectedImpl : public ExpectedImplBase {
 
   template <class U = T,
             std::enable_if_t<
-                !std::is_same_v<ExpectedImpl<T, E>, stdx::remove_cvref_t<U>> &&
+                !std::is_same_v<ExpectedImpl<T, E>, std::remove_cvref_t<U>> &&
                 !std::conjunction_v<std::is_scalar<T>,
                                     std::is_same<T, std::decay_t<U>>> &&
                 std::is_constructible_v<T, U> && std::is_assignable_v<T &, U>>
@@ -925,7 +924,7 @@ template <class Exp, class Func,
 constexpr auto or_else_impl(Exp &&exp, Func &&func) {
   static_assert(
       std::is_same_v<
-          stdx::remove_cvref_t<std::invoke_result_t<Func, error_type>>, Exp>,
+          std::remove_cvref_t<std::invoke_result_t<Func, error_type>>, Exp>,
       "Func must return an expected<>");
 
   if (exp.has_value()) {

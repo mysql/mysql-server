@@ -27,8 +27,6 @@
 
 #include <type_traits>
 
-#include "mysql/harness/stdx/type_traits.h"  // remove_cvref_t
-
 // from C++20
 
 namespace stdx {
@@ -54,7 +52,7 @@ struct has_value_type : std::false_type {};
 
 template <class T>
 struct has_value_type<T,
-                      std::void_t<typename stdx::remove_cvref_t<T>::value_type>>
+                      std::void_t<typename std::remove_cvref_t<T>::value_type>>
     : std::true_type {};
 
 template <class T, bool = has_value_type<T>::value>
@@ -116,7 +114,7 @@ template <class T>
 struct indirectly_readable_traits<
     T, std::enable_if_t<impl::has_value_type<T>::value>>
     : impl::indirectly_readable_traits_member_value_type<
-          stdx::remove_cvref_t<T>> {};
+          std::remove_cvref_t<T>> {};
 
 template <class T>
 struct indirectly_readable_traits<
@@ -128,11 +126,11 @@ struct indirectly_readable_traits<const T> : indirectly_readable_traits<T> {};
 
 template <class T>
 using iter_value_t =
-    typename indirectly_readable_traits<stdx::remove_cvref_t<T>>::value_type;
+    typename indirectly_readable_traits<std::remove_cvref_t<T>>::value_type;
 
 template <class T>
 using iter_reference_t =
-    typename impl::iter_reference<stdx::remove_cvref_t<T>>::reference;
+    typename impl::iter_reference<std::remove_cvref_t<T>>::reference;
 
 }  // namespace stdx
 
