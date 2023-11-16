@@ -120,7 +120,7 @@ Uint64 TransporterRegistry::get_bytes_received(NodeId node_id) const {
 
   Uint64 bytes_received = 0;
   for (Uint32 i = 0; i < num_ids; i++) {
-    bytes_received += allTransporters[trp_ids[i]]->m_bytes_sent;
+    bytes_received += allTransporters[trp_ids[i]]->m_bytes_received;
   }
   return bytes_received;
 }
