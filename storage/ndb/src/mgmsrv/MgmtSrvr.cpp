@@ -80,7 +80,6 @@
 
 #include <SignalSender.hpp>
 
-#include <BufferedLogHandler.hpp>
 #include <LogBuffer.hpp>
 
 int g_errorInsert = 0;
@@ -230,8 +229,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts &opts)
       m_event_listner(this),
       m_master_node(0),
       _logLevelThread(NULL),
-      m_version_string(ndbGetOwnVersionString()),
-      m_async_cluster_logging(false) {
+      m_version_string(ndbGetOwnVersionString()) {
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
   m_local_config_mutex = NdbMutex_Create();
@@ -524,7 +522,6 @@ bool MgmtSrvr::start() {
     DBUG_RETURN(false);
   }
 
-  set_async_cluster_logging(true);
   /* Start config manager */
   if (!m_config_manager->start()) {
     g_eventLogger->error("Failed to start ConfigManager");
@@ -538,10 +535,6 @@ bool MgmtSrvr::start() {
                                      "MgmtSrvr_Loglevel", NDB_THREAD_PRIO_LOW);
 
   DBUG_RETURN(true);
-}
-
-void MgmtSrvr::set_async_cluster_logging(bool async_cluster_logging) {
-  m_async_cluster_logging = true;
 }
 
 void MgmtSrvr::configure_eventlogger(const BaseString &logdestination) const {
@@ -561,30 +554,11 @@ void MgmtSrvr::configure_eventlogger(const BaseString &logdestination) const {
     BaseString params;
     if (v_type_params.size() >= 2) params = v_type_params[1];
 
-    LogHandler *handler = NULL;
+    LogHandler *handler = nullptr;
     if (type == "FILE") {
       char *default_file_name = NdbConfig_ClusterLogFileName(_ownNodeId);
-      FileLogHandler *file_handler = new FileLogHandler(default_file_name);
+      handler = new FileLogHandler(default_file_name);
       free(default_file_name);
-
-      if (m_async_cluster_logging) {
-        /**
-         *  Log to a buffered log handler, and pass the file log handler
-         *  as the destination log handler.
-         */
-        file_handler->parseParams(params);
-        if (!file_handler->is_open() && !file_handler->open()) {
-          ndbout_c("INTERNAL ERROR: Could not create log handler for: '%s'",
-                   logdestinations[i].c_str());
-          continue;
-        }
-
-        handler =
-            new BufferedLogHandler(file_handler, true, /* file_handler owned */
-                                   "MgmtSrvr");
-      } else {
-        handler = file_handler;
-      }
     } else if (type == "CONSOLE") {
       handler = new ConsoleLogHandler();
     }
@@ -617,6 +591,7 @@ void MgmtSrvr::configure_eventlogger(const BaseString &logdestination) const {
       continue;
     }
   }
+  g_eventLogger->startAsync();
 }
 
 void MgmtSrvr::setClusterLog(const Config *config) {

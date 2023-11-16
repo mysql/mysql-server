@@ -459,7 +459,12 @@ static int mgmd_main(int argc, char **argv) {
         delete mgm;
         mgmd_exit(1);
       }
-
+      /**
+       * stopAsync to avoid having multiple threads prior to forking.
+       * BufferedLogHandler and its internal log thread will be eventually
+       * created by child in 'configure_eventlogger'.
+       */
+      g_eventLogger->stopAsync();
       char *lockfile = NdbConfig_PidFileName(localNodeId);
       char *logfile = NdbConfig_StdoutFileName(localNodeId);
       if (ndb_daemonize(lockfile, logfile)) {

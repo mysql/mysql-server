@@ -400,6 +400,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(
     g_eventLogger->setCategory("NdbApi");
     g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
     g_eventLogger->disable(Logger::LL_DEBUG);
+    g_eventLogger->startAsync();
     /*
       Disable repeated message handling as it interfers
       with mysqld logging, in which case messages come out

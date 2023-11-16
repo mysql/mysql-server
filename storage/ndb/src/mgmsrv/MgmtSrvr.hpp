@@ -303,13 +303,6 @@ class MgmtSrvr : private ConfigSubscriber, public trp_client {
   void config_changed(NodeId, const Config *) override;
   void setClusterLog(const Config *conf);
   void configure_eventlogger(const BaseString &logdestination) const;
-  /**
-   * Make cluster logging asynchronous/synchronous
-   * when g_eventLogger is set up the next time.
-   * @param async_cluster_logging true for async logging,
-   * false for sync logging
-   */
-  void set_async_cluster_logging(bool async_cluster_logging);
 
  public:
   /**
@@ -538,7 +531,6 @@ class MgmtSrvr : private ConfigSubscriber, public trp_client {
 
  private:
   BaseString m_version_string;
-  bool m_async_cluster_logging;
 
  public:
   const char *get_version_string(void) const {
