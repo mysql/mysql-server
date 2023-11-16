@@ -31,7 +31,7 @@
 stdx::expected<bool, std::string> ImplicitCommitParser::parse(
     std::optional<classic_protocol::session_track::TransactionState>
         trx_state) {
-  if (!trx_state) return stdx::make_unexpected("Expected trx-state to be set.");
+  if (!trx_state) return stdx::unexpected("Expected trx-state to be set.");
 
   // no transaction, nothing to commit.
   if (trx_state->trx_type() == '_') return false;

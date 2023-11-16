@@ -1404,7 +1404,7 @@ stdx::expected<void, std::string> setup_metadata_session(
       }
     }
   } catch (const std::exception &e) {
-    return stdx::make_unexpected(std::string(e.what()));
+    return stdx::unexpected(std::string(e.what()));
   }
 
   return {};

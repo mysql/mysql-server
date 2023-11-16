@@ -61,8 +61,7 @@ inline stdx::expected<int, std::error_code> create() {
     int epfd = ::epoll_create1(EPOLL_CLOEXEC);
 
     if (-1 == epfd) {
-      return stdx::make_unexpected(
-          std::error_code{errno, std::generic_category()});
+      return stdx::unexpected(std::error_code{errno, std::generic_category()});
     }
 
     return epfd;
@@ -72,8 +71,7 @@ inline stdx::expected<void, std::error_code> ctl(int epfd, Cmd cmd, int fd,
                                                  epoll_event *ev) {
   return uninterruptable([&]() -> stdx::expected<void, std::error_code> {
     if (-1 == ::epoll_ctl(epfd, static_cast<int>(cmd), fd, ev)) {
-      return stdx::make_unexpected(
-          std::error_code{errno, std::generic_category()});
+      return stdx::unexpected(std::error_code{errno, std::generic_category()});
     }
 
     return {};
@@ -86,10 +84,10 @@ inline stdx::expected<size_t, std::error_code> wait(
   int res = ::epoll_wait(epfd, fd_events, num_fd_events, timeout.count());
 
   if (res < 0) {
-    return stdx::make_unexpected(impl::socket::last_error_code());
+    return stdx::unexpected(impl::socket::last_error_code());
   } else if (res == 0) {
     // timed out
-    return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+    return stdx::unexpected(make_error_code(std::errc::timed_out));
   }
 
   return res;

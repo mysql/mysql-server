@@ -60,10 +60,10 @@ inline stdx::expected<size_t, std::error_code> poll(
 #endif
 
   if (res == err_res) {
-    return stdx::make_unexpected(impl::socket::last_error_code());
+    return stdx::unexpected(impl::socket::last_error_code());
   }
   if (0 == res) {
-    return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+    return stdx::unexpected(make_error_code(std::errc::timed_out));
   }
 
   return res;

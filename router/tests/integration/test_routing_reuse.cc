@@ -109,11 +109,11 @@ static std::vector<std::vector<std::vector<std::string>>> result_as_vector(
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -377,7 +377,7 @@ class SharedServer {
         sess->connect(server_host().c_str(), server_mysqlx_port(),
                       account.username.c_str(), account.password.c_str(), "");
 
-    if (xerr.error() != 0) return stdx::make_unexpected(xerr);
+    if (xerr.error() != 0) return stdx::unexpected(xerr);
 
     return sess;
   }
@@ -747,7 +747,7 @@ class ReuseConnectionTest
     auto xerr =
         sess->connect(shared_router_->host(), shared_router_->xport(param),
                       account.username.c_str(), account.password.c_str(), "");
-    if (xerr.error() != 0) return stdx::make_unexpected(xerr);
+    if (xerr.error() != 0) return stdx::unexpected(xerr);
 
     return sess;
   }
@@ -775,7 +775,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
   // get the first field, of the first row of the first resultset.
   for (const auto &result : *query_res) {
     if (result.field_count() == 0) {
-      return stdx::make_unexpected(MysqlError(1, "not a resultset", "HY000"));
+      return stdx::unexpected(MysqlError(1, "not a resultset", "HY000"));
     }
 
     for (auto row : result.rows()) {
@@ -785,7 +785,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
     }
   }
 
-  return stdx::make_unexpected(MysqlError(1, "no rows", "HY000"));
+  return stdx::unexpected(MysqlError(1, "no rows", "HY000"));
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_ping) {

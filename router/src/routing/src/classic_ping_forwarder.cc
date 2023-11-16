@@ -162,7 +162,7 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::response() {
     tr.trace(Tracer::Event().stage("ping::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::ok() {
@@ -205,7 +205,7 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::ok() {
   if (!connection()->events().empty() ||
       !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     discard_current_msg(src_channel, src_protocol);
 

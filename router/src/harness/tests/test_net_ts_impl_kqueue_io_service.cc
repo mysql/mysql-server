@@ -56,9 +56,8 @@ TEST(KqueueIoService, open_already_open) {
   // pre-condition: construct calls open()
   ASSERT_TRUE(io_svc.is_open());
 
-  EXPECT_EQ(
-      io_svc.open(),
-      stdx::make_unexpected(make_error_code(net::socket_errc::already_open)));
+  EXPECT_EQ(io_svc.open(),
+            stdx::unexpected(make_error_code(net::socket_errc::already_open)));
 }
 
 // calling open again should fail.
@@ -254,8 +253,7 @@ TEST(KqueueIoService, poll_one) {
 
   SCOPED_TRACE("// poll again which should block");
   poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+  ASSERT_EQ(poll_res, stdx::unexpected(make_error_code(std::errc::timed_out)));
 
   SCOPED_TRACE("// add write interest again");
   EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));

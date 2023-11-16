@@ -1020,7 +1020,7 @@ write(SyncWriteStream &stream, const ConstBufferSequence &buffers,
       ((ec != make_error_condition(std::errc::resource_unavailable_try_again) &&
         ec != make_error_condition(std::errc::operation_would_block)) ||
        consumable.total_consumed() == 0)) {
-    return stdx::make_unexpected(ec);
+    return stdx::unexpected(ec);
   } else {
     return {consumable.total_consumed()};
   }
@@ -1059,7 +1059,7 @@ write(SyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
       ((ec != make_error_condition(std::errc::resource_unavailable_try_again) &&
         ec != make_error_condition(std::errc::operation_would_block)) ||
        transferred == 0)) {
-    return stdx::make_unexpected(ec);
+    return stdx::unexpected(ec);
   } else {
     return transferred;
   }

@@ -253,7 +253,7 @@ class HttpRequestMainThread : public HttpRequestThread {
       net::ip::tcp::acceptor &sock, const std::string &address, uint16_t port) {
     net::ip::tcp::resolver resolver(sock.get_executor().context());
     auto resolve_res = resolver.resolve(address, std::to_string(port));
-    if (!resolve_res) return stdx::make_unexpected(resolve_res.error());
+    if (!resolve_res) return stdx::unexpected(resolve_res.error());
 
     for (auto const &resolved : resolve_res.value()) {
       sock.close();
@@ -278,7 +278,7 @@ class HttpRequestMainThread : public HttpRequestThread {
     }
 
     // no address
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::no_such_file_or_directory));
   }
 };

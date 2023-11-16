@@ -45,7 +45,7 @@ TEST(NetTS_impl_file, close_invalid_handle) {
       ;
 
   EXPECT_EQ(net::impl::file::close(net::impl::file::kInvalidHandle),
-            stdx::make_unexpected(expected_ec));
+            stdx::unexpected(expected_ec));
 #endif
 }
 

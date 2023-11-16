@@ -183,12 +183,12 @@ class DecodeBufferAccumulator {
   template <class T>
   stdx::expected<typename Codec<T>::value_type, std::error_code> step(
       size_t sz = std::numeric_limits<size_t>::max()) {
-    if (!res_) return stdx::make_unexpected(res_.error());
+    if (!res_) return stdx::unexpected(res_.error());
 
     auto step_res = step_<T>(sz);
 
     // capture the first failure
-    if (!step_res) res_ = stdx::make_unexpected(step_res.error());
+    if (!step_res) res_ = stdx::unexpected(step_res.error());
 
     return step_res;
   }
@@ -203,7 +203,7 @@ class DecodeBufferAccumulator {
   template <class T>
   stdx::expected<typename Codec<T>::value_type, std::error_code> try_step(
       size_t sz = std::numeric_limits<size_t>::max()) {
-    if (!res_) return stdx::make_unexpected(res_.error());
+    if (!res_) return stdx::unexpected(res_.error());
 
     return step_<T>(sz);
   }
@@ -230,13 +230,12 @@ class DecodeBufferAccumulator {
     if (sz != std::numeric_limits<size_t>::max()) {
       // not enough data.
       if (buf.size() < sz) {
-        return stdx::make_unexpected(
-            make_error_code(codec_errc::not_enough_input));
+        return stdx::unexpected(make_error_code(codec_errc::not_enough_input));
       }
     }
 
     auto decode_res = Codec<T>::decode(net::buffer(buf, sz), caps_);
-    if (!decode_res) return stdx::make_unexpected(decode_res.error());
+    if (!decode_res) return stdx::unexpected(decode_res.error());
 
     consumed_ += decode_res->first;
     return decode_res->second;

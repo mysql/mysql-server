@@ -505,13 +505,13 @@ stdx::expected<void, std::error_code> send_resultset(
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::ColumnCount>(
         src_channel, src_protocol, {columns.size()});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
   }
 
   for (auto const &col : columns) {
     const auto send_res =
         ClassicFrame::send_msg(src_channel, src_protocol, col);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
   }
 
   const auto skips_eof_pos =
@@ -525,13 +525,13 @@ stdx::expected<void, std::error_code> send_resultset(
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Eof>(src_channel,
                                                           src_protocol, {});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
   }
 
   for (auto const &row : rows) {
     const auto send_res =
         ClassicFrame::send_msg(src_channel, src_protocol, row);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
   }
 
   {
@@ -539,7 +539,7 @@ stdx::expected<void, std::error_code> send_resultset(
         classic_protocol::borrowed::message::server::Eof>(
         src_channel, src_protocol,
         {src_protocol->status_flags() & forwarded_status_flags, 0});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
   }
 
   return {};
@@ -700,7 +700,7 @@ stdx::expected<void, std::error_code> show_count(
                      },
                      {std::vector<std::optional<std::string>>{
                          std::optional<std::string>(std::to_string(count))}});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -796,7 +796,7 @@ stdx::expected<void, std::error_code> show_warnings(
           },
       },
       rows_from_warnings(connection, verbosity, row_count, offset));
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -839,7 +839,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_trace(
                 src_channel, src_protocol,
                 {0, 0, src_protocol->status_flags() & forwarded_status_flags,
                  0});
-        if (!send_res) return stdx::make_unexpected(send_res.error());
+        if (!send_res) return stdx::unexpected(send_res.error());
 
         return {};
       }
@@ -853,7 +853,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_trace(
                      "' can't be set to the value of '" + std::to_string(val) +
                      "'",
                  "42000"});
-        if (!send_res) return stdx::make_unexpected(send_res.error());
+        if (!send_res) return stdx::unexpected(send_res.error());
 
         return {};
       }
@@ -866,7 +866,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_trace(
           {ER_WRONG_VALUE_FOR_VAR,
            "Variable '" + cmd.name() + "' can't be set. Expected an integer.",
            "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -891,8 +891,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
       } else if (ieq(v, "auto")) {
         return std::nullopt;
       } else {
-        return stdx::make_unexpected(
-            "Expected 'read_write', 'read_only' or 'auto'");
+        return stdx::unexpected("Expected 'read_write', 'read_only' or 'auto'");
       }
     };
 
@@ -905,7 +904,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
                "parse error in 'ROUTER SET access_mode = <...>'. " +
                    access_mode_res.error(),
                "42000"});
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       return {};
     }
@@ -920,7 +919,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
                "'ROUTER SET access_mode = <...>' not allowed while "
                "transaction is active.",
                "42000"});
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       return {};
     }
@@ -934,7 +933,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
                "ROUTER SET access_mode = <...> not allowed while "
                "connection-sharing is not possible.",
                "42000"});
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       return {};
     }
@@ -948,7 +947,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
                "ROUTER SET access_mode = <...> not allowed if the "
                "configuration variable 'access_mode' is not 'auto'",
                "42000"});
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       return {};
     }
@@ -958,7 +957,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
             src_channel, src_protocol, {});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     return {};
   }
@@ -969,7 +968,7 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
           {1064,
            "parse error in 'ROUTER SET access_mode = <...>'. Expected a string",
            "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -991,7 +990,7 @@ execute_command_router_set_wait_for_my_writes(
         auto send_res =
             ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
                 src_channel, src_protocol, {});
-        if (!send_res) return stdx::make_unexpected(send_res.error());
+        if (!send_res) return stdx::unexpected(send_res.error());
 
         return {};
       }
@@ -1003,7 +1002,7 @@ execute_command_router_set_wait_for_my_writes(
                  "parse error in 'ROUTER SET wait_for_my_writes = <...>'. "
                  "Expected a number in the range 0..1 inclusive",
                  "42000"});
-        if (!send_res) return stdx::make_unexpected(send_res.error());
+        if (!send_res) return stdx::unexpected(send_res.error());
 
         return {};
       }
@@ -1017,7 +1016,7 @@ execute_command_router_set_wait_for_my_writes(
            "parse error in 'ROUTER SET wait_for_my_writes = <...>'. "
            "Expected a number",
            "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -1041,7 +1040,7 @@ execute_command_router_set_wait_for_my_writes_timeout(
            "parse error in 'ROUTER SET wait_for_my_writes_timeout = <...>'. "
            "Expected a number between 0 and 3600 inclusive",
            "42000"});
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       return {};
     }
@@ -1052,7 +1051,7 @@ execute_command_router_set_wait_for_my_writes_timeout(
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
             src_channel, src_protocol, {});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     return {};
   }
@@ -1064,7 +1063,7 @@ execute_command_router_set_wait_for_my_writes_timeout(
            "parse error in 'ROUTER SET wait_for_my_writes_timeout = <...>'. "
            "Expected a number",
            "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -1104,7 +1103,7 @@ stdx::expected<void, std::error_code> execute_command_router_set(
           src_channel, src_protocol,
           {ER_UNKNOWN_SYSTEM_VARIABLE,
            "Unknown Router system variable '" + cmd.name() + "'", "HY000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return {};
 }
@@ -1230,21 +1229,21 @@ class InterceptedStatementsParser : public ShowWarningsParser {
                   return {std::in_place,
                           CommandRouterSet(name_tkn.text(), *val)};
                 } else {
-                  return stdx::make_unexpected(
+                  return stdx::unexpected(
                       "ROUTER SET <name> = <value>. Extra data.");
                 }
               } else {
-                return stdx::make_unexpected(
+                return stdx::unexpected(
                     "ROUTER SET <name> = expected <value>. " + error_);
               }
             } else {
-              return stdx::make_unexpected("ROUTER SET <name> expects =");
+              return stdx::unexpected("ROUTER SET <name> expects =");
             }
           } else {
-            return stdx::make_unexpected("ROUTER SET expects <name>.");
+            return stdx::unexpected("ROUTER SET expects <name>.");
           }
         } else {
-          return stdx::make_unexpected("ROUTER expects SET.");
+          return stdx::unexpected("ROUTER expects SET.");
         }
       }
     }
@@ -1290,10 +1289,10 @@ class InterceptedStatementsParser : public ShowWarningsParser {
     } else if (auto tkn = accept(TEXT_STRING)) {
       return {std::in_place, std::string(tkn.text())};
     } else {
-      return stdx::make_unexpected("Expected <BOOL>, <NUM> or <STRING>");
+      return stdx::unexpected("Expected <BOOL>, <NUM> or <STRING>");
     }
 
-    return stdx::make_unexpected(error_);
+    return stdx::unexpected(error_);
   }
 };
 
@@ -2960,7 +2959,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
 
     if (!message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
       auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-      if (!send_res) return stdx::make_unexpected(send_res.error());
+      if (!send_res) return stdx::unexpected(send_res.error());
 
       // msg refers to src-channel's recv-buf. discard after send.
       discard_current_msg(src_channel, src_protocol);
@@ -2994,7 +2993,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
   if (!connection()->events().empty() ||
       !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     // msg refers to src-channel's recv-buf. discard after send.
     discard_current_msg(src_channel, src_protocol);
@@ -3067,7 +3066,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
   if (!connection()->events().empty() ||
       !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     // msg refers to src-channel's recv-buf. discard after send.
     discard_current_msg(src_channel, src_protocol);

@@ -286,7 +286,7 @@ ChangeUserForwarder::fetch_user_attrs_done() {
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
             src_channel, src_protocol, {1045, "Access denied", "28000"});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     stage(Stage::Error);
     return Result::Again;
@@ -299,7 +299,7 @@ ChangeUserForwarder::fetch_user_attrs_done() {
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
             src_channel, src_protocol, {1045, "Access denied", "28000"});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     stage(Stage::Error);
     return Result::SendToClient;
@@ -320,7 +320,7 @@ ChangeUserForwarder::send_auth_ok() {
   auto send_res =
       ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
           src_channel, src_protocol, {0, 0, src_protocol->status_flags(), 0});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   stage(Stage::Ok);
   return Result::SendToClient;

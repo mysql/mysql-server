@@ -200,18 +200,14 @@ TEST(NetTS_internet, network_v4_with_prefix) {
 }
 
 TEST(NetTS_internet, network_v4_invalid) {
-  ASSERT_EQ(
-      net::ip::make_address("127.0.0."),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("127.0.0.1."),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("127.0.0,1"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("256.0.0.1"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("127.0.0."),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("127.0.0.1."),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("127.0.0,1"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("256.0.0.1"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
 }
 
 TEST(NetTS_internet, network_v6_default_construct) {
@@ -247,24 +243,18 @@ TEST(NetTS_internet, network_v6_with_prefix_and_scope_id) {
 }
 
 TEST(NetTS_internet, make_address_v6_invalid) {
-  ASSERT_EQ(
-      net::ip::make_address("zzz"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("::1::2"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("::1%-1"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("::1%+1"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("::1%abc"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
-  ASSERT_EQ(
-      net::ip::make_address("::1%"),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("zzz"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("::1::2"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("::1%-1"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("::1%+1"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("::1%abc"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
+  ASSERT_EQ(net::ip::make_address("::1%"),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
 }
 
 /*
@@ -387,8 +377,9 @@ TEST(NetTS_internet, tcp_ipv4_socket_bind_accept_connect) {
               ::testing::Truly(res_has_value));
 
   // should fail with EWOULDBLOCK as nothing connect()ed yet
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
   auto local_endp_res = acceptor.local_endpoint();
 
   ASSERT_TRUE(local_endp_res) << local_endp_res.error();
@@ -430,9 +421,9 @@ TEST(NetTS_internet, tcp_ipv4_socket_bind_accept_connect) {
   SCOPED_TRACE("// nothing written, read failed with with would block");
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::array<char, 16> sink;
-  EXPECT_EQ(net::read(client_sock, net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// writing");
   auto write_res = net::write(server_sock, net::buffer(source));
@@ -517,9 +508,9 @@ TEST(NetTS_internet, udp_ipv4_socket_bind_sendmsg_recvmsg) {
   SCOPED_TRACE("// up to now, there is no data");
   std::array<char, 16> sink;
   net::ip::udp::endpoint recvfrom_endp;
-  EXPECT_EQ(client_sock.receive_from(net::buffer(sink), recvfrom_endp),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      client_sock.receive_from(net::buffer(sink), recvfrom_endp),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something to " + ss_to_string(client_endp));
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
@@ -555,8 +546,9 @@ TEST(NetTS_internet, tcp_ipv4_socket_bind_accept_connect_dynbuffer) {
               ::testing::Truly(res_has_value));
 
   // should fail with EWOULDBLOCK as nothing connect()ed yet
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
   auto local_endp_res = acceptor.local_endpoint();
 
   ASSERT_TRUE(local_endp_res) << local_endp_res.error();
@@ -598,9 +590,9 @@ TEST(NetTS_internet, tcp_ipv4_socket_bind_accept_connect_dynbuffer) {
   SCOPED_TRACE("// nothing written, read failed with with would block");
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::vector<char> sink;
-  EXPECT_EQ(net::read(client_sock, net::dynamic_buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::dynamic_buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// writing");
   auto write_res = net::write(server_sock, net::buffer(source));
@@ -691,8 +683,9 @@ TEST(NetTS_internet, tcp_ipv6_socket_bind_accept_connect) {
               ::testing::Truly(res_has_value));
 
   // should fail with EWOULDBLOCK
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
   auto local_endp_res = acceptor.local_endpoint();
 
   ASSERT_TRUE(local_endp_res);
@@ -728,9 +721,9 @@ TEST(NetTS_internet, tcp_ipv6_socket_bind_accept_connect) {
 
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::array<char, 16> sink;
-  EXPECT_EQ(net::read(client_sock, net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something");
   auto write_res = net::write(server_sock, net::buffer(source));
@@ -792,9 +785,9 @@ TEST(NetTS_internet, udp_ipv6_socket_bind_accept_connect) {
   SCOPED_TRACE("// up to now, there is no data");
   std::array<char, 16> sink;
   net::ip::udp::endpoint recvfrom_endp;
-  EXPECT_EQ(client_sock.receive_from(net::buffer(sink), recvfrom_endp),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      client_sock.receive_from(net::buffer(sink), recvfrom_endp),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something to " + ss_to_string(client_endp));
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};

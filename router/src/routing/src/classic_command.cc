@@ -344,7 +344,7 @@ CommandProcessor::wait_both() {
 
     harness_assert_this_should_not_execute();
   } else {
-    return stdx::make_unexpected(wait_both_result_.error());
+    return stdx::unexpected(wait_both_result_.error());
   }
 }
 

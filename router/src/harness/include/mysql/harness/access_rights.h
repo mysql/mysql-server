@@ -65,8 +65,7 @@ class DenyPermissionVerifier {
   stdx::expected<void, std::error_code> operator()(
       const security_descriptor_type &perms) {
     if ((perms & kMask) != 0) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::permission_denied));
+      return stdx::unexpected(make_error_code(std::errc::permission_denied));
     }
 
     return {};
@@ -85,8 +84,7 @@ class AllowPermissionVerifier {
   stdx::expected<void, std::error_code> operator()(
       const security_descriptor_type &perms) {
     if ((perms & kFullAccessMask) != kMask) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::permission_denied));
+      return stdx::unexpected(make_error_code(std::errc::permission_denied));
     }
 
     return {};

@@ -137,7 +137,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     }
 
     if (recv_buf.empty()) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
 
     const auto write_res =
@@ -205,7 +205,7 @@ forward_frame_sequence(Channel *src_channel, ClassicProtocolState *src_protocol,
   if (dst_channel->send_plain_buffer().empty()) {
     log_debug("%d: %s", __LINE__, "send-buffer is empty.");
 
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   const auto src_is_done = forward_res.value();

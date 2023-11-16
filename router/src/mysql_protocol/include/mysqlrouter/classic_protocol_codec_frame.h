@@ -70,7 +70,7 @@ class Codec<frame::Header> : public impl::EncodeBase<Codec<frame::Header>> {
     auto payload_size_res = accu.template step<wire::FixedInt<3>>();
     auto seq_id_res = accu.template step<wire::FixedInt<1>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),
@@ -114,7 +114,7 @@ class Codec<frame::CompressedHeader>
     auto seq_id_res = accu.template step<wire::FixedInt<1>>();
     auto uncompressed_size_res = accu.template step<wire::FixedInt<3>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),
@@ -160,20 +160,20 @@ class Codec<frame::Frame<PayloadType>>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto header_res = accu.template step<frame::Header>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     constexpr const size_t header_size{Codec<frame::Header>::max_size()};
 
     // check the payload is at least what we expect.
     if (buffer.size() < header_size + header_res->payload_size()) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(classic_protocol::codec_errc::not_enough_input));
     }
 
     auto payload_res =
         accu.template step<PayloadType>(header_res->payload_size());
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),

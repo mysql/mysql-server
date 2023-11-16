@@ -117,7 +117,7 @@ stdx::expected<ProcessManager::notify_socket_t, std::error_code> accept_until(
     }
   } while (clock_type::now() < end_time);
 
-  return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+  return stdx::unexpected(make_error_code(std::errc::timed_out));
 }
 
 stdx::expected<void, std::error_code>
@@ -173,7 +173,7 @@ ProcessManager::Spawner::wait_for_notified(
     // either not matched, or no data yet.
   } while (clock_type::now() < end_time);
 
-  return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+  return stdx::unexpected(make_error_code(std::errc::timed_out));
 }
 
 #else
@@ -716,7 +716,7 @@ stdx::expected<void, std::error_code> ProcessManager::wait_for_exit(
     try {
       proc->native_wait_for_exit(timeout);
     } catch (const std::system_error &e) {
-      res = stdx::make_unexpected(e.code());
+      res = stdx::unexpected(e.code());
     }
   }
 

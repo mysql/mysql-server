@@ -66,7 +66,7 @@ class ClassicFrame {
       classic_protocol::capabilities::value_type caps) {
     auto read_res =
         ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
-    if (!read_res) return stdx::make_unexpected(read_res.error());
+    if (!read_res) return stdx::unexpected(read_res.error());
 
     auto num_of_frames = *read_res;
     if (num_of_frames > 1) {
@@ -82,7 +82,7 @@ class ClassicFrame {
         auto hdr_res =
             classic_protocol::decode<classic_protocol::frame::Header>(
                 net::buffer(frame_sequence_buf), caps);
-        if (!hdr_res) return stdx::make_unexpected(hdr_res.error());
+        if (!hdr_res) return stdx::unexpected(hdr_res.error());
 
         // skip the hdr.
         frame_sequence_buf =
@@ -100,7 +100,7 @@ class ClassicFrame {
 
       auto decode_res =
           classic_protocol::decode<Msg>(net::buffer(payload_buf), caps);
-      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+      if (!decode_res) return stdx::unexpected(decode_res.error());
 
       return decode_res->second;
     } else {
@@ -109,7 +109,7 @@ class ClassicFrame {
       auto decode_res =
           classic_protocol::decode<classic_protocol::frame::Frame<Msg>>(
               net::buffer(recv_buf), caps);
-      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+      if (!decode_res) return stdx::unexpected(decode_res.error());
 
       return decode_res->second.payload();
     }
@@ -180,7 +180,7 @@ ClassicFrame::recv_msg<
   using msg_type = classic_protocol::borrowed::message::client::StmtExecute;
 
   auto read_res = ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
-  if (!read_res) return stdx::make_unexpected(read_res.error());
+  if (!read_res) return stdx::unexpected(read_res.error());
 
   const auto &recv_buf = src_channel->recv_plain_view();
 
@@ -188,7 +188,7 @@ ClassicFrame::recv_msg<
       classic_protocol::frame::Frame<classic_protocol::borrowed::wire::String>>(
       net::buffer(recv_buf), caps);
   if (!frame_decode_res) {
-    return stdx::make_unexpected(frame_decode_res.error());
+    return stdx::unexpected(frame_decode_res.error());
   }
 
   src_protocol->seq_id(frame_decode_res->second.seq_id());
@@ -199,7 +199,7 @@ ClassicFrame::recv_msg<
           -> stdx::expected<std::vector<msg_type::ParamDef>, std::error_code> {
         const auto it = src_protocol->prepared_statements().find(stmt_id);
         if (it == src_protocol->prepared_statements().end()) {
-          return stdx::make_unexpected(make_error_code(
+          return stdx::unexpected(make_error_code(
               classic_protocol::codec_errc::statement_id_not_found));
         }
 
@@ -213,7 +213,7 @@ ClassicFrame::recv_msg<
 
         return params;
       });
-  if (!decode_res) return stdx::make_unexpected(decode_res.error());
+  if (!decode_res) return stdx::unexpected(decode_res.error());
 
   return decode_res->second;
 }

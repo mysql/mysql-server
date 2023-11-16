@@ -100,12 +100,11 @@ class RoutingSharingConfig : public RouterComponentTest {
 
     if (auto *v = JsonPointer(pointer).Get(json_doc)) {
       if (!v->IsInt()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
       }
       return v->GetInt();
     } else {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::no_such_file_or_directory));
     }
   }
@@ -119,12 +118,12 @@ class RoutingSharingConfig : public RouterComponentTest {
       auto int_res =
           rest_get_int(rest_api_basepath + "/connection_pool/main/status",
                        "/idleServerConnections");
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(5ms);

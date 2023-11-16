@@ -112,7 +112,7 @@ stdx::expected<bool, std::error_code> core_uses_pid() {
   std::ifstream ifs("/proc/sys/kernel/core_uses_pid");
 
   if (!ifs.good()) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::no_such_file_or_directory));
   }
 
@@ -125,7 +125,7 @@ stdx::expected<bool, std::error_code> core_uses_pid() {
   } else if (core_uses_pid == "1") {
     return true;
   } else {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 }
 }  // namespace

@@ -38,8 +38,7 @@ TEST(NetTS_io_context, cancel_not_open_socket) {
 
   EXPECT_FALSE(sock.is_open());
 
-  EXPECT_EQ(sock.cancel(),
-            stdx::make_unexpected(std::errc::bad_file_descriptor));
+  EXPECT_EQ(sock.cancel(), stdx::unexpected(std::errc::bad_file_descriptor));
 }
 
 int main(int argc, char *argv[]) {

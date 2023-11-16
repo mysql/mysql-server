@@ -511,8 +511,7 @@ static stdx::expected<std::ofstream, std::error_code> open_ofstream(
   of.open(file_name);
 
   if (of.fail()) {
-    return stdx::make_unexpected(
-        std::error_code{errno, std::generic_category()});
+    return stdx::unexpected(std::error_code{errno, std::generic_category()});
   }
 
   return of;
@@ -1861,10 +1860,10 @@ class ChangeRouterAccountPlugin {
         return (*result)[0];
       }
     } catch (const std::exception &e) {
-      return stdx::make_unexpected(e.what());
+      return stdx::unexpected(e.what());
     }
 
-    return stdx::make_unexpected("unexpected resultset");
+    return stdx::unexpected("unexpected resultset");
   }
 
   std::string as_string(const char *input_str) {

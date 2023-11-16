@@ -41,7 +41,7 @@ class Splicer {
     close();
 
     auto res = net::impl::file::pipe();
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
 #if 0
     // get the size of the queue

@@ -63,7 +63,7 @@ stdx::expected<std::optional<std::string>, std::string> get_string_attribute(
   json_doc.Parse(attributes.data(), attributes.size());
 
   if (!json_doc.IsObject()) {
-    return stdx::make_unexpected("not a valid JSON object");
+    return stdx::unexpected("not a valid JSON object");
   }
 
   const auto it =
@@ -74,8 +74,8 @@ stdx::expected<std::optional<std::string>, std::string> get_string_attribute(
   }
 
   if (!it->value.IsString()) {
-    return stdx::make_unexpected("attributes." + std::string(name) +
-                                 " not a string");
+    return stdx::unexpected("attributes." + std::string(name) +
+                            " not a string");
   }
 
   return it->value.GetString();
@@ -102,7 +102,7 @@ stdx::expected<bool, std::string> get_bool_tag(
   json_doc.Parse(attributes.data(), attributes.size());
 
   if (!json_doc.IsObject()) {
-    return stdx::make_unexpected("not a valid JSON object");
+    return stdx::unexpected("not a valid JSON object");
   }
 
   const auto tags_it = json_doc.FindMember("tags");
@@ -111,7 +111,7 @@ stdx::expected<bool, std::string> get_bool_tag(
   }
 
   if (!tags_it->value.IsObject()) {
-    return stdx::make_unexpected("tags - not a valid JSON object");
+    return stdx::unexpected("tags - not a valid JSON object");
   }
 
   const auto tags = tags_it->value.GetObject();
@@ -123,8 +123,7 @@ stdx::expected<bool, std::string> get_bool_tag(
   }
 
   if (!it->value.IsBool()) {
-    return stdx::make_unexpected("tags." + std::string(name) +
-                                 " not a boolean");
+    return stdx::unexpected("tags." + std::string(name) + " not a boolean");
   }
 
   return it->value.GetBool();
@@ -139,7 +138,7 @@ stdx::expected<InstanceType, std::string> InstanceAttributes::get_instance_type(
     const mysqlrouter::InstanceType default_instance_type) {
   const auto type_attr = get_string_attribute(attributes, "instance_type");
   if (!type_attr) {
-    return stdx::make_unexpected(type_attr.error());
+    return stdx::unexpected(type_attr.error());
   }
 
   if (!type_attr.value()) {
@@ -148,8 +147,8 @@ stdx::expected<InstanceType, std::string> InstanceAttributes::get_instance_type(
 
   auto result = mysqlrouter::str_to_instance_type(*type_attr.value());
   if (!result) {
-    return stdx::make_unexpected("Unknown attributes.instance_type value: '" +
-                                 *type_attr.value() + "'");
+    return stdx::unexpected("Unknown attributes.instance_type value: '" +
+                            *type_attr.value() + "'");
   }
 
   return *result;

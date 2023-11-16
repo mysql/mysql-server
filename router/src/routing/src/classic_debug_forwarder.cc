@@ -171,7 +171,7 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::response() {
         mysql_harness::hexify(src_channel->recv_plain_view())));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> DebugForwarder::ok() {

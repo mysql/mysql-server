@@ -52,7 +52,7 @@ TEST(Expected, T_void_default_construct_is_value) {
 
 TEST(Expected, T_trivial_construct_from_error) {
   stdx::expected<int, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
 
   EXPECT_FALSE(exp.has_value());
   EXPECT_FALSE(exp);
@@ -61,7 +61,7 @@ TEST(Expected, T_trivial_construct_from_error) {
 
 TEST(Expected, T_void_construct_from_error) {
   stdx::expected<void, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
 
   EXPECT_FALSE(exp.has_value());
   EXPECT_FALSE(exp);
@@ -72,9 +72,9 @@ TEST(Expected, T_void_construct_from_error) {
 
 TEST(Expected, T_trivial_operator_eq_error) {
   stdx::expected<int, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<int, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
 
   EXPECT_TRUE(exp2 == exp);
   EXPECT_TRUE(exp == exp2);
@@ -84,9 +84,9 @@ TEST(Expected, T_trivial_operator_eq_error) {
 
 TEST(Expected, T_void_operator_eq_error) {
   stdx::expected<void, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<void, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
 
   EXPECT_TRUE(exp2 == exp);
   EXPECT_TRUE(exp == exp2);
@@ -96,8 +96,8 @@ TEST(Expected, T_void_operator_eq_error) {
 
 TEST(Expected, T_trivial_operator_eq_error_unexpected) {
   stdx::expected<int, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
-  auto unexp = stdx::make_unexpected(make_error_code(std::errc::bad_address));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
+  auto unexp = stdx::unexpected(make_error_code(std::errc::bad_address));
 
   EXPECT_TRUE(exp == unexp);
   EXPECT_TRUE(unexp == exp);
@@ -107,9 +107,9 @@ TEST(Expected, T_trivial_operator_eq_error_unexpected) {
 
 TEST(Expected, T_trivial_operator_ne_error) {
   stdx::expected<int, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<int, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::not_supported)));
+      stdx::unexpected(make_error_code(std::errc::not_supported)));
 
   EXPECT_NE(exp2, exp);
   EXPECT_NE(exp, exp2);
@@ -117,9 +117,9 @@ TEST(Expected, T_trivial_operator_ne_error) {
 
 TEST(Expected, T_void_operator_ne_error) {
   stdx::expected<void, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<void, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::not_supported)));
+      stdx::unexpected(make_error_code(std::errc::not_supported)));
 
   EXPECT_NE(exp2, exp);
   EXPECT_NE(exp, exp2);
@@ -151,7 +151,7 @@ TEST(Expected, T_trivial_operator_ne_value) {
 TEST(Expected, T_trivial_operator_ne_mixed_error_value) {
   stdx::expected<int, std::error_code> exp(0);
   stdx::expected<int, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::not_supported)));
+      stdx::unexpected(make_error_code(std::errc::not_supported)));
 
   EXPECT_NE(exp2, exp);
   EXPECT_NE(exp, exp2);
@@ -160,7 +160,7 @@ TEST(Expected, T_trivial_operator_ne_mixed_error_value) {
 TEST(Expected, T_void_operator_ne_mixed_error_value) {
   stdx::expected<void, std::error_code> exp;
   stdx::expected<void, std::error_code> exp2(
-      stdx::make_unexpected(make_error_code(std::errc::not_supported)));
+      stdx::unexpected(make_error_code(std::errc::not_supported)));
 
   EXPECT_NE(exp2, exp);
   EXPECT_NE(exp, exp2);
@@ -220,7 +220,7 @@ TEST(Expected, T_void_move_construct_from_expected) {
 
 TEST(Expected, T_trivial_value_or_error) {
   stdx::expected<int, std::error_code> exp(
-      stdx::make_unexpected(make_error_code(std::errc::bad_address)));
+      stdx::unexpected(make_error_code(std::errc::bad_address)));
 
   EXPECT_FALSE(exp.has_value());
 
@@ -293,7 +293,7 @@ TEST(Expected, T_unique_ptr) {
   auto test_func = [](bool success)
       -> stdx::expected<std::unique_ptr<int>, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -317,7 +317,7 @@ TEST(Expected, T_noncopyable_nodefconst) {
   auto test_func = [](bool success)
       -> stdx::expected<non_copyable_no_default, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -329,8 +329,9 @@ TEST(Expected, T_noncopyable_nodefconst) {
 
   auto res_false = test_func(false);
   ASSERT_FALSE(res_false);
-  EXPECT_EQ(res_false, stdx::make_unexpected(make_error_code(
-                           std::errc::operation_not_supported)));
+  EXPECT_EQ(
+      res_false,
+      stdx::unexpected(make_error_code(std::errc::operation_not_supported)));
 
   auto res = std::move(res_true);
   ASSERT_EQ(res.has_value(), test_func(true).has_value());
@@ -338,7 +339,7 @@ TEST(Expected, T_noncopyable_nodefconst) {
   // move
   res = std::move(res_false);
   ASSERT_EQ(res.has_value(), test_func(false).has_value());
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(std::errc::operation_not_supported)));
 }
 
@@ -346,7 +347,7 @@ TEST(Expected, T_noncopyable) {
   auto test_func =
       [](bool success) -> stdx::expected<non_copyable, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -358,22 +359,23 @@ TEST(Expected, T_noncopyable) {
 
   auto res_false = test_func(false);
   ASSERT_FALSE(res_false);
-  EXPECT_EQ(res_false, stdx::make_unexpected(make_error_code(
-                           std::errc::operation_not_supported)));
+  EXPECT_EQ(
+      res_false,
+      stdx::unexpected(make_error_code(std::errc::operation_not_supported)));
 
   auto res = std::move(res_true);
   ASSERT_EQ(res.has_value(), test_func(true).has_value());
 
   res = std::move(res_false);
   ASSERT_EQ(res.has_value(), test_func(false).has_value());
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(std::errc::operation_not_supported)));
 }
 
 TEST(Expected, T_trivial) {
   auto test_func = [](bool success) -> stdx::expected<int, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -396,7 +398,7 @@ TEST(Expected, T_trivial) {
 TEST(Expected, T_trivial_convertible) {
   auto test_func = [](bool success) -> stdx::expected<char, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -419,7 +421,7 @@ TEST(Expected, T_trivial_convertible) {
 TEST(Expected, T_void) {
   auto test_func = [](bool success) -> stdx::expected<void, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_not_supported));
     }
 
@@ -433,7 +435,7 @@ TEST(Expected, T_void) {
   // move assignment
   res = test_func(false);
   ASSERT_FALSE(res);
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(std::errc::operation_not_supported)));
 
   // move assignment
@@ -540,8 +542,7 @@ TEST(Expected, T_string_E_std_error_code) {
   auto test_func =
       [](bool success) -> stdx::expected<std::string, std::error_code> {
     if (!success) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::already_connected));
+      return stdx::unexpected(make_error_code(std::errc::already_connected));
     }
 
     return {std::in_place, "from_func"s};
@@ -572,8 +573,8 @@ TEST(Expected, T_string_E_std_error_code) {
   // move assignment (false)
   res = test_func(false);
   ASSERT_FALSE(res);
-  EXPECT_EQ(res, stdx::make_unexpected(
-                     make_error_code(std::errc::already_connected)));
+  EXPECT_EQ(res,
+            stdx::unexpected(make_error_code(std::errc::already_connected)));
   EXPECT_EQ(res.error(), make_error_code(std::errc::already_connected));
 
   // move assignment (true)
@@ -719,7 +720,7 @@ TEST(ExpectedAndThen, move_only_error_code) {
   auto r =
       stdx::expected<void, non_copyable>{}
           .and_then([]() -> stdx::expected<int, non_copyable> {
-            return stdx::make_unexpected(non_copyable{});
+            return stdx::unexpected(non_copyable{});
           })
           .and_then([](const auto &v) -> stdx::expected<int, non_copyable> {
             return v;
@@ -735,12 +736,11 @@ TEST(ExpectedAndThen, move_only_error_code) {
 TEST(ExpectedOrElse, rewrite_error_code) {
   auto r =
       stdx::expected<void, std::error_code>{
-          stdx::make_unexpected(make_error_code(std::errc::io_error))}
+          stdx::unexpected(make_error_code(std::errc::io_error))}
           .and_then([]() -> stdx::expected<int, std::error_code> { return 2; })
           .or_else([](const auto &
                       /* ec */) -> stdx::expected<int, std::error_code> {
-            return stdx::make_unexpected(
-                make_error_code(std::errc::bad_message));
+            return stdx::unexpected(make_error_code(std::errc::bad_message));
           });
 
   // last .or_else() return type wins
@@ -755,7 +755,7 @@ TEST(ExpectedOrElse, rewrite_error_code) {
 TEST(ExpectedOrElse, make_happy_again) {
   auto r =
       stdx::expected<void, std::error_code>{
-          stdx::make_unexpected(make_error_code(std::errc::io_error))}
+          stdx::unexpected(make_error_code(std::errc::io_error))}
           .and_then(
               []() -> stdx::expected<std::unique_ptr<int>, std::error_code> {
                 // skipped

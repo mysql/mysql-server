@@ -217,8 +217,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_named) {
   EXPECT_NO_ERROR(acceptor.native_non_blocking(true));
 
   // should fail with EWOULDBLOCK
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
   auto local_endp_res = acceptor.local_endpoint();
 
   ASSERT_NO_ERROR(local_endp_res);
@@ -251,9 +252,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_named) {
 
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::array<char, 16> sink;
-  EXPECT_EQ(net::read(client_sock, net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   auto write_res = net::write(server_sock, net::buffer(source));
   ASSERT_NO_ERROR(write_res) << write_res.error();
@@ -305,8 +306,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_abstract) {
   EXPECT_NO_ERROR(acceptor.native_non_blocking(true));
 
   // should fail with EWOULDBLOCK
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   const auto local_endp_res = acceptor.local_endpoint();
   ASSERT_NO_ERROR(local_endp_res);
@@ -346,9 +348,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_abstract) {
 
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::array<char, 16> sink;
-  EXPECT_EQ(net::read(client_sock, net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   auto write_res = net::write(server_sock, net::buffer(source));
   ASSERT_NO_ERROR(write_res) << write_res.error();
@@ -400,8 +402,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_autobind) {
   EXPECT_NO_ERROR(acceptor.native_non_blocking(true));
 
   // should fail with EWOULDBLOCK
-  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
-                                   std::errc::operation_would_block)));
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
   auto local_endp_res = acceptor.local_endpoint();
   ASSERT_NO_ERROR(local_endp_res);
 
@@ -443,9 +446,9 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_autobind) {
 
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
   std::array<char, 16> sink;
-  EXPECT_EQ(net::read(client_sock, net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   auto write_res = net::write(server_sock, net::buffer(source));
   ASSERT_NO_ERROR(write_res) << write_res.error();
@@ -506,7 +509,7 @@ TEST(NetTS_local, datagram_socket_bind_sendmsg_recvmsg) {
   local::datagram_protocol::endpoint recvfrom_endp;
   EXPECT_EQ(
       client_sock.receive_from(net::buffer(sink), recvfrom_endp),
-      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+      stdx::unexpected(make_error_code(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something");
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
@@ -556,7 +559,7 @@ TEST(NetTS_local, datagram_socketpair_recvfrom) {
   endpoint_type recvfrom_endp;
   EXPECT_EQ(
       client_sock.receive_from(net::buffer(sink), recvfrom_endp),
-      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+      stdx::unexpected(make_error_code(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something");
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
@@ -611,9 +614,9 @@ TYPED_TEST(LocalProtocolTest, socketpair) {
 
   SCOPED_TRACE("// up to now, there is no data");
   std::array<char, 16> sink;
-  EXPECT_EQ(client_sock.receive(net::buffer(sink)),
-            stdx::make_unexpected(
-                make_error_condition(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      client_sock.receive(net::buffer(sink)),
+      stdx::unexpected(make_error_condition(std::errc::operation_would_block)));
 
   SCOPED_TRACE("// send something");
   std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
@@ -715,7 +718,7 @@ TEST(NetTS_local, socketpair_unsupported_protocol) {
   // other OSes may return other error-codes
   EXPECT_EQ(
       local::connect_pair<protocol_type>(&io_ctx, server_sock, client_sock),
-      stdx::make_unexpected(
+      stdx::unexpected(
           make_error_code(std::errc::address_family_not_supported)));
 }
 

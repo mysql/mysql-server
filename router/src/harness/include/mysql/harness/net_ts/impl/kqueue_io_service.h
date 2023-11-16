@@ -48,17 +48,16 @@ class kqueue_io_service : public IoServiceBase {
 
   stdx::expected<void, std::error_code> open() override {
     if (is_open()) {
-      return stdx::make_unexpected(
-          make_error_code(net::socket_errc::already_open));
+      return stdx::unexpected(make_error_code(net::socket_errc::already_open));
     }
 
     auto res = impl::kqueue::create();
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     epfd_ = *res;
 
     auto pipe_res = impl::file::pipe(O_NONBLOCK);
-    if (!pipe_res) return stdx::make_unexpected(pipe_res.error());
+    if (!pipe_res) return stdx::unexpected(pipe_res.error());
 
     wakeup_fds_ = *pipe_res;
 
@@ -179,8 +178,7 @@ class kqueue_io_service : public IoServiceBase {
   stdx::expected<fd_event, std::error_code> poll_one(
       std::chrono::milliseconds timeout) override {
     if (!is_open()) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     if (fd_events_processed_ == fd_events_size_) {
@@ -200,7 +198,7 @@ class kqueue_io_service : public IoServiceBase {
       auto res =
           impl::kqueue::kevent(epfd_, changelist_.data(), changelist_.size(),
                                fd_events_.data(), fd_events_.size(), p_ts);
-      if (!res) return stdx::make_unexpected(res.error());
+      if (!res) return stdx::unexpected(res.error());
 
       changelist_.clear();
 
@@ -208,7 +206,7 @@ class kqueue_io_service : public IoServiceBase {
       fd_events_size_ = *res;
 
       if (fd_events_size_ == 0) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
     }
 
@@ -218,7 +216,7 @@ class kqueue_io_service : public IoServiceBase {
 
     if (ev.flags & EV_ERROR) {
       if (ev.data == 0) {
-        return stdx::make_unexpected(make_error_code(std::errc::interrupted));
+        return stdx::unexpected(make_error_code(std::errc::interrupted));
       } else {
         // .data is errno
         //
@@ -239,7 +237,7 @@ class kqueue_io_service : public IoServiceBase {
       // interrupted
       on_notify();
 
-      return stdx::make_unexpected(make_error_code(std::errc::interrupted));
+      return stdx::unexpected(make_error_code(std::errc::interrupted));
     }
 
     after_event_fired(ev);

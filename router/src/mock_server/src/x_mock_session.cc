@@ -77,8 +77,7 @@ stdx::expected<size_t, std::error_code> MySQLXProtocol::decode_frame(
 
   if (buf.size() < payload_size) {
     // not enough data.
-    return stdx::make_unexpected(
-        make_error_code(std::errc::operation_would_block));
+    return stdx::unexpected(make_error_code(std::errc::operation_would_block));
   }
 
   payload.resize(payload_size);
@@ -95,7 +94,7 @@ stdx::expected<std::pair<xcl::XProtocol::Client_message_type_id,
                std::error_code>
 MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
   if (payload.empty())
-    return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
 
   uint8_t header_msg_id = payload[0];
 
@@ -110,7 +109,7 @@ MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
                 header_msg_id, static_cast<const uint8_t *>(buf.data()),
                 buf.size())};
   } catch (...) {
-    return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
   }
 }
 
@@ -193,7 +192,7 @@ MySQLXProtocol::gr_state_changed_from_json(const std::string &json_string) {
       if (it->value.IsUint()) {
         result->set_type(it->value.GetUint());
       } else {
-        return stdx::make_unexpected(
+        return stdx::unexpected(
             "Invalid json type for field 'type', expected 'uint' got " +
             std::to_string(it->value.GetType()));
       }
@@ -206,7 +205,7 @@ MySQLXProtocol::gr_state_changed_from_json(const std::string &json_string) {
       if (it->value.IsString()) {
         result->set_view_id(it->value.GetString());
       } else {
-        return stdx::make_unexpected(
+        return stdx::unexpected(
             "Invalid json type for field 'view_id', expected 'string' got " +
             std::to_string(it->value.GetType()));
       }
@@ -232,8 +231,7 @@ MySQLXProtocol::get_notice_message(const unsigned id,
     case Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED:
     case Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED:
     default:
-      return stdx::make_unexpected("Unsupported notice id: " +
-                                   std::to_string(id));
+      return stdx::unexpected("Unsupported notice id: " + std::to_string(id));
   }
 }
 

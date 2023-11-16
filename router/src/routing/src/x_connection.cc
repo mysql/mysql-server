@@ -106,7 +106,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
     auto ec = decode_res.error();
 
     if (ec == classic_protocol::codec_errc::not_enough_input) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
     return stdx::unexpected(decode_res.error());
   }
@@ -132,7 +132,7 @@ static stdx::expected<size_t, std::error_code> ensure_frame_header(
     if (!read_res) return stdx::unexpected(read_res.error());
 
     if (recv_buf.size() < min_size) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
   }
 
@@ -172,11 +172,11 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
 
     if (current_frame.frame_size_ < 5) {
       // expected a frame with at least one msg-type-byte
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     if (current_frame.forwarded_frame_size_ >= 4) {
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     const size_t msg_type_pos = 4 - current_frame.forwarded_frame_size_;
@@ -188,7 +188,7 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
       if (!read_res) return stdx::unexpected(read_res.error());
 
       if (msg_type_pos >= recv_buf.size()) {
-        return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+        return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
       }
     }
 
@@ -611,7 +611,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     }
 
     if (recv_buf.empty()) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
 
     const auto write_res =
@@ -1114,13 +1114,13 @@ stdx::expected<void, std::error_code> MysqlRoutingXConnection::forward_tls(
 
     if (plain.size() < tls_header_size + tls_payload_size) {
       // there isn't the full frame yet.
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
 
     const auto write_res = dst_channel->write(
         net::buffer(plain.subspan(0, tls_header_size + tls_payload_size)));
     if (!write_res) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantWrite));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantWrite));
     }
 
     // if TlsAlert in handshake, the connection goes back to plain
@@ -1137,7 +1137,7 @@ stdx::expected<void, std::error_code> MysqlRoutingXConnection::forward_tls(
   dst_channel->flush_to_send_buf();
 
   // want more
-  return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+  return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
 }
 
 void MysqlRoutingXConnection::forward_tls_client_to_server() {

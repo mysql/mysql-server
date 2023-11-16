@@ -576,7 +576,7 @@ class ProtocolSplicerTest
 
       EXPECT_THAT(connect_res,
                   ::testing::AnyOf(stdx::expected<void, std::error_code>{},
-                                   stdx::make_unexpected(
+                                   stdx::unexpected(
                                        make_error_code(TlsErrc::kWantRead))))
           << connect_res.error().message();
 

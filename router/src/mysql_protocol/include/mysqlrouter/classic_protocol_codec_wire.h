@@ -68,7 +68,7 @@ class Codec<borrowable::wire::FixedInt<IntSize>> {
   stdx::expected<size_t, std::error_code> encode(
       net::mutable_buffer buffer) const {
     if (buffer.size() < int_size) {
-      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+      return stdx::unexpected(make_error_code(std::errc::no_buffer_space));
     }
 
     auto int_val = v_.value();
@@ -92,8 +92,7 @@ class Codec<borrowable::wire::FixedInt<IntSize>> {
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     if (buffer.size() < int_size) {
       // not enough data in buffers.
-      return stdx::make_unexpected(
-          make_error_code(codec_errc::not_enough_input));
+      return stdx::unexpected(make_error_code(codec_errc::not_enough_input));
     }
 
     typename value_type::value_type value{};
@@ -174,7 +173,7 @@ class Codec<borrowable::wire::VarInt>
 
     // length
     auto first_byte_res = accu.template step<borrowable::wire::FixedInt<1>>();
-    if (!first_byte_res) return stdx::make_unexpected(first_byte_res.error());
+    if (!first_byte_res) return stdx::unexpected(first_byte_res.error());
 
     auto first_byte = first_byte_res->value();
 
@@ -182,22 +181,22 @@ class Codec<borrowable::wire::VarInt>
       return std::make_pair(accu.result().value(), value_type(first_byte));
     } else if (first_byte == varint_16) {
       auto value_res = accu.template step<borrowable::wire::FixedInt<2>>();
-      if (!value_res) return stdx::make_unexpected(value_res.error());
+      if (!value_res) return stdx::unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_24) {
       auto value_res = accu.template step<borrowable::wire::FixedInt<3>>();
-      if (!value_res) return stdx::make_unexpected(value_res.error());
+      if (!value_res) return stdx::unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_64) {
       auto value_res = accu.template step<borrowable::wire::FixedInt<8>>();
-      if (!value_res) return stdx::make_unexpected(value_res.error());
+      if (!value_res) return stdx::unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     }
 
-    return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    return stdx::unexpected(make_error_code(codec_errc::invalid_input));
   }
 
  private:
@@ -221,14 +220,13 @@ class Codec<borrowable::wire::Null>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     if (buffer.size() < 1) {
-      return stdx::make_unexpected(
-          make_error_code(codec_errc::not_enough_input));
+      return stdx::unexpected(make_error_code(codec_errc::not_enough_input));
     }
 
     const uint8_t nul_val = *static_cast<const uint8_t *>(buffer.data());
 
     if (nul_val != nul_byte) {
-      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+      return stdx::unexpected(make_error_code(codec_errc::invalid_input));
     }
 
     return std::make_pair(1, value_type());
@@ -256,7 +254,7 @@ class Codec<void> {
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
     if (buffer.size() < size()) {
-      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+      return stdx::unexpected(make_error_code(std::errc::no_buffer_space));
     }
 
     auto *first = static_cast<std::uint8_t *>(buffer.data());
@@ -304,7 +302,7 @@ class Codec<borrowable::wire::String<Borrowed>> {
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
     if (buffer.size() < size()) {
-      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+      return stdx::unexpected(make_error_code(std::errc::no_buffer_space));
     }
 
     // in -> out
@@ -366,14 +364,14 @@ class Codec<borrowable::wire::VarString<Borrowed>>
     impl::DecodeBufferAccumulator accu(buffer, caps);
     // decode the length
     auto var_string_len_res = accu.template step<borrowable::wire::VarInt>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     // decode string of length
     auto var_string_res =
         accu.template step<borrowable::wire::String<Borrowed>>(
             var_string_len_res->value());
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(var_string_res->value()));
@@ -422,8 +420,7 @@ class Codec<borrowable::wire::NulTermString<Borrowed>>
     const auto *pos = std::find(first, last, '\0');
     if (pos == last) {
       // no 0-term found
-      return stdx::make_unexpected(
-          make_error_code(codec_errc::missing_nul_term));
+      return stdx::unexpected(make_error_code(codec_errc::missing_nul_term));
     }
 
     // \0 was found

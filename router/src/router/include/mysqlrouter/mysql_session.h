@@ -366,9 +366,9 @@ class ROUTER_LIB_EXPORT MySQLSession {
   template <class SettableMysqlOption>
   stdx::expected<void, MysqlError> set_option(const SettableMysqlOption &opt) {
     if (0 != mysql_options(connection_, opt.option(), opt.data())) {
-      return stdx::make_unexpected(MysqlError(mysql_errno(connection_),
-                                              mysql_error(connection_),
-                                              mysql_sqlstate(connection_)));
+      return stdx::unexpected(MysqlError(mysql_errno(connection_),
+                                         mysql_error(connection_),
+                                         mysql_sqlstate(connection_)));
     }
 
     return {};

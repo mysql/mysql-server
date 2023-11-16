@@ -587,7 +587,7 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
       // the read will either block until the socket is closed or succeed.
     }
     EXPECT_THAT(read_res, ::testing::AnyOf(::testing::Eq(
-                              stdx::make_unexpected(net::stream_errc::eof))));
+                              stdx::unexpected(net::stream_errc::eof))));
   }
 }
 

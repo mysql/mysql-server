@@ -46,8 +46,7 @@ stdx::expected<void, std::error_code> ConnectorBase::init_destination() {
   } else {
     // no backends
     log_warning("%d: no connectable destinations :(", __LINE__);
-    return stdx::make_unexpected(
-        make_error_code(DestinationsErrc::kNoDestinations));
+    return stdx::unexpected(make_error_code(DestinationsErrc::kNoDestinations));
   }
 }
 
@@ -269,7 +268,7 @@ stdx::expected<void, std::error_code> ConnectorBase::next_destination() {
       return init_destination();
     } else {
       // we couldn't connect to any of the destinations. Give up.
-      return stdx::make_unexpected(last_ec_);
+      return stdx::unexpected(last_ec_);
     }
   }
 }

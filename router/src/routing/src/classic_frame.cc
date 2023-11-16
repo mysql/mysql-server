@@ -58,11 +58,11 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_has_msg_prefix(
 
     if (current_frame.frame_size_ < 5) {
       // expected a frame with at least one msg-type-byte
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     if (current_frame.forwarded_frame_size_ >= 4) {
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     const size_t msg_type_pos = 4 - current_frame.forwarded_frame_size_;
@@ -74,7 +74,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_has_msg_prefix(
       if (!read_res) return stdx::unexpected(read_res.error());
 
       if (msg_type_pos >= recv_buf.size()) {
-        return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+        return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
       }
     }
 
@@ -103,7 +103,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
     const auto ec = decode_res.error();
 
     if (ec == classic_protocol::codec_errc::not_enough_input) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
     return stdx::unexpected(decode_res.error());
   }
@@ -137,7 +137,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_frame_header(
     if (!read_res) return stdx::unexpected(read_res.error());
 
     if (recv_buf.size() < min_size) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+      return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
     }
   }
 
@@ -166,7 +166,7 @@ ClassicFrame::ensure_has_full_frame(Channel *src_channel,
 
   if (recv_buf.size() >= min_size) return {};
 
-  return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+  return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
 }
 
 [[nodiscard]] stdx::expected<size_t, std::error_code>
@@ -190,7 +190,7 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
       if (!read_res) return stdx::unexpected(read_res.error());
 
       if (src_channel->recv_plain_view().size() < expected_size) {
-        return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
+        return stdx::unexpected(make_error_code(TlsErrc::kWantRead));
       }
     }
 

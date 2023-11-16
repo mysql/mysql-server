@@ -372,7 +372,7 @@ class basic_socket_impl_base {
 
   stdx::expected<void, std::error_code> non_blocking(bool mode) {
     if (!is_open()) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           std::make_error_code(std::errc::bad_file_descriptor));
     }
     non_blocking_ = mode;
@@ -392,12 +392,12 @@ class basic_socket_impl_base {
 
   stdx::expected<void, std::error_code> native_non_blocking(bool mode) {
     if (!is_open()) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           std::make_error_code(std::errc::bad_file_descriptor));
     }
 
     if (!mode && non_blocking()) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           std::make_error_code(std::errc::invalid_argument));
     }
 
@@ -430,8 +430,7 @@ class basic_socket_impl_base {
 
   stdx::expected<void, std::error_code> cancel() {
     if (!is_open()) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::bad_file_descriptor));
+      return stdx::unexpected(make_error_code(std::errc::bad_file_descriptor));
     }
 
     io_ctx_->cancel(native_handle());
@@ -502,11 +501,11 @@ class basic_socket_impl : public basic_socket_impl_base {
   stdx::expected<void, error_type> open(
       const protocol_type &protocol = protocol_type(), int flags = 0) {
     if (is_open()) {
-      return stdx::make_unexpected(make_error_code(socket_errc::already_open));
+      return stdx::unexpected(make_error_code(socket_errc::already_open));
     }
     auto res = io_ctx_->socket_service()->socket(
         protocol.family(), protocol.type() | flags, protocol.protocol());
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 #ifdef SOCK_NONBLOCK
     if ((flags & SOCK_NONBLOCK) != 0) {
       native_non_blocking_ = 1;
@@ -519,7 +518,7 @@ class basic_socket_impl : public basic_socket_impl_base {
   stdx::expected<void, error_type> assign(
       const protocol_type &protocol, const native_handle_type &native_handle) {
     if (is_open()) {
-      return stdx::make_unexpected(make_error_code(socket_errc::already_open));
+      return stdx::unexpected(make_error_code(socket_errc::already_open));
     }
     protocol_ = protocol;
     native_handle_ = native_handle;
@@ -544,14 +543,14 @@ class basic_socket_impl : public basic_socket_impl_base {
       if (res) {
         return socket_type{io_ctx, protocol_, res.value()};
       } else if (res.error() != std::errc::operation_not_supported) {
-        return stdx::make_unexpected(res.error());
+        return stdx::unexpected(res.error());
       }
 
       // otherwise fall through to accept without flags
     }
     auto res = io_ctx_->socket_service()->accept(native_handle(), endpoint_data,
                                                  endpoint_size);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     return {std::in_place, io_ctx, protocol_, std::move(res.value())};
   }
@@ -610,7 +609,7 @@ class basic_socket_impl : public basic_socket_impl_base {
     auto res = io_ctx_->socket_service()->getsockname(
         native_handle(), reinterpret_cast<struct sockaddr *>(ep.data()),
         &ep_len);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     ep.resize(ep_len);
 
@@ -624,7 +623,7 @@ class basic_socket_impl : public basic_socket_impl_base {
     auto res = io_ctx_->socket_service()->getpeername(
         native_handle(), reinterpret_cast<struct sockaddr *>(ep.data()),
         &ep_len);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     ep.resize(ep_len);
 
@@ -673,10 +672,10 @@ class basic_socket_impl : public basic_socket_impl_base {
     io_control_bytes_avail_recv ioc;
 
     auto res = io_control(ioc);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     if (ioc.value() < 0) {
-      return stdx::make_unexpected(make_error_code(std::errc::invalid_seek));
+      return stdx::unexpected(make_error_code(std::errc::invalid_seek));
     }
 
     // value is not negative, safe to cast to unsigned
@@ -687,7 +686,7 @@ class basic_socket_impl : public basic_socket_impl_base {
     io_control_at_mark ioc;
 
     auto res = io_control(ioc);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     return ioc.value();
   }
@@ -1124,7 +1123,7 @@ class basic_stream_socket : public basic_socket<Protocol> {
 
     if (res && res.value() == 0) {
       // remote did a orderly shutdown
-      return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
+      return stdx::unexpected(make_error_code(net::stream_errc::eof));
     }
 
     return res;
@@ -1156,7 +1155,7 @@ class basic_stream_socket : public basic_socket<Protocol> {
 
     if (res && res.value() == 0) {
       // remote did a orderly shutdown
-      return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
+      return stdx::unexpected(make_error_code(net::stream_errc::eof));
     }
 
     return res;
@@ -1612,7 +1611,7 @@ stdx::expected<InputIterator, std::error_code> connect(
     }
   }
 
-  return stdx::make_unexpected(make_error_code(socket_errc::not_found));
+  return stdx::unexpected(make_error_code(socket_errc::not_found));
 }
 
 template <class Protocol, class InputIterator, class ConnectCondition>

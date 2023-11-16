@@ -100,7 +100,7 @@ InitSchemaSender::response() {
     tr.trace(Tracer::Event().stage("init_schema::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> InitSchemaSender::ok() {

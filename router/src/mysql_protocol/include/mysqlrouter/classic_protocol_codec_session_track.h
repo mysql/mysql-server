@@ -91,11 +91,11 @@ class Codec<borrowable::session_track::TransactionState>
     namespace bw = borrowable::wire;
 
     const auto payload_length_res = accu.template step<bw::VarInt>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     if (payload_length_res->value() != 0x08) {
       // length of the payload that follows.
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     const auto trx_type_res = accu.template step<bw::FixedInt<1>>();
@@ -107,7 +107,7 @@ class Codec<borrowable::session_track::TransactionState>
     const auto resultset_res = accu.template step<bw::FixedInt<1>>();
     const auto locked_tables_res = accu.template step<bw::FixedInt<1>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),
@@ -168,7 +168,7 @@ class Codec<borrowable::session_track::TransactionCharacteristics<Borrowed>>
 
     auto characteristics_res = accu.template step<bw::VarString<Borrowed>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(characteristics_res->value()));
@@ -223,7 +223,7 @@ class Codec<session_track::State>
 
     auto state_res = accu.template step<bw::FixedInt<1>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(state_res->value()));
@@ -279,7 +279,7 @@ class Codec<borrowable::session_track::Schema<Borrowed>>
 
     auto schema_res = accu.template step<bw::VarString<Borrowed>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(schema_res->value()));
@@ -338,7 +338,7 @@ class Codec<borrowable::session_track::SystemVariable<Borrowed>>
     auto key_res = accu.template step<bw::VarString<Borrowed>>();
     auto value_res = accu.template step<bw::VarString<Borrowed>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(key_res->value(), value_res->value()));
@@ -475,7 +475,7 @@ class Codec<borrowable::session_track::Field<Borrowed>>
     auto type_res = accu.template step<bw::FixedInt<1>>();
     auto data_res = accu.template step<bw::VarString<Borrowed>>();
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(type_res->value(), data_res->value()));

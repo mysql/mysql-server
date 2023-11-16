@@ -113,7 +113,7 @@ static stdx::expected<std::error_code, std::error_code> sock_error_code(
 
   net::socket_base::error sock_err;
   const auto getopt_res = tcp_conn->get_option(sock_err);
-  if (!getopt_res) return stdx::make_unexpected(getopt_res.error());
+  if (!getopt_res) return stdx::unexpected(getopt_res.error());
 
   if (sock_err.value() != 0) {
     return std::error_code {

@@ -49,7 +49,7 @@ stdx::expected<size_t, std::error_code> ProtocolBase::write_ssl(
   const auto res = SSL_write(ssl_.get(), buf.data(), buf.size());
 
   if (res <= 0) {
-    return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
+    return stdx::unexpected(make_tls_ssl_error(ssl_.get(), res));
   } else {
     return res;
   }
@@ -63,8 +63,7 @@ stdx::expected<size_t, std::error_code> ProtocolBase::read_ssl(
     auto ec = make_tls_ssl_error(ssl_.get(), res);
 
     // if ec.code() == 0, then we had EOF
-    return stdx::make_unexpected(ec ? ec
-                                    : make_error_code(net::stream_errc::eof));
+    return stdx::unexpected(ec ? ec : make_error_code(net::stream_errc::eof));
   } else {
     return res;
   }
@@ -74,7 +73,7 @@ stdx::expected<size_t, std::error_code> ProtocolBase::avail_ssl() {
   const auto res = SSL_pending(ssl_.get());
 
   if (res <= 0) {
-    return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
+    return stdx::unexpected(make_tls_ssl_error(ssl_.get(), res));
   } else {
     return res;
   }
@@ -141,7 +140,7 @@ stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
   stdx::expected<void, std::error_code> result{};
   const auto accept_res = SSL_accept(ssl);
   if (accept_res != 1) {
-    result = stdx::make_unexpected(make_tls_ssl_error(ssl, accept_res));
+    result = stdx::unexpected(make_tls_ssl_error(ssl, accept_res));
   }
 
   // if the initial memory bio is processed, switch to the fd for more data.

@@ -64,8 +64,7 @@ class poll_io_service : public IoServiceBase {
 
   stdx::expected<void, std::error_code> open() noexcept override {
     if (is_open()) {
-      return stdx::make_unexpected(
-          make_error_code(net::socket_errc::already_open));
+      return stdx::unexpected(make_error_code(net::socket_errc::already_open));
     }
 
 #if defined(_WIN32)
@@ -74,7 +73,7 @@ class poll_io_service : public IoServiceBase {
 #else
     auto pipe_res = impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
 #endif
-    if (!pipe_res) return stdx::make_unexpected(pipe_res.error());
+    if (!pipe_res) return stdx::unexpected(pipe_res.error());
 
     wakeup_fds_ = *pipe_res;
 
@@ -119,8 +118,7 @@ class poll_io_service : public IoServiceBase {
       case impl::socket::wait_type::wait_error:
         return POLLERR | POLLHUP;
       default:
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
   }
 
@@ -172,7 +170,7 @@ class poll_io_service : public IoServiceBase {
       }
 
       // not found
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::no_such_file_or_directory));
     }
 
@@ -212,7 +210,7 @@ class poll_io_service : public IoServiceBase {
       auto it = std::find_if(b.begin(), b.end(),
                              [fd](auto fd_ev) { return fd_ev.fd == fd; });
       if (it == b.end()) {
-        return stdx::make_unexpected(
+        return stdx::unexpected(
             make_error_code(std::errc::no_such_file_or_directory));
       }
 
@@ -267,12 +265,11 @@ class poll_io_service : public IoServiceBase {
   stdx::expected<void, std::error_code> add_fd_interest(
       native_handle_type fd, impl::socket::wait_type event) override {
     if (fd == impl::socket::kInvalidSocket) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     auto event_res = poll_event_from_wait_type(event);
-    if (!event_res) return stdx::make_unexpected(event_res.error());
+    if (!event_res) return stdx::unexpected(event_res.error());
 
     fd_interests_.push_back({fd, event_res.value()});
 
@@ -285,8 +282,7 @@ class poll_io_service : public IoServiceBase {
   stdx::expected<void, std::error_code> remove_fd(
       native_handle_type fd) override {
     if (fd == impl::socket::kInvalidSocket) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     std::lock_guard<std::mutex> lk(mtx_);
@@ -355,7 +351,7 @@ class poll_io_service : public IoServiceBase {
 
     auto poll_fds = fd_interests_.poll_fds();
     auto res = impl::poll::poll(poll_fds.data(), poll_fds.size(), timeout);
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     size_t num_revents = res.value();  // number of pollfds with revents
 
@@ -412,8 +408,7 @@ class poll_io_service : public IoServiceBase {
   stdx::expected<fd_event, std::error_code> poll_one(
       std::chrono::milliseconds timeout) override {
     if (!is_open()) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     auto ev_res = [this]() -> stdx::expected<fd_event, std::error_code> {
@@ -421,7 +416,7 @@ class poll_io_service : public IoServiceBase {
 
       if (triggered_events_.empty()) {
         // no event.
-        return stdx::make_unexpected(
+        return stdx::unexpected(
             make_error_code(std::errc::no_such_file_or_directory));
       }
 
@@ -433,14 +428,14 @@ class poll_io_service : public IoServiceBase {
         ev_res = update_fd_events(timeout);
       }
 
-      if (!ev_res) return stdx::make_unexpected(ev_res.error());
+      if (!ev_res) return stdx::unexpected(ev_res.error());
     }
 
     auto ev = *ev_res;
 
     if (ev.fd == wakeup_fds_.first) {
       on_notify();
-      return stdx::make_unexpected(make_error_code(std::errc::interrupted));
+      return stdx::unexpected(make_error_code(std::errc::interrupted));
     }
 
     return ev;
@@ -466,8 +461,7 @@ class poll_io_service : public IoServiceBase {
       std::array<uint8_t, 1> buf = {{'.'}};
       res = impl::socket::send(wakeup_fds_.second, buf.data(), buf.size(), 0);
       // retry if interrupted
-    } while (res ==
-             stdx::make_unexpected(make_error_code(std::errc::interrupted)));
+    } while (res == stdx::unexpected(make_error_code(std::errc::interrupted)));
   }
 
   /**
@@ -478,8 +472,7 @@ class poll_io_service : public IoServiceBase {
   stdx::expected<void, std::error_code> remove_fd_interest(
       native_handle_type fd, short event) {
     if (fd == impl::socket::kInvalidSocket) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     return fd_interests_.erase_fd_event(fd, event);

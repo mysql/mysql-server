@@ -107,7 +107,7 @@ BinlogDumpForwarder::forbid_command() {
       src_channel, src_protocol,
       {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING,
        "binlog dump is not allowed with access_mode = 'auto'", "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return Result::SendToClient;
 }
@@ -185,7 +185,7 @@ BinlogDumpForwarder::response() {
 
   log_debug("binlog_dump::response: unexpected msg-type '%02x'", msg_type);
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code>

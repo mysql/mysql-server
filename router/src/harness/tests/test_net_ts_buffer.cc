@@ -452,7 +452,7 @@ class WouldBlockSyncStream {
 
     // time to block?
     if (block_after_ == 0) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::operation_would_block));
     }
 
@@ -479,8 +479,8 @@ TEST(NetWrite, write_would_block_const_buffer) {
   std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
 
   const auto res = net::write(sock, net::buffer(buf));
-  EXPECT_EQ(res, stdx::make_unexpected(
-                     make_error_code(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      res, stdx::unexpected(make_error_code(std::errc::operation_would_block)));
 }
 
 /**
@@ -495,8 +495,8 @@ TEST(NetWrite, write_would_block_dynamic_buffer) {
   std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
 
   const auto res = net::write(sock, net::dynamic_buffer(buf));
-  EXPECT_EQ(res, stdx::make_unexpected(
-                     make_error_code(std::errc::operation_would_block)));
+  EXPECT_EQ(
+      res, stdx::unexpected(make_error_code(std::errc::operation_would_block)));
 }
 
 /**

@@ -38,7 +38,7 @@ Processor::send_server_failed(std::error_code ec) {
   // error is returned.
   connection()->send_server_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -49,7 +49,7 @@ Processor::recv_server_failed(std::error_code ec) {
   // error is returned.
   connection()->recv_server_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -58,7 +58,7 @@ Processor::send_client_failed(std::error_code ec) {
   // error is returned.
   connection()->send_client_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -69,7 +69,7 @@ Processor::recv_client_failed(std::error_code ec) {
   // error is returned.
   connection()->recv_client_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -78,7 +78,7 @@ Processor::server_socket_failed(std::error_code ec) {
   // error is returned.
   connection()->server_socket_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -87,7 +87,7 @@ Processor::client_socket_failed(std::error_code ec) {
   // error is returned.
   connection()->client_socket_failed(ec, false);
 
-  return stdx::make_unexpected(ec);
+  return stdx::unexpected(ec);
 }
 
 stdx::expected<void, std::error_code> Processor::discard_current_msg(
@@ -102,12 +102,11 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
 
     if (recv_buf.size() < current_frame.frame_size_) {
       // received message is incomplete.
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
     if (current_frame.forwarded_frame_size_ != 0) {
       // partially forwarded already.
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     src_channel->consume_plain(current_frame.frame_size_);
@@ -121,7 +120,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
 
     auto hdr_res = ClassicFrame::ensure_frame_header(src_channel, src_protocol);
     if (!hdr_res) {
-      return stdx::make_unexpected(hdr_res.error());
+      return stdx::unexpected(hdr_res.error());
     }
   } while (true);
 

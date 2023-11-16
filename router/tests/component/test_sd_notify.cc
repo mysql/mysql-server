@@ -880,7 +880,7 @@ TEST_F(NotifyTest, NotifyStoppingBasic) {
   EXPECT_TRUE(wait_for_notified_ready(notify_socket, 5s));
 
   stdx::expected<void, std::error_code> stopped_notification_read{
-      stdx::make_unexpected(std::error_code{})};
+      stdx::unexpected(std::error_code{})};
   auto wait_for_stopped = std::thread([&] {
     stopped_notification_read = wait_for_notified_stopping(notify_socket, 5s);
   });
@@ -925,7 +925,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
 
   SCOPED_TRACE("// Listen for notification while we are bootstrapping");
   stdx::expected<void, std::error_code> ready_notification_read{
-      stdx::make_unexpected(std::error_code{})};
+      stdx::unexpected(std::error_code{})};
   auto wait_for_stopped = std::thread([&] {
     ready_notification_read =
         wait_for_notified(notify_socket, GetParam(), 300ms);
@@ -947,7 +947,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   SCOPED_TRACE("// No notification should be sent by the Router");
   wait_for_stopped.join();
   ASSERT_EQ(ready_notification_read,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+            stdx::unexpected(make_error_code(std::errc::timed_out)));
 }
 
 INSTANTIATE_TEST_SUITE_P(

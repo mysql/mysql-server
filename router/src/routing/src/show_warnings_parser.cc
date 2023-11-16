@@ -174,7 +174,7 @@ stdx::expected<Limit, std::string> ShowWarningsParser::limit() {
     }
   }
 
-  return stdx::make_unexpected(error_);
+  return stdx::unexpected(error_);
 }
 
 stdx::expected<ShowWarnings::Verbosity, std::string>
@@ -187,5 +187,5 @@ ShowWarningsParser::warning_count_ident() {
     }
   }
 
-  return stdx::make_unexpected(error_);
+  return stdx::unexpected(error_);
 }

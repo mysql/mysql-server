@@ -76,7 +76,7 @@ stdx::expected<std::string, std::error_code> openssl_msg_content_to_string(
   switch (ct) {
     case SSL3_RT_ALERT:
       if (len < 2) {
-        return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+        return stdx::unexpected(make_error_code(std::errc::bad_message));
       }
 
       // buf[0] is alert-type "fatal|warning"
@@ -125,7 +125,7 @@ stdx::expected<std::string, std::error_code> openssl_msg_content_to_string(
       break;
     case SSL3_RT_HANDSHAKE:
       if (len < 1) {
-        return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+        return stdx::unexpected(make_error_code(std::errc::bad_message));
       }
 
       switch (auto msg_type = buf[0]) {
@@ -158,5 +158,5 @@ stdx::expected<std::string, std::error_code> openssl_msg_content_to_string(
       }
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  return stdx::unexpected(make_error_code(std::errc::invalid_argument));
 }

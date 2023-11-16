@@ -80,7 +80,7 @@ stdx::expected<size_t, std::error_code> MySQLClassicProtocol::read_packet(
   const auto payload_size = hdr.payload_size();
 
   if (payload_size == 0xffffff) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::operation_not_supported));
   }
 
@@ -89,7 +89,7 @@ stdx::expected<size_t, std::error_code> MySQLClassicProtocol::read_packet(
 
   if (buf.size() < payload_size) {
     // not enough data.
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(classic_protocol::codec_errc::not_enough_input));
   }
 
@@ -654,7 +654,7 @@ stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {
 #if 0
   int res = X509_NAME_print_ex(bio.get(), name, 0, XN_FLAG_ONELINE);
   if (res <= 0) {
-    return stdx::make_unexpected(make_tls_error());
+    return stdx::unexpected(make_tls_error());
   }
 
   BUF_MEM *buf;
@@ -682,14 +682,14 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
   auto handshake_data_res =
       json_reader_->handshake(false /* not is_greeting */);
   if (!handshake_data_res) {
-    return stdx::make_unexpected(handshake_data_res.error());
+    return stdx::unexpected(handshake_data_res.error());
   }
 
   auto handshake = handshake_data_res.value();
 
   if (handshake.username.has_value()) {
     if (handshake.username.value() != protocol_.username()) {
-      return stdx::make_unexpected(ErrorResponse{
+      return stdx::unexpected(ErrorResponse{
           ER_ACCESS_DENIED_ERROR,  // 1045
           "Access Denied for user '" + protocol_.username() + "'@'localhost'",
           "28000"});
@@ -700,7 +700,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
     if (!protocol_.authenticate(
             protocol_.auth_method_name(), protocol_.auth_method_data(),
             handshake.password.value(), client_auth_method_data)) {
-      return stdx::make_unexpected(ErrorResponse{
+      return stdx::unexpected(ErrorResponse{
           ER_ACCESS_DENIED_ERROR,  // 1045
           "Access Denied for user '" + protocol_.username() + "'@'localhost'",
           "28000"});
@@ -714,7 +714,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
         SSL_get_peer_certificate(ssl), &X509_free};
     if (!client_cert) {
       log_info("cert required, no cert received.");
-      return stdx::make_unexpected(ErrorResponse{
+      return stdx::unexpected(ErrorResponse{
           ER_ACCESS_DENIED_ERROR,  // 1045
           "Access Denied for user '" + protocol_.username() + "'@'localhost'",
           "28000"});
@@ -728,7 +728,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
       log_debug("client-cert::subject: %s", subject_res.value().c_str());
 
       if (handshake.cert_subject.value() != subject_res.value()) {
-        return stdx::make_unexpected(ErrorResponse{
+        return stdx::unexpected(ErrorResponse{
             ER_ACCESS_DENIED_ERROR,  // 1045
             "Access Denied for user '" + protocol_.username() + "'@'localhost'",
             "28000"});
@@ -743,7 +743,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
       log_debug("client-cert::issuer: %s", issuer_res.value().c_str());
 
       if (handshake.cert_issuer.value() != issuer_res.value()) {
-        return stdx::make_unexpected(ErrorResponse{
+        return stdx::unexpected(ErrorResponse{
             ER_ACCESS_DENIED_ERROR,  // 1045
             "Access Denied for user '" + protocol_.username() + "'@'localhost'",
             "28000"});
@@ -755,7 +755,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
     if (verify_res != X509_V_OK) {
       log_info("ssl-verify failed: %ld", verify_res);
 
-      return stdx::make_unexpected(ErrorResponse{
+      return stdx::unexpected(ErrorResponse{
           ER_ACCESS_DENIED_ERROR,  // 1045
           "Access Denied for user '" + protocol_.username() + "'@'localhost'",
           "28000"});

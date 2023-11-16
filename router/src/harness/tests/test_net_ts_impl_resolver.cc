@@ -39,11 +39,11 @@ TEST(NetTS_impl_resolver, gethostname_buffer_empty) {
   const auto res = net::impl::resolver::gethostname(name.data(), 0);
 
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(
+  EXPECT_THAT(res, stdx::unexpected(
                        std::error_code(WSAEFAULT, std::system_category())));
 #else
-  EXPECT_THAT(res, stdx::make_unexpected(
-                       make_error_code(std::errc::filename_too_long)));
+  EXPECT_THAT(res,
+              stdx::unexpected(make_error_code(std::errc::filename_too_long)));
 
 #endif
 }
@@ -61,16 +61,17 @@ TEST(NetTS_impl_resolver, gethostname_buffer_too_short) {
   // glibc-2.1 returns EINVAL
   // macosx succeeds
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(
+  EXPECT_THAT(res, stdx::unexpected(
                        std::error_code(WSAEFAULT, std::system_category())));
 #else
-  EXPECT_THAT(res, ::testing::AnyOf(
-                       // macosx returns success leading to a non-detectable
-                       // hostname truncation.
-                       stdx::expected<void, std::error_code>{},
-                       // all others fail
-                       stdx::make_unexpected(
-                           make_error_code(std::errc::filename_too_long))));
+  EXPECT_THAT(
+      res,
+      ::testing::AnyOf(
+          // macosx returns success leading to a non-detectable
+          // hostname truncation.
+          stdx::expected<void, std::error_code>{},
+          // all others fail
+          stdx::unexpected(make_error_code(std::errc::filename_too_long))));
 #endif
 
   if (res) {
@@ -119,15 +120,16 @@ TEST(NetTS_impl_resolver, getnameinfo_invalid_sockaddr_size) {
   // others: EAI_FAMILY
   // wine: WSAEAFNOSUPPORT
 #if defined(_WIN32)
-  EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
+  EXPECT_THAT(res, ::testing::AnyOf(stdx::unexpected(make_error_code(
                                         net::ip::resolver_errc::bad_family)),
-                                    stdx::make_unexpected(std::error_code(
+                                    stdx::unexpected(std::error_code(
                                         WSAEFAULT, std::system_category()))));
 #else
-  EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
-                                        net::ip::resolver_errc::bad_family)),
-                                    stdx::make_unexpected(make_error_code(
-                                        net::ip::resolver_errc::fail))));
+  EXPECT_THAT(
+      res,
+      ::testing::AnyOf(
+          stdx::unexpected(make_error_code(net::ip::resolver_errc::bad_family)),
+          stdx::unexpected(make_error_code(net::ip::resolver_errc::fail))));
 #endif
 }
 
@@ -147,7 +149,7 @@ TEST(NetTS_impl_resolver, getnameinfo_badflags) {
       0xffff  // bad-flags
   );
 
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(net::ip::resolver_errc::bad_flags)));
 }
 #endif
@@ -173,23 +175,21 @@ TEST(NetTS_impl_resolver, getnameinfo_overflow) {
   // wine: WSATRY_AGAIN
 #if defined(_WIN32)
   EXPECT_THAT(res, ::testing::AnyOf(
-                       stdx::make_unexpected(std::error_code(
+                       stdx::unexpected(std::error_code(
                            ERROR_INSUFFICIENT_BUFFER, std::system_category())),
-                       stdx::make_unexpected(std::error_code(make_error_code(
+                       stdx::unexpected(std::error_code(make_error_code(
                            net::ip::resolver_errc::try_again)))));
 #else
   EXPECT_THAT(
       res,
       ::testing::AnyOf(
-          stdx::make_unexpected(make_error_code(std::errc::no_space_on_device)),
-          stdx::make_unexpected(
+          stdx::unexpected(make_error_code(std::errc::no_space_on_device)),
+          stdx::unexpected(
               make_error_code(net::ip::resolver_errc::out_of_memory)),
-          stdx::make_unexpected(
-              make_error_code(net::ip::resolver_errc::try_again))
+          stdx::unexpected(make_error_code(net::ip::resolver_errc::try_again))
 #if defined(EAI_OVERFLOW)
               ,
-          stdx::make_unexpected(
-              make_error_code(net::ip::resolver_errc::overflow))
+          stdx::unexpected(make_error_code(net::ip::resolver_errc::overflow))
 #endif
               ));
 #endif
@@ -246,7 +246,7 @@ TEST(NetTS_impl_resolver, getaddrinfo_numerichost_fail) {
   const auto res =
       net::impl::resolver::getaddrinfo("localhost", nullptr, &hints);
 
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(net::ip::resolver_errc::host_not_found)));
 }
 
@@ -286,14 +286,14 @@ TEST(NetTS_impl_resolver, getaddrinfo_numericserv_fail) {
   const auto res =
       net::impl::resolver::getaddrinfo("127.0.0.1", "http", &hints);
 
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(net::ip::resolver_errc::host_not_found)));
 }
 
 TEST(NetTS_impl_resolver, getaddrinfo_fail_empty_host) {
   const auto res = net::impl::resolver::getaddrinfo(nullptr, nullptr, nullptr);
 
-  EXPECT_EQ(res, stdx::make_unexpected(
+  EXPECT_EQ(res, stdx::unexpected(
                      make_error_code(net::ip::resolver_errc::host_not_found)));
 }
 
@@ -311,14 +311,15 @@ TEST(NetTS_impl_resolver, inetntop_nospace) {
   // msdn says: ERROR_INVALID_PARAMETER (87)
   // wine's ws2_32 returns: STATUS_INVALID_PARAMETER (0xc000000d)
   // windows returns: WSAEINVAL (10022)
-  EXPECT_THAT(res,
-              ::testing::AnyOf(stdx::make_unexpected(std::error_code{
-                                   static_cast<int>(STATUS_INVALID_PARAMETER),
-                                   std::system_category()}),
-                               stdx::make_unexpected(make_error_condition(
-                                   std::errc::invalid_argument))));
+  EXPECT_THAT(
+      res,
+      ::testing::AnyOf(
+          stdx::unexpected(
+              std::error_code{static_cast<int>(STATUS_INVALID_PARAMETER),
+                              std::system_category()}),
+          stdx::unexpected(make_error_condition(std::errc::invalid_argument))));
 #else
-  EXPECT_THAT(res, stdx::make_unexpected(
+  EXPECT_THAT(res, stdx::unexpected(
                        make_error_condition(std::errc::no_space_on_device)));
 #endif
 }
@@ -355,7 +356,7 @@ TEST(NetTS_impl_resolver, inetntop_fail_invalid_protocol) {
   const auto res =
       net::impl::resolver::inetntop(AF_UNIX, &addr, name.data(), name.size());
 
-  EXPECT_EQ(res, stdx::make_unexpected(make_error_condition(
+  EXPECT_EQ(res, stdx::unexpected(make_error_condition(
                      std::errc::address_family_not_supported)));
 }
 
@@ -371,14 +372,15 @@ TEST(NetTS_impl_resolver, inetntop_fail_empty_buffer) {
   // msdn says: ERROR_INVALID_PARAMETER (87)
   // wine's ws2_32 returns: STATUS_INVALID_PARAMETER (0xc000000d)
   // windows returns: WSAEINVAL (10022)
-  EXPECT_THAT(res,
-              ::testing::AnyOf(stdx::make_unexpected(std::error_code{
-                                   static_cast<int>(STATUS_INVALID_PARAMETER),
-                                   std::system_category()}),
-                               stdx::make_unexpected(make_error_condition(
-                                   std::errc::invalid_argument))));
+  EXPECT_THAT(
+      res,
+      ::testing::AnyOf(
+          stdx::unexpected(
+              std::error_code{static_cast<int>(STATUS_INVALID_PARAMETER),
+                              std::system_category()}),
+          stdx::unexpected(make_error_condition(std::errc::invalid_argument))));
 #else
-  EXPECT_THAT(res, stdx::make_unexpected(
+  EXPECT_THAT(res, stdx::unexpected(
                        make_error_condition(std::errc::no_space_on_device)));
 #endif
 }

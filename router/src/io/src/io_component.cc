@@ -59,12 +59,11 @@ net::io_context &IoComponent::io_context() { return *io_ctx_; }
 stdx::expected<void, std::error_code> IoComponent::init(
     size_t num_worker_threads, const std::string &backend_name) {
   if (io_ctx_)
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(IoComponentErrc::already_initialized));
   const auto &supported_backends = IoBackend::supported();
   if (supported_backends.find(backend_name) == supported_backends.end()) {
-    return stdx::make_unexpected(
-        make_error_code(IoComponentErrc::unknown_backend));
+    return stdx::unexpected(make_error_code(IoComponentErrc::unknown_backend));
   }
 
   ThreadAffinity main_thread{ThreadAffinity::current_thread_handle()};
@@ -111,7 +110,7 @@ stdx::expected<void, std::error_code> IoComponent::init(
 
       // reset the component
       reset();
-      return stdx::make_unexpected(e.code());
+      return stdx::unexpected(e.code());
     }
   }
 

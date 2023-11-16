@@ -315,8 +315,7 @@ Path Path::real_path() const {
 stdx::expected<void, std::error_code> delete_dir(
     const std::string &dir) noexcept {
   if (_rmdir(dir.c_str()) != 0) {
-    return stdx::make_unexpected(
-        std::error_code(errno, std::generic_category()));
+    return stdx::unexpected(std::error_code(errno, std::generic_category()));
   }
 
   return {};
@@ -340,7 +339,7 @@ stdx::expected<void, std::error_code> delete_file(
     }
   }
 
-  return stdx::make_unexpected(
+  return stdx::unexpected(
       std::error_code(GetLastError(), std::system_category()));
 }
 

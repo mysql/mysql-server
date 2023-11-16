@@ -62,7 +62,7 @@ class DuktapeStatementReaderFactory {
 
     stdx::expected<handshake_data, ErrorResponse> handshake(
         bool /* is_greeting */) override {
-      return stdx::make_unexpected(ErrorResponse(1064, what_, "HY000"));
+      return stdx::unexpected(ErrorResponse(1064, what_, "HY000"));
     }
 
     void set_session_ssl_info(const SSL * /* ssl */) override {}

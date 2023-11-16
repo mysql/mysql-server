@@ -123,7 +123,7 @@ StmtFetchForwarder::response() {
     tr.trace(Tracer::Event().stage("stmt_fetch::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtFetchForwarder::row() {

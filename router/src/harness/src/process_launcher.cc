@@ -326,9 +326,9 @@ ProcessLauncher::exit_code() {
 
   const BOOL ret = GetExitCodeProcess(pi.hProcess, &dwExit);
   if (ret == 0) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   } else if (dwExit == STILL_ACTIVE) {
-    return stdx::make_unexpected(std::make_error_code(std::errc::timed_out));
+    return stdx::unexpected(std::make_error_code(std::errc::timed_out));
   }
 
   return {std::in_place, exit_status_type::native_t{}, dwExit};
@@ -755,9 +755,9 @@ ProcessLauncher::exit_code() {
 
   const pid_t ret = ::waitpid(childpid, &status, WNOHANG);
   if (ret == 0) {
-    return stdx::make_unexpected(std::make_error_code(std::errc::timed_out));
+    return stdx::unexpected(std::make_error_code(std::errc::timed_out));
   } else if (ret == -1) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {std::in_place, exit_status_type::native_t{}, status};

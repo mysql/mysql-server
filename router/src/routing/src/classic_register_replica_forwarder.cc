@@ -144,7 +144,7 @@ RegisterReplicaForwarder::response() {
 
   log_debug("register_replica::response: unexpected msg-type '%02x'", msg_type);
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code>

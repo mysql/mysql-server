@@ -73,9 +73,8 @@ TEST(PollIoService, open_already_open) {
   ASSERT_TRUE(io_svc.is_open());
 
   // calling open again, should fail.
-  EXPECT_EQ(
-      io_svc.open(),
-      stdx::make_unexpected(make_error_code(net::socket_errc::already_open)));
+  EXPECT_EQ(io_svc.open(),
+            stdx::unexpected(make_error_code(net::socket_errc::already_open)));
 }
 
 // calling open again should fail.
@@ -265,9 +264,9 @@ TEST(PollIoService, remove_fd_interest_from_empty) {
   net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
-  EXPECT_EQ(io_svc.remove_fd_interest(fds.first, POLLIN),
-            stdx::make_unexpected(
-                make_error_code(std::errc::no_such_file_or_directory)));
+  EXPECT_EQ(
+      io_svc.remove_fd_interest(fds.first, POLLIN),
+      stdx::unexpected(make_error_code(std::errc::no_such_file_or_directory)));
 }
 
 // check poll_one properly tracks the oneshot events.
@@ -297,8 +296,7 @@ TEST(PollIoService, poll_one) {
 
   SCOPED_TRACE("// poll again which should block");
   poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+  ASSERT_EQ(poll_res, stdx::unexpected(make_error_code(std::errc::timed_out)));
 
   SCOPED_TRACE("// add write interest again");
   EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
@@ -322,9 +320,9 @@ TEST(PollIoService, remove_fd_from_empty) {
   net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
-  EXPECT_EQ(io_svc.remove_fd(fds.first),
-            stdx::make_unexpected(
-                make_error_code(std::errc::no_such_file_or_directory)));
+  EXPECT_EQ(
+      io_svc.remove_fd(fds.first),
+      stdx::unexpected(make_error_code(std::errc::no_such_file_or_directory)));
 
   net::impl::socket::close(fds.first);
   net::impl::socket::close(fds.second);
@@ -376,8 +374,7 @@ TEST(PollIoService, one_fd_many_events) {
   SCOPED_TRACE(
       "// poll_one() should not fire the 2nd time as the fd is removed.");
   poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+  ASSERT_EQ(poll_res, stdx::unexpected(make_error_code(std::errc::timed_out)));
 }
 
 /**
@@ -428,8 +425,7 @@ TEST(PollIoService, one_fd_many_events_removed) {
 
   SCOPED_TRACE("// all events fired.");
   poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+  ASSERT_EQ(poll_res, stdx::unexpected(make_error_code(std::errc::timed_out)));
 }
 
 /**
@@ -524,8 +520,7 @@ TEST(PollIoService, hup_without_event_wanted) {
 
   SCOPED_TRACE("// all events fired.");
   poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+  ASSERT_EQ(poll_res, stdx::unexpected(make_error_code(std::errc::timed_out)));
 }
 
 /**

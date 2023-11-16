@@ -139,11 +139,11 @@ static std::vector<std::vector<std::vector<std::string>>> result_as_vector(
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -154,24 +154,24 @@ template <size_t N>
 stdx::expected<std::array<std::string, N>, MysqlError> query_one(
     MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = *cmd_res;
 
   auto res_it = results.begin();
   if (res_it == results.end()) {
-    return stdx::make_unexpected(MysqlError(1, "No results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No results", "HY000"));
   }
 
   if (res_it->field_count() != N) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         MysqlError(1, "field-count doesn't match", "HY000"));
   }
 
   auto rows = res_it->rows();
   auto rows_it = rows.begin();
   if (rows_it == rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "No rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No rows", "HY000"));
   }
 
   std::array<std::string, N> out;
@@ -181,12 +181,12 @@ stdx::expected<std::array<std::string, N>, MysqlError> query_one(
 
   ++rows_it;
   if (rows_it != rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many rows", "HY000"));
   }
 
   ++res_it;
   if (res_it != results.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many results", "HY000"));
   }
 
   return out;
@@ -417,14 +417,13 @@ class SharedRouter {
 
     if (auto *v = JsonPointer(pointer).Get(json_doc)) {
       if (!v->IsInt()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
       }
       return v->GetInt();
     } else {
       std::cerr << json_doc << "\n";
 
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::no_such_file_or_directory));
     }
   }
@@ -446,12 +445,12 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = num_connections(param);
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
@@ -470,12 +469,12 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
@@ -797,16 +796,16 @@ class TracingTestBase : public RouterComponentTest {
       MysqlClient &cli) {
     auto warnings_res = query_one_result(cli, "SHOW warnings");
     if (!warnings_res) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << warnings_res.error());
+      return stdx::unexpected(testing::AssertionFailure()
+                              << warnings_res.error());
     }
 
     auto warnings = *warnings_res;
 
     EXPECT_THAT(warnings, SizeIs(::testing::Ge(1)));
     if (warnings.empty()) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << "expected warnings to be not empty.");
+      return stdx::unexpected(testing::AssertionFailure()
+                              << "expected warnings to be not empty.");
     }
 
     auto json_row = warnings_res->back();
@@ -815,8 +814,8 @@ class TracingTestBase : public RouterComponentTest {
 
     if (json_row.size() != 3 || json_row[0] != "Note" ||
         json_row[1] != kErRouterTrace) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << "expected warnings to be not empty.");
+      return stdx::unexpected(testing::AssertionFailure()
+                              << "expected warnings to be not empty.");
     }
 
     return json_row[2];

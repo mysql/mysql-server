@@ -108,8 +108,7 @@ stdx::expected<void, std::error_code> rename_file(const std::string &from,
                                                   const std::string &to) {
 #ifndef _WIN32
   if (0 != rename(from.c_str(), to.c_str())) {
-    return stdx::make_unexpected(
-        std::error_code{errno, std::generic_category()});
+    return stdx::unexpected(std::error_code{errno, std::generic_category()});
   }
 #else
   // In Windows, rename fails if the file destination already exists, so ...
@@ -121,8 +120,8 @@ stdx::expected<void, std::error_code> rename_file(const std::string &from,
               MOVEFILE_WRITE_THROUGH   // don't return until the operation is
                                        // physically finished
           )) {
-    return stdx::make_unexpected(std::error_code{
-        static_cast<int>(GetLastError()), std::system_category()});
+    return stdx::unexpected(std::error_code{static_cast<int>(GetLastError()),
+                                            std::system_category()});
   }
 #endif
   return {};

@@ -65,7 +65,7 @@ inline stdx::expected<native_handle_type, error_type> socket(int family,
   native_handle_type sock = ::socket(family, sock_type, protocol);
 
   if (sock == kInvalidSocket) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return sock;
@@ -75,11 +75,11 @@ inline stdx::expected<void, std::error_code> close(
     native_handle_type native_handle) {
 #ifdef _WIN32
   if (SOCKET_ERROR == ::closesocket(native_handle)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #else
   if (0 != ::close(native_handle)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #endif
   return {};
@@ -91,11 +91,11 @@ inline stdx::expected<void, error_type> ioctl(native_handle_type native_handle,
   // use WSAIoctl() instead ?
   if (kSocketError == ::ioctlsocket(native_handle, static_cast<long>(cmd),
                                     reinterpret_cast<unsigned long *>(data))) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #else
   if (kSocketError == ::ioctl(native_handle, cmd, data)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #endif
 
@@ -107,11 +107,11 @@ inline stdx::expected<bool, error_type> native_non_blocking(
 #ifdef _WIN32
   (void)native_handle;
   // windows has no way to query to the blocking state
-  return stdx::make_unexpected(
+  return stdx::unexpected(
       std::make_error_code(std::errc::function_not_supported));
 #else
   auto res = impl::file::fcntl(native_handle, impl::file::get_file_status());
-  if (!res) return stdx::make_unexpected(res.error());
+  if (!res) return stdx::unexpected(res.error());
 
   return (*res & O_NONBLOCK) != 0;
 #endif
@@ -125,7 +125,7 @@ inline stdx::expected<void, error_type> native_non_blocking(
   return ioctl(native_handle, FIONBIO, &nonblocking);
 #else
   auto res = impl::file::fcntl(native_handle, impl::file::get_file_status());
-  if (!res) return stdx::make_unexpected(res.error());
+  if (!res) return stdx::unexpected(res.error());
 
   int flags = *res;
 
@@ -139,7 +139,7 @@ inline stdx::expected<void, error_type> native_non_blocking(
 
   auto set_res =
       impl::file::fcntl(native_handle, impl::file::set_file_status(flags));
-  if (!set_res) return stdx::make_unexpected(set_res.error());
+  if (!set_res) return stdx::unexpected(set_res.error());
 
   return {};
 #endif
@@ -148,7 +148,7 @@ inline stdx::expected<void, error_type> native_non_blocking(
 inline stdx::expected<void, error_type> listen(native_handle_type native_handle,
                                                int backlog) {
   if (kSocketError == ::listen(native_handle, backlog)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -164,7 +164,7 @@ inline stdx::expected<void, error_type> setsockopt(
   int res = ::setsockopt(native_handle, level, optname, optval, optlen);
 #endif
   if (kSocketError == res) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -180,7 +180,7 @@ inline stdx::expected<void, error_type> getsockopt(
   int res = ::getsockopt(native_handle, level, optname, optval, optlen);
 #endif
   if (kSocketError == res) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -210,7 +210,7 @@ inline stdx::expected<size_t, error_type> recv(native_handle_type native_handle,
       ::recv(native_handle, buf, buf_len, static_cast<int>(flags.to_ulong()));
 #endif
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {static_cast<size_t>(bytes_transferred)};
@@ -224,7 +224,7 @@ inline stdx::expected<size_t, error_type> read(native_handle_type native_handle,
 #else
   auto bytes_transferred = ::read(native_handle, data, data_len);
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {static_cast<size_t>(bytes_transferred)};
@@ -247,13 +247,13 @@ inline stdx::expected<size_t, error_type> recvmsg(
                           nullptr        // completor
   );
   if (kSocketError == err) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #else
   ssize_t bytes_transferred =
       ::recvmsg(native_handle, &msg, static_cast<int>(flags.to_ulong()));
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #endif
 
@@ -285,7 +285,7 @@ inline stdx::expected<size_t, error_type> send(native_handle_type native_handle,
       ::send(native_handle, buf, buf_len, static_cast<int>(flags.to_ulong()));
 #endif
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {static_cast<size_t>(bytes_transferred)};
@@ -299,7 +299,7 @@ inline stdx::expected<size_t, error_type> write(
 #else
   auto bytes_transferred = ::write(native_handle, data, data_len);
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {static_cast<size_t>(bytes_transferred)};
@@ -319,13 +319,13 @@ inline stdx::expected<size_t, error_type> sendmsg(
                         nullptr       // completor
   );
   if (kSocketError == err) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #else
   ssize_t bytes_transferred =
       ::sendmsg(native_handle, &msg, static_cast<int>(flags.to_ulong()));
   if (kSocketError == bytes_transferred) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 #endif
 
@@ -340,7 +340,7 @@ inline stdx::expected<void, error_type> bind(native_handle_type native_handle,
                                              size_t addr_len) {
   if (kSocketError ==
       ::bind(native_handle, addr, static_cast<socklen_t>(addr_len))) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -354,7 +354,7 @@ inline stdx::expected<void, error_type> connect(
     size_t addr_len) {
   if (kSocketError ==
       ::connect(native_handle, addr, static_cast<socklen_t>(addr_len))) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -368,7 +368,7 @@ inline stdx::expected<native_handle_type, error_type> accept(
     socklen_t *addr_len) {
   native_handle_type fd = ::accept(native_handle, addr, addr_len);
   if (kInvalidSocket == fd) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return fd;
@@ -383,7 +383,7 @@ inline stdx::expected<native_handle_type, error_type> accept4(
     defined(__NetBSD__)
   native_handle_type fd = ::accept4(native_handle, addr, addr_len, flags);
   if (kInvalidSocket == fd) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return fd;
@@ -394,8 +394,7 @@ inline stdx::expected<native_handle_type, error_type> accept4(
   (void)addr_len;
   (void)flags;
 
-  return stdx::make_unexpected(
-      make_error_code(std::errc::operation_not_supported));
+  return stdx::unexpected(make_error_code(std::errc::operation_not_supported));
 #endif
 }
 
@@ -408,7 +407,7 @@ inline stdx::expected<void, error_type> getsockname(
 #endif
 
   if (kSocketError == ::getsockname(native_handle, addr, &len)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
 #ifdef _WIN32
@@ -429,7 +428,7 @@ inline stdx::expected<void, error_type> getpeername(
 #endif
 
   if (kSocketError == ::getpeername(native_handle, addr, &len)) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
 #ifdef _WIN32
@@ -454,13 +453,13 @@ socketpair(int family, int sock_type, int protocol) {
   std::array<native_handle_type, 2> fds;
 
   if (0 != ::socketpair(family, sock_type, protocol, fds.data())) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return std::make_pair(fds[0], fds[1]);
 #else
   auto listener_res = impl::socket::socket(family, sock_type, protocol);
-  if (!listener_res) return stdx::make_unexpected(listener_res.error());
+  if (!listener_res) return stdx::unexpected(listener_res.error());
 
   auto listener = listener_res.value();
 
@@ -525,18 +524,18 @@ socketpair(int family, int sock_type, int protocol) {
     } break;
 #endif
     default:
-      bind_res = stdx::make_unexpected(
+      bind_res = stdx::unexpected(
           make_error_code(std::errc::address_family_not_supported));
       break;
   }
 
-  if (!bind_res) return stdx::make_unexpected(bind_res.error());
+  if (!bind_res) return stdx::unexpected(bind_res.error());
 
   auto listen_res = impl::socket::listen(listener, 128);
-  if (!listen_res) return stdx::make_unexpected(listen_res.error());
+  if (!listen_res) return stdx::unexpected(listen_res.error());
 
   auto first_res = impl::socket::socket(family, sock_type, protocol);
-  if (!first_res) return stdx::make_unexpected(first_res.error());
+  if (!first_res) return stdx::unexpected(first_res.error());
 
   auto first_fd = first_res.value();
 
@@ -549,7 +548,7 @@ socketpair(int family, int sock_type, int protocol) {
 
     const auto name_res = impl::socket::getsockname(
         sock_handle, reinterpret_cast<sockaddr *>(&ss), &ss_len);
-    if (!name_res) return stdx::make_unexpected(name_res.error());
+    if (!name_res) return stdx::unexpected(name_res.error());
 
     // overwrite the address.
     if (ss.ss_family == AF_INET) {
@@ -561,16 +560,16 @@ socketpair(int family, int sock_type, int protocol) {
     return ss;
   }(listener);
 
-  if (!remote_sa_res) return stdx::make_unexpected(remote_sa_res.error());
+  if (!remote_sa_res) return stdx::unexpected(remote_sa_res.error());
   const auto remote_sa = *remote_sa_res;
 
   const auto connect_res = impl::socket::connect(
       first_fd, reinterpret_cast<const sockaddr *>(&remote_sa),
       sizeof(remote_sa));
-  if (!connect_res) return stdx::make_unexpected(connect_res.error());
+  if (!connect_res) return stdx::unexpected(connect_res.error());
 
   const auto second_res = impl::socket::accept(listener, nullptr, nullptr);
-  if (!second_res) return stdx::make_unexpected(second_res.error());
+  if (!second_res) return stdx::unexpected(second_res.error());
 
   first_fd_guard.commit();
 
@@ -587,13 +586,12 @@ inline stdx::expected<size_t, error_type> splice(native_handle_type fd_in,
   ssize_t written = ::splice(fd_in, nullptr, fd_out, nullptr, len, flags);
 
   if (written == -1) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   // post-condition to ensure that we can safely convert to size_t
   if (written < 0) {
-    return stdx::make_unexpected(
-        make_error_code(std::errc::result_out_of_range));
+    return stdx::unexpected(make_error_code(std::errc::result_out_of_range));
   }
 
   return written;
@@ -611,8 +609,7 @@ inline stdx::expected<size_t, error_type> splice_to_pipe(
   (void)len;
   (void)flags;
 
-  return stdx::make_unexpected(
-      make_error_code(std::errc::operation_not_supported));
+  return stdx::unexpected(make_error_code(std::errc::operation_not_supported));
 #endif
 }
 
@@ -627,8 +624,7 @@ inline stdx::expected<size_t, error_type> splice_from_pipe(
   (void)len;
   (void)flags;
 
-  return stdx::make_unexpected(
-      make_error_code(std::errc::operation_not_supported));
+  return stdx::unexpected(make_error_code(std::errc::operation_not_supported));
 #endif
 }
 
@@ -654,7 +650,7 @@ inline stdx::expected<void, error_type> wait(native_handle_type fd,
   const auto res =
       impl::poll::poll(fds.data(), fds.size(), std::chrono::milliseconds{-1});
 
-  if (!res) return stdx::make_unexpected(res.error());
+  if (!res) return stdx::unexpected(res.error());
 
   return {};
 }
@@ -663,7 +659,7 @@ inline stdx::expected<void, error_type> shutdown(native_handle_type fd,
                                                  int how) {
   const auto res = ::shutdown(fd, how);
   if (kSocketError == res) {
-    return stdx::make_unexpected(last_error_code());
+    return stdx::unexpected(last_error_code());
   }
 
   return {};
@@ -674,7 +670,7 @@ inline stdx::expected<void, std::error_code> init() {
   WORD wVersionRequested = MAKEWORD(2, 2);
   WSADATA wsaData;
   if (int err = WSAStartup(wVersionRequested, &wsaData)) {
-    return stdx::make_unexpected(impl::socket::last_error_code());
+    return stdx::unexpected(impl::socket::last_error_code());
   }
 #endif
   return {};

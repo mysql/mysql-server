@@ -223,7 +223,7 @@ ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Eof>(dst_channel,
                                                           dst_protocol, {});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     return Result::SendToClient;
   }
@@ -233,7 +233,7 @@ ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
     auto msg_res = ClassicFrame::recv_msg<
         classic_protocol::borrowed::message::server::Eof>(src_channel,
                                                           src_protocol);
-    if (!msg_res) return stdx::make_unexpected(msg_res.error());
+    if (!msg_res) return stdx::unexpected(msg_res.error());
 
     discard_current_msg(src_channel, src_protocol);
 

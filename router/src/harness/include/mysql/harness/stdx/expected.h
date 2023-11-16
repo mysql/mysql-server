@@ -119,11 +119,6 @@ class unexpected {
   error_type error_;
 };
 
-template <typename E>
-constexpr auto make_unexpected(E &&e) -> unexpected<std::decay_t<E>> {
-  return unexpected<std::decay_t<E>>(std::forward<E>(e));
-}
-
 // deduction guide
 template <class E>
 unexpected(E) -> unexpected<E>;

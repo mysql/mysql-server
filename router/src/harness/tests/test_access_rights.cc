@@ -153,16 +153,16 @@ TEST_P(AllowUserReadWritableTest, set_and_verify) {
 
 const AccessRightsParam allow_user_read_writable_params[] = {
     {"r________", only_user_readable_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
     {"rw_______", only_user_read_writable_perms, {}},
 #ifndef _WIN32
     {"rwx______", only_user_rwx_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
 #endif
     {"rw_rw_r__", other_readable_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
     {"rw_rw_rw_", all_read_writable_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, AllowUserReadWritableTest,
@@ -239,9 +239,9 @@ const AccessRightsParam deny_other_read_writable_params[] = {
     {"r________", only_user_readable_perms, {}},
     {"rw_______", only_user_read_writable_perms, {}},
     {"rw_rw_r__", other_readable_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
     {"rw_rw_rw_", all_read_writable_perms,
-     stdx::make_unexpected(make_error_code(std::errc::permission_denied))},
+     stdx::unexpected(make_error_code(std::errc::permission_denied))},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, DenyOtherReadWritableTest,

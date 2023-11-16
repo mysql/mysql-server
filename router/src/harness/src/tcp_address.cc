@@ -61,11 +61,11 @@ static std::enable_if_t<std::is_unsigned<T>::value,
                         stdx::expected<T, std::error_code>>
 from_chars(const std::string &value, int base = 10) {
   if (value.empty()) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   if (base < 2 || base > 36) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   uint64_t num{};
@@ -74,13 +74,11 @@ from_chars(const std::string &value, int base = 10) {
 
     const auto digit = from_digit(c);
     if (digit == -1) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     if (digit >= base) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     num += digit;
@@ -88,7 +86,7 @@ from_chars(const std::string &value, int base = 10) {
 
   // check for overflow
   if (static_cast<T>(num) != num) {
-    return stdx::make_unexpected(make_error_code(std::errc::value_too_large));
+    return stdx::unexpected(make_error_code(std::errc::value_too_large));
   }
 
   return {static_cast<T>(num)};
@@ -99,13 +97,13 @@ namespace mysql_harness {
 static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
     const std::string &endpoint) {
   if (endpoint[0] != '[') {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   // IPv6 with port
   size_t pos = endpoint.find(']');
   if (pos == std::string::npos) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   const auto addr = endpoint.substr(1, pos - 1);
@@ -121,7 +119,7 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
   }
 
   if (endpoint[pos] != ':') {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   const auto port_str = endpoint.substr(++pos);

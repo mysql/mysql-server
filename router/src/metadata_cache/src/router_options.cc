@@ -56,7 +56,7 @@ class MetadataJsonOptions {
     json_doc.Parse(options);
 
     if (!json_doc.IsObject()) {
-      return stdx::make_unexpected("not a valid JSON object");
+      return stdx::unexpected("not a valid JSON object");
     }
 
     const auto it = json_doc.FindMember(name);
@@ -65,7 +65,7 @@ class MetadataJsonOptions {
     }
 
     if (!it->value.IsString()) {
-      return stdx::make_unexpected("options." + name + " not a string");
+      return stdx::unexpected("options." + name + " not a string");
     }
 
     return it->value.GetString();
@@ -80,7 +80,7 @@ class MetadataJsonOptions {
     json_doc.Parse(options);
 
     if (!json_doc.IsObject()) {
-      return stdx::make_unexpected("not a valid JSON object");
+      return stdx::unexpected("not a valid JSON object");
     }
 
     const auto it = json_doc.FindMember(name);
@@ -92,8 +92,8 @@ class MetadataJsonOptions {
       rapidjson::StringBuffer sb;
       rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
       it->value.Accept(writer);
-      return stdx::make_unexpected("options." + name + "='" + sb.GetString() +
-                                   "'; not an unsigned int");
+      return stdx::unexpected("options." + name + "='" + sb.GetString() +
+                              "'; not an unsigned int");
     }
 
     return it->value.GetUint();
@@ -108,7 +108,7 @@ class MetadataJsonOptions {
     json_doc.Parse(options);
 
     if (json_doc.HasParseError() || !json_doc.IsObject()) {
-      return stdx::make_unexpected("not a valid JSON object");
+      return stdx::unexpected("not a valid JSON object");
     }
 
     const auto it = json_doc.FindMember(name);
@@ -121,8 +121,8 @@ class MetadataJsonOptions {
       rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
       it->value.Accept(writer);
 
-      return stdx::make_unexpected("options." + name + "='" + sb.GetString() +
-                                   "'; not a boolean");
+      return stdx::unexpected("options." + name + "='" + sb.GetString() +
+                              "'; not a boolean");
     }
 
     return it->value.GetBool();

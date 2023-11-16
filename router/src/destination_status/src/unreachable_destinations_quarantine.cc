@@ -455,7 +455,7 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
   if (endpoints_it_ != endpoints_.end()) {
     return connect_init();
   } else {
-    return stdx::make_unexpected(last_ec_);
+    return stdx::unexpected(last_ec_);
   }
 }
 

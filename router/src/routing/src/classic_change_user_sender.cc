@@ -122,7 +122,7 @@ classic_proto_verify_connection_attributes(const std::string &attrs) {
 
   // if the last key doesn't have a value, fail
   if (!is_key || net::buffer_size(attr_buf) != 0) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   return {};
@@ -332,7 +332,7 @@ ChangeUserSender::final_response() {
     tr.trace(Tracer::Event().stage("change_user::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {

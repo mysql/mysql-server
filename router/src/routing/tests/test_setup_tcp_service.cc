@@ -140,10 +140,10 @@ TEST_F(TestSetupTcpService, getaddrinfo_fails) {
                                           bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
-      .WillOnce(Return(ByMove(stdx::make_unexpected(
+      .WillOnce(Return(ByMove(stdx::unexpected(
           make_error_code(net::ip::resolver_errc::host_not_found)))));
 
-  EXPECT_EQ(tcp_acceptor.setup(), stdx::make_unexpected(make_error_code(
+  EXPECT_EQ(tcp_acceptor.setup(), stdx::unexpected(make_error_code(
                                       net::ip::resolver_errc::host_not_found)));
 }
 
@@ -156,13 +156,13 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
 
   // make all calls to socket() fail
   EXPECT_CALL(*sock_ops_, socket(_, _, _))
-      .WillOnce(Return(stdx::make_unexpected(
+      .WillOnce(Return(stdx::unexpected(
           make_error_code(std::errc::address_family_not_supported))))
-      .WillOnce(Return(stdx::make_unexpected(
+      .WillOnce(Return(stdx::unexpected(
           make_error_code(std::errc::address_family_not_supported))));
 
   EXPECT_EQ(tcp_acceptor.setup(),
-            stdx::make_unexpected(
+            stdx::unexpected(
                 make_error_code(std::errc::address_family_not_supported)));
 }
 
@@ -175,7 +175,7 @@ TEST_F(TestSetupTcpService, socket_fails) {
 
   // make the first call to socket() fail
   EXPECT_CALL(*sock_ops_, socket(_, _, _))
-      .WillOnce(Return(stdx::make_unexpected(
+      .WillOnce(Return(stdx::unexpected(
           make_error_code(std::errc::address_family_not_supported))))
       .WillOnce(Return(1));
 
@@ -207,8 +207,8 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
 
   // make the first call to setsockopt() fail
   EXPECT_CALL(*sock_ops_, setsockopt(_, _, _, _, _))
-      .WillOnce(Return(stdx::make_unexpected(
-          make_error_code(std::errc::bad_file_descriptor))))
+      .WillOnce(Return(
+          stdx::unexpected(make_error_code(std::errc::bad_file_descriptor))))
       .WillOnce(Return(result<void>{}));
 
   EXPECT_CALL(*sock_ops_, bind(_, _, _)).WillOnce(Return(result<void>{}));
@@ -240,7 +240,7 @@ TEST_F(TestSetupTcpService, bind_fails) {
       .WillOnce(Return(result<void>{}));
   EXPECT_CALL(*sock_ops_, bind(_, _, _))
       .WillOnce(Return(
-          stdx::make_unexpected(make_error_code(std::errc::invalid_argument))))
+          stdx::unexpected(make_error_code(std::errc::invalid_argument))))
       .WillOnce(Return(result<void>{}));
 
   EXPECT_CALL(*sock_ops_, listen(_, _)).WillOnce(Return(result<void>{}));
@@ -268,16 +268,15 @@ TEST_F(TestSetupTcpService, listen_fails) {
 
   EXPECT_CALL(*sock_ops_, listen(_, _))
       .WillOnce(Return(
-          stdx::make_unexpected(make_error_code(std::errc::invalid_argument))));
+          stdx::unexpected(make_error_code(std::errc::invalid_argument))));
 
   // those are called in the MySQLRouting destructor
   EXPECT_CALL(*sock_ops_, close(_));
   expect_io_ctx_cancel_calls(1);
 
   // the listen()'s error-code
-  EXPECT_EQ(
-      tcp_acceptor.setup(),
-      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+  EXPECT_EQ(tcp_acceptor.setup(),
+            stdx::unexpected(make_error_code(std::errc::invalid_argument)));
 }
 
 int main(int argc, char *argv[]) {

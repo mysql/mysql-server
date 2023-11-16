@@ -68,7 +68,7 @@ static stdx::expected<std::string, std::error_code> endpoint_to_name(
   shrink(buf);
 
   if (buf.empty()) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(net::ip::resolver_errc::host_not_found));
   }
 

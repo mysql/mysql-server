@@ -81,14 +81,14 @@ class Codec<clone::client::Init>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     auto protocol_version_res = accu.template step<wire::FixedInt<4>>();
     auto ddl_timeout_res = accu.template step<wire::FixedInt<4>>();
 
     // TODO(jkneschk): if there is more data, 1-or-more Locators
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
     return std::make_pair(accu.result().value(), value_type());
   }
 
@@ -126,7 +126,7 @@ class Codec<clone::client::Execute>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -162,7 +162,7 @@ class Codec<clone::client::Attach>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -198,7 +198,7 @@ class Codec<clone::client::Reinit>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -234,7 +234,7 @@ class Codec<clone::client::Ack>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -270,7 +270,7 @@ class Codec<clone::client::Exit>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -336,7 +336,7 @@ class Codec<clone::server::Complete>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -372,7 +372,7 @@ class Codec<clone::server::Error>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(), value_type());
   }

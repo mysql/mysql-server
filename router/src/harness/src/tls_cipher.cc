@@ -79,7 +79,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::encrypt(
     const uint8_t *src, size_t src_size, uint8_t *dst, const uint8_t *key,
     size_t key_size, const uint8_t *iv, bool padding) const {
   if (cipher_ == nullptr) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   TlsCipherCtx cipher_ctx(EVP_CIPHER_CTX_new());
@@ -90,7 +90,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::encrypt(
 
   if (!ctx || cipher_key_size > EVP_MAX_KEY_LENGTH ||
       (EVP_CIPHER_iv_length(cipher_) > 0 && iv == nullptr)) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   std::array<uint8_t, EVP_MAX_KEY_LENGTH> rkey;
@@ -105,7 +105,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::encrypt(
       1 != EVP_CIPHER_CTX_set_padding(ctx, padding) ||
       1 != EVP_EncryptUpdate(ctx, dst, &updated_len, src, src_size) ||
       1 != EVP_EncryptFinal(ctx, dst + updated_len, &final_len)) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   return updated_len + final_len;
@@ -115,7 +115,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::decrypt(
     const uint8_t *src, size_t src_size, uint8_t *dst, const uint8_t *key,
     size_t key_size, const uint8_t *iv, bool padding) const {
   if (cipher_ == nullptr) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   TlsCipherCtx cipher_ctx(EVP_CIPHER_CTX_new());
@@ -126,7 +126,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::decrypt(
 
   if (!ctx || cipher_key_size > EVP_MAX_KEY_LENGTH ||
       (EVP_CIPHER_iv_length(cipher_) > 0 && iv == nullptr)) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   std::array<uint8_t, EVP_MAX_KEY_LENGTH> rkey;
@@ -140,7 +140,7 @@ stdx::expected<size_t, std::error_code> TlsCipher::decrypt(
       1 != EVP_CIPHER_CTX_set_padding(ctx, padding) ||
       1 != EVP_DecryptUpdate(ctx, dst, &updated_len, src, src_size) ||
       1 != EVP_DecryptFinal(ctx, dst + updated_len, &final_len)) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   return updated_len + final_len;

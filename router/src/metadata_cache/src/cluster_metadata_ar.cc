@@ -51,7 +51,7 @@ ARClusterMetadata::fetch_cluster_topology(
 
   for (size_t i = 0; i < metadata_servers.size(); ++i) {
     if (terminated) {
-      return stdx::make_unexpected(make_error_code(
+      return stdx::unexpected(make_error_code(
           metadata_cache::metadata_errc::metadata_refresh_terminated));
     }
     const auto &metadata_server = metadata_servers[i];
@@ -120,7 +120,7 @@ ARClusterMetadata::fetch_cluster_topology(
   const auto &cluster_members = result.get_all_members();
 
   if (cluster_members.empty()) {
-    return stdx::make_unexpected(make_error_code(
+    return stdx::unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
 

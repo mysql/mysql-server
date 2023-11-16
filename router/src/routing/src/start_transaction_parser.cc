@@ -78,9 +78,8 @@ StartTransactionParser::parse() {
       do {
         auto trx_characteristics_res = transaction_characteristics();
         if (!trx_characteristics_res) {
-          return stdx::make_unexpected(
-              "You have an error in your SQL syntax; " +
-              trx_characteristics_res.error());
+          return stdx::unexpected("You have an error in your SQL syntax; " +
+                                  trx_characteristics_res.error());
         }
 
         auto trx_characteristics = *trx_characteristics_res;
@@ -97,7 +96,7 @@ StartTransactionParser::parse() {
         if (std::holds_alternative<StartTransaction::AccessMode>(
                 trx_characteristics)) {
           if (access_mode) {
-            return stdx::make_unexpected(
+            return stdx::unexpected(
                 "You have an error in your SQL syntax; START TRANSACTION only "
                 "allows one access mode");
           }
@@ -114,7 +113,7 @@ StartTransactionParser::parse() {
                 StartTransaction{access_mode, with_consistent_snapshot}};
       }
 
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           "You have an error in your SQL syntax; unexpected input near " +
           to_string(token()));
     }
@@ -129,7 +128,7 @@ StartTransactionParser::parse() {
         return {std::in_place, StartTransaction{}};
       }
 
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           "You have an error in your SQL syntax; after BEGIN WORK no further "
           "input is expected. Unexpected input near " +
           to_string(token()));
@@ -138,7 +137,7 @@ StartTransactionParser::parse() {
     if (accept(END_OF_INPUT)) {
       return {std::in_place, StartTransaction{}};
     }
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         "You have an error in your SQL syntax; after BEGIN only [WORK] is "
         "expected. Unexpected input near " +
         to_string(token()));
@@ -156,10 +155,10 @@ StartTransactionParser::transaction_characteristics() {
       if (accept(SNAPSHOT_SYM)) {
         return true;
       }
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           "after WITH CONSISTENT only SNAPSHOT is allowed.");
     }
-    return stdx::make_unexpected("after WITH only CONSISTENT is allowed.");
+    return stdx::unexpected("after WITH only CONSISTENT is allowed.");
   }
 
   if (accept(READ_SYM)) {
@@ -169,7 +168,7 @@ StartTransactionParser::transaction_characteristics() {
     if (accept(WRITE_SYM)) {
       return StartTransaction::AccessMode::ReadWrite;
     }
-    return stdx::make_unexpected("after READ only ONLY|WRITE are allowed.");
+    return stdx::unexpected("after READ only ONLY|WRITE are allowed.");
   }
 
   return {};

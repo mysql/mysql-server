@@ -326,7 +326,7 @@ static stdx::expected<native_handle_type, std::error_code> connect_to_host(
   const auto connect_res = net::impl::socket::connect(
       socket_res.value(), ainfo->ai_addr, ainfo->ai_addrlen);
   if (!connect_res) {
-    return stdx::make_unexpected(connect_res.error());
+    return stdx::unexpected(connect_res.error());
   }
 
   // return the fd

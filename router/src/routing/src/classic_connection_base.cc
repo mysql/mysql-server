@@ -488,7 +488,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
     const auto decoded_size = decode_session_res->first;
 
     if (decoded_size == 0) {
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     enum class Type {

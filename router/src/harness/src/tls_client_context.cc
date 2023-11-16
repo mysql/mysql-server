@@ -103,12 +103,11 @@ stdx::expected<void, std::error_code> TlsClientContext::cipher_suites(
 // TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
   if (1 != SSL_CTX_set_ciphersuites(ssl_ctx_.get(), ciphers.c_str())) {
-    return stdx::make_unexpected(make_tls_error());
+    return stdx::unexpected(make_tls_error());
   }
 #else
   (void)ciphers;
-  return stdx::make_unexpected(
-      make_error_code(std::errc::function_not_supported));
+  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
 #endif
 
   return {};
@@ -118,7 +117,7 @@ stdx::expected<void, std::error_code> TlsClientContext::cipher_list(
     const std::string &ciphers) {
   // TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
   if (1 != SSL_CTX_set_cipher_list(ssl_ctx_.get(), ciphers.c_str())) {
-    return stdx::make_unexpected(make_tls_error());
+    return stdx::unexpected(make_tls_error());
   }
 
   return {};
@@ -138,14 +137,12 @@ stdx::expected<void, std::error_code> TlsClientContext::verify_hostname(
   */
   if (1 != X509_VERIFY_PARAM_set1_ip_asc(param, server_host.c_str())) {
     if (1 != X509_VERIFY_PARAM_set1_host(param, server_host.c_str(), 0)) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
   }
 #else
   (void)server_host;
-  return stdx::make_unexpected(
-      make_error_code(std::errc::function_not_supported));
+  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
 #endif
   return {};
 }
@@ -230,6 +227,6 @@ stdx::expected<SSL_SESSION *, std::error_code> TlsClientContext::get_session() {
     }
   }
 
-  return stdx::make_unexpected(
+  return stdx::unexpected(
       make_error_code(std::errc::no_such_file_or_directory));
 }

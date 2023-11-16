@@ -105,24 +105,24 @@ template <size_t N>
 stdx::expected<std::array<std::string, N>, MysqlError> query_one(
     MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = std::move(*cmd_res);
 
   auto res_it = results.begin();
   if (!(res_it != results.end())) {
-    return stdx::make_unexpected(MysqlError(1, "No results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No results", "HY000"));
   }
 
   if (res_it->field_count() != N) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         MysqlError(1, "field-count doesn't match", "HY000"));
   }
 
   auto rows = res_it->rows();
   auto rows_it = rows.begin();
   if (rows_it == rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "No rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No rows", "HY000"));
   }
 
   std::array<std::string, N> out;
@@ -132,12 +132,12 @@ stdx::expected<std::array<std::string, N>, MysqlError> query_one(
 
   ++rows_it;
   if (rows_it != rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many rows", "HY000"));
   }
 
   ++res_it;
   if (res_it != results.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many results", "HY000"));
   }
 
   return out;
@@ -149,7 +149,7 @@ static stdx::expected<uint64_t, std::error_code> from_string(
   uint64_t num;
   auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), num);
 
-  if (ec != std::errc{}) return stdx::make_unexpected(make_error_code(ec));
+  if (ec != std::errc{}) return stdx::unexpected(make_error_code(ec));
 
   return num;
 }
@@ -408,12 +408,11 @@ class SharedRouter {
 
     if (auto *v = JsonPointer(pointer).Get(json_doc)) {
       if (!v->IsInt()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
       }
       return v->GetInt();
     } else {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::no_such_file_or_directory));
     }
   }
@@ -430,12 +429,12 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);

@@ -846,7 +846,7 @@ GRClusterMetadata::fetch_cluster_topology(
   log_debug("Updating metadata information for cluster '%s'",
             target_cluster.c_str());
   stdx::expected<metadata_cache::ClusterTopology, std::error_code> result{
-      stdx::make_unexpected(make_error_code(
+      stdx::unexpected(make_error_code(
           metadata_cache::metadata_errc::no_metadata_server_reached))},
       result_tmp;
   instance_id = 0;
@@ -871,11 +871,11 @@ GRClusterMetadata::fetch_cluster_topology(
           last_fetch_cluster_id == i)
         continue;
 
-      result_tmp = stdx::make_unexpected(make_error_code(
+      result_tmp = stdx::unexpected(make_error_code(
           metadata_cache::metadata_errc::no_metadata_read_successful));
 
       if (terminated) {
-        return stdx::make_unexpected(make_error_code(
+        return stdx::unexpected(make_error_code(
             metadata_cache::metadata_errc::metadata_refresh_terminated));
       }
 
@@ -1161,7 +1161,7 @@ static stdx::expected<uint64_t, std::error_code> get_member_view_id(
 
   std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
   if (!row) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   }
 
@@ -1199,7 +1199,7 @@ static stdx::expected<std::string, std::error_code> get_clusterset_id(
 
   std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
   if (!row) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   }
 
@@ -1436,7 +1436,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
           metadata_server.address().c_str(), metadata_server.port(),
           target_cluster.c_str());
 
-      return stdx::make_unexpected(cluster_id_res.error());
+      return stdx::unexpected(cluster_id_res.error());
     }
     cs_id = cluster_id_res.value();
   }
@@ -1448,7 +1448,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         "could not find ClusterSet with ID '%s' in the metadata",
         metadata_server.address().c_str(), metadata_server.port(),
         cs_id.c_str());
-    return stdx::make_unexpected(view_id_res.error());
+    return stdx::unexpected(view_id_res.error());
   }
   const uint64_t view_id = view_id_res.value();
 
@@ -1462,19 +1462,19 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
              metadata_server.address().c_str(), metadata_server.port(), view_id,
              this->view_id_);
 
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
 
   if (view_id == this->view_id_ && metadata_read_) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
 
   // get target_cluster info
   auto new_target_cluster_op = router_options.get_target_cluster();
   if (!new_target_cluster_op) {
-    return stdx::make_unexpected(make_error_code(
+    return stdx::unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
   const auto [target_cluster_id, target_cluster_name, new_target_cluster] =
@@ -1490,7 +1490,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   if (target_cluster_id.empty()) {
     log_error("Could not find target_cluster '%s' in the metadata",
               (*new_target_cluster_op).c_str());
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   } else {
     if (target_cluster_changed) {

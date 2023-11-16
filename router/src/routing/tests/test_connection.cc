@@ -66,7 +66,7 @@ class MockProtocol : public BaseProtocol {
   stdx::expected<size_t, std::error_code> copy_packets(int, int, bool,
                                                        std::vector<uint8_t> &,
                                                        int *, bool &, bool) {
-    return stdx::make_unexpected(make_error_code(std::errc::connection_reset));
+    return stdx::unexpected(make_error_code(std::errc::connection_reset));
   }
 };
 
@@ -121,7 +121,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   // pretend the server side is readable.
   EXPECT_CALL(io_ops, poll_one(_))
       .WillRepeatedly(
-          Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
+          Return(stdx::unexpected(make_error_code(std::errc::timed_out))));
 
   EXPECT_CALL(*dynamic_cast<MockProtocol *>(&context.get_protocol()),
               get_type())
@@ -134,8 +134,8 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
 
   // pretend the server closed the socket on the first recvmsg().
   EXPECT_CALL(sock_ops, recvmsg(server_socket_handle, _, _))
-      .WillOnce(Return(
-          stdx::make_unexpected(make_error_code(net::stream_errc::eof))));
+      .WillOnce(
+          Return(stdx::unexpected(make_error_code(net::stream_errc::eof))));
 
   // each FD is removed once
   EXPECT_CALL(io_ops, remove_fd(client_socket_handle)).Times(1);

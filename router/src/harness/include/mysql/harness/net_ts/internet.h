@@ -394,15 +394,13 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
     // empty and numerics with leading -|+ are invalid
     if (*after_percent == '\0' || *after_percent == '-' ||
         *after_percent == '+') {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     char *err{nullptr};
     scope_id = ::strtoul(after_percent, &err, 10);
     if (*err != '\0') {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::invalid_argument));
+      return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
     std::string before_percent(str, percent);
@@ -415,9 +413,9 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
     return {std::in_place, ipv6_addr, scope_id};
   } else if (inet_pton_res == 0) {
     // parse failed
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   } else {
-    return stdx::make_unexpected(impl::socket::last_error_code());
+    return stdx::unexpected(impl::socket::last_error_code());
   }
 }
 
@@ -437,9 +435,9 @@ inline stdx::expected<address_v4, std::error_code> make_address_v4(
     return {ipv4_addr};
   } else if (res == 0) {
     // parse failed
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   } else {
-    return stdx::make_unexpected(impl::socket::last_error_code());
+    return stdx::unexpected(impl::socket::last_error_code());
   }
 }
 
@@ -458,7 +456,7 @@ inline stdx::expected<address, std::error_code> make_address(const char *str) {
     auto v4_res = make_address_v4(str);
 
     if (v4_res) return address{*v4_res};
-    return stdx::make_unexpected(v4_res.error());
+    return stdx::unexpected(v4_res.error());
   }
 }
 
@@ -630,7 +628,7 @@ class basic_resolver : public resolver_base {
         host_name.empty() ? nullptr : host_name.c_str(),
         service_name.empty() ? nullptr : service_name.c_str(), &hints);
 
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return stdx::unexpected(res.error());
 
     return results_type{std::move(res.value()), host_name, service_name};
   }
@@ -654,7 +652,7 @@ class basic_resolver : public resolver_base {
         host_name.data(), host_name.size(), service_name.data(),
         service_name.size(), flags);
     if (!nameinfo_res) {
-      return stdx::make_unexpected(nameinfo_res.error());
+      return stdx::unexpected(nameinfo_res.error());
     }
 
     // find \0 char in array. If \0 isn't found, end of array.

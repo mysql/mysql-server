@@ -451,14 +451,13 @@ static MysqlError make_mysql_error_code(MYSQL *m) {
 stdx::expected<MySQLSession::mysql_result_type, MysqlError>
 MySQLSession::real_query(const std::string &q) {
   if (!connected_) {
-    return stdx::make_unexpected(
-        make_mysql_error_code(CR_COMMANDS_OUT_OF_SYNC));
+    return stdx::unexpected(make_mysql_error_code(CR_COMMANDS_OUT_OF_SYNC));
   }
 
   auto query_res = mysql_real_query(connection_, q.data(), q.size());
 
   if (query_res != 0) {
-    return stdx::make_unexpected(make_mysql_error_code(connection_));
+    return stdx::unexpected(make_mysql_error_code(connection_));
   }
 
   mysql_result_type res{mysql_store_result(connection_)};
@@ -466,7 +465,7 @@ MySQLSession::real_query(const std::string &q) {
     // no error, but also no resultset
     if (mysql_errno(connection_) == 0) return {};
 
-    return stdx::make_unexpected(make_mysql_error_code(connection_));
+    return stdx::unexpected(make_mysql_error_code(connection_));
   }
 
   return res;

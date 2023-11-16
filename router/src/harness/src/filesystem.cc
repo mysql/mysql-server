@@ -259,8 +259,7 @@ stdx::expected<void, std::error_code> delete_dir_recursive(
       }
     }
   } catch (...) {
-    return stdx::make_unexpected(
-        std::error_code(errno, std::system_category()));
+    return stdx::unexpected(std::error_code(errno, std::system_category()));
   }
 
   return delete_dir(dir);

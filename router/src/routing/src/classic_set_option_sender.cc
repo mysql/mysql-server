@@ -101,7 +101,7 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::response() {
     tr.trace(Tracer::Event().stage("set_option::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionSender::eof() {

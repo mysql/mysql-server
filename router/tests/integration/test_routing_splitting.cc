@@ -133,11 +133,11 @@ static std::vector<std::vector<std::vector<std::string>>> result_as_vector(
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -149,7 +149,7 @@ static stdx::expected<uint64_t, std::error_code> from_string(
   uint64_t num;
   auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), num);
 
-  if (ec != std::errc{}) return stdx::make_unexpected(make_error_code(ec));
+  if (ec != std::errc{}) return stdx::unexpected(make_error_code(ec));
 
   return num;
 }
@@ -158,17 +158,16 @@ static stdx::expected<uint64_t, std::error_code> from_string(
 static stdx::expected<std::vector<std::pair<std::string, uint32_t>>, MysqlError>
 changed_event_counters_impl(MysqlClient &cli, std::string_view stmt) {
   auto query_res = cli.query(stmt);
-  if (!query_res) return stdx::make_unexpected(query_res.error());
+  if (!query_res) return stdx::unexpected(query_res.error());
 
   auto query_it = query_res->begin();
 
   if (!(query_it != query_res->end())) {
-    return stdx::make_unexpected(MysqlError(1234, "No resultset", "HY000"));
+    return stdx::unexpected(MysqlError(1234, "No resultset", "HY000"));
   }
 
   if (2 != query_it->field_count()) {
-    return stdx::make_unexpected(
-        MysqlError(1234, "Expected two fields", "HY000"));
+    return stdx::unexpected(MysqlError(1234, "Expected two fields", "HY000"));
   }
 
   std::vector<std::pair<std::string, uint32_t>> events;
@@ -176,7 +175,7 @@ changed_event_counters_impl(MysqlClient &cli, std::string_view stmt) {
   for (const auto *row : query_it->rows()) {
     auto num_res = from_string(row[1]);
     if (!num_res) {
-      return stdx::make_unexpected(MysqlError(
+      return stdx::unexpected(MysqlError(
           1234,
           "converting " + std::string(row[1] != nullptr ? row[1] : "<NULL>") +
               " to an <uint32_t> failed",
@@ -746,13 +745,12 @@ class SharedRouter {
 
     if (auto *val = JsonPointer(pointer).Get(json_doc)) {
       if (!val->IsInt()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
       }
       return val->GetInt();
     }
 
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::no_such_file_or_directory));
   }
 
@@ -768,12 +766,12 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = idle_server_connections();
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
@@ -1341,14 +1339,13 @@ TEST_P(SplittingConnectionTest,
 
 stdx::expected<std::string, MysqlError> executed_gtid(MysqlClient &cli) {
   auto query_res = query_one_result(cli, "SELECT @@gtid_executed");
-  if (!query_res) return stdx::make_unexpected(query_res.error());
+  if (!query_res) return stdx::unexpected(query_res.error());
 
   if ((*query_res).size() != 1) {
-    return stdx::make_unexpected(MysqlError{2013, "expected a row", "HY000"});
+    return stdx::unexpected(MysqlError{2013, "expected a row", "HY000"});
   }
   if ((*query_res)[0].size() != 1) {
-    return stdx::make_unexpected(
-        MysqlError{2013, "expected one column", "HY000"});
+    return stdx::unexpected(MysqlError{2013, "expected one column", "HY000"});
   }
 
   return ((*query_res)[0][0]);

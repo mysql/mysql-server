@@ -59,13 +59,13 @@ session_trackers_to_string(net::const_buffer session_trackers,
         classic_protocol::borrowed::session_track::Field>(session_trackers,
                                                           caps);
     if (!decode_session_res) {
-      return stdx::make_unexpected(decode_session_res.error());
+      return stdx::unexpected(decode_session_res.error());
     }
 
     const auto decoded_size = decode_session_res->first;
 
     if (decoded_size == 0) {
-      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+      return stdx::unexpected(make_error_code(std::errc::bad_message));
     }
 
     switch (Type{decode_session_res->second.type()}) {

@@ -103,14 +103,12 @@ stdx::expected<OsslUniquePtr<RSA>, std::error_code> generate_rsa(
   OsslUniquePtr<RSA> rsa{RSA_new()};
   OsslUniquePtr<BIGNUM> bignum{BN_new()};
   if (!rsa || !bignum) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::rsa_generation_failed));
+    return stdx::unexpected(make_error_code(cert_errc::rsa_generation_failed));
   }
 
   if (!BN_set_word(bignum.get(), exponent) ||
       !RSA_generate_key_ex(rsa.get(), key_size, bignum.get(), nullptr)) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::rsa_generation_failed));
+    return stdx::unexpected(make_error_code(cert_errc::rsa_generation_failed));
   }
 
   return {std::move(rsa)};
@@ -164,7 +162,7 @@ CertificateGenerator::generate_evp_pkey() {
   const unsigned int exponent = RSA_F4;
 
   auto rsa_res = generate_rsa(key_size, exponent);
-  if (!rsa_res) return stdx::make_unexpected(rsa_res.error());
+  if (!rsa_res) return stdx::unexpected(rsa_res.error());
 
   auto rsa = std::move(*rsa_res);
 
@@ -172,7 +170,7 @@ CertificateGenerator::generate_evp_pkey() {
   // pkey takes control over the rsa lifetime, assign_RSA function guarantees
   // that rsa will be freed on pkey destruction
   if (!EVP_PKEY_assign_RSA(pkey.get(), rsa.get())) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::evp_pkey_generation_failed));
   }
   (void)rsa.release();
@@ -227,54 +225,50 @@ stdx::expected<X509Cert, std::error_code> CertificateGenerator::generate_x509(
 
   X509Cert cert{X509_new()};
   if (!cert) {
-    return stdx::make_unexpected(make_error_code(cert_errc::cert_alloc_failed));
+    return stdx::unexpected(make_error_code(cert_errc::cert_alloc_failed));
   }
 
   // Set certificate version
   if (!X509_set_version(cert.get(), 2)) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::cert_set_version_failed));
   }
 
   // Set serial number
   if (!ASN1_INTEGER_set(X509_get_serialNumber(cert.get()), serial)) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::cert_set_serial_failed));
+    return stdx::unexpected(make_error_code(cert_errc::cert_set_serial_failed));
   }
 
   // Set certificate validity
   if (!X509_gmtime_adj(X509_get_notBefore(cert.get()), notbefore) ||
       !X509_gmtime_adj(X509_get_notAfter(cert.get()), notafter)) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::cert_set_validity_failed));
   }
 
   // Set public key
   if (!X509_set_pubkey(cert.get(), pkey)) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::cert_set_public_key_failed));
   }
 
   // Set CN value in subject
   auto name = X509_get_subject_name(cert.get());
   if (!name) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::cert_set_cn_failed));
+    return stdx::unexpected(make_error_code(cert_errc::cert_set_cn_failed));
   }
 
   if (!X509_NAME_add_entry_by_txt(
           name, "CN", MBSTRING_ASC,
           reinterpret_cast<const unsigned char *>(common_name.c_str()), -1, -1,
           0)) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::cert_set_cn_failed));
+    return stdx::unexpected(make_error_code(cert_errc::cert_set_cn_failed));
   }
 
   // Set Issuer
   if (!X509_set_issuer_name(cert.get(),
                             ca_cert ? X509_get_subject_name(ca_cert) : name)) {
-    return stdx::make_unexpected(
-        make_error_code(cert_errc::cert_set_issuer_failed));
+    return stdx::unexpected(make_error_code(cert_errc::cert_set_issuer_failed));
   }
 
   // Add X509v3 extensions
@@ -288,14 +282,14 @@ stdx::expected<X509Cert, std::error_code> CertificateGenerator::generate_x509(
                           ca_cert ? const_cast<char *>("critical,CA:FALSE")
                                   : const_cast<char *>("critical,CA:TRUE"))};
   if (!ext) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::cert_set_v3_extensions_failed));
   }
   X509_add_ext(cert.get(), ext.get(), -1);
 
   // Sign using SHA256
   if (!X509_sign(cert.get(), ca_cert ? ca_pkey : pkey, EVP_sha256())) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(cert_errc::cert_could_not_be_signed));
   }
 

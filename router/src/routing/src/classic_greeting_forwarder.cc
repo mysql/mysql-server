@@ -271,7 +271,7 @@ classic_proto_verify_connection_attributes(const std::string &attrs) {
 
   // if the last key doesn't have a value, fail
   if (!is_key || net::buffer_size(attr_buf) != 0) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   return {};
@@ -2182,7 +2182,7 @@ ServerFirstAuthenticator::fetch_user_attrs_done() {
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
         dst_channel, dst_protocol, {1045, "Access denied", "28000"});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     stage(Stage::Error);
     return Result::SendToClient;
@@ -2195,7 +2195,7 @@ ServerFirstAuthenticator::fetch_user_attrs_done() {
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
         dst_channel, dst_protocol, {1045, "Access denied", "28000"});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     stage(Stage::Error);
     return Result::SendToClient;
@@ -2204,7 +2204,7 @@ ServerFirstAuthenticator::fetch_user_attrs_done() {
   auto send_res =
       ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
           dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   stage(Stage::Ok);
   return Result::SendToClient;

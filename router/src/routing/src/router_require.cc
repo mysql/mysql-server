@@ -201,7 +201,7 @@ class SelectUserAttributesHandler : public QuerySender::Handler {
 
     auto parse_res = parse_router_require(it->value());
     if (!parse_res) {
-      result_ = stdx::make_unexpected(classic_protocol::message::server::Error{
+      result_ = stdx::unexpected(classic_protocol::message::server::Error{
           kAccessDenied, "Access denied", "28000"});
       return;
     }
@@ -218,7 +218,7 @@ class SelectUserAttributesHandler : public QuerySender::Handler {
     // error, shouldn't happen. Log it.
     log_debug("fetching user-attrs failed: %s", err.message().c_str());
 
-    result_ = stdx::make_unexpected(err);
+    result_ = stdx::unexpected(err);
   }
 
   void on_error(const classic_protocol::message::server::Error &err) override {
@@ -227,7 +227,7 @@ class SelectUserAttributesHandler : public QuerySender::Handler {
     // error, shouldn't happen. Log it.
     log_debug("fetching user-attrs failed: %s", err.message().c_str());
 
-    result_ = stdx::make_unexpected(err);
+    result_ = stdx::unexpected(err);
   }
 
   void failed(classic_protocol::message::server::Error msg) {

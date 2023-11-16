@@ -61,14 +61,14 @@ SharedServer::~SharedServer() {
 
 stdx::expected<void, MysqlError> SharedServer::shutdown() {
   auto cli_res = admin_cli();
-  if (!cli_res) return stdx::make_unexpected(cli_res.error());
+  if (!cli_res) return stdx::unexpected(cli_res.error());
 
   return shutdown(*cli_res);
 }
 
 stdx::expected<void, MysqlError> SharedServer::shutdown(MysqlClient &cli) {
   auto shutdown_res = cli.shutdown();
-  if (!shutdown_res) return stdx::make_unexpected(shutdown_res.error());
+  if (!shutdown_res) return stdx::unexpected(shutdown_res.error());
 
   return {};
 }
@@ -413,7 +413,7 @@ SharedServer::user_connection_ids(MysqlClient &cli,
       "SELECT id FROM performance_schema.processlist WHERE id != "
       "CONNECTION_ID() AND User IN (" +
       oss.str() + ")");
-  if (!ids_res) return stdx::make_unexpected(ids_res.error());
+  if (!ids_res) return stdx::unexpected(ids_res.error());
 
   std::vector<uint64_t> ids;
   for (const auto &res : *ids_res) {
@@ -431,7 +431,7 @@ stdx::expected<void, MysqlError> SharedServer::close_all_connections(
   SCOPED_TRACE("// closing all connections at the server.");
 
   auto cli_res = admin_cli();
-  if (!cli_res) return stdx::make_unexpected(cli_res.error());
+  if (!cli_res) return stdx::unexpected(cli_res.error());
 
   return close_all_connections(*cli_res, usernames);
 }
@@ -440,7 +440,7 @@ stdx::expected<void, MysqlError> SharedServer::close_all_connections(
     MysqlClient &cli, const std::vector<std::string> &usernames) {
   {
     auto ids_res = user_connection_ids(cli, usernames);
-    if (!ids_res) return stdx::make_unexpected(ids_res.error());
+    if (!ids_res) return stdx::unexpected(ids_res.error());
 
     for (auto id : *ids_res) {
       auto kill_res = cli.query("KILL " + std::to_string(id));
@@ -448,7 +448,7 @@ stdx::expected<void, MysqlError> SharedServer::close_all_connections(
       // either it succeeds or "Unknown thread id" because it closed itself
       // between the SELECT and this kill
       if (!kill_res && kill_res.error().value() != 1094) {
-        return stdx::make_unexpected(kill_res.error());
+        return stdx::unexpected(kill_res.error());
       }
     }
   }
@@ -460,12 +460,12 @@ stdx::expected<void, MysqlError> SharedServer::close_all_connections(
     auto end = clock_type::now() + 1000ms;
     do {
       auto ids_res = user_connection_ids(cli, usernames);
-      if (!ids_res) return stdx::make_unexpected(ids_res.error());
+      if (!ids_res) return stdx::unexpected(ids_res.error());
 
       if ((*ids_res).empty()) break;
 
       if (clock_type::now() >= end) {
-        return stdx::make_unexpected(make_mysql_error_code(2006));
+        return stdx::unexpected(make_mysql_error_code(2006));
       }
 
       std::this_thread::sleep_for(10ms);

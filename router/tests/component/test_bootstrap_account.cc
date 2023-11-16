@@ -499,12 +499,12 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     auto ai_res = net::impl::resolver::getaddrinfo(local_hostname.c_str(),
                                                    "3306", &hints);
     if (!ai_res) {
-      return stdx::make_unexpected(ai_res.error());
+      return stdx::unexpected(ai_res.error());
     }
 
     auto localhost_ip_res = net::ip::make_address("127.0.0.1");
     if (!localhost_ip_res) {
-      return stdx::make_unexpected(localhost_ip_res.error());
+      return stdx::unexpected(localhost_ip_res.error());
     }
 
     const auto localhost_ip = localhost_ip_res.value();
@@ -515,8 +515,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
       net::ip::tcp::endpoint ep;
 
       if (ai->ai_addrlen > ep.capacity()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::no_space_on_device));
+        return stdx::unexpected(make_error_code(std::errc::no_space_on_device));
       }
       std::memcpy(ep.data(), ai->ai_addr, ai->ai_addrlen);
       ep.resize(ai->ai_addrlen);
@@ -530,7 +529,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
       }
     }
 
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::no_such_file_or_directory));
   }
 

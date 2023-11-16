@@ -180,7 +180,7 @@ stdx::expected<void, std::error_code> connect_pair(
   Protocol proto;
   const auto res = io_ctx->socket_service()->socketpair(
       proto.family(), proto.type(), proto.protocol());
-  if (!res) return stdx::make_unexpected(res.error());
+  if (!res) return stdx::unexpected(res.error());
 
   const auto fds = *res;
 

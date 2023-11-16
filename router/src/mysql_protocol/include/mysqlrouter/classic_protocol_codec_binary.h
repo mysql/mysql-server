@@ -217,7 +217,7 @@ class FixedIntCodec : public impl::EncodeBase<FixedIntCodec<T>> {
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto value_res = accu.template step<wire::FixedInt<byte_size>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(value_res->value()));
@@ -271,7 +271,7 @@ class FloatCodec : public impl::EncodeBase<FloatCodec<T>> {
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto value_res = accu.template step<borrowed::wire::String>(byte_size);
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     typename T::value_type val;
 
@@ -311,7 +311,7 @@ class StringCodec : public impl::EncodeBase<StringCodec<Borrowed, T>> {
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto value_res = accu.template step<borrowable::wire::String<Borrowed>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
                           value_type(value_res->value()));
@@ -370,7 +370,7 @@ class DatetimeCodec : public impl::EncodeBase<DatetimeCodec<T>> {
 
     auto month_res = accu.template step<wire::FixedInt<1>>();
     auto day_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     auto hour_res = accu.template try_step<wire::FixedInt<1>>();
     if (!hour_res) {
@@ -381,7 +381,7 @@ class DatetimeCodec : public impl::EncodeBase<DatetimeCodec<T>> {
 
     auto minute_res = accu.template step<wire::FixedInt<1>>();
     auto second_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     auto microsecond_res = accu.template try_step<wire::FixedInt<4>>();
     if (!microsecond_res) {
@@ -392,7 +392,7 @@ class DatetimeCodec : public impl::EncodeBase<DatetimeCodec<T>> {
                      second_res->value()));
     }
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),
@@ -451,7 +451,7 @@ class TimeCodec : public impl::EncodeBase<TimeCodec<T>> {
     auto microsecond_res = accu.template try_step<wire::FixedInt<4>>();
 
     if (!microsecond_res) {
-      if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+      if (!accu.result()) return stdx::unexpected(accu.result().error());
 
       return std::make_pair(
           accu.result().value(),
@@ -460,7 +460,7 @@ class TimeCodec : public impl::EncodeBase<TimeCodec<T>> {
                      second_res->value()));
     }
 
-    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+    if (!accu.result()) return stdx::unexpected(accu.result().error());
 
     return std::make_pair(
         accu.result().value(),

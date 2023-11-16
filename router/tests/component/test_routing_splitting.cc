@@ -69,7 +69,7 @@ static stdx::expected<uint64_t, std::error_code> from_string(
   uint64_t num;
   auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), num);
 
-  if (ec != std::errc{}) return stdx::make_unexpected(make_error_code(ec));
+  if (ec != std::errc{}) return stdx::unexpected(make_error_code(ec));
 
   return num;
 }
@@ -107,11 +107,11 @@ static std::vector<std::vector<std::vector<std::string>>> result_as_vector(
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -121,11 +121,11 @@ static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt,
                  std::span<MYSQL_BIND> params, std::span<const char *> names) {
   auto cmd_res = cli.query(stmt, params, names);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -186,7 +186,7 @@ class RoutingSplittingTestBase : public RouterComponentTest {
       }
     }
 
-    return stdx::make_unexpected(make_error_code(std::errc::no_such_process));
+    return stdx::unexpected(make_error_code(std::errc::no_such_process));
   }
 
   void start_mock_cluster() {
@@ -289,16 +289,16 @@ class RoutingSplittingTestBase : public RouterComponentTest {
       MysqlClient &cli) {
     auto warnings_res = query_one_result(cli, "SHOW warnings");
     if (!warnings_res) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << warnings_res.error());
+      return stdx::unexpected(testing::AssertionFailure()
+                              << warnings_res.error());
     }
 
     auto warnings = *warnings_res;
 
     EXPECT_THAT(warnings, SizeIs(::testing::Ge(1)));
     if (warnings.empty()) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << "expected warnings to be not empty.");
+      return stdx::unexpected(testing::AssertionFailure()
+                              << "expected warnings to be not empty.");
     }
 
     auto json_row = warnings_res->back();
@@ -307,8 +307,8 @@ class RoutingSplittingTestBase : public RouterComponentTest {
 
     if (json_row.size() != 3 || json_row[0] != "Note" ||
         json_row[1] != kErRouterTrace) {
-      return stdx::make_unexpected(testing::AssertionFailure()
-                                   << "expected warnings to be not empty.");
+      return stdx::unexpected(testing::AssertionFailure()
+                              << "expected warnings to be not empty.");
     }
 
     return json_row[2];

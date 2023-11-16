@@ -280,7 +280,7 @@ StmtPrepareForwarder::forbid_command() {
       src_channel, src_protocol,
       {1064, "prepared statements not allowed with access_mode = 'auto'",
        "42000"});
-  if (!send_res) return stdx::make_unexpected(send_res.error());
+  if (!send_res) return stdx::unexpected(send_res.error());
 
   return Result::SendToClient;
 }
@@ -435,7 +435,7 @@ StmtPrepareForwarder::response() {
     tr.trace(Tracer::Event().stage("stmt_prepare::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
@@ -482,7 +482,7 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
     msg.warning_count(msg.warning_count() + 1);
 
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     discard_current_msg(src_channel, src_protocol);
 
@@ -567,7 +567,7 @@ StmtPrepareForwarder::end_of_params() {
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Eof>(dst_channel,
                                                           dst_protocol, {});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     return has_more_messages() ? Result::Again : Result::SendToClient;
   }
@@ -577,7 +577,7 @@ StmtPrepareForwarder::end_of_params() {
     auto msg_res = ClassicFrame::recv_msg<
         classic_protocol::borrowed::message::server::Eof>(src_channel,
                                                           src_protocol);
-    if (!msg_res) return stdx::make_unexpected(msg_res.error());
+    if (!msg_res) return stdx::unexpected(msg_res.error());
 
     discard_current_msg(src_channel, src_protocol);
 

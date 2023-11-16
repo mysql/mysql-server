@@ -159,7 +159,7 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::response() {
     tr.trace(Tracer::Event().stage("clone::response"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::ok() {
@@ -238,7 +238,7 @@ CloneForwarder::clone_command() {
     tr.trace(Tracer::Event().stage("clone::clone::*"));
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code>

@@ -90,7 +90,7 @@ static stdx::expected<local::datagram_protocol::socket, std::error_code>
 connect_to_notify_socket(net::io_context &io_ctx,
                          const std::string &socket_name) {
   if (socket_name.empty()) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   auto sock_name = socket_name;
@@ -101,7 +101,7 @@ connect_to_notify_socket(net::io_context &io_ctx,
 
   if (ep.path() != sock_name) {
     // socket name was truncated
-    return stdx::make_unexpected(make_error_code(std::errc::filename_too_long));
+    return stdx::unexpected(make_error_code(std::errc::filename_too_long));
   }
 
   local::datagram_protocol::socket sock(io_ctx);

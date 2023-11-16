@@ -525,7 +525,7 @@ LazyConnector::send_auth_ok() {
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
             dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     return Result::SendToClient;
   } else {
@@ -897,7 +897,7 @@ LazyConnector::pool_or_close() {
   stage(Stage::FallbackToWrite);
 
   const auto pool_res = pool_server_connection();
-  if (!pool_res) return stdx::make_unexpected(pool_res.error());
+  if (!pool_res) return stdx::unexpected(pool_res.error());
 
   const auto still_open = *pool_res;
   if (still_open) {

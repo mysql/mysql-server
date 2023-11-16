@@ -1097,7 +1097,7 @@ DuktapeStatementReader::handshake(bool is_greeting) {
         duk_pop(ctx);  // retval
         duk_pop(ctx);  // handshake
 
-        return stdx::make_unexpected(ErrorResponse{
+        return stdx::unexpected(ErrorResponse{
             2013, "handshake-function must return an object, if set", "HY000"});
       }
     }
@@ -1170,14 +1170,14 @@ DuktapeStatementReader::handshake(bool is_greeting) {
   duk_pop(ctx);
 
   if (error) {
-    return stdx::make_unexpected(*error);
+    return stdx::unexpected(*error);
   }
   if (!server_greeting_res) {
     ec = server_greeting_res.error();
   }
 
   if (ec) {
-    return stdx::make_unexpected(ErrorResponse{2013, ec.message(), "HY000"});
+    return stdx::unexpected(ErrorResponse{2013, ec.message(), "HY000"});
   }
 
   return handshake_data{

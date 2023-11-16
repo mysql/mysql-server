@@ -408,7 +408,7 @@ class TlsSwitchableConnection {
 
   [[nodiscard]] stdx::expected<void, std::error_code> close() const {
     if (!conn_) {
-      return stdx::make_unexpected(make_error_code(std::errc::not_connected));
+      return stdx::unexpected(make_error_code(std::errc::not_connected));
     }
     return conn_->close();
   }
@@ -416,7 +416,7 @@ class TlsSwitchableConnection {
   [[nodiscard]] stdx::expected<void, std::error_code> shutdown(
       net::socket_base::shutdown_type st) const {
     if (!conn_) {
-      return stdx::make_unexpected(make_error_code(std::errc::not_connected));
+      return stdx::unexpected(make_error_code(std::errc::not_connected));
     }
     return conn_->shutdown(st);
   }

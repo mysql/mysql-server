@@ -456,13 +456,13 @@ stdx::expected<void, std::error_code> AcceptingEndpointTcpSocket::setup() {
   auto resolve_res = resolver.resolve(address_, std::to_string(port_));
 
   if (!resolve_res) {
-    return stdx::make_unexpected(resolve_res.error());
+    return stdx::unexpected(resolve_res.error());
   }
 
   net::ip::tcp::acceptor sock(io_ctx_);
 
   stdx::expected<void, std::error_code> last_res =
-      stdx::make_unexpected(make_error_code(net::socket_errc::not_found));
+      stdx::unexpected(make_error_code(net::socket_errc::not_found));
 
   // Try to setup socket and bind
   for (auto const &addr : resolve_res.value()) {
@@ -497,7 +497,7 @@ stdx::expected<void, std::error_code> AcceptingEndpointTcpSocket::setup() {
     last_res = sock.listen(kListenQueueSize);
     if (!last_res) {
       // bind() succeeded, but listen() failed: don't retry.
-      return stdx::make_unexpected(last_res.error());
+      return stdx::unexpected(last_res.error());
     }
 
     service_endpoint_ = addr.endpoint();
@@ -506,7 +506,7 @@ stdx::expected<void, std::error_code> AcceptingEndpointTcpSocket::setup() {
     return {};
   }
 
-  return stdx::make_unexpected(last_res.error());
+  return stdx::unexpected(last_res.error());
 }
 
 stdx::expected<void, std::error_code> AcceptingEndpointTcpSocket::cancel() {
@@ -542,7 +542,7 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
   local::stream_protocol::acceptor sock(io_ctx_);
   auto last_res = sock.open();
   if (!last_res) {
-    return stdx::make_unexpected(last_res.error());
+    return stdx::unexpected(last_res.error());
   }
 
   local::stream_protocol::endpoint ep(socket_name_);
@@ -550,7 +550,7 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
   last_res = sock.bind(ep);
   if (!last_res) {
     if (last_res.error() != make_error_code(std::errc::address_in_use)) {
-      return stdx::make_unexpected(last_res.error());
+      return stdx::unexpected(last_res.error());
     }
     // file exists, try to connect to it to see if the socket is already in
     // use
@@ -561,8 +561,7 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
       log_error("Socket file %s already in use by another process",
                 socket_name_.c_str());
 
-      return stdx::make_unexpected(
-          make_error_code(std::errc::already_connected));
+      return stdx::unexpected(make_error_code(std::errc::already_connected));
     } else if (connect_res.error() ==
                make_error_code(std::errc::connection_refused)) {
       log_warning(
@@ -578,13 +577,13 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
                                mysqlrouter::to_string(ec) + "))";
 
           log_warning("%s", errmsg.c_str());
-          return stdx::make_unexpected(ec);
+          return stdx::unexpected(ec);
         }
       }
 
       last_res = sock.bind(ep);
       if (!last_res) {
-        return stdx::make_unexpected(last_res.error());
+        return stdx::unexpected(last_res.error());
       }
     } else {
       log_warning(
@@ -592,21 +591,21 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
           "failed: %s",
           socket_name_.c_str(), connect_res.error().message().c_str());
 
-      return stdx::make_unexpected(connect_res.error());
+      return stdx::unexpected(connect_res.error());
     }
   }
 
   try {
     mysql_harness::make_file_public(socket_name_);
   } catch (const std::system_error &ec) {
-    return stdx::make_unexpected(ec.code());
+    return stdx::unexpected(ec.code());
   } catch (const std::exception &e) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   last_res = sock.listen(kListenQueueSize);
   if (!last_res) {
-    return stdx::make_unexpected(last_res.error());
+    return stdx::unexpected(last_res.error());
   }
 
   service_ = std::move(sock);
@@ -884,7 +883,7 @@ MySQLRouting::restart_accepting_connections() {
 
 stdx::expected<void, std::string> MySQLRouting::start_accepting_connections() {
   if (!is_running()) {
-    return stdx::make_unexpected(std::string("Terminated"));
+    return stdx::unexpected(std::string("Terminated"));
   }
 
   std::string error_msg;
@@ -922,7 +921,7 @@ stdx::expected<void, std::string> MySQLRouting::start_accepting_connections() {
   }
 
   if (!error_msg.empty()) {
-    return stdx::make_unexpected(error_msg);
+    return stdx::unexpected(error_msg);
   }
 
   return {};

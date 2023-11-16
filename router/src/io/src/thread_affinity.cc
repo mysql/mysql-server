@@ -81,7 +81,7 @@ ThreadAffinity::affinity() const noexcept {
   thread_affinity_cpu_set_type cpuset;
 
   if (0 != pthread_getaffinity_np(thread_id_, sizeof(cpuset), &cpuset)) {
-    return stdx::make_unexpected(net::impl::socket::last_error_code());
+    return stdx::unexpected(net::impl::socket::last_error_code());
   }
 
   std::bitset<CPU_SETSIZE> cpus;
@@ -99,7 +99,7 @@ ThreadAffinity::affinity() const noexcept {
       SetThreadAffinityMask(thread_id_, GetCurrentProcessorNumber());
 
   if (cur_mask == 0) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         std::error_code(GetLastError(), std::generic_category()));
   }
 
@@ -109,7 +109,7 @@ ThreadAffinity::affinity() const noexcept {
   // create bitmask from old_mask.
   return {std::in_place, cur_mask};
 #else
-  return stdx::make_unexpected(make_error_code(std::errc::not_supported));
+  return stdx::unexpected(make_error_code(std::errc::not_supported));
 #endif
 }
 
@@ -133,18 +133,18 @@ stdx::expected<void, std::error_code> ThreadAffinity::affinity(
   }
 
   if (0 != pthread_setaffinity_np(thread_id_, sizeof(cpuset), &cpuset)) {
-    return stdx::make_unexpected(net::impl::socket::last_error_code());
+    return stdx::unexpected(net::impl::socket::last_error_code());
   }
 
   return {};
 #elif defined(_WIN32)
   DWORD_PTR new_mask = cpus.to_ullong();
   if (new_mask == 0) {
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
   DWORD_PTR old_mask = SetThreadAffinityMask(thread_id_, new_mask);
   if (old_mask == 0) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         std::error_code(GetLastError(), std::generic_category()));
   }
 
@@ -156,7 +156,7 @@ stdx::expected<void, std::error_code> ThreadAffinity::affinity(
 #if 0
   // to be tested.
   if (cpus.count() != 1) {
-    return stdx::make_unexpected(make_error_code(std::errc::not_supported));
+    return stdx::unexpected(make_error_code(std::errc::not_supported));
   }
 
   int affinity_tag = reinterpret_cast<int>(cpus.to_ulong());
@@ -166,13 +166,13 @@ stdx::expected<void, std::error_code> ThreadAffinity::affinity(
   thread_policy_set(mach_thread_id, THREAD_AFFINITY_POLICY,
                     reinterpret_cast<thread_policy_t>(&policy), 1);
 #else
-  return stdx::make_unexpected(make_error_code(std::errc::not_supported));
+  return stdx::unexpected(make_error_code(std::errc::not_supported));
 #endif
 #elif defined(__sun)
   // - processor_bind(), pset_bind()
-  return stdx::make_unexpected(make_error_code(std::errc::not_supported));
+  return stdx::unexpected(make_error_code(std::errc::not_supported));
 #else
-  return stdx::make_unexpected(make_error_code(std::errc::not_supported));
+  return stdx::unexpected(make_error_code(std::errc::not_supported));
 #endif
 }
 

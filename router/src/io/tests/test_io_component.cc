@@ -75,9 +75,9 @@ TEST_F(IoComponentTest, init_reinit_reset) {
   SCOPED_TRACE("// init once");
   EXPECT_TRUE(io_comp.init(1, defaultIoBackend));
   SCOPED_TRACE("// init again");
-  EXPECT_EQ(io_comp.init(1, defaultIoBackend),
-            stdx::make_unexpected(
-                make_error_code(IoComponentErrc::already_initialized)));
+  EXPECT_EQ(
+      io_comp.init(1, defaultIoBackend),
+      stdx::unexpected(make_error_code(IoComponentErrc::already_initialized)));
   io_comp.reset();
 }
 
@@ -124,7 +124,7 @@ TEST_F(IoComponentTest, init_unknown_backend) {
   SCOPED_TRACE("// init once");
   EXPECT_EQ(
       io_comp.init(1, "unknown_backend"),
-      stdx::make_unexpected(make_error_code(IoComponentErrc::unknown_backend)));
+      stdx::unexpected(make_error_code(IoComponentErrc::unknown_backend)));
 }
 
 #if defined(__linux__)
@@ -168,13 +168,13 @@ TEST_F(IoComponentTest, INIT_TOO_MANY_THREADS_TEST_NAME) {
   SCOPED_TRACE("// trigger the 'can't spawn-threads'");
   EXPECT_THAT(
       io_comp.init(std::numeric_limits<size_t>::max(), defaultIoBackend),
-      ::testing::AnyOf(stdx::make_unexpected(make_error_condition(
-                           std::errc::resource_unavailable_try_again)),
-                       stdx::make_unexpected(make_error_condition(
-                           std::errc::too_many_files_open)),
-                       // windows WSAENOBUFS
-                       stdx::make_unexpected(
-                           std::error_code(10055, std::system_category()))));
+      ::testing::AnyOf(
+          stdx::unexpected(
+              make_error_condition(std::errc::resource_unavailable_try_again)),
+          stdx::unexpected(
+              make_error_condition(std::errc::too_many_files_open)),
+          // windows WSAENOBUFS
+          stdx::unexpected(std::error_code(10055, std::system_category()))));
 
 #if defined(__linux__)
   SCOPED_TRACE("// reset the thread limit");

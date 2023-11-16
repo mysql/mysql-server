@@ -168,7 +168,7 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::response() {
       return Result::Again;
   }
 
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return stdx::unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> KillForwarder::ok() {
@@ -208,7 +208,7 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::ok() {
     msg.warning_count(msg.warning_count() + 1);
 
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
-    if (!send_res) return stdx::make_unexpected(send_res.error());
+    if (!send_res) return stdx::unexpected(send_res.error());
 
     discard_current_msg(src_channel, src_protocol);
 

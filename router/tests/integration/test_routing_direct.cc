@@ -136,11 +136,11 @@ static std::vector<std::vector<std::vector<std::string>>> result_as_vector(
 static stdx::expected<std::vector<std::vector<std::string>>, MysqlError>
 query_one_result(MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = result_as_vector(*cmd_res);
   if (results.size() != 1) {
-    return stdx::make_unexpected(MysqlError{1, "Too many results", "HY000"});
+    return stdx::unexpected(MysqlError{1, "Too many results", "HY000"});
   }
 
   return results.front();
@@ -151,24 +151,24 @@ template <size_t N>
 stdx::expected<std::array<std::string, N>, MysqlError> query_one(
     MysqlClient &cli, std::string_view stmt) {
   auto cmd_res = cli.query(stmt);
-  if (!cmd_res) return stdx::make_unexpected(cmd_res.error());
+  if (!cmd_res) return stdx::unexpected(cmd_res.error());
 
   auto results = std::move(*cmd_res);
 
   auto res_it = results.begin();
   if (res_it == results.end()) {
-    return stdx::make_unexpected(MysqlError(1, "No results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No results", "HY000"));
   }
 
   if (res_it->field_count() != N) {
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         MysqlError(1, "field-count doesn't match", "HY000"));
   }
 
   auto rows = res_it->rows();
   auto rows_it = rows.begin();
   if (rows_it == rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "No rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "No rows", "HY000"));
   }
 
   std::array<std::string, N> out;
@@ -178,12 +178,12 @@ stdx::expected<std::array<std::string, N>, MysqlError> query_one(
 
   ++rows_it;
   if (rows_it != rows.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many rows", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many rows", "HY000"));
   }
 
   ++res_it;
   if (res_it != results.end()) {
-    return stdx::make_unexpected(MysqlError(1, "Too many results", "HY000"));
+    return stdx::unexpected(MysqlError(1, "Too many results", "HY000"));
   }
 
   return out;
@@ -195,7 +195,7 @@ static stdx::expected<uint64_t, std::error_code> from_string(
   uint64_t num;
   auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), num);
 
-  if (ec != std::errc{}) return stdx::make_unexpected(make_error_code(ec));
+  if (ec != std::errc{}) return stdx::unexpected(make_error_code(ec));
 
   return num;
 }
@@ -204,17 +204,16 @@ static stdx::expected<uint64_t, std::error_code> from_string(
 static stdx::expected<std::vector<std::pair<std::string, uint32_t>>, MysqlError>
 changed_event_counters_impl(MysqlClient &cli, std::string_view stmt) {
   auto query_res = cli.query(stmt);
-  if (!query_res) return stdx::make_unexpected(query_res.error());
+  if (!query_res) return stdx::unexpected(query_res.error());
 
   auto query_it = query_res->begin();
 
   if (!(query_it != query_res->end())) {
-    return stdx::make_unexpected(MysqlError(1234, "No resultset", "HY000"));
+    return stdx::unexpected(MysqlError(1234, "No resultset", "HY000"));
   }
 
   if (2 != query_it->field_count()) {
-    return stdx::make_unexpected(
-        MysqlError(1234, "Expected two fields", "HY000"));
+    return stdx::unexpected(MysqlError(1234, "Expected two fields", "HY000"));
   }
 
   std::vector<std::pair<std::string, uint32_t>> events;
@@ -222,7 +221,7 @@ changed_event_counters_impl(MysqlClient &cli, std::string_view stmt) {
   for (auto row : query_it->rows()) {
     auto num_res = from_string(row[1]);
     if (!num_res) {
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           MysqlError(1234,
                      "converting " + std::string(row[1] ? row[1] : "<NULL>") +
                          " to an <uint32_t> failed",
@@ -504,14 +503,13 @@ class SharedRouter {
 
     if (auto *v = JsonPointer(pointer).Get(json_doc)) {
       if (!v->IsInt()) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+        return stdx::unexpected(make_error_code(std::errc::invalid_argument));
       }
       return v->GetInt();
     } else {
       std::cerr << json_doc << "\n";
 
-      return stdx::make_unexpected(
+      return stdx::unexpected(
           make_error_code(std::errc::no_such_file_or_directory));
     }
   }
@@ -533,12 +531,12 @@ class SharedRouter {
     const auto end_time = clock_type::now() + timeout;
     do {
       auto int_res = num_connections(param);
-      if (!int_res) return stdx::make_unexpected(int_res.error());
+      if (!int_res) return stdx::unexpected(int_res.error());
 
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+        return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
       std::this_thread::sleep_for(kIdleServerConnectionsSleepTime);
@@ -663,7 +661,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
   // get the first field, of the first row of the first resultset.
   for (const auto &result : *query_res) {
     if (result.field_count() == 0) {
-      return stdx::make_unexpected(MysqlError(1, "not a resultset", "HY000"));
+      return stdx::unexpected(MysqlError(1, "not a resultset", "HY000"));
     }
 
     for (auto row : result.rows()) {
@@ -673,7 +671,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
     }
   }
 
-  return stdx::make_unexpected(MysqlError(1, "no rows", "HY000"));
+  return stdx::unexpected(MysqlError(1, "no rows", "HY000"));
 }
 
 class ConnectionTestBase : public RouterComponentTest {
@@ -3308,10 +3306,10 @@ TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
 
       auto connect_res = admin_cli.connect(shared_router()->host(),
                                            shared_router()->port(GetParam()));
-      if (!connect_res) return stdx::make_unexpected(connect_res.error());
+      if (!connect_res) return stdx::unexpected(connect_res.error());
 
       auto query_res = admin_cli.query("SET GLOBAL max_connections = DEFAULT");
-      if (!query_res) return stdx::make_unexpected(query_res.error());
+      if (!query_res) return stdx::unexpected(query_res.error());
 
       return {};
     };
