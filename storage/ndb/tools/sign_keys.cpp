@@ -98,6 +98,18 @@ enum {
   SIGN_CO_PROCESS = 3
 } signing_method = SIGN_LOCAL;
 
+static inline bool signing_over_ssh() {
+  switch (signing_method) {
+    case SIGN_SSH_SIGN_KEYS:
+    case SIGN_SSH_OPENSSL:
+      return true;
+    case SIGN_LOCAL:
+    case SIGN_CO_PROCESS:
+      return false;
+  }
+  return false;
+}
+
 short exp_schedule[6] = {0, 0, 0, 0, 0, 0};
 
 const char *remote_ca_path = nullptr;
@@ -1113,9 +1125,7 @@ int remote_signing_method(BaseString &cmd, NdbProcess::Args &args,
 
   switch (signing_method) {
     case SIGN_SSH_SIGN_KEYS:  // 1: Run ndb_sign_keys on remote CA host via ssh
-      cmd.assign("ssh");
-      args.add(opt_ca_host);
-      args.add(opt_remote_path ? opt_remote_path : "ndb_sign_keys");
+      cmd.assign(opt_remote_path ? opt_remote_path : "ndb_sign_keys");
       args.add("--stdio");
       args.add("--duration=", csr->duration());
       if (opt_ca_cert != ClusterCertAuthority::CertFile)
@@ -1125,9 +1135,7 @@ int remote_signing_method(BaseString &cmd, NdbProcess::Args &args,
       if (remote_ca_path) args.add("--ndb-tls-search-path=", remote_ca_path);
       return 1;
     case SIGN_SSH_OPENSSL:  // 2: Run openssl on remote CA host over ssh
-      cmd.assign("ssh");
-      args.add(opt_ca_host);
-      args.add(opt_remote_path ? opt_remote_path : "openssl");
+      cmd.assign(opt_remote_path ? opt_remote_path : "openssl");
       args.add("x509");
       args.add("-req");
       args.add2("-CA", opt_ca_cert);    // full pathname on remote server
@@ -1162,13 +1170,12 @@ int fetch_CA_cert_from_remote_openssl(stack_st_X509 *CA_certs) {
   NdbProcess::Args args;
   NdbProcess::Pipes pipes;
 
-  BaseString cmd("ssh");
-  args.add(opt_ca_host);
-  args.add(opt_remote_path ? opt_remote_path : "openssl");
+  BaseString cmd(opt_remote_path ? opt_remote_path : "openssl");
   args.add("x509");
   args.add2("-in", opt_ca_cert);
 
-  auto proc = NdbProcess::create("OpensslFetchCA", cmd, nullptr, args, &pipes);
+  auto proc = NdbProcess::create_via_ssh("OpensslFetchCA", opt_ca_host, cmd,
+                                         nullptr, args, &pipes);
   if (!proc) return 133;
 
   FILE *rfp = pipes.open(pipes.parentRead(), "r");
@@ -1216,8 +1223,12 @@ int remote_key_signing(const SigningRequest *csr, EVP_PKEY *key,
   }
 
   /* Create process */
-  std::unique_ptr<NdbProcess> proc =
-      NdbProcess::create("RemoteKeySigning", cmd, nullptr, args, &pipes);
+  std::unique_ptr<NdbProcess> proc;
+  if (signing_over_ssh())
+    proc = NdbProcess::create_via_ssh("RemoteKeySigning", opt_ca_host, cmd,
+                                      nullptr, args, &pipes);
+  else
+    proc = NdbProcess::create("RemoteKeySigning", cmd, nullptr, args, &pipes);
   if (!proc) return fatal_error(133, "Failed to create process.\n");
 
   /* Write CSR and passphrase to coprocess */

@@ -139,6 +139,10 @@ class NdbProcess {
     return proc;
   }
 
+  static std::unique_ptr<NdbProcess> create_via_ssh(
+      const BaseString &name, const BaseString &host, const BaseString &path,
+      const BaseString &cwd, const Args &args, Pipes *const fds = nullptr);
+
  private:
 #ifdef _WIN32
   process_handle_t m_proc{InvalidHandle, InvalidHandle, 0, 0};
@@ -239,6 +243,32 @@ inline void NdbProcess::Args::add2(const char *str, int val) {
 
 inline void NdbProcess::Args::add(const Args &args) {
   for (unsigned i = 0; i < args.m_args.size(); i++) add(args.m_args[i].c_str());
+}
+
+std::unique_ptr<NdbProcess> NdbProcess::create_via_ssh(
+    const BaseString &name, const BaseString &host, const BaseString &path,
+    const BaseString &cwd, const Args &args, Pipes *const fds) {
+  BaseString ssh_name = "ssh";
+  Args ssh_args;
+  ssh_args.add(host.c_str());
+  /*
+   * Arguments need to be quoted. What kind of quoting depends on what shell is
+   * used on remote host when ssh executes the command.
+   *
+   * And for Windows also what quoting the command itself requires on the
+   * command line.
+   *
+   * Currently caller of this function need to provide proper quoting.
+   *
+   * This function do quote the arguments such that ssh sees them as is, as
+   * done by start_process called via create.
+   *
+   * On Windows it is assumed that ssh follows the quoting rules for Microsoft
+   * C/C++ runtime.
+   */
+  ssh_args.add(path.c_str());
+  ssh_args.add(args);
+  return create(name, ssh_name, cwd, ssh_args, fds);
 }
 
 std::optional<BaseString> NdbProcess::quote_for_windows_crt(
