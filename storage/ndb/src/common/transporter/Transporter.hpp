@@ -49,7 +49,6 @@
 
 class Transporter {
   friend class TransporterRegistry;
-  friend class Multi_Transporter;
   friend class Qmgr;
 
  public:
