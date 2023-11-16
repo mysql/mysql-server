@@ -26,13 +26,125 @@
 
 #include <optional>
 #include <string_view>
+#include <system_error>
 #include <type_traits>  // is_move_constructible
 
 #include <gmock/gmock.h>
 
 #include "mysql/harness/stdx/expected_ostream.h"
 
-TEST(Expected, T_trivial_default_construct_is_value) {
+static_assert(!std::is_default_constructible_v<stdx::unexpected<int>>);
+
+// destructors should be trivially destructible if the underlying types are
+// trivially destructible too.
+
+static_assert(std::is_trivially_destructible_v<stdx::unexpected<int>>);
+static_assert(!std::is_trivially_destructible_v<stdx::unexpected<std::string>>);
+
+// check 'noexcept' works on stdx::unexpected
+static_assert(noexcept(stdx::unexpected<int>('a')));
+static_assert(!noexcept(stdx::unexpected<std::string>("abc")));
+
+// check construction and .error() are constexpr
+static_assert(stdx::unexpected<int>(1).error() == 1);
+
+// default constructor
+static_assert(std::is_default_constructible_v<stdx::expected<void, int>>);
+static_assert(std::is_default_constructible_v<stdx::expected<int, int>>);
+static_assert(
+    std::is_default_constructible_v<stdx::expected<std::string, int>>);
+
+class not_default_constructible {
+ public:
+  not_default_constructible() = delete;
+};
+
+static_assert(!std::is_default_constructible_v<
+              stdx::expected<not_default_constructible, int>>);
+
+// check 'noexcept' of default-constructor
+static_assert(noexcept(stdx::expected<void, int>()));
+static_assert(noexcept(stdx::expected<int, int>()));
+
+TEST(Expected, destructible) {
+  constexpr bool cxx_has_conditional_destructor =
+      std::is_trivially_destructible_v<stdx::expected<void, int>>;
+
+  static_assert(cxx_has_conditional_destructor ==
+                std::is_trivially_destructible_v<stdx::expected<int, int>>);
+  static_assert(cxx_has_conditional_destructor ==
+                std::is_trivially_destructible_v<stdx::expected<void, int>>);
+  static_assert(
+      cxx_has_conditional_destructor ==
+      std::is_trivially_copy_constructible_v<stdx::expected<int, int>>);
+  static_assert(
+      cxx_has_conditional_destructor ==
+      std::is_trivially_copy_constructible_v<stdx::expected<void, int>>);
+  static_assert(
+      cxx_has_conditional_destructor ==
+      std::is_trivially_move_constructible_v<stdx::expected<int, int>>);
+  static_assert(
+      cxx_has_conditional_destructor ==
+      std::is_trivially_move_constructible_v<stdx::expected<void, int>>);
+}
+
+static_assert(
+    !std::is_trivially_destructible_v<stdx::expected<std::string, int>>);
+
+TEST(Unexpected, value_constructible) {
+  stdx::unexpected<int> v1(1);
+
+  EXPECT_EQ(v1.error(), 1);
+}
+
+TEST(Unexpected, convertible) {
+  stdx::unexpected<std::optional<int>> v1(1);
+
+  EXPECT_EQ(v1.error(), 1);
+}
+
+TEST(Unexpected, copy_constructible) {
+  stdx::unexpected<int> v1(1);
+  stdx::unexpected<int> v2(v1);
+
+  EXPECT_EQ(v1.error(), 1);
+  EXPECT_EQ(v2.error(), 1);
+}
+
+TEST(Unexpected, move_constructible) {
+  stdx::unexpected<std::unique_ptr<int>> v1(nullptr);
+  EXPECT_EQ(v1.error().get(), nullptr);
+
+  stdx::unexpected<std::unique_ptr<int>> v2(std::move(v1));
+  EXPECT_EQ(v2.error().get(), nullptr);
+}
+
+TEST(Unexpected, in_place_construct) {
+  stdx::unexpected<int> v1(std::in_place, 1);
+  EXPECT_EQ(v1.error(), 1);
+}
+
+TEST(Unexpected, in_place_list_construct) {
+  stdx::unexpected<std::vector<int>> v1(std::in_place, {2});
+  ASSERT_EQ(v1.error().size(), 1);
+  EXPECT_EQ(v1.error()[0], 2);
+}
+
+TEST(Unexpected, eq_same_types) {
+  stdx::unexpected<int> a(1);
+  stdx::unexpected<int> b(1);
+
+  EXPECT_EQ(a, b);
+}
+
+TEST(Unexpected, eq_different_types) {
+  stdx::unexpected<int> a(1);
+  stdx::unexpected<short> b(1);
+
+  EXPECT_EQ(a, b);
+}
+
+TEST(Expected, default_construct_is_value) {
   stdx::expected<int, std::error_code> exp(0);
 
   EXPECT_TRUE(exp.has_value());
@@ -41,7 +153,7 @@ TEST(Expected, T_trivial_default_construct_is_value) {
   EXPECT_EQ(*exp, 0);
 }
 
-TEST(Expected, T_void_default_construct_is_value) {
+TEST(ExpectedVoid, default_construct_is_value) {
   // with T=void, there is no value to fetch
   stdx::expected<void, std::error_code> exp;
 
@@ -50,7 +162,7 @@ TEST(Expected, T_void_default_construct_is_value) {
   EXPECT_TRUE(exp);
 }
 
-TEST(Expected, T_trivial_construct_from_error) {
+TEST(Expected, construct_from_error) {
   stdx::expected<int, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
 
@@ -59,7 +171,7 @@ TEST(Expected, T_trivial_construct_from_error) {
   EXPECT_EQ(exp.error(), std::errc::bad_address);
 }
 
-TEST(Expected, T_void_construct_from_error) {
+TEST(ExpectedVoid, construct_from_error) {
   stdx::expected<void, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
 
@@ -70,7 +182,7 @@ TEST(Expected, T_void_construct_from_error) {
   // don't deref exp
 }
 
-TEST(Expected, T_trivial_operator_eq_error) {
+TEST(Expected, operator_eq_error) {
   stdx::expected<int, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<int, std::error_code> exp2(
@@ -82,7 +194,7 @@ TEST(Expected, T_trivial_operator_eq_error) {
   EXPECT_FALSE(exp != exp2);
 }
 
-TEST(Expected, T_void_operator_eq_error) {
+TEST(ExpectedVoid, operator_eq_error) {
   stdx::expected<void, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<void, std::error_code> exp2(
@@ -94,7 +206,7 @@ TEST(Expected, T_void_operator_eq_error) {
   EXPECT_FALSE(exp != exp2);
 }
 
-TEST(Expected, T_trivial_operator_eq_error_unexpected) {
+TEST(Expected, operator_eq_error_unexpected) {
   stdx::expected<int, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
   auto unexp = stdx::unexpected(make_error_code(std::errc::bad_address));
@@ -105,7 +217,7 @@ TEST(Expected, T_trivial_operator_eq_error_unexpected) {
   EXPECT_FALSE(unexp != exp);
 }
 
-TEST(Expected, T_trivial_operator_ne_error) {
+TEST(Expected, operator_ne_error) {
   stdx::expected<int, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<int, std::error_code> exp2(
@@ -115,7 +227,7 @@ TEST(Expected, T_trivial_operator_ne_error) {
   EXPECT_NE(exp, exp2);
 }
 
-TEST(Expected, T_void_operator_ne_error) {
+TEST(ExpectedVoid, operator_ne_error) {
   stdx::expected<void, std::error_code> exp(
       stdx::unexpected(make_error_code(std::errc::bad_address)));
   stdx::expected<void, std::error_code> exp2(
@@ -125,7 +237,7 @@ TEST(Expected, T_void_operator_ne_error) {
   EXPECT_NE(exp, exp2);
 }
 
-TEST(Expected, T_trivial_operator_eq_value) {
+TEST(Expected, operator_eq) {
   stdx::expected<int, std::error_code> exp(0);
   stdx::expected<int, std::error_code> exp2(0);
 
@@ -133,7 +245,14 @@ TEST(Expected, T_trivial_operator_eq_value) {
   EXPECT_EQ(exp, exp2);
 }
 
-TEST(Expected, T_void_operator_eq_value) {
+TEST(Expected, operator_eq_value) {
+  stdx::expected<int, std::error_code> exp1(1);
+
+  EXPECT_EQ(exp1, 1);
+  EXPECT_NE(exp1, 0);
+}
+
+TEST(ExpectedVoid, operator_eq) {
   stdx::expected<void, std::error_code> exp;
   stdx::expected<void, std::error_code> exp2;
 
@@ -141,14 +260,14 @@ TEST(Expected, T_void_operator_eq_value) {
   EXPECT_EQ(exp, exp2);
 }
 
-TEST(Expected, T_trivial_operator_ne_value) {
+TEST(Expected, operator_ne) {
   stdx::expected<int, std::error_code> exp(0);
   stdx::expected<int, std::error_code> exp2(1);
 
   EXPECT_NE(exp2, exp);
 }
 
-TEST(Expected, T_trivial_operator_ne_mixed_error_value) {
+TEST(Expected, operator_ne_mixed_error_value) {
   stdx::expected<int, std::error_code> exp(0);
   stdx::expected<int, std::error_code> exp2(
       stdx::unexpected(make_error_code(std::errc::not_supported)));
@@ -157,7 +276,7 @@ TEST(Expected, T_trivial_operator_ne_mixed_error_value) {
   EXPECT_NE(exp, exp2);
 }
 
-TEST(Expected, T_void_operator_ne_mixed_error_value) {
+TEST(ExpectedVoid, operator_ne_mixed_error_value) {
   stdx::expected<void, std::error_code> exp;
   stdx::expected<void, std::error_code> exp2(
       stdx::unexpected(make_error_code(std::errc::not_supported)));
@@ -166,7 +285,7 @@ TEST(Expected, T_void_operator_ne_mixed_error_value) {
   EXPECT_NE(exp, exp2);
 }
 
-TEST(Expected, T_trivial_copy_construct_from_expected) {
+TEST(Expected, copy_construct_from_expected) {
   stdx::expected<int, std::error_code> exp(1);
 
   EXPECT_TRUE(exp.has_value());
@@ -179,7 +298,7 @@ TEST(Expected, T_trivial_copy_construct_from_expected) {
   EXPECT_EQ(exp, exp2);
 }
 
-TEST(Expected, T_void_copy_construct_from_expected) {
+TEST(ExpectedVoid, copy_construct_from_expected) {
   stdx::expected<void, std::error_code> exp;
 
   EXPECT_TRUE(exp.has_value());
@@ -190,7 +309,7 @@ TEST(Expected, T_void_copy_construct_from_expected) {
   EXPECT_EQ(exp, exp2);
 }
 
-TEST(Expected, T_trivial_move_construct_from_expected) {
+TEST(Expected, move_construct_from_expected) {
   stdx::expected<int, std::error_code> exp(1);
 
   EXPECT_TRUE(exp.has_value());
@@ -206,11 +325,12 @@ TEST(Expected, T_trivial_move_construct_from_expected) {
   EXPECT_EQ(*exp2, 1);
 }
 
-TEST(Expected, T_void_move_construct_from_expected) {
+TEST(ExpectedVoid, move_construct_from_expected) {
   stdx::expected<void, std::error_code> exp;
 
   EXPECT_TRUE(exp.has_value());
   EXPECT_TRUE(exp);
+  exp.value();  // exists, but returns nothing.
 
   stdx::expected<void, std::error_code> exp2(std::move(exp));
 
@@ -233,6 +353,129 @@ TEST(Expected, T_trivial_value_or_value) {
   EXPECT_TRUE(exp.has_value());
 
   EXPECT_EQ(exp.value_or(2), 0);
+}
+
+TEST(ExpectedVoid, assign_from_unexpected) {
+  stdx::expected<void, bool> exp;
+
+  EXPECT_TRUE(exp.has_value());
+
+  exp = stdx::unexpected(true);
+
+  EXPECT_FALSE(exp.has_value());
+}
+
+TEST(Expected, assign_from_unexpected_moveable) {
+  stdx::expected<int, std::unique_ptr<int>> exp;
+
+  EXPECT_TRUE(exp.has_value());
+
+  std::unique_ptr<int> err(nullptr);
+  auto unex = stdx::unexpected(std::move(err));
+
+  exp = std::move(unex);
+
+  EXPECT_FALSE(exp.has_value());
+}
+
+TEST(ExpectedVoid, assign_from_unexpected_moveable) {
+  stdx::expected<void, std::unique_ptr<int>> exp;
+
+  EXPECT_TRUE(exp.has_value());
+
+  std::unique_ptr<int> err(nullptr);
+  auto unex = stdx::unexpected(std::move(err));
+
+  exp = std::move(unex);
+
+  EXPECT_FALSE(exp.has_value());
+}
+
+TEST(Expected, in_place) {
+  stdx::expected<int, int> exp(std::in_place);
+
+  ASSERT_TRUE(exp.has_value());
+  EXPECT_EQ(*exp, 0);
+}
+
+TEST(ExpectedVoid, in_place) {
+  stdx::expected<void, int> exp(std::in_place);
+
+  EXPECT_TRUE(exp.has_value());
+}
+
+TEST(Expected, in_place_2) {
+  // in-place does direct-initializion.
+  stdx::expected<std::vector<int>, int> exp(std::in_place, 2);
+
+  ASSERT_TRUE(exp.has_value());
+  EXPECT_EQ(exp->size(), 2);
+  EXPECT_EQ(exp->operator[](0), 0);
+  EXPECT_EQ(exp->operator[](1), 0);
+}
+
+TEST(Expected, in_place_initializer_list) {
+  // in-place does direct-initializion.
+  stdx::expected<std::vector<int>, int> exp(std::in_place, {1, 2});
+
+  ASSERT_TRUE(exp.has_value());
+  EXPECT_EQ(exp->size(), 2);
+  EXPECT_EQ(exp->operator[](0), 1);
+  EXPECT_EQ(exp->operator[](1), 2);
+}
+
+TEST(Expected, unexpect_2) {
+  // unexpect does direct-initializion.
+  stdx::expected<int, std::vector<int>> exp(stdx::unexpect, 2);
+
+  ASSERT_TRUE(!exp.has_value());
+  EXPECT_EQ(exp.error().size(), 2);
+  EXPECT_EQ(exp.error()[0], 0);
+  EXPECT_EQ(exp.error()[1], 0);
+}
+
+TEST(Expected, unexpect_initializer_list) {
+  // unexpect does direct-initializion.
+  stdx::expected<int, std::vector<int>> exp(stdx::unexpect, {1, 2});
+
+  ASSERT_TRUE(!exp.has_value());
+  EXPECT_EQ(exp.error().size(), 2);
+  EXPECT_EQ(exp.error()[0], 1);
+  EXPECT_EQ(exp.error()[1], 2);
+}
+
+TEST(ExpectedVoid, unexpect_2) {
+  // unexpect does direct-initializion.
+  stdx::expected<void, std::vector<int>> exp(stdx::unexpect, 2);
+
+  ASSERT_TRUE(!exp.has_value());
+  EXPECT_EQ(exp.error().size(), 2);
+  EXPECT_EQ(exp.error()[0], 0);
+  EXPECT_EQ(exp.error()[1], 0);
+}
+
+TEST(ExpectedVoid, unexpect_initializer_list) {
+  // unexpect does direct-initializion.
+  stdx::expected<void, std::vector<int>> exp(stdx::unexpect, {1, 2});
+
+  ASSERT_TRUE(!exp.has_value());
+  EXPECT_EQ(exp.error().size(), 2);
+  EXPECT_EQ(exp.error()[0], 1);
+  EXPECT_EQ(exp.error()[1], 2);
+}
+
+TEST(Expected, bad_expected_access) {
+  stdx::expected<int, std::error_code> exp =
+      stdx::unexpected(std::error_code{});
+
+  EXPECT_THROW(exp.value(), stdx::bad_expected_access<std::error_code>);
+}
+
+TEST(Expected, void_bad_expected_access) {
+  stdx::expected<void, std::error_code> exp =
+      stdx::unexpected(std::error_code{});
+
+  EXPECT_THROW(exp.value(), stdx::bad_expected_access<std::error_code>);
 }
 
 class copyable {};
@@ -259,35 +502,33 @@ class non_copyable_no_default {
   non_copyable_no_default &operator=(non_copyable_no_default &&) = default;
 };
 
-static_assert(std::is_copy_constructible<copyable>::value);
-static_assert(std::is_move_constructible<copyable>::value);
-static_assert(!std::is_copy_constructible<non_copyable>::value);
-static_assert(std::is_move_constructible<non_copyable>::value);
-static_assert(!std::is_copy_assignable<non_copyable>::value);
-static_assert(std::is_move_assignable<non_copyable>::value);
+static_assert(std::is_copy_constructible_v<copyable>);
+static_assert(std::is_move_constructible_v<copyable>);
+static_assert(!std::is_copy_constructible_v<non_copyable>);
+static_assert(std::is_move_constructible_v<non_copyable>);
+static_assert(!std::is_copy_assignable_v<non_copyable>);
+static_assert(std::is_move_assignable_v<non_copyable>);
 
-static_assert(!std::is_copy_constructible<void>::value);
-static_assert(!std::is_copy_assignable<void>::value);
-static_assert(std::is_copy_constructible<int>::value);
-static_assert(std::is_copy_assignable<int>::value);
-static_assert(std::is_copy_constructible<std::error_code>::value);
-static_assert(std::is_copy_assignable<std::error_code>::value);
+static_assert(!std::is_copy_constructible_v<void>);
+static_assert(!std::is_copy_assignable_v<void>);
+static_assert(std::is_copy_constructible_v<int>);
+static_assert(std::is_copy_assignable_v<int>);
+static_assert(std::is_copy_constructible_v<std::error_code>);
+static_assert(std::is_copy_assignable_v<std::error_code>);
 static_assert(
-    std::is_copy_constructible<stdx::expected<void, std::error_code>>::value);
+    std::is_copy_constructible_v<stdx::expected<void, std::error_code>>);
+static_assert(std::is_copy_assignable_v<stdx::expected<void, std::error_code>>);
 static_assert(
-    std::is_copy_assignable<stdx::expected<void, std::error_code>>::value);
+    std::is_copy_constructible_v<stdx::expected<int, std::error_code>>);
+static_assert(std::is_copy_assignable_v<int>);
+static_assert(std::is_copy_constructible_v<int>);
+static_assert(std::is_copy_assignable_v<std::error_code>);
+static_assert(std::is_copy_constructible_v<std::error_code>);
+static_assert(std::is_copy_assignable_v<stdx::expected<int, std::error_code>>);
+static_assert(!std::is_copy_constructible_v<
+              stdx::expected<non_copyable, std::error_code>>);
 static_assert(
-    std::is_copy_constructible<stdx::expected<int, std::error_code>>::value);
-static_assert(std::is_copy_assignable<int>::value);
-static_assert(std::is_copy_constructible<int>::value);
-static_assert(std::is_copy_assignable<std::error_code>::value);
-static_assert(std::is_copy_constructible<std::error_code>::value);
-static_assert(
-    std::is_copy_assignable<stdx::expected<int, std::error_code>>::value);
-static_assert(!std::is_copy_constructible<
-              stdx::expected<non_copyable, std::error_code>>::value);
-static_assert(!std::is_copy_assignable<
-              stdx::expected<non_copyable, std::error_code>>::value);
+    !std::is_copy_assignable_v<stdx::expected<non_copyable, std::error_code>>);
 
 TEST(Expected, T_unique_ptr) {
   auto test_func = [](bool success)
@@ -372,7 +613,7 @@ TEST(Expected, T_noncopyable) {
                      make_error_code(std::errc::operation_not_supported)));
 }
 
-TEST(Expected, T_trivial) {
+TEST(Expected, manytests) {
   auto test_func = [](bool success) -> stdx::expected<int, std::error_code> {
     if (!success) {
       return stdx::unexpected(
@@ -395,7 +636,7 @@ TEST(Expected, T_trivial) {
   ASSERT_EQ(res, res_false);
 }
 
-TEST(Expected, T_trivial_convertible) {
+TEST(Expected, convertible) {
   auto test_func = [](bool success) -> stdx::expected<char, std::error_code> {
     if (!success) {
       return stdx::unexpected(
@@ -418,7 +659,7 @@ TEST(Expected, T_trivial_convertible) {
   ASSERT_EQ(res, res_false);
 }
 
-TEST(Expected, T_void) {
+TEST(ExpectedVoid, manytests) {
   auto test_func = [](bool success) -> stdx::expected<void, std::error_code> {
     if (!success) {
       return stdx::unexpected(
@@ -515,15 +756,151 @@ TEST(Unexpected, construct_curly_from_unexpected) {
 }
 
 TEST(Expected, converting_construct) {
-  stdx::expected<std::optional<int>, bool> exp{stdx::expected<int, bool>(1)};
+  stdx::expected<std::string, int> exp(
+      stdx::expected<const char *, int>("somestr"));
 
   EXPECT_TRUE(exp);
+}
+
+TEST(ExpectedVoid, converting_construct) {
+  stdx::expected<void, std::string> exp(
+      stdx::expected<void, const char *const>(stdx::unexpect, "somestr"));
+
+  ASSERT_FALSE(exp);
+  EXPECT_EQ(exp.error(), "somestr");
 }
 
 TEST(Expected, move_construct) {
   stdx::expected<int, bool> exp{stdx::expected<int, bool>(1)};
 
   EXPECT_TRUE(exp);
+}
+
+TEST(Expected, copy_assign_expected) {
+  stdx::expected<int, bool> exp(1);
+
+  EXPECT_TRUE(exp);
+
+  char a = 'a';
+  char &b = a;
+
+  exp = b;
+}
+
+TEST(Expected, copy_assign_unexpected) {
+  stdx::expected<int, bool> exp(1);
+
+  EXPECT_TRUE(exp);
+
+  stdx::unexpected<bool> f(false);
+
+  exp = f;
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(ExpectedVoid, copy_assign_unexpected) {
+  stdx::expected<void, bool> exp;
+
+  EXPECT_TRUE(exp);
+
+  stdx::unexpected<bool> f(false);
+
+  exp = f;
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(Expected, move_assign_unexpected) {
+  stdx::expected<int, std::unique_ptr<int>> exp(1);
+
+  EXPECT_TRUE(exp);
+
+  stdx::unexpected<std::unique_ptr<int>> f(nullptr);
+
+  exp = std::move(f);
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(ExpectedVoid, move_assign_unexpected) {
+  stdx::expected<void, std::unique_ptr<int>> exp;
+
+  EXPECT_TRUE(exp);
+
+  stdx::unexpected<std::unique_ptr<int>> f(nullptr);
+
+  exp = std::move(f);
+
+  EXPECT_FALSE(exp);
+}
+
+TEST(Expected, swap_expected_expected) {
+  stdx::expected<int, int> a(1);
+  stdx::expected<int, int> b(2);
+
+  ASSERT_TRUE(a.has_value());
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(a.value(), 1);
+  EXPECT_EQ(b.value(), 2);
+
+  std::swap(a, b);
+
+  ASSERT_TRUE(a.has_value());
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(a.value(), 2);
+  EXPECT_EQ(b.value(), 1);
+}
+
+TEST(Expected, swap_unexpected_unexpected) {
+  stdx::expected<int, int> a = stdx::unexpected(1);
+  stdx::expected<int, int> b = stdx::unexpected(2);
+
+  ASSERT_FALSE(a.has_value());
+  ASSERT_FALSE(b.has_value());
+  EXPECT_EQ(a.error(), 1);
+  EXPECT_EQ(b.error(), 2);
+
+  std::swap(a, b);
+
+  ASSERT_FALSE(a.has_value());
+  ASSERT_FALSE(b.has_value());
+  EXPECT_EQ(a.error(), 2);
+  EXPECT_EQ(b.error(), 1);
+}
+
+TEST(Expected, swap_expected_unexpected) {
+  stdx::expected<int, int> a(1);
+  stdx::expected<int, int> b = stdx::unexpected(2);
+
+  ASSERT_TRUE(a.has_value());
+  ASSERT_FALSE(b.has_value());
+  EXPECT_EQ(a.value(), 1);
+  EXPECT_EQ(b.error(), 2);
+
+  std::swap(a, b);
+
+  ASSERT_FALSE(a.has_value());
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(a.error(), 2);
+  EXPECT_EQ(b.value(), 1);
+}
+
+TEST(Expected, swap_unexpected_expected) {
+  stdx::expected<int, int> a = stdx::unexpected(2);
+  stdx::expected<int, int> b(1);
+
+  ASSERT_FALSE(a.has_value());
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(a.error(), 2);
+  EXPECT_EQ(b.value(), 1);
+
+  std::swap(a, b);
+
+  ASSERT_TRUE(a.has_value());
+  ASSERT_FALSE(b.has_value());
+  EXPECT_EQ(a.value(), 1);
+  EXPECT_EQ(b.error(), 2);
 }
 
 /**
@@ -545,7 +922,9 @@ TEST(Expected, T_string_E_std_error_code) {
       return stdx::unexpected(make_error_code(std::errc::already_connected));
     }
 
-    return {std::in_place, "from_func"s};
+    using ret_type = stdx::expected<std::string, std::error_code>;
+
+    return ret_type{std::in_place, "from_func"s};
   };
 
   // std::string in libstdc++
