@@ -28,6 +28,8 @@
 
 #include <array>
 #include <filesystem>
+#include <memory>
+#include <optional>
 
 #include "util/BaseString.hpp"
 #include "util/require.h"
@@ -148,6 +150,20 @@ class NdbProcess {
 
   NdbProcess(BaseString name, Pipes *fds) : m_name(name), m_pipes(fds) {}
 
+  /*
+   * Quoting function to be used for passing program name and arguments to a
+   * Windows program that follows the quoting of command line supported by
+   * Microsoft C/C++ runtime. See for example description in:
+   * https://learn.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+   *
+   * Note this quoting is not always suitable when calling other programs since
+   * they are free to interpret the command line as they wish and the possible
+   * quoting done may mess up.  For example cmd.exe treats unquoted ^
+   * differently.
+   */
+  static std::optional<BaseString> quote_for_windows_crt(
+      const char *str) noexcept;
+
   static bool start_process(process_handle_t &pid, const char *path,
                             const char *cwd, const Args &args, Pipes *pipes);
 };
@@ -225,6 +241,45 @@ inline void NdbProcess::Args::add(const Args &args) {
   for (unsigned i = 0; i < args.m_args.size(); i++) add(args.m_args[i].c_str());
 }
 
+std::optional<BaseString> NdbProcess::quote_for_windows_crt(
+    const char *str) noexcept {
+  /*
+   * Assuming program file names can not include " or end with a \ this
+   * function should be usable also for quoting the command part of command
+   * line when calling a C program via CreateProcess.
+   */
+  const char *p = str;
+  while (isprint(*p) && *p != ' ' && *p != '"' && *p != '*' && *p != '?') p++;
+  if (*p == '\0' && str[0] != '\0') return str;
+  BaseString ret;
+  ret.append('"');
+  size_t backslashes = 0;
+  while (*str) {
+    switch (*str) {
+      case '"':
+        if (backslashes) {
+          // backslashes preceding double quote needs quoting
+          ret.append(backslashes, '\\');
+          backslashes = 0;
+        }
+        // use double double quotes to quote double quote
+        ret.append('"');
+        break;
+      case '\\':
+        // Count backslashes in case they will be followed by double quote
+        backslashes++;
+        break;
+      default:
+        backslashes = 0;
+    }
+    ret.append(*str);
+    str++;
+  }
+  if (backslashes) ret.append(backslashes, '\\');
+  ret.append('"');
+  return ret;
+}
+
 #ifdef _WIN32
 
 /******
@@ -297,11 +352,27 @@ inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
     if (len > 0) path = full_path;
   }
 
-  BaseString cmdLine(path);
-  BaseString argStr;
-  argStr.assign(args.args(), " ");
-  cmdLine.append(" ");
-  cmdLine.append(argStr);
+  std::optional<BaseString> quoted = quote_for_windows_crt(path);
+  if (!quoted) {
+    fprintf(stderr, "Function failed, could not quote command name: %s\n",
+            path);
+    return false;
+  }
+  BaseString cmdLine(quoted.value().c_str());
+
+  /* Quote each argument, and append it to the command line */
+  auto &args_vec = args.args();
+  for (size_t i = 0; i < args_vec.size(); i++) {
+    auto *arg = args_vec[i].c_str();
+    std::optional<BaseString> quoted = quote_for_windows_crt(arg);
+    if (!quoted) {
+      fprintf(stderr, "Function failed, could not quote command argument: %s\n",
+              arg);
+      return false;
+    }
+    cmdLine.append(' ');
+    cmdLine.append(quoted.value().c_str());
+  }
   char *command_line = strdup(cmdLine.c_str());
 
   STARTUPINFO si;
@@ -451,11 +522,14 @@ inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
     }
   }
 
-  // Concatenate arguments
-  BaseString args_str;
-  args_str.assign(args.args(), " ");
+  auto &args_vec = args.args();
+  size_t arg_cnt = args_vec.size();
+  char **argv = new char *[1 + arg_cnt + 1];
+  argv[0] = const_cast<char *>(path);
+  for (size_t i = 0; i < arg_cnt; i++)
+    argv[1 + i] = const_cast<char *>(args_vec[i].c_str());
+  argv[1 + arg_cnt] = nullptr;
 
-  char **argv = BaseString::argify(path, args_str.c_str());
   execvp(path, argv);
 
   fprintf(stderr, "execv failed, error %d '%s'\n", errno, strerror(errno));
