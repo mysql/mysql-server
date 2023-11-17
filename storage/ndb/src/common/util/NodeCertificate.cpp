@@ -580,7 +580,7 @@ void SerialNumber::free(ASN1_STRING *serial) { ASN1_STRING_free(serial); }
 
 SerialNumber::HexString::HexString(const ASN1_STRING *serial) {
   buf.append("0x");
-  int truncated = 0;
+  int truncated [[maybe_unused]] = 0;
   for (int i = 0; i < serial->length; i++)
     truncated = buf.appendf("%02x", serial->data[i]);
   assert(!truncated);
