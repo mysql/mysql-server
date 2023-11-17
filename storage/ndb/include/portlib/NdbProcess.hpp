@@ -256,20 +256,15 @@ inline bool NdbProcess::wait(int &ret, int timeout) {
 inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
                                       const char *cwd, const Args &args,
                                       Pipes *pipes) {
-  /* Extract the command name from the full path */
+  /* Extract the command name from the full path, then append the arguments */
   std::filesystem::path cmdName(std::filesystem::path(path).filename());
   BaseString cmdLine(cmdName.string().c_str());
-
-  /* Quote each argument, and append it to the command line */
-  for (uint i = 0; i < args.length(); i++) {
-    bool doQuote = strchr(args[i].c_str(), ' ');
-    cmdLine.append(" ");
-    if (doQuote) cmdLine.append("\"");
-    cmdLine.append(args[i]);
-    if (doQuote) cmdLine.append("\"");
-  }
-
+  BaseString argStr;
+  argStr.assign(args.args(), " ");
+  cmdLine.append(" ");
+  cmdLine.append(argStr);
   char *command_line = strdup(cmdLine.c_str());
+
   STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
