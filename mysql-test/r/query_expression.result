@@ -2298,6 +2298,11 @@ INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (
 CREATE TABLE t3 (a INT, b INT);
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 SELECT *
 FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
 JOIN
@@ -2427,6 +2432,10 @@ CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
 CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
 INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
 INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 ( SELECT t1.d, t2.d
 FROM t1 INNER JOIN t2 USING (id) )
 ORDER BY t1.d;
@@ -4746,6 +4755,11 @@ INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (
 CREATE TABLE t3 (a INT, b INT);
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 SELECT *
 FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
 JOIN
@@ -4875,6 +4889,10 @@ CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
 CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
 INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
 INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 ( SELECT t1.d, t2.d
 FROM t1 INNER JOIN t2 USING (id) )
 ORDER BY t1.d;

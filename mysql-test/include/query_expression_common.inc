@@ -724,6 +724,7 @@ CREATE TABLE t3 (a INT, b INT);
 
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
 INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+ANALYZE TABLE t1, t2, t3;
 
 let $query =
 SELECT *
@@ -788,6 +789,7 @@ CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
 
 INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
 INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+ANALYZE TABLE t1, t2;
 
 # The reference to t1 in the ORDER BY was flagged as an error
 # which is strictly is according the SQL standard, but MySQL used to
