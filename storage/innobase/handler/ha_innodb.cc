@@ -3428,8 +3428,15 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
   auto heap = mem_heap_create(FN_REFLEN * 2 + 1, UT_LOCATION_HERE);
 
-  /* If the setting for innodb_validate_tablespace_paths is NO and we are
-  not in recovery, then only validate undo tablespaces. */
+  /* Validate all tablespaces if innodb_validate_tablespace_paths=ON OR
+  server is in recovery  OR Change buffer is not empty. Change buffer
+  applier background thread will skip the change buffer entries of the
+  tablespaces which are not loaded which will cause corruption of
+  secondary indexes, so it is important to load the tablespaces for which
+  entry is present in the change buffer. Presently we are loading all the
+  tablespaces. If all the conditions mentioned above are false then
+  validate only undo tablespaces */
+
   const bool ibd_validate =
       srv_validate_tablespace_paths || recv_needed_recovery || !ibuf_is_empty();
 
@@ -3495,7 +3502,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     }
 
     /* If --innodb_validate_tablespace_paths=OFF and
-    startup is not in recovery, then skip all IBD files. */
+    startup is not in recovery and change buffer is empty,
+    then skip all IBD files. */
     if (!ibd_validate && !fsp_is_undo_tablespace(space_id)) {
       ++m_n_skipped;
       continue;
