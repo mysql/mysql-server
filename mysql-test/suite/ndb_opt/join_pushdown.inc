@@ -1287,7 +1287,6 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 connection ddl;
-set new=on;
 alter table t1 partition by hash(a);
 
 explain
@@ -1323,8 +1322,6 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 connection ddl;
 drop table t1;
-set new=default;
-
 
 # pushed mrr does not yet handle multiple PK operations in same transaction
 # Need 6.0 result handling stuff to simplify result handling

@@ -137,7 +137,7 @@ set session sql_mode=@old_sql_mode;
 # finally, show that conditions that already raised an error are not
 # adversely affected (error was already sent, do nothing)
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set session old=bla;
+set session core_file=bla;
 
 UNINSTALL PLUGIN example;
 

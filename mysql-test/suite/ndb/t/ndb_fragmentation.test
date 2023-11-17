@@ -7,11 +7,8 @@
 # Table options:
 # HashMap: DEFAULT-HASHMAP-3840-8
 
-set @old_new = @@global.new;
 set @old_ndb_read_backup = @@global.ndb_read_backup;
 set @old_ndb_fully_replicated = @@global.ndb_fully_replicated;
-
-set @@new = 1;
 
 set global ndb_read_backup = 1;
 set global ndb_fully_replicated = 1;
@@ -191,7 +188,6 @@ source suite/ndb/include/ndb_desc_print.inc;
 
 drop tables t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12;
 
-set global new = @old_new;
 set global ndb_read_backup = @old_ndb_read_backup;
 set global ndb_fully_replicated = @old_ndb_fully_replicated;
 

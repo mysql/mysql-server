@@ -49,7 +49,6 @@ set @@persist_only.log_replica_updates=1;
 set @@persist_only.max_digest_length=1024;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
-set @@persist_only.old=0;
 set @@persist_only.open_files_limit=5000;
 set @@persist_only.performance_schema=1;
 set @@persist_only.performance_schema_accounts_size=-1;
@@ -110,7 +109,7 @@ set @@persist_only.report_user='';
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-94
+93
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
@@ -151,7 +150,6 @@ log_slave_updates	ON
 max_digest_length	1024
 myisam_recover_options	OFF
 ngram_token_size	2
-old	OFF
 open_files_limit	5000
 performance_schema	ON
 performance_schema_accounts_size	-1
@@ -247,7 +245,6 @@ log_slave_updates
 max_digest_length
 myisam_recover_options
 ngram_token_size
-old
 open_files_limit
 performance_schema
 performance_schema_accounts_size

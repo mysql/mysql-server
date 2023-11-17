@@ -14892,15 +14892,12 @@ static int create_table_set_up_partition_info(partition_info *part_info,
       }
     };
 
-    if (!current_thd->variables.new_mode) {
-      // When new_mode is removed, keep below warning.
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING,
-          ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT,
-          ER_THD(current_thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-          partition_type_description(part_info->part_type),
-          ndbcluster_hton_name);
-    }
+    push_warning_printf(
+        current_thd, Sql_condition::SL_WARNING,
+        ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT,
+        ER_THD(current_thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+        partition_type_description(part_info->part_type), ndbcluster_hton_name);
+
     /*
        Create a shadow field for those tables that have user defined
        partitioning. This field stores the value of the partition

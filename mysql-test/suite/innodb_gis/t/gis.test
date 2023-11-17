@@ -856,7 +856,7 @@ SELECT ST_ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
 --echo #
 --replace_regex /non geometric .* value/non geometric '' value/
 --error ER_ILLEGAL_VALUE_FOR_TYPE
-SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
+SELECT GEOMETRYCOLLECTION((SELECT @@CORE_FILE));
 
 
 --echo End of 5.1 tests

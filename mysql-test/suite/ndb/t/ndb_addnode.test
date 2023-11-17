@@ -99,8 +99,6 @@ select parent_fq_name, type, table_id, node_id, block_instance, fragment_num
 ## and create
 --exec $NDB_MGM -e "create nodegroup 3,4"
 
-set @@new = 1;
-
 #create table t7(id int primary key, uk int, unique key (uk)) engine=ndb
 create table t7(id int primary key, uk int) engine=ndb
   partition by list(id) (

@@ -34,16 +34,3 @@ ndb_scan_count
 ndb_pruned_scan_count
 1
 drop table t1;
-set new=on;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
-CREATE TABLE t1 (
-ol_o_id int NOT NULL,
-ol_d_id int NOT NULL,
-ol_w_id int NOT NULL,
-ol_number int NOT NULL,
-ol_tmp int,
-PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
-) ENGINE=NDB
-PARTITION BY HASH (ol_w_id);
-DROP TABLE t1;

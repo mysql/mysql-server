@@ -42,20 +42,3 @@ SELECT SUM(ol_number) FROM t1 WHERE ol_o_id = 0 AND ol_w_id = 1 AND ol_d_id = 1;
 --source suite/ndb/include/ndb_scan_counts.inc
 
 drop table t1;
-
-# Test that turn off warning for deprecated PARTITION BY HASH with `new` works
-# Remove all below when `new` is removed.
-
-set new=on;
-
-CREATE TABLE t1 (
-  ol_o_id int NOT NULL,
-  ol_d_id int NOT NULL,
-  ol_w_id int NOT NULL,
-  ol_number int NOT NULL,
-  ol_tmp int,
-  PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
-) ENGINE=NDB
-PARTITION BY HASH (ol_w_id);
-
-DROP TABLE t1;

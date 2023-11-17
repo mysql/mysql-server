@@ -746,13 +746,11 @@ The following options may be given as the first argument:
  --net-write-timeout=# 
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
- -n, --new           Use very new possible "unsafe" functions
  --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
  data dictionary is needed. Deprecated option. Use
  --upgrade=NONE instead.
  --no-monitor        Disable monitor process.
  --offline-mode      Make the server into offline mode
- --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
@@ -1827,11 +1825,9 @@ net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
-new FALSE
 no-dd-upgrade FALSE
 no-monitor FALSE
 offline-mode FALSE
-old FALSE
 old-alter-table FALSE
 optimizer-max-subgraph-pairs 100000
 optimizer-prune-level 1

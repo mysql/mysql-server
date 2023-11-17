@@ -419,8 +419,6 @@ drop table t1;
 # unlike innodb
 --echo # bug#16275509 - case: allow FKs on partitioned
 
-set new=on;
-
 # partition parent
 
 create table t1 (

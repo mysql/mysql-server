@@ -74,10 +74,9 @@ count(distinct node_id)
 2
 set @partitions = 'PARTITION p2 VALUES IN (2)';
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (2);
 Hint node by 2 of 2
 Tests on T1 (!Blobs)
@@ -807,10 +806,9 @@ count(distinct node_id)
 2
 set @partitions = 'PARTITION p2 VALUES IN (2)';
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (2);
 Hint node by 2 of 2
 Tests on T1 (!Blobs)
@@ -1520,10 +1518,9 @@ count(distinct node_id)
 2
 set @partitions = 'PARTITION p2 VALUES IN (2)';
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (2);
 Hint node by 2 of 2
 Tests on T1 (!Blobs)
@@ -2074,10 +2071,9 @@ count(distinct node_id)
 2
 set @partitions = 'PARTITION p2 VALUES IN (2)';
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (2);
 Hint node by 2 of 2
 Tests on T1 (!Blobs)
@@ -2609,10 +2605,9 @@ set @partitions = 'PARTITION p4 VALUES IN (4)';
 set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
 set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (4);
 Hint node by 4 of 4
 Tests on T1 (!Blobs)
@@ -3616,10 +3611,9 @@ set @partitions = concat(@partitions,',PARTITION p4 VALUES IN (4)');
 set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
 set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p6 VALUES IN (6),PARTITION p5 VALUES IN (5),PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (6);
 Hint node by 6 of 6
 Tests on T1 (!Blobs)
@@ -5112,10 +5106,9 @@ count(distinct node_id)
 2
 set @partitions = 'PARTITION p2 VALUES IN (2)';
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (2);
 Hint node by 2 of 2
 Tests on T1 (!Blobs)
@@ -5647,10 +5640,9 @@ set @partitions = 'PARTITION p4 VALUES IN (4)';
 set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
 set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (4);
 Hint node by 4 of 4
 Tests on T1 (!Blobs)
@@ -6654,10 +6646,9 @@ set @partitions = concat(@partitions,',PARTITION p4 VALUES IN (4)');
 set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
 set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
 set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p6 VALUES IN (6),PARTITION p5 VALUES IN (5),PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 insert into hints values (6);
 Hint node by 6 of 6
 Tests on T1 (!Blobs)

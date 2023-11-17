@@ -18,6 +18,3 @@ Variable_name	Value
 show global variables like 'general_log';
 Variable_name	Value
 general_log	ON
-show global variables like 'new';
-Variable_name	Value
-new	ON

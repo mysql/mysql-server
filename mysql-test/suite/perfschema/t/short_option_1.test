@@ -17,5 +17,3 @@ show global variables like 'character_set_system';
 
 show global variables like 'log';
 show global variables like 'general_log';
-
-show global variables like 'new';

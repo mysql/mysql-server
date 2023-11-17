@@ -5,9 +5,6 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Turn on extended partitioning support
-set new=on;
-
 CREATE TABLE `t1_c` (
   `capgoaledatta` smallint(5) unsigned NOT NULL auto_increment,
   `goaledatta` char(2) NOT NULL default '',

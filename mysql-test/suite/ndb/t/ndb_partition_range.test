@@ -3,14 +3,6 @@
 # Simple test for the partition storage engine
 # Focuses on range partitioning tests
 # 
-#-- source include/have_partition.inc
-
---disable_query_log
-# This test uses "partition by range" which is a feature only available
-# when turning on MySQL's system variable "new", this functionality
-# is certainly not new but still only enabled when "new" is on.
-set new=on;
---enable_query_log
 
 #
 # Partition by range, basic

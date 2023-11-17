@@ -31,7 +31,6 @@ CREATE TABLE mysql.ndb_apply_status
                    CHARACTER SET latin1;
 
 -- connection master
-set new=on;
 set default_storage_engine=ndbcluster;
 
 --source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc

@@ -54,7 +54,6 @@ set @@persist_only.log_replica_updates=1;
 set @@persist_only.max_digest_length=1024;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
-set @@persist_only.old=0;
 set @@persist_only.open_files_limit=5000;
 set @@persist_only.performance_schema=1;
 set @@persist_only.performance_schema_accounts_size=-1;

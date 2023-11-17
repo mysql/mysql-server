@@ -96,7 +96,6 @@ while ($i)
   dec $i;
 }
 let $partitions = `select @partitions`;
-set @@new = 1;
 eval create table hints (i int primary key) engine=ndb partition by list(i) ($partitions);
 let $i = $nodes;
 while($i)

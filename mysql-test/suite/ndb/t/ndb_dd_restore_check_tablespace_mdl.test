@@ -5,10 +5,6 @@
 --echo # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 --echo #                REFERRED BY A STATEMENT
 
-# In NDB, LIST, RANGE and HASH partition disabled by default,
-# we have to use --new option to enable it.
-set new=on;
-
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
@@ -31,7 +27,6 @@ PARTITIONS 1
 
 
 --connect (con1, localhost, root)
-set new=on;
 --echo #############################################
 --echo # Case1: Checking ALTER TABLE
 --echo # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
@@ -182,7 +177,6 @@ UNLOCK TABLES;
 
 --echo # Cleanup
 --connection default
-set new=off;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 DROP TABLE t3;

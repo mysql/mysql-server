@@ -1,9 +1,5 @@
 --source include/have_ndb.inc
 
---disable_query_log
-set new=on;
---enable_query_log
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

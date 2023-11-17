@@ -1,8 +1,5 @@
 # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 #                REFERRED BY A STATEMENT
-set new=on;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
@@ -20,9 +17,8 @@ ENGINE=NDB
 PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
-set new=on;
 Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case1: Checking ALTER TABLE
 # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
@@ -34,6 +30,8 @@ ALTER TABLE t1 ADD COLUMN f int;;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'ALTER TABLE t1 ADD COLUMN f int;'
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case2: Checking TRUNCATE TABLE
 # Sending 'TRUNCATE TABLE t1;'
@@ -46,6 +44,8 @@ TRUNCATE TABLE t1;;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'TRUNCATE TABLE t1'
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case4: Checking CREATE TABLE
 SET DEBUG_SYNC= 'RESET';
@@ -57,6 +57,8 @@ CREATE TABLE t3 (a INT NOT NULL, PRIMARY KEY (a)) ENGINE=NDB PARTITION BY RANGE 
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE'
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case5: Checking CREATE TABLE LIKE
 SET DEBUG_SYNC= 'RESET';
@@ -68,6 +70,8 @@ CREATE TABLE t4 LIKE t3;;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE LIKE'
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case6: Checking ALTER TABLE ... PARTITION
 CREATE TABLESPACE ts2
@@ -84,6 +88,8 @@ ALTER TABLE t3 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE ts2);
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'ALTER TABLE'
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 #############################################
 # Case7: Checking LOCK TABLE t2 WRITE
 SET DEBUG_SYNC= 'RESET';
@@ -97,9 +103,6 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'LOCK TABLE'
 UNLOCK TABLES;
 # Cleanup
-set new=off;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 DROP TABLE t3;

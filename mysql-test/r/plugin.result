@@ -104,8 +104,8 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 500
 set session sql_mode=@old_sql_mode;
-set session old=bla;
-ERROR HY000: Variable 'old' is a read only variable
+set session core_file=bla;
+ERROR HY000: Variable 'core_file' is a read only variable
 UNINSTALL PLUGIN example;
 #
 # Bug #16194302  SUPPORT FOR FLOATING-POINT SYSTEM

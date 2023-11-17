@@ -6438,16 +6438,14 @@ size_t Field_string::make_sort_key(uchar *to, size_t length,
 }
 
 void Field_string::sql_type(String &res) const {
-  THD *thd = current_thd;
   const CHARSET_INFO *cs = res.charset();
   size_t length;
 
-  length = cs->cset->snprintf(
-      cs, res.ptr(), res.alloced_length(), "%s(%d)",
-      ((type() == MYSQL_TYPE_VAR_STRING && !thd->variables.new_mode)
-           ? (has_charset() ? "varchar" : "varbinary")
-           : (has_charset() ? "char" : "binary")),
-      (int)field_length / charset()->mbmaxlen);
+  length = cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "%s(%d)",
+                              ((type() == MYSQL_TYPE_VAR_STRING)
+                                   ? (has_charset() ? "varchar" : "varbinary")
+                                   : (has_charset() ? "char" : "binary")),
+                              (int)field_length / charset()->mbmaxlen);
   res.length(length);
 }
 

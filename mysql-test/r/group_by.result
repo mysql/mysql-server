@@ -1851,11 +1851,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t1` IGNORE INDEX (`i2`) USE INDEX (`i2`)) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
-SHOW VARIABLES LIKE 'old';
+SHOW VARIABLES LIKE 'core_file';
 Variable_name	Value
-old	OFF
-SET @@old = off;
-ERROR HY000: Variable 'old' is a read only variable
+core_file	ON
+SET @@core_file = off;
+ERROR HY000: Variable 'core_file' is a read only variable
 DROP TABLE t1, t2;
 CREATE TABLE t1(
 a INT, 

@@ -150,7 +150,6 @@ CREATE TABLE t2 (
   key(b, a)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1,READ_BACKUP=0' ENGINE=ndbcluster;
 
-set session new = 1;
 --error ER_CANT_CREATE_TABLE
 create table t2 (
   a char(10) NOT NULL,

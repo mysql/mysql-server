@@ -9896,9 +9896,7 @@ opt_cache_key_list:
           %empty { $$= nullptr; }
         | key_or_index '(' opt_key_usage_list ')'
           {
-            init_index_hints($3, INDEX_HINT_USE,
-                             old_mode ? INDEX_HINT_MASK_JOIN
-                                      : INDEX_HINT_MASK_ALL);
+            init_index_hints($3, INDEX_HINT_USE, INDEX_HINT_MASK_ALL);
             $$= $3;
           }
         ;
@@ -12361,7 +12359,7 @@ json_on_response:
 index_hint_clause:
           %empty
           {
-            $$= old_mode ?  INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL;
+            $$= INDEX_HINT_MASK_ALL;
           }
         | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
         | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }

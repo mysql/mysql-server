@@ -7,10 +7,6 @@
 -- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
---disable_query_log
-set new=on;
---enable_query_log
-
 ############ Test 1 Simple DD backup and restore #############
 -- echo **** Test 1 Simple DD backup and restore ****
 

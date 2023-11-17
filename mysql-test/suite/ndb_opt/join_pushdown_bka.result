@@ -2544,10 +2544,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Batched-key' not implemented
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
-set new=on;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 alter table t1 partition by hash(a);
+Warnings:
+Warning	6035	'PARTITION BY HASH' is deprecated and will be removed in a future release.
 explain
 select *
 from t1
@@ -2564,6 +2563,8 @@ partition p2 values in (2),
 partition p3 values in (3),
 partition p4 values in (4)
 );
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 explain
 select *
 from t1
@@ -2580,6 +2581,8 @@ partition p2 values less than (2),
 partition p3 values less than (4),
 partition p4 values less than (99999)
 );
+Warnings:
+Warning	6035	'PARTITION BY RANGE' is deprecated and will be removed in a future release.
 explain
 select *
 from t1
@@ -2591,9 +2594,6 @@ Warnings:
 Note	1003	Table 't1' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 drop table t1;
-set new=default;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table t1 (a int, b int, primary key(a) using hash) engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1, 2);

@@ -1,5 +1,0 @@
-!include suite/ndb_ddl/my.cnf
-
-[mysqld]
-# Turn on the new flag to allow PARTITION BY RANGE
-new

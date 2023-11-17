@@ -1,11 +1,5 @@
-set @old_new = @@global.new;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 set @old_ndb_read_backup = @@global.ndb_read_backup;
 set @old_ndb_fully_replicated = @@global.ndb_fully_replicated;
-set @@new = 1;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 set global ndb_read_backup = 1;
 set global ndb_fully_replicated = 1;
 set global ndb_fully_replicated = 0;
@@ -15,6 +9,8 @@ partition p0 values in (0),
 partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 ALTER TABLE t01 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
 -- t01 --
 Version: Any
@@ -168,6 +164,8 @@ partition p0 values in (0),
 partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 -- t02 --
 Version: Any
 Fragment type: UserDefined
@@ -1361,6 +1359,8 @@ partition p0 values in (0),
 partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 ALTER TABLE t08 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
 -- t08 --
 Version: Any
@@ -1514,6 +1514,8 @@ partition p0 values in (0),
 partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
+Warnings:
+Warning	6035	'PARTITION BY LIST' is deprecated and will be removed in a future release.
 -- t09 --
 Version: Any
 Fragment type: UserDefined
@@ -2212,9 +2214,6 @@ PRIMARY KEY(x, NDB$PART) - UniqueHashIndex
 NDBT_ProgramExit: 0 - OK
 
 drop tables t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12;
-set global new = @old_new;
-Warnings:
-Warning	1287	'@@new' is deprecated and will be removed in a future release.
 set global ndb_read_backup = @old_ndb_read_backup;
 set global ndb_fully_replicated = @old_ndb_fully_replicated;
 Drop Node Group 2 done

@@ -1247,12 +1247,6 @@ bool opt_log_replica_updates = false;
 char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
 
-/**
-  compatibility option:
-    - index usage hints (USE INDEX without a FOR clause) behave as in 5.0
-*/
-bool old_mode;
-
 /*
   Legacy global handlerton. These will be removed (please do not add more).
 */
@@ -12676,12 +12670,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_CHARACTER_SET_CLIENT_HANDSHAKE:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--character-set-client-handshake");
-      break;
-    case 'n':
-      push_deprecated_warn_no_replacement(nullptr, "--new");
-      break;
-    case OPT_OLD_OPTION:
-      push_deprecated_warn_no_replacement(nullptr, "--old");
       break;
   }
   return false;

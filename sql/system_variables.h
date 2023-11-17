@@ -302,7 +302,6 @@ struct System_variables {
   */
   bool transaction_read_only;
   bool low_priority_updates;
-  bool new_mode;
   bool keep_files_on_create;
 
   bool old_alter_table;

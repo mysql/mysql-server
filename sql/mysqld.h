@@ -375,7 +375,6 @@ extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern bool server_shutting_down;
 extern my_thread_attr_t connection_attrib;
-extern bool old_mode;
 extern bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_replica;
 extern ulong connection_errors_internal;
