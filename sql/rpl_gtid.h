@@ -602,7 +602,7 @@ class Checkable_rwlock {
 
 #endif
   /// The rwlock.
-  mysql_rwlock_t m_rwlock;
+  mysql_rwlock_t m_rwlock{};
 };
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
