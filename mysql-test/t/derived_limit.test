@@ -161,6 +161,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -168,6 +169,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -177,6 +179,7 @@ let $query =
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION DISTINCT SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -209,6 +212,7 @@ WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
   SELECT * FROM cte;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -217,6 +221,7 @@ WITH RECURSIVE cte AS (SELECT 1 AS a UNION
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -227,6 +232,7 @@ WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
   SELECT * FROM cte LIMIT 1 OFFSET 2;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -235,6 +241,7 @@ WITH RECURSIVE cte AS (SELECT 1 AS a UNION
                        SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte LIMIT 1 OFFSET 2;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
@@ -245,6 +252,7 @@ WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
                        SELECT a+1 FROM cte LIMIT 5)
   SELECT * FROM cte LIMIT 3;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
