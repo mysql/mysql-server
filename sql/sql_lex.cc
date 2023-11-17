@@ -3867,7 +3867,9 @@ bool Query_expression::save_cmd_properties(THD *thd) {
   including binding data for all associated tables.
 */
 void Query_expression::restore_cmd_properties() {
-  for (auto qt : query_terms<>()) qt->query_block()->restore_cmd_properties();
+  for (auto qt : query_terms<>()) {
+    qt->query_block()->restore_cmd_properties();
+  }
 }
 
 /**
@@ -4830,6 +4832,12 @@ void Query_block::restore_cmd_properties() {
     Window *w;
     while ((w = li++)) w->reset_round();
   }
+  /*
+    Unconditionally update used table information for all items referenced from
+    query block. This is required in case const table substitution, or other
+    kind of optimization, has been performed in earlier rounds.
+  */
+  update_used_tables();
 }
 
 bool Query_options::merge(const Query_options &a, const Query_options &b) {

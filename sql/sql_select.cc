@@ -1956,13 +1956,6 @@ void JOIN::destroy() {
     }
   }
 
-  /*
-    If current optimization detected any const tables, expressions may have
-    been updated without used tables information from those const tables, so
-    make sure to restore used tables information as from resolving.
-  */
-  if (const_tables > 0) query_block->update_used_tables();
-
   destroy_sj_tmp_tables(this);
 
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
