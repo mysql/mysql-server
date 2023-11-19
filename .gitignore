@@ -31,3 +31,8 @@ scalability_jobs_*
 .cproject
 .project
 .settings/
+
+.idea/
+cmake-build-debug/
+.DS_Store
+*/.DS_Store
