@@ -468,7 +468,7 @@ static dd::Column *get_renamed_col(const Alter_inplace_info *ha_alter_info,
   Create_field *cf;
   while ((cf = cf_it++) != nullptr) {
     if (cf->field && cf->field->is_flag_set(FIELD_IS_RENAMED) &&
-        strcmp(cf->change, old_dd_column->name().c_str()) == 0) {
+        innobase_strcasecmp(cf->change, old_dd_column->name().c_str()) == 0) {
       /* This column is being renamed */
       return (const_cast<dd::Column *>(
           dd_find_column(&new_dd_tab->table(), cf->field_name)));
