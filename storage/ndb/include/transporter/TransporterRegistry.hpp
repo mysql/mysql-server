@@ -667,6 +667,7 @@ class TransporterRegistry {
 
   void get_trps_for_node(NodeId nodeId, TrpId *trp_ids, Uint32 &num_trp_ids,
                          Uint32 max_trp_ids) const;
+  TrpId get_the_only_base_trp(NodeId nodeId) const;
 
   Uint32 get_num_trps();
 

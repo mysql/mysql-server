@@ -1902,26 +1902,26 @@ bool TransporterRegistry::isBlocked(TrpId trpId) const {
   return m_blocked.get(trpId);
 }
 
-void TransporterRegistry::blockReceive(TransporterReceiveHandle &recvdata,
+void TransporterRegistry::blockReceive(TransporterReceiveHandle &recvdata
+                                       [[maybe_unused]],
                                        TrpId trpId) {
   assert((receiveHandle == &recvdata) || (receiveHandle == nullptr));
-  if (recvdata.m_transporters.get(trpId)) m_blocked.set(trpId);
+  assert(recvdata.m_transporters.get(trpId));
+  m_blocked.set(trpId);
 }
 
 void TransporterRegistry::unblockReceive(TransporterReceiveHandle &recvdata,
                                          TrpId trpId) {
   assert((receiveHandle == &recvdata) || (receiveHandle == nullptr));
+  assert(recvdata.m_transporters.get(trpId));
+  assert(!recvdata.m_has_data_transporters.get(trpId));
+  assert(m_blocked.get(trpId));
+  m_blocked.clear(trpId);
 
-  if (recvdata.m_transporters.get(trpId)) {
-    assert(m_blocked.get(trpId));
-    assert(!recvdata.m_has_data_transporters.get(trpId));
-    m_blocked.clear(trpId);
-
-    if (m_blocked_disconnected.get(trpId)) {
-      /* Process disconnect notification/handling now */
-      m_blocked_disconnected.clear(trpId);
-      report_disconnect(recvdata, trpId, m_disconnect_errors[trpId]);
-    }
+  if (m_blocked_disconnected.get(trpId)) {
+    /* Process disconnect notification/handling now */
+    m_blocked_disconnected.clear(trpId);
+    report_disconnect(recvdata, trpId, m_disconnect_errors[trpId]);
   }
 }
 
@@ -3347,6 +3347,16 @@ void TransporterRegistry::get_trps_for_node(NodeId nodeId, TrpId *trp_ids,
     }
   }
   require(max_size >= 1);
+}
+
+TrpId TransporterRegistry::get_the_only_base_trp(NodeId nodeId) const {
+  Uint32 num_ids;
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  lockMultiTransporters();
+  get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+  unlockMultiTransporters();
+  require(num_ids == 1);
+  return trp_ids[0];
 }
 
 void TransporterRegistry::switch_active_trp(Multi_Transporter *t) {

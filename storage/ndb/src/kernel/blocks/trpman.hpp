@@ -67,9 +67,10 @@ class Trpman : public SimulatedBlock {
   bool getParam(const char *name, Uint32 *count) override;
 
  private:
-  bool handles_this_node(Uint32 nodeId, bool all = false);
-  void close_com_failed_node(Signal *, Uint32);
-  void enable_com_node(Signal *, Uint32);
+  TrpId get_the_only_base_trp(NodeId nodeId) const;
+  bool handles_this_trp(TrpId trpId);
+  void close_com_failed_node(Signal *, NodeId);
+  void enable_com_node(Signal *, NodeId);
 };
 
 class TrpmanProxy : public LocalProxy {
