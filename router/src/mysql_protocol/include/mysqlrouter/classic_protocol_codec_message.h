@@ -749,6 +749,9 @@ class Codec<borrowable::message::server::Error<Borrowed>>
     stdx::expected<bw::String<Borrowed>, std::error_code> sql_state_res;
     if (caps[capabilities::pos::protocol_41]) {
       auto sql_state_hash_res = accu.template step<bw::FixedInt<1>>();
+      if (!sql_state_hash_res) {
+        return stdx::unexpected(sql_state_hash_res.error());
+      }
       sql_state_res = accu.template step<bw::String<Borrowed>>(5);
     }
     auto message_res = accu.template step<bw::String<Borrowed>>();
@@ -1105,10 +1108,12 @@ class Codec<borrowable::message::server::StmtPrepareOk>
     namespace bw = borrowable::wire;
 
     auto cmd_byte_res = accu.template step<bw::FixedInt<1>>();
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
     auto stmt_id_res = accu.template step<bw::FixedInt<4>>();
     auto column_count_res = accu.template step<bw::FixedInt<2>>();
     auto param_count_res = accu.template step<bw::FixedInt<2>>();
     auto filler_res = accu.template step<bw::FixedInt<1>>();
+    if (!filler_res) return stdx::unexpected(filler_res.error());
     auto warning_count_res = accu.template step<bw::FixedInt<2>>();
 
     // by default, metadata isn't optional

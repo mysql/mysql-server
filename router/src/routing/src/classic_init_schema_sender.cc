@@ -124,6 +124,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::ok() {
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         true /* ignore some-stage-changed. */
     );
+    if (!track_res) {
+      // ignore
+    }
   }
 
   discard_current_msg(src_channel, src_protocol);

@@ -626,6 +626,10 @@ void MySQLClassicProtocol::encode_auth_fast_message() {
       classic_protocol::message::server::AuthMethodData>>(
       {seq_no_++, {"\x03"}}, shared_capabilities(),
       net::dynamic_buffer(send_buffer_));
+
+  if (!encode_res) {
+    // ignore
+  }
 }
 
 void MySQLClassicProtocol::encode_auth_switch_message(
@@ -634,6 +638,9 @@ void MySQLClassicProtocol::encode_auth_switch_message(
       classic_protocol::message::server::AuthMethodSwitch>>(
       {seq_no_++, msg}, shared_capabilities(),
       net::dynamic_buffer(send_buffer_));
+  if (!encode_res) {
+    // ignore
+  }
 }
 
 void MySQLClassicProtocol::encode_server_greeting(
@@ -644,6 +651,9 @@ void MySQLClassicProtocol::encode_server_greeting(
       classic_protocol::message::server::Greeting>>(
       {seq_no_++, greeting}, server_capabilities(),
       net::dynamic_buffer(send_buffer_));
+  if (!encode_res) {
+    // ignore
+  }
 }
 
 stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {

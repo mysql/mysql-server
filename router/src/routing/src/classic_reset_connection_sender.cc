@@ -131,6 +131,9 @@ stdx::expected<Processor::Result, std::error_code> ResetConnectionSender::ok() {
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()),
         src_protocol->shared_capabilities());
+    if (!track_res) {
+      // ignore
+    }
   }
 
   discard_current_msg(src_channel, src_protocol);

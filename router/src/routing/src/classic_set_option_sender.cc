@@ -125,6 +125,9 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::eof() {
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         true /* ignore some-stage-changed. */
     );
+    if (!track_res) {
+      // ignore
+    }
   }
 
   auto cap = classic_protocol::capabilities::pos::multi_statements;

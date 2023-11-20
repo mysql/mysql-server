@@ -83,7 +83,9 @@ void PooledConnection::async_idle(std::chrono::milliseconds idle_timeout) {
       constexpr Frm frm{0 /* seq-id */, {}};
       std::array<std::byte, cl::Codec<Frm>(frm, {}).size()> quit_msg{};
       auto enc_res = cl::Codec<Frm>(frm, {}).encode(net::buffer(quit_msg));
-      assert(enc_res);
+      if (!enc_res) {
+        // ignore
+      }
 
       auto fd = conn_->native_handle();
 

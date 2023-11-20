@@ -212,6 +212,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         true /* ignore some_state_changed */);
+    if (!track_res) {
+      // ignore
+    }
   }
 
   dst_protocol->status_flags(msg.status_flags());

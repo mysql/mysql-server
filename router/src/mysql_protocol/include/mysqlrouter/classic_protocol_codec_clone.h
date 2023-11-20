@@ -25,6 +25,7 @@
 #ifndef MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_CLONE_H_
 #define MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_CLONE_H_
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol_clone.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
@@ -39,7 +40,7 @@ enum class CommandByte {
   Ack,
   Exit,
 };
-}
+}  // namespace clone::client
 
 /**
  * codec for clone::client::Init message.
@@ -81,10 +82,16 @@ class Codec<clone::client::Init>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     auto protocol_version_res = accu.template step<wire::FixedInt<4>>();
+    if (!protocol_version_res) {
+      return stdx::unexpected(protocol_version_res.error());
+    }
     auto ddl_timeout_res = accu.template step<wire::FixedInt<4>>();
+    if (!ddl_timeout_res) {
+      return stdx::unexpected(ddl_timeout_res.error());
+    }
 
     // TODO(jkneschk): if there is more data, 1-or-more Locators
 
@@ -126,7 +133,7 @@ class Codec<clone::client::Execute>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -162,7 +169,7 @@ class Codec<clone::client::Attach>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -198,7 +205,7 @@ class Codec<clone::client::Reinit>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -234,7 +241,7 @@ class Codec<clone::client::Ack>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -270,7 +277,7 @@ class Codec<clone::client::Exit>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -336,7 +343,7 @@ class Codec<clone::server::Complete>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }
@@ -372,7 +379,7 @@ class Codec<clone::server::Error>
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
-    if (!accu.result()) return stdx::unexpected(accu.result().error());
+    if (!cmd_byte_res) return stdx::unexpected(cmd_byte_res.error());
 
     return std::make_pair(accu.result().value(), value_type());
   }

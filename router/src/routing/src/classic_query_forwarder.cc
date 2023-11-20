@@ -2945,6 +2945,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()),
         src_protocol->shared_capabilities());
+    if (!track_res) {
+      // ignore
+    }
   }
 
   dst_protocol->status_flags(msg.status_flags());
@@ -3026,6 +3029,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         stmt_classified_ & StmtClassifier::NoStateChangeIgnoreTracker);
+    if (!track_res) {
+      // ignore
+    }
   }
 
   dst_protocol->status_flags(msg.status_flags());

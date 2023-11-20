@@ -536,6 +536,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row_end() {
     auto track_res = connection()->track_session_changes(
         net::buffer(eof_msg.session_changes()),
         src_protocol->shared_capabilities());
+    if (!track_res) {
+      // ignore
+    }
   }
 
   discard_current_msg(src_channel, src_protocol);
@@ -582,6 +585,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         changes_state & StmtClassifier::NoStateChangeIgnoreTracker);
+    if (!track_res) {
+      // ignore
+    }
   }
 
   if (msg.status_flags().test(
