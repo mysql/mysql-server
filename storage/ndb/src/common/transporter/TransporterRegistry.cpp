@@ -95,34 +95,19 @@ class TransporterReceiveWatchdog {
 #endif
 };
 
-ndb_sockaddr TransporterRegistry::get_connect_address(NodeId node_id) const {
-  return theNodeIdTransporters[node_id]->m_connect_address;
+ndb_sockaddr TransporterRegistry::get_connect_address_node(
+    NodeId nodeId) const {
+  return theNodeIdTransporters[nodeId]->m_connect_address;
+}
+ndb_sockaddr TransporterRegistry::get_connect_address(TrpId trpId) const {
+  return allTransporters[trpId]->m_connect_address;
 }
 
-// FIXME: Take TrpId argument instead, return sent pr TrpId
-Uint64 TransporterRegistry::get_bytes_sent(NodeId node_id) const {
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  Uint32 num_ids;
-  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-
-  Uint64 bytes_sent = 0;
-  for (Uint32 i = 0; i < num_ids; i++) {
-    bytes_sent += allTransporters[trp_ids[i]]->m_bytes_sent;
-  }
-  return bytes_sent;
+Uint64 TransporterRegistry::get_bytes_sent(TrpId trpId) const {
+  return allTransporters[trpId]->m_bytes_sent;
 }
-
-// FIXME: Take TrpId argument instead, return received pr TrpId
-Uint64 TransporterRegistry::get_bytes_received(NodeId node_id) const {
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  Uint32 num_ids;
-  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-
-  Uint64 bytes_received = 0;
-  for (Uint32 i = 0; i < num_ids; i++) {
-    bytes_received += allTransporters[trp_ids[i]]->m_bytes_received;
-  }
-  return bytes_received;
+Uint64 TransporterRegistry::get_bytes_received(TrpId trpId) const {
+  return allTransporters[trpId]->m_bytes_received;
 }
 
 SocketServer::Session *TransporterService::newSession(
@@ -2040,8 +2025,7 @@ void TransporterRegistry::setMixologyLevel(Uint32 l) {
 
 void TransporterRegistry::setIOState(TrpId trpId, IOState state) {
   if (ioStates[trpId] == state) return;
-  DEBUG("TransporterRegistry::setIOState(" << trpId << ", " << state
-                                           << ")");
+  DEBUG("TransporterRegistry::setIOState(" << trpId << ", " << state << ")");
   ioStates[trpId] = state;
 }
 
@@ -3097,14 +3081,8 @@ bool TransporterRegistry::is_shm_transporter(TrpId trp_id) {
     return false;
 }
 
-// FIXME: Take a TrpId argument instead
-bool TransporterRegistry::is_encrypted_link(NodeId nodeId) const {
-  Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
-  if (multi_trp != nullptr) {
-    return multi_trp->get_active_transporter(0)->is_encrypted();
-  } else {
-    return theNodeIdTransporters[nodeId]->is_encrypted();
-  }
+bool TransporterRegistry::is_encrypted_link(TrpId trpId) const {
+  return allTransporters[trpId]->is_encrypted();
 }
 
 NodeId TransporterRegistry::get_transporter_node_id(TrpId trp_id) const {
@@ -3377,22 +3355,22 @@ void TransporterRegistry::inc_slowdown_count(NodeId nodeId) {
   theNodeIdTransporters[nodeId]->inc_slowdown_count();
 }
 
-Uint32 TransporterRegistry::get_overload_count(NodeId nodeId) {
+Uint32 TransporterRegistry::get_overload_count(NodeId nodeId) const {
   assert(nodeId < MAX_NODES);
   assert(theNodeIdTransporters[nodeId] != nullptr);
   return theNodeIdTransporters[nodeId]->get_overload_count();
 }
 
-Uint32 TransporterRegistry::get_slowdown_count(NodeId nodeId) {
+Uint32 TransporterRegistry::get_slowdown_count(NodeId nodeId) const {
   assert(nodeId < MAX_NODES);
   assert(theNodeIdTransporters[nodeId] != nullptr);
   return theNodeIdTransporters[nodeId]->get_slowdown_count();
 }
 
-Uint32 TransporterRegistry::get_connect_count(NodeId nodeId) {
-  assert(nodeId < MAX_NODES);
-  assert(theNodeIdTransporters[nodeId] != nullptr);
-  return theNodeIdTransporters[nodeId]->get_connect_count();
+Uint32 TransporterRegistry::get_connect_count(TrpId trpId) const {
+  assert(trpId < maxTransporters);
+  assert(allTransporters[trpId] != nullptr);
+  return allTransporters[trpId]->get_connect_count();
 }
 
 void TransporterRegistry::get_trps_for_node(NodeId nodeId, TrpId *trp_ids,
@@ -3437,6 +3415,12 @@ void TransporterRegistry::switch_active_trp(Multi_Transporter *t) {
 
 Uint32 TransporterRegistry::get_num_active_transporters(Multi_Transporter *t) {
   return t->get_num_active_transporters();
+}
+
+bool TransporterRegistry::is_inactive_trp(TrpId trpId) const {
+  assert(trpId < maxTransporters);
+  assert(allTransporters[trpId] != nullptr);
+  return !allTransporters[trpId]->is_transporter_active();
 }
 
 /**

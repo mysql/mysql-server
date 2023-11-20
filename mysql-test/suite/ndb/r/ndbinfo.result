@@ -96,9 +96,10 @@ table_id	table_name	comment
 48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 49	certificates	Certificates in current use for TLS connections
 50	threadblock_details	which blocks are run in which threads and some internal state details
+51	transporter_details	detailed transporter status
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-51
+52
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment	rows_estimate
 2	test	for testing	8000
@@ -149,6 +150,7 @@ table_id	table_name	comment
 48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 49	certificates	Certificates in current use for TLS connections
 50	threadblock_details	which blocks are run in which threads and some internal state details
+51	transporter_details	detailed transporter status
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment	rows_estimate
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -219,6 +221,7 @@ table_id	table_name
 12	threadstat
 13	transactions
 4	transporters
+51	transporter_details
 
 SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
 table_id	column_id	column_name
@@ -305,6 +308,7 @@ table_id
 48
 49
 50
+51
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only

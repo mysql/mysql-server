@@ -4406,7 +4406,8 @@ void Qmgr::execAPI_VERSION_REQ(Signal *signal) {
   if (nodeInfo.m_connected) {
     conf->version = nodeInfo.m_version;
     conf->mysql_version = nodeInfo.m_mysql_version;
-    ndb_sockaddr in = globalTransporterRegistry.get_connect_address(nodeId);
+    ndb_sockaddr in =
+        globalTransporterRegistry.get_connect_address_node(nodeId);
     if (in.get_in6_addr((in6_addr *)&conf->m_inet6_addr) == 0)
       siglen = ApiVersionConf::SignalLength;
     (void)in.get_in_addr((in_addr *)&conf->m_inet_addr);
@@ -8172,7 +8173,7 @@ void Qmgr::execDBINFO_SCANREQ(Signal *signal) {
                fallback-style report */
 
             ndb_sockaddr addr =
-                globalTransporterRegistry.get_connect_address(i);
+                globalTransporterRegistry.get_connect_address_node(i);
             char service_uri[INET6_ADDRSTRLEN + 6];
             strcpy(service_uri, "ndb://");
             Ndb_inet_ntop(&addr, service_uri + 6, 46);
@@ -8226,7 +8227,7 @@ void Qmgr::execPROCESSINFO_REP(Signal *signal) {
          takes a struct sockaddr * and length.
       */
       ndb_sockaddr addr =
-          globalTransporterRegistry.get_connect_address(report->node_id);
+          globalTransporterRegistry.get_connect_address_node(report->node_id);
       processInfo->setHostAddress(&addr);
     }
   }

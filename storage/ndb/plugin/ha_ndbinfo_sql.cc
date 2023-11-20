@@ -652,6 +652,19 @@ static struct view {
      "SELECT * "
      "FROM `ndbinfo`.`ndb$threads`"},
     {"ndbinfo", "threadstat", "SELECT * FROM `ndbinfo`.`ndb$threadstat`"},
+    {"ndbinfo", "transporter_details",
+     "SELECT node_id, block_instance, trp_id, remote_node_id, "
+     " CASE connection_status"
+     "  WHEN 0 THEN \"CONNECTED\""
+     "  WHEN 1 THEN \"CONNECTING\""
+     "  WHEN 2 THEN \"DISCONNECTED\""
+     "  WHEN 3 THEN \"DISCONNECTING\""
+     "  ELSE NULL "
+     " END AS status, "
+     " remote_address, bytes_sent, bytes_received, "
+     " connect_count, "
+     " overloaded, overload_count, slowdown, slowdown_count, encrypted "
+     "FROM `ndbinfo`.`ndb$transporter_details`"},
     {"ndbinfo", "transporters",
      "SELECT node_id, remote_node_id, "
      " CASE connection_status"

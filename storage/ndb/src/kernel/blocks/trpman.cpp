@@ -460,20 +460,85 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
   jamEntry();
 
   switch (req.tableId) {
+    case Ndbinfo::TRANSPORTER_DETAILS_TABLEID: {
+      jam();
+      TrpId trpId = cursor->data[0];
+
+      while (trpId <= globalTransporterRegistry.get_transporter_count()) {
+        if (globalTransporterRegistry.get_transporter(trpId) == nullptr ||
+            globalTransporterRegistry.is_inactive_trp(trpId) ||
+            !handles_this_trp(trpId)) {
+          trpId++;
+          continue;
+        }
+
+        const NodeId nodeId =
+            globalTransporterRegistry.get_transporter_node_id(trpId);
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());  // Node id
+        row.write_uint32(trpId);           // Transporter id
+        row.write_uint32(nodeId);          // Remote node id
+        row.write_uint32(instance());      // Block instance reporting
+
+        row.write_uint32(globalTransporterRegistry.getPerformState(trpId));
+
+        const ndb_sockaddr conn_addr =
+            globalTransporterRegistry.get_connect_address(trpId);
+        /* Connect address */
+        if (!conn_addr.is_unspecified()) {
+          jam();
+          char *addr_str =
+              Ndb_inet_ntop(&conn_addr, addr_buf, sizeof(addr_buf));
+          row.write_string(addr_str);
+        } else {
+          jam();
+          row.write_null();
+        }
+
+        /* Bytes sent/received */
+        row.write_uint64(globalTransporterRegistry.get_bytes_sent(trpId));
+        row.write_uint64(globalTransporterRegistry.get_bytes_received(trpId));
+
+        /* Connect count, overload and slowdown states */
+        row.write_uint32(globalTransporterRegistry.get_connect_count(trpId));
+
+        /* FIXME: overload & slowdown is still pr NodeId */
+        row.write_uint32(
+            globalTransporterRegistry.get_status_overloaded().get(nodeId));
+        row.write_uint32(globalTransporterRegistry.get_overload_count(nodeId));
+        row.write_uint32(
+            globalTransporterRegistry.get_status_slowdown().get(nodeId));
+        row.write_uint32(globalTransporterRegistry.get_slowdown_count(nodeId));
+
+        /* TLS */
+        row.write_uint32(globalTransporterRegistry.is_encrypted_link(trpId));
+
+        ndbinfo_send_row(signal, req, row, rl);
+        trpId++;
+        if (rl.need_break(req)) {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, trpId);
+          return;
+        }
+      }
+      break;
+    }
     case Ndbinfo::TRANSPORTERS_TABLEID: {
       jam();
       Uint32 rnode = cursor->data[0];
       if (rnode == 0) rnode++;  // Skip node 0
 
       while (rnode < MAX_NODES) {
-        if (globalTransporterRegistry.get_node_transporter(rnode) == NULL) {
+        if (globalTransporterRegistry.get_node_transporter(rnode) == nullptr) {
           rnode++;
           continue;
         }
-        TrpId trpId;
+        // Find all active transporters for each node
         Uint32 num_ids;
+        TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
         globalTransporterRegistry.lockMultiTransporters();
-        globalTransporterRegistry.get_trps_for_node(rnode, &trpId, num_ids, 1);
+        globalTransporterRegistry.get_trps_for_node(
+            rnode, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
         globalTransporterRegistry.unlockMultiTransporters();
 
         /**
@@ -481,27 +546,41 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
          * the ndbinfo. It might dirty-read the ndbinfo added from other
          * (multi-)transporters.
          */
-        if (num_ids == 0 || !handles_this_trp(trpId)) {
+        if (num_ids == 0 || !handles_this_trp(trp_ids[0])) {
           rnode++;
           continue;
         }
-
         switch (getNodeInfo(rnode).m_type) {
           default: {
             jam();
+            Uint64 bytes_sent = 0;
+            Uint64 bytes_received = 0;
+            Uint32 connect_count = 0;
+            Uint32 perform_state = 0;
+            Uint32 is_encrypted = 0;
+            ndb_sockaddr conn_addr;
+
+            // Aggregate information over all (multi?) transporters
+            for (unsigned i = 0; i < num_ids; i++) {
+              const TrpId trpId = trp_ids[i];
+              bytes_sent += globalTransporterRegistry.get_bytes_sent(trpId);
+              bytes_received +=
+                  globalTransporterRegistry.get_bytes_received(trpId);
+              connect_count =
+                  std::max(connect_count,
+                           globalTransporterRegistry.get_connect_count(trpId));
+
+              // Not aggregated, will be the same for all trps;
+              conn_addr = globalTransporterRegistry.get_connect_address(trpId);
+              perform_state = globalTransporterRegistry.getPerformState(trpId);
+              is_encrypted = globalTransporterRegistry.is_encrypted_link(trpId);
+            }
+
             Ndbinfo::Row row(signal, req);
             row.write_uint32(getOwnNodeId());  // Node id
             row.write_uint32(rnode);           // Remote node id
-            /**
-             * FIXME: We should include all the seperate (multi-)Transporters
-             * in the ndbinfo.transporters table. For now we just pick the
-             * first active transporter and report the state for that one
-             * as representative for the 'node-connect-state':
-             */
-            row.write_uint32(globalTransporterRegistry.getPerformState(trpId));
+            row.write_uint32(perform_state);
 
-            ndb_sockaddr conn_addr =
-                globalTransporterRegistry.get_connect_address(rnode);
             /* Connect address */
             if (!conn_addr.is_unspecified()) {
               jam();
@@ -514,13 +593,11 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
             }
 
             /* Bytes sent/received */
-            row.write_uint64(globalTransporterRegistry.get_bytes_sent(rnode));
-            row.write_uint64(
-                globalTransporterRegistry.get_bytes_received(rnode));
+            row.write_uint64(bytes_sent);
+            row.write_uint64(bytes_received);
 
-            /* Connect count, overload and Slowdown states */
-            row.write_uint32(
-                globalTransporterRegistry.get_connect_count(rnode));
+            /* Connect count, overload and slowdown states */
+            row.write_uint32(connect_count);
             row.write_uint32(
                 globalTransporterRegistry.get_status_overloaded().get(rnode));
             row.write_uint32(
@@ -531,8 +608,7 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
                 globalTransporterRegistry.get_slowdown_count(rnode));
 
             /* TLS */
-            row.write_uint32(
-                globalTransporterRegistry.is_encrypted_link(rnode));
+            row.write_uint32(is_encrypted);
 
             ndbinfo_send_row(signal, req, row, rl);
             break;
@@ -552,7 +628,6 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
       }
       break;
     }
-
     case Ndbinfo::CERTIFICATES_TABLEID: {
       TlsKeyManager *keyMgr = globalTransporterRegistry.getTlsKeyManager();
       int peer_node_id = cursor->data[0];

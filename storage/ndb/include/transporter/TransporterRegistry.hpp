@@ -281,6 +281,13 @@ class TransporterRegistry {
   static void switch_active_trp(Multi_Transporter *);
   static Uint32 get_num_active_transporters(Multi_Transporter *);
 
+  /**
+   * An inactive transporter is part of a Multi_transporter.
+   * It is currently not in use, until activated by switch_active_trp().
+   * It is always in state DISCONNECTED.
+   */
+  bool is_inactive_trp(TrpId trpId) const;
+
  private:
   NdbMutex *theMultiTransporterMutex;
   /**
@@ -420,7 +427,7 @@ class TransporterRegistry {
    * Must be called after creating all transporters for returned value to be
    * correct.
    */
-  Uint64 get_total_max_send_buffer() {
+  Uint64 get_total_max_send_buffer() const {
     assert(m_total_max_send_buffer > 0);
     return m_total_max_send_buffer;
   }
@@ -428,7 +435,7 @@ class TransporterRegistry {
   /**
    * Get transporter's connect count
    */
-  Uint32 get_connect_count(NodeId nodeId);
+  Uint32 get_connect_count(TrpId trpId) const;
 
   /**
    * Set or clear overloaded bit.
@@ -440,7 +447,7 @@ class TransporterRegistry {
   /**
    * Get transporter's overload count since connect
    */
-  Uint32 get_overload_count(NodeId nodeId);
+  Uint32 get_overload_count(NodeId nodeId) const;
 
   /**
    * Set or clear slowdown bit.
@@ -452,7 +459,7 @@ class TransporterRegistry {
   /**
    * Get transporter's slowdown count since connect
    */
-  Uint32 get_slowdown_count(NodeId nodeId);
+  Uint32 get_slowdown_count(NodeId nodeId) const;
 
   /**
    * prepareSend
@@ -523,11 +530,13 @@ class TransporterRegistry {
   Transporter *get_node_base_transporter(NodeId nodeId) const;
   Transporter *get_node_transporter_instance(NodeId nodeId, int inst) const;
   bool is_shm_transporter(TrpId trp_id);
-  ndb_sockaddr get_connect_address(NodeId node_id) const;
-  bool is_encrypted_link(NodeId) const;
 
-  Uint64 get_bytes_sent(NodeId nodeId) const;
-  Uint64 get_bytes_received(NodeId nodeId) const;
+  ndb_sockaddr get_connect_address_node(NodeId nodeId) const;
+  ndb_sockaddr get_connect_address(TrpId trpId) const;
+  bool is_encrypted_link(TrpId trpId) const;
+
+  Uint64 get_bytes_sent(TrpId trpId) const;
+  Uint64 get_bytes_received(TrpId trpId) const;
 
   Multi_Transporter *get_node_multi_transporter(NodeId node_id) const;
 

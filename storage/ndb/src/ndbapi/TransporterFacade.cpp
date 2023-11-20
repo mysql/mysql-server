@@ -3551,7 +3551,7 @@ void TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval) {
 }
 
 ndb_sockaddr TransporterFacade::ext_get_connect_address(NodeId nodeId) {
-  return theTransporterRegistry->get_connect_address(nodeId);
+  return theTransporterRegistry->get_connect_address_node(nodeId);
 }
 
 bool TransporterFacade::ext_isConnected(NodeId aNodeId) {
