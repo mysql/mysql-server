@@ -1547,10 +1547,12 @@ struct TABLE {
   /// It will be true if any DISTINCT is given in the merged N-ary set
   /// operation. See is_distinct().
   bool m_last_operation_is_distinct{false};
-  /// If false, de-duplication happens via an index on this table, if
-  /// true, via an in-memory hash table, in which case we do not need to use
-  /// any index.
-  bool m_deduplicate_with_hashing{false};
+  /// If false, any de-duplication happens via an index on this table
+  /// (e.g. SELECT DISTINCT, set operation). If true, this table represents the
+  /// output of a set operation, and de-duplication happens via an in-memory
+  /// hash map, in which case we do not use any index, unless we get secondary
+  /// overflow.
+  bool m_deduplicate_with_hash_map{false};
 
  public:
   enum Set_operator_type {
@@ -1573,11 +1575,11 @@ struct TABLE {
   /// @return true if so, else false.
   bool is_union_or_table() const { return m_set_counter == nullptr; }
 
-  void set_hashing(bool use_hashing) {
-    m_deduplicate_with_hashing = use_hashing;
+  void set_use_hash_map(bool use_hash_map) {
+    m_deduplicate_with_hash_map = use_hash_map;
   }
 
-  bool uses_hashing() const { return m_deduplicate_with_hashing; }
+  bool uses_hash_map() const { return m_deduplicate_with_hash_map; }
 
   /// Returns the set operation type
   Set_operator_type set_op_type() {

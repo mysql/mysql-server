@@ -997,9 +997,32 @@ bool MaterializeIterator<Profiler>::Init() {
     if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
   });
 
-  if (doing_hash_deduplication() && !m_use_hash_map) {
-    if (table()->file->ha_index_init(0, /*sorted=*/false)) {
-      return true;
+  if (doing_hash_deduplication()) {
+    if (m_use_hash_map) {
+      if (!table()->uses_hash_map()) {
+        // The value of the user variable 'hash_set_operations' has changed to
+        // true, so we re-open the resulting tmp table without index: we will
+        // deduplicate set operation with hashing.
+        assert(table()->s->keys == 1);
+        close_tmp_table(table());
+        table()->s->keys = 0;  // don't need key for hash based dedup
+        table()->set_use_hash_map(true);
+        if (instantiate_tmp_table(thd(), table())) return true;
+      }
+    } else {
+      if (table()->uses_hash_map()) {
+        // The value of the user variable 'hash_set_operations' has changed to
+        // false, so we re-open the resulting tmp table with index so we can
+        // perform set operation de-duplication using index.
+        assert(table()->s->keys == 0);
+        close_tmp_table(table());
+        table()->s->keys = 1;  // activate key index de-duplication
+        table()->set_use_hash_map(false);
+        if (instantiate_tmp_table(thd(), table())) return true;
+      }
+      if (table()->file->ha_index_init(0, /*sorted=*/false)) {
+        return true;
+      }
     }
   }
 
@@ -1571,7 +1594,7 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(
     TABLE *const t = table();
     close_tmp_table(t);
     t->s->keys = 1;  // activate hash key index
-    t->set_hashing(false);
+    t->set_use_hash_map(false);
     if (instantiate_tmp_table(thd(), t)) return true;
     if (t->file->ha_index_init(0, false) != 0) return true;
 

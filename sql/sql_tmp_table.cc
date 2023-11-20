@@ -1409,7 +1409,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       table->set_set_op(set_counter,
                         param->m_operation == Temp_table_param::TTP_EXCEPT,
                         param->m_last_operation_is_distinct);
-      table->set_hashing(
+      table->set_use_hash_map(
           thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HASH_SET_OPERATIONS));
     }
 
@@ -2383,7 +2383,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
   table->in_use = thd;
 
   TABLE_SHARE *const share = table->s;
-  if (table->uses_hashing()) share->keys = 0;
+  if (table->uses_hash_map()) share->keys = 0;
 
 #ifndef NDEBUG
   for (uint i = 0; i < share->fields; i++)

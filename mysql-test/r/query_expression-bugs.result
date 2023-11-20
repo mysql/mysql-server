@@ -81,3 +81,253 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 ]
 SET optimizer_trace=default;
 DROP TABLE t1;
+#
+# Bug#35970620 hash_set_operations optimizer off assertion error
+#
+PREPARE p0 FROM '(SELECT 3 AS three) EXCEPT (SELECT 1)';
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SET SESSION optimizer_trace = 'enabled=on';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=on';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=on';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+PREPARE p0 FROM '(SELECT 3 AS three) EXCEPT (SELECT 1)';
+SET SESSION optimizer_switch = 'hash_set_operations=on';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=on';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+EXECUTE p0;
+three
+3
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$.steps[*].join_execution.steps[*]."materialize for except"')) AS j
+FROM information_schema.OPTIMIZER_TRACE;
+j
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 1
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 2
+  }
+]
+DROP PREPARE p0;
+SET SESSION optimizer_trace = 'enabled=default';
+SET SESSION optimizer_switch = 'hash_set_operations=default';
