@@ -189,7 +189,6 @@ ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
 ST_UNITS_OF_MEASURE
 TABLES
-TABLESPACES
 TABLESPACES_EXTENSIONS
 TABLES_EXTENSIONS
 TABLE_CONSTRAINTS
@@ -212,15 +211,15 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-SELECT count(*) = IF(@@lower_case_table_names = 0, 7, 12)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 6, 11)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-count(*) = IF(@@lower_case_table_names = 0, 7, 12)
+count(*) = IF(@@lower_case_table_names = 0, 6, 11)
 1
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 11)
 FROM information_schema.tables
 WHERE table_name LIKE 'tab%';
-count(*) = IF(@@lower_case_table_names = 0, 5, 12)
+count(*) = IF(@@lower_case_table_names = 0, 5, 11)
 1
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the

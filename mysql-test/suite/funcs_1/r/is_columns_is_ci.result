@@ -378,15 +378,6 @@ def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NU
 def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(256)			select			NULL
 def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	text			select			NULL
-def	information_schema	TABLESPACES	TABLESPACE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLESPACES	ENGINE	2		NO	varchar	21	64	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLESPACES	TABLESPACE_TYPE	3		YES	varchar	21	64	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLESPACES	LOGFILE_GROUP_NAME	4		YES	varchar	21	64	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLESPACES	EXTENT_SIZE	5		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	TABLESPACES	AUTOEXTEND_SIZE	6		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	TABLESPACES	MAXIMUM_SIZE	7		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	TABLESPACES	NODEGROUP_ID	8		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	TABLESPACES	TABLESPACE_COMMENT	9		YES	varchar	682	2048	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(2048)			select			NULL
 def	information_schema	TABLESPACES_EXTENSIONS	TABLESPACE_NAME	1	NULL	NO	varchar	268	804	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(268)			select			NULL
 def	information_schema	TABLESPACES_EXTENSIONS	ENGINE_ATTRIBUTE	2	NULL	YES	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select			NULL
 def	information_schema	TABLES_EXTENSIONS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
@@ -503,7 +494,6 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	char	utf8mb3	utf8mb3_general_ci
 3.0000	set	utf8mb3	utf8mb3_general_ci
 3.0000	varchar	utf8mb3	utf8mb3_general_ci
-3.0029	varchar	utf8mb3	utf8mb3_general_ci
 3.0103	varchar	utf8mb3	utf8mb3_general_ci
 3.0118	varchar	utf8mb3	utf8mb3_general_ci
 3.0476	varchar	utf8mb3	utf8mb3_general_ci
@@ -922,15 +912,6 @@ NULL	information_schema	TABLES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint
 3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	256	768	utf8mb3	utf8mb3_general_ci	varchar(256)
 1.0000	information_schema	TABLES	TABLE_COMMENT	text	65535	65535	utf8mb3	utf8mb3_general_ci	text
-3.0476	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	21	64	utf8mb3	utf8mb3_general_ci	varchar(64)
-3.0476	information_schema	TABLESPACES	ENGINE	varchar	21	64	utf8mb3	utf8mb3_general_ci	varchar(64)
-3.0476	information_schema	TABLESPACES	TABLESPACE_TYPE	varchar	21	64	utf8mb3	utf8mb3_general_ci	varchar(64)
-3.0476	information_schema	TABLESPACES	LOGFILE_GROUP_NAME	varchar	21	64	utf8mb3	utf8mb3_general_ci	varchar(64)
-NULL	information_schema	TABLESPACES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-NULL	information_schema	TABLESPACES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-NULL	information_schema	TABLESPACES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-NULL	information_schema	TABLESPACES	NODEGROUP_ID	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-3.0029	information_schema	TABLESPACES	TABLESPACE_COMMENT	varchar	682	2048	utf8mb3	utf8mb3_general_ci	varchar(2048)
 3.0000	information_schema	TABLESPACES_EXTENSIONS	TABLESPACE_NAME	varchar	268	804	utf8mb3	utf8mb3_bin	varchar(268)
 NULL	information_schema	TABLESPACES_EXTENSIONS	ENGINE_ATTRIBUTE	json	NULL	NULL	NULL	NULL	json
 3.0000	information_schema	TABLES_EXTENSIONS	TABLE_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)

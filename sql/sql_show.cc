@@ -4893,36 +4893,6 @@ struct run_hton_fill_schema_table_args {
   Item *cond;
 };
 
-static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
-  auto *args = (run_hton_fill_schema_table_args *)arg;
-  handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
-    hton->fill_is_table(hton, thd, args->tables, args->cond,
-                        get_schema_table_idx(args->tables->schema_table));
-  return false;
-}
-
-static int hton_fill_schema_table(THD *thd, Table_ref *tables, Item *cond) {
-  DBUG_TRACE;
-
-  struct run_hton_fill_schema_table_args args;
-  args.tables = tables;
-  args.cond = cond;
-
-  /* INFORMATION_SCHEMA.TABLESPACES is deprecated in 8.0 by WL#14064.
-   * This should be removed in 9.0 (or next GA) by WL#14065 */
-  if (!my_strcasecmp(system_charset_info, tables->table_name, "TABLESPACES"))
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                        "INFORMATION_SCHEMA.TABLESPACES");
-
-  plugin_foreach(thd, run_hton_fill_schema_table, MYSQL_STORAGE_ENGINE_PLUGIN,
-                 &args);
-
-  return 0;
-}
-
 ST_FIELD_INFO engines_fields_info[] = {
     {"ENGINE", 64, MYSQL_TYPE_STRING, 0, 0, "Engine", 0},
     {"SUPPORT", 8, MYSQL_TYPE_STRING, 0, 0, "Support", 0},
@@ -5027,25 +4997,6 @@ ST_FIELD_INFO plugin_fields_info[] = {
     {"LOAD_OPTION", 64, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
     {nullptr, 0, MYSQL_TYPE_STRING, 0, 0, nullptr, 0}};
 
-ST_FIELD_INFO tablespaces_fields_info[] = {
-    {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
-    {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
-    {"TABLESPACE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL,
-     nullptr, 0},
-    {"LOGFILE_GROUP_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0,
-     MY_I_S_MAYBE_NULL, nullptr, 0},
-    {"EXTENT_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
-     MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, nullptr, 0},
-    {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
-     MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, nullptr, 0},
-    {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
-     MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, nullptr, 0},
-    {"NODEGROUP_ID", 21, MYSQL_TYPE_LONGLONG, 0,
-     MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, nullptr, 0},
-    {"TABLESPACE_COMMENT", 2048, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL,
-     nullptr, 0},
-    {nullptr, 0, MYSQL_TYPE_STRING, 0, 0, nullptr, 0}};
-
 ST_FIELD_INFO tmp_table_columns_fields_info[] = {
     {"COLUMN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Field", 0},
     {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type", 0},
@@ -5091,8 +5042,6 @@ ST_SCHEMA_TABLE schema_tables[] = {
      false},
     {"SCHEMA_PRIVILEGES", schema_privileges_fields_info,
      fill_schema_schema_privileges, nullptr, nullptr, false},
-    {"TABLESPACES", tablespaces_fields_info, hton_fill_schema_table, nullptr,
-     nullptr, false},
     {"TABLE_PRIVILEGES", table_privileges_fields_info,
      fill_schema_table_privileges, nullptr, nullptr, false},
     {"USER_PRIVILEGES", user_privileges_fields_info,

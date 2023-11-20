@@ -419,15 +419,3 @@ CREATE TABLE testdb.t_varbinary_nonlinear_alg2 (
 
 --echo
 DROP SCHEMA testdb;
-
-
---echo
---echo # WL#14064 Deprecate INFORMATION_SCHEMA.TABLESPACES
---echo
---echo # Should show a deprecation warning in all cases.
-SELECT * FROM INFORMATION_SCHEMA.TABLESPACES;
-SELECT * FROM INFORMATION_SCHEMA.tablespaces;
---skip_if_hypergraph  # The warning is repeated a different amount of times.
-SELECT * FROM INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.TABLESPACES;
---skip_if_hypergraph  # The warning is repeated a different amount of times.
-SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME IN (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLESPACES);

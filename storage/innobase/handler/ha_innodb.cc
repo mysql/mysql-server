@@ -1707,25 +1707,6 @@ static bool innobase_show_status(handlerton *hton, THD *thd,
 static void innodb_enable_monitor_at_startup(
     char *str); /*!< in: monitor counter enable list */
 
-/** Fill handlerton based INFORMATION_SCHEMA tables.
-@param[in]      hton            (unused) Handle to the handlerton structure
-@param[in]      thd             Thread/connection descriptor
-@param[in,out]  tables          Information Schema tables to fill
-@param[in]      idx_cond        (unused) Intended for conditional pushdown
-@param[in]      idx             Table id that indicates which I_S table to fill
-@return Operation status */
-static int innobase_fill_i_s_table(handlerton *hton [[maybe_unused]],
-                                   THD *thd [[maybe_unused]],
-                                   Table_ref *tables [[maybe_unused]],
-                                   Item *idx_cond [[maybe_unused]],
-                                   enum_schema_tables idx) {
-  assert(idx == SCH_TABLESPACES);
-
-  /** InnoDB does not implement I_S.TABLESPACES */
-
-  return (0);
-}
-
 /** Store doc_id value into FTS_DOC_ID field
 @param[in,out]  tbl     table containing FULLTEXT index
 @param[in]      doc_id  FTS_DOC_ID value */
@@ -5500,7 +5481,6 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
-  innobase_hton->fill_is_table = innobase_fill_i_s_table;
   innobase_hton->flags =
       HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
       HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
