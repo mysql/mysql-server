@@ -2413,15 +2413,15 @@ int TransporterFacade::sendSignal(trp_client *clnt, const NdbApiSignal *aSignal,
 void TransporterFacade::startConnecting(NodeId aNodeId) {
   const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
   if (trpId != 0) {
-    theTransporterRegistry->setIOState_trp(trpId, NoHalt);
-    theTransporterRegistry->start_connecting_trp(trpId);
+    theTransporterRegistry->setIOState(trpId, NoHalt);
+    theTransporterRegistry->start_connecting(trpId);
   }
 }
 
 void TransporterFacade::startDisconnecting(NodeId aNodeId) {
   const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
   if (trpId != 0) {
-    theTransporterRegistry->start_disconnecting_trp(trpId);
+    theTransporterRegistry->start_disconnecting(trpId);
   }
 }
 

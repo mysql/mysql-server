@@ -347,15 +347,15 @@ class TransporterRegistry {
   /**
    * Initiate asynch connecting 'protocol' for transporters
    */
-  void start_connecting_trp(TrpId trpId);
+  void start_connecting(TrpId trpId);
   /**
    * start_disconnecting can be issued both from send and recv.
    * It is possible to specify from where it is called
    * in send_source parameter, this enables us to provide more
    * detailed information for disconnects.
    */
-  bool start_disconnecting_trp(TrpId trpId, int errnum = 0,
-                               bool send_source = true);
+  bool start_disconnecting(TrpId trpId, int errnum = 0,
+                           bool send_source = true);
   bool is_connected(TrpId trpId) const {
     return performStates[trpId] == CONNECTED;
   }
@@ -375,7 +375,7 @@ class TransporterRegistry {
   /**
    * Set IOState on the Transporter
    */
-  void setIOState_trp(TrpId trpId, IOState state);
+  void setIOState(TrpId trpId, IOState state);
 
   /**
    * Methods to handle backoff of connection attempts when attempt fails

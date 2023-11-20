@@ -1086,7 +1086,7 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
         jam();
         const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(i);
         if (trpId != 0) {
-          globalTransporterRegistry.start_connecting_trp(trpId);
+          globalTransporterRegistry.start_connecting(trpId);
         }
       }
     }
@@ -1121,8 +1121,8 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM) {
         const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(i);
         if (trpId != 0) {
-          globalTransporterRegistry.start_disconnecting_trp(trpId);
-          globalTransporterRegistry.setIOState_trp(trpId, HaltIO);
+          globalTransporterRegistry.start_disconnecting(trpId);
+          globalTransporterRegistry.setIOState(trpId, HaltIO);
         }
       }
     }

@@ -1198,7 +1198,7 @@ Uint32 TransporterRegistry::check_TCP(TransporterReceiveHandle &recvdata,
         ndb_socket_t sock_fd = allTransporters[trpid]->getSocket();
         epoll_ctl(recvdata.m_epoll_fd, EPOLL_CTL_DEL,
                   ndb_socket_get_native(sock_fd), nullptr);
-        start_disconnecting_trp(trpid);
+        start_disconnecting(trpid);
       } else if (recvdata.m_epoll_events[i].events & EPOLLIN) {
         recvdata.m_recv_transporters.set(trpid);
         retVal++;
@@ -1967,10 +1967,10 @@ void TransporterRegistry::setMixologyLevel(Uint32 l) {
 }
 #endif
 
-void TransporterRegistry::setIOState_trp(TrpId trpId, IOState state) {
+void TransporterRegistry::setIOState(TrpId trpId, IOState state) {
   if (ioStates[trpId] == state) return;
-  DEBUG("TransporterRegistry::setIOState_trp(" << trpId << ", " << state
-                                               << ")");
+  DEBUG("TransporterRegistry::setIOState(" << trpId << ", " << state
+                                           << ")");
   ioStates[trpId] = state;
 }
 
@@ -1989,10 +1989,10 @@ extern "C" void *run_start_clients_C(void *me) {
  * Note that even if we are going to use MultiTransporters to communicate with
  * this NodeId, we always start with connecting the single base-Transporter.
  *
- * QMGR will then later start_connecting_trp the individual MultiTransporter
+ * QMGR will then later start_connecting the individual MultiTransporter
  * parts and synchronice the switch to the MultiTransporter
  */
-void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
+void TransporterRegistry::start_connecting(TrpId trp_id) {
   switch (performStates[trp_id]) {
     case DISCONNECTED:
       break;
@@ -2016,7 +2016,7 @@ void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
   }
   DEBUG_FPRINTF(
       (stderr, "(%u)REG:start_connecting(trp:%u)\n", localNodeId, trp_id));
-  DBUG_ENTER("TransporterRegistry::start_connecting_trp");
+  DBUG_ENTER("TransporterRegistry::start_connecting");
   DBUG_PRINT("info", ("performStates[trp:%u]=CONNECTING", trp_id));
 
   Transporter *t = allTransporters[trp_id];
@@ -2040,8 +2040,8 @@ void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
  * Return: 'true' if already fully DISCONNECTED, else 'false' if
  *          the asynch disconnect may still be in progres
  */
-bool TransporterRegistry::start_disconnecting_trp(TrpId trp_id, int errnum,
-                                                  bool send_source) {
+bool TransporterRegistry::start_disconnecting(TrpId trp_id, int errnum,
+                                              bool send_source) {
   DEBUG_FPRINTF((stderr, "(%u)REG:start_disconnecting(trp:%u, %d)\n",
                  localNodeId, trp_id, errnum));
   switch (performStates[trp_id]) {
@@ -2083,7 +2083,7 @@ bool TransporterRegistry::start_disconnecting_trp(TrpId trp_id, int errnum,
         trp_id, allTransporters[trp_id]->getRemoteNodeId(),
         send_source ? "send" : "recv", errnum, performStates[trp_id]);
   }
-  DBUG_ENTER("TransporterRegistry::start_disconnecting_trp");
+  DBUG_ENTER("TransporterRegistry::start_disconnecting");
   DBUG_PRINT("info", ("performStates[trp:%u]=DISCONNECTING", trp_id));
   DEBUG_FPRINTF((stderr, "(%u)performStates[trp:%u] = DISCONNECTING\n",
                  localNodeId, trp_id));
@@ -2205,7 +2205,7 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
    * For MultiTransporters we need to check that all transporters has
    * reported DISCONNECTED.
    *  1) If an active transporter DISCONNECTED, the entire node need
-   *     to disconnect -> start_disconnecting_trp's not yet DISCONNECTED.
+   *     to disconnect -> start_disconnecting's not yet DISCONNECTED.
    *  2) We are 'ready_to_disconnect' the node when all active
    *     and inactive transporters are DISCONNECTED.
    *  3) We are 'ready_to_switch' the node when all active transporters
@@ -2230,7 +2230,7 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
       const TrpId other_trp_id = other_trp->getTransporterIndex();
       if (performStates[other_trp_id] != DISCONNECTED) {
         if (this_trp->m_is_active)  // 1)
-          start_disconnecting_trp(other_trp_id);
+          start_disconnecting(other_trp_id);
 
         ready_to_disconnect = false;  // 2)
         DEBUG_FPRINTF((stderr,
@@ -2249,7 +2249,7 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
       const TrpId other_trp_id = other_trp->getTransporterIndex();
       if (performStates[other_trp_id] != DISCONNECTED) {
         if (this_trp->m_is_active)  // 1)
-          start_disconnecting_trp(other_trp_id);
+          start_disconnecting(other_trp_id);
 
         ready_to_disconnect = false;  // 2)
         DEBUG_FPRINTF((stderr,
@@ -2537,7 +2537,7 @@ void TransporterRegistry::report_error(TrpId trpId, TransporterError errorCode,
  * threads.
  *
  * The way to activate the connect of the multiple transporters is to
- * use start_connecting_trp() to initiate the asynchronous transporter
+ * use start_connecting() to initiate the asynchronous transporter
  * connection protocol. start_clients_thread will then discover that
  * the transporter has requested 'CONNECTING' and connect it for us.
  * Finally the update_connection -> report_connected steps will set

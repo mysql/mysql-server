@@ -122,8 +122,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
         goto done;
       }
 
-      globalTransporterRegistry.start_connecting_trp(trpId);
-      globalTransporterRegistry.setIOState_trp(trpId, HaltIO);
+      globalTransporterRegistry.start_connecting(trpId);
+      globalTransporterRegistry.setIOState(trpId, HaltIO);
 
       //-----------------------------------------------------
       // Report that the connection to the node is opened
@@ -149,8 +149,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
           continue;
 #endif
 
-        globalTransporterRegistry.start_connecting_trp(trpId);
-        globalTransporterRegistry.setIOState_trp(trpId, HaltIO);
+        globalTransporterRegistry.start_connecting(trpId);
+        globalTransporterRegistry.setIOState(trpId, HaltIO);
 
         signal->theData[0] = NDB_LE_CommunicationOpened;
         signal->theData[1] = i;
@@ -190,7 +190,7 @@ void Trpman::execCONNECT_REP(Signal *signal) {
     jam();
     const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(hostId);
     if (trpId != 0) {
-      globalTransporterRegistry.setIOState_trp(trpId, NoHalt);
+      globalTransporterRegistry.setIOState(trpId, NoHalt);
     }
   }
 
@@ -214,8 +214,8 @@ void Trpman::close_com_failed_node(Signal *signal, NodeId nodeId) {
   for (unsigned i = 0; i < num_ids; i++) {
     const TrpId trpId = trp_ids[i];
     if (!handles_this_trp(trpId)) continue;
-    globalTransporterRegistry.setIOState_trp(trpId, HaltIO);
-    globalTransporterRegistry.start_disconnecting_trp(trpId);
+    globalTransporterRegistry.setIOState(trpId, HaltIO);
+    globalTransporterRegistry.start_disconnecting(trpId);
   }
   globalTransporterRegistry.unlockMultiTransporters();
 
@@ -311,7 +311,7 @@ void Trpman::enable_com_node(Signal *signal, NodeId nodeId) {
   const TrpId trpId = get_the_only_base_trp(nodeId);
   if (!handles_this_trp(trpId)) return;
 
-  globalTransporterRegistry.setIOState_trp(trpId, NoHalt);
+  globalTransporterRegistry.setIOState(trpId, NoHalt);
   setNodeInfo(nodeId).m_connected = true;
 
   //-----------------------------------------------------
@@ -868,7 +868,7 @@ void Trpman::execACTIVATE_TRP_REQ(Signal *signal) {
    * to an already enabled node.
    */
   if (is_recv_thread_for_new_trp(trp_id)) {
-    globalTransporterRegistry.setIOState_trp(trp_id, NoHalt);
+    globalTransporterRegistry.setIOState(trp_id, NoHalt);
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)", instance(),
                    node_id, trp_id));
     ActivateTrpConf *conf = CAST_PTR(ActivateTrpConf, signal->getDataPtrSend());
