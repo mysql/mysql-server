@@ -174,3 +174,9 @@ select st_collect(substr(@d,110,47));
 select st_collect(left(@d,42));
 --error ER_SRS_NOT_FOUND
 select st_collect(right(@d,42));
+
+# Bug#36020390 : regression: crash in Item_sum_collect::read_result_field 
+create table t(a datetime);
+insert into t values(),();
+select st_astext(st_collect(point(1,1))) from t group by a ;
+drop table t;

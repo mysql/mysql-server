@@ -242,3 +242,9 @@ select st_collect(left(@d,42));
 ERROR SR001: There's no spatial reference system with SRID 825307441.
 select st_collect(right(@d,42));
 ERROR SR001: There's no spatial reference system with SRID 825307441.
+create table t(a datetime);
+insert into t values(),();
+select st_astext(st_collect(point(1,1))) from t group by a ;
+st_astext(st_collect(point(1,1)))
+MULTIPOINT((1 1),(1 1))
+drop table t;
