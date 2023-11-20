@@ -1974,22 +1974,6 @@ void TransporterRegistry::setIOState_trp(TrpId trpId, IOState state) {
   ioStates[trpId] = state;
 }
 
-/**
- * Update ioStates[] on all transporters to the specified NodeId.
- * Will be checked on TrpId level when send/receive on each TrpId.
- */
-void TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
-  DEBUG("TransporterRegistry::setIOState(" << nodeId << ", " << state << ")");
-
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  Uint32 num_ids;
-  lockMultiTransporters();
-  get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-
-  for (uint i = 0; i < num_ids; i++) ioStates[trp_ids[i]] = state;
-  unlockMultiTransporters();
-}
-
 extern "C" void *run_start_clients_C(void *me) {
   ((TransporterRegistry *)me)->start_clients_thread();
   return nullptr;
@@ -2044,15 +2028,6 @@ void TransporterRegistry::start_connecting_trp(TrpId trp_id) {
                  localNodeId, trp_id));
   performStates[trp_id] = CONNECTING;
   DBUG_VOID_RETURN;
-}
-
-void TransporterRegistry::start_connecting(NodeId node_id) {
-  DEBUG_FPRINTF(
-      (stderr, "(%u)REG:start_connecting(node:%u)\n", localNodeId, node_id));
-  // Initially only the base-transporter is CONNECTING
-  Transporter *base_trp = get_node_base_transporter(node_id);
-  if (base_trp != nullptr)
-    start_connecting_trp(base_trp->getTransporterIndex());
 }
 
 /**
@@ -2115,22 +2090,6 @@ bool TransporterRegistry::start_disconnecting_trp(TrpId trp_id, int errnum,
   performStates[trp_id] = DISCONNECTING;
   m_disconnect_errnum[trp_id] = errnum;
   DBUG_RETURN(false);
-}
-
-bool TransporterRegistry::start_disconnecting(NodeId node_id, int errnum,
-                                              bool send_source) {
-  DEBUG_FPRINTF((stderr, "(%u)REG:start_disconnecting(node:%u, %d)\n",
-                 localNodeId, node_id, errnum));
-  Uint32 num_ids;
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  lockMultiTransporters();
-  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-
-  bool is_disconnected = true;
-  for (uint i = 0; i < num_ids; i++)
-    is_disconnected &= start_disconnecting_trp(trp_ids[i], errnum, send_source);
-  unlockMultiTransporters();
-  return is_disconnected;
 }
 
 /**
@@ -3355,6 +3314,7 @@ TrpId TransporterRegistry::get_the_only_base_trp(NodeId nodeId) const {
   lockMultiTransporters();
   get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
   unlockMultiTransporters();
+  if (num_ids == 0) return 0;
   require(num_ids == 1);
   return trp_ids[0];
 }

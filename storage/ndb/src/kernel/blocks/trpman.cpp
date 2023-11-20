@@ -188,7 +188,10 @@ void Trpman::execCONNECT_REP(Signal *signal) {
    */
   if (type == NodeInfo::MGM) {
     jam();
-    globalTransporterRegistry.setIOState(hostId, NoHalt);
+    const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(hostId);
+    if (trpId != 0) {
+      globalTransporterRegistry.setIOState_trp(trpId, NoHalt);
+    }
   }
 
   //------------------------------------------
