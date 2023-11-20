@@ -168,6 +168,14 @@ class NdbProcess {
   static std::optional<BaseString> quote_for_windows_crt(
       const char *str) noexcept;
 
+  static std::optional<BaseString> quote_for_windows_cmd_crt(
+      const char *str) noexcept;
+
+  static std::optional<BaseString> quote_for_posix_sh(const char *str) noexcept;
+
+  static std::optional<BaseString> quote_for_unknown_shell(
+      const char *str) noexcept;
+
   static bool start_process(process_handle_t &pid, const char *path,
                             const char *cwd, const Args &args, Pipes *pipes);
 };
@@ -258,16 +266,47 @@ std::unique_ptr<NdbProcess> NdbProcess::create_via_ssh(
    * And for Windows also what quoting the command itself requires on the
    * command line.
    *
-   * Currently caller of this function need to provide proper quoting.
-   *
-   * This function do quote the arguments such that ssh sees them as is, as
-   * done by start_process called via create.
+   * As a rough heuristic the type of quoting needed on remote host we look at
+   * command path and arguments. If backslash (\) is in any of them it is
+   * assumed that ssh executes command via cmd.exe and that command is a C/C++
+   * program. And if slash (/) is found it is assumed that ssh execute command
+   * via Bourne shell, sh, or compatible on remote host. This is not perfect but
+   * is a simple rule to document.
    *
    * On Windows it is assumed that ssh follows the quoting rules for Microsoft
    * C/C++ runtime.
    */
-  ssh_args.add(path.c_str());
-  ssh_args.add(args);
+  bool has_backslash = (strchr(path.c_str(), '\\'));
+  bool has_slash = (strchr(path.c_str(), '/'));
+  for (size_t i = 0; i < args.args().size(); i++) {
+    if (strchr(args.args()[i].c_str(), '\\')) has_backslash = true;
+    if (strchr(args.args()[i].c_str(), '/')) has_slash = true;
+  }
+  std::optional<BaseString> (*quote_func)(const char *str);
+  if (has_backslash && !has_slash)
+    quote_func = quote_for_windows_cmd_crt;
+  else if (!has_backslash && has_slash)
+    quote_func = quote_for_posix_sh;
+  else
+    quote_func = quote_for_unknown_shell;
+
+  auto qpath = quote_func(path.c_str());
+  if (!qpath) {
+    fprintf(stderr, "Function failed, could not quote command name: %s\n",
+            path.c_str());
+    return {};
+  }
+  ssh_args.add(qpath.value().c_str());
+  for (size_t i = 0; i < args.args().size(); i++) {
+    auto &arg = args.args()[i];
+    auto qarg = quote_func(arg.c_str());
+    if (!qarg) {
+      fprintf(stderr, "Function failed, could not quote command argument: %s\n",
+              arg.c_str());
+      return {};
+    }
+    ssh_args.add(qarg.value().c_str());
+  }
   return create(name, ssh_name, cwd, ssh_args, fds);
 }
 
@@ -308,6 +347,117 @@ std::optional<BaseString> NdbProcess::quote_for_windows_crt(
   if (backslashes) ret.append(backslashes, '\\');
   ret.append('"');
   return ret;
+}
+
+std::optional<BaseString> NdbProcess::quote_for_windows_cmd_crt(
+    const char *str) noexcept {
+  /*
+   * Quoting of % is not handled and likely not possible when using double
+   * quotes. If for %xxx% there is an environment variable named xxx defined,
+   * that will be replaced in string by cmd.exe. If there is no such environment
+   * variable the %xxx% will be intact as is.
+   *
+   * Since cmd.exe do not allow any quoting of a double quote within double
+   * quotes we should make sure each argument have an even number of double
+   * quotes, else cmd.exe may treat the last double quote from one argument as
+   * beginning of a quotation ending at the first quote of next argument. That
+   * can be accomplished using "" when quoting a single " within an argument.
+   * But to make it more likely that a argument containing an even number of "
+   * be quoted in the same way for windows as for posix shell the alternate
+   * quoting method \" will be used in those cases. But only if none of ^ < > &
+   * | appear between even and odd double quotes since cmd.exe will interpret
+   * them specially.
+   */
+  const char *p = str;
+  bool dquote = true;  // Assume quoted will started with "
+  bool need_dquote = false;
+  bool need_quote = (*p == '\0');
+  while (!need_dquote && *p) {
+    switch (*p) {
+      case '^':
+      case '<':
+      case '>':
+      case '|':
+      case '&':
+        if (!dquote)
+          need_dquote = true;
+        else
+          need_quote = true;
+        break;
+      case '"':
+        dquote = !dquote;
+        need_quote = true;
+        break;
+      case ' ':
+      case '*':
+      case '?':
+        need_dquote = true;
+        break;
+      default:
+        if (!isprint(*p)) need_dquote = true;
+    }
+    p++;
+  }
+  if (!need_quote && !need_dquote) return str;
+  // If argument had even number of double quotes, dquote should be true.
+  if (!dquote) need_dquote = true;
+  BaseString ret;
+  ret.append('"');
+  int backslashes = 0;
+  while (*str) {
+    switch (*str) {
+      case '"':
+        if (backslashes) ret.append(backslashes, '\\');
+        backslashes = 0;
+        if (need_dquote)
+          ret.append('"');
+        else
+          ret.append('\\');
+        break;
+      case '\\':
+        backslashes++;
+        break;
+      default:
+        backslashes = 0;
+    }
+    ret.append(*str);
+    str++;
+  }
+  if (backslashes) ret.append(backslashes, '\\');
+  ret.append('"');
+  return ret;
+}
+
+std::optional<BaseString> NdbProcess::quote_for_posix_sh(
+    const char *str) noexcept {
+  const char *p = str;
+  while (*p && !strchr("\t\n \"#$&'()*;<>?\\`|~", *p)) p++;
+  if (*p == '\0' && p != str) return str;
+  BaseString ret;
+  ret.append('"');
+  while (*str) {
+    char ch = *str;
+    switch (ch) {
+      case '"':
+      case '$':
+      case '\\':
+      case '`':
+        ret.append('\\');
+        break;
+    }
+    ret.append(ch);
+    str++;
+  }
+  ret.append('"');
+  return ret;
+}
+
+std::optional<BaseString> NdbProcess::quote_for_unknown_shell(
+    const char *str) noexcept {
+  auto windows = quote_for_windows_cmd_crt(str);
+  auto posix = quote_for_posix_sh(str);
+  if (windows != posix) return {};
+  return windows;
 }
 
 #ifdef _WIN32
