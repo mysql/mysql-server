@@ -38,6 +38,10 @@ IMPORT_LOG_FUNCTIONS()
 
 stdx::expected<void, classic_protocol::message::server::Error>
 RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
+  // as stdx::expected(unexpect, ...) is 'explicit', return {} can't be used.
+  using ret_type =
+      stdx::expected<void, classic_protocol::message::server::Error>;
+
   bool subject_is_required = attrs.subject.has_value();
 
   bool issuer_is_required = attrs.issuer.has_value();
@@ -48,15 +52,16 @@ RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
   bool ssl_is_required = (attrs.ssl && *attrs.ssl) || x509_is_required;
 
   if (ssl_is_required && (client_channel->ssl() == nullptr)) {
-    return {stdx::unexpect, 1045, "Access denied (required: ssl)", "28000"};
+    return ret_type{stdx::unexpect, 1045, "Access denied (required: ssl)",
+                    "28000"};
   }
 
   if (x509_is_required) {
     auto *client_ssl = client_channel->ssl();
 
     if (X509_V_OK != SSL_get_verify_result(client_ssl)) {
-      return {stdx::unexpect, 1045, "Access denied (required: x509 invalid)",
-              "28000"};
+      return ret_type{stdx::unexpect, 1045,
+                      "Access denied (required: x509 invalid)", "28000"};
     }
 
     struct X509Deleter {
@@ -77,8 +82,9 @@ RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
         subject_name.resize(strlen(subject_name.c_str()));
 
         if (subject_name != *attrs.subject) {
-          return {stdx::unexpect, 1045,
-                  "Access denied (required: x509-subject mismatch)", "28000"};
+          return ret_type{stdx::unexpect, 1045,
+                          "Access denied (required: x509-subject mismatch)",
+                          "28000"};
         }
       }
 
@@ -93,12 +99,14 @@ RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
         issuer_name.resize(strlen(issuer_name.c_str()));
 
         if (issuer_name != *attrs.issuer) {
-          return {stdx::unexpect, 1045,
-                  "Access denied (required: x509-issuer mismatch)", "28000"};
+          return ret_type{stdx::unexpect, 1045,
+                          "Access denied (required: x509-issuer mismatch)",
+                          "28000"};
         }
       }
     } else {
-      return {stdx::unexpect, 1045, "Access denied (required: x509)", "28000"};
+      return ret_type{stdx::unexpect, 1045, "Access denied (required: x509)",
+                      "28000"};
     }
   }
 

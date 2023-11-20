@@ -537,6 +537,7 @@ class basic_socket_impl : public basic_socket_impl_base {
                                                  struct sockaddr *endpoint_data,
                                                  socklen_t *endpoint_size,
                                                  int flags = 0) {
+    using ret_type = stdx::expected<socket_type, error_type>;
     if (flags != 0) {
       auto res = io_ctx_->socket_service()->accept4(
           native_handle(), endpoint_data, endpoint_size, flags);
@@ -552,7 +553,7 @@ class basic_socket_impl : public basic_socket_impl_base {
                                                  endpoint_size);
     if (!res) return stdx::unexpected(res.error());
 
-    return {std::in_place, io_ctx, protocol_, std::move(res.value())};
+    return ret_type{std::in_place, io_ctx, protocol_, std::move(res.value())};
   }
 
   stdx::expected<socket_type, error_type> accept(io_context &io_ctx,

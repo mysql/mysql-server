@@ -283,9 +283,11 @@ class Connector : public ConnectorBase {
         if (!connect_res) return stdx::unexpected(connect_res.error());
       }
     }
+    using ret_type = stdx::expected<ConnectionType, std::error_code>;
 
-    return {std::in_place, std::make_unique<TcpConnection>(
-                               std::move(socket()), std::move(endpoint()))};
+    return ret_type{std::in_place,
+                    std::make_unique<TcpConnection>(std::move(socket()),
+                                                    std::move(endpoint()))};
   }
 };
 

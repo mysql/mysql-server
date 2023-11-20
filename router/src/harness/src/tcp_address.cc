@@ -96,6 +96,8 @@ namespace mysql_harness {
 
 static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
     const std::string &endpoint) {
+  using ret_type = stdx::expected<TCPAddress, std::error_code>;
+
   if (endpoint[0] != '[') {
     return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
@@ -115,7 +117,8 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
   ++pos;
   if (pos == endpoint.size()) {
     // ] was last character,  no port
-    return {std::in_place, addr, 0};
+
+    return ret_type{std::in_place, addr, 0};
   }
 
   if (endpoint[pos] != ':') {
@@ -131,13 +134,15 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
 
   auto port = port_res.value();
 
-  return {std::in_place, addr, port};
+  return ret_type{std::in_place, addr, port};
 }
 
 stdx::expected<TCPAddress, std::error_code> make_tcp_address(
     const std::string &endpoint) {
+  using ret_type = stdx::expected<TCPAddress, std::error_code>;
+
   if (endpoint.empty()) {
-    return {std::in_place, "", 0};
+    return ret_type{std::in_place, "", 0};
   }
 
   if (endpoint[0] == '[') {
@@ -149,13 +154,13 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
       return stdx::unexpected(addr_res.error());
     }
 
-    return {std::in_place, endpoint, 0};
+    return ret_type{std::in_place, endpoint, 0};
   } else {
     // IPv4 or address
     const auto pos = endpoint.find(":");
     if (pos == std::string::npos) {
       // no port
-      return {std::in_place, endpoint, 0};
+      return ret_type{std::in_place, endpoint, 0};
     }
 
     auto addr = endpoint.substr(0, pos);
@@ -165,7 +170,7 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
       return stdx::unexpected(port_res.error());
     }
 
-    return {std::in_place, addr, port_res.value()};
+    return ret_type{std::in_place, addr, port_res.value()};
   }
 }
 

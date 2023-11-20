@@ -331,7 +331,10 @@ ProcessLauncher::exit_code() {
     return stdx::unexpected(std::make_error_code(std::errc::timed_out));
   }
 
-  return {std::in_place, exit_status_type::native_t{}, dwExit};
+  using ret_type =
+      stdx::expected<ProcessLauncher::exit_status_type, std::error_code>;
+
+  return ret_type{std::in_place, exit_status_type::native_t{}, dwExit};
 }
 
 ProcessLauncher::exit_status_type ProcessLauncher::native_wait(
@@ -760,7 +763,10 @@ ProcessLauncher::exit_code() {
     return stdx::unexpected(last_error_code());
   }
 
-  return {std::in_place, exit_status_type::native_t{}, status};
+  using ret_type =
+      stdx::expected<ProcessLauncher::exit_status_type, std::error_code>;
+
+  return ret_type{std::in_place, exit_status_type::native_t{}, status};
 }
 
 ProcessLauncher::exit_status_type ProcessLauncher::native_wait(

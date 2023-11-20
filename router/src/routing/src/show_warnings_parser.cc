@@ -31,6 +31,10 @@
 stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
                std::string>
 ShowWarningsParser::parse() {
+  using ret_type = stdx::expected<
+      std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
+      std::string>;
+
   if (accept(SHOW)) {
     if (accept(WARNINGS)) {
       stdx::expected<Limit, std::string> limit_res;
@@ -41,12 +45,14 @@ ShowWarningsParser::parse() {
 
       if (accept(END_OF_INPUT)) {
         if (limit_res) {
-          return {std::in_place,
-                  ShowWarnings{ShowWarnings::Verbosity::Warning,
-                               limit_res->row_count, limit_res->offset}};
+          return ret_type{
+              std::in_place,
+              ShowWarnings{ShowWarnings::Verbosity::Warning,
+                           limit_res->row_count, limit_res->offset}};
         }
 
-        return {std::in_place, ShowWarnings{ShowWarnings::Verbosity::Warning}};
+        return ret_type{std::in_place,
+                        ShowWarnings{ShowWarnings::Verbosity::Warning}};
       }
 
       // unexpected input after SHOW WARNINGS [LIMIT ...]
@@ -60,13 +66,14 @@ ShowWarningsParser::parse() {
 
       if (accept(END_OF_INPUT)) {
         if (limit_res) {
-          return {std::in_place,
-                  ShowWarnings{ShowWarningCount::Verbosity::Error,
-                               limit_res->row_count, limit_res->offset}};
+          return ret_type{
+              std::in_place,
+              ShowWarnings{ShowWarningCount::Verbosity::Error,
+                           limit_res->row_count, limit_res->offset}};
         }
 
-        return {std::in_place,
-                ShowWarnings{ShowWarningCount::Verbosity::Error}};
+        return ret_type{std::in_place,
+                        ShowWarnings{ShowWarningCount::Verbosity::Error}};
       }
 
       // unexpected input after SHOW ERRORS [LIMIT ...]
@@ -74,18 +81,18 @@ ShowWarningsParser::parse() {
     } else if (accept(COUNT_SYM) && accept('(') && accept('*') && accept(')')) {
       if (accept(WARNINGS)) {
         if (accept(END_OF_INPUT)) {
-          return {std::in_place,
-                  ShowWarningCount{ShowWarningCount::Verbosity::Warning,
-                                   ShowWarningCount::Scope::Session}};
+          return ret_type{std::in_place,
+                          ShowWarningCount{ShowWarningCount::Verbosity::Warning,
+                                           ShowWarningCount::Scope::Session}};
         }
 
         // unexpected input after SHOW COUNT(*) WARNINGS
         return {};
       } else if (accept(ERRORS)) {
         if (accept(END_OF_INPUT)) {
-          return {std::in_place,
-                  ShowWarningCount{ShowWarningCount::Verbosity::Error,
-                                   ShowWarningCount::Scope::Session}};
+          return ret_type{std::in_place,
+                          ShowWarningCount{ShowWarningCount::Verbosity::Error,
+                                           ShowWarningCount::Scope::Session}};
         }
 
         // unexpected input after SHOW COUNT(*) ERRORS
@@ -109,16 +116,17 @@ ShowWarningsParser::parse() {
           if (accept('.')) {
             auto ident_res = warning_count_ident();
             if (ident_res && accept(END_OF_INPUT)) {
-              return {std::in_place,
-                      ShowWarningCount(*ident_res,
-                                       ShowWarningCount::Scope::Session)};
+              return ret_type{
+                  std::in_place,
+                  ShowWarningCount(*ident_res,
+                                   ShowWarningCount::Scope::Session)};
             }
           }
         } else if (accept(LOCAL_SYM)) {
           if (accept('.')) {
             auto ident_res = warning_count_ident();
             if (ident_res && accept(END_OF_INPUT)) {
-              return {
+              return ret_type{
                   std::in_place,
                   ShowWarningCount(*ident_res, ShowWarningCount::Scope::Local)};
             }
@@ -126,7 +134,7 @@ ShowWarningsParser::parse() {
         } else {
           auto ident_res = warning_count_ident();
           if (ident_res && accept(END_OF_INPUT)) {
-            return {
+            return ret_type{
                 std::in_place,
                 ShowWarningCount(*ident_res, ShowWarningCount::Scope::None)};
           }

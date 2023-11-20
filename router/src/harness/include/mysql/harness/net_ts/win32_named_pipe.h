@@ -580,6 +580,8 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
    * @retval std::errc::invalid_argument if no endpoint bound.
    */
   stdx::expected<socket_type, std::error_code> accept() {
+    using ret_type = stdx::expected<socket_type, std::error_code>;
+
     // not bound.
     if (ep_.path().empty()) {
       return stdx::unexpected(make_error_code(std::errc::invalid_argument));
@@ -600,14 +602,15 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
       // ERROR_NO_DATA too, it just means the pipe is already closed, but quite
       // likely readable.
       if (last_ec == ec_pipe_connected || last_ec == ec_no_data) {
-        return {std::in_place, get_executor().context(), protocol,
-                native_handle()};
+        return ret_type{std::in_place, get_executor().context(), protocol,
+                        native_handle()};
       }
 
       return stdx::unexpected(last_ec);
     }
 
-    return {std::in_place, get_executor().context(), protocol, native_handle()};
+    return ret_type{std::in_place, get_executor().context(), protocol,
+                    native_handle()};
   }
 
   stdx::expected<endpoint_type, std::error_code> local_endpoint() const {

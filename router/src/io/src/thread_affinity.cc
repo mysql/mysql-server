@@ -107,7 +107,7 @@ ThreadAffinity::affinity() const noexcept {
   SetThreadAffinityMask(thread_id_, cur_mask);
 
   // create bitmask from old_mask.
-  return {std::in_place, cur_mask};
+  return std::bitset<ThreadAffinity::max_cpus>{cur_mask};
 #else
   return stdx::unexpected(make_error_code(std::errc::not_supported));
 #endif

@@ -115,8 +115,12 @@ decode_frame_header(const net::const_buffer &recv_buf) {
 
   const auto frame_size = header_size + payload_size;
 
-  return {std::in_place, header_size,
-          ClassicProtocolState::FrameInfo{seq_id, frame_size, 0u}};
+  using ret_type =
+      stdx::expected<std::pair<size_t, ClassicProtocolState::FrameInfo>,
+                     std::error_code>;
+
+  return ret_type{std::in_place, header_size,
+                  ClassicProtocolState::FrameInfo{seq_id, frame_size, 0u}};
 }
 
 /**

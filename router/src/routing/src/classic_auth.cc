@@ -98,7 +98,8 @@ AuthBase::public_key_from_ssl_ctx_as_pem(SSL_CTX *ssl_ctx) {
   char *data = nullptr;
   auto data_len = BIO_get_mem_data(bio.get(), &data);
 
-  return {std::in_place, data, data + data_len};
+  return stdx::expected<std::string, std::error_code>{std::in_place, data,
+                                                      data + data_len};
 #else
   // 1.0.1 has no SSL_CTX_get_certificate
   (void)ssl_ctx;
@@ -226,7 +227,8 @@ stdx::expected<std::string, std::error_code> AuthBase::private_key_decrypt(
   }
 #endif
 
-  return {std::in_place, plaintext.data(), plaintext.data() + decrypted_len};
+  return stdx::expected<std::string, std::error_code>{
+      std::in_place, plaintext.data(), plaintext.data() + decrypted_len};
 }
 
 // xor the plaintext password with the repeated scramble.

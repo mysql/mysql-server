@@ -260,7 +260,7 @@ stdx::expected<OptionalDacl, std::error_code> SecurityDescriptor::dacl() const {
     return {};
   }
 
-  return {std::in_place, dacl};
+  return stdx::expected<OptionalDacl, std::error_code>{std::in_place, dacl};
 }
 
 stdx::expected<void, std::error_code> SecurityDescriptor::dacl(
@@ -502,7 +502,8 @@ stdx::expected<security_descriptor_type, std::error_code> AclBuilder::build() {
     return stdx::unexpected(ec);
   }
 
-  return {std::in_place, reinterpret_cast<SECURITY_DESCRIPTOR *>(new_sd)};
+  return stdx::expected<security_descriptor_type, std::error_code>{
+      std::in_place, reinterpret_cast<SECURITY_DESCRIPTOR *>(new_sd)};
 }
 
 /*

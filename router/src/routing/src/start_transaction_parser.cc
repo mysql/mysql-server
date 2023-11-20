@@ -69,6 +69,10 @@ static std::string to_string(SqlParser::TokenText tkn) {
 
 stdx::expected<std::variant<std::monostate, StartTransaction>, std::string>
 StartTransactionParser::parse() {
+  using ret_type =
+      stdx::expected<std::variant<std::monostate, StartTransaction>,
+                     std::string>;
+
   if (accept(START_SYM)) {
     if (accept(TRANSACTION_SYM)) {
       std::optional<StartTransaction::AccessMode> access_mode;
@@ -109,8 +113,9 @@ StartTransactionParser::parse() {
       } while (true);
 
       if (accept(END_OF_INPUT)) {
-        return {std::in_place,
-                StartTransaction{access_mode, with_consistent_snapshot}};
+        return ret_type{
+            std::in_place,
+            StartTransaction{access_mode, with_consistent_snapshot}};
       }
 
       return stdx::unexpected(
@@ -125,7 +130,7 @@ StartTransactionParser::parse() {
   if (accept(BEGIN_SYM)) {
     if (accept(WORK_SYM)) {
       if (accept(END_OF_INPUT)) {
-        return {std::in_place, StartTransaction{}};
+        return ret_type{std::in_place, StartTransaction{}};
       }
 
       return stdx::unexpected(
@@ -135,7 +140,7 @@ StartTransactionParser::parse() {
     }
 
     if (accept(END_OF_INPUT)) {
-      return {std::in_place, StartTransaction{}};
+      return ret_type{std::in_place, StartTransaction{}};
     }
     return stdx::unexpected(
         "You have an error in your SQL syntax; after BEGIN only [WORK] is "

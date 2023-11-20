@@ -675,7 +675,8 @@ stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {
 #else
   std::array<char, 256> buf;
 
-  return {std::in_place, X509_NAME_oneline(name, buf.data(), buf.size())};
+  return stdx::expected<std::string, std::error_code>{
+      std::in_place, X509_NAME_oneline(name, buf.data(), buf.size())};
 #endif
 }
 

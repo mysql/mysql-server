@@ -256,8 +256,11 @@ getaddrinfo(const char *node, const char *service,
     return stdx::unexpected(std::error_code{ret, net::ip::resolver_category()});
 #endif
   }
+  using ret_type = stdx::expected<
+      std::unique_ptr<struct addrinfo, void (*)(struct addrinfo *)>,
+      std::error_code>;
 
-  return {std::in_place, ainfo, &::freeaddrinfo};
+  return ret_type{std::in_place, ainfo, &::freeaddrinfo};
 }
 
 inline stdx::expected<const char *, std::error_code> inetntop(int af,

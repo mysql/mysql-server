@@ -1116,6 +1116,11 @@ class InterceptedStatementsParser : public ShowWarningsParser {
                               CommandRouterSet>,
                  std::string>
   parse() {
+    using ret_type =
+        stdx::expected<std::variant<std::monostate, ShowWarningCount,
+                                    ShowWarnings, CommandRouterSet>,
+                       std::string>;
+
     if (accept(SHOW)) {
       if (accept(WARNINGS)) {
         stdx::expected<Limit, std::string> limit_res;
@@ -1126,13 +1131,14 @@ class InterceptedStatementsParser : public ShowWarningsParser {
 
         if (accept(END_OF_INPUT)) {
           if (limit_res) {
-            return {std::in_place,
-                    ShowWarnings{ShowWarnings::Verbosity::Warning,
-                                 limit_res->row_count, limit_res->offset}};
+            return ret_type{
+                std::in_place,
+                ShowWarnings{ShowWarnings::Verbosity::Warning,
+                             limit_res->row_count, limit_res->offset}};
           }
 
-          return {std::in_place,
-                  ShowWarnings{ShowWarnings::Verbosity::Warning}};
+          return ret_type{std::in_place,
+                          ShowWarnings{ShowWarnings::Verbosity::Warning}};
         }
 
         // unexpected input after SHOW WARNINGS [LIMIT ...]
@@ -1146,12 +1152,14 @@ class InterceptedStatementsParser : public ShowWarningsParser {
 
         if (accept(END_OF_INPUT)) {
           if (limit_res) {
-            return {std::in_place,
-                    ShowWarnings{ShowWarnings::Verbosity::Error,
-                                 limit_res->row_count, limit_res->offset}};
+            return ret_type{
+                std::in_place,
+                ShowWarnings{ShowWarnings::Verbosity::Error,
+                             limit_res->row_count, limit_res->offset}};
           }
 
-          return {std::in_place, ShowWarnings{ShowWarnings::Verbosity::Error}};
+          return ret_type{std::in_place,
+                          ShowWarnings{ShowWarnings::Verbosity::Error}};
         }
 
         // unexpected input after SHOW ERRORS [LIMIT ...]
@@ -1160,18 +1168,18 @@ class InterceptedStatementsParser : public ShowWarningsParser {
                  accept(')')) {
         if (accept(WARNINGS)) {
           if (accept(END_OF_INPUT)) {
-            return {std::in_place,
-                    ShowWarningCount{ShowWarnings::Verbosity::Warning,
-                                     ShowWarningCount::Scope::Session}};
+            return ret_type{std::in_place,
+                            ShowWarningCount{ShowWarnings::Verbosity::Warning,
+                                             ShowWarningCount::Scope::Session}};
           }
 
           // unexpected input after SHOW COUNT(*) WARNINGS
           return {};
         } else if (accept(ERRORS)) {
           if (accept(END_OF_INPUT)) {
-            return {std::in_place,
-                    ShowWarningCount{ShowWarnings::Verbosity::Error,
-                                     ShowWarningCount::Scope::Session}};
+            return ret_type{std::in_place,
+                            ShowWarningCount{ShowWarnings::Verbosity::Error,
+                                             ShowWarningCount::Scope::Session}};
           }
 
           // unexpected input after SHOW COUNT(*) ERRORS
@@ -1195,24 +1203,26 @@ class InterceptedStatementsParser : public ShowWarningsParser {
             if (accept('.')) {
               auto ident_res = warning_count_ident();
               if (ident_res && accept(END_OF_INPUT)) {
-                return {std::in_place,
-                        ShowWarningCount(*ident_res,
-                                         ShowWarningCount::Scope::Session)};
+                return ret_type{
+                    std::in_place,
+                    ShowWarningCount(*ident_res,
+                                     ShowWarningCount::Scope::Session)};
               }
             }
           } else if (accept(LOCAL_SYM)) {
             if (accept('.')) {
               auto ident_res = warning_count_ident();
               if (ident_res && accept(END_OF_INPUT)) {
-                return {std::in_place,
-                        ShowWarningCount(*ident_res,
-                                         ShowWarningCount::Scope::Local)};
+                return ret_type{
+                    std::in_place,
+                    ShowWarningCount(*ident_res,
+                                     ShowWarningCount::Scope::Local)};
               }
             }
           } else {
             auto ident_res = warning_count_ident();
             if (ident_res && accept(END_OF_INPUT)) {
-              return {
+              return ret_type{
                   std::in_place,
                   ShowWarningCount(*ident_res, ShowWarningCount::Scope::None)};
             }
@@ -1226,8 +1236,8 @@ class InterceptedStatementsParser : public ShowWarningsParser {
             if (accept(EQ)) {                // =
               if (auto val = value()) {      // <value>
                 if (accept(END_OF_INPUT)) {  // $
-                  return {std::in_place,
-                          CommandRouterSet(name_tkn.text(), *val)};
+                  return ret_type{std::in_place,
+                                  CommandRouterSet(name_tkn.text(), *val)};
                 } else {
                   return stdx::unexpected(
                       "ROUTER SET <name> = <value>. Extra data.");
@@ -1275,19 +1285,21 @@ class InterceptedStatementsParser : public ShowWarningsParser {
   }
 
   stdx::expected<CommandRouterSet::Value, std::string> value() {
-    if (accept(TRUE_SYM)) return {std::in_place, true};
-    if (accept(FALSE_SYM)) return {std::in_place, false};
+    using ret_type = stdx::expected<CommandRouterSet::Value, std::string>;
+
+    if (accept(TRUE_SYM)) return ret_type{std::in_place, true};
+    if (accept(FALSE_SYM)) return ret_type{std::in_place, false};
 
     if (accept('-')) {
       if (auto num_tkn = expect(NUM)) {
         auto num = sv_to_num<int64_t>(num_tkn.text());
-        return {std::in_place, -num};
+        return ret_type{std::in_place, -num};
       }
     } else if (auto tkn = accept(NUM)) {
       auto num = sv_to_num<uint64_t>(tkn.text());
-      return {std::in_place, static_cast<int64_t>(num)};
+      return ret_type{std::in_place, static_cast<int64_t>(num)};
     } else if (auto tkn = accept(TEXT_STRING)) {
-      return {std::in_place, std::string(tkn.text())};
+      return ret_type{std::in_place, std::string(tkn.text())};
     } else {
       return stdx::unexpected("Expected <BOOL>, <NUM> or <STRING>");
     }

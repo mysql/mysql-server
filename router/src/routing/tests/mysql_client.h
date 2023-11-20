@@ -861,8 +861,9 @@ class MysqlClient {
     if (res == nullptr) {
       return stdx::unexpected(make_mysql_error_code(m_.get()));
     }
+    using ret_type = stdx::expected<Statement::ResultSet, MysqlError>;
 
-    return {std::in_place, m_.get(), res};
+    return ret_type{std::in_place, m_.get(), res};
   }
 
   stdx::expected<Statement::Result, MysqlError> query(

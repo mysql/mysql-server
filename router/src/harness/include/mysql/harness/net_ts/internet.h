@@ -410,7 +410,9 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
     inet_pton_res = ::inet_pton(AF_INET6, str, &ipv6_addr);
   }
   if (inet_pton_res == 1) {
-    return {std::in_place, ipv6_addr, scope_id};
+    using ret_type = stdx::expected<address_v6, std::error_code>;
+
+    return ret_type{std::in_place, ipv6_addr, scope_id};
   } else if (inet_pton_res == 0) {
     // parse failed
     return stdx::unexpected(make_error_code(std::errc::invalid_argument));

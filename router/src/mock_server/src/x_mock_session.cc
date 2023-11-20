@@ -93,6 +93,10 @@ stdx::expected<std::pair<xcl::XProtocol::Client_message_type_id,
                          std::unique_ptr<xcl::XProtocol::Message>>,
                std::error_code>
 MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
+  using ret_type =
+      stdx::expected<std::pair<xcl::XProtocol::Client_message_type_id,
+                               std::unique_ptr<xcl::XProtocol::Message>>,
+                     std::error_code>;
   if (payload.empty())
     return stdx::unexpected(make_error_code(std::errc::bad_message));
 
@@ -104,10 +108,10 @@ MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
   auto buf = net::buffer(payload) + 1;
 
   try {
-    return {std::in_place, msg_id,
-            protocol_decoder_.decode_message(
-                header_msg_id, static_cast<const uint8_t *>(buf.data()),
-                buf.size())};
+    return ret_type{std::in_place, msg_id,
+                    protocol_decoder_.decode_message(
+                        header_msg_id, static_cast<const uint8_t *>(buf.data()),
+                        buf.size())};
   } catch (...) {
     return stdx::unexpected(make_error_code(std::errc::bad_message));
   }
