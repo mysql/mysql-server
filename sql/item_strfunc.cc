@@ -69,6 +69,7 @@
 #include "my_md5_size.h"
 #include "my_rnd.h"  // my_rand_buffer
 #include "my_sqlcommand.h"
+#include "my_stacktrace.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
@@ -1106,6 +1107,9 @@ String *Item_func_concat::val_str(String *str) {
     }
     if (tmp_value.append(*res)) return error_str();
   }
+  DBUG_EXECUTE_IF(
+      "print_stacktrace", fprintf(stderr, "Calling my_print_stacktrace\n");
+      my_print_stacktrace(nullptr, my_thread_stack_size); fflush(stderr););
   tmp_value.set_charset(collation.collation);
   return &tmp_value;
 }
