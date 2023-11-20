@@ -111,7 +111,7 @@ BEGIN
     DECLARE v_this_thread_enabled  ENUM('YES', 'NO');
     DECLARE v_table_name, v_banner VARCHAR(64) CHARSET utf8mb4;
     DECLARE v_sql_status_summary_select, v_sql_status_summary_delta, v_sql_status_summary_from, v_no_delta_names TEXT;
-    DECLARE v_output_time, v_output_time_prev DECIMAL(20,3) UNSIGNED;
+    DECLARE v_output_time, v_output_time_prev DECIMAL(20,3);
     DECLARE v_output_count, v_count, v_old_group_concat_max_len INT UNSIGNED DEFAULT 0;
     -- The width of each of the status outputs in the summery
     DECLARE v_status_summary_width TINYINT UNSIGNED DEFAULT 50;
