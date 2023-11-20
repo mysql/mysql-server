@@ -340,12 +340,13 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     return cluster_node;
   }
 
-  void setup_cluster(const std::string &js_for_primary,
-                     unsigned number_of_servers, uint16_t /*my_port*/ = 0) {
+  void setup_cluster(
+      const std::string &js_for_primary, unsigned number_of_servers,
+      const std::string &js_for_secondaries = "rest_server_mock_with_gr.js") {
     // launch cluster nodes
     for (unsigned port = 0; port < number_of_servers; ++port) {
       const std::string js_file =
-          port == 0 ? js_for_primary : "rest_server_mock_with_gr.js";
+          port == 0 ? js_for_primary : js_for_secondaries;
       cluster_nodes_.push_back(
           &launch_server(cluster_nodes_ports_[port], js_file,
                          cluster_nodes_http_ports_[port], number_of_servers));
@@ -1065,7 +1066,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   /*
    * create cluster with 5 servers
    */
-  ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 5));
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(tracefile, 5, tracefile));
 
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
@@ -1102,12 +1103,14 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
    * - 2 servers are ONLINE: Primary and Secondary_1
    * - 3 servers are OFFLINE: Secondary_2, Secondary_3, Secondary_4
    *
-   * Connetions to OFFLINE servers should be closed.
+   * Connections to OFFLINE servers should be closed.
    * Since only 2 servers are ONLINE (minority) connections to them should be
    * closed as well.
    */
-  set_additional_globals(cluster_nodes_http_ports_[0],
-                         server_globals().set_cluster_partition());
+  for (size_t i = 0; i < cluster_nodes_http_ports_.size(); ++i) {
+    set_additional_globals(cluster_nodes_http_ports_[i],
+                           server_globals().set_cluster_partition());
+  }
 
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,

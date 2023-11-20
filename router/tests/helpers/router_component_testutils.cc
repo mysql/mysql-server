@@ -274,9 +274,12 @@ bool wait_connection_dropped(mysqlrouter::MySQLSession &session,
 
   do {
     try {
-      session.query_one("select @@@port");
-    } catch (const mysqlrouter::MySQLSession::Error &) {
-      return true;
+      session.query_one("select @@port");
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      // we expect "connection failed" or  "lost connection during query"
+      if (e.code() == 2003 || e.code() == 2013) return true;
+
+      throw e;
     }
 
     std::this_thread::sleep_for(kStep);

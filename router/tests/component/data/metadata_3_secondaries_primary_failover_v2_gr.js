@@ -22,26 +22,23 @@ var nodes = function(host, port_and_state) {
     ];
   });
 };
-
-// all nodes are online
-var group_replication_members_online =
-    nodes(gr_node_host, mysqld.global.gr_nodes);
-
 var options = {
-  group_replication_members: group_replication_members_online,
+  group_replication_members: nodes(gr_node_host, mysqld.global.gr_nodes),
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 
+var options_failover = {
+  group_replication_members: nodes(gr_node_host, mysqld.global.gr_nodes),
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
+  cluster_type: "gr",
+};
 // in the startup case, first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
-
 // in case of failover, announce the 2nd node as PRIMARY
-var options_failover = Object.assign({}, options, {
-  group_replication_primary_member: options.group_replication_members[1][0]
-});
+options_failover.group_replication_members[0][4] = "SECONDARY";
+options_failover.group_replication_members[1][4] = "PRIMARY";
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -54,7 +51,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_select_cluster_type_v2",
       "router_select_metadata_v2_gr",
-      "router_select_group_membership",
       "router_clusterset_present",
       "router_check_member_state",
       "router_select_members_count",
@@ -66,15 +62,21 @@ if (mysqld.global.primary_failover === undefined) {
   mysqld.global.primary_failover = false;
 }
 
+// allow to switch
+var router_select_group_membership =
+    common_stmts.get("router_select_group_membership", options);
+var router_select_group_membership_failover =
+    common_stmts.get("router_select_group_membership", options_failover);
+
 ({
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    } else if (stmt === router_select_group_replication_primary_member.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       if (!mysqld.global.primary_failover) {
-        return router_select_group_replication_primary_member;
+        return router_select_group_membership;
       } else {
-        return router_select_group_replication_primary_member_failover;
+        return router_select_group_membership_failover;
       }
     } else {
       return common_stmts.unknown_statement_response(stmt);
