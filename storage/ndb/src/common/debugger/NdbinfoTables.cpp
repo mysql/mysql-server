@@ -104,6 +104,34 @@ DECLARE_NDBINFO_TABLE(POOLS, 14) = {
      {"resource_id", Ndbinfo::Number, ""},
      {"type_id", Ndbinfo::Number, "Record type id within resource"}}};
 
+DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 14) = {
+    {"transporter_details", 14, 0,
+     [](const Ndbinfo::Counts &counts) {
+       return (counts.data_nodes) * (counts.all_nodes - 1);
+     },
+     "detailed transporter status"},
+    {{"node_id", Ndbinfo::Number, "Node id reporting"},
+     {"block_instance", Ndbinfo::Number, "Block instance reporting"},
+     {"trp_id", Ndbinfo::Number, "Transporter id"},
+     {"remote_node_id", Ndbinfo::Number, "Node id at other end of link"},
+
+     {"connection_status", Ndbinfo::Number, "State of inter-node link"},
+
+     {"remote_address", Ndbinfo::String, "Address of remote node"},
+     {"bytes_sent", Ndbinfo::Number64, "Bytes sent to remote node"},
+     {"bytes_received", Ndbinfo::Number64, "Bytes received from remote node"},
+
+     {"connect_count", Ndbinfo::Number, "Number of times connected"},
+
+     {"overloaded", Ndbinfo::Number, "Is link reporting overload"},
+     {"overload_count", Ndbinfo::Number,
+      "Number of overload onsets since connect"},
+
+     {"slowdown", Ndbinfo::Number, "Is link requesting slowdown"},
+     {"slowdown_count", Ndbinfo::Number,
+      "Number of slowdown onsets since connect"},
+     {"encrypted", Ndbinfo::Number, "Is link using TLS encryption"}}};
+
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 11) = {
     {"transporters", 11, 0,
      [](const Ndbinfo::Counts &counts) {
@@ -1226,7 +1254,7 @@ static struct ndbinfo_table_list_entry {
     DBINFOTBL(CPUDATA_20SEC),
     DBINFOTBL_UNSUPPORTED(CERTIFICATES),
     DBINFOTBL(THREADBLOCK_DETAILS),
-};
+    DBINFOTBL(TRANSPORTER_DETAILS)};
 
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);

@@ -153,19 +153,20 @@ class Transporter {
   virtual bool doSend(bool need_wakeup = true) = 0;
 
   /* Get the configured maximum send buffer usage. */
-  Uint32 get_max_send_buffer() { return m_max_send_buffer; }
+  Uint32 get_max_send_buffer() const { return m_max_send_buffer; }
 
-  Uint32 get_connect_count() { return m_connect_count; }
+  Uint32 get_connect_count() const { return m_connect_count; }
 
   void inc_overload_count() { m_overload_count++; }
-  Uint32 get_overload_count() { return m_overload_count; }
+  Uint32 get_overload_count() const { return m_overload_count; }
   void inc_slowdown_count() { m_slowdown_count++; }
-  Uint32 get_slowdown_count() { return m_slowdown_count; }
+  Uint32 get_slowdown_count() const { return m_slowdown_count; }
   void set_recv_thread_idx(Uint32 recv_thread_idx) {
     m_recv_thread_idx = recv_thread_idx;
   }
   void set_transporter_active(bool active) { m_is_active = active; }
-  Uint32 get_recv_thread_idx() { return m_recv_thread_idx; }
+  bool is_transporter_active() const { return m_is_active; }
+  Uint32 get_recv_thread_idx() const { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
 
