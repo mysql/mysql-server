@@ -570,7 +570,7 @@ static int fill_innodb_trx_from_cache(
     /* trx_wait_started */
     if (row->trx_wait_started != std::chrono::system_clock::time_point{}) {
       OK(field_store_string(fields[IDX_TRX_REQUESTED_LOCK_ID],
-                            trx_i_s_create_lock_id(row->requested_lock_row,
+                            trx_i_s_create_lock_id(*row->requested_lock_row,
                                                    lock_id, sizeof(lock_id))));
       /* field_store_string() sets it no notnull */
 

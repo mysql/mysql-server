@@ -128,15 +128,21 @@ constexpr uint32_t CACHE_STORAGE_HASH_CELLS = 2048;
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-  rw_lock_t *rw_lock; /*!< read-write lock protecting
-                      the rest of this structure */
+  /** read-write lock protecting the rest of this structure */
+  rw_lock_t *rw_lock;
+
+  /** last time the cache was read */
   std::atomic<std::chrono::steady_clock::time_point> last_read{
-      std::chrono::steady_clock::time_point{}}; /*!< last time the cache was
-                                                   read; */
+      std::chrono::steady_clock::time_point{}};
+
   static_assert(decltype(last_read)::is_always_lock_free);
 
-  i_s_table_cache_t innodb_trx;   /*!< innodb_trx table */
-  i_s_table_cache_t innodb_locks; /*!< innodb_locks table */
+  /** innodb_trx table - contains i_s_trx_row_t objects */
+  i_s_table_cache_t innodb_trx;
+
+  /** cache for i_s_locks_row_t objects pointed by
+  i_s_trx_row_t::requested_lock_row fields */
+  i_s_table_cache_t innodb_locks;
 
   /** storage for external volatile data that may become unavailable when we
   release exclusive global locksys latch or trx_sys->mutex */
@@ -366,22 +372,13 @@ static bool i_s_locks_row_validate(
 #endif /* UNIV_DEBUG */
 
 /** Fills i_s_trx_row_t object.
- If memory can not be allocated then false is returned.
- @return false if allocation fails */
-static bool fill_trx_row(
-    i_s_trx_row_t *row,                        /*!< out: result object
-                                               that's filled */
-    const trx_t *trx,                          /*!< in: transaction to
-                                               get data from */
-    const i_s_locks_row_t *requested_lock_row, /*!< in: pointer to the
-                                            corresponding row in
-                                            innodb_locks if trx is
-                                            waiting or NULL if trx
-                                            is not waiting */
-    trx_i_s_cache_t *cache)                    /*!< in/out: cache into
-                                               which to copy volatile
-                                               strings */
-{
+If memory can not be allocated then false is returned.
+@param[out]     row    Result object that's filled
+@param[in]      trx    Transaction to get data from
+@param[in,out]  cache  The cache into which to copy volatile strings
+@return false if allocation fails */
+static bool fill_trx_row(i_s_trx_row_t *row, const trx_t *trx,
+                         trx_i_s_cache_t *cache) {
   size_t stmt_len;
   const char *s;
 
@@ -396,16 +393,22 @@ static bool fill_trx_row(
   row->trx_id = trx_get_id_for_print(trx);
   row->trx_started = trx->start_time.load(std::memory_order_relaxed);
   row->trx_state = trx_get_que_state_str(trx);
-  row->requested_lock_row = requested_lock_row;
-  ut_ad(requested_lock_row == nullptr ||
-        i_s_locks_row_validate(requested_lock_row));
 
-  if (trx->lock.wait_lock != nullptr) {
-    ut_a(requested_lock_row != nullptr);
+  if (const lock_t *wait_lock = trx->lock.wait_lock; wait_lock != nullptr) {
+    ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
     row->trx_wait_started = trx->lock.wait_started;
+    auto requested_lock_row = (i_s_locks_row_t *)table_cache_create_empty_row(
+        &cache->innodb_locks, cache);
+    if (requested_lock_row == nullptr) {
+      return false;
+    }
+    fill_locks_row(requested_lock_row, wait_lock,
+                   wait_lock_get_heap_no(wait_lock));
+    row->requested_lock_row = requested_lock_row;
   } else {
-    ut_a(requested_lock_row == nullptr);
+    ut_a(trx->lock.que_state != TRX_QUE_LOCK_WAIT);
     row->trx_wait_started = {};
+    row->requested_lock_row = nullptr;
   }
 
   row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
@@ -672,104 +675,6 @@ void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
   ut_ad(i_s_locks_row_validate(row));
 }
 
-/** Adds new element to the locks cache, enlarging it if necessary.
- Returns a pointer to the added row. If the row is already present then
- no row is added and a pointer to the existing row is returned.
- If row can not be allocated then NULL is returned.
- @return row */
-static i_s_locks_row_t *add_lock_to_cache(
-    trx_i_s_cache_t *cache, /*!< in/out: cache */
-    const lock_t *lock,     /*!< in: the element to add */
-    ulint heap_no)          /*!< in: lock's record number
-                            or ULINT_UNDEFINED if the lock
-                            is a table lock */
-{
-  i_s_locks_row_t *dst_row;
-
-  dst_row = (i_s_locks_row_t *)table_cache_create_empty_row(
-      &cache->innodb_locks, cache);
-
-  /* memory could not be allocated */
-  if (dst_row == nullptr) {
-    return (nullptr);
-  }
-
-  fill_locks_row(dst_row, lock, heap_no);
-
-  ut_ad(i_s_locks_row_validate(dst_row));
-  return (dst_row);
-}
-
-/** Adds transaction's relevant (important) locks to cache.
- If the transaction is waiting, then the wait lock is added to
- innodb_locks and a pointer to the added row is returned in
- requested_lock_row, otherwise requested_lock_row is set to NULL.
- If rows can not be allocated then false is returned and the value of
- requested_lock_row is undefined.
- @return false if allocation fails */
-static bool add_trx_relevant_locks_to_cache(
-    trx_i_s_cache_t *cache,               /*!< in/out: cache */
-    const trx_t *trx,                     /*!< in: transaction */
-    i_s_locks_row_t **requested_lock_row) /*!< out: pointer to the
-                               requested lock row, or NULL or
-                               undefined */
-{
-  /* We are about to iterate over locks for various tables/rows so we can not
-  narrow the required latch to any specific shard, and thus require exclusive
-  access to lock_sys. This is also needed to avoid observing NULL temporarily
-  set to wait_lock during B-tree page reorganization. */
-  ut_ad(locksys::owns_exclusive_global_latch());
-
-  /* If transaction is waiting we add the wait lock and all locks
-  from another transactions that are blocking the wait lock. */
-  if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-    const lock_t *curr_lock;
-    ulint wait_lock_heap_no;
-    i_s_locks_row_t *blocking_lock_row;
-    lock_queue_iterator_t iter;
-    const lock_t *wait_lock = trx->lock.wait_lock;
-    ut_a(wait_lock != nullptr);
-
-    wait_lock_heap_no = wait_lock_get_heap_no(wait_lock);
-
-    /* add the requested lock */
-    *requested_lock_row =
-        add_lock_to_cache(cache, wait_lock, wait_lock_heap_no);
-
-    /* memory could not be allocated */
-    if (*requested_lock_row == nullptr) {
-      return false;
-    }
-
-    /* then iterate over the locks before the wait lock and
-    add the ones that are blocking it */
-
-    lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
-    locksys::Trx_locks_cache wait_lock_cache{};
-    for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
-         curr_lock = lock_queue_iterator_get_prev(&iter)) {
-      if (locksys::has_to_wait(wait_lock, curr_lock, wait_lock_cache)) {
-        /* add the lock that is
-        blocking trx->lock.wait_lock */
-        blocking_lock_row = add_lock_to_cache(cache, curr_lock,
-                                              /* heap_no is the same
-                                              for the wait and waited
-                                              locks */
-                                              wait_lock_heap_no);
-
-        /* memory could not be allocated */
-        if (blocking_lock_row == nullptr) {
-          return false;
-        }
-      }
-    }
-  } else {
-    *requested_lock_row = nullptr;
-  }
-
-  return true;
-}
-
 /** Checks if the cache can safely be updated.
  @return true if can be updated */
 static bool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
@@ -829,7 +734,6 @@ static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
 
   for (auto trx : *trx_list) {
     i_s_trx_row_t *trx_row;
-    i_s_locks_row_t *requested_lock_row;
 
     trx_mutex_enter(trx);
 
@@ -863,12 +767,6 @@ static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
 
     ut_ad(trx->in_rw_trx_list == rw_trx_list);
 
-    if (!add_trx_relevant_locks_to_cache(cache, trx, &requested_lock_row)) {
-      cache->is_truncated = true;
-      trx_mutex_exit(trx);
-      return;
-    }
-
     trx_row = reinterpret_cast<i_s_trx_row_t *>(
         table_cache_create_empty_row(&cache->innodb_trx, cache));
 
@@ -879,7 +777,7 @@ static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
       return;
     }
 
-    if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
+    if (!fill_trx_row(trx_row, trx, cache)) {
       /* memory could not be allocated */
       --cache->innodb_trx.rows_used;
       cache->is_truncated = true;
@@ -1083,39 +981,31 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 constexpr const char *LOCK_RECORD_ID_FORMAT =
     UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
 constexpr const char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
-/** Crafts a lock id string from a i_s_locks_row_t object. Returns its
- second argument. This function aborts if there is not enough space in
- lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
- want to be 100% sure that it will not abort.
- @return resulting lock id */
-char *trx_i_s_create_lock_id(
-    const i_s_locks_row_t *row, /*!< in: innodb_locks row */
-    char *lock_id,              /*!< out: resulting lock_id */
-    ulint lock_id_size)         /*!< in: size of the lock id
-                           buffer */
-{
+
+char *trx_i_s_create_lock_id(const i_s_locks_row_t &row, char *lock_id,
+                             size_t lock_id_size) {
   int res_len;
 
   /* please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this */
 
-  if (row->lock_space != SPACE_UNKNOWN) {
+  if (row.lock_space != SPACE_UNKNOWN) {
     /* record lock */
     res_len = snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
-                       row->lock_trx_immutable_id, row->lock_space,
-                       row->lock_page, row->lock_rec, row->lock_immutable_id);
+                       row.lock_trx_immutable_id, row.lock_space, row.lock_page,
+                       row.lock_rec, row.lock_immutable_id);
   } else {
     /* table lock */
     res_len = snprintf(lock_id, lock_id_size, LOCK_TABLE_ID_FORMAT,
-                       row->lock_trx_immutable_id, row->lock_table_id,
-                       row->lock_immutable_id);
+                       row.lock_trx_immutable_id, row.lock_table_id,
+                       row.lock_immutable_id);
   }
 
   /* the typecast is safe because snprintf(3) never returns
   negative result */
   ut_a(res_len >= 0);
-  ut_a((ulint)res_len < lock_id_size);
+  ut_a((size_t)res_len < lock_id_size);
 
-  return (lock_id);
+  return lock_id;
 }
 
 int trx_i_s_parse_lock_id(const char *lock_id, i_s_locks_row_t *row) {
