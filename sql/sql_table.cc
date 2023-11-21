@@ -13962,107 +13962,6 @@ static uint blob_length_by_type(enum_field_types type) {
   }
 }
 
-/**
-  Convert the old temporal data types to the new temporal
-  type format for ADD/CHANGE COLUMN, ADD INDEXES and ALTER
-  FORCE ALTER operation.
-
-  @param thd                Thread context.
-  @param alter_info         Alter info parameters.
-
-  @retval true              Error.
-  @retval false             Either the old temporal data types
-                            are not present or they are present
-                            and have been successfully upgraded.
-*/
-
-static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
-  bool old_temporal_type_present = false;
-
-  DBUG_TRACE;
-
-  if (!((alter_info->flags & Alter_info::ALTER_ADD_COLUMN) ||
-        (alter_info->flags & Alter_info::ALTER_ADD_INDEX) ||
-        (alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN) ||
-        (alter_info->flags & Alter_info::ALTER_RECREATE)))
-    return false;
-
-  /*
-    Upgrade the old temporal types if any, for ADD/CHANGE COLUMN/
-    ADD INDEXES and FORCE ALTER operation.
-  */
-  Create_field *def;
-  List_iterator<Create_field> create_it(alter_info->create_list);
-
-  while ((def = create_it++)) {
-    // Check if any old temporal type is present.
-    if ((def->sql_type == MYSQL_TYPE_TIME) ||
-        (def->sql_type == MYSQL_TYPE_DATETIME) ||
-        (def->sql_type == MYSQL_TYPE_TIMESTAMP)) {
-      old_temporal_type_present = true;
-      break;
-    }
-  }
-
-  // Upgrade is not required since there are no old temporal types.
-  if (!old_temporal_type_present) return false;
-
-  // Upgrade old temporal types to the new temporal types.
-  create_it.rewind();
-  while ((def = create_it++)) {
-    enum enum_field_types sql_type;
-    Item *default_value = def->constant_default;
-    Item *update_value = nullptr;
-
-    /*
-       Set CURRENT_TIMESTAMP as default/update value based on
-       the auto_flags value.
-    */
-
-    if ((def->sql_type == MYSQL_TYPE_DATETIME ||
-         def->sql_type == MYSQL_TYPE_TIMESTAMP) &&
-        (def->auto_flags != Field::NONE)) {
-      Item_func_now_local *now = new (thd->mem_root) Item_func_now_local(0);
-      if (!now) return true;
-
-      if (def->auto_flags & Field::DEFAULT_NOW) default_value = now;
-      if (def->auto_flags & Field::ON_UPDATE_NOW) update_value = now;
-    }
-
-    switch (def->sql_type) {
-      case MYSQL_TYPE_TIME:
-        sql_type = MYSQL_TYPE_TIME2;
-        break;
-      case MYSQL_TYPE_DATETIME:
-        sql_type = MYSQL_TYPE_DATETIME2;
-        break;
-      case MYSQL_TYPE_TIMESTAMP:
-        sql_type = MYSQL_TYPE_TIMESTAMP2;
-        break;
-      default:
-        continue;
-    }
-
-    // Replace the old temporal field with the new temporal field.
-    Create_field *temporal_field = nullptr;
-    if (!(temporal_field = new (thd->mem_root) Create_field()) ||
-        temporal_field->init(thd, def->field_name, sql_type, nullptr, nullptr,
-                             (def->flags & NOT_NULL_FLAG), default_value,
-                             update_value, &def->comment, def->change, nullptr,
-                             nullptr, false, 0, nullptr, nullptr, def->m_srid,
-                             def->hidden, def->is_array))
-      return true;
-
-    temporal_field->field = def->field;
-    create_it.replace(temporal_field);
-  }
-
-  // Report a NOTE informing about the upgrade.
-  push_warning(thd, Sql_condition::SL_NOTE, ER_OLD_TEMPORALS_UPGRADED,
-               ER_THD(thd, ER_OLD_TEMPORALS_UPGRADED));
-  return false;
-}
-
 static fk_option to_fk_option(dd::Foreign_key::enum_rule rule) {
   switch (rule) {
     case dd::Foreign_key::enum_rule::RULE_NO_ACTION:
@@ -17019,20 +16918,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       return true;
     }
     alter_info->requested_algorithm = Alter_info::ALTER_TABLE_ALGORITHM_COPY;
-  }
-
-  /*
-    If 'avoid_temporal_upgrade' mode is not enabled, then the
-    pre MySQL 5.6.4 old temporal types if present is upgraded to the
-    current format.
-  */
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  const bool check_temporal_upgrade = !avoid_temporal_upgrade;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
-  if (check_temporal_upgrade) {
-    if (upgrade_old_temporal_types(thd, alter_info)) return true;
   }
 
   /*

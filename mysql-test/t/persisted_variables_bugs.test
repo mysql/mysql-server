@@ -359,11 +359,11 @@ RESET PERSIST;
 --echo #
 
 --echo # should report warning
-SET GLOBAL avoid_temporal_upgrade=TRUE;
+SET GLOBAL delayed_insert_limit=100;
 --echo # should report warning
-SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+SET PERSIST_ONLY delayed_insert_limit=100;
 --echo # should report warning
-SET PERSIST avoid_temporal_upgrade=TRUE;
+SET PERSIST delayed_insert_limit=100;
 
 --let $ofile= $MYSQLTEST_VARDIR/tmp/server_log.err
 
@@ -372,9 +372,9 @@ SET PERSIST avoid_temporal_upgrade=TRUE;
 --replace_result $MYSQLTEST_VARDIR tmp_dir
 --source include/restart_mysqld_no_echo.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when setting --avoid_temporal_upgrade
+--let $assert_text= Assert that there is a warning at bootstrap when setting --delayed_insert_limit
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/server_log.err
---let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_select= '@@delayed_insert_limit' is deprecated and will be removed in a future release.
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -477,7 +477,7 @@ RESET PERSIST;
 --echo #
 
 SET PERSIST temptable_use_mmap=FALSE;
-SET PERSIST avoid_temporal_upgrade=TRUE;
+SET PERSIST delayed_insert_limit=100;
 
 --let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
 --let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
@@ -490,9 +490,9 @@ SET PERSIST avoid_temporal_upgrade=TRUE;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_text= Assert that there is a warning at bootstrap when setting delayed_insert_limit
 --let $assert_file= $LOG_ERR
---let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_select= '@@delayed_insert_limit' is deprecated and will be removed in a future release.
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -500,7 +500,7 @@ RESET PERSIST;
 --remove_file $LOG_ERR
 
 SET PERSIST_ONLY temptable_use_mmap=FALSE;
-SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+SET PERSIST_ONLY delayed_insert_limit=100;
 
 --let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
 --replace_result $LOG_ERR LOG_ERR
@@ -512,9 +512,9 @@ SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_text= Assert that there is a warning at bootstrap when setting delayed_insert_limit
 --let $assert_file= $LOG_ERR
---let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_select= '@@delayed_insert_limit' is deprecated and will be removed in a future release.
 --let $assert_count= 1
 --source include/assert_grep.inc
 

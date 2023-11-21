@@ -2000,8 +2000,6 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     // Skip hidden system fields.
     if (field->is_hidden_by_system()) continue;
 
-    const enum_field_types field_type = field->real_type();
-
     if (ptr != first_field) packet->append(STRING_WITH_LEN(",\n"));
 
     packet->append(STRING_WITH_LEN("  "));
@@ -2015,14 +2013,6 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       type.set_charset(system_charset_info);
 
     field->sql_type(type);
-    /*
-      If the session variable 'show_old_temporals' is enabled and the field
-      is a temporal type of old format, add a comment to indicate the same.
-    */
-    if (thd->variables.show_old_temporals &&
-        (field_type == MYSQL_TYPE_TIME || field_type == MYSQL_TYPE_DATETIME ||
-         field_type == MYSQL_TYPE_TIMESTAMP))
-      type.append(" /* 5.5 binary format */");
     packet->append(type.ptr(), type.length(), system_charset_info);
 
     bool column_has_explicit_collation = false;

@@ -1417,11 +1417,6 @@ bool opt_binlog_expire_logs_auto_purge{true};
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size = 0;
-/**
-  Compatibility option to prevent auto upgrade of old temporals
-  during certain ALTER TABLE operations.
-*/
-bool avoid_temporal_upgrade;
 
 bool persisted_globals_load = true;
 
@@ -12655,12 +12650,6 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_TABLE_DEFINITION_CACHE:
       table_definition_cache_specified = true;
-      break;
-    case OPT_AVOID_TEMPORAL_UPGRADE:
-      push_deprecated_warn_no_replacement(nullptr, "avoid_temporal_upgrade");
-      break;
-    case OPT_SHOW_OLD_TEMPORALS:
-      push_deprecated_warn_no_replacement(nullptr, "show_old_temporals");
       break;
     case 'p':
       if (argument) {

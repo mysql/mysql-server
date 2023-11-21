@@ -7229,13 +7229,12 @@ class Temp_table_handle {
   auxiliary standalone function.
 
   @param[in]  table    TABLE object
-  @param[in]  check_temporal_upgrade  Check if temporal upgrade is needed
 
   @retval 0            ON SUCCESS
   @retval error code   ON FAILURE
 */
 
-int check_table_for_old_types(const TABLE *table, bool check_temporal_upgrade);
+int check_table_for_old_types(const TABLE *table);
 
 /*
   A Disk-Sweep MRR interface implementation

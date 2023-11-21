@@ -6744,29 +6744,6 @@ static Sys_var_bool Sys_offline_mode("offline_mode",
                                      ON_CHECK(check_offline_mode),
                                      ON_UPDATE(handle_offline_mode));
 
-static Sys_var_bool Sys_avoid_temporal_upgrade(
-    "avoid_temporal_upgrade",
-    "When this option is enabled, the pre-5.6.4 temporal types are "
-    "not upgraded to the new format for ALTER TABLE requests "
-    "ADD/CHANGE/MODIFY"
-    " COLUMN, ADD INDEX or FORCE operation. "
-    "This variable is deprecated and will be removed in a future release.",
-    GLOBAL_VAR(avoid_temporal_upgrade),
-    CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
-
-static Sys_var_bool Sys_show_old_temporals(
-    "show_old_temporals",
-    "When this option is enabled, the pre-5.6.4 temporal types will "
-    "be marked in the 'SHOW CREATE TABLE' and 'INFORMATION_SCHEMA.COLUMNS' "
-    "table as a comment in COLUMN_TYPE field. "
-    "This variable is deprecated and will be removed in a future release.",
-    SESSION_VAR(show_old_temporals), CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
-    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
-
 static Sys_var_charptr Sys_disabled_storage_engines(
     "disabled_storage_engines",
     "Limit CREATE TABLE for the storage engines listed",

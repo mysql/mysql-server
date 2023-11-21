@@ -365,12 +365,6 @@ struct System_variables {
   */
   bool show_create_table_verbosity;
 
-  /**
-    Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
-    the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
-    'COLUMN_TYPE' field.
-  */
-  bool show_old_temporals;
   // Used for replication delay and lag monitoring
   ulonglong original_commit_timestamp;
 

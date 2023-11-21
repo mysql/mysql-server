@@ -1598,8 +1598,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   // Check presence of old data types, always check for "temporal upgrade"
   // since it's not possible to upgrade such tables
-  const bool check_temporal_upgrade = true;
-  error = check_table_for_old_types(&table, check_temporal_upgrade);
+  error = check_table_for_old_types(&table);
 
   if (error) {
     if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
