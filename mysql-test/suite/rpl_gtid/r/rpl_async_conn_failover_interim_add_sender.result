@@ -13,6 +13,7 @@ include/rpl_sync.inc
 [connection server_2]
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
+call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Unknown MySQL error.*");
 SET SESSION sql_log_bin = 1;
 include/assert.inc ['There is one row on replica']
 #

@@ -126,9 +126,14 @@ class Async_conn_failover_manager {
   */
   static inline void log_error_for_async_executing_query_failure(
       const longlong sql_errno, MYSQL *mysql, Master_info *mi) {
-    if (mysql != nullptr && mi != nullptr) {
-      LogErr(WARNING_LEVEL, sql_errno, mysql_error(mysql), mi->host, mi->port,
-             "", mi->get_channel());
+    if (mysql && mi) {
+      const char *error = mysql_error(mysql);
+      if (!error || strlen(error) == 0) {
+        error = "Unknown MySQL error";
+      }
+
+      LogErr(WARNING_LEVEL, sql_errno, error, mi->host, mi->port, "",
+             mi->get_channel());
     }
   }
 };

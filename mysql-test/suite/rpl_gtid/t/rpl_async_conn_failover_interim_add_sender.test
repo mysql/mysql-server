@@ -63,6 +63,7 @@ INSERT INTO t1 VALUES (1);
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Can't connect to MySQL server.*");
+call mtr.add_suppression(".*The Monitor IO thread encountered an error while executing the query to check connection to the source server. Error: Unknown MySQL error.*");
 SET SESSION sql_log_bin = 1;
 
 --let $assert_text= 'There is one row on replica'
