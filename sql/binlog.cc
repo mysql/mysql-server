@@ -6019,12 +6019,11 @@ int MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   assert(mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event: %p", event));
 
-  int error = 0;
   binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
 
   assert(cache_mngr);
 
-  binlog_cache_data *cache_data =
+  binlog_cache_data *const cache_data =
       cache_mngr->get_binlog_cache_data(is_transactional);
 
   DBUG_PRINT("info", ("cache_mngr->pending(): %p", cache_data->pending()));
@@ -6035,8 +6034,7 @@ int MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     */
     if (cache_data->write_event(pending)) {
       report_cache_write_error(thd, is_transactional);
-      if (check_write_error(thd) && cache_data &&
-          stmt_cannot_safely_rollback(thd))
+      if (check_write_error(thd) && stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
       delete pending;
       cache_data->set_pending(nullptr);
@@ -6048,7 +6046,7 @@ int MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
   cache_data->set_pending(event);
 
-  return error;
+  return 0;
 }
 
 /**
@@ -6056,8 +6054,8 @@ int MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 */
 
 bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
-  THD *thd = event_info->thd;
-  bool error = true;
+  THD *const thd = event_info->thd;
+  constexpr bool error = true;
   DBUG_TRACE;
 
   if (thd->binlog_evt_union.do_union) {
@@ -6102,7 +6100,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db = event_info->get_db();
-    if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
+    if (!(thd->variables.option_bits & OPTION_BIN_LOG) ||
         (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
          (!event_info->is_no_filter_event() &&
@@ -6114,9 +6112,9 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
 
     if (binlog_start_trans_and_stmt(thd, event_info)) return error;
 
-    bool is_trans_cache = event_info->is_using_trans_cache();
-    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-    binlog_cache_data *cache_data =
+    const bool is_trans_cache = event_info->is_using_trans_cache();
+    binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
+    binlog_cache_data *const cache_data =
         cache_mngr->get_binlog_cache_data(is_trans_cache);
 
     DBUG_PRINT("info", ("event type: %d", event_info->get_type_code()));
@@ -6129,50 +6127,48 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
        of the SQL command. If row-based binlogging, Insert_id, Rand
        and other kind of "setting context" events are not needed.
     */
-    if (thd) {
-      if (!thd->is_current_stmt_binlog_format_row()) {
-        if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt) {
-          Intvar_log_event e(
-              thd,
-              (uchar)mysql::binlog::event::Intvar_event::LAST_INSERT_ID_EVENT,
-              thd->first_successful_insert_id_in_prev_stmt_for_binlog,
+    if (!thd->is_current_stmt_binlog_format_row()) {
+      if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt) {
+        Intvar_log_event e(
+            thd,
+            (uchar)mysql::binlog::event::Intvar_event::LAST_INSERT_ID_EVENT,
+            thd->first_successful_insert_id_in_prev_stmt_for_binlog,
+            event_info->event_cache_type, event_info->event_logging_type);
+        if (cache_data->write_event(&e)) goto err;
+      }
+      if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0) {
+        DBUG_PRINT(
+            "info",
+            ("number of auto_inc intervals: %u",
+             thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
+        Intvar_log_event e(
+            thd, (uchar)mysql::binlog::event::Intvar_event::INSERT_ID_EVENT,
+            thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
+            event_info->event_cache_type, event_info->event_logging_type);
+        if (cache_data->write_event(&e)) goto err;
+      }
+      if (thd->rand_used) {
+        Rand_log_event e(thd, thd->rand_saved_seed1, thd->rand_saved_seed2,
+                         event_info->event_cache_type,
+                         event_info->event_logging_type);
+        if (cache_data->write_event(&e)) goto err;
+      }
+      if (!thd->user_var_events.empty()) {
+        for (size_t i = 0; i < thd->user_var_events.size(); i++) {
+          Binlog_user_var_event *user_var_event = thd->user_var_events[i];
+
+          /* setting flags for user var log event */
+          uchar flags = User_var_log_event::UNDEF_F;
+          if (user_var_event->unsigned_flag)
+            flags |= User_var_log_event::UNSIGNED_F;
+
+          User_var_log_event e(
+              thd, user_var_event->user_var_event->entry_name.ptr(),
+              user_var_event->user_var_event->entry_name.length(),
+              user_var_event->value, user_var_event->length,
+              user_var_event->type, user_var_event->charset_number, flags,
               event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(&e)) goto err;
-        }
-        if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0) {
-          DBUG_PRINT(
-              "info",
-              ("number of auto_inc intervals: %u",
-               thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
-          Intvar_log_event e(
-              thd, (uchar)mysql::binlog::event::Intvar_event::INSERT_ID_EVENT,
-              thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
-              event_info->event_cache_type, event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-        }
-        if (thd->rand_used) {
-          Rand_log_event e(thd, thd->rand_saved_seed1, thd->rand_saved_seed2,
-                           event_info->event_cache_type,
-                           event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-        }
-        if (!thd->user_var_events.empty()) {
-          for (size_t i = 0; i < thd->user_var_events.size(); i++) {
-            Binlog_user_var_event *user_var_event = thd->user_var_events[i];
-
-            /* setting flags for user var log event */
-            uchar flags = User_var_log_event::UNDEF_F;
-            if (user_var_event->unsigned_flag)
-              flags |= User_var_log_event::UNSIGNED_F;
-
-            User_var_log_event e(
-                thd, user_var_event->user_var_event->entry_name.ptr(),
-                user_var_event->user_var_event->entry_name.length(),
-                user_var_event->value, user_var_event->length,
-                user_var_event->type, user_var_event->charset_number, flags,
-                event_info->event_cache_type, event_info->event_logging_type);
-            if (cache_data->write_event(&e)) goto err;
-          }
         }
       }
     }
@@ -6192,15 +6188,12 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
     if (is_trans_cache && stmt_cannot_safely_rollback(thd))
       cache_mngr->trx_cache.set_cannot_rollback();
 
-    error = false;
+    return false;
 
   err:
-    if (error) {
-      report_cache_write_error(thd, is_trans_cache);
-      if (check_write_error(thd) && cache_data &&
-          stmt_cannot_safely_rollback(thd))
-        cache_data->set_incident();
-    }
+    report_cache_write_error(thd, is_trans_cache);
+    if (check_write_error(thd) && stmt_cannot_safely_rollback(thd))
+      cache_data->set_incident();
   }
 
   return error;
