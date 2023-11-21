@@ -60,7 +60,6 @@ MYSQL *STDCALL cli_mysql_real_connect(MYSQL *mysql, const char *host,
 
 void cli_mysql_close(MYSQL *mysql);
 
-MYSQL_FIELD *cli_list_fields(MYSQL *mysql);
 bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields, uint fields);
 int cli_stmt_execute(MYSQL_STMT *stmt);

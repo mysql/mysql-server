@@ -1263,18 +1263,18 @@ static void test_prepare_field_result() {
 
   if (!opt_silent) fprintf(stdout, "\n\n field attributes:\n");
   verify_prepare_field(result, 0, "int_c", "int_c", MYSQL_TYPE_LONG, "t1",
-                       "test_prepare_field_result", current_db, 11, nullptr);
+                       "test_prepare_field_result", current_db, 11);
   verify_prepare_field(result, 1, "var_c", "var_c", MYSQL_TYPE_VAR_STRING, "t1",
-                       "test_prepare_field_result", current_db, 50, nullptr);
+                       "test_prepare_field_result", current_db, 50);
   verify_prepare_field(result, 2, "date", "date_c", MYSQL_TYPE_DATE, "t1",
-                       "test_prepare_field_result", current_db, 10, nullptr);
+                       "test_prepare_field_result", current_db, 10);
   verify_prepare_field(result, 3, "ts_c", "ts_c", MYSQL_TYPE_TIMESTAMP, "t1",
-                       "test_prepare_field_result", current_db, 19, nullptr);
+                       "test_prepare_field_result", current_db, 19);
   verify_prepare_field(
       result, 4, "char_c", "char_c",
       (mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_VAR_STRING
                                                 : MYSQL_TYPE_STRING),
-      "t1", "test_prepare_field_result", current_db, 4, nullptr);
+      "t1", "test_prepare_field_result", current_db, 4);
 
   verify_field_count(result, 5);
   mysql_free_result(result);
@@ -7086,7 +7086,7 @@ static void test_field_misc() {
                        "",                  /* field and its org name */
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
-                       "", 1, nullptr);     /* db name, length(its bool flag)*/
+                       "", 1);              /* db name, length(its bool flag)*/
 
   mysql_free_result(result);
 
@@ -7106,7 +7106,7 @@ static void test_field_misc() {
                        "",                  /* field and its org name */
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
-                       "", 1, nullptr);     /* db name, length(its bool flag)*/
+                       "", 1);              /* db name, length(its bool flag)*/
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7128,7 +7128,7 @@ static void test_field_misc() {
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
                        /* db name, length */
-                       "", MY_INT64_NUM_DECIMAL_DIGITS, nullptr);
+                       "", MY_INT64_NUM_DECIMAL_DIGITS);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7149,7 +7149,7 @@ static void test_field_misc() {
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
                        /* db name, length */
-                       "", MY_INT64_NUM_DECIMAL_DIGITS, nullptr);
+                       "", MY_INT64_NUM_DECIMAL_DIGITS);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7170,7 +7170,7 @@ static void test_field_misc() {
                        "",                  /* field and its org name */
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
-                       "", 1, nullptr);     /* db name, length */
+                       "", 1);              /* db name, length */
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7483,41 +7483,41 @@ static void test_explain_bug() {
                        mysql_get_server_version(mysql) <= 50000
                            ? MYSQL_TYPE_STRING
                            : MYSQL_TYPE_VAR_STRING,
-                       nullptr, nullptr, "", 64, nullptr);
+                       nullptr, nullptr, "", 64);
 
   verify_prepare_field(result, 1, "Type", "Type", MYSQL_TYPE_BLOB, nullptr,
-                       nullptr, "information_schema", 0, nullptr);
+                       nullptr, "information_schema", 0);
 
   verify_prepare_field(result, 2, "Null", "Null",
                        mysql_get_server_version(mysql) <= 50000
                            ? MYSQL_TYPE_STRING
                            : MYSQL_TYPE_VAR_STRING,
-                       nullptr, nullptr, "", 3, nullptr);
+                       nullptr, nullptr, "", 3);
 
   verify_prepare_field(result, 3, "Key", "Key", MYSQL_TYPE_STRING, nullptr,
-                       nullptr, "information_schema", 3, nullptr);
+                       nullptr, "information_schema", 3);
 
   if (mysql_get_server_version(mysql) >= 50027) {
     /*  The patch for bug#23037 changes column type of DEAULT to blob */
     verify_prepare_field(result, 4, "Default", "Default", MYSQL_TYPE_BLOB,
-                         nullptr, nullptr, "information_schema", 0, nullptr);
+                         nullptr, nullptr, "information_schema", 0);
   } else {
-    verify_prepare_field(
-        result, 4, "Default", "Default",
-        mysql_get_server_version(mysql) >= 50027
-            ? MYSQL_TYPE_BLOB
-            : mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
-                                                       : MYSQL_TYPE_VAR_STRING,
-        nullptr, nullptr, "mysql",
-        mysql_get_server_version(mysql) >= 50027 ? 0 : 64, nullptr);
+    verify_prepare_field(result, 4, "Default", "Default",
+                         mysql_get_server_version(mysql) >= 50027
+                             ? MYSQL_TYPE_BLOB
+                             : mysql_get_server_version(mysql) <= 50000
+                                   ? MYSQL_TYPE_STRING
+                                   : MYSQL_TYPE_VAR_STRING,
+                         nullptr, nullptr, "mysql",
+                         mysql_get_server_version(mysql) >= 50027 ? 0 : 64);
   }
 
-  verify_prepare_field(
-      result, 5, "Extra", "Extra",
-      mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
-                                               : MYSQL_TYPE_VAR_STRING,
-      nullptr, nullptr, "", mysql_get_server_version(mysql) <= 50602 ? 27 : 256,
-      nullptr);
+  verify_prepare_field(result, 5, "Extra", "Extra",
+                       mysql_get_server_version(mysql) <= 50000
+                           ? MYSQL_TYPE_STRING
+                           : MYSQL_TYPE_VAR_STRING,
+                       nullptr, nullptr, "",
+                       mysql_get_server_version(mysql) <= 50602 ? 27 : 256);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7546,43 +7546,43 @@ static void test_explain_bug() {
   no = 0;
 
   verify_prepare_field(result, no++, "id", "", MYSQL_TYPE_LONGLONG, "", "", "",
-                       4, nullptr);
+                       4);
 
   verify_prepare_field(result, no++, "select_type", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", 19, nullptr);
+                       "", "", "", 19);
 
   verify_prepare_field(result, no++, "table", "", MYSQL_TYPE_VAR_STRING, "", "",
-                       "", NAME_CHAR_LEN, nullptr);
+                       "", NAME_CHAR_LEN);
 
   if (mysql_get_server_version(mysql) > 50702) no++;
 
   verify_prepare_field(result, no++, "type", "", MYSQL_TYPE_VAR_STRING, "", "",
-                       "", 10, nullptr);
+                       "", 10);
 
   verify_prepare_field(result, no++, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_CHAR_LEN * MAX_KEY, nullptr);
+                       "", "", "", NAME_CHAR_LEN * MAX_KEY);
 
   verify_prepare_field(result, no++, "key", "", MYSQL_TYPE_VAR_STRING, "", "",
-                       "", NAME_CHAR_LEN, nullptr);
+                       "", NAME_CHAR_LEN);
 
   if (mysql_get_server_version(mysql) <= 50000) {
     verify_prepare_field(result, no++, "key_len", "", MYSQL_TYPE_LONGLONG, "",
-                         "", "", 3, nullptr);
+                         "", "", 3);
   } else {
     verify_prepare_field(result, no++, "key_len", "", MYSQL_TYPE_VAR_STRING, "",
-                         "", "", NAME_CHAR_LEN * MAX_KEY, nullptr);
+                         "", "", NAME_CHAR_LEN * MAX_KEY);
   }
 
   verify_prepare_field(result, no++, "ref", "", MYSQL_TYPE_VAR_STRING, "", "",
-                       "", NAME_CHAR_LEN * 16, nullptr);
+                       "", NAME_CHAR_LEN * 16);
 
   verify_prepare_field(result, no++, "rows", "", MYSQL_TYPE_LONGLONG, "", "",
-                       "", 11, nullptr);
+                       "", 11);
 
   if (mysql_get_server_version(mysql) > 50702) no++;
 
   verify_prepare_field(result, no++, "Extra", "", MYSQL_TYPE_VAR_STRING, "", "",
-                       "", 255, nullptr);
+                       "", 255);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -13682,9 +13682,9 @@ static void test_bug9735() {
   myquery(rc);
   res = mysql_store_result(mysql);
   verify_prepare_field(res, 0, "a", "a", MYSQL_TYPE_BLOB, "t1", "t1",
-                       current_db, (1U << 24) - 1, nullptr);
+                       current_db, (1U << 24) - 1);
   verify_prepare_field(res, 1, "b", "b", MYSQL_TYPE_BLOB, "t1", "t1",
-                       current_db, ~0U, nullptr);
+                       current_db, ~0U);
   mysql_free_result(res);
   rc = mysql_query(mysql, "drop table t1");
   myquery(rc);
@@ -22196,16 +22196,16 @@ static void test_bug32892045() {
   mytest(result);
 
   verify_prepare_field(result, 0, "AAA", "AAA", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, nullptr);
+                       current_db, 11);
 
   verify_prepare_field(result, 1, "bbb", "BBB", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, nullptr);
+                       current_db, 11);
 
   verify_prepare_field(result, 2, "cCc", "CCC", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, nullptr);
+                       current_db, 11);
 
   verify_prepare_field(result, 3, "eEe", "DDD", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, nullptr);
+                       current_db, 11);
   mysql_free_result(result);
 
   result = mysql_stmt_result_metadata(stmt);
@@ -22293,10 +22293,10 @@ static void test_bug32915973() {
   mytest(result);
 
   verify_prepare_field(result, 0, "c",
-                       "",                // field and its org name
-                       MYSQL_TYPE_DATE,   // field type
-                       "", "",            // table and its org name
-                       "", 10, nullptr);  // db name, length(its bool flag)
+                       "",               // field and its org name
+                       MYSQL_TYPE_DATE,  // field type
+                       "", "",           // table and its org name
+                       "", 10);          // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);
@@ -22330,7 +22330,7 @@ static void test_bug32915973() {
                        "",                   // field and its org name
                        MYSQL_TYPE_DATETIME,  // field type
                        "", "",               // table and its org name
-                       "", 26, nullptr);     // db name, length(its bool flag)
+                       "", 26);              // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);
@@ -22365,7 +22365,7 @@ static void test_bug32915973() {
                        "",                   // field and its org name
                        MYSQL_TYPE_DATETIME,  // field type
                        "", "",               // table and its org name
-                       "", 26, nullptr);     // db name, length(its bool flag)
+                       "", 26);              // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);
@@ -22400,7 +22400,7 @@ static void test_bug32915973() {
                        "",                   // field and its org name
                        MYSQL_TYPE_DATETIME,  // field type
                        "", "",               // table and its org name
-                       "", 26, nullptr);     // db name, length(its bool flag)
+                       "", 26);              // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);
@@ -22434,7 +22434,7 @@ static void test_bug32915973() {
                        "",                   // field and its org name
                        MYSQL_TYPE_DATETIME,  // field type
                        "", "",               // table and its org name
-                       "", 26, nullptr);     // db name, length(its bool flag)
+                       "", 26);              // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);
@@ -22469,7 +22469,7 @@ static void test_bug32915973() {
                        "",                   // field and its org name
                        MYSQL_TYPE_DATETIME,  // field type
                        "", "",               // table and its org name
-                       "", 26, nullptr);     // db name, length(its bool flag)
+                       "", 26);              // db name, length(its bool flag)
 
   rc = mysql_stmt_bind_result(stmt, bind + 1);
   check_execute(stmt, rc);

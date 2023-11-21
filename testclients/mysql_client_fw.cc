@@ -207,8 +207,7 @@ static void die(const char *file, int line, const char *expr) {
 [[maybe_unused]] static void do_verify_prepare_field(
     MYSQL_RES *result, unsigned int no, const char *name, const char *org_name,
     enum enum_field_types type, const char *table, const char *org_table,
-    const char *db, unsigned long length, const char *def, const char *file,
-    int line);
+    const char *db, unsigned long length, const char *file, int line);
 [[maybe_unused]] static void verify_st_affected_rows(MYSQL_STMT *stmt,
                                                      ulonglong exp_count);
 [[maybe_unused]] static void verify_affected_rows(ulonglong exp_count);
@@ -689,18 +688,16 @@ static void verify_col_data(const char *table, const char *col,
 /* Utility function to verify the field members */
 
 #define verify_prepare_field(result, no, name, org_name, type, table,          \
-                             org_table, db, length, def)                       \
+                             org_table, db, length)                            \
   do_verify_prepare_field((result), (no), (name), (org_name), (type), (table), \
-                          (org_table), (db), (length), (def), __FILE__,        \
-                          __LINE__)
+                          (org_table), (db), (length), __FILE__, __LINE__)
 
 static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
                                     const char *name, const char *org_name,
                                     enum enum_field_types type,
                                     const char *table, const char *org_table,
                                     const char *db, unsigned long length,
-                                    const char *def, const char *file,
-                                    int line) {
+                                    const char *file, int line) {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
   ulonglong expected_field_length;
@@ -732,8 +729,6 @@ static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
             expected_field_length);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
-    fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
-            field->def ? field->def : "(null)", def ? def : "(null)");
     fprintf(stdout, "\n");
   }
   DIE_UNLESS(strcmp(field->name, name) == 0);
@@ -766,7 +761,6 @@ static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
             expected_field_length, field->length);
     DIE_UNLESS(field->length == expected_field_length);
   }
-  if (def) DIE_UNLESS(strcmp(field->def, def) == 0);
 }
 
 /* Utility function to verify the parameter count */
