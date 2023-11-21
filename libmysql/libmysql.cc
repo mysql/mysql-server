@@ -732,24 +732,6 @@ MYSQL_RES *STDCALL mysql_list_tables(MYSQL *mysql, const char *wild) {
   return mysql_store_result(mysql);
 }
 
-MYSQL_FIELD *cli_list_fields(MYSQL *mysql) {
-  MYSQL_DATA *query;
-  MYSQL_FIELD *result;
-
-  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-  query =
-      cli_read_rows(mysql, (MYSQL_FIELD *)nullptr, protocol_41(mysql) ? 8 : 6);
-  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
-
-  if (!query) return nullptr;
-
-  mysql->field_count = (uint)query->rows;
-  result = unpack_fields(mysql, query->data, mysql->field_alloc,
-                         mysql->field_count, true, mysql->server_capabilities);
-  free_rows(query);
-  return result;
-}
-
 int STDCALL mysql_set_server_option(MYSQL *mysql,
                                     enum enum_mysql_set_option option) {
   uchar buff[2];
@@ -1456,14 +1438,6 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
         strmake_root(fields_mem_root, fields->name, fields->name_length);
     field->org_name = strmake_root(fields_mem_root, fields->org_name,
                                    fields->org_name_length);
-    if (fields->def) {
-      field->def =
-          strmake_root(fields_mem_root, fields->def, fields->def_length);
-      field->def_length = fields->def_length;
-    } else {
-      field->def = nullptr;
-      field->def_length = 0;
-    }
     field->extension = nullptr; /* Avoid dangling links. */
     field->max_length = 0; /* max_length is set in mysql_stmt_store_result() */
   }

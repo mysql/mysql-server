@@ -124,7 +124,6 @@ typedef struct MYSQL_FIELD {
   char *org_table;          /* Org table name, if table was an alias */
   char *db;                 /* Database for table */
   char *catalog;            /* Catalog for table */
-  char *def;                /* Default value */
   unsigned long length;     /* Width of column (create length) */
   unsigned long max_length; /* Max width for selected set */
   unsigned int name_length;
@@ -133,7 +132,6 @@ typedef struct MYSQL_FIELD {
   unsigned int org_table_length;
   unsigned int db_length;
   unsigned int catalog_length;
-  unsigned int def_length;
   unsigned int flags;         /* Div flags */
   unsigned int decimals;      /* Number of decimals in field */
   unsigned int charsetnr;     /* Character set */
