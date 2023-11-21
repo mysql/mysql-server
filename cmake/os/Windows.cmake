@@ -98,7 +98,11 @@ IF(MSVC)
   STRING_APPEND(WIN_STL_DEBUG_ITERATORS_DOC
     "debug checks, 1 for simple checks only, 0 for disabled.")
 
-  SET(WIN_STL_DEBUG_ITERATORS 2 CACHE STRING "${WIN_STL_DEBUG_ITERATORS_DOC}")
+  IF(WIN32_CLANG)
+    SET(WIN_STL_DEBUG_ITERATORS 0 CACHE STRING "${WIN_STL_DEBUG_ITERATORS_DOC}")
+  ELSE()
+    SET(WIN_STL_DEBUG_ITERATORS 2 CACHE STRING "${WIN_STL_DEBUG_ITERATORS_DOC}")
+  ENDIF()
   SET_PROPERTY(CACHE WIN_STL_DEBUG_ITERATORS PROPERTY STRINGS 0 1 2)
 
   OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
@@ -106,13 +110,14 @@ IF(MSVC)
     SET(LINK_STATIC_RUNTIME_LIBRARIES ON)
   ENDIF()
 
-  # Remove the /RTC1 debug compiler option that cmake includes by default for MSVC
-  # as its presence significantly slows MTR testing and rarely detects bugs.
+  # Remove the /RTC1 debug compiler option that cmake includes by default for
+  # MSVC as its significantly slows MTR testing and rarely detects bugs.
   IF (NOT WIN_DEBUG_RTC)
     STRING(REPLACE "/RTC1"  "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
   ENDIF()
 
-  STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -D_ITERATOR_DEBUG_LEVEL=${WIN_STL_DEBUG_ITERATORS}")
+  STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG
+    " -D_ITERATOR_DEBUG_LEVEL=${WIN_STL_DEBUG_ITERATORS}")
 
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
