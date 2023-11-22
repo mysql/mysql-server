@@ -33,6 +33,8 @@
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <ConfigRetriever.hpp>
+#include <ConsoleLogHandler.hpp>
+#include <LogHandler.hpp>
 #include <NdbOut.hpp>
 #include <mgmapi_configuration.hpp>
 #include "NdbDictionaryImpl.hpp"
@@ -52,6 +54,9 @@ NdbMutex *ndb_print_state_mutex = nullptr;
 #include <EventLogger.hpp>
 
 static int g_ndb_connection_count = 0;
+
+class NdbApiInternalLogHandler;
+static NdbApiInternalLogHandler *g_api_internal_log_handler = nullptr;
 
 /*
  * Ndb_cluster_connection
@@ -369,6 +374,106 @@ const char *Ndb_cluster_connection::get_latest_error_msg() const {
   return m_impl.m_latest_error_msg.c_str();
 }
 
+/**
+ * NdbApiInternalLogHandler
+ *
+ * This class allows logs to be routed either to some default
+ * log handler, or a user supplied 'consumer' object.
+ *
+ * One instance of the class is created by the first
+ * ndb_cluster_connection in the process to be created.
+ *
+ * This instance continues to exist even if the process
+ * returns to zero instances.
+ *
+ * When the global eventLogger is destroyed in ndb_end(),
+ * this instance will be cleaned up.
+ */
+class NdbApiInternalLogHandler : public LogHandler {
+  NdbMutex *m_consumer_mutex;
+  NdbMutex *m_handler_mutex;
+  LogHandler *m_defaultHandler;
+  NdbApiLogConsumer *m_userConsumer;
+
+ public:
+  /**
+   * Method to [create and] return the
+   * NdbApiInternalLogHandler instance
+   */
+  static NdbApiInternalLogHandler *getLogHandlerInstance() {
+    // assert g_ndb_connection_mutex is held
+    if (g_api_internal_log_handler == nullptr) {
+      /* None defined, create it and add to the g_eventLogger*/
+      ConsoleLogHandler *clh = new ConsoleLogHandler();
+      NdbApiInternalLogHandler *nilh = new NdbApiInternalLogHandler(clh);
+      g_eventLogger->addHandler(nilh);
+      g_api_internal_log_handler = nilh;
+    }
+    return g_api_internal_log_handler;
+  }
+
+ private:
+  /* Constructor private to enforce singleton status */
+  NdbApiInternalLogHandler(LogHandler *defaultHandler)
+      : m_defaultHandler(defaultHandler), m_userConsumer(nullptr) {
+    m_consumer_mutex = NdbMutex_Create();
+    m_handler_mutex = NdbMutex_Create();
+  }
+
+ public:
+  ~NdbApiInternalLogHandler() override {
+    delete m_defaultHandler;
+    NdbMutex_Destroy(m_consumer_mutex);
+    NdbMutex_Destroy(m_handler_mutex);
+    /* Take out singleton reference */
+    g_api_internal_log_handler = nullptr;
+  }
+
+  virtual void append(const char *pCategory, Logger::LoggerLevel level,
+                      const char *pMsg, time_t now) override {
+    {
+      if (m_userConsumer) {
+        Guard g(m_consumer_mutex);
+        /* Pass to user's consumer object */
+        m_userConsumer->log((NdbApiLogConsumer::LogLevel)level, pCategory,
+                            pMsg);
+      } else {
+        Guard g(m_handler_mutex);
+        /* Pass to default log handler */
+        m_defaultHandler->append(pCategory, level, pMsg, now);
+      }
+    }
+  }
+
+  void setUserConsumer(NdbApiLogConsumer *userConsumer) {
+    Guard g(m_consumer_mutex);
+    m_userConsumer = userConsumer;
+  }
+
+  void setDefaultLogHandler(LogHandler *logHandler) {
+    Guard g(m_handler_mutex);
+    delete m_defaultHandler;
+    m_defaultHandler = logHandler;
+  }
+
+  bool open() override { return true; }
+  bool close() override { return true; }
+  bool is_open() override { return true; }
+  bool setParam(const BaseString & /*param*/,
+                const BaseString & /*value*/) override {
+    return true;
+  }
+  bool checkParams() override { return true; }
+  void writeHeader(const char *, Logger::LoggerLevel, time_t) override {
+    return;
+  }
+  void writeMessage(const char *) override { return; }
+  void writeFooter() override { return; }
+  void setRepeatFrequency(unsigned val) override {
+    m_defaultHandler->setRepeatFrequency(val);
+  }
+};
+
 /*
  * Ndb_cluster_connection_impl
  */
@@ -396,7 +501,8 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(
   NdbMutex_Lock(g_ndb_connection_mutex);
   if (g_ndb_connection_count++ == 0) {
     NdbColumnImpl::create_pseudo_columns();
-    g_eventLogger->createConsoleHandler();
+    /* Setup singleton InternalLogHandler if needed */
+    NdbApiInternalLogHandler::getLogHandlerInstance();
     g_eventLogger->setCategory("NdbApi");
     g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
     g_eventLogger->disable(Logger::LL_DEBUG);
@@ -1579,4 +1685,38 @@ int Ndb_cluster_connection::wait_until_ready(const int *nodes, int cnt,
 
   mask.bitAND(alive);
   DBUG_RETURN(mask.count());
+}
+
+const char *NdbApiLogConsumer::getLogLevelName(NdbApiLogConsumer::LogLevel ll) {
+  switch (ll) {
+    case LL_ON:
+      return "ON";
+    case LL_DEBUG:
+      return "DEBUG";
+    case LL_INFO:
+      return "INFO";
+    case LL_WARNING:
+      return "WARNING";
+    case LL_ERROR:
+      return "ERROR";
+    case LL_CRITICAL:
+      return "CRITICAL";
+    case LL_ALERT:
+      return "ALERT";
+    case LL_ALL:
+      return "ALL";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+void Ndb_cluster_connection::set_log_consumer(NdbApiLogConsumer *log_consumer) {
+  assert(g_ndb_connection_mutex != NULL);  // ndb_init() must have been called
+  NdbMutex_Lock(g_ndb_connection_mutex);
+  {
+    /* Set the consumer on the singleton object */
+    NdbApiInternalLogHandler::getLogHandlerInstance()->setUserConsumer(
+        log_consumer);
+  }
+  NdbMutex_Unlock(g_ndb_connection_mutex);
 }
