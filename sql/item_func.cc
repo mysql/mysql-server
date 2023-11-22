@@ -4155,6 +4155,10 @@ bool Item_rollup_group_item::eq(const Item *item, bool binary_cmp) const {
                                    ->min_rollup_level();
 }
 
+TYPELIB *Item_rollup_group_item::get_typelib() const {
+  return inner_item()->get_typelib();
+}
+
 longlong Item_func_length::val_int() {
   assert(fixed);
   String *res = args[0]->val_str(&value);

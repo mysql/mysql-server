@@ -1722,6 +1722,7 @@ class Item_rollup_group_item final : public Item_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool eq(const Item *item, bool binary_cmp) const override;
+  TYPELIB *get_typelib() const override;
 
   // Used by AggregateIterator.
   void set_current_rollup_level(int level) { m_current_rollup_level = level; }

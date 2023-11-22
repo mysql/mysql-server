@@ -377,3 +377,16 @@ INSERT IGNORE INTO t_enum (b) SELECT a from t_double;
 SELECT b FROM t_enum;
 
 DROP TABLE t_double, t_enum;
+
+--echo #
+--echo # Bug#36028294: Sig6 Assertion arg_count >= 3 failed in
+--echo #               Item_lead_lag::get_typelib
+--echo #
+CREATE TABLE t(e ENUM('a', 'b'));
+SELECT LEAD(e) OVER () FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+SELECT LAG(e) OVER () FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+SELECT LEAST(e, NULL) FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+SELECT GREATEST(e, NULL) FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+SELECT IF(e='a', e, NULL) FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+SELECT COALESCE(e, NULL) FROM t GROUP BY ROLLUP(e) EXCEPT SELECT 1;
+DROP TABLE t;

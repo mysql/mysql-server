@@ -5572,10 +5572,16 @@ TYPELIB *Item_lead_lag::get_typelib() const {
   switch (data_type()) {
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+      // If the return type is enum or set, either the first argument or the
+      // optional third argument must also be an enum or a set, so we get the
+      // TYPELIB from one of them. Note that we cannot get it from the first
+      // argument unconditionally, because it is not guaranteed that both the
+      // first and the third argument are enums or sets. One of them could have
+      // the NULL type.
       if (TYPELIB *typelib = args[0]->get_typelib(); typelib != nullptr) {
         return typelib;
       } else {
-        assert(arg_count >= 3);
+        assert(arg_count == 3);
         typelib = args[2]->get_typelib();
         assert(typelib != nullptr);
         return typelib;
