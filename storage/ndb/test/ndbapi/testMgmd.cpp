@@ -321,6 +321,7 @@ class Ndbd : public Mgmd {
     args.add(connect_string.c_str());
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--foreground");
+    args.add("--loose-core-file=0");
     return Mgmd::start(working_dir, args);
   }
 
