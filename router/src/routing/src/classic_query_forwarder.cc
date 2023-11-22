@@ -221,8 +221,11 @@ bool contains_multiple_statements(SqlLexer &&lexer) {
       }
 
       if (begin_end_depth == 0) {
-        // semicolon outside a BEGIN...END block.
-        if (tkn.id == ';') return true;
+        if (last_tkn) {
+          // semicolon outside a BEGIN...END block.
+
+          if (last_tkn->id == ';' && tkn.id != END_OF_INPUT) return true;
+        }
       }
 
       last_tkn = tkn;
