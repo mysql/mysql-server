@@ -4545,6 +4545,8 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   args = arguments;
 
   m_initialized = true;  // Use count was incremented by find_udf()
+  const bool is_in_prepare =
+      thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing;
   /*
     RAII wrapper to free the memory allocated in case of any failure while
     initializing the UDF
@@ -4580,6 +4582,12 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       if (!(*arg)->fixed && (*arg)->fix_fields(thd, arg)) {
         return true;
       }
+
+      if ((*arg)->data_type() == MYSQL_TYPE_INVALID &&
+          (*arg)->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+        return true;
+      }
+
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item = *arg;
       if (item->check_cols(1)) {
@@ -4654,8 +4662,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   initid.ptr = nullptr;
   initid.extension = &m_return_value_extension;
 
-  if (thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing &&
-      !initid.const_item) {
+  if (is_in_prepare && !initid.const_item) {
     udf_fun_guard.defer();
     return false;
   }
