@@ -12,14 +12,20 @@ DELIMITER |;
 CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
 BEGIN
   DECLARE i INT DEFAULT BASE;
-  WHILE (i <= SIZE) DO
-    INSERT INTO t1 values (i);
-    SET i = i + 1;
+  WHILE (i + 10 <= SIZE) DO
+    INSERT INTO t1 values (i), (i+1), (i+2), (i+3), (i+4), (i+5), (i+6), (i+7), (i+8), (i+9);
+    SET i = i + 10;
   END WHILE;
 END|
 DELIMITER ;|
 
-CALL populate_t1(0, 10000);
+# Note that inserting anything less than 10700 doesn't cause key_buffer to
+# overflow on 32 bit platforms - this causes a single call to
+# Builder::insert_direct. In case of 64 bit platforms, this number is 9892. The
+# reason for this difference is because of different values for sizeof the
+# Key_sort_buffer::m_dtuples on different architecture. Kept at 11000 just to be
+# ensure second call to Builder::insert_direct
+CALL populate_t1(0, 11000);
 DROP PROCEDURE populate_t1;
 --enable_query_log
 
