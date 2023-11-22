@@ -47,15 +47,16 @@ REVOKE EXECUTE, GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 
 # Same as above, but test compatibility with older version -no error
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 
-# Set original_server_version to the current -issue error
-SET @@session.original_server_version := CAST(
+# SET original_server_version to the current -issue error
+SET @current_version := CAST(
    SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
    +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
    +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
    AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 --error ER_NONEXISTING_PROC_GRANT
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 
@@ -75,11 +76,13 @@ SHOW GRANTS FOR rngp_role;
 --echo
 
 # Same as above, test compatibility with older version - no warnings issued
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 SHOW WARNINGS;
 SHOW GRANTS FOR rngp_role;
 --echo
+
+SET @@session.original_server_version := @current_version;
 
 # Revoke non existent and existent with IF EXISTS clause
 # -issue warning, but do remove the other privilege
@@ -95,12 +98,13 @@ SHOW GRANTS FOR rngp_role;
 
 # Same as previous REVOKE, but in compatibility mode
 # -no warning, but do remove the other privilege
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 SHOW WARNINGS;
 SHOW GRANTS FOR rngp_role;
 --echo
 
+SET @@session.original_server_version := @current_version;
 ####### Tests with REVOKE on specific privileges -user
 
 # Revoke non existent, no privileges -issue error
@@ -136,15 +140,11 @@ REVOKE EXECUTE, GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 
 # Same as above, but test compatibility with older version -no error
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 
-# Set original_server_version to the current -issue error
-SET @@session.original_server_version := CAST(
-   SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-   AS UNSIGNED);
+# SET original_server_version to the current -issue error
+SET @@session.original_server_version := @current_version;
 --error ER_NONEXISTING_PROC_GRANT
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 
@@ -164,12 +164,13 @@ SHOW GRANTS FOR rngp_user;
 --echo
 
 # Same as above, test compatibility with older version - no warnings issued
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 SHOW WARNINGS;
 SHOW GRANTS FOR rngp_user;
 --echo
 
+SET @@session.original_server_version := @current_version;
 # Revoke non existent and existent with IF EXISTS clause
 # -issue warning, but do remove the other privilege
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
@@ -184,12 +185,13 @@ SHOW GRANTS FOR rngp_user;
 
 # Same as previous REVOKE, but in compatibility mode
 # -no warning, but do remove the other privilege
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 SHOW WARNINGS;
 SHOW GRANTS FOR rngp_user;
 --echo
 
+SET @@session.original_server_version := @current_version;
 ####### Tests with REVOKE ALL -role
 
 # REVOKE ALL PRIVILEGES ON routine, no privileges on on that routine -error
@@ -223,6 +225,7 @@ SHOW GRANTS FOR rngp_user;
 --echo
 
 # Cleanup
+SET @current_version := NULL;
 DROP ROLE rngp_role;
 DROP USER rngp_user;
 DROP PROCEDURE rngp_db.rngp_proc;

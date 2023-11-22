@@ -51,18 +51,14 @@ SET original_server_version := 80200;
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
 SET original_server_version := 80200;
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
-SET @@session.original_server_version := CAST(
+SET @current_version := CAST(
 SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
 +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
 +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
 AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
-SET @@session.original_server_version := CAST(
-SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-AS UNSIGNED);
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb2'
 SHOW GRANTS FOR rngp_role;
@@ -135,6 +131,7 @@ SHOW GRANTS FOR rngp_role;
 Grants for rngp_role@%
 GRANT USAGE ON *.* TO `rngp_role`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE UPDATE, REFERENCES (x) ON rngp_db.tb1 FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
 GRANT INSERT, SELECT (x) ON rngp_db.tb1 TO rngp_role;
@@ -235,18 +232,9 @@ SET original_server_version := 80200;
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
 SET original_server_version := 80200;
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
-SET @@session.original_server_version := CAST(
-SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb1'
-SET @@session.original_server_version := CAST(
-SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-AS UNSIGNED);
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on table 'tb2'
 SHOW GRANTS FOR rngp_user;
@@ -316,6 +304,7 @@ SHOW GRANTS FOR rngp_user;
 Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE ALL PRIVILEGES ON rngp_db.tb1 FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on table 'tb1'
 GRANT SELECT, INSERT ON rngp_db.tb1 TO rngp_role;
@@ -342,6 +331,7 @@ SHOW GRANTS FOR rngp_user;
 Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 
+SET @current_version := NULL;
 DROP ROLE rngp_role;
 DROP USER rngp_user;
 DROP TABLE rngp_db.tb1;

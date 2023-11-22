@@ -64,18 +64,14 @@ SET original_server_version := 80200;
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
 
 # Set original_server_version to the current -issue error
-SET @@session.original_server_version := CAST(
+SET @current_version := CAST(
    SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
    +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
    +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
    AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_role;
-SET @@session.original_server_version := CAST(
-   SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-   AS UNSIGNED);
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_role;
 
@@ -130,6 +126,8 @@ REVOKE IF EXISTS INSERT (no), SELECT (no) ON rngp_db.tb2 FROM rngp_role;
 SHOW WARNINGS;
 SHOW GRANTS FOR rngp_role;
 --echo
+
+SET @@session.original_server_version := @current_version;
 
 ####### Tests with REVOKE on specific privileges, mixed column and table -role
 
@@ -226,18 +224,9 @@ SET original_server_version := 80200;
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
 
 # Set original_server_version to the current -issue error
-SET @@session.original_server_version := CAST(
-   SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-   AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE REFERENCES ON rngp_db.tb1 FROM rngp_user;
-SET @@session.original_server_version := CAST(
-   SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-   +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-   AS UNSIGNED);
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE REFERENCES (no) ON rngp_db.tb2 FROM rngp_user;
 
@@ -291,6 +280,7 @@ SHOW WARNINGS;
 SHOW GRANTS FOR rngp_user;
 --echo
 
+SET @@session.original_server_version := @current_version;
 
 ####### Tests with REVOKE ALL -role
 
@@ -325,6 +315,7 @@ SHOW GRANTS FOR rngp_user;
 --echo
 
 # Cleanup
+SET @current_version := NULL;
 DROP ROLE rngp_role;
 DROP USER rngp_user;
 DROP TABLE rngp_db.tb1;
