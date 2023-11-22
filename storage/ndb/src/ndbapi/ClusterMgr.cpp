@@ -31,6 +31,7 @@
 
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <EventLogger.hpp>
 #include <IPCConfig.hpp>
 #include <NdbOut.hpp>
 #include <OwnProcessInfo.hpp>
@@ -65,6 +66,8 @@
 int global_flag_skip_invalidate_cache = 0;
 int global_flag_skip_waiting_for_clean_cache = 0;
 //#define DEBUG_REG
+
+extern EventLogger *g_eventLogger;
 
 // Just a C wrapper for threadMain
 extern "C" void *runClusterMgr_C(void *me) {
@@ -408,6 +411,10 @@ void ClusterMgr::threadMain() {
         if (cm_node.hbCounter >= cm_node.hbFrequency) {
           cm_node.hbMissed++;
           cm_node.hbCounter = 0;
+          if (cm_node.hbMissed >= 2 && cm_node.hbFrequency > 0) {
+            g_eventLogger->warning("Node %u missed heartbeat %u from node %u.",
+                                   getOwnNodeId(), cm_node.hbMissed, nodeId);
+          }
         }
 
         if (theNode.m_info.m_type != NodeInfo::DB)
@@ -438,6 +445,10 @@ void ClusterMgr::threadMain() {
       if ((cm_node.hbMissed == 4 && cm_node.hbFrequency > 0) ||
           (cm_node.hbMissed == maxIntervalsWithoutFirstApiRegConf &&
            cm_node.hbFrequency == 0)) {
+        g_eventLogger->error(
+            "Node %u disconnecting node %u "
+            "due to missed heartbeat",
+            getOwnNodeId(), nodeId);
         nodeFailRep->noOfNodes++;
         NodeBitmask::set(theAllNodes, nodeId);
       }
