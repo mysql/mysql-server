@@ -3857,6 +3857,7 @@ bool Item_param::fix_fields(THD *, Item **) {
   }
   if (param_state() == NULL_VALUE) {
     // Parameter data type may be ignored, keep existing type
+    set_data_type_null();
     fixed = true;
     return false;
   }
@@ -4421,6 +4422,7 @@ String *Item_param::val_str(String *str) {
   assert(param_state() != NO_VALUE);
 
   if (param_state() == NULL_VALUE) {
+    null_value = true;
     return nullptr;
   }
   switch (data_type_actual()) {
@@ -4495,6 +4497,7 @@ void Item_param::copy_param_actual_type(Item_param *from) {
     default:
       break;
   }
+  sync_clones();
 }
 
 /**
