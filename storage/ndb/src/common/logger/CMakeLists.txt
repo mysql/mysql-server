@@ -35,5 +35,9 @@ ADD_CONVENIENCE_LIBRARY(ndblogger
   ${EXTRA_SRC}
   LINK_LIBRARIES ndbgeneral
   )
+
 # Exclude ndblogger_objlib from PGO on Windows to avoid linker error LNK1248
 EXCLUDE_FROM_MSVC_PGO(ndblogger_objlib)
+
+NDB_ADD_TEST(logger-t Logger.cpp  LIBS ndbgeneral ndbportlib ndbclient_static)
+

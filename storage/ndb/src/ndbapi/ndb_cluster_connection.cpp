@@ -56,6 +56,7 @@ NdbMutex *ndb_print_state_mutex = nullptr;
 static int g_ndb_connection_count = 0;
 
 class NdbApiInternalLogHandler;
+class LoggerTest;
 static NdbApiInternalLogHandler *g_api_internal_log_handler = nullptr;
 
 /*
@@ -404,7 +405,7 @@ class NdbApiInternalLogHandler : public LogHandler {
     // assert g_ndb_connection_mutex is held
     if (g_api_internal_log_handler == nullptr) {
       /* None defined, create it and add to the g_eventLogger*/
-      ConsoleLogHandler *clh = new ConsoleLogHandler();
+      LogHandler *clh = new ConsoleLogHandler();
       NdbApiInternalLogHandler *nilh = new NdbApiInternalLogHandler(clh);
       g_eventLogger->addHandler(nilh);
       g_api_internal_log_handler = nilh;
@@ -418,6 +419,8 @@ class NdbApiInternalLogHandler : public LogHandler {
       : m_defaultHandler(defaultHandler), m_userConsumer(nullptr) {
     m_consumer_mutex = NdbMutex_Create();
     m_handler_mutex = NdbMutex_Create();
+    Logger::LoggerTest::setHandlerPointerAdress(*g_eventLogger,
+                                                &m_defaultHandler);
   }
 
  public:

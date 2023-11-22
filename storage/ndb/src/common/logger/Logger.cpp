@@ -417,3 +417,239 @@ void Logger::format_timestamp(const time_t epoch, char *str, size_t len) {
   str[len - 1] = 0;
   return;
 }
+
+#ifdef TEST_LOGGER
+
+#include <NdbSleep.h>
+#include <EventLogger.hpp>
+#include <File.hpp>
+#include <NdbApi.hpp>
+#include <NdbTap.hpp>
+#include <fstream>
+#include <ndb_cluster_connection.hpp>
+#include <sstream>
+
+class Ndb_log_consumer;
+class NdbApiLogConsumer;
+
+class Ndb_log_consumer : public NdbApiLogConsumer {
+  const char *filename;
+
+ public:
+  explicit Ndb_log_consumer(const char *out_filename) {
+    filename = out_filename;
+  }
+  ~Ndb_log_consumer() override = default;
+
+  void log(LogLevel level, const char *category, const char *message) override {
+    char timestamp[64];
+    std::ofstream ofs(filename);
+    Logger::format_timestamp(time(nullptr), timestamp, sizeof(timestamp));
+    ofs << timestamp << " [" << category << "]"
+        << " [" << level << "] " << message << std::endl;
+    ofs.close();
+  }
+};
+
+TAPTEST(logger) {
+  ndb_init();
+  {
+    auto clearFile = [&](const std::string &fileName) {
+      std::ofstream ofs;
+      ofs.open(fileName, std::ofstream::out | std::ofstream::trunc);
+      ofs.close();
+    };
+
+    auto getLastLogMsg = [&](const std::string &fileName, bool clear = true) {
+      std::ifstream ifs(fileName);
+      std::stringstream ss;
+      // Remove date + Category
+      ifs.seekg(34);
+      ss << ifs.rdbuf();
+      ifs.close();
+      if (clear) {
+        clearFile(fileName);
+      }
+      std::string res = ss.str();
+      // Remove final '\n'
+      if (!res.empty()) {
+        res.pop_back();
+      }
+      return res;
+    };
+
+    static const std::string file = "file.log";
+    static constexpr int async_wait_time_ms = 80;
+    clearFile(file);
+
+    /**
+     * Check that messages fed into eventLogger are correctly written to
+     * the log.
+     *
+     * Two handlers in use, ConsoleHandler only for visualization propose
+     * during the test and FileHandler to check that log messages are logged
+     * as expected.
+     */
+    g_eventLogger->createConsoleHandler();
+    g_eventLogger->createFileHandler(const_cast<char *>(file.c_str()));
+
+    // No Async
+    for (int i = 0; i < 100; ++i) {
+      g_eventLogger->info("[SYNC] message #%d", i);
+      const std::string expected_msg =
+          "INFO     -- [SYNC] message #" + std::to_string(i);
+      OK(getLastLogMsg(file) == expected_msg);
+    }
+
+    // Async
+    g_eventLogger->startAsync();
+    for (int i = 0; i < 100; ++i) {
+      g_eventLogger->info("[ASYNC] message #%d", i);
+      const std::string expected_msg =
+          "INFO     -- [ASYNC] message #" + std::to_string(i);
+      // give time to BufferedLogHandler log thread to dump logs
+      NdbSleep_MilliSleep(async_wait_time_ms);
+      OK(getLastLogMsg(file) == expected_msg);
+    }
+
+    // Mix Sync and Async
+    bool async = false;
+    g_eventLogger->stopAsync();
+    std::string expected_msg;
+    for (int i = 0; i < 100; ++i) {
+      if (async) {
+        g_eventLogger->info("[ASYNC] message #%d", i);
+        expected_msg = "INFO     -- [ASYNC] message #" + std::to_string(i);
+        // give time to BufferedLogHandler log thread to dump logs
+        NdbSleep_MilliSleep(async_wait_time_ms);
+      } else {
+        g_eventLogger->info("[SYNC] message #%d", i);
+        expected_msg = "INFO     -- [SYNC] message #" + std::to_string(i);
+      }
+      OK(getLastLogMsg(file) == expected_msg);
+      if (i % 5 == 0) {
+        if (async) {
+          g_eventLogger->stopAsync();
+        } else {
+          g_eventLogger->startAsync();
+        }
+        async = !async;
+      }
+    }
+
+    // Stress test on BufferedLogHandler
+    {
+      g_eventLogger->startAsync();
+      int i;
+      // Adds large amount of messages to buffer, no overflow expected.
+      for (i = 0; i < 1000; ++i) {
+        g_eventLogger->info("[ASYNC] message #%d", i);
+      }
+
+      /**
+       * Some messages may be lost.
+       * Give time to BufferedLogHandler log thread to consume messages from
+       * buffer and get rid of warnings.
+       */
+      for (int j = 0; j < 20; j++) {
+        g_eventLogger->info("[ASYNC] dump warnings");
+        const std::string expected_msg = "INFO     -- [ASYNC] dump warnings";
+        NdbSleep_MilliSleep(1000);
+        if (getLastLogMsg(file) == expected_msg) break;
+      }
+      NdbSleep_MilliSleep(1000);
+      g_eventLogger->info("[ASYNC] message #%d", i);
+      expected_msg = "INFO     -- [ASYNC] message #" + std::to_string(i);
+      // give time to BufferedLogHandler log thread to dump last log message
+      NdbSleep_MilliSleep(async_wait_time_ms);
+      OK(getLastLogMsg(file) == expected_msg);
+
+      g_eventLogger->stopAsync();
+    }
+
+    /**
+     * Check the use of the user-supplied logging function.
+     * When user-supplied logging functions is not set test uses a new created
+     * FileLogHandler as 'Default Handler' instead of the original
+     * ConsoleHandler. Class LoggerTest is used to set/unset the
+     * 'Default Handler'.
+     *
+     * For visualization purpose a ConsoleHandler is also used.
+     *
+     * Default Handler writes logs to fileA.log, g_ndb_log_consumer1 writes
+     * logs to fileB.log and g_ndb_log_consumer2 writes logs to fileC.log
+     *
+     */
+    const std::string fileA = "fileA.log";
+    const std::string fileB = "fileB.log";
+    const std::string fileC = "fileC.log";
+
+    Ndb_log_consumer *log_consumer1 = new Ndb_log_consumer(fileB.c_str());
+    Ndb_log_consumer *log_consumer2 = new Ndb_log_consumer(fileC.c_str());
+
+    g_eventLogger->close();
+    clearFile(fileA);
+    clearFile(fileB);
+    clearFile(fileC);
+    g_eventLogger->createConsoleHandler();
+    std::unique_ptr<LogHandler> lh =
+        std::make_unique<FileLogHandler>(fileA.c_str());
+    lh->open();
+
+    // g_ndb_log_consumer1 in use, logs expected to be written to fileB
+    Ndb_cluster_connection::set_log_consumer(log_consumer1);
+    for (int i = 0; i < 10; ++i) {
+      g_eventLogger->info("[CONSUMER 1] message #%d", i);
+      const std::string expected_msg =
+          "[2] [CONSUMER 1] message #" + std::to_string(i);
+      OK(getLastLogMsg(fileA) != expected_msg);
+      OK(getLastLogMsg(fileB) == expected_msg);
+      OK(getLastLogMsg(fileC) != expected_msg);
+    }
+
+    // Default Handler re-activated, logs expected to be written to fileA
+    Ndb_cluster_connection::set_log_consumer(nullptr);
+    Logger::LoggerTest::setHandler(*g_eventLogger, lh.get());
+
+    for (int i = 0; i < 10; ++i) {
+      g_eventLogger->info("[DEFAULT] message #%d", i);
+      const std::string expected_msg =
+          "INFO     -- [DEFAULT] message #" + std::to_string(i);
+      NdbSleep_MilliSleep(async_wait_time_ms);
+
+      OK(getLastLogMsg(fileA) == expected_msg);
+      OK(getLastLogMsg(fileB) != expected_msg);
+      OK(getLastLogMsg(fileC) != expected_msg);
+    }
+
+    // g_ndb_log_consumer2 in use, logs expected to be written to fileC
+    Ndb_cluster_connection::set_log_consumer(log_consumer2);
+    for (int i = 0; i < 10; ++i) {
+      g_eventLogger->info("[CONSUMER 2] message #%d", i);
+      const std::string expected_msg =
+          "[2] [CONSUMER 2] message #" + std::to_string(i);
+      OK(getLastLogMsg(fileA) != expected_msg);
+      OK(getLastLogMsg(fileB) != expected_msg);
+      OK(getLastLogMsg(fileC) == expected_msg);
+    }
+
+    // Default Handler re-activated and set to original ConsoleHandler
+    Ndb_cluster_connection::set_log_consumer(nullptr);
+    Logger::LoggerTest::unset(*g_eventLogger);
+    // Message expected to be writen to console (2x).
+    g_eventLogger->info("DONE");
+
+    delete log_consumer1;
+    delete log_consumer2;
+
+    File_class::remove(file.c_str());
+    File_class::remove(fileA.c_str());
+    File_class::remove(fileB.c_str());
+    File_class::remove(fileC.c_str());
+  }
+
+  ndb_end(0);
+  return 1;
+}
+
+#endif

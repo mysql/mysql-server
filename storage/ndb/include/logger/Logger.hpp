@@ -359,6 +359,34 @@ class Logger {
   LogHandler *m_pConsoleHandler;
   LogHandler *m_pFileHandler;
   LogHandler *m_pSyslogHandler;
+
+  /**
+   * for test only
+   */
+
+  // Pointer to default Log Handler pointer
+  LogHandler **m_test_handler;
+  // Pointer to original handler
+  LogHandler *m_test_handler_backup;
+  friend class LoggerTest;
+
+  /**
+   * Class to change, in run time, the default log handler used by the logger.
+   */
+ public:
+  class LoggerTest {
+   public:
+    static void setHandlerPointerAdress(Logger &logger, LogHandler **lh) {
+      logger.m_test_handler_backup = *lh;
+      logger.m_test_handler = lh;
+    }
+    static void setHandler(const Logger &logger, LogHandler *lh) {
+      *logger.m_test_handler = lh;
+    }
+    static void unset(const Logger &logger) {
+      *logger.m_test_handler = logger.m_test_handler_backup;
+    }
+  };
 };
 
 #endif
