@@ -77,13 +77,12 @@ void log_primary_member_details() {
        Group_member_info::MEMBER_ROLE_SECONDARY)) {
     std::string primary_member_uuid;
     group_member_mgr->get_primary_member_uuid(primary_member_uuid);
-    Group_member_info *primary_member_info =
-        group_member_mgr->get_group_member_info(primary_member_uuid);
-    if (primary_member_info != nullptr) {
+    Group_member_info primary_member_info;
+    if (!group_member_mgr->get_group_member_info(primary_member_uuid,
+                                                 primary_member_info)) {
       LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
-                   primary_member_info->get_hostname().c_str(),
-                   primary_member_info->get_port());
-      delete primary_member_info;
+                   primary_member_info.get_hostname().c_str(),
+                   primary_member_info.get_port());
     }
   }
 }

@@ -60,7 +60,8 @@ bool get_group_members_info(
     /* purecov: end */
   }
 
-  Group_member_info *member_info = nullptr;
+  Group_member_info member_info;
+  bool member_info_not_found = true;
   /*
     If the local member is already OFFLINE but still has the previous
     membership because is waiting for the leave view, do not report
@@ -69,38 +70,39 @@ bool get_group_members_info(
   if (local_member_info != nullptr &&
       local_member_info->get_recovery_status() ==
           Group_member_info::MEMBER_OFFLINE) {
-    member_info =
-        group_member_mgr->get_group_member_info(local_member_info->get_uuid());
+    member_info_not_found = group_member_mgr->get_group_member_info(
+        local_member_info->get_uuid(), member_info);
   } else {
-    member_info = group_member_mgr->get_group_member_info_by_index(index);
+    member_info_not_found =
+        group_member_mgr->get_group_member_info_by_index(index, member_info);
   }
 
-  if (member_info == nullptr)  // The requested member is not managed...
+  if (member_info_not_found)  // The requested member is not managed...
   {
     return true; /* purecov: inspected */
   }
 
   // Get info from view.
-  std::string uuid(member_info->get_uuid());
+  std::string uuid(member_info.get_uuid());
   callbacks.set_member_id(callbacks.context, *uuid.c_str(), uuid.length());
 
-  std::string hostname(member_info->get_hostname());
+  std::string hostname(member_info.get_hostname());
   callbacks.set_member_host(callbacks.context, *hostname.c_str(),
                             hostname.length());
 
-  callbacks.set_member_port(callbacks.context, member_info->get_port());
+  callbacks.set_member_port(callbacks.context, member_info.get_port());
 
   const char *member_state;
-  const char *member_role = member_info->get_member_role_string();
+  const char *member_role = member_info.get_member_role_string();
   std::string member_version =
-      (member_info->get_recovery_status() != Group_member_info::MEMBER_OFFLINE)
-          ? member_info->get_member_version().get_version_string()
+      (member_info.get_recovery_status() != Group_member_info::MEMBER_OFFLINE)
+          ? member_info.get_member_version().get_version_string()
           : "";
 
   // override the state if we think it is unreachable
-  if (!member_info->is_unreachable())
+  if (!member_info.is_unreachable())
     member_state = Group_member_info::get_member_status_string(
-        member_info->get_recovery_status());
+        member_info.get_recovery_status());
   else
     member_state = Group_member_info::get_member_status_string(
         Group_member_info::MEMBER_UNREACHABLE);
@@ -132,8 +134,6 @@ bool get_group_members_info(
       callbacks.context, *incoming_connection_protocol,
       strlen(incoming_connection_protocol));
 
-  delete member_info;
-
   return false;
 }
 
@@ -153,7 +153,8 @@ bool get_group_member_stats(
     return false;
   }
 
-  Group_member_info *member_info = nullptr;
+  Group_member_info member_info;
+  bool member_info_not_found = true;
   /*
     If the local member is already OFFLINE but still has the previous
     membership because is waiting for the leave view, do not report
@@ -162,24 +163,24 @@ bool get_group_member_stats(
   if (local_member_info != nullptr &&
       local_member_info->get_recovery_status() ==
           Group_member_info::MEMBER_OFFLINE) {
-    member_info =
-        group_member_mgr->get_group_member_info(local_member_info->get_uuid());
+    member_info_not_found = group_member_mgr->get_group_member_info(
+        local_member_info->get_uuid(), member_info);
   } else {
-    member_info = group_member_mgr->get_group_member_info_by_index(index);
+    member_info_not_found =
+        group_member_mgr->get_group_member_info_by_index(index, member_info);
   }
 
-  if (member_info == nullptr)  // The requested member is not managed...
+  if (member_info_not_found)  // The requested member is not managed...
   {
     return true; /* purecov: inspected */
   }
 
-  std::string uuid(member_info->get_uuid());
+  std::string uuid(member_info.get_uuid());
   callbacks.set_member_id(callbacks.context, *uuid.c_str(), uuid.length());
 
   if (nullptr == local_member_info ||
       local_member_info->get_recovery_status() ==
           Group_member_info::MEMBER_OFFLINE) {
-    delete member_info;
     return false;
   }
 
@@ -231,7 +232,7 @@ bool get_group_member_stats(
            ((local_member_info && !local_member_info->get_uuid().compare(uuid))
                 ? applier_module->get_local_pipeline_stats()
                 : applier_module->get_flow_control_module()->get_pipeline_stats(
-                      member_info->get_gcs_member_id().get_member_id()))) !=
+                      member_info.get_gcs_member_id().get_member_id()))) !=
           nullptr) {
     std::string last_conflict_free_transaction;
     pipeline_stats->get_transaction_last_conflict_free(
@@ -274,8 +275,6 @@ bool get_group_member_stats(
     /* clean-up */
     delete pipeline_stats;
   }
-
-  delete member_info;
 
   return false;
 }
