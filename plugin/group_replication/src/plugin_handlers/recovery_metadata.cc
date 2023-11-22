@@ -51,22 +51,26 @@ enum_gcs_error Recovery_metadata_module::send_recovery_metadata(
   */
   std::string sender_hostname{};
   uint sender_port{0};
-  Group_member_info *sender_member_info{nullptr};
+  Group_member_info sender_member_info;
+  bool sender_member_info_not_found = true;
+
   std::pair<bool, Gcs_member_identifier> metadata_sender_information =
       recovery_metadata_msg->compute_and_get_current_metadata_sender();
-  if (!metadata_sender_information.first)
-    sender_member_info = group_member_mgr->get_group_member_info_by_member_id(
-        metadata_sender_information.second);
+  if (!metadata_sender_information.first) {
+    sender_member_info_not_found =
+        group_member_mgr->get_group_member_info_by_member_id(
+            metadata_sender_information.second, sender_member_info);
+  }
+
   // Check if Metadata sender information was successfully fetched or not.
-  if (!sender_member_info) {
+  if (sender_member_info_not_found) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GROUP_REPLICATION_RECOVERY_METADATA_SENDER_NOT_FOUND);
     return GCS_NOK;
   }
-  sender_hostname = sender_member_info->get_hostname();
-  sender_port = sender_member_info->get_port();
-  delete sender_member_info;
 
+  sender_hostname = sender_member_info.get_hostname();
+  sender_port = sender_member_info.get_port();
   enum_gcs_error msg_error = GCS_OK;
 
 #ifndef NDEBUG

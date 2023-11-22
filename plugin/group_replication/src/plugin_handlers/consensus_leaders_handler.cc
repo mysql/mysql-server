@@ -64,18 +64,26 @@ int Consensus_leaders_handler::after_primary_election(
     Member_version const communication_protocol =
         convert_to_mysql_version(gcs_module->get_protocol_version());
 
-    Group_member_info *new_primary_info =
-        group_member_mgr->get_group_member_info(primary_uuid);
-    Gcs_member_identifier const new_primary_gcs_id =
-        new_primary_info->get_gcs_member_id();
+    Gcs_member_identifier new_primary_gcs_id{""};
+    Group_member_info new_primary_info;
+    if (group_member_mgr->get_group_member_info(primary_uuid,
+                                                new_primary_info)) {
+      LogPluginErr(
+          WARNING_LEVEL, ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST,
+          "as the primary by the member uuid", primary_uuid.c_str(),
+          "a primary election on the consensus leaders handling to the group "
+          "communication. The group will heal itself on the next primary "
+          "election that will be triggered automatically");
+    } else {
+      new_primary_gcs_id = new_primary_info.get_gcs_member_id();
+    }
+
     Gcs_member_identifier const my_gcs_id =
         local_member_info->get_gcs_member_id();
     bool const i_am_the_new_primary = (new_primary_gcs_id == my_gcs_id);
     auto role = i_am_the_new_primary ? Group_member_info::MEMBER_ROLE_PRIMARY
                                      : Group_member_info::MEMBER_ROLE_SECONDARY;
     set_consensus_leaders(communication_protocol, true, role, my_gcs_id);
-
-    delete new_primary_info;
   }
 
   return 0;
@@ -118,21 +126,28 @@ void Consensus_leaders_handler::set_consensus_leaders(
 
 void Consensus_leaders_handler::set_as_single_consensus_leader(
     Gcs_member_identifier const &leader) const {
-  Group_member_info *leader_info =
-      group_member_mgr->get_group_member_info_by_member_id(leader);
+  Group_member_info leader_info;
+  if (group_member_mgr->get_group_member_info_by_member_id(leader,
+                                                           leader_info)) {
+    LogPluginErr(
+        WARNING_LEVEL, ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST,
+        "as the primary by the Gcs_member_identifier",
+        leader.get_member_id().c_str(),
+        "a primary election on the single consensus leader handling to the "
+        "group communication. The group will heal itself on the next primary "
+        "election that will be triggered automatically");
+  }
 
   enum enum_gcs_error error_code = gcs_module->set_leader(leader);
   if (error_code == GCS_OK) {
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SET_SINGLE_CONSENSUS_LEADER,
-                 leader_info->get_hostname().c_str(), leader_info->get_port(),
-                 leader_info->get_uuid().c_str());
+                 leader_info.get_hostname().c_str(), leader_info.get_port(),
+                 leader_info.get_uuid().c_str());
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_SET_SINGLE_CONSENSUS_LEADER,
-                 leader_info->get_hostname().c_str(), leader_info->get_port(),
-                 leader_info->get_uuid().c_str());
+                 leader_info.get_hostname().c_str(), leader_info.get_port(),
+                 leader_info.get_uuid().c_str());
   }
-
-  if (leader_info) delete leader_info;
 }
 
 void Consensus_leaders_handler::set_everyone_as_consensus_leader() const {

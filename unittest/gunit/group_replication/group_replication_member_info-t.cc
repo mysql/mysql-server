@@ -209,13 +209,13 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
 
   string uuid_to_get("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
 
-  Group_member_info *retrieved_local_info =
-      cluster_member_mgr->get_group_member_info(uuid_to_get);
+  Group_member_info retrieved_local_info;
+  const bool retrieved_local_info_not_found =
+      cluster_member_mgr->get_group_member_info(uuid_to_get,
+                                                retrieved_local_info);
 
-  ASSERT_TRUE(retrieved_local_info != nullptr);
-  ASSERT_EQ(retrieved_local_info->get_uuid(), uuid_to_get);
-
-  delete retrieved_local_info;
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
+  ASSERT_EQ(retrieved_local_info.get_uuid(), uuid_to_get);
 }
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest) {
@@ -254,37 +254,37 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest) {
 
   string uuid_to_get("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
 
-  Group_member_info *retrieved_local_info =
-      cluster_member_mgr->get_group_member_info(uuid_to_get);
+  Group_member_info retrieved_local_info;
+  const bool retrieved_local_info_not_found =
+      cluster_member_mgr->get_group_member_info(uuid_to_get,
+                                                retrieved_local_info);
 
-  ASSERT_TRUE(retrieved_local_info != nullptr);
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
 
-  ASSERT_EQ(local_node->get_port(), retrieved_local_info->get_port());
-  ASSERT_EQ(local_node->get_hostname(), retrieved_local_info->get_hostname());
-  ASSERT_EQ(local_node->get_uuid(), retrieved_local_info->get_uuid());
+  ASSERT_EQ(local_node->get_port(), retrieved_local_info.get_port());
+  ASSERT_EQ(local_node->get_hostname(), retrieved_local_info.get_hostname());
+  ASSERT_EQ(local_node->get_uuid(), retrieved_local_info.get_uuid());
   ASSERT_EQ(local_node->get_gcs_member_id().get_member_id(),
-            retrieved_local_info->get_gcs_member_id().get_member_id());
+            retrieved_local_info.get_gcs_member_id().get_member_id());
   ASSERT_EQ(local_node->get_recovery_status(),
-            retrieved_local_info->get_recovery_status());
+            retrieved_local_info.get_recovery_status());
   ASSERT_EQ(local_node->get_write_set_extraction_algorithm(),
-            retrieved_local_info->get_write_set_extraction_algorithm());
+            retrieved_local_info.get_write_set_extraction_algorithm());
   ASSERT_EQ(local_node->get_gtid_executed(),
-            retrieved_local_info->get_gtid_executed());
+            retrieved_local_info.get_gtid_executed());
   ASSERT_EQ(local_node->get_gtid_purged(),
-            retrieved_local_info->get_gtid_purged());
+            retrieved_local_info.get_gtid_purged());
   ASSERT_EQ(local_node->get_gtid_retrieved(),
-            retrieved_local_info->get_gtid_retrieved());
+            retrieved_local_info.get_gtid_retrieved());
   ASSERT_EQ(local_node->get_gtid_assignment_block_size(),
-            retrieved_local_info->get_gtid_assignment_block_size());
-  ASSERT_EQ(local_node->get_role(), retrieved_local_info->get_role());
+            retrieved_local_info.get_gtid_assignment_block_size());
+  ASSERT_EQ(local_node->get_role(), retrieved_local_info.get_role());
   ASSERT_EQ(local_node->get_member_weight(),
-            retrieved_local_info->get_member_weight());
+            retrieved_local_info.get_member_weight());
   ASSERT_EQ(local_node->get_view_change_uuid(),
-            retrieved_local_info->get_view_change_uuid());
+            retrieved_local_info.get_view_change_uuid());
   ASSERT_EQ(local_node->get_allow_single_leader(),
-            retrieved_local_info->get_allow_single_leader());
-
-  delete retrieved_local_info;
+            retrieved_local_info.get_allow_single_leader());
 }
 
 TEST_F(ClusterMemberInfoManagerTest,
@@ -317,16 +317,17 @@ TEST_F(ClusterMemberInfoManagerTest,
   ASSERT_EQ(executed_gtid, local_node->get_gtid_executed());
   ASSERT_EQ(retrieved_gtid, local_node->get_gtid_retrieved());
 
-  Group_member_info *retrieved_local_info =
-      cluster_member_mgr->get_group_member_info(local_node->get_uuid());
+  Group_member_info retrieved_local_info;
+  const bool retrieved_local_info_not_found =
+      cluster_member_mgr->get_group_member_info(local_node->get_uuid(),
+                                                retrieved_local_info);
 
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
   ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
-            retrieved_local_info->get_recovery_status());
+            retrieved_local_info.get_recovery_status());
 
-  ASSERT_EQ(executed_gtid, retrieved_local_info->get_gtid_executed());
-  ASSERT_EQ(retrieved_gtid, retrieved_local_info->get_gtid_retrieved());
-
-  delete retrieved_local_info;
+  ASSERT_EQ(executed_gtid, retrieved_local_info.get_gtid_executed());
+  ASSERT_EQ(retrieved_gtid, retrieved_local_info.get_gtid_retrieved());
 }
 
 TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
@@ -369,11 +370,13 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
 
   string uuid_to_get("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
 
-  Group_member_info *retrieved_local_info =
-      cluster_member_mgr->get_group_member_info(uuid_to_get);
+  Group_member_info retrieved_local_info;
+  bool retrieved_local_info_not_found =
+      cluster_member_mgr->get_group_member_info(uuid_to_get,
+                                                retrieved_local_info);
 
-  ASSERT_TRUE(retrieved_local_info != nullptr);
-  ASSERT_EQ(retrieved_local_info->get_uuid(), uuid_to_get);
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
+  ASSERT_EQ(retrieved_local_info.get_uuid(), uuid_to_get);
 
   vector<uchar> *encoded = new vector<uchar>();
   cluster_member_mgr->encode(encoded);
@@ -388,53 +391,51 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
 
   ASSERT_EQ(2U, cluster_member_mgr->get_number_of_members());
 
-  delete retrieved_local_info;
-  retrieved_local_info = cluster_member_mgr->get_group_member_info(uuid);
+  retrieved_local_info_not_found =
+      cluster_member_mgr->get_group_member_info(uuid, retrieved_local_info);
 
-  ASSERT_TRUE(retrieved_local_info != nullptr);
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
 
-  ASSERT_EQ(port, retrieved_local_info->get_port());
-  ASSERT_EQ(hostname, retrieved_local_info->get_hostname());
-  ASSERT_EQ(executed_gtid, retrieved_local_info->get_gtid_executed());
-  ASSERT_EQ(retrieved_gtid, retrieved_local_info->get_gtid_retrieved());
+  ASSERT_EQ(port, retrieved_local_info.get_port());
+  ASSERT_EQ(hostname, retrieved_local_info.get_hostname());
+  ASSERT_EQ(executed_gtid, retrieved_local_info.get_gtid_executed());
+  ASSERT_EQ(retrieved_gtid, retrieved_local_info.get_gtid_retrieved());
   ASSERT_EQ(write_set_algorithm,
-            retrieved_local_info->get_write_set_extraction_algorithm());
+            retrieved_local_info.get_write_set_extraction_algorithm());
 
-  delete retrieved_local_info;
-  retrieved_local_info = cluster_member_mgr->get_group_member_info(uuid_to_get);
+  retrieved_local_info_not_found = cluster_member_mgr->get_group_member_info(
+      uuid_to_get, retrieved_local_info);
 
-  ASSERT_TRUE(retrieved_local_info != nullptr);
+  ASSERT_TRUE(false == retrieved_local_info_not_found);
 
-  ASSERT_EQ(local_node->get_port(), retrieved_local_info->get_port());
-  ASSERT_EQ(local_node->get_hostname(), retrieved_local_info->get_hostname());
-  ASSERT_EQ(local_node->get_uuid(), retrieved_local_info->get_uuid());
+  ASSERT_EQ(local_node->get_port(), retrieved_local_info.get_port());
+  ASSERT_EQ(local_node->get_hostname(), retrieved_local_info.get_hostname());
+  ASSERT_EQ(local_node->get_uuid(), retrieved_local_info.get_uuid());
   ASSERT_EQ(local_node->get_gcs_member_id().get_member_id(),
-            retrieved_local_info->get_gcs_member_id().get_member_id());
+            retrieved_local_info.get_gcs_member_id().get_member_id());
   ASSERT_EQ(local_node->get_recovery_status(),
-            retrieved_local_info->get_recovery_status());
+            retrieved_local_info.get_recovery_status());
   ASSERT_EQ(local_node->get_write_set_extraction_algorithm(),
-            retrieved_local_info->get_write_set_extraction_algorithm());
+            retrieved_local_info.get_write_set_extraction_algorithm());
   ASSERT_EQ(local_node->get_gtid_executed(),
-            retrieved_local_info->get_gtid_executed());
+            retrieved_local_info.get_gtid_executed());
   ASSERT_EQ(local_node->get_gtid_purged(),
-            retrieved_local_info->get_gtid_purged());
+            retrieved_local_info.get_gtid_purged());
   ASSERT_EQ(local_node->get_gtid_retrieved(),
-            retrieved_local_info->get_gtid_retrieved());
+            retrieved_local_info.get_gtid_retrieved());
   ASSERT_EQ(local_node->get_gtid_assignment_block_size(),
-            retrieved_local_info->get_gtid_assignment_block_size());
-  ASSERT_EQ(local_node->get_role(), retrieved_local_info->get_role());
+            retrieved_local_info.get_gtid_assignment_block_size());
+  ASSERT_EQ(local_node->get_role(), retrieved_local_info.get_role());
   ASSERT_EQ(local_node->get_member_weight(),
-            retrieved_local_info->get_member_weight());
+            retrieved_local_info.get_member_weight());
   ASSERT_EQ(local_node->get_lower_case_table_names(),
-            retrieved_local_info->get_lower_case_table_names());
+            retrieved_local_info.get_lower_case_table_names());
   ASSERT_EQ(local_node->get_default_table_encryption(),
-            retrieved_local_info->get_default_table_encryption());
+            retrieved_local_info.get_default_table_encryption());
   ASSERT_EQ(local_node->get_view_change_uuid(),
-            retrieved_local_info->get_view_change_uuid());
+            retrieved_local_info.get_view_change_uuid());
   ASSERT_EQ(local_node->get_allow_single_leader(),
-            retrieved_local_info->get_allow_single_leader());
-
-  delete retrieved_local_info;
+            retrieved_local_info.get_allow_single_leader());
 }
 
 }  // namespace gcs_member_info_unittest

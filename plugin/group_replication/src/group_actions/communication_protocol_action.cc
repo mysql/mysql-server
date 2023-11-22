@@ -53,15 +53,13 @@ int Communication_protocol_action::set_consensus_leaders() const {
   Gcs_member_identifier const my_gcs_id =
       local_member_info->get_gcs_member_id();
   if (is_single_primary_mode) {
-    Group_member_info *primary_info =
-        group_member_mgr->get_primary_member_info();
-    if (primary_info == nullptr) {
+    Group_member_info primary_info;
+    if (group_member_mgr->get_primary_member_info(primary_info)) {
       return 1;
     }
 
     Gcs_member_identifier const primary_gcs_id =
-        primary_info->get_gcs_member_id();
-    delete primary_info;
+        primary_info.get_gcs_member_id();
     bool const am_i_the_primary = (my_gcs_id == primary_gcs_id);
     my_role = (am_i_the_primary ? Group_member_info::MEMBER_ROLE_PRIMARY
                                 : Group_member_info::MEMBER_ROLE_SECONDARY);

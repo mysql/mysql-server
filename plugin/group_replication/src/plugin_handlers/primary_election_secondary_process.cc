@@ -214,13 +214,12 @@ end:
   primary_election_handler->set_election_running(false);
 
   if (!election_process_aborted && !error) {
-    Group_member_info *primary_member_info =
-        group_member_mgr->get_group_member_info(primary_uuid);
-    if (primary_member_info != nullptr) {
+    Group_member_info primary_member_info;
+    if (!group_member_mgr->get_group_member_info(primary_uuid,
+                                                 primary_member_info)) {
       LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
-                   primary_member_info->get_hostname().c_str(),
-                   primary_member_info->get_port());
-      delete primary_member_info;
+                   primary_member_info.get_hostname().c_str(),
+                   primary_member_info.get_port());
     }
   }
 
@@ -326,9 +325,7 @@ int Primary_election_secondary_process::after_view_change(
     }
   }
 
-  Group_member_info *member_info =
-      group_member_mgr->get_group_member_info(primary_uuid);
-  if (member_info == nullptr) {
+  if (!group_member_mgr->is_member_info_present(primary_uuid)) {
     if (!group_in_read_mode) {
       election_process_aborted = true;
     } else {
@@ -337,7 +334,6 @@ int Primary_election_secondary_process::after_view_change(
     }
     mysql_cond_broadcast(&election_cond);
   }
-  delete member_info;
 
   mysql_mutex_unlock(&election_lock);
   return 0;
