@@ -33,13 +33,14 @@ REVOKE EXECUTE, GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on routine 'rngp_proc'
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on routine 'rngp_proc'
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
-SET @@session.original_server_version := CAST(
+SET @current_version := CAST(
 SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
 +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
 +SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
 AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on routine 'rngp_proc'
 SHOW GRANTS FOR rngp_role;
@@ -64,7 +65,7 @@ Grants for rngp_role@%
 GRANT USAGE ON *.* TO `rngp_role`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_role`@`%`
 
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 SHOW WARNINGS;
 Level	Code	Message
@@ -73,6 +74,7 @@ Grants for rngp_role@%
 GRANT USAGE ON *.* TO `rngp_role`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_role`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 Warnings:
 Warning	1403	There is no such grant defined for user 'rngp_role' on host '%' on routine 'rngp_proc'
@@ -89,7 +91,7 @@ Grants for rngp_role@%
 GRANT USAGE ON *.* TO `rngp_role`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_role`@`%`
 
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 SHOW WARNINGS;
 Level	Code	Message
@@ -97,6 +99,7 @@ SHOW GRANTS FOR rngp_role;
 Grants for rngp_role@%
 GRANT USAGE ON *.* TO `rngp_role`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on routine 'rngp_proc'
 GRANT EXECUTE, GRANT OPTION ON PROCEDURE rngp_db.rngp_proc TO rngp_user;
@@ -127,13 +130,9 @@ REVOKE EXECUTE, GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on routine 'rngp_proc'
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on routine 'rngp_proc'
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
-SET @@session.original_server_version := CAST(
-SUBSTRING_INDEX(@@GLOBAL.version, '.', 1)*10000
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '.', 2), '.', -1)*100
-+SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.version, '-', 1), '.', -1)
-AS UNSIGNED);
+SET @@session.original_server_version := @current_version;
 REVOKE GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 ERROR 42000: There is no such grant defined for user 'rngp_user' on host '%' on routine 'rngp_proc'
 SHOW GRANTS FOR rngp_user;
@@ -158,7 +157,7 @@ Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_user`@`%`
 
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS GRANT OPTION ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 SHOW WARNINGS;
 Level	Code	Message
@@ -167,6 +166,7 @@ Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_user`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 Warnings:
 Warning	1403	There is no such grant defined for user 'rngp_user' on host '%' on routine 'rngp_proc'
@@ -183,7 +183,7 @@ Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 GRANT EXECUTE ON PROCEDURE `rngp_db`.`rngp_proc` TO `rngp_user`@`%`
 
-SET original_server_version := 80200;
+SET @@session.original_server_version := 80200;
 REVOKE IF EXISTS ALTER ROUTINE, EXECUTE ON PROCEDURE rngp_db.rngp_proc FROM rngp_user;
 SHOW WARNINGS;
 Level	Code	Message
@@ -191,6 +191,7 @@ SHOW GRANTS FOR rngp_user;
 Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 
+SET @@session.original_server_version := @current_version;
 REVOKE ALL PRIVILEGES ON PROCEDURE rngp_db.rngp_proc FROM rngp_role;
 ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%' on routine 'rngp_proc'
 GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE rngp_db.rngp_proc TO rngp_role;
@@ -217,6 +218,7 @@ SHOW GRANTS FOR rngp_user;
 Grants for rngp_user@%
 GRANT USAGE ON *.* TO `rngp_user`@`%`
 
+SET @current_version := NULL;
 DROP ROLE rngp_role;
 DROP USER rngp_user;
 DROP PROCEDURE rngp_db.rngp_proc;
