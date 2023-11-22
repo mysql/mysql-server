@@ -169,9 +169,7 @@ bool validate_uuid_parameter(std::string &uuid, size_t length,
   }
 
   if (group_member_mgr) {
-    std::unique_ptr<Group_member_info> member_info{
-        group_member_mgr->get_group_member_info(uuid)};
-    if (member_info.get() == nullptr) {
+    if (!group_member_mgr->is_member_info_present(uuid)) {
       *error_message = server_uuid_not_on_group_str;
       return true;
     }

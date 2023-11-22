@@ -12282,6 +12282,9 @@ ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
 ER_IB_MSG_DDL_FAIL_NO_BUILDER
   eng "DDL failed as Builder is already freed. Builder: state=%u, error_state=%u. Index: id=%zu, name='%s', space_id=%u, page=%u. Table: old_name='%s', new_name='%s'."
 
+ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST
+  eng "Member identified %s: '%s' does not exist on Group Replication membership during %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

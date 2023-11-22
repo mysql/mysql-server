@@ -82,12 +82,11 @@ int Multi_primary_migration_action::process_action_message(
     return 1;                     /* purecov: inspected */
   }
 
-  Group_member_info *primary_info = group_member_mgr->get_primary_member_info();
-  if (primary_info != nullptr) {
-    primary_uuid.assign(primary_info->get_uuid());
-    primary_gcs_id.assign(primary_info->get_gcs_member_id().get_member_id());
+  Group_member_info primary_info;
+  if (!group_member_mgr->get_primary_member_info(primary_info)) {
+    primary_uuid.assign(primary_info.get_uuid());
+    primary_gcs_id.assign(primary_info.get_gcs_member_id().get_member_id());
     is_primary = !primary_uuid.compare(local_member_info->get_uuid());
-    delete primary_info;
   }
 
   group_events_observation_manager->register_group_event_observer(this);

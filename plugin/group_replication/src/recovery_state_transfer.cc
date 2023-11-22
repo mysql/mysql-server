@@ -242,10 +242,7 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
     current_donor_uuid.assign(selected_donor->get_uuid());
     current_donor_hostname.assign(selected_donor->get_hostname());
     current_donor_port = selected_donor->get_port();
-    Group_member_info *current_donor =
-        group_member_mgr->get_group_member_info(current_donor_uuid);
-    donor_left = (current_donor == nullptr);
-    delete current_donor;
+    donor_left = !group_member_mgr->is_member_info_present(current_donor_uuid);
   }
 
   /*

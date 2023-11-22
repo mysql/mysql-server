@@ -96,15 +96,31 @@ bool Replication_group_communication_information_table_handle::
   }
 
   for (const auto &preferred_leader : preferred_leaders) {
-    auto member_id =
-        group_member_mgr->get_group_member_info_by_member_id(preferred_leader);
-    if (member_id) row.found_preferred_leaders.emplace_back(member_id);
+    Group_member_info *member_info = new Group_member_info();
+    if (nullptr == member_info) {
+      return ERROR;
+    }
+
+    if (!group_member_mgr->get_group_member_info_by_member_id(preferred_leader,
+                                                              *member_info)) {
+      row.found_preferred_leaders.emplace_back(member_info);
+    } else {
+      delete member_info;
+    }
   }
 
   for (const auto &actual_leader : actual_leaders) {
-    auto member_id =
-        group_member_mgr->get_group_member_info_by_member_id(actual_leader);
-    if (member_id) row.found_actual_leaders.emplace_back(member_id);
+    Group_member_info *member_info = new Group_member_info();
+    if (nullptr == member_info) {
+      return ERROR;
+    }
+
+    if (!group_member_mgr->get_group_member_info_by_member_id(actual_leader,
+                                                              *member_info)) {
+      row.found_actual_leaders.emplace_back(member_info);
+    } else {
+      delete member_info;
+    }
   }
 
   // If we are running a version that does not support Single Leader,

@@ -356,13 +356,10 @@ void Plugin_gcs_events_handler::handle_recovery_message(
     */
     disable_read_mode_for_compatible_members(true);
   } else {
-    Group_member_info *member_info =
-        group_member_mgr->get_group_member_info(member_uuid);
-    if (member_info != nullptr) {
+    Group_member_info member_info;
+    if (!group_member_mgr->get_group_member_info(member_uuid, member_info)) {
       LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEM_ONLINE,
-                   member_info->get_hostname().c_str(),
-                   member_info->get_port());
-      delete member_info;
+                   member_info.get_hostname().c_str(), member_info.get_port());
 
       /*
        The member is declared as online upon receiving this message
@@ -486,38 +483,42 @@ void Plugin_gcs_events_handler::on_suspicions(
   if (!members.empty()) {
     for (mit = members.begin(); mit != members.end(); mit++) {
       Gcs_member_identifier member = *mit;
-      Group_member_info *member_info =
-          group_member_mgr->get_group_member_info_by_member_id(member);
+      Group_member_info member_info;
 
-      if (member_info == nullptr)  // Trying to update a non-existing member
-        continue;                  /* purecov: inspected */
+      if (group_member_mgr->get_group_member_info_by_member_id(member,
+                                                               member_info)) {
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST,
+                     "by the Gcs_member_identifier",
+                     member.get_member_id().c_str(),
+                     "REACHABLE/UNREACHABLE notification from group "
+                     "communication engine");
+        continue; /* purecov: inspected */
+      }
 
       uit = std::find(tmp_unreachable.begin(), tmp_unreachable.end(), member);
       if (uit != tmp_unreachable.end()) {
-        if (!member_info->is_unreachable()) {
+        if (!member_info.is_unreachable()) {
           LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEM_UNREACHABLE,
-                       member_info->get_hostname().c_str(),
-                       member_info->get_port());
+                       member_info.get_hostname().c_str(),
+                       member_info.get_port());
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          group_member_mgr->set_member_unreachable(member_info->get_uuid());
+          group_member_mgr->set_member_unreachable(member_info.get_uuid());
         }
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
       } else {
-        if (member_info->is_unreachable()) {
+        if (member_info.is_unreachable()) {
           LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEM_REACHABLE,
-                       member_info->get_hostname().c_str(),
-                       member_info->get_port());
+                       member_info.get_hostname().c_str(),
+                       member_info.get_port());
           /* purecov: begin inspected */
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          group_member_mgr->set_member_reachable(member_info->get_uuid());
+          group_member_mgr->set_member_reachable(member_info.get_uuid());
           /* purecov: end */
         }
       }
-
-      delete member_info;
     }
   }
 
@@ -588,31 +589,30 @@ void Plugin_gcs_events_handler::get_hosts_from_view(
       members.begin();
 
   while (all_members_it != members.end()) {
-    Group_member_info *member_info =
-        group_member_mgr->get_group_member_info_by_member_id((*all_members_it));
+    Group_member_info member_info;
+    const bool member_not_found =
+        group_member_mgr->get_group_member_info_by_member_id((*all_members_it),
+                                                             member_info);
     all_members_it++;
 
-    if (member_info == nullptr) continue;
+    if (member_not_found) continue;
 
-    hosts_string << member_info->get_hostname() << ":"
-                 << member_info->get_port();
+    hosts_string << member_info.get_hostname() << ":" << member_info.get_port();
 
     /**
      Check in_primary_mode has been added for safety.
      Since primary role is in single-primary mode.
     */
-    if (member_info->in_primary_mode() &&
-        member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
+    if (member_info.in_primary_mode() &&
+        member_info.get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
       if (primary_string.rdbuf()->in_avail() != 0) primary_string << ", ";
-      primary_string << member_info->get_hostname() << ":"
-                     << member_info->get_port();
+      primary_string << member_info.get_hostname() << ":"
+                     << member_info.get_port();
     }
 
     if (all_members_it != members.end()) {
       hosts_string << ", ";
     }
-
-    delete member_info;
   }
   all_hosts.assign(hosts_string.str());
   primary_host.assign(primary_string.str());
@@ -1180,13 +1180,12 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
     Gcs_member_identifier *member_id = exchanged_data_it->first;
     if (data == nullptr) {
       /* purecov: begin inspected */
-      Group_member_info *member_info =
-          group_member_mgr->get_group_member_info_by_member_id(*member_id);
-      if (member_info != nullptr) {
+      Group_member_info member_info;
+      if (!group_member_mgr->get_group_member_info_by_member_id(*member_id,
+                                                                member_info)) {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM,
-                     member_info->get_hostname().c_str(),
-                     member_info->get_port());
-        delete member_info;
+                     member_info.get_hostname().c_str(),
+                     member_info.get_port());
       }
       continue;
       /* purecov: end */
@@ -1441,10 +1440,9 @@ void Plugin_gcs_events_handler::update_member_status(
   for (vector<Gcs_member_identifier>::const_iterator it = members.begin();
        it != members.end(); ++it) {
     Gcs_member_identifier member = *it;
-    Group_member_info *member_info =
-        group_member_mgr->get_group_member_info_by_member_id(member);
-
-    if (member_info == nullptr) {
+    Group_member_info member_info;
+    if (group_member_mgr->get_group_member_info_by_member_id(member,
+                                                             member_info)) {
       // Trying to update a non-existing member
       continue;
     }
@@ -1455,18 +1453,16 @@ void Plugin_gcs_events_handler::update_member_status(
     //     (the old_status_different_from is not defined or
     //      the previous status is different from old_status_different_from)
     if ((old_status_equal_to == Group_member_info::MEMBER_END ||
-         member_info->get_recovery_status() == old_status_equal_to) &&
+         member_info.get_recovery_status() == old_status_equal_to) &&
         (old_status_different_from == Group_member_info::MEMBER_END ||
-         member_info->get_recovery_status() != old_status_different_from)) {
+         member_info.get_recovery_status() != old_status_different_from)) {
       /*
         The notification will be handled on the top level handle
         function that calls this one down the stack.
       */
-      group_member_mgr->update_member_status(member_info->get_uuid(), status,
+      group_member_mgr->update_member_status(member_info.get_uuid(), status,
                                              m_notification_ctx);
     }
-
-    delete member_info;
   }
 }
 
