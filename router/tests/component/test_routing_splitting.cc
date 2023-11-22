@@ -2205,6 +2205,14 @@ TEST_F(RoutingSplittingTest, multi_statements_are_forbidden) {
       EXPECT_EQ(query_res.error().value(),
                 4501);  // multi-statements are forbidden.
     }
+
+    // trailing comma is ok.
+    {
+      auto query_res = cli.query("DO 2;");
+      ASSERT_ERROR(query_res);
+      EXPECT_EQ(query_res.error().value(),
+                1273);  // syntax error (from mock-server)
+    }
   }
 }
 
