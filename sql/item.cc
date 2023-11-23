@@ -72,6 +72,7 @@
 #include "sql/key.h"
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mysqld.h"     // lower_case_table_names files_charset_info
+#include "sql/opt_explain_format.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
 #include "sql/select_lex_visitor.h"
@@ -3151,7 +3152,9 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   }
 
   if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0] &&
-      !alias_name_used()) {
+      (!alias_name_used() ||
+       (thd->lex->is_explain() && thd->lex->explain_format->is_hierarchical() &&
+        thd->lex->explain_format->is_iterator_based()))) {
     const size_t d_name_len = strlen(d_name);
     if (!((query_type & QT_NO_DEFAULT_DB) &&
           db_is_default_db(d_name, d_name_len, thd))) {

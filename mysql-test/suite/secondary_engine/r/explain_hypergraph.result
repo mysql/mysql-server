@@ -14,6 +14,10 @@ EXPLAIN
   "operation": "Table scan on t1",
   "table_name": "t1",
   "access_type": "table",
+  "schema_name": "test",
+  "used_columns": [
+    "a"
+  ],
   "estimated_rows": 1.0,
   "estimated_total_cost": 0.25,
   "estimated_first_row_cost": 0.25
@@ -37,16 +41,25 @@ EXPLAIN
       "operation": "Table scan on t1 in secondary engine MOCK",
       "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a"
+      ],
       "estimated_rows": 1.0,
       "secondary_engine": "MOCK",
       "estimated_total_cost": 0.5,
       "estimated_first_row_cost": 0.5
     },
     {
+      "alias": "t2",
       "heading": "Hash",
       "operation": "Table scan on t2 in secondary engine MOCK",
-      "table_name": "t2",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a"
+      ],
       "estimated_rows": 1.0,
       "secondary_engine": "MOCK",
       "estimated_total_cost": 0.5,

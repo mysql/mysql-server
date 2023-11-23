@@ -4296,7 +4296,7 @@ struct LEX : public Query_tables_list {
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
 
-  class Explain_format *explain_format;
+  class Explain_format *explain_format{nullptr};
 
   // Maximum execution time for a statement.
   ulong max_execution_time;

@@ -148,6 +148,54 @@ static bool IsCoveringIndexScan(const KEY &key, const TABLE &table) {
   return !table.no_keyread && table.covering_keys.is_set(&key - table.key_info);
 }
 
+/**
+ * Add table name, schema name, and list of used columns for the specified table
+ * to the JSON object.
+ * Add the table's alias if an alias was used.
+ *
+ * @param obj The JSON object to be updated.
+ * @param table The table to fetch information from.
+ *
+ * @retval true if either parameter is nullptr, or adding fields to the JSON
+ * object failed.
+ * @retval false if all table information was added successfully.
+ */
+static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
+  bool error = false;
+  if (obj == nullptr || table == nullptr) return true;
+  if (table->alias_name_used &&
+      table->s->get_table_ref_type() == TABLE_REF_BASE_TABLE) {
+    error |= AddMemberToObject<Json_string>(obj, "table_name",
+                                            table->s->table_name.str);
+    error |= AddMemberToObject<Json_string>(obj, "alias", table->alias);
+  } else {
+    error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
+  }
+  if (table->s->db.length > 0) {
+    error |=
+        AddMemberToObject<Json_string>(obj, "schema_name", table->s->db.str);
+  }
+
+  if (table->pos_in_table_list != nullptr &&
+      !(bitmap_is_clear_all(table->read_set) &&
+        bitmap_is_clear_all(table->write_set))) {
+    unique_ptr<Json_array> used_fields_list(new (std::nothrow) Json_array());
+    if (used_fields_list == nullptr) return true;
+    for (Field **fld = table->field; *fld != nullptr; fld++) {
+      if (!bitmap_is_set(table->read_set, (*fld)->field_index()) &&
+          !bitmap_is_set(table->write_set, (*fld)->field_index()))
+        continue;
+
+      const char *field_description =
+          get_field_name_or_expression(table->in_use, *fld);
+      if (AddElementToArray<Json_string>(used_fields_list, field_description))
+        return true;
+    }
+    error |= obj->add_alias("used_columns", std::move(used_fields_list));
+  }
+  return error;
+}
+
 /*
   The index information is displayed like this :
 
@@ -195,7 +243,7 @@ static bool SetIndexInfoInObject(string *str,
                                           json_index_access_type);
   error |= AddMemberToObject<Json_boolean>(obj, "covering",
                                            IsCoveringIndexScan(key, table));
-  error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+  error |= AddTableInfoToObject(obj, &table);
   error |= AddMemberToObject<Json_string>(obj, "index_name", key.name);
   if (!lookup_condition.empty())
     error |= AddMemberToObject<Json_string>(obj, "lookup_condition",
@@ -843,9 +891,8 @@ static unique_ptr<Json_object> ExplainQueryPlan(
 
     if (dml_obj->add_alias("inputs", std::move(children))) return nullptr;
 
-    if (AddMemberToObject<Json_string>(
-            dml_obj.get(), "table_name",
-            query_plan->get_lex()->query_tables[0].table->alias)) {
+    if (AddTableInfoToObject(dml_obj.get(),
+                             query_plan->get_lex()->query_tables[0].table)) {
       return nullptr;
     }
 
@@ -1030,7 +1077,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       }
       description += table.file->explain_extra();
 
-      error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddTableInfoToObject(obj, &table);
       error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
       if (!table.file->explain_extra().empty())
         error |= AddMemberToObject<Json_string>(obj, "message",
@@ -1128,7 +1175,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       description = string("Constant row from ") + table.alias;
       error |=
           AddMemberToObject<Json_string>(obj, "access_type", "constant_row");
-      error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddTableInfoToObject(obj, &table);
       break;
     }
     case AccessPath::MRR: {
@@ -1146,8 +1193,7 @@ static unique_ptr<Json_object> SetObjectMembers(
           string("Scan new records on ") + path->follow_tail().table->alias;
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "scan_new_records");
-      error |= AddMemberToObject<Json_string>(obj, "table_name",
-                                              path->follow_tail().table->alias);
+      error |= AddTableInfoToObject(obj, path->follow_tail().table);
       error |=
           AddChildrenFromPushedCondition(*path->follow_tail().table, children);
       break;
@@ -1225,7 +1271,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "access_type", "index");
       error |= AddMemberToObject<Json_string>(obj, "index_access_type",
                                               "dynamic_index_range_scan");
-      error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddTableInfoToObject(obj, &table);
       if (table.file->pushed_idx_cond != nullptr) {
         error |= AddMemberToObject<Json_string>(
             obj, "pushed_index_condition",
@@ -1267,8 +1313,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       break;
     case AccessPath::UNQUALIFIED_COUNT:
       error |= AddMemberToObject<Json_string>(obj, "access_type", "count_rows");
-      error |= AddMemberToObject<Json_string>(obj, "table_name",
-                                              join->qep_tab->table()->alias);
+      error |= AddTableInfoToObject(obj, join->qep_tab->table());
       description = "Count rows in " + string(join->qep_tab->table()->alias);
       break;
     case AccessPath::NESTED_LOOP_JOIN: {
@@ -1546,12 +1591,12 @@ static unique_ptr<Json_object> SetObjectMembers(
           path->materialize_information_schema_table().table_path, nullptr,
           std::move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
-      const char *table =
-          path->materialize_information_schema_table().table_list->table->alias;
-      error |= AddMemberToObject<Json_string>(obj, "table_name", table);
+      const TABLE *table =
+          path->materialize_information_schema_table().table_list->table;
+      error |= AddTableInfoToObject(obj, table);
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "materialize_information_schema");
-      description = "Fill information schema table " + string(table);
+      description = "Fill information schema table " + string(table->alias);
       break;
     }
     case AccessPath::APPEND:

@@ -8880,6 +8880,10 @@ EXPLAIN
           "operation": "Table scan on t",
           "table_name": "t",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "i"
+          ],
           "estimated_rows": 3.0,
           "estimated_total_cost": 0.8012817382812502
         }
