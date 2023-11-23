@@ -94,6 +94,7 @@ class GlobalDictCache : public NdbLockable {
   }
 
   void invalidateDb(const char *name, size_t len);
+  void invalidateTable(const BaseString &name);
 
  public:
   enum Status { OK = 0, DROPPED = 1, RETREIVING = 2 };

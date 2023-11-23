@@ -1733,9 +1733,21 @@ const char *Ndb::externalizeIndexName(const char *internalIndexName,
   }
 }
 
+// Format internal name from db, schema and table name
+BaseString Ndb::internalize_table_name(const char *db_name, const char *schema,
+                                       const char *table_name) {
+  BaseString internal_name;
+  // Internal table name format <db>/<schema>/<table>
+  internal_name.assfmt("%s%c%s%c%s", db_name, table_name_separator, schema,
+                       table_name_separator, table_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", internal_name.c_str()));
+  return internal_name;
+}
+
+// Format internal name using schema and db name from the Ndb object
 const BaseString Ndb::internalize_table_name(const char *external_name) const {
-  BaseString ret;
-  DBUG_ENTER("internalize_table_name");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("external_name: %s", external_name));
 
 #ifdef VM_TRACE
@@ -1744,13 +1756,8 @@ const BaseString Ndb::internalize_table_name(const char *external_name) const {
   assert(theImpl->m_schemaname.length());
 #endif
 
-  // Internal table name format <db>/<schema>/<table>
-  ret.assfmt("%s%c%s%c%s", theImpl->m_dbname.c_str(), table_name_separator,
-             theImpl->m_schemaname.c_str(), table_name_separator,
-             external_name);
-
-  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
-  DBUG_RETURN(ret);
+  return internalize_table_name(theImpl->m_dbname.c_str(),
+                                theImpl->m_schemaname.c_str(), external_name);
 }
 
 const BaseString Ndb::getDatabaseFromInternalName(const char *internalName) {
