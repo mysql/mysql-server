@@ -360,6 +360,35 @@ void GlobalDictCache::invalidateDb(const char *name, size_t len) {
   DBUG_VOID_RETURN;
 }
 
+void GlobalDictCache::invalidateTable(const BaseString &internal_name) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("internal_name: '%s'", internal_name.c_str()));
+  Vector<TableVersion> *vers =
+      m_tableHash.getData(internal_name.c_str(), internal_name.length());
+  if (vers == nullptr) {
+    DBUG_PRINT("exit", ("nothing cached"));
+    return;
+  }
+
+  if (vers->size() == 0) {
+    DBUG_PRINT("exit", ("no cached versions"));
+    return;
+  }
+
+  TableVersion *const ver = &vers->back();
+  if (ver->m_status == RETREIVING) {
+    DBUG_PRINT("exit", ("fresh version on the way"));
+    return;
+  }
+
+  ver->m_impl->m_status = NdbDictionary::Object::Invalid;
+  ver->m_status = DROPPED;
+  if (ver->m_refCount == 0) {
+    delete ver->m_impl;
+    vers->erase(vers->size() - 1);
+  }
+}
+
 void GlobalDictCache::release(const NdbTableImpl *tab, int invalidate) {
   DBUG_ENTER("GlobalDictCache::release");
   DBUG_PRINT("enter",

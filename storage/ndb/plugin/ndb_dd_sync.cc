@@ -1187,6 +1187,9 @@ bool Ndb_dd_sync::synchronize_table(const char *schema_name,
                                     const char *table_name) const {
   ndb_log_verbose(1, "Synchronizing table '%s.%s'", schema_name, table_name);
 
+  // Invalidate potentially stale cached table
+  Ndb_table_guard::invalidate_table(m_thd_ndb->ndb, schema_name, table_name);
+
   Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema_name, table_name);
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
   if (!ndbtab) {

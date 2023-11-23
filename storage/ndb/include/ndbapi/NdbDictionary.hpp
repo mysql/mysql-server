@@ -2917,6 +2917,9 @@ class NdbDictionary {
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
     void invalidateDbGlobal(const char *dbname);
+    // Invalidate table by name if it exist in the cache
+    void invalidateTableGlobal(const char *dbName, const char *schemaName,
+                               const char *tableName);
 #endif
 
     /*

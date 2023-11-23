@@ -965,6 +965,8 @@ class NdbDictionaryImpl : public NdbDictionary::Dictionary {
   int dropIndexGlobal(NdbIndexImpl &, bool ignoreFKs);
   int releaseTableGlobal(const NdbTableImpl &impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl &impl, int invalidate);
+  void invalidateTableGlobal(const char *dbName, const char *schemaName,
+                             const char *tableName);
 
   NdbTableImpl *getTable(const char *tableName, void **data = nullptr);
   NdbTableImpl *getBlobTable(const NdbTableImpl &, uint col_no);

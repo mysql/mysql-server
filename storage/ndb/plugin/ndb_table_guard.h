@@ -186,6 +186,18 @@ class Ndb_table_guard {
   }
 
   const NdbError &getNdbError() const { return m_ndberror; }
+
+  /**
+     @brief Invalidate table in the global dictionary cache (if it exists)
+     without fetching table from NDB on cache miss, this saves one roundtrip.
+
+     This function is to be used to invalidate table when it's not already being
+     held open.
+  */
+  static void invalidate_table(Ndb *ndb, const char *dbname,
+                               const char *tabname) {
+    ndb->getDictionary()->invalidateTableGlobal(dbname, "def", tabname);
+  }
 };
 
 #endif
