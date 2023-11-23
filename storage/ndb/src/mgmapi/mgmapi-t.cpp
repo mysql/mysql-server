@@ -27,6 +27,7 @@
 #include <mgmapi/mgmapi.h>
 #include <mgmapi/mgmapi_debug.h>
 #include "mgmapi_internal.h"
+#include "mgmcommon/NdbMgm.hpp"
 
 TAPTEST(mgmapi) {
   // Check behaviour of error translation functions with NULL handle
@@ -128,5 +129,18 @@ TAPTEST(mgmapi) {
   // Destroy handle
   ndb_mgm_destroy_handle(&h);
 
+  // Check parsing of bind address, with and without port
+  // Neither bindaddress or port is possible to check, only return code
+  {
+    ndb_mgm::handle_ptr handle(ndb_mgm_create_handle());
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost") == 0);
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:12345") == 0);
+    // Illegal values
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:65536") == -1);
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:-5") == -1);
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:mysql") == -1);
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:2147483648") == -1);
+    OK(ndb_mgm_set_bindaddress(handle.get(), "localhost:-2147483649") == -1);
+  }
   return 1;  // OK
 }
