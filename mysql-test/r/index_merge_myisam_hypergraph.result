@@ -984,6 +984,14 @@ EXPLAIN
               "index_name": "key1",
               "table_name": "t1",
               "access_type": "index",
+              "schema_name": "test",
+              "used_columns": [
+                "key1",
+                "key1",
+                "key3",
+                "key3",
+                "filler1"
+              ],
               "estimated_rows": "#",
               "index_access_type": "index_range_scan",
               "estimated_total_cost": "#",
@@ -998,6 +1006,14 @@ EXPLAIN
               "index_name": "key1",
               "table_name": "t1",
               "access_type": "index",
+              "schema_name": "test",
+              "used_columns": [
+                "key1",
+                "key1",
+                "key3",
+                "key3",
+                "filler1"
+              ],
               "estimated_rows": "#",
               "index_access_type": "index_range_scan",
               "estimated_total_cost": "#",
@@ -1021,6 +1037,14 @@ EXPLAIN
               "index_name": "key3",
               "table_name": "t1",
               "access_type": "index",
+              "schema_name": "test",
+              "used_columns": [
+                "key1",
+                "key1",
+                "key3",
+                "key3",
+                "filler1"
+              ],
               "estimated_rows": "#",
               "index_access_type": "index_range_scan",
               "estimated_total_cost": "#",
@@ -1035,6 +1059,14 @@ EXPLAIN
               "index_name": "key3",
               "table_name": "t1",
               "access_type": "index",
+              "schema_name": "test",
+              "used_columns": [
+                "key1",
+                "key1",
+                "key3",
+                "key3",
+                "filler1"
+              ],
               "estimated_rows": "#",
               "index_access_type": "index_range_scan",
               "estimated_total_cost": "#",

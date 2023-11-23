@@ -42,6 +42,11 @@ SELECT @v1, JSON_VALID(@v1);
           "operation": "Table scan on t1",
           "table_name": "t1",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "i1",
+            "i2"
+          ],
           "estimated_rows": 3.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.08333333333333333
@@ -60,6 +65,11 @@ SELECT @v1, JSON_VALID(@v1);
           "operation": "Table scan on t2",
           "table_name": "t2",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "i3",
+            "i4"
+          ],
           "estimated_rows": 3.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.08333333333333333

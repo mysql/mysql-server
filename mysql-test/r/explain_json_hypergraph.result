@@ -27,6 +27,10 @@ EXPLAIN
       "operation": "Table scan on t1",
       "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "f1"
+      ],
       "estimated_rows": 3.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.08333333333333333
@@ -36,9 +40,14 @@ EXPLAIN
         {
           "inputs": [
             {
+              "alias": "i",
               "operation": "Table scan on i",
-              "table_name": "i",
+              "table_name": "t1",
               "access_type": "table",
+              "schema_name": "test",
+              "used_columns": [
+                "f1"
+              ],
               "estimated_rows": 3.0,
               "estimated_total_cost": 0.25,
               "estimated_first_row_cost": 0.08333333333333333
@@ -92,6 +101,10 @@ EXPLAIN
       "operation": "Table scan on t1",
       "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "f1"
+      ],
       "estimated_rows": 3.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.08333333333333333
@@ -103,6 +116,10 @@ EXPLAIN
           "operation": "Table scan on t1",
           "table_name": "t1",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "f1"
+          ],
           "estimated_rows": 3.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.08333333333333333
@@ -153,6 +170,13 @@ EXPLAIN
   "index_name": "PRIMARY",
   "table_name": "t1",
   "access_type": "index",
+  "schema_name": "test",
+  "used_columns": [
+    "a",
+    "b",
+    "c",
+    "d"
+  ],
   "estimated_rows": 8.0,
   "index_access_type": "index_range_scan",
   "estimated_total_cost": 1.0621367521367522,
@@ -190,6 +214,10 @@ EXPLAIN
           "index_name": "i1",
           "table_name": "t2",
           "access_type": "index",
+          "schema_name": "test",
+          "used_columns": [
+            "i"
+          ],
           "estimated_rows": 4.0,
           "index_access_type": "index_scan",
           "estimated_total_cost": 0.25100671140939596,
@@ -211,6 +239,10 @@ EXPLAIN
       "index_name": "PRIMARY",
       "table_name": "t1",
       "access_type": "index",
+      "schema_name": "test",
+      "used_columns": [
+        "i"
+      ],
       "estimated_rows": 1.0,
       "lookup_condition": "i=t2.i",
       "index_access_type": "index_lookup",
@@ -258,6 +290,11 @@ EXPLAIN
       "operation": "Table scan on t1",
       "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "col_int",
+        "pk"
+      ],
       "estimated_rows": 2.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.125
@@ -270,6 +307,12 @@ EXPLAIN
           "index_name": "col_int_key",
           "table_name": "t2",
           "access_type": "index",
+          "schema_name": "test",
+          "used_columns": [
+            "col_int_key",
+            "col_varchar",
+            "pk"
+          ],
           "estimated_rows": 1.0,
           "lookup_condition": "col_int_key=t1.col_int",
           "index_access_type": "index_lookup",
@@ -342,15 +385,25 @@ EXPLAIN
                   "operation": "Table scan on t1",
                   "table_name": "t1",
                   "access_type": "table",
+                  "schema_name": "test",
+                  "used_columns": [
+                    "col_varchar",
+                    "col_varchar_key"
+                  ],
                   "estimated_rows": 3.0,
                   "estimated_total_cost": 0.25,
                   "estimated_first_row_cost": 0.08333333333333333
                 },
                 {
+                  "alias": "alias2",
                   "heading": "Hash",
                   "operation": "Table scan on alias2",
-                  "table_name": "alias2",
+                  "table_name": "t1",
                   "access_type": "table",
+                  "schema_name": "test",
+                  "used_columns": [
+                    "col_varchar_key"
+                  ],
                   "estimated_rows": 3.0,
                   "estimated_total_cost": 0.25,
                   "estimated_first_row_cost": 0.08333333333333333
@@ -379,9 +432,11 @@ EXPLAIN
           "estimated_first_row_cost": 1.5692052977137636
         },
         {
+          "alias": "alias1",
           "operation": "Table scan on alias1",
-          "table_name": "alias1",
+          "table_name": "t1",
           "access_type": "table",
+          "schema_name": "test",
           "estimated_rows": 3.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.08333333333333333
@@ -417,7 +472,7 @@ EXPLAIN
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
 {
-  "query": "/* select#1 */ select `e`.`ENGINE` AS `ENGINE`,`e`.`SUPPORT` AS `SUPPORT`,`e`.`COMMENT` AS `COMMENT`,`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`e`.`XA` AS `XA`,`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`e`.`ENGINE` = 'MyISAM')",
+  "query": "/* select#1 */ select `information_schema`.`e`.`ENGINE` AS `ENGINE`,`information_schema`.`e`.`SUPPORT` AS `SUPPORT`,`information_schema`.`e`.`COMMENT` AS `COMMENT`,`information_schema`.`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`information_schema`.`e`.`XA` AS `XA`,`information_schema`.`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`information_schema`.`e`.`ENGINE` = 'MyISAM')",
   "inputs": [
     {
       "inputs": [
@@ -425,6 +480,14 @@ EXPLAIN
           "operation": "Fill information schema table e",
           "table_name": "e",
           "access_type": "materialize_information_schema",
+          "used_columns": [
+            "ENGINE",
+            "SUPPORT",
+            "COMMENT",
+            "TRANSACTIONS",
+            "XA",
+            "SAVEPOINTS"
+          ],
           "estimated_rows": 1000.0,
           "estimated_total_cost": 15.0,
           "estimated_first_row_cost": 0.015
@@ -433,13 +496,21 @@ EXPLAIN
       "operation": "Table scan on e",
       "table_name": "e",
       "access_type": "table",
+      "used_columns": [
+        "ENGINE",
+        "SUPPORT",
+        "COMMENT",
+        "TRANSACTIONS",
+        "XA",
+        "SAVEPOINTS"
+      ],
       "estimated_rows": 1000.0,
       "estimated_total_cost": 15.0,
       "estimated_first_row_cost": 0.015
     }
   ],
-  "condition": "(e.`ENGINE` = 'MyISAM')",
-  "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
+  "condition": "(information_schema.e.`ENGINE` = 'MyISAM')",
+  "operation": "Filter: (information_schema.e.`ENGINE` = 'MyISAM')",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
   "estimated_total_cost": 115.0,
@@ -498,6 +569,11 @@ EXPLAIN
                       "index_name": "f1_2",
                       "table_name": "t1",
                       "access_type": "index",
+                      "schema_name": "test",
+                      "used_columns": [
+                        "f1",
+                        "f2"
+                      ],
                       "estimated_rows": 2.449489742783178,
                       "index_access_type": "group_index_skip_scan",
                       "estimated_total_cost": 1.3000000000000003,
@@ -532,6 +608,10 @@ EXPLAIN
       "operation": "Table scan on dt",
       "table_name": "dt",
       "access_type": "table",
+      "used_columns": [
+        "f1",
+        "SUM(f2) OVER()"
+      ],
       "estimated_rows": 2.449489742783178,
       "estimated_total_cost": 4.314897948556635,
       "estimated_first_row_cost": 2.675775907699572
@@ -573,6 +653,12 @@ EXPLAIN
           "index_name": "f1",
           "table_name": "t1",
           "access_type": "index",
+          "schema_name": "test",
+          "used_columns": [
+            "f1",
+            "f2",
+            "f3"
+          ],
           "estimated_rows": 2.0,
           "index_access_type": "index_range_scan",
           "estimated_total_cost": 0.96,
@@ -592,6 +678,10 @@ EXPLAIN
           "operation": "Table scan on t0",
           "table_name": "t0",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "i0"
+          ],
           "estimated_rows": 5.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.05
@@ -652,6 +742,11 @@ EXPLAIN
                       "index_name": "PRIMARY",
                       "table_name": "t1",
                       "access_type": "index",
+                      "schema_name": "test",
+                      "used_columns": [
+                        "a",
+                        "b"
+                      ],
                       "estimated_rows": 3.0,
                       "index_access_type": "index_scan",
                       "estimated_total_cost": 0.25025,
@@ -663,6 +758,11 @@ EXPLAIN
                       "index_name": "PRIMARY",
                       "table_name": "t2",
                       "access_type": "index",
+                      "schema_name": "test",
+                      "used_columns": [
+                        "a",
+                        "b"
+                      ],
                       "estimated_rows": 1.0,
                       "lookup_condition": "a=t1.a",
                       "index_access_type": "index_lookup",
@@ -737,9 +837,14 @@ EXPLAIN
   "query": "/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`b`.`a` AS `a`,`test`.`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on(multiple equal(`test`.`b`.`a`, `test`.`c`.`a`))",
   "inputs": [
     {
+      "alias": "a",
       "operation": "Table scan on a",
-      "table_name": "a",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a"
+      ],
       "estimated_rows": 4.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.0625
@@ -801,18 +906,30 @@ EXPLAIN
   "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` = (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
   "inputs": [
     {
+      "alias": "x1",
       "operation": "Table scan on x1",
-      "table_name": "x1",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a",
+        "b"
+      ],
       "estimated_rows": 1.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.25
     },
     {
+      "alias": "x2",
       "heading": "Hash",
       "operation": "Table scan on x2",
-      "table_name": "x2",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a",
+        "b"
+      ],
       "estimated_rows": 1.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.25
@@ -822,9 +939,14 @@ EXPLAIN
         {
           "inputs": [
             {
+              "alias": "x3",
               "operation": "Table scan on x3",
-              "table_name": "x3",
+              "table_name": "t1",
               "access_type": "table",
+              "schema_name": "test",
+              "used_columns": [
+                "a"
+              ],
               "estimated_rows": 1.0,
               "estimated_total_cost": 0.25,
               "estimated_first_row_cost": 0.25
@@ -886,18 +1008,30 @@ EXPLAIN
   "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` < (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
   "inputs": [
     {
+      "alias": "x1",
       "operation": "Table scan on x1",
-      "table_name": "x1",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a",
+        "b"
+      ],
       "estimated_rows": 1.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.25
     },
     {
+      "alias": "x2",
       "heading": "Hash",
       "operation": "Table scan on x2",
-      "table_name": "x2",
+      "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "a",
+        "b"
+      ],
       "estimated_rows": 1.0,
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.25
@@ -907,9 +1041,14 @@ EXPLAIN
         {
           "inputs": [
             {
+              "alias": "x3",
               "operation": "Table scan on x3",
-              "table_name": "x3",
+              "table_name": "t1",
               "access_type": "table",
+              "schema_name": "test",
+              "used_columns": [
+                "a"
+              ],
               "estimated_rows": 1.0,
               "estimated_total_cost": 0.25,
               "estimated_first_row_cost": 0.25
@@ -979,9 +1118,15 @@ EXPLAIN
     {
       "inputs": [
         {
+          "alias": "x1",
           "operation": "Table scan on x1",
-          "table_name": "x1",
+          "table_name": "t1",
           "access_type": "table",
+          "schema_name": "test",
+          "used_columns": [
+            "a",
+            "b"
+          ],
           "estimated_rows": 1.0,
           "estimated_total_cost": 0.25,
           "estimated_first_row_cost": 0.25
@@ -1003,6 +1148,7 @@ EXPLAIN
       "operation": "Table scan on t1",
       "table_name": "t1",
       "access_type": "table",
+      "schema_name": "test",
       "estimated_rows": 1.0,
       "subquery_location": "projection",
       "estimated_total_cost": 0.25,
@@ -1043,7 +1189,11 @@ EXPLAIN
   ],
   "operation": "Insert into t",
   "table_name": "t",
-  "access_type": "insert_values"
+  "access_type": "insert_values",
+  "schema_name": "test",
+  "used_columns": [
+    "i"
+  ]
 }
 EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
 EXPLAIN
@@ -1057,6 +1207,10 @@ EXPLAIN
   ],
   "operation": "Replace into t",
   "table_name": "t",
-  "access_type": "replace_values"
+  "access_type": "replace_values",
+  "schema_name": "test",
+  "used_columns": [
+    "i"
+  ]
 }
 DROP TABLE t;
