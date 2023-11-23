@@ -24,6 +24,7 @@
 #ifndef MYSQL_HARNESS_STDX_FILE_HANDLE_INCLUDED
 #define MYSQL_HARNESS_STDX_FILE_HANDLE_INCLUDED
 
+#include <cstdint>
 #include <string>
 #include <system_error>
 #include <utility>  // exchange
