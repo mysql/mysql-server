@@ -328,6 +328,7 @@ class Ndbd : public Mgmd {
   Ndbd(int nodeid) : Mgmd(nodeid), m_args() {
     m_args.add("--ndb-nodeid=", m_nodeid);
     m_args.add("--foreground");
+    m_args.add("--loose-core-file=0");
     m_name.assfmt("ndbd_%d", nodeid);
     NDBT_find_ndbd(m_exe);
   }
