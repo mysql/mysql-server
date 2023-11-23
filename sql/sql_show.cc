@@ -146,6 +146,12 @@ bool iterate_all_dynamic_privileges(THD *thd,
 using std::max;
 using std::min;
 
+/** Count number of times information_schema.processlist has been used. */
+std::atomic_ulong deprecated_use_i_s_processlist_count = 0;
+
+/** Last time information_schema.processlist was used, as usec since epoch. */
+std::atomic_ullong deprecated_use_i_s_processlist_last_timestamp = 0;
+
 /**
   @class CSET_STRING
   @brief Character set armed LEX_CSTRING
@@ -2815,6 +2821,9 @@ class List_process_list : public Do_THD_Impl {
         m_max_query_length(max_query_length) {
     push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
                          "performance_schema.processlist");
+
+    deprecated_use_i_s_processlist_last_timestamp = my_micro_time();
+    deprecated_use_i_s_processlist_count++;
   }
 
   void operator()(THD *inspect_thd) override {
@@ -3047,6 +3056,9 @@ class Fill_process_list : public Do_THD_Impl {
       : m_client_thd(thd_value), m_tables(tables_value) {
     push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
                          "performance_schema.processlist");
+
+    deprecated_use_i_s_processlist_last_timestamp = my_micro_time();
+    deprecated_use_i_s_processlist_count++;
   }
 
   ~Fill_process_list() override {
