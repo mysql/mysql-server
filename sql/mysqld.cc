@@ -9632,6 +9632,24 @@ static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
   return 0;
 }
 
+static int show_deprecated_use_i_s_processlist_count(THD *, SHOW_VAR *var,
+                                                     char *buf) {
+  var->type = SHOW_LONG;
+  var->value = buf;
+  *((long *)buf) = (long)(deprecated_use_i_s_processlist_count.load());
+  return 0;
+}
+
+static int show_deprecated_use_i_s_processlist_last_timestamp(THD *,
+                                                              SHOW_VAR *var,
+                                                              char *buf) {
+  var->type = SHOW_LONGLONG;
+  var->value = buf;
+  *((long long *)buf) =
+      (long long)(deprecated_use_i_s_processlist_last_timestamp.load());
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -9992,7 +10010,13 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
+    {"Deprecated_use_i_s_processlist_count",
+     (char *)&show_deprecated_use_i_s_processlist_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Deprecated_use_i_s_processlist_last_timestamp",
+     (char *)&show_deprecated_use_i_s_processlist_last_timestamp, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {NullS, NullS, SHOW_FUNC, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
   my_option empty_element = {nullptr, 0,          nullptr, nullptr, nullptr,

@@ -12285,6 +12285,9 @@ ER_IB_MSG_DDL_FAIL_NO_BUILDER
 ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST
   eng "Member identified %s: '%s' does not exist on Group Replication membership during %s."
 
+ER_USAGE_DEPRECATION_COUNTER
+  eng "Deprecated '%s' used %s times, last time used '%s'."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

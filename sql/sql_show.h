@@ -149,6 +149,8 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
 bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
                                       Item *condition);
 
+extern std::atomic_ulong deprecated_use_i_s_processlist_count;
+extern std::atomic_ullong deprecated_use_i_s_processlist_last_timestamp;
 extern TYPELIB grant_types;
 
 /**
