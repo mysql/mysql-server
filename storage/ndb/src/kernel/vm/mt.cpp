@@ -2049,20 +2049,15 @@ class thr_send_threads {
     NdbMutex_Unlock(m_send_threads[send_instance].send_thread_mutex);
   }
   void startChangeNeighbourNode() {
-    for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++) {
-      m_trp_state[i].m_neighbour_trp = false;
-    }
     for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++) {
       NdbMutex_Lock(m_send_threads[i].send_thread_mutex);
-      for (Uint32 j = 0; j < m_send_threads[i].m_num_neighbour_trps; j++) {
-        const TrpId trp_id = m_send_threads[i].m_neighbour_trps[j];
-        if (m_trp_state[trp_id].m_data_available > 0) {
-          // Was a neighbour with pending sends, add to send-queue.
-          insert_trp(m_send_threads[i].m_neighbour_trps[j], &m_send_threads[i]);
-        }
+      for (Uint32 j = 0; j < MAX_NEIGHBOURS; j++) {
         m_send_threads[i].m_neighbour_trps[j] = 0;
       }
       m_send_threads[i].m_num_neighbour_trps = 0;
+    }
+    for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++) {
+      m_trp_state[i].m_neighbour_trp = false;
     }
   }
   void setNeighbourNode(NodeId nodeId) {
