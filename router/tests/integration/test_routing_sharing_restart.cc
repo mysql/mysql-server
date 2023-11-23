@@ -1019,8 +1019,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
               expected_error_code = 1047;
               break;
             case cmd_byte<
-                classic_protocol::message::client::StmtExecute>():  // 23
-            case cmd_byte<
                 classic_protocol::message::client::StmtReset>():  // 26
             case cmd_byte<
                 classic_protocol::message::client::StmtFetch>():  // 28
@@ -1028,6 +1026,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
               // unknown prepared statement handler.
               expected_error_code = 1243;
               break;
+            case cmd_byte<
+                classic_protocol::message::client::StmtExecute>():  // 23
             case cmd_byte<
                 classic_protocol::message::client::SetOption>():  // 27
               expected_error_code = 1835;  // malformed packet
@@ -1180,8 +1180,10 @@ TEST_P(ShareConnectionTestWithRestartedServer,
           expected_error_code = 1047;
           break;
         case cmd_byte<classic_protocol::message::client::StmtExecute>():  // 23
-        case cmd_byte<classic_protocol::message::client::StmtReset>():    // 26
-        case cmd_byte<classic_protocol::message::client::StmtFetch>():    // 28
+          expected_error_code = 1835;
+          break;
+        case cmd_byte<classic_protocol::message::client::StmtReset>():  // 26
+        case cmd_byte<classic_protocol::message::client::StmtFetch>():  // 28
 
           // unknown prepared statement handler | malformed packet.
           expected_error_code = can_share ? 1243 : 1835;
