@@ -2281,10 +2281,8 @@ TEST_F(RoutingSplittingTest, wait_for_my_writes_default) {
                        rapidjson::Value("mysql/authenticate")},
              std::pair{"/events/1/events/0/events/2/name",
                        rapidjson::Value("mysql/set_var")},
-             std::pair{"/events/1/events/0/events/3/name",
-                       rapidjson::Value("mysql/check_read_only")},
              // it waited.
-             std::pair{"/events/1/events/0/events/4/name",
+             std::pair{"/events/1/events/0/events/3/name",
                        rapidjson::Value("mysql/wait_gtid_executed")},
              // if wait-gtid-executed passes, next will be forward.
              std::pair{"/events/1/events/1/name",
@@ -2370,8 +2368,6 @@ TEST_F(RoutingSplittingTest, router_set_wait_for_my_writes_off) {
                        rapidjson::Value("mysql/authenticate")},
              std::pair{"/events/1/events/0/events/2/name",
                        rapidjson::Value("mysql/set_var")},
-             std::pair{"/events/1/events/0/events/3/name",
-                       rapidjson::Value("mysql/check_read_only")},
              // if wait-gtid-executed passes, next will be forward.
              std::pair{"/events/1/events/1/name",
                        rapidjson::Value("mysql/forward")},
@@ -2463,10 +2459,8 @@ TEST_F(RoutingSplittingTest, router_set_wait_for_my_writes_timeout_0) {
                        rapidjson::Value("mysql/authenticate")},
              std::pair{"/events/1/events/0/events/2/name",
                        rapidjson::Value("mysql/set_var")},
-             std::pair{"/events/1/events/0/events/3/name",
-                       rapidjson::Value("mysql/check_read_only")},
              // it waited, with timeout 0.
-             std::pair{"/events/1/events/0/events/4/name",
+             std::pair{"/events/1/events/0/events/3/name",
                        rapidjson::Value("mysql/wait_gtid_executed")},
              // if wait-gtid-executed passes, next will be forward.
              std::pair{"/events/1/events/1/name",
@@ -2559,10 +2553,8 @@ TEST_F(RoutingSplittingManualTest, config_wait_for_my_writes_is_not_set) {
                        rapidjson::Value("mysql/authenticate")},
              std::pair{"/events/1/events/0/events/2/name",
                        rapidjson::Value("mysql/set_var")},
-             std::pair{"/events/1/events/0/events/3/name",
-                       rapidjson::Value("mysql/check_read_only")},
              // it waited.
-             std::pair{"/events/1/events/0/events/4/name",
+             std::pair{"/events/1/events/0/events/3/name",
                        rapidjson::Value("mysql/wait_gtid_executed")},
              // if wait-gtid-executed passes, next will be forward.
              std::pair{"/events/1/events/1/name",
@@ -2645,8 +2637,6 @@ TEST_F(RoutingSplittingManualTest, config_wait_for_my_writes_is_zero) {
                        rapidjson::Value("mysql/authenticate")},
              std::pair{"/events/1/events/0/events/2/name",
                        rapidjson::Value("mysql/set_var")},
-             std::pair{"/events/1/events/0/events/3/name",
-                       rapidjson::Value("mysql/check_read_only")},
              // if wait-gtid-executed passes, next will be forward.
              std::pair{"/events/1/events/1/name",
                        rapidjson::Value("mysql/forward")},

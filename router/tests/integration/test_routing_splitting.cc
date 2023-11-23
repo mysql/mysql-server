@@ -1462,7 +1462,6 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   //
   // - reset-connection
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM testing...
   {
@@ -1474,7 +1473,6 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   //
   // - reset-connection (from pool)
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
@@ -1485,11 +1483,11 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
                 AnyOf(
                     // started on the read-write
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 5),
+                                Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 2)),
                     // started on the read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 7),
+                                Pair("statement/sql/select", 4),
                                 Pair("statement/sql/set_option", 3))));
   }
 
@@ -1497,7 +1495,6 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   //
   // - reset-connection (from pool)
   // - SET trackers and session-vars
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - reset-connection
   // - SET trackers
@@ -1509,7 +1506,6 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   //
   // - reset-connection (from pool)
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -1519,11 +1515,11 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Reset Connection", 4),
-                                Pair("statement/sql/select", 9),
+                                Pair("statement/sql/select", 5),
                                 Pair("statement/sql/set_option", 5)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 5),
-                                Pair("statement/sql/select", 11),
+                                Pair("statement/sql/select", 6),
                                 Pair("statement/sql/set_option", 6))));
   }
 
@@ -1536,7 +1532,6 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
   //
   // - reset-connection (from pool)
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
@@ -1547,12 +1542,12 @@ TEST_P(SplittingConnectionTest, reset_connection_resets_last_executed_gtid) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Reset Connection", 5),
-                                Pair("statement/sql/select", 12),
+                                Pair("statement/sql/select", 7),
                                 Pair("statement/sql/set_option", 6)),
 
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 6),
-                                Pair("statement/sql/select", 14),
+                                Pair("statement/sql/select", 8),
                                 Pair("statement/sql/set_option", 7))));
   }
 }
@@ -1676,7 +1671,7 @@ TEST_P(SplittingConnectionTest,
                                 Pair("statement/sql/show_warnings", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 5),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)),
                     // start on read-only and table didn't exist yet.
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
@@ -1697,7 +1692,6 @@ TEST_P(SplittingConnectionTest,
   //
   // - reset-connection
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM testing...
   {
@@ -1710,7 +1704,6 @@ TEST_P(SplittingConnectionTest,
   //
   // - reset-connection (from pool)
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
@@ -1730,7 +1723,7 @@ TEST_P(SplittingConnectionTest,
                                 Pair("statement/sql/show_warnings", 1)),
                     // start on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 6),
-                                Pair("statement/sql/select", 12),
+                                Pair("statement/sql/select", 6),
                                 Pair("statement/sql/set_option", 7)),
                     // start on read-only and table didn't exist yet
                     ElementsAre(Pair("statement/com/Reset Connection", 6),
@@ -1769,7 +1762,6 @@ TEST_P(SplittingConnectionTest,
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -1782,7 +1774,7 @@ TEST_P(SplittingConnectionTest,
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2))));
   }
 
@@ -1792,7 +1784,6 @@ TEST_P(SplittingConnectionTest,
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -1806,7 +1797,7 @@ TEST_P(SplittingConnectionTest,
                                 Pair("statement/sql/set_option", 4)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 4),
-                                Pair("statement/sql/select", 6),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 5))));
   }
 }
@@ -1877,7 +1868,7 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
@@ -1901,7 +1892,6 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
   //
   // - reset-connection
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM testing...
   {
@@ -1913,7 +1903,6 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
   //
   // - reset-connection (from pool)
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT GTID...
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
@@ -1925,7 +1914,7 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
                     // started on read-write
                     ElementsAre(Pair("statement/com/Change user", 1),
                                 Pair("statement/com/Reset Connection", 3),
-                                Pair("statement/sql/select", 9),
+                                Pair("statement/sql/select", 5),
                                 Pair("statement/sql/set_option", 5)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
@@ -1968,7 +1957,6 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -1981,7 +1969,7 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2))));
   }
 
@@ -1992,7 +1980,6 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2008,7 +1995,7 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
                                 Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 5),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 4))));
   }
 }
@@ -2040,7 +2027,6 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2053,7 +2039,7 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 4),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 2))));
   }
 
@@ -2063,7 +2049,6 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2079,7 +2064,7 @@ TEST_P(SplittingConnectionTest, ping_succeeds) {
                     // started on read-only
                     ElementsAre(Pair("statement/com/Ping", 1),
                                 Pair("statement/com/Reset Connection", 3),
-                                Pair("statement/sql/select", 9),
+                                Pair("statement/sql/select", 5),
                                 Pair("statement/sql/set_option", 4))));
   }
 }
@@ -2111,7 +2096,6 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2120,7 +2104,7 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
     EXPECT_THAT(*events_res,
                 AnyOf(
                     // started on read-write
-                    ElementsAre(Pair("statement/sql/select", 2),
+                    ElementsAre(Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only, set-option replayed
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
@@ -2135,7 +2119,6 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
   // executed on the secondary:
   //
   // - SET trackers
-  // - SELECT @@super_read_only
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2146,7 +2129,7 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
                     // started on read-write
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
                                 Pair("statement/com/Set option", 1),
-                                Pair("statement/sql/select", 7),
+                                Pair("statement/sql/select", 4),
                                 Pair("statement/sql/set_option", 3)),
                     // started on read-only, set-option replayed
                     ElementsAre(Pair("statement/com/Reset Connection", 3),

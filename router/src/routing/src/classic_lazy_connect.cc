@@ -250,10 +250,6 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return fetch_sys_vars();
     case Stage::FetchSysVarsDone:
       return fetch_sys_vars_done();
-    case Stage::CheckReadOnly:
-      return check_read_only();
-    case Stage::CheckReadOnlyDone:
-      return check_read_only_done();
     case Stage::SetTrxCharacteristics:
       return set_trx_characteristics();
     case Stage::SetTrxCharacteristicsDone:
@@ -461,76 +457,8 @@ LazyConnector::authenticated() {
     trace_span_end(ev);
   }
 
-  stage(Stage::FetchUserAttrs);
-  return Result::Again;
-}
-
-stdx::expected<Processor::Result, std::error_code>
-LazyConnector::fetch_user_attrs() {
-  if (!connection()->context().router_require_enforce()) {
-    stage(Stage::SendAuthOk);
-    return Result::Again;
-  }
-
-  if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs"));
-  }
-
-  RouterRequireFetcher::push_processor(
-      connection(), required_connection_attributes_fetcher_result_);
-
-  stage(Stage::FetchUserAttrsDone);
-  return Result::Again;
-}
-
-stdx::expected<Processor::Result, std::error_code>
-LazyConnector::fetch_user_attrs_done() {
-  if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs::done"));
-  }
-
-  if (!required_connection_attributes_fetcher_result_) {
-    failed(classic_protocol::message::server::Error{1045, "Access denied",
-                                                    "28000"});
-
-    stage(Stage::Done);
-    return Result::Again;
-  }
-
-  auto enforce_res =
-      RouterRequire::enforce(connection()->socket_splicer()->client_channel(),
-                             *required_connection_attributes_fetcher_result_);
-  if (!enforce_res) {
-    failed(classic_protocol::message::server::Error{1045, "Access denied",
-                                                    "28000"});
-    stage(Stage::Done);
-    return Result::Again;
-  }
-
-  stage(Stage::SendAuthOk);
-
-  return Result::Again;
-}
-
-stdx::expected<Processor::Result, std::error_code>
-LazyConnector::send_auth_ok() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *dst_channel = socket_splicer->client_channel();
-  auto *dst_protocol = connection()->client_protocol();
-
   stage(Stage::SetVars);
-
-  if (in_handshake_) {
-    // tell the client that everything is ok.
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
-            dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
-    if (!send_res) return stdx::unexpected(send_res.error());
-
-    return Result::SendToClient;
-  } else {
-    return Result::Again;
-  }
+  return Result::Again;
 }
 
 namespace {
@@ -642,6 +570,10 @@ LazyConnector::set_vars_done() {
     trace_span_end(ev);
   }
 
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::set_var::done"));
+  }
+
   stage(Stage::SetServerOption);
   return Result::Again;
 }
@@ -656,14 +588,20 @@ LazyConnector::set_server_option() {
   bool server_has_multi_statements = dst_protocol->client_capabilities().test(
       classic_protocol::capabilities::pos::multi_statements);
 
-  stage(Stage::SetServerOptionDone);
-
-  if (client_has_multi_statements != server_has_multi_statements) {
-    connection()->push_processor(std::make_unique<SetOptionSender>(
-        connection(), client_has_multi_statements
-                          ? MYSQL_OPTION_MULTI_STATEMENTS_ON
-                          : MYSQL_OPTION_MULTI_STATEMENTS_OFF));
+  if (client_has_multi_statements == server_has_multi_statements) {
+    stage(Stage::FetchSysVars);
+    return Result::Again;
   }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::set_server_option"));
+  }
+
+  stage(Stage::SetServerOptionDone);
+  connection()->push_processor(std::make_unique<SetOptionSender>(
+      connection(), client_has_multi_statements
+                        ? MYSQL_OPTION_MULTI_STATEMENTS_ON
+                        : MYSQL_OPTION_MULTI_STATEMENTS_OFF));
 
   return Result::Again;
 }
@@ -713,6 +651,10 @@ LazyConnector::fetch_sys_vars() {
     trace_event_fetch_sys_vars_ =
         trace_span(trace_event_connect_, "mysql/fetch_sys_vars");
 
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::fetch_sys_vars"));
+    }
+
     stage(Stage::FetchSysVarsDone);
 
     connection()->push_processor(std::make_unique<QuerySender>(
@@ -728,6 +670,10 @@ LazyConnector::fetch_sys_vars() {
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::fetch_sys_vars_done() {
   trace_span_end(trace_event_fetch_sys_vars_);
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_sys_vars::done"));
+  }
 
   stage(Stage::SetSchema);
   return Result::Again;
@@ -750,7 +696,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
     connection()->push_processor(
         std::make_unique<InitSchemaSender>(connection(), client_schema));
   } else {
-    stage(Stage::CheckReadOnly);  // skip set_schema_done
+    stage(Stage::WaitGtidExecuted);  // skip set_schema_done
   }
 
   return Result::Again;
@@ -768,61 +714,15 @@ LazyConnector::set_schema_done() {
     }
 
     stage(Stage::Done);
-  } else {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::set_schema::done"));
-    }
-
-    stage(Stage::CheckReadOnly);
+    return Result::Again;
   }
-  return Result::Again;
-}
 
-stdx::expected<Processor::Result, std::error_code>
-LazyConnector::check_read_only() {
-  if (connection()->expected_server_mode() ==
-      mysqlrouter::ServerMode::ReadOnly) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::check_read_only"));
-    }
-
-    trace_event_check_read_only_ =
-        trace_span(trace_event_connect_, "mysql/check_read_only");
-
-    connection()->push_processor(std::make_unique<QuerySender>(
-        connection(), "SELECT @@GLOBAL.super_read_only",
-        std::make_unique<IsTrueHandler>(
-            *this, classic_protocol::message::server::Error{
-                       0, "Expected @@GLOBAL.super_ready_only to be enabled.",
-                       "HY000"})));
-
-    stage(Stage::CheckReadOnlyDone);
-  } else {
-    stage(Stage::WaitGtidExecuted);  // skip check-read-only-done
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::set_schema::done"));
   }
-  return Result::Again;
-}
 
-stdx::expected<Processor::Result, std::error_code>
-LazyConnector::check_read_only_done() {
-  if (failed()) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::check_read_only::failed"));
-    }
+  stage(Stage::WaitGtidExecuted);
 
-    trace_span_end(trace_event_check_read_only_,
-                   TraceEvent::StatusCode::kError);
-
-    stage(Stage::PoolOrClose);
-  } else {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::check_read_only::done"));
-    }
-
-    trace_span_end(trace_event_check_read_only_);
-
-    stage(Stage::WaitGtidExecuted);
-  }
   return Result::Again;
 }
 
@@ -919,24 +819,32 @@ LazyConnector::pool_or_close() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::fallback_to_write() {
-  if (connection()->expected_server_mode() ==
-      mysqlrouter::ServerMode::ReadOnly) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::fallback_to_write"));
-    }
+  if (already_fallback_ || connection()->expected_server_mode() ==
+                               mysqlrouter::ServerMode::ReadWrite) {
+    // only fallback to the primary once and if the client is asking for
+    // "read-only" nodes
+    //
 
-    connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+    // failed() is already set.
 
-    // reset the failed state
-    failed(std::nullopt);
-
-    // the fallback will create a new trace-event
-    trace_span_end(trace_event_connect_);
-
-    stage(Stage::Connect);
-  } else {
     stage(Stage::Done);
+    return Result::Again;
   }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fallback_to_write"));
+  }
+
+  connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+  already_fallback_ = true;
+
+  // reset the failed state
+  failed(std::nullopt);
+
+  // the fallback will create a new trace-event
+  trace_span_end(trace_event_connect_);
+
+  stage(Stage::Connect);
   return Result::Again;
 }
 
@@ -955,39 +863,41 @@ LazyConnector::fallback_to_write() {
 //
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::set_trx_characteristics() {
-  if (!trx_stmt_.empty()) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::trx_characteristics"));
-    }
-
-    trace_event_set_trx_characteristics_ =
-        trace_span(trace_event_connect_, "mysql/set_trx_characetristcs");
-
-    stage(Stage::SetTrxCharacteristicsDone);
-
-    // split the trx setup statements at the semi-colon
-    auto trx_stmt = trx_stmt_;
-
-    auto semi_pos = trx_stmt_.find(';');
-    if (semi_pos == std::string::npos) {
-      trx_stmt_.clear();
-    } else {
-      trx_stmt_.erase(0, semi_pos + 1);  // incl the semi-colon
-
-      // if there is a leading space after the semi-colon, remove it too.
-      if (!trx_stmt_.empty() && trx_stmt_[0] == ' ') {
-        trx_stmt_.erase(0, 1);
-      }
-
-      trx_stmt.resize(semi_pos);
-    }
-
-    connection()->push_processor(std::make_unique<QuerySender>(
-        connection(), trx_stmt,
-        std::make_unique<FailedQueryHandler>(*this, trx_stmt)));
-  } else {
-    stage(Stage::Done);  // skip set_trx_characteristics_done
+  if (trx_stmt_.empty()) {
+    stage(Stage::FetchUserAttrs);  // skip set_trx_characteristics_done
+    return Result::Again;
   }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::trx_characteristics"));
+  }
+
+  trace_event_set_trx_characteristics_ =
+      trace_span(trace_event_connect_, "mysql/set_trx_characetristcs");
+
+  stage(Stage::SetTrxCharacteristicsDone);
+
+  // split the trx setup statements at the semi-colon
+  auto trx_stmt = trx_stmt_;
+
+  auto semi_pos = trx_stmt_.find(';');
+  if (semi_pos == std::string::npos) {
+    trx_stmt_.clear();
+  } else {
+    trx_stmt_.erase(0, semi_pos + 1);  // incl the semi-colon
+
+    // if there is a leading space after the semi-colon, remove it too.
+    if (!trx_stmt_.empty() && trx_stmt_[0] == ' ') {
+      trx_stmt_.erase(0, 1);
+    }
+
+    trx_stmt.resize(semi_pos);
+  }
+
+  connection()->push_processor(std::make_unique<QuerySender>(
+      connection(), trx_stmt,
+      std::make_unique<FailedQueryHandler>(*this, trx_stmt)));
+
   return Result::Again;
 }
 
@@ -1005,7 +915,80 @@ LazyConnector::set_trx_characteristics_done() {
   }
 
   // if there is more, execute the next part.
-  stage(trx_stmt_.empty() ? Stage::Done : Stage::SetTrxCharacteristics);
+  stage(trx_stmt_.empty() ? Stage::FetchUserAttrs
+                          : Stage::SetTrxCharacteristics);
 
   return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::fetch_user_attrs() {
+  if (!connection()->context().router_require_enforce()) {
+    // skip the fetch-user-attrs.
+    stage(Stage::SendAuthOk);
+    return Result::Again;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs"));
+  }
+
+  RouterRequireFetcher::push_processor(
+      connection(), required_connection_attributes_fetcher_result_);
+
+  stage(Stage::FetchUserAttrsDone);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::fetch_user_attrs_done() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs::done"));
+  }
+
+  if (!required_connection_attributes_fetcher_result_) {
+    failed(classic_protocol::message::server::Error{1045, "Access denied",
+                                                    "28000"});
+
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
+  auto enforce_res =
+      RouterRequire::enforce(connection()->socket_splicer()->client_channel(),
+                             *required_connection_attributes_fetcher_result_);
+  if (!enforce_res) {
+    failed(classic_protocol::message::server::Error{1045, "Access denied",
+                                                    "28000"});
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
+  stage(Stage::SendAuthOk);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::send_auth_ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
+
+  if (!in_handshake_) {
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::ok"));
+  }
+
+  // tell the client that everything is ok.
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
+          dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
+  if (!send_res) return stdx::unexpected(send_res.error());
+
+  stage(Stage::Done);
+  return Result::SendToClient;
 }

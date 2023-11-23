@@ -88,8 +88,6 @@ class LazyConnector : public ForwardingProcessor {
     WaitGtidExecutedDone,
     SetTrxCharacteristics,
     SetTrxCharacteristicsDone,
-    CheckReadOnly,
-    CheckReadOnlyDone,
 
     PoolOrClose,
     FallbackToWrite,
@@ -133,8 +131,6 @@ class LazyConnector : public ForwardingProcessor {
   stdx::expected<Processor::Result, std::error_code> set_schema_done();
   stdx::expected<Processor::Result, std::error_code> fetch_sys_vars();
   stdx::expected<Processor::Result, std::error_code> fetch_sys_vars_done();
-  stdx::expected<Processor::Result, std::error_code> check_read_only();
-  stdx::expected<Processor::Result, std::error_code> check_read_only_done();
   stdx::expected<Processor::Result, std::error_code> wait_gtid_executed();
   stdx::expected<Processor::Result, std::error_code> wait_gtid_executed_done();
   stdx::expected<Processor::Result, std::error_code> set_trx_characteristics();
@@ -153,7 +149,8 @@ class LazyConnector : public ForwardingProcessor {
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
 
-  bool retry_connect_{false};
+  bool retry_connect_{false};     // set on transient failure
+  bool already_fallback_{false};  // set in fallback_to_write()
 
   // start timepoint to calculate the connect-retry-timeout.
   std::chrono::steady_clock::time_point started_{
