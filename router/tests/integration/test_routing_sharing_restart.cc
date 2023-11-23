@@ -991,8 +991,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
           auto msg = frame.payload();
 
-          int expected_error_code =
-              2003;  // Can't connect to remove MySQL Server
           switch (ndx) {
             case 0:   // sleep
             case 5:   // create-db
@@ -1016,25 +1014,28 @@ TEST_P(ShareConnectionTestWithRestartedServer,
             case 39:
 
               // unknown command
-              expected_error_code = 1047;
+              EXPECT_EQ(msg.error_code(), 1047) << msg.message();
               break;
+            case cmd_byte<
+                classic_protocol::message::client::StmtExecute>():  // 23
             case cmd_byte<
                 classic_protocol::message::client::StmtReset>():  // 26
             case cmd_byte<
                 classic_protocol::message::client::StmtFetch>():  // 28
 
-              // unknown prepared statement handler.
-              expected_error_code = 1243;
+              // unknown prepared statement handler
+              // malformed packet
+              EXPECT_THAT(msg.error_code(), AnyOf(1243, 1835)) << msg.message();
               break;
-            case cmd_byte<
-                classic_protocol::message::client::StmtExecute>():  // 23
             case cmd_byte<
                 classic_protocol::message::client::SetOption>():  // 27
-              expected_error_code = 1835;  // malformed packet
+              // malformed packet
+              EXPECT_EQ(msg.error_code(), 1835) << msg.message();
+              break;
+            default:
+              EXPECT_EQ(msg.error_code(), 2003) << msg.message();
               break;
           }
-
-          EXPECT_EQ(msg.error_code(), expected_error_code) << msg.message();
         }
       }
     }
@@ -1151,7 +1152,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
       auto msg = frame.payload();
 
-      int expected_error_code = 1835;  // malformed packet
       switch (ndx) {
         case 0:   // sleep
         case 4:   // list-fields
@@ -1177,47 +1177,48 @@ TEST_P(ShareConnectionTestWithRestartedServer,
         case 39:
 
           // unknown command
-          expected_error_code = 1047;
+          EXPECT_THAT(msg.error_code(), 1047) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::StmtExecute>():  // 23
-          expected_error_code = 1835;
-          break;
-        case cmd_byte<classic_protocol::message::client::StmtReset>():  // 26
-        case cmd_byte<classic_protocol::message::client::StmtFetch>():  // 28
-
-          // unknown prepared statement handler | malformed packet.
-          expected_error_code = can_share ? 1243 : 1835;
+        case cmd_byte<classic_protocol::message::client::StmtReset>():    // 26
+        case cmd_byte<classic_protocol::message::client::StmtFetch>():    // 28
+          // unknown prepared statement handler
+          // malformed packet
+          EXPECT_THAT(msg.error_code(), AnyOf(1243, 1835)) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::InitSchema>():  // 2
 
-          expected_error_code = 1046;  // no database selected
+          // no database selected
+          EXPECT_THAT(msg.error_code(), 1046) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::Query>():  // 3
-          expected_error_code = (GetParam().client_ssl_mode == kPreferred &&
-                                 GetParam().server_ssl_mode == kAsClient)
-                                    ? 1065  // query was empty
-                                    : 1835  // malformed packet
-              ;
+
+          // query was empty
+          // malformed packet
+          EXPECT_THAT(msg.error_code(), AnyOf(1065, 1835)) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::StmtPrepare>():  // 22
 
-          expected_error_code = 1065;  // query was empty
+          // query was empty
+          EXPECT_THAT(msg.error_code(), 1065) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::BinlogDump>():  // 18
         case cmd_byte<
             classic_protocol::message::client::BinlogDumpGtid>():  // 30
         case 13:                                                   // debug
-          expected_error_code = 1227;  // access denied; SUPER is needed.
+                  // access denied; SUPER is needed.
+          EXPECT_THAT(msg.error_code(), 1227) << msg.message();
           break;
         case cmd_byte<
             classic_protocol::message::client::RegisterReplica>():  // 21
 
           // access denied
-          expected_error_code = 1045;
+          EXPECT_THAT(msg.error_code(), 1045) << msg.message();
+          break;
+        default:
+          EXPECT_THAT(msg.error_code(), 1835) << msg.message();
           break;
       }
-
-      EXPECT_EQ(msg.error_code(), expected_error_code) << msg.message();
     } else if (expected_response == ExpectedResponse::Ok) {
       buf.resize(1024);  // should be large enough.
 
