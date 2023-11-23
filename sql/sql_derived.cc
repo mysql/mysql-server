@@ -532,17 +532,29 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
   mem_root_deque<Field_info> field_info(thd->mem_root);
   Query_block *depended_from = nullptr;
   Name_resolution_context *context = nullptr;
+  bool in_outer_ref = false;
   // Collect information for fields from the original expression
   if (WalkItem(orig_expr, enum_walk::PREFIX,
-               [&field_info, &depended_from, &context](Item *inner_item) {
+               [&field_info, &depended_from, &context,
+                &in_outer_ref](Item *inner_item) {
                  Query_block *saved_depended_from = depended_from;
                  Name_resolution_context *saved_context = context;
                  if (inner_item->type() == Item::REF_ITEM ||
                      inner_item->type() == Item::FIELD_ITEM) {
                    Item_ident *ident = down_cast<Item_ident *>(inner_item);
-                   assert(depended_from == nullptr ||
+                   // An Item_outer_ref always references
+                   // a Item_ref object which has the reference to
+                   // the original expression. Item_outer_ref
+                   // and the original expression are updated with the
+                   // "depended_from" information but not the Item_ref.
+                   // So we skip the checks for Item_ref.
+                   assert(in_outer_ref || depended_from == nullptr ||
                           depended_from == ident->depended_from ||
                           depended_from == ident->context->query_block);
+                   in_outer_ref =
+                       inner_item->type() == Item::REF_ITEM &&
+                       down_cast<Item_ref *>(inner_item)->ref_type() ==
+                           Item_ref::OUTER_REF;
                    if (ident->depended_from != nullptr)
                      depended_from = ident->depended_from;
                    if (context == nullptr ||

@@ -1543,3 +1543,26 @@ PREPARE stmt FROM
 SET @a = 1;
 SET @b = 2;
 EXECUTE stmt USING @a, @b;
+
+--echo #
+--echo # Bug#35846847: Assertion Failure in
+--echo #               /mysql-8.0.34/sql/sql_derived.cc:524
+--echo #
+
+CREATE TABLE t1 (f1 integer);
+
+let $query = SELECT
+             (WITH cte AS (SELECT f1 AS f2 FROM t1)
+              SELECT f1
+              FROM (SELECT f1 FROM t1
+                    EXCEPT
+                    SELECT t2.f1 FROM cte) AS dt
+              WHERE f1 > 0) AS f3
+             FROM t1, t1 AS t2
+             GROUP BY f3;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN format=tree $query;
+eval $query;
+
+DROP TABLE t1;

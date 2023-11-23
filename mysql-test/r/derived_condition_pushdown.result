@@ -2347,3 +2347,45 @@ SET @b = 2;
 EXECUTE stmt USING @a, @b;
 1
 1
+#
+# Bug#35846847: Assertion Failure in
+#               /mysql-8.0.34/sql/sql_derived.cc:524
+#
+CREATE TABLE t1 (f1 integer);
+EXPLAIN format=tree SELECT
+(WITH cte AS (SELECT f1 AS f2 FROM t1)
+SELECT f1
+FROM (SELECT f1 FROM t1
+EXCEPT
+SELECT t2.f1 FROM cte) AS dt
+WHERE f1 > 0) AS f3
+FROM t1, t1 AS t2
+GROUP BY f3;
+EXPLAIN
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table with deduplication  (rows=1)
+        -> Inner hash join (no condition)  (rows=1)
+            -> Table scan on t2  (rows=1)
+            -> Hash
+                -> Table scan on t1  (rows=1)
+        -> Select #2 (subquery in projection; dependent)
+            -> Table scan on dt  (rows=1)
+                -> Except materialize with deduplication  (rows=1)
+                    -> Filter: (t1.f1 > 0)  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                    -> Filter: (t2.f1 > 0)  (rows=1)
+                        -> Table scan on t1  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.f1' of SELECT #4 was resolved in SELECT #1
+SELECT
+(WITH cte AS (SELECT f1 AS f2 FROM t1)
+SELECT f1
+FROM (SELECT f1 FROM t1
+EXCEPT
+SELECT t2.f1 FROM cte) AS dt
+WHERE f1 > 0) AS f3
+FROM t1, t1 AS t2
+GROUP BY f3;
+f3
+DROP TABLE t1;
