@@ -2358,10 +2358,14 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
 
   const bool is_aggr_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
   const bool is_grouping = is_function_of_type(this, Item_func::GROUPING_FUNC);
-
   // An aggregate function is registered <=> referenced_by[0] != nullptr
   if (is_aggr_func && skip_registered &&
       down_cast<Item_sum *>(this)->referenced_by[0] != nullptr) {
+    return false;
+  }
+
+  if (type() == FUNC_ITEM && (down_cast<Item_func *>(this)->functype() ==
+                              Item_func::ROLLUP_GROUP_ITEM_FUNC)) {
     return false;
   }
   /*
