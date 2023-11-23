@@ -1861,15 +1861,29 @@ TEST_P(ShareConnectionTestWithRestartedServer,
   const bool can_share = GetParam().can_share();
 
   SCOPED_TRACE("// connecting to server");
-  std::array<MysqlClient, 4> clis;  // more clients then destinations.
+  std::array<MysqlClient, 4> clis;  // one per destination
 
-  for (auto &cli : clis) {
+  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
+    if (can_share && ndx == 3) {
+      // wait for all connections to be pooled.
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
+    }
+
     cli.username("root");
     cli.password("");
 
+    // ndx=3 uses a pooled connection.
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
                                 shared_router()->port(GetParam())));
   }
+
+  if (can_share) {
+    // wait for ndx=3 to be back in the pool.
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
+  }
+
+  SCOPED_TRACE("// querying port of first server");
 
   auto port_res = query_one<1>(clis[0], "SELECT @@port");
   ASSERT_NO_ERROR(port_res);
@@ -1880,9 +1894,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
   uint16_t my_port = *my_port_num_res;
 
   if (can_share) {
-    // wait for all connections to be pooled.
-    ASSERT_NO_ERROR(
-        shared_router()->wait_for_idle_server_connections(clis.size(), 10s));
+    // wait for clis[0] to be back in the pool again.
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
   }
 
   // shut down the server connection while the connection is pooled.
