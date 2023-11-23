@@ -10,6 +10,8 @@
 # the primary.                                              #
 #############################################################
 
+--source include/not_have_privilege_checks_user.inc
+
 --let $ddl_preparation_statement= CREATE USER wl15752; GRANT SELECT, INSERT, UPDATE, DELETE ON test.* TO wl15752
 --let $ddl_statement= REVOKE ALL PRIVILEGES, GRANT OPTION FROM wl15752
 --let $ddl_cleanup_statement= DROP USER wl15752

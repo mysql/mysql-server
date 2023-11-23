@@ -10,6 +10,8 @@
 # the primary.                                              #
 #############################################################
 
+--source include/set_privilege_checks_user_as_system_user.inc
+
 --let $ddl_preparation_statement= CREATE PROCEDURE proc1(export INT) BEGIN END
 --let $ddl_statement= DROP PROCEDURE proc1
 --let $ddl_cleanup_statement=

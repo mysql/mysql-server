@@ -13,4 +13,6 @@
 --let $ddl_preparation_statement= CREATE FUNCTION metaphon RETURNS STRING SONAME '$UDF_EXAMPLE_LIB'
 --let $ddl_statement= DROP FUNCTION metaphon
 --let $ddl_cleanup_statement=
+--disable_query_log
 --source ../include/gr_primary_manual_failover_vs_ddl.inc
+--enable_query_log

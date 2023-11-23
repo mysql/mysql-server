@@ -10,7 +10,11 @@
 # the primary.                                              #
 #############################################################
 
+--let $show_binlog_events_mask_columns= 2, 4, 5, 6
+
 --let $ddl_preparation_statement=
 --let $ddl_statement= CREATE FUNCTION metaphon RETURNS STRING SONAME '$UDF_EXAMPLE_LIB'
 --let $ddl_cleanup_statement= DROP FUNCTION metaphon
+--disable_query_log
 --source ../include/gr_primary_manual_failover_vs_ddl.inc
+--enable_query_log

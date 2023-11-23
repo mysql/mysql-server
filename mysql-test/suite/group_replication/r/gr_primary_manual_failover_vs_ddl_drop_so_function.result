@@ -13,24 +13,19 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 # The set-up statement for our later test statement:
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
 [connection server2]
 include/start_group_replication.inc
 
 ############################################################
 # 2. Start a DDL statement on server1, but do not let it complete yet.
 [connection server_1_1]
-SET DEBUG_SYNC= 'execute_command_before_main_switch SIGNAL ddl_running WAIT_FOR ddl_resume';
 # The statement to test with that should hold up switching the primary:
-DROP FUNCTION metaphon;
 [connection server1]
-SET DEBUG_SYNC= 'now WAIT_FOR ddl_running';
 
 ############################################################
 # 3. Set server2 as primary. The primary change must wait
 #    until the DDL statement has completed.
 [connection server_1]
-SELECT group_replication_set_as_primary("SERVER2_UUID");
 
 ############################################################
 # 4. Assert that server1 continues to be the primary, as the
@@ -43,9 +38,7 @@ include/assert.inc ['server1 continue to be primary']
 ############################################################
 # 5. Let the DDL statement finish.
 [connection server1]
-SET DEBUG_SYNC= 'now SIGNAL ddl_resume';
 [connection server_1_1]
-SET DEBUG_SYNC= 'RESET';
 
 ############################################################
 # 6. server2 should now be primary.
