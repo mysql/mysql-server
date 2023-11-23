@@ -32,6 +32,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 #include "hexify.h"
@@ -151,17 +152,16 @@ using SocketTimestampOld =
 
 #ifdef SO_TIMESTAMP
 // linux + freebsd
-using SocketTimestamp = SocketTimestampBase<SOL_SOCKET, SO_TIMESTAMP,
+using SocketTimestamp =
+    SocketTimestampBase<SOL_SOCKET, SO_TIMESTAMP,
 #ifdef SO_TIMESTAMP_NEW
-#if SO_TIMESTAMP == SO_TIMESTAMP_NEW
-                                            SocketTimestampNew::value_type
+                        std::conditional_t<SO_TIMESTAMP == SO_TIMESTAMP_NEW,
+                                           SocketTimestampNew::value_type,
+                                           SocketTimestampOld::value_type>
 #else
-                                            SocketTimestampOld::value_type
+                        timeval
 #endif
-#else
-                                            timeval
-#endif
-                                            >;
+                        >;
 #endif
 
 template <int Lvl, int Type, class V>
@@ -205,18 +205,16 @@ using SocketTimestampNanosecondOld =
 #endif
 
 #ifdef SO_TIMESTAMPNS
-using SocketTimestampNanosecond =
-    SocketTimestampNanosecondBase<SOL_SOCKET, SO_TIMESTAMPNS,
+using SocketTimestampNanosecond = SocketTimestampNanosecondBase<
+    SOL_SOCKET, SO_TIMESTAMPNS,
 #ifdef SO_TIMESTAMPNS_NEW
-#if SO_TIMESTAMPNS == SO_TIMESTAMPNS_NEW
-                                  SocketTimestampNanosecondNew::value_type
+    std::conditional_t<SO_TIMESTAMPNS == SO_TIMESTAMPNS_NEW,
+                       SocketTimestampNanosecondNew::value_type,
+                       SocketTimestampNanosecondOld::value_type>
 #else
-                                  SocketTimestampNanosecondOld::value_type
+    timespec
 #endif
-#else
-                                  timespec
-#endif
-                                  >;
+    >;
 #endif
 
 template <int Lvl, int Type, class V>
@@ -290,20 +288,17 @@ using SocketTimestampingOld =
 #endif
 
 #ifdef SO_TIMESTAMPING
-using SocketTimestamping =
-    SocketTimestampingBase<SOL_SOCKET, SO_TIMESTAMPING,
+using SocketTimestamping = SocketTimestampingBase<
+    SOL_SOCKET, SO_TIMESTAMPING,
 #ifdef SO_TIMESTAMPING_NEW
-#if SO_TIMESTAMPING == SO_TIMESTAMPING_NEW
-                           SocketTimestampingNew::value_type
+    std::conditional_t<SO_TIMESTAMPING == SO_TIMESTAMPING_NEW,
+                       SocketTimestampingNew::value_type,
+                       SocketTimestampingOld::value_type>
 #else
-                           SocketTimestampingOld::value_type
+    std::conditional_t<is_type_complete_v<struct scm_timestamping>,
+                       scm_timestamping, fallback::scm_timestamping>
 #endif
-#else
-                           std::conditional_t<
-                               is_type_complete_v<struct scm_timestamping>,
-                               scm_timestamping, fallback::scm_timestamping>
-#endif
-                           >;
+    >;
 #endif
 
 // if they are defined, check they have the expected value.
