@@ -41,10 +41,10 @@
 %global with_router 1
 %endif
 
-# PGO option, currently only for el7
-%if 0%{?rhel} == 7
+# PGO option, not for OEL6
+%if 0%{?rhel} >= 7
 %{?with_pgo:   %global pgo 1}
-%endif # rhel7
+%endif # rhel >= 7
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
