@@ -2197,7 +2197,7 @@ create a transaction and use that.
 static dberr_t dict_stats_save(dict_table_t *table_orig,
                                const index_id_t *only_for_index, trx_t *trx) {
   pars_info_t *pinfo;
-  dberr_t ret;
+  dberr_t ret{};
   dict_table_t *table;
   char db_utf8mb3[dict_name::MAX_DB_UTF8MB3_LEN];
   char table_utf8mb3[dict_name::MAX_TABLE_UTF8MB3_LEN];
