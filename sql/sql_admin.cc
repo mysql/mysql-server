@@ -647,7 +647,10 @@ bool Sql_cmd_analyze_table::update_histogram(THD *thd, Table_ref *table,
   Mem_root_array<histograms::HistogramSetting> settings(thd->mem_root);
   for (const auto column : get_histogram_fields()) {
     histograms::HistogramSetting setting;
-    setting.column_name = column->c_ptr_safe();
+    // We need a null-terminated C-style string and column->ptr() is not
+    // guaranteed to be null-terminated so we create a null-terminated copy that
+    // we allocate on thd->mem_root.
+    setting.column_name = thd->strmake(column->ptr(), column->length());
     setting.num_buckets = get_histogram_buckets();
     setting.auto_update = get_histogram_auto_update();
     setting.data = get_histogram_data_string();

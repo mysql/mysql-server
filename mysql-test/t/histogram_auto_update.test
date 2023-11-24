@@ -1,20 +1,25 @@
 --source include/have_debug.inc
 
+# This test uses EXPLAIN INTO to test that histograms are used.
+# The JSON EXPLAIN format differs between the two optimizers.
+# We opt to test with the hypergraph optimizer for forward compatibility.
+--source include/have_hypergraph.inc
+
 --echo #
 --echo # The [{AUTO|MANUAL} UPDATE] histogram option.
 --echo #
 
 CREATE TABLE t1 (x INT);
 
--- echo # Histograms are set to MANUAL UPDATE by default ("auto-update": false).
+--echo # Histograms are set to MANUAL UPDATE by default ("auto-update": false).
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
 SELECT histogram->'$."auto-update"' AS should_be_false FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 
--- echo # Histograms with MANUAL UPDATE have "auto-update": false.
+--echo # Histograms with MANUAL UPDATE have "auto-update": false.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x MANUAL UPDATE;
 SELECT histogram->'$."auto-update"' AS should_be_false FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 
--- echo # Histograms with AUTO UPDATE have "auto-update": true.
+--echo # Histograms with AUTO UPDATE have "auto-update": true.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 SELECT histogram->'$."auto-update"' AS should_be_true FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 
@@ -24,22 +29,22 @@ DROP TABLE t1;
 --echo # ANALYZE TABLE and the [{AUTO|MANUAL} UPDATE] histogram option.
 --echo #
 
--- echo # ANALYZE TABLE should only update histograms with AUTO UPDATE.
+--echo # ANALYZE TABLE should only update histograms with AUTO UPDATE.
 CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c3 AUTO UPDATE;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 MANUAL UPDATE;
 
--- echo # Should have three empty histograms.
+--echo # Should have three empty histograms.
 SELECT COLUMN_NAME, histogram->'$."buckets"' FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
 
 INSERT INTO t1 VALUES (1, 1, 1, 1);
 ANALYZE TABLE t1;
 
--- echo # Histograms on c1 and c3 should be non-empty, c2 should still be empty.
+--echo # Histograms on c1 and c3 should be non-empty, c2 should still be empty.
 SELECT COLUMN_NAME, histogram->'$."buckets"' FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
 DROP TABLE t1;
 
--- echo # Histograms with AUTO UPDATE preserve their number of specified buckets when updated.
+--echo # Histograms with AUTO UPDATE preserve their number of specified buckets when updated.
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 3 BUCKETS AUTO UPDATE;
 INSERT INTO t1 VALUES (1), (2);
@@ -47,42 +52,49 @@ ANALYZE TABLE t1;
 SELECT histogram->'$."histogram-type"' AS should_be_singleton FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 SELECT histogram->'$."number-of-buckets-specified"' AS should_be_3 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 
--- echo # Add more values and rebuild the histogram. The histogram type should
--- echo # change to equi-height, but the number of buckets should still be 3.
+--echo # Add more values and rebuild the histogram. The histogram type should
+--echo # change to equi-height, but the number of buckets should still be 3.
 INSERT INTO t1 VALUES (3), (4), (5);
 ANALYZE TABLE t1;
 SELECT histogram->'$."histogram-type"' AS should_be_equiheight FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 SELECT histogram->'$."number-of-buckets-specified"' AS should_be_3 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
 DROP TABLE t1;
 
--- echo # After ANALYZE TABLE the updated histograms should be used for optimization.
+--echo # After ANALYZE TABLE the updated histograms should be used for optimization.
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ANALYZE TABLE t1;
 
--- echo # With no histogram the default assumed selectivity when filtering a range is 0.333...
-EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_33;
+--echo # With no histogram the default assumed selectivity when filtering a range is 0.333...
+EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_1_66;
 DROP TABLE t1;
 
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ANALYZE TABLE t1;
--- echo # With the updated histogram we should have a selectivity of 1.0.
-EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+--echo # With the updated histogram we should have a selectivity of 1.0.
+EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
 DROP TABLE t1;
 
--- echo #
--- echo # Histogram updates from the InnoDB background statistics thread.
--- echo #
+--echo #
+--echo # Histogram updates from the InnoDB background statistics thread.
+--echo #
 CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
+ANALYZE TABLE t1; # Stabilizes the row estimate.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
-INSERT INTO t1 VALUES (1), (1), (1), (1), (1);
+
+--echo # Verify that the optimizer uses the new histogram.
+EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
+SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_2;
+UPDATE t1 SET x = 2 WHERE x = 3;
 
 --echo # Wait for the automatic update to kick in.
-let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 1;
+--echo # The number of buckets in the histogram drops from 3 to 2 following the update.
+let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 2;
 let $wait_timeout = 15;
 --source include/wait_condition.inc
 
@@ -93,24 +105,20 @@ let $wait_timeout = 15;
 DO SLEEP(0.1);
 
 --echo # Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 1;
-SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
+SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
 
---echo # Insert values into the table and wait for the histogram to be updated in the background.
-INSERT INTO t1 VALUES (2), (2), (2), (2), (2);
-let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 2;
+--echo # Verify that insertions also trigger background updates of the histogram.
+INSERT INTO t1 VALUES (4), (4), (4), (4);
+let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 3;
 let $wait_timeout = 15;
 --source include/wait_condition.inc
-DO SLEEP(0.1);
 
---echo # Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 2;
-SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_50;
 DROP TABLE t1;
 
--- echo #
--- echo # Test how failures are handled during histogram updates under ANALYZE TABLE.
--- echo #
+--echo #
+--echo # Test how failures are handled during histogram updates under ANALYZE TABLE.
+--echo #
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 ANALYZE TABLE t1;
@@ -118,22 +126,22 @@ SELECT histogram->'$."buckets"' AS should_be_empty FROM INFORMATION_SCHEMA.COLUM
 INSERT INTO t1 VALUES (1), (2), (3);
 SET DEBUG = '+d,update_histograms_failure';
 
--- echo # Errors from the diagnostics area should be displayed when the histogram update fails.
+--echo # Errors from the diagnostics area should be displayed when the histogram update fails.
 ANALYZE TABLE t1;
 
--- echo # Verify that the histogram update is rolled back when it fails, i.e. the histogram should still be empty.
+--echo # Verify that the histogram update is rolled back when it fails, i.e. the histogram should still be empty.
 SELECT histogram->'$."buckets"' AS should_be_empty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
 
--- echo # Without the failure the histogram should be updated.
+--echo # Without the failure the histogram should be updated.
 SET DEBUG = '-d,update_histograms_failure';
 ANALYZE TABLE t1;
 SELECT histogram->'$."buckets"' AS should_be_nonempty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
 
 DROP TABLE t1;
 
--- echo #
--- echo # ANALYZE TABLE t1, t2 should update histograms on both t1 and t2.
--- echo #
+--echo #
+--echo # ANALYZE TABLE t1, t2 should update histograms on both t1 and t2.
+--echo #
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 CREATE TABLE t2 (x INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;

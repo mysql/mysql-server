@@ -262,6 +262,28 @@ class String {
     if (m_ptr && m_length < m_alloced_length) m_ptr[m_length] = 0;
     return m_ptr;
   }
+
+  /**
+    Returns a pointer to a C-style null-terminated string. The function is
+    "safe" in the sense that the returned string is guaranteed to be
+    null-terminated (as opposed to c_ptr_quick()). However, in terms of memory
+    safety, this function might perform a heap allocation, so using it
+    necessitates manual cleanup.
+
+    @note One potential pitfall when using this function happens when calling
+    c_ptr_safe() on a String object from the parser. In this case the internal
+    m_ptr string is already allocated on a MEM_ROOT and is cleaned up as part of
+    the query lifecycle. This cleanup is performed by simply clearing the
+    MEM_ROOT (freeing its allocated memory) and does not involve destructing the
+    String object. So in the case when the parser works with (ptr, length)-style
+    strings that are placed in String objects and m_length = m_allocated_length
+    we get a heap allocation when calling c_ptr_safe(), even if just to read the
+    contents of the string, and this newly allocated memory is not on the same
+    MEM_ROOT as the original string, and thus we get a memory leak if we do not
+    make sure to free it.
+
+    @return Pointer to null-terminated string.
+  */
   char *c_ptr_safe() {
     if (m_ptr && m_length < m_alloced_length)
       m_ptr[m_length] = 0;
