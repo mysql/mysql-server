@@ -23,64 +23,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  A RandomAccessIterator that splits up a char/uchar array into fixed-length
-  elements, so that they can be sorted using std::sort. There is also a helper
-  function varlen_sort() that is an adapter around std::sort for this purpose.
-*/
-
 #include <assert.h>
 
 #include "template_utils.h"
 
 #include <algorithm>
-#include <memory>
-#include <utility>
+#include <cstddef>
+#include <iterator>
+
+template <class RandomIt, class Compare>
+void my_insert_sort(RandomIt first, RandomIt last, Compare comp) {
+  for (RandomIt high_water_mark = first + 1; high_water_mark < last;
+       ++high_water_mark) {
+    for (RandomIt cur = high_water_mark; cur > first; --cur) {
+      RandomIt prev = cur - 1;
+      if (comp(*prev, *cur)) break;
+      std::iter_swap(cur - 1, cur);
+    }
+  }
+}
 
 /*
   Conceptually similar to a struct { uchar[N] },
-  except that most of the time, it just holds a reference to an underlying
+  except that it just holds a reference to an underlying
   array, instead of keeping the memory itself.
 */
 struct varlen_element {
   varlen_element(unsigned char *ptr_arg, size_t elem_size_arg)
       : ptr(ptr_arg), elem_size(elem_size_arg) {}
 
-  varlen_element(varlen_element &other) = delete;
-
-  /*
-    In this case, we need to own the memory ourselves. It is really only used
-    when std::sort wants to do an insertion sort and needs a temporary element.
-  */
-  varlen_element(varlen_element &&other) : elem_size(other.elem_size) {
-    if (other.mem != nullptr) {
-      mem = std::move(other.mem);
-    } else {
-      mem.reset(new unsigned char[other.elem_size]);
-      memcpy(mem.get(), other.ptr, elem_size);
-    }
-    ptr = mem.get();
-  }
-
+  varlen_element(const varlen_element &other) = delete;
+  varlen_element(varlen_element &&other) = delete;
   varlen_element &operator=(const varlen_element &other) = delete;
-  varlen_element &operator=(varlen_element &&other) {
-    assert(elem_size == other.elem_size);
-    memcpy(ptr, other.ptr, elem_size);
-    return *this;
-  }
+  varlen_element &operator=(varlen_element &&other) = delete;
 
-  std::unique_ptr<unsigned char[]> mem;
-  unsigned char *ptr = nullptr;
-  size_t elem_size = 0;
+  unsigned char *ptr{nullptr};
+  size_t elem_size{0};
 };
 
 // ValueSwappable.
-static inline void swap(const varlen_element &a, const varlen_element &b) {
+inline void swap(const varlen_element &a, const varlen_element &b) {
   assert(a.elem_size == b.elem_size);
   std::swap_ranges(a.ptr, a.ptr + a.elem_size, b.ptr);
 }
 
-// Conceptually similar to a _pointer_ to an uchar[N].
+/**
+  A RandomAccessIterator that splits up a char/uchar array into fixed-length
+  elements. Conceptually similar to a _pointer_ to an uchar[N].
+*/
 class varlen_iterator {
  public:
   varlen_iterator(unsigned char *ptr_arg, size_t elem_size_arg)
@@ -95,7 +85,8 @@ class varlen_iterator {
 
   // EqualityComparable (required for InputIterator).
   bool operator==(const varlen_iterator &other) const {
-    return ptr == other.ptr && elem_size == other.elem_size;
+    assert(elem_size == other.elem_size);
+    return ptr == other.ptr;
   }
 
   // InputIterator (required for ForwardIterator).
@@ -195,11 +186,12 @@ struct iterator_traits<varlen_iterator> : iterator_traits<varlen_element *> {
 */
 template <class T, class Compare>
 inline void varlen_sort(T *first, T *last, size_t elem_size, Compare comp) {
-  std::sort(varlen_iterator(pointer_cast<unsigned char *>(first), elem_size),
-            varlen_iterator(pointer_cast<unsigned char *>(last), elem_size),
-            [comp](const varlen_element &a, const varlen_element &b) {
-              return comp(pointer_cast<T *>(a.ptr), pointer_cast<T *>(b.ptr));
-            });
+  my_insert_sort(
+      varlen_iterator(pointer_cast<unsigned char *>(first), elem_size),
+      varlen_iterator(pointer_cast<unsigned char *>(last), elem_size),
+      [comp](const varlen_element &a, const varlen_element &b) {
+        return comp(pointer_cast<T *>(a.ptr), pointer_cast<T *>(b.ptr));
+      });
 }
 
 #endif  // !defined(VARLEN_SORT_INCLUDED)
