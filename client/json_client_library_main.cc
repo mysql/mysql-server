@@ -208,5 +208,30 @@ int main() {
     }
   }
 
+  {
+    const std::string json{"[\"Alice2\", 225, 165.5, 155.2, \"female\"]"};
+    Json_dom_ptr dom(Json_dom::parse(
+        json.c_str(), json.length(),
+        [](const char *, size_t) { assert(false); }, [] { assert(false); }));
+    Json_array *arr = down_cast<Json_array *>(dom.get());
+
+    Json_dom_ptr dom1(Json_dom::parse(
+        "1", 1, [](const char *, size_t) { assert(false); },
+        [] { assert(false); }));
+    Json_dom_ptr dom2(Json_dom::parse(
+        "155.2", 5, [](const char *, size_t) { assert(false); },
+        [] { assert(false); }));
+
+    // Sort array and use binary search to lookup values
+    arr->sort();
+    bool result = arr->binary_search(dom1.get());
+    std::cout << "7 it is: " << std::boolalpha << result
+              << " that array contains 1\n";
+
+    result = arr->binary_search(dom2.get());
+    std::cout << "7 it is: " << std::boolalpha << result
+              << " that array contains 155.2\n";
+  }
+
   return 0;
 }

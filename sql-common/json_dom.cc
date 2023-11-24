@@ -1031,7 +1031,6 @@ Json_dom_ptr Json_array::clone() const {
   return vv;
 }
 
-#ifdef MYSQL_SERVER
 namespace {
 class Cmp_json {
   const CHARSET_INFO *m_charset;
@@ -1054,9 +1053,7 @@ class Cmp_json {
     return wa.compare(wb, m_charset) < 0;
   }
 };
-}  // namespace
 
-namespace {
 class Eq_json {
   const CHARSET_INFO *m_charset;
 
@@ -1092,7 +1089,6 @@ bool Json_array::binary_search(Json_dom *val) {
   assert(std::is_sorted(m_v.begin(), m_v.end(), Cmp_json()));
   return std::binary_search(m_v.begin(), m_v.end(), val, Cmp_json());
 }
-#endif  // MYSQL_SERVER
 
 /**
   Reserve space in a string buffer. If reallocation is needed,
@@ -3679,6 +3675,7 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   *found_path = true;
   return false;
 }
+#endif  // ifdef MYSQL_SERVER
 
 void Json_wrapper::sort(const CHARSET_INFO *cs) {
   assert(type() == enum_json_type::J_ARRAY && is_dom());
@@ -3689,7 +3686,6 @@ void Json_wrapper::remove_duplicates(const CHARSET_INFO *cs) {
   assert(type() == enum_json_type::J_ARRAY && is_dom());
   down_cast<Json_array *>(m_dom.m_value)->remove_duplicates(cs);
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Sort the elements of a JSON array and remove duplicates.

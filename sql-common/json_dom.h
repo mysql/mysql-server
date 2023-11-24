@@ -1710,6 +1710,7 @@ class Json_wrapper {
   bool get_free_space(const JsonSerializationErrorHandler &error_handler,
                       size_t *space) const;
 
+#ifdef MYSQL_SERVER
   /**
     Attempt a binary partial update by replacing the value at @a path with @a
     new_value. On successful completion, the updated document will be available
@@ -1764,7 +1765,8 @@ class Json_wrapper {
   */
   bool binary_remove(const Field_json *field, const Json_seekable_path &path,
                      String *result, bool *found_path);
-#ifdef MYSQL_SERVER
+#endif  // ifdef MYSQL_SERVER
+
   /**
     Sort contents. Applicable to JSON arrays only.
   */
@@ -1774,7 +1776,6 @@ class Json_wrapper {
     sorted.
   */
   void remove_duplicates(const CHARSET_INFO *cs = nullptr);
-#endif
 };
 
 /**
