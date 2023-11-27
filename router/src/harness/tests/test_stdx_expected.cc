@@ -24,6 +24,7 @@
 
 #include "mysql/harness/stdx/expected.h"
 
+#include <initializer_list>
 #include <optional>
 #include <string_view>
 #include <system_error>
@@ -471,11 +472,75 @@ TEST(Expected, bad_expected_access) {
   EXPECT_THROW(exp.value(), stdx::bad_expected_access<std::error_code>);
 }
 
-TEST(Expected, void_bad_expected_access) {
+TEST(ExpectedVoid, bad_expected_access) {
   stdx::expected<void, std::error_code> exp =
       stdx::unexpected(std::error_code{});
 
   EXPECT_THROW(exp.value(), stdx::bad_expected_access<std::error_code>);
+}
+
+TEST(Expected, emplace_from_unex) {
+  stdx::expected<int, std::error_code> exp =
+      stdx::unexpected(std::error_code{});
+
+  EXPECT_FALSE(exp.has_value());
+  exp.emplace(1);
+
+  EXPECT_TRUE(exp.has_value());
+}
+
+TEST(Expected, emplace_from_val) {
+  stdx::expected<int, std::error_code> exp = 1;
+
+  ASSERT_TRUE(exp.has_value());
+  exp.emplace(2);
+
+  ASSERT_TRUE(exp.has_value());
+  EXPECT_EQ(exp.value(), 2);
+}
+
+// helper to test .emplace
+//
+// emplace requires a type that's nothrow-constructible from initializer_list
+class InitList {
+ public:
+  constexpr InitList(std::initializer_list<int> vals) noexcept
+      : sz_(vals.size()) {}
+
+  constexpr size_t size() const { return sz_; }
+
+ private:
+  size_t sz_;
+};
+
+TEST(Expected, emplace_initlist_val) {
+  stdx::expected<InitList, std::error_code> exp(std::in_place, {1});
+
+  ASSERT_TRUE(exp.has_value());
+  EXPECT_EQ(exp->size(), 1);
+
+  exp.emplace({1});
+
+  EXPECT_TRUE(exp.has_value());
+}
+
+TEST(ExpectedVoid, emplace_from_val) {
+  stdx::expected<void, std::error_code> exp;
+
+  EXPECT_TRUE(exp.has_value());
+  exp.emplace();
+
+  EXPECT_TRUE(exp.has_value());
+}
+
+TEST(ExpectedVoid, emplace_from_unex) {
+  stdx::expected<void, std::error_code> exp =
+      stdx::unexpected(std::error_code{});
+
+  EXPECT_FALSE(exp.has_value());
+  exp.emplace();
+
+  EXPECT_TRUE(exp.has_value());
 }
 
 class copyable {};

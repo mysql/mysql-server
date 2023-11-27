@@ -34,6 +34,7 @@
 #include <cassert>
 #include <functional>  // invoke
 #include <initializer_list>
+#include <memory>  // construct_at, destroy_at
 #include <type_traits>
 #include <utility>  // std::forward
 
@@ -202,6 +203,29 @@ constexpr bool is_unexpected = false;
 
 template <class T>
 constexpr bool is_unexpected<unexpected<T>> = true;
+
+template <class NewT, class OldT, class... Args>
+constexpr void reinit_expected(NewT *new_val, OldT *old_val, Args &&... args) {
+  if constexpr (std::is_nothrow_constructible_v<NewT, Args...>) {
+    std::destroy_at(old_val);
+    std::construct_at(new_val, std::forward<Args>(args)...);
+  } else if constexpr (std::is_nothrow_move_constructible_v<NewT>) {
+    NewT tmp(std::forward<Args>(args)...);
+
+    std::destroy_at(old_val);
+    std::construct_at(new_val, std::move(tmp));
+  } else {
+    OldT tmp(std::move(*old_val));
+
+    std::destroy_at(old_val);
+    try {
+      std::construct_at(new_val, std::forward<Args>(args)...);
+    } catch (...) {
+      std::construct_at(old_val, std::move(tmp));
+      throw;
+    }
+  }
+}
 
 }  // namespace impl
 
@@ -432,7 +456,11 @@ class expected {
                 std::is_copy_constructible_v<E> &&      //
                 (std::is_nothrow_move_constructible_v<T> ||
                  std::is_nothrow_move_constructible_v<E>))) {
-    expected(other).swap(*this);
+    if (other.has_value()) {
+      assign_val(other.val_);
+    } else {
+      assign_unex(other.unex_);
+    }
 
     return *this;
   }
@@ -445,7 +473,11 @@ class expected {
                 std::is_move_constructible_v<E> &&  //
                 (std::is_nothrow_move_constructible_v<T> ||
                  std::is_nothrow_move_constructible_v<E>))) {
-    expected(std::move(other)).swap(*this);
+    if (other.has_value()) {
+      assign_val(std::move(other.val_));
+    } else {
+      assign_unex(std::move(other.unex_));
+    }
 
     return *this;
   }
@@ -460,11 +492,7 @@ class expected {
                 (std::is_nothrow_constructible_v<T, U> ||                   //
                  std::is_nothrow_move_constructible_v<T> ||                 //
                  std::is_nothrow_move_constructible_v<E>))) {
-    if (this->has_value()) {
-      this->value() = std::forward<U>(val);
-    } else {
-      expected(std::forward<U>(val)).swap(*this);
-    }
+    assign_val(std::forward<U>(val));
 
     return *this;
   }
@@ -477,11 +505,7 @@ class expected {
                 (std::is_nothrow_constructible_v<E, GF> ||   //
                  std::is_nothrow_move_constructible_v<T> ||  //
                  std::is_nothrow_move_constructible_v<E>))) {
-    if (this->has_value()) {
-      expected(std::forward<const unexpected<G> &>(other)).swap(*this);
-    } else {
-      this->error() = std::forward<GF>(other.error());
-    }
+    assign_unex(other.error());
 
     return *this;
   }
@@ -494,11 +518,7 @@ class expected {
                 (std::is_nothrow_constructible_v<E, GF> ||   //
                  std::is_nothrow_move_constructible_v<T> ||  //
                  std::is_nothrow_move_constructible_v<E>))) {
-    if (this->has_value()) {
-      expected(std::forward<unexpected<G>>(other)).swap(*this);
-    } else {
-      this->error() = std::forward<GF>(other.error());
-    }
+    assign_unex(std::move(other.error()));
 
     return *this;
   }
@@ -516,6 +536,37 @@ class expected {
     } else {
       std::destroy_at(std::addressof(unex_));
     }
+  }
+
+  // emplace
+  template <class... Args>
+  constexpr T &emplace(Args &&... args) noexcept  //
+      requires(std::is_nothrow_constructible_v<T, Args...>) {
+    if (has_value()) {
+      std::destroy_at(std::addressof(val_));
+    } else {
+      std::destroy_at(std::addressof(unex_));
+      has_value_ = true;
+    }
+
+    return *std::construct_at(std::addressof(val_),
+                              std::forward<Args>(args)...);
+  }
+
+  template <class U, class... Args>
+  constexpr T &emplace(std::initializer_list<U> il,
+                       Args &&... args) noexcept  //
+      requires(std::is_nothrow_constructible_v<T, std::initializer_list<U> &,
+                                               Args...>) {
+    if (has_value()) {
+      std::destroy_at(std::addressof(val_));
+    } else {
+      std::destroy_at(std::addressof(unex_));
+      has_value_ = true;
+    }
+
+    return *std::construct_at(std::addressof(val_), il,
+                              std::forward<Args>(args)...);
   }
 
   // swap
@@ -537,14 +588,36 @@ class expected {
     } else if (!bool(*this) && !bool(other)) {
       swap(unex_, other.unex_);
     } else if (bool(*this) && !bool(other)) {
-      error_type t{std::move(other.error())};
+      if constexpr (std::is_nothrow_move_constructible_v<E>) {
+        error_type tmp(std::move(other.error()));
 
-      std::destroy_at(std::addressof(other.unex_));
-      std::construct_at(std::addressof(other.val_), std::move(val_));
-      std::destroy_at(std::addressof(val_));
-      std::construct_at(std::addressof(unex_), std::move(t));
+        std::destroy_at(std::addressof(other.unex_));
+        try {
+          std::construct_at(std::addressof(other.val_), std::move(val_));
+          std::destroy_at(std::addressof(val_));
+          std::construct_at(std::addressof(unex_), std::move(tmp));
+        } catch (...) {
+          // restore old value.
+          std::construct_at(std::addressof(other.unex_), std::move(tmp));
+          throw;
+        }
+      } else {
+        value_type tmp(std::move(val_));
 
-      swap(has_value_, other.has_value_);
+        std::destroy_at(std::addressof(val_));
+        try {
+          std::construct_at(std::addressof(unex_), std::move(other.unex_));
+          std::destroy_at(std::addressof(other.unex_));
+          std::construct_at(std::addressof(val_), std::move(tmp));
+        } catch (...) {
+          // restore old value.
+          std::construct_at(std::addressof(val_), std::move(tmp));
+          throw;
+        }
+      }
+
+      has_value_ = false;
+      other.has_value_ = true;
     } else if (!bool(*this) && bool(other)) {
       other.swap(*this);
     }
@@ -782,10 +855,34 @@ class expected {
   }
 
  private:
+  template <class U>
+  void assign_val(U &&u) {
+    if (has_value_) {
+      val_ = std::forward<U>(u);
+    } else {
+      impl::reinit_expected(std::addressof(val_), std::addressof(unex_),
+                            std::forward<U>(u));
+      has_value_ = true;
+    }
+  }
+
+  template <class U>
+  void assign_unex(U &&u) {
+    if (has_value_) {
+      impl::reinit_expected(std::addressof(unex_), std::addressof(val_),
+                            std::forward<U>(u));
+      has_value_ = false;
+    } else {
+      unex_ = std::forward<U>(u);
+    }
+  }
+
   union {
     T val_;
     E unex_;
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ < 12
+    // workaround GCC 10/11's "maybe-uninitialized"
+    // GCC 12 and 13 do not report it.
     volatile char gcc_pr80635_workaround_maybe_uninitialized_;
 #endif
   };
@@ -915,7 +1012,11 @@ requires(std::is_void_v<T>)  //
   constexpr expected &operator=(expected const &other)  //
       requires((std::is_copy_assignable_v<E> &&         //
                 std::is_copy_constructible_v<E>)) {
-    expected(other).swap(*this);
+    if (other.has_value()) {
+      emplace();  // destroys unex_ and sets has_value_ = true
+    } else {
+      assign_unex(other.unex_);
+    }
 
     return *this;
   }
@@ -924,8 +1025,11 @@ requires(std::is_void_v<T>)  //
   constexpr expected &operator=(expected &&other)  //
       requires((std::is_move_assignable_v<E> &&    //
                 std::is_move_constructible_v<E>)) {
-    expected(std::move(other)).swap(*this);
-
+    if (other.has_value()) {
+      emplace();
+    } else {
+      assign_unex(other.unex_);
+    }
     return *this;
   }
 
@@ -935,15 +1039,8 @@ requires(std::is_void_v<T>)  //
   template <class G, class GF = const G &>
   constexpr expected &operator=(const unexpected<G> &other)  //
       requires((std::is_constructible_v<E, GF> &&            //
-                std::is_assignable_v<E &, GF> &&
-                (std::is_nothrow_constructible_v<E, GF> ||
-                 std::is_nothrow_move_constructible_v<T> ||
-                 std::is_nothrow_move_constructible_v<E>))) {
-    if (this->has_value()) {
-      expected(std::forward<const unexpected<G> &>(other)).swap(*this);
-    } else {
-      this->error() = std::forward<GF>(other.error());
-    }
+                std::is_assignable_v<E &, GF>)) {
+    assign_unex(other.error());
 
     return *this;
   }
@@ -952,15 +1049,8 @@ requires(std::is_void_v<T>)  //
   template <class G, class GF = G>
   constexpr expected &operator=(unexpected<G> &&other)  //
       requires(std::is_constructible_v<E, GF> &&        //
-                   std::is_assignable_v<E &, GF> &&
-               (std::is_nothrow_constructible_v<E, GF> ||
-                std::is_nothrow_move_constructible_v<T> ||
-                std::is_nothrow_move_constructible_v<E>)) {
-    if (this->has_value()) {
-      expected(std::forward<unexpected<G> &&>(other)).swap(*this);
-    } else {
-      this->error() = std::forward<GF>(other.error());
-    }
+                   std::is_assignable_v<E &, GF>) {
+    assign_unex(std::move(other.error()));
 
     return *this;
   }
@@ -974,6 +1064,14 @@ requires(std::is_void_v<T>)  //
   constexpr ~expected() {
     if (!has_value()) {
       std::destroy_at(std::addressof(unex_));
+    }
+  }
+
+  // emplace
+  constexpr void emplace() noexcept {
+    if (!has_value()) {
+      std::destroy_at(std::addressof(unex_));
+      has_value_ = true;
     }
   }
 
@@ -1149,6 +1247,16 @@ requires(std::is_void_v<T>)  //
   }
 
  private:
+  template <class U>
+  void assign_unex(U &&u) {
+    if (has_value_) {
+      std::construct_at(std::addressof(unex_), std::forward<U>(u));
+      has_value_ = false;
+    } else {
+      unex_ = std::forward<U>(u);
+    }
+  }
+
   union {
     struct {
     } dummy_;
