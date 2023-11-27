@@ -1028,9 +1028,9 @@ EXPLAIN
             -> Table scan on table1  (rows=4)
     -> Hash
         -> Inner hash join (alias4.col_varchar = alias3.col_varchar_key)  (rows=1)
-            -> Table scan on alias3  (rows=4)
+            -> Table scan on alias4  (rows=1)
             -> Hash
-                -> Table scan on alias4  (rows=1)
+                -> Table scan on alias3  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
@@ -3820,9 +3820,9 @@ EXPLAIN
             -> Aggregate: min(c1_2.str_col)  (rows=1)
                 -> Nested loop inner join  (rows=2)
                     -> Inner hash join (t3.i = c1_2.i)  (rows=1)
-                        -> Table scan on c1_2  (rows=2)
+                        -> Table scan on t3  (rows=1)
                         -> Hash
-                            -> Table scan on t3  (rows=1)
+                            -> Table scan on c1_2  (rows=2)
                     -> Table scan on c1_1  (rows=2)
 
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
@@ -4460,3 +4460,42 @@ EXPLAIN
             -> Table scan on x2  (cost=0.0125..0.25 rows=20) (never executed)
 
 DROP TABLE t1;
+#
+# Bug#34155137 STRAIGHT_JOIN GIVES DIFFERENT ORDER FOR HASH JOIN WITH HYPERGRAPH
+#
+CREATE TABLE small_tab(x INT);
+INSERT INTO small_tab VALUES (1), (2), (3), (4);
+CREATE TABLE large_tab(x INT);
+INSERT INTO large_tab SELECT x FROM small_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+SELECT COUNT(*) FROM small_tab;
+COUNT(*)
+4
+SELECT COUNT(*) FROM large_tab;
+COUNT(*)
+64
+ANALYZE TABLE large_tab;
+Table	Op	Msg_type	Msg_text
+test.large_tab	analyze	status	OK
+ANALYZE TABLE small_tab;
+Table	Op	Msg_type	Msg_text
+test.small_tab	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT x FROM large_tab STRAIGHT_JOIN small_tab USING (x);
+EXPLAIN
+-> Inner hash join (large_tab.x = small_tab.x)  (rows=25.6)
+    -> Table scan on small_tab  (rows=4)
+    -> Hash
+        -> Table scan on large_tab  (rows=64)
+
+EXPLAIN FORMAT=TREE SELECT x FROM small_tab STRAIGHT_JOIN large_tab USING (x);
+EXPLAIN
+-> Inner hash join (small_tab.x = large_tab.x)  (rows=25.6)
+    -> Table scan on large_tab  (rows=64)
+    -> Hash
+        -> Table scan on small_tab  (rows=4)
+
+DROP TABLE large_tab;
+DROP TABLE small_tab;

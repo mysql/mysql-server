@@ -2939,12 +2939,12 @@ TEST_F(HypergraphOptimizerTest, StraightJoin) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1 STRAIGHT_JOIN t2 ON t1.x=t2.x",
                       /*nullable=*/true);
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.records = 10000;
+  m_fake_tables["t2"]->file->stats.records = 100;
 
   // Set up some large scan costs to discourage nested loop.
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t1"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -2962,11 +2962,11 @@ TEST_F(HypergraphOptimizerTest, StraightJoin) {
 
   AccessPath *outer = root->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
-  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+  EXPECT_EQ(m_fake_tables["t2"], outer->table_scan().table);
 
   AccessPath *inner = root->hash_join().inner;
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
-  EXPECT_EQ(m_fake_tables["t2"], inner->table_scan().table);
+  EXPECT_EQ(m_fake_tables["t1"], inner->table_scan().table);
 
   // We should see only the two table scans and then t1-t2, no other orders.
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 3);
@@ -3017,33 +3017,33 @@ TEST_F(HypergraphOptimizerTest, StraightJoinWithMoreTables) {
   EXPECT_EQ("(t3.x <> t4.x)", ItemToString(expr1->join_conditions[0]));
   EXPECT_EQ("(t4.y = t2.y)", ItemToString(expr1->equijoin_conditions[0]));
 
-  AccessPath *t4 = root->hash_join().inner;
+  AccessPath *t4 = root->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t4->type);
   EXPECT_EQ(m_fake_tables["t4"], t4->table_scan().table);
 
-  AccessPath *t1t2t3 = root->hash_join().outer;
+  AccessPath *t1t2t3 = root->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, t1t2t3->type);
   RelationalExpression *expr2 = t1t2t3->hash_join().join_predicate->expr;
   EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr2->type);
   ASSERT_EQ(1, expr2->equijoin_conditions.size());
   EXPECT_EQ("(t1.y = t3.y)", ItemToString(expr2->equijoin_conditions[0]));
 
-  AccessPath *t3 = t1t2t3->hash_join().inner;
+  AccessPath *t3 = t1t2t3->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
   EXPECT_EQ(m_fake_tables["t3"], t3->table_scan().table);
 
-  AccessPath *t1t2 = t1t2t3->hash_join().outer;
+  AccessPath *t1t2 = t1t2t3->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, t1t2->type);
   RelationalExpression *expr3 = t1t2->hash_join().join_predicate->expr;
   EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr3->type);
   ASSERT_EQ(1, expr3->equijoin_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(expr3->equijoin_conditions[0]));
 
-  AccessPath *t2 = t1t2->hash_join().inner;
+  AccessPath *t2 = t1t2->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
 
-  AccessPath *t1 = t1t2->hash_join().outer;
+  AccessPath *t1 = t1t2->hash_join().inner;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
   EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
 }
@@ -3077,31 +3077,31 @@ TEST_F(HypergraphOptimizerTest, StraightJoinNotAssociative) {
   ASSERT_EQ(1, expr1->equijoin_conditions.size());
   EXPECT_EQ("(t3.y = t4.y)", ItemToString(expr1->equijoin_conditions[0]));
 
-  AccessPath *t4 = root->hash_join().inner;
+  AccessPath *t4 = root->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t4->type);
   EXPECT_EQ(m_fake_tables["t4"], t4->table_scan().table);
 
-  AccessPath *t1t2t3 = root->hash_join().outer;
+  AccessPath *t1t2t3 = root->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, t1t2t3->type);
   RelationalExpression *expr2 = t1t2t3->hash_join().join_predicate->expr;
   EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr2->type);
 
-  AccessPath *t3 = t1t2t3->hash_join().inner;
+  AccessPath *t3 = t1t2t3->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
   EXPECT_EQ(m_fake_tables["t3"], t3->table_scan().table);
 
-  AccessPath *t1t2 = t1t2t3->hash_join().outer;
+  AccessPath *t1t2 = t1t2t3->hash_join().inner;
   ASSERT_EQ(AccessPath::HASH_JOIN, t1t2->type);
   RelationalExpression *expr3 = t1t2->hash_join().join_predicate->expr;
   EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr3->type);
   ASSERT_EQ(1, expr3->equijoin_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(expr3->equijoin_conditions[0]));
 
-  AccessPath *t2 = t1t2->hash_join().inner;
+  AccessPath *t2 = t1t2->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
 
-  AccessPath *t1 = t1t2->hash_join().outer;
+  AccessPath *t1 = t1t2->hash_join().inner;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
   EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
 }

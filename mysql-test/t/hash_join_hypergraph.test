@@ -1,5 +1,6 @@
 --source include/have_hypergraph.inc
 --source include/hash_join.inc
+--source include/elide_costs.inc
 
 --echo #
 --echo # Bug#34940000 Hash join execution may be ineficcient if probe input is empty
@@ -34,3 +35,31 @@ ANALYZE TABLE t1;
    (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34155137 STRAIGHT_JOIN GIVES DIFFERENT ORDER FOR HASH JOIN WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE small_tab(x INT);
+INSERT INTO small_tab VALUES (1), (2), (3), (4);
+
+CREATE TABLE large_tab(x INT);
+INSERT INTO large_tab SELECT x FROM small_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+INSERT INTO large_tab SELECT x FROM large_tab;
+
+SELECT COUNT(*) FROM small_tab;
+SELECT COUNT(*) FROM large_tab;
+
+ANALYZE TABLE large_tab;
+ANALYZE TABLE small_tab;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x FROM large_tab STRAIGHT_JOIN small_tab USING (x);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x FROM small_tab STRAIGHT_JOIN large_tab USING (x);
+
+DROP TABLE large_tab;
+DROP TABLE small_tab;

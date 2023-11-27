@@ -4001,9 +4001,19 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                           /*rewrite_semi_to_inner=*/false, &wrote_trace);
         }
       } else {
-        ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                        new_obsolete_orderings,
-                        /*rewrite_semi_to_inner=*/false, &wrote_trace);
+        if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+          // STRAIGHT_JOIN requires the table on the left side of the join to
+          // be read first. Since the 'build' table is read first, propose a
+          // hash join with the left-side table as the build table and the
+          // right-side table as the 'probe' table.
+          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
+                          new_obsolete_orderings,
+                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
+        } else {
+          ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
+                          new_obsolete_orderings,
+                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
+        }
         if (is_commutative || can_rewrite_semi_to_inner) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
                           new_obsolete_orderings,
