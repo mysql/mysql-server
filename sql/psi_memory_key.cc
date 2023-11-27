@@ -99,7 +99,6 @@ PSI_memory_key key_memory_acl_memex;
 PSI_memory_key key_memory_acl_cache;
 PSI_memory_key key_memory_acl_map_cache;
 PSI_memory_key key_memory_binlog_cache_mngr;
-PSI_memory_key key_memory_binlog_pos;
 PSI_memory_key key_memory_binlog_recover_exec;
 PSI_memory_key key_memory_binlog_statement_buffer;
 PSI_memory_key key_memory_bison_stack;
@@ -297,7 +296,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_rpl_replica_check_temp_dir, "rpl_replica::check_temp_dir", 0,
      0, PSI_DOCUMENT_ME},
     {&key_memory_REPLICA_INFO, "REPLICA_INFO", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_binlog_pos, "binlog_pos", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_HASH_ROW_ENTRY, "HASH_ROW_ENTRY", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_statement_buffer, "binlog_statement_buffer", 0, 0,
      PSI_DOCUMENT_ME},

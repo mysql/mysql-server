@@ -6166,7 +6166,11 @@ static bool check_defined(MY_BITMAP *defined, const TABLE *const table) {
 #endif
 
 // Subclass to allow forward declaration of the nested class
-class injector_transaction : public injector::transaction {};
+class injector_transaction : public injector::transaction {
+ public:
+  injector_transaction(THD *thd, bool calc_writeset_hash)
+      : injector::transaction(thd, calc_writeset_hash) {}
+};
 
 /**
    @brief Handle one data event received from NDB
@@ -6366,7 +6370,6 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
     extra_row_info_ptr = extra_row_info.generateBuffer();
   }
 
-  assert(trans.good());
   assert(table != nullptr);
 
   DBUG_EXECUTE("", Ndb_table_map::print_table("table", table););
@@ -6673,8 +6676,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   fix_per_epoch_trans_settings(thd);
 
   // Create new binlog transaction
-  injector_transaction trans;
-  inj->new_trans(thd, &trans, opt_ndb_log_trans_dependency);
+  injector_transaction trans(thd, opt_ndb_log_trans_dependency);
 
   if (event_type == NdbDictionary::Event::TE_EMPTY) {
     // Handle empty epoch
@@ -6719,12 +6721,10 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
   inject_table_map(trans, i_ndb);
 
-  if (trans.good()) {
-    /* Inject ndb_apply_status WRITE_ROW event */
-    if (!inject_apply_status_write(trans, current_epoch)) {
-      log_error("Failed to inject apply status write row");
-      return false;  // Error, failed to inject ndb_apply_status
-    }
+  /* Inject ndb_apply_status WRITE_ROW event */
+  if (!inject_apply_status_write(trans, current_epoch)) {
+    log_error("Failed to inject apply status write row");
+    return false;  // Error, failed to inject ndb_apply_status
   }
 
   unsigned trans_row_count = 0;
@@ -6933,7 +6933,7 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   ndbcluster::ndbrequire(ret == 0);
 
   ret = trans.write_row(::server_id, tbl, &apply_status_table->s->all_set,
-                        apply_status_table->record[0]);
+                        apply_status_table->record[0], nullptr);
 
   assert(ret == 0);
 
@@ -7059,10 +7059,6 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
                                      Uint64 current_epoch,
                                      unsigned trans_row_count,
                                      unsigned replicated_row_count) {
-  if (!trans.good()) {
-    return;
-  }
-
   if (!opt_ndb_log_empty_epochs) {
     /*
       If
