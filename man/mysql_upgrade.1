@@ -2,12 +2,12 @@
 .\"     Title: mysql_upgrade
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL_UPGRADE" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_UPGRADE" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -400,6 +400,16 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a short help message and exit\&.
 .RE
 .sp
@@ -412,6 +422,16 @@ Display a short help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--bind-address=ip_address
+T}
+.TE
+.sp 1
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
@@ -424,6 +444,22 @@ On a computer having multiple network interfaces, use this option to select whic
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -438,6 +474,34 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-compress\fR,
 \fB\-C\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compress[={OFF|ON}]
+T}
+T{
+Deprecated
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+.TE
+.sp 1
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
@@ -454,6 +518,45 @@ the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compression-algorithms=value
+T}
+T{
+Introduced
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Set
+T}
+T{
+Default Value
+T}:T{
+uncompressed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+zlib
+.PP
+zstd
+.PP
+uncompressed
+T}
+.TE
+.sp 1
 The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
 protocol_compression_algorithms
 system variable\&. The default value is
@@ -475,6 +578,28 @@ This option was added in MySQL 8\&.0\&.18\&.
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug[=#]
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:O,/tmp/mysql_upgrade.trace
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -491,6 +616,22 @@ d:t:O,/tmp/mysql_upgrade\&.trace\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Print some debugging information when the program exits\&.
 .RE
 .sp
@@ -504,6 +645,28 @@ Print some debugging information when the program exits\&.
 .\}
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-info
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .RE
 .sp
@@ -516,6 +679,22 @@ Print debugging information and memory and CPU usage statistics when the program
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--default-auth=plugin
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -529,6 +708,22 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--default-character-set=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Use
 \fIcharset_name\fR
 as the default character set\&. See
@@ -544,6 +739,22 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -561,6 +772,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -578,6 +805,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=str
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysql_upgrade\fR
@@ -607,6 +850,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-force\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--force
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Ignore the
 mysql_upgrade_info
 file and force execution even if
@@ -623,6 +882,22 @@ has already been executed for the current version of MySQL\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--get-server-public-key
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -648,6 +923,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--host=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Connect to the MySQL server on the given host\&.
 .RE
 .sp
@@ -660,6 +951,22 @@ Connect to the MySQL server on the given host\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -682,6 +989,40 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--max-allowed-packet=value
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+25165824
+T}
+T{
+Minimum Value
+T}:T{
+4096
+T}
+T{
+Maximum Value
+T}:T{
+2147483648
+T}
+.TE
+.sp 1
 The maximum size of the buffer for client/server communication\&. The default value is 24MB\&. The minimum and maximum values are 4KB and 2GB\&.
 .RE
 .sp
@@ -694,6 +1035,40 @@ The maximum size of the buffer for client/server communication\&. The default va
 .IP \(bu 2.3
 .\}
 \fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--net-buffer-length=value
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+1047552
+T}
+T{
+Minimum Value
+T}:T{
+4096
+T}
+T{
+Maximum Value
+T}:T{
+16777216
+T}
+.TE
+.sp 1
 The initial size of the buffer for client/server communication\&. The default value is 1MB − 1KB\&. The minimum and maximum values are 4KB and 16MB\&.
 .RE
 .sp
@@ -706,6 +1081,16 @@ The initial size of the buffer for client/server communication\&. The default va
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -734,6 +1119,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--password[=name]
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysql_upgrade\fR
 prompts for one\&. If given, there must be
@@ -764,6 +1165,22 @@ option\&.
 .\}
 \fB\-\-pipe\fR,
 \fB\-W\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--pipe
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
 named_pipe
 system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
@@ -780,6 +1197,22 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--plugin-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -798,6 +1231,22 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--port=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 For TCP/IP connections, the port number to use\&.
 .RE
 .sp
@@ -810,6 +1259,16 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
 Print the program name and all options that it gets from option files\&.
 .RE
 .sp
@@ -822,6 +1281,22 @@ Print the program name and all options that it gets from option files\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--protocol=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
@@ -835,6 +1310,22 @@ Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-public-key-path=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
@@ -867,6 +1358,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--shared-memory-base-name=name
+T}
+T{
+Platform Specific
+T}:T{
+Windows
+T}
+.TE
+.sp 1
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -884,6 +1391,28 @@ system variable enabled to support shared\-memory connections\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-sys\-schema\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-sys-schema
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 By default,
 \fBmysql_upgrade\fR
 installs the
@@ -903,6 +1432,22 @@ option suppresses this behavior\&.
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--socket={file_name|pipe_name}
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -937,6 +1482,45 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ssl-fips-mode={OFF|ON|STRICT}
+T}
+T{
+Deprecated
+T}:T{
+8.0.34
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+T{
+Valid Values
+T}:T{
+.PP
+OFF
+.PP
+ON
+.PP
+STRICT
+T}
+.TE
+.sp 1
 Controls whether to enable FIPS mode on the client side\&. The
 \fB\-\-ssl\-fips\-mode\fR
 option differs from other
@@ -1019,6 +1603,28 @@ As of MySQL 8\&.0\&.34, this option is deprecated\&. Expect it to be removed in 
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-ciphersuites=ciphersuite_list
+T}
+T{
+Introduced
+T}:T{
+8.0.16
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
@@ -1034,6 +1640,39 @@ This option was added in MySQL 8\&.0\&.16\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-version=protocol_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value (≥ 8.0.16)
+T}:T{
+.PP
+TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+(OpenSSL 1.1.1 or higher)
+.PP
+TLSv1,TLSv1.1,TLSv1.2
+(otherwise)
+T}
+T{
+Default Value (≤ 8.0.15)
+T}:T{
+TLSv1,TLSv1.1,TLSv1.2
+T}
+.TE
+.sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -1048,6 +1687,22 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .\}
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--upgrade-system-tables
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Upgrade only the system tables in the
 mysql
 schema, do not upgrade user schemas\&.
@@ -1063,6 +1718,22 @@ schema, do not upgrade user schemas\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--user=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The user name of the MySQL account to use for connecting to the server\&. The default user name is
 root\&.
 .RE
@@ -1076,6 +1747,22 @@ root\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-verbose\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .sp
@@ -1089,6 +1776,22 @@ Verbose mode\&. Print more information about what the program does\&.
 .\}
 \fB\-\-version\-check\fR,
 \fB\-k\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Check the version of the server to which
 \fBmysql_upgrade\fR
 is connecting to verify that it is the same as the version for which
@@ -1108,6 +1811,28 @@ exits\&. This option is enabled by default; to disable the check, use
 .IP \(bu 2.3
 .\}
 \fB\-\-write\-binlog\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--write-binlog
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+.TE
+.sp 1
 By default, binary logging by
 \fBmysql_upgrade\fR
 is disabled\&. Invoke the program with
@@ -1127,6 +1852,28 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .IP \(bu 2.3
 .\}
 \fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--zstd-compression-level=#
+T}
+T{
+Introduced
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+.TE
+.sp 1
 The compression level to use for connections to the server that use the
 zstd
 compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default

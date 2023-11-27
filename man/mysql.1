@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -149,6 +149,16 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -161,6 +171,22 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-auto\-rehash\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--auto-rehash
+T}
+T{
+Disabled by
+T}:T{
+skip-auto-rehash
+T}
+.TE
+.sp 1
 Enable automatic rehashing\&. This option is on by default, which enables database, table, and column name completion\&. Use
 \fB\-\-disable\-auto\-rehash\fR
 to disable rehashing\&. That causes
@@ -204,6 +230,16 @@ library is not available on Windows\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-auto\-vertical\-output\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--auto-vertical-output
+T}
+.TE
+.sp 1
 Cause result sets to be displayed vertically if they are too wide for the current window, and using normal tabular format otherwise\&. (This applies to statements terminated by
 ;
 or
@@ -220,6 +256,16 @@ or
 .\}
 \fB\-\-batch\fR,
 \fB\-B\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--batch
+T}
+.TE
+.sp 1
 Print results using tab as the column separator, with each row on a new line\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
@@ -238,6 +284,34 @@ option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-binary\-as\-hex\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--binary-as-hex
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value (≥ 8.0.19)
+T}:T{
+FALSE in noninteractive mode
+T}
+T{
+Default Value (≤ 8.0.18)
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 When this option is given,
 \fBmysql\fR
 displays binary data using hexadecimal notation (0x\fIvalue\fR)\&. This occurs whether the overall output display format is tabular, vertical, HTML, or XML\&.
@@ -396,6 +470,16 @@ To disable hexadecimal notation, use
 .IP \(bu 2.3
 .\}
 \fB\-\-binary\-mode\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--binary-mode
+T}
+.TE
+.sp 1
 This option helps when processing
 \fBmysqlbinlog\fR
 output that may contain
@@ -432,6 +516,16 @@ command)\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--bind-address=ip_address
+T}
+.TE
+.sp 1
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
@@ -444,6 +538,22 @@ On a computer having multiple network interfaces, use this option to select whic
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -457,6 +567,16 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-column\-names\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--column-names
+T}
+.TE
+.sp 1
 Write column names in results\&.
 .RE
 .sp
@@ -469,6 +589,16 @@ Write column names in results\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-column\-type\-info\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--column-type-info
+T}
+.TE
+.sp 1
 Display result set metadata\&. This information corresponds to the contents of C API
 MYSQL_FIELD
 data structures\&. See
@@ -485,6 +615,28 @@ data structures\&. See
 .\}
 \fB\-\-comments\fR,
 \fB\-c\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--comments
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Whether to strip or preserve comments in statements sent to the server\&. The default is
 \fB\-\-skip\-comments\fR
 (strip comments), enable with
@@ -521,6 +673,34 @@ Comment stripping is deprecated\&. Expect this feature and the options to contro
 .\}
 \fB\-\-compress\fR,
 \fB\-C\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compress[={OFF|ON}]
+T}
+T{
+Deprecated
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+.TE
+.sp 1
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
@@ -537,6 +717,45 @@ the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compression-algorithms=value
+T}
+T{
+Introduced
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Set
+T}
+T{
+Default Value
+T}:T{
+uncompressed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+zlib
+.PP
+zstd
+.PP
+uncompressed
+T}
+.TE
+.sp 1
 The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
 protocol_compression_algorithms
 system variable\&. The default value is
@@ -557,6 +776,16 @@ This option was added in MySQL 8\&.0\&.18\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-connect\-expired\-password\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-expired-password
+T}
+.TE
+.sp 1
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
@@ -572,6 +801,28 @@ Section\ \&6.2.16, \(lqServer Handling of Expired Passwords\(rq\&.)
 .IP \(bu 2.3
 .\}
 \fB\-\-connect\-timeout=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-timeout=value
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
 The number of seconds before connection timeout\&. (Default value is
 0\&.)
 .RE
@@ -586,6 +837,22 @@ The number of seconds before connection timeout\&. (Default value is
 .\}
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-D \fR\fB\fIdb_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--database=dbname
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The database to use\&. This is useful primarily in an option file\&.
 .RE
 .sp
@@ -599,6 +866,28 @@ The database to use\&. This is useful primarily in an option file\&.
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug[=debug_options]
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:o,/tmp/mysql.trace
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -620,6 +909,28 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Print some debugging information when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -638,6 +949,28 @@ built using this option\&.
 .\}
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-info
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -655,6 +988,22 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--default-auth=plugin
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -668,6 +1017,22 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--default-character-set=charset_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Use
 \fIcharset_name\fR
 as the default character set for the client and connection\&.
@@ -690,6 +1055,22 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -707,6 +1088,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -728,6 +1125,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=str
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysql\fR
@@ -757,6 +1170,28 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-delimiter=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--delimiter=str
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+;
+T}
+.TE
+.sp 1
 Set the statement delimiter\&. The default is the semicolon character (;)\&.
 .RE
 .sp
@@ -788,6 +1223,28 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-dns\-srv\-name=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--dns-srv-name=name
+T}
+T{
+Introduced
+T}:T{
+8.0.22
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Specifies the name of a DNS SRV record that determines the candidate hosts to use for establishing a connection to a MySQL server\&. For information about DNS SRV support in MySQL, see
 Section\ \&4.2.6, \(lqConnecting to the Server Using DNS SRV Records\(rq\&.
 .sp
@@ -860,6 +1317,28 @@ This option was added in MySQL 8\&.0\&.22\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-enable\-cleartext\-plugin\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--enable-cleartext-plugin
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
@@ -876,6 +1355,22 @@ Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .\}
 \fB\-\-execute=\fR\fB\fIstatement\fR\fR,
 \fB\-e \fR\fB\fIstatement\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--execute=statement
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Execute the statement and quit\&. The default output format is like that produced with
 \fB\-\-batch\fR\&. See
 Section\ \&4.2.2.1, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
@@ -892,6 +1387,49 @@ does not use the history file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-fido\-register\-factor=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--fido-register-factor=value
+T}
+T{
+Introduced
+T}:T{
+8.0.27
+T}
+T{
+Deprecated
+T}:T{
+8.0.35
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+As of MySQL 8\&.0\&.35, this option is deprecated and subject to removal in a future MySQL release\&.
+.sp .5v
+.RE
 The factor or factors for which FIDO device registration must be performed\&. This option value must be a single value, or two values separated by commas\&. Each value must be 2 or 3, so the permitted option values are
 \*(Aq2\*(Aq,
 \*(Aq3\*(Aq,
@@ -991,6 +1529,16 @@ the section called \(lqUsing FIDO Authentication\(rq\&.
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--force
+T}
+.TE
+.sp 1
 Continue even if an SQL error occurs\&.
 .RE
 .sp
@@ -1003,6 +1551,22 @@ Continue even if an SQL error occurs\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--get-server-public-key
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -1027,6 +1591,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-histignore\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--histignore=pattern_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 A list of one or more colon\-separated patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file, and to
 syslog
 if the
@@ -1045,6 +1625,28 @@ the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--host=host_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+localhost
+T}
+.TE
+.sp 1
 Connect to the MySQL server on the given host\&.
 .sp
 The
@@ -1075,6 +1677,16 @@ startup to specify a DNS SRV record\&.
 .\}
 \fB\-\-html\fR,
 \fB\-H\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--html
+T}
+.TE
+.sp 1
 Produce HTML output\&.
 .RE
 .sp
@@ -1088,6 +1700,16 @@ Produce HTML output\&.
 .\}
 \fB\-\-ignore\-spaces\fR,
 \fB\-i\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ignore-spaces
+T}
+.TE
+.sp 1
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
@@ -1103,6 +1725,16 @@ Section\ \&5.1.11, \(lqServer SQL Modes\(rq)\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-init\-command=str\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--init-command=str
+T}
+.TE
+.sp 1
 SQL statement to execute after connecting to the server\&. If auto\-reconnect is enabled, the statement is executed again after reconnection occurs\&.
 .RE
 .sp
@@ -1115,6 +1747,22 @@ SQL statement to execute after connecting to the server\&. If auto\-reconnect is
 .IP \(bu 2.3
 .\}
 \fB\-\-line\-numbers\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--line-numbers
+T}
+T{
+Disabled by
+T}:T{
+skip-line-numbers
+T}
+.TE
+.sp 1
 Write line numbers for errors\&. Disable this with
 \fB\-\-skip\-line\-numbers\fR\&.
 .RE
@@ -1128,6 +1776,34 @@ Write line numbers for errors\&. Disable this with
 .IP \(bu 2.3
 .\}
 \fB\-\-load\-data\-local\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--load-data-local-dir=dir_name
+T}
+T{
+Introduced
+T}:T{
+8.0.21
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+T{
+Default Value
+T}:T{
+empty string
+T}
+.TE
+.sp 1
 This option affects the client\-side
 LOCAL
 capability for
@@ -1219,6 +1895,28 @@ option was added in MySQL 8\&.0\&.21\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-local\-infile[={0|1}]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--local-infile[={0|1}]
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 By default,
 LOCAL
 capability for
@@ -1259,6 +1957,22 @@ Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -1281,6 +1995,28 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--max-allowed-packet=value
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+16777216
+T}
+.TE
+.sp 1
 The maximum size of the buffer for client/server communication\&. The default is 16MB, the maximum is 1GB\&.
 .RE
 .sp
@@ -1293,6 +2029,28 @@ The maximum size of the buffer for client/server communication\&. The default is
 .IP \(bu 2.3
 .\}
 \fB\-\-max\-join\-size=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--max-join-size=value
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+1000000
+T}
+.TE
+.sp 1
 The automatic limit for rows in a join when using
 \fB\-\-safe\-updates\fR\&. (Default value is 1,000,000\&.)
 .RE
@@ -1307,6 +2065,22 @@ The automatic limit for rows in a join when using
 .\}
 \fB\-\-named\-commands\fR,
 \fB\-G\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--named-commands
+T}
+T{
+Disabled by
+T}:T{
+skip-named-commands
+T}
+.TE
+.sp 1
 Enable named
 \fBmysql\fR
 commands\&. Long\-format commands are permitted, not just short\-format commands\&. For example,
@@ -1328,6 +2102,28 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--net-buffer-length=value
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+16384
+T}
+.TE
+.sp 1
 The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.)
 .RE
 .sp
@@ -1340,6 +2136,28 @@ The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-network\-namespace=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--network-namespace=name
+T}
+T{
+Introduced
+T}:T{
+8.0.22
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The network namespace to use for TCP/IP connections\&. If omitted, the connection uses the default (global) namespace\&. For information about network namespaces, see
 Section\ \&5.1.14, \(lqNetwork Namespace Support\(rq\&.
 .sp
@@ -1356,6 +2174,22 @@ This option was added in MySQL 8\&.0\&.22\&. It is available only on platforms t
 .\}
 \fB\-\-no\-auto\-rehash\fR,
 \fB\-A\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-auto-rehash
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 This has the same effect as
 \fB\-\-skip\-auto\-rehash\fR\&. See the description for
 \fB\-\-auto\-rehash\fR\&.
@@ -1371,6 +2205,16 @@ This has the same effect as
 .\}
 \fB\-\-no\-beep\fR,
 \fB\-b\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-beep
+T}
+.TE
+.sp 1
 Do not beep when errors occur\&.
 .RE
 .sp
@@ -1383,6 +2227,16 @@ Do not beep when errors occur\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -1411,6 +2265,16 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-one\-database\fR,
 \fB\-o\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--one-database
+T}
+.TE
+.sp 1
 Ignore statements except those that occur while the default database is the one named on the command line\&. This option is rudimentary and should be used with care\&. Statement filtering is based only on
 USE
 statements\&.
@@ -1511,6 +2375,28 @@ statement names a table in a different database\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-pager[=\fR\fB\fIcommand\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--pager[=command]
+T}
+T{
+Disabled by
+T}:T{
+skip-pager
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Use the given command for paging query output\&. If the command is omitted, the default pager is the value of your
 PAGER
 environment variable\&. Valid pagers are
@@ -1531,6 +2417,22 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses output paging furthe
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--password[=password]
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysql\fR
 prompts for one\&. If given, there must be
@@ -1622,6 +2524,22 @@ The password for multifactor authentication factor 3 of the MySQL account used f
 .\}
 \fB\-\-pipe\fR,
 \fB\-W\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--pipe
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
 named_pipe
 system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
@@ -1638,6 +2556,43 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-authentication\-kerberos\-client\-mode=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--plugin-authentication-kerberos-client-mode
+T}
+T{
+Introduced
+T}:T{
+8.0.32
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+SSPI
+T}
+T{
+Valid Values
+T}:T{
+.PP
+GSSAPI
+.PP
+SSPI
+T}
+.TE
+.sp 1
 On Windows, the
 authentication_kerberos_client
 authentication plugin supports this plugin option\&. It provides two possible values that the client user can set at runtime:
@@ -1662,6 +2617,22 @@ Commands for Windows Clients in GSSAPI Mode\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--plugin-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -1680,6 +2651,28 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--port=port_num
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+3306
+T}
+.TE
+.sp 1
 For TCP/IP connections, the port number to use\&.
 .RE
 .sp
@@ -1692,6 +2685,16 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -1707,6 +2710,28 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-prompt=\fR\fB\fIformat_str\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--prompt=format_str
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+mysql>
+T}
+.TE
+.sp 1
 Set the prompt to the specified format\&. The default is
 mysql>\&. The special sequences that the prompt can contain are described in
 the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
@@ -1721,6 +2746,41 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--protocol=type
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[see text]
+T}
+T{
+Valid Values
+T}:T{
+.PP
+TCP
+.PP
+SOCKET
+.PP
+PIPE
+.PP
+MEMORY
+T}
+.TE
+.sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
@@ -1735,6 +2795,16 @@ Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .\}
 \fB\-\-quick\fR,
 \fB\-q\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--quick
+T}
+.TE
+.sp 1
 Do not cache each query result, print each row as it is received\&. This may slow down the server if the output is suspended\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
@@ -1750,6 +2820,16 @@ does not use the history file\&.
 .\}
 \fB\-\-raw\fR,
 \fB\-r\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--raw
+T}
+.TE
+.sp 1
 For tabular output, the
 \(lqboxing\(rq
 around columns enables one column value to be distinguished from another\&. For nontabular output (such as is produced in batch mode or when the
@@ -1801,6 +2881,22 @@ CHAR(92)
 .IP \(bu 2.3
 .\}
 \fB\-\-reconnect\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--reconnect
+T}
+T{
+Disabled by
+T}:T{
+skip-reconnect
+T}
+.TE
+.sp 1
 If the connection to the server is lost, automatically try to reconnect\&. A single reconnect attempt is made each time the connection is lost\&. To suppress reconnection behavior, use
 \fB\-\-skip\-reconnect\fR\&.
 .RE
@@ -1816,6 +2912,31 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-safe\-updates\fR,
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+.PP
+--safe-updates
+.PP
+--i-am-a-dummy
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 If this option is enabled,
 UPDATE
 and
@@ -1841,6 +2962,28 @@ Using Safe-Updates Mode (--safe-updates)\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-select\-limit=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--select-limit=value
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+1000
+T}
+.TE
+.sp 1
 The automatic limit for
 SELECT
 statements when using
@@ -1856,6 +2999,22 @@ statements when using
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-public-key-path=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
@@ -1888,6 +3047,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--shared-memory-base-name=name
+T}
+T{
+Platform Specific
+T}:T{
+Windows
+T}
+.TE
+.sp 1
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -1905,6 +3080,16 @@ system variable enabled to support shared\-memory connections\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-show\-warnings\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--show-warnings
+T}
+.TE
+.sp 1
 Cause warnings to be shown after each statement if there are any\&. This option applies to interactive and batch mode\&.
 .RE
 .sp
@@ -1917,6 +3102,16 @@ Cause warnings to be shown after each statement if there are any\&. This option 
 .IP \(bu 2.3
 .\}
 \fB\-\-sigint\-ignore\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--sigint-ignore
+T}
+.TE
+.sp 1
 Ignore
 SIGINT
 signals (typically the result of typing
@@ -1937,6 +3132,16 @@ interrupts the current statement if there is one, or cancels any partial input l
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--silent
+T}
+.TE
+.sp 1
 Silent mode\&. Produce less output\&. This option can be given multiple times to produce less and less output\&.
 .sp
 This option results in nontabular output format and escaping of special characters\&. Escaping may be disabled by using raw mode; see the description for the
@@ -1954,6 +3159,16 @@ option\&.
 .\}
 \fB\-\-skip\-column\-names\fR,
 \fB\-N\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-column-names
+T}
+.TE
+.sp 1
 Do not write column names in results\&.
 .RE
 .sp
@@ -1967,6 +3182,16 @@ Do not write column names in results\&.
 .\}
 \fB\-\-skip\-line\-numbers\fR,
 \fB\-L\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-line-numbers
+T}
+.TE
+.sp 1
 Do not write line numbers for errors\&. Useful when you want to compare result files that include error messages\&.
 .RE
 .sp
@@ -1980,6 +3205,22 @@ Do not write line numbers for errors\&. Useful when you want to compare result f
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--socket={file_name|pipe_name}
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -2014,6 +3255,45 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ssl-fips-mode={OFF|ON|STRICT}
+T}
+T{
+Deprecated
+T}:T{
+8.0.34
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+T{
+Valid Values
+T}:T{
+.PP
+OFF
+.PP
+ON
+.PP
+STRICT
+T}
+.TE
+.sp 1
 Controls whether to enable FIPS mode on the client side\&. The
 \fB\-\-ssl\-fips\-mode\fR
 option differs from other
@@ -2097,6 +3377,16 @@ As of MySQL 8\&.0\&.34, this option is deprecated\&. Expect it to be removed in 
 .\}
 \fB\-\-syslog\fR,
 \fB\-j\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--syslog
+T}
+.TE
+.sp 1
 This option causes
 \fBmysql\fR
 to send interactive statements to the system logging facility\&. On Unix, this is
@@ -2136,6 +3426,16 @@ the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .\}
 \fB\-\-table\fR,
 \fB\-t\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--table
+T}
+.TE
+.sp 1
 Display output in table format\&. This is the default for interactive use, but can be used to produce table output in batch mode\&.
 .RE
 .sp
@@ -2148,6 +3448,22 @@ Display output in table format\&. This is the default for interactive use, but c
 .IP \(bu 2.3
 .\}
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tee=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Append a copy of output to the given file\&. This option works only in interactive mode\&.
 the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 .RE
@@ -2161,6 +3477,28 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-ciphersuites=ciphersuite_list
+T}
+T{
+Introduced
+T}:T{
+8.0.16
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
@@ -2176,6 +3514,39 @@ This option was added in MySQL 8\&.0\&.16\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-version=protocol_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value (≥ 8.0.16)
+T}:T{
+.PP
+TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+(OpenSSL 1.1.1 or higher)
+.PP
+TLSv1,TLSv1.1,TLSv1.2
+(otherwise)
+T}
+T{
+Default Value (≤ 8.0.15)
+T}:T{
+TLSv1,TLSv1.1,TLSv1.2
+T}
+.TE
+.sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -2190,6 +3561,16 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .\}
 \fB\-\-unbuffered\fR,
 \fB\-n\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--unbuffered
+T}
+.TE
+.sp 1
 Flush the buffer after each query\&.
 .RE
 .sp
@@ -2203,6 +3584,22 @@ Flush the buffer after each query\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--user=user_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The user name of the MySQL account to use for connecting to the server\&.
 .RE
 .sp
@@ -2216,6 +3613,16 @@ The user name of the MySQL account to use for connecting to the server\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Verbose mode\&. Produce more output about what the program does\&. This option can be given multiple times to produce more and more output\&. (For example,
 \fB\-v \-v \-v\fR
 produces table output format even in batch mode\&.)
@@ -2231,6 +3638,16 @@ produces table output format even in batch mode\&.)
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .sp
@@ -2244,6 +3661,16 @@ Display version information and exit\&.
 .\}
 \fB\-\-vertical\fR,
 \fB\-E\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--vertical
+T}
+.TE
+.sp 1
 Print query output rows vertically (one line per column value)\&. Without this option, you can specify vertical output for individual statements by terminating them with
 \eG\&.
 .RE
@@ -2258,6 +3685,16 @@ Print query output rows vertically (one line per column value)\&. Without this o
 .\}
 \fB\-\-wait\fR,
 \fB\-w\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--wait
+T}
+.TE
+.sp 1
 If the connection cannot be established, wait and retry instead of aborting\&.
 .RE
 .sp
@@ -2271,6 +3708,16 @@ If the connection cannot be established, wait and retry instead of aborting\&.
 .\}
 \fB\-\-xml\fR,
 \fB\-X\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--xml
+T}
+.TE
+.sp 1
 Produce XML output\&.
 .sp
 .if n \{\
@@ -2333,6 +3780,28 @@ $> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
 .IP \(bu 2.3
 .\}
 \fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--zstd-compression-level=#
+T}
+T{
+Introduced
+T}:T{
+8.0.18
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+.TE
+.sp 1
 The compression level to use for connections to the server that use the
 zstd
 compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default

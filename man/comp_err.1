@@ -2,12 +2,12 @@
 .\"     Title: comp_err
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "COMP_ERR" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "COMP_ERR" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -115,6 +115,28 @@ supports the following options\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -128,6 +150,28 @@ Display a help message and exit\&.
 .\}
 \fB\-\-charset=\fR\fB\fIdir_name\fR\fR,
 \fB\-C \fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--charset
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+../share/charsets
+T}
+.TE
+.sp 1
 The character set directory\&. The default is
 \&.\&./sql/share/charsets\&.
 .RE
@@ -142,6 +186,28 @@ The character set directory\&. The default is
 .\}
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug=options
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:O,/tmp/comp_err.trace
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -159,6 +225,28 @@ d:t:O,/tmp/comp_err\&.trace\&.
 .\}
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-info
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Print some debugging information when the program exits\&.
 .RE
 .sp
@@ -172,6 +260,28 @@ Print some debugging information when the program exits\&.
 .\}
 \fB\-\-errmsg\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-H \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--errmsg-file=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+mysqld_errmsg.h
+T}
+.TE
+.sp 1
 The name of the error message file\&. The default is
 mysqld_errmsg\&.h\&. This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -186,6 +296,28 @@ mysqld_errmsg\&.h\&. This option was added in MySQL 8\&.0\&.18\&.
 .\}
 \fB\-\-header\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-H \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--header-file=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+mysqld_error.h
+T}
+.TE
+.sp 1
 The name of the error header file\&. The default is
 mysqld_error\&.h\&.
 .RE
@@ -200,6 +332,28 @@ mysqld_error\&.h\&.
 .\}
 \fB\-\-in\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-F \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--in-file=path
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 The name of the input file\&. The default is
 \&.\&./share/errmsg\-utf8\&.txt\&.
 .sp
@@ -220,6 +374,28 @@ options\&.
 .\}
 \fB\-\-in\-file\-errlog=\fR\fB\fIfile_name\fR\fR,
 \fB\-e \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--in-file-errlog
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+../share/messages_to_error_log.txt
+T}
+.TE
+.sp 1
 The name of the input file that defines error messages intended to be written to the error log\&. The default is
 \&.\&./share/messages_to_error_log\&.txt\&.
 .sp
@@ -236,6 +412,28 @@ This option was added in MySQL 8\&.0\&.19\&.
 .\}
 \fB\-\-in\-file\-toclient=\fR\fB\fIfile_name\fR\fR,
 \fB\-c \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--in-file-toclient=path
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+../share/messages_to_clients.txt
+T}
+.TE
+.sp 1
 The name of the input file that defines error messages intended to be written to clients\&. The default is
 \&.\&./share/messages_to_clients\&.txt\&.
 .sp
@@ -252,6 +450,28 @@ This option was added in MySQL 8\&.0\&.19\&.
 .\}
 \fB\-\-name\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-N \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--name-file=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+mysqld_ername.h
+T}
+.TE
+.sp 1
 The name of the error name file\&. The default is
 mysqld_ername\&.h\&.
 .RE
@@ -266,6 +486,28 @@ mysqld_ername\&.h\&.
 .\}
 \fB\-\-out\-dir=\fR\fB\fIdir_name\fR\fR,
 \fB\-D \fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--out-dir=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+../share/
+T}
+.TE
+.sp 1
 The name of the output base directory\&. The default is
 \&.\&./sql/share/\&.
 .RE
@@ -280,6 +522,28 @@ The name of the output base directory\&. The default is
 .\}
 \fB\-\-out\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-O \fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--out-file=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+errmsg.sys
+T}
+.TE
+.sp 1
 The name of the output file\&. The default is
 errmsg\&.sys\&.
 .RE
@@ -294,6 +558,28 @@ errmsg\&.sys\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"

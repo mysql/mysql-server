@@ -2,12 +2,12 @@
 .\"     Title: mysqldumpslow
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMPSLOW" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLDUMPSLOW" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -97,6 +97,16 @@ supports the following options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -126,6 +136,16 @@ and strings to
 .\}
 \fB\-\-debug\fR,
 \fB\-d\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug
+T}
+.TE
+.sp 1
 Run in debug mode\&.
 .sp
 This option is available only if MySQL was built using
@@ -143,7 +163,16 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-g \fR\fB\fIpattern\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l.
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Consider only queries that match the (\fBgrep\fR\-style) pattern\&.
 .RE
 .sp
@@ -156,7 +185,22 @@ Consider only queries that match the (\fBgrep\fR\-style) pattern\&.
 .IP \(bu 2.3
 .\}
 \fB\-h \fR\fB\fIhost_name\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+*
+T}
+.TE
+.sp 1
 Host name of MySQL server for
 *\-slow\&.log
 file name\&. The value can contain a wildcard\&. The default is
@@ -173,7 +217,16 @@ file name\&. The value can contain a wildcard\&. The default is
 .IP \(bu 2.3
 .\}
 \fB\-i \fR\fB\fIname\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l.
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Name of server instance (if using
 \fBmysql\&.server\fR
 startup script)\&.
@@ -188,7 +241,6 @@ startup script)\&.
 .IP \(bu 2.3
 .\}
 \fB\-l\fR
-.sp
 Do not subtract lock time from total time\&.
 .RE
 .sp
@@ -201,7 +253,16 @@ Do not subtract lock time from total time\&.
 .IP \(bu 2.3
 .\}
 \fB\-n \fR\fB\fIN\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l.
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Abstract numbers with at least
 \fIN\fR
 digits within names\&.
@@ -216,7 +277,6 @@ digits within names\&.
 .IP \(bu 2.3
 .\}
 \fB\-r\fR
-.sp
 Reverse the sort order\&.
 .RE
 .sp
@@ -229,7 +289,22 @@ Reverse the sort order\&.
 .IP \(bu 2.3
 .\}
 \fB\-s \fR\fB\fIsort_type\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+at
+T}
+.TE
+.sp 1
 How to sort the output\&. The value of
 \fIsort_type\fR
 should be chosen from the following list:
@@ -296,7 +371,16 @@ sorts by average query time (equivalent to
 .IP \(bu 2.3
 .\}
 \fB\-t \fR\fB\fIN\fR\fR
-.sp
+.TS
+allbox tab(:);
+lB l.
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Display only the first
 \fIN\fR
 queries in the output\&.
@@ -312,6 +396,16 @@ queries in the output\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .SH "COPYRIGHT"

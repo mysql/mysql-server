@@ -2,12 +2,12 @@
 .\"     Title: mysql_config_editor
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL_CONFIG_EDITOR" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_CONFIG_EDITOR" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -179,7 +179,9 @@ from the login path file\&.
 .\}
 Client programs read the login path file even when the
 \fB\-\-no\-defaults\fR
-option is used\&. This permits passwords to be specified in a safer way than on the command line even if
+option is used, unless
+\fB\-\-no\-login\-paths\fR
+is set\&. This permits passwords to be specified in a safer way than on the command line even if
 \fB\-\-no\-defaults\fR
 is present\&.
 .RE
@@ -511,6 +513,16 @@ mysql_config_editor Commands and Command-Specific Options\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a general help message and exit\&.
 .sp
 To see a command\-specific help message, invoke
@@ -541,6 +553,28 @@ mysql_config_editor \fIcommand\fR \-\-help
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug[=debug_options]
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:o
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -563,6 +597,16 @@ built using this option\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Verbose mode\&. Print more information about what the program does\&. This option may be helpful in diagnosing problems if an operation does not have the effect you expect\&.
 .RE
 .sp
@@ -576,6 +620,16 @@ Verbose mode\&. Print more information about what the program does\&. This optio
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 mysql_config_editor Commands and Command\-Specific Options

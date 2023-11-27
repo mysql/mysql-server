@@ -2,12 +2,12 @@
 .\"     Title: mysqld_multi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/27/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLD_MULTI" "1" "08/31/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLD_MULTI" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -174,6 +174,28 @@ searches for option files as follows:
 .\}
 With
 \fB\-\-no\-defaults\fR, no option files are read\&.
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 .RE
 .sp
 .RS 4
@@ -186,6 +208,28 @@ With
 .\}
 With
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR, only the named file is read\&.
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=filename
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 .RE
 .sp
 .RS 4
@@ -199,6 +243,28 @@ With
 Otherwise, option files in the standard list of locations are read, including any file named by the
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 option, if one is given\&. (If the option is given multiple times, the last value is used\&.)
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=filename
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 .RE
 .PP
 For additional information about these and other option\-file options, see
@@ -245,6 +311,28 @@ supports the following options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -257,6 +345,28 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-example\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--example
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display a sample option file\&.
 .RE
 .sp
@@ -269,6 +379,28 @@ Display a sample option file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-log=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--log=path
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+/var/log/mysqld_multi.log
+T}
+.TE
+.sp 1
 Specify the name of the log file\&. If the file exists, log output is appended to it\&.
 .RE
 .sp
@@ -281,6 +413,28 @@ Specify the name of the log file\&. If the file exists, log output is appended t
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqladmin=\fR\fB\fIprog_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--mysqladmin=file
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 The
 \fBmysqladmin\fR
 binary to be used to stop servers\&.
@@ -295,6 +449,28 @@ binary to be used to stop servers\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqld=\fR\fB\fIprog_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--mysqld=file
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 The
 \fBmysqld\fR
 binary to be used\&. Note that you can specify
@@ -334,6 +510,28 @@ ledir  = /opt/local/mysql/libexec
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-log\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-log
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Print log information to
 stdout
 rather than to the log file\&. By default, output goes to the log file\&.
@@ -348,6 +546,28 @@ rather than to the log file\&. By default, output goes to the log file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-password=\fR\fB\fIpassword\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--password=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 The password of the MySQL account to use when invoking
 \fBmysqladmin\fR\&. Note that the password value is not optional for this option, unlike for other MySQL programs\&.
 .RE
@@ -361,6 +581,28 @@ The password of the MySQL account to use when invoking
 .IP \(bu 2.3
 .\}
 \fB\-\-silent\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--silent
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Silent mode; disable warnings\&.
 .RE
 .sp
@@ -373,6 +615,28 @@ Silent mode; disable warnings\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tcp\-ip\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tcp-ip
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Connect to each MySQL server through the TCP/IP port instead of the Unix socket file\&. (If a socket file is missing, the server might still be running, but accessible only through the TCP/IP port\&.) By default, connections are made using the Unix socket file\&. This option affects
 stop
 and
@@ -389,6 +653,28 @@ operations\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--user=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+root
+T}
+.TE
+.sp 1
 The user name of the MySQL account to use when invoking
 \fBmysqladmin\fR\&.
 .RE
@@ -402,6 +688,28 @@ The user name of the MySQL account to use when invoking
 .IP \(bu 2.3
 .\}
 \fB\-\-verbose\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Be more verbose\&.
 .RE
 .sp
@@ -414,6 +722,28 @@ Be more verbose\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .PP
