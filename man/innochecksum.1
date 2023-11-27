@@ -2,12 +2,12 @@
 .\"     Title: innochecksum
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "INNOCHECKSUM" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "INNOCHECKSUM" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -85,6 +85,28 @@ supports the following options\&. For options that refer to page numbers, the nu
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Displays command line help\&. Example usage:
 .sp
 .if n \{\
@@ -108,6 +130,28 @@ innochecksum \-\-help
 .\}
 \fB\-\-info\fR,
 \fB\-I\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--info
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Synonym for
 \fB\-\-help\fR\&. Displays command line help\&. Example usage:
 .sp
@@ -132,6 +176,28 @@ innochecksum \-\-info
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Displays version information\&. Example usage:
 .sp
 .if n \{\
@@ -155,6 +221,28 @@ innochecksum \-\-version
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Verbose mode; prints a progress indicator to the log file every five seconds\&. In order for the progress indicator to be printed, the log file must be specified using the
 \-\-log option\&. To turn on
 verbose
@@ -244,6 +332,28 @@ page 54463 okay: 93\&.722% done
 .\}
 \fB\-\-count\fR,
 \fB\-c\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--count
+T}
+T{
+Type
+T}:T{
+Base name
+T}
+T{
+Default Value
+T}:T{
+true
+T}
+.TE
+.sp 1
 Print a count of the number of pages in the file and exit\&. Example usage:
 .sp
 .if n \{\
@@ -267,6 +377,28 @@ innochecksum \-\-count \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-start\-page=\fR\fB\fInum\fR\fR,
 \fB\-s \fR\fB\fInum\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--start-page=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
 Start at this page number\&. Example usage:
 .sp
 .if n \{\
@@ -302,6 +434,40 @@ innochecksum \-s 600 \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-end\-page=\fR\fB\fInum\fR\fR,
 \fB\-e \fR\fB\fInum\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--end-page=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+18446744073709551615
+T}
+.TE
+.sp 1
 End at this page number\&. Example usage:
 .sp
 .if n \{\
@@ -337,6 +503,28 @@ innochecksum \-\-p 700 \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-page=\fR\fB\fInum\fR\fR,
 \fB\-p \fR\fB\fInum\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--page=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
 Check only this page number\&. Example usage:
 .sp
 .if n \{\
@@ -360,6 +548,39 @@ innochecksum \-\-page=701 \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-strict\-check\fR,
 \fB\-C\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--strict-check=algorithm
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+crc32
+T}
+T{
+Valid Values
+T}:T{
+.PP
+innodb
+.PP
+crc32
+.PP
+none
+T}
+.TE
+.sp 1
 Specify a strict checksum algorithm\&. Options include
 innodb,
 crc32, and
@@ -470,6 +691,28 @@ are allowed\&.
 .\}
 \fB\-\-no\-check\fR,
 \fB\-n\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Ignore the checksum verification when rewriting a checksum\&. This option may only be used with the
 \fBinnochecksum\fR
 \fB\-\-write\fR
@@ -504,6 +747,40 @@ innochecksum \-\-no\-check \-\-write innodb \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-allow\-mismatches\fR,
 \fB\-a\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--allow-mismatches=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+18446744073709551615
+T}
+.TE
+.sp 1
 The maximum number of checksum mismatches allowed before
 \fBinnochecksum\fR
 terminates\&. The default setting is 0\&. If
@@ -552,6 +829,39 @@ is set to 1, the checksum tolerates the first mismatch and terminates on the sec
 .\}
 \fB\-\-write=\fR\fB\fIname\fR\fR,
 \fB\-w \fR\fB\fInum\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--write=algorithm
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+crc32
+T}
+T{
+Valid Values
+T}:T{
+.PP
+innodb
+.PP
+crc32
+.PP
+none
+T}
+.TE
+.sp 1
 Rewrite a checksum\&. When rewriting an invalid checksum, the
 \fB\-\-no\-check\fR
 option must be used together with the
@@ -657,6 +967,28 @@ innochecksum \-\-no\-check \-\-write crc32 \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-page\-type\-summary\fR,
 \fB\-S\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--page-type-summary
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display a count of each page type in a tablespace\&. Example usage:
 .sp
 .if n \{\
@@ -713,6 +1045,28 @@ Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 .\}
 \fB\-\-page\-type\-dump\fR,
 \fB\-D\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--page-type-dump=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Dump the page type information for each page in a tablespace to
 stderr
 or
@@ -739,13 +1093,31 @@ innochecksum \-\-page\-type\-dump=/tmp/a\&.txt \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-log\fR,
 \fB\-l\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--log=path
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Log output for the
 \fBinnochecksum\fR
-tool\&. A log file name must be provided\&. Log output contains checksum values for each tablespace page\&. For uncompressed tables, LSN values are also provided\&. The
-\fB\-\-log\fR
-replaces the
-\-\-debug
-option, which was available in earlier releases\&. Example usage:
+tool\&. A log file name must be provided\&. Log output contains checksum values for each tablespace page\&. For uncompressed tables, LSN values are also provided\&. Example usage:
 .sp
 .if n \{\
 .RS 4

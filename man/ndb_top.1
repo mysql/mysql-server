@@ -2,12 +2,12 @@
 .\"     Title: ndb_top
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_TOP" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_TOP" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -129,263 +129,7 @@ is available on macOS, Linux, and Solaris\&. It is not currently supported on Wi
 .PP
 The following table includes all options that are specific to the NDB Cluster program
 \fBndb_top\fR\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.49.\ \&Command\-line options used with the program ndb_top
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB--color\fR,
-.PP
-\fB \fR\fB-c\fR\fB \fR
-T}:T{
-Show ASCII graphs in color; use --skip-colors to disable
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--graph\fR,
-.PP
-\fB \fR\fB-g\fR\fB \fR
-T}:T{
-Display data using graphs; use --skip-graphs to disable
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--help\fR\fB \fR
-T}:T{
-Show program usage information
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--host=string\fR,
-.PP
-\fB \fR\fB-h string\fR\fB \fR
-T}:T{
-Host name or IP address of MySQL Server to connect to
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--measured-load\fR,
-.PP
-\fB \fR\fB-m\fR\fB \fR
-T}:T{
-Show measured load by thread
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--node-id=#\fR,
-.PP
-\fB \fR\fB-n #\fR\fB \fR
-T}:T{
-Watch node having this node ID
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--os-load\fR,
-.PP
-\fB \fR\fB-o\fR\fB \fR
-T}:T{
-Show load measured by operating system
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--password=password\fR,
-.PP
-\fB \fR\fB-p password\fR\fB \fR
-T}:T{
-Connect using this password
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--port=#\fR,
-.PP
-\fB-P #\fR
-(>=7.6.6)
-T}:T{
-Port number to use when connecting to MySQL Server
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--sleep-time=#\fR,
-.PP
-\fB \fR\fB-s #\fR\fB \fR
-T}:T{
-Time to wait between display refreshes, in seconds
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--socket=path\fR,
-.PP
-\fB \fR\fB-S path\fR\fB \fR
-T}:T{
-Socket file to use for connection
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--sort\fR,
-.PP
-\fB \fR\fB-r\fR\fB \fR
-T}:T{
-Sort threads by usage; use --skip-sort to disable
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--text\fR,
-.PP
-\fB-t\fR
-(>=7.6.6)
-T}:T{
-Display data using text
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--usage\fR\fB \fR
-T}:T{
-Show program usage information; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--user=name\fR,
-.PP
-\fB \fR\fB-u name\fR\fB \fR
-T}:T{
-Connect as this MySQL user
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 Additional Options
 .sp
 .RS 4
@@ -632,6 +376,28 @@ T}
 .TE
 .sp 1
 Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
 .RE
 .sp
 .RS 4

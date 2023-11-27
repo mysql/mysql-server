@@ -2,12 +2,12 @@
 .\"     Title: ndb_redo_log_reader
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_REDO_LOG_READER" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_REDO_LOG_READER" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -48,167 +48,7 @@ can be found in the directory
 Options that can be used with
 \fBndb_redo_log_reader\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.40.\ \&Command\-line options used with the program ndb_redo_log_reader
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB \fR\fB-dump\fR\fB \fR
-T}:T{
-Print dump info
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--file-key=key\fR,
-.PP
-\fB \fR\fB-K key\fR\fB \fR
-T}:T{
-Supply decryption key
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--file-key-from-stdin\fR\fB \fR
-T}:T{
-Supply decryption key using stdin
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-filedescriptors\fR\fB \fR
-T}:T{
-Print file descriptors only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--help\fR\fB \fR
-T}:T{
-Print usage information (has no short form)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-lap\fR\fB \fR
-T}:T{
-Provide lap info, with max GCI started and completed
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-mbyte #\fR\fB \fR
-T}:T{
-Starting megabyte
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-mbyteheaders\fR\fB \fR
-T}:T{
-Show only first page header of each megabyte in file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-nocheck\fR\fB \fR
-T}:T{
-Do not check records for errors
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-noprint\fR\fB \fR
-T}:T{
-Do not print records
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-page #\fR\fB \fR
-T}:T{
-Start with this page
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-pageheaders\fR\fB \fR
-T}:T{
-Show page headers only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-pageindex #\fR\fB \fR
-T}:T{
-Start with this page index
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB-twiddle\fR\fB \fR
-T}:T{
-Bit-shifted dump
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 Usage
 .sp
 .if n \{\

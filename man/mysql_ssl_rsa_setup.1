@@ -2,12 +2,12 @@
 .\"     Title: mysql_ssl_rsa_setup
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "MYSQL_SSL_RSA_SETUP" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYSQL_SSL_RSA_SETUP" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -395,6 +395,22 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB?\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -407,6 +423,28 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--datadir=dir_name
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The path to the directory that
 \fBmysql_ssl_rsa_setup\fR
 should check for default SSL and RSA files and in which it should create files if they are missing\&. The default is the compiled\-in data directory\&.
@@ -421,6 +459,28 @@ should check for default SSL and RSA files and in which it should create files i
 .IP \(bu 2.3
 .\}
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--suffix=str
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix value is limited to 17 characters\&. The default is based on the MySQL version number\&.
 .RE
 .sp
@@ -434,6 +494,22 @@ The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix v
 .\}
 \fB\-\-uid=name\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--uid=name
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 The name of the user who should be the owner of any created files\&. The value is a user name, not a numeric user ID\&. In the absence of this option, files created by
 \fBmysql_ssl_rsa_setup\fR
 are owned by the user who executes it\&. This option is valid only if you execute the program as
@@ -453,6 +529,22 @@ system call\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 Verbose mode\&. Produce more output about what the program does\&. For example, the program shows the
 \fBopenssl\fR
 commands it runs, and produces output to indicate whether it skips SSL or RSA file creation because some default file already exists\&.
@@ -468,6 +560,22 @@ commands it runs, and produces output to indicate whether it skips SSL or RSA fi
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"

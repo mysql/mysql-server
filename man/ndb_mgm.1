@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_MGM" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -70,237 +70,7 @@ and 1186, respectively\&.
 All options that can be used with
 \fBndb_mgm\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgm
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB \fR\fB--backup-password-from-stdin\fR\fB \fR
-T}:T{
-Get decryption password in a secure fashion from STDIN; use together
-              with --execute and ndb_mgm START BACKUP command
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retries=#\fR\fB \fR
-T}:T{
-Set number of times to retry connection before giving up; 0 means 1
-              attempt only (and no retries)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
-T}:T{
-Number of seconds to wait between attempts to contact management server
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--connect-string=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--encrypt-backup\fR\fB \fR
-T}:T{
-Cause START BACKUP to encrypt whenever making a backup, prompting for
-              password if not supplied by user
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--execute=command\fR,
-.PP
-\fB \fR\fB-e command\fR\fB \fR
-T}:T{
-Execute command and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--ndb-connectstring=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Set connect string for connecting to ndb_mgmd. Syntax:
-              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
-              NDB_CONNECTSTRING and my.cnf
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--ndb-mgmd-host=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
-T}:T{
-Set node ID for this node, overriding any ID set by --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--try-reconnect=#\fR,
-.PP
-\fB \fR\fB-t #\fR\fB \fR
-T}:T{
-Set number of times to retry connection before giving up; synonym for
-              --connect-retries
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 .sp
 .RS 4
 .ie n \{\
@@ -750,6 +520,28 @@ T}
 .TE
 .sp 1
 Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
 .RE
 .sp
 .RS 4

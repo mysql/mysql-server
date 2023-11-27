@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_FILE" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_PRINT_FILE" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -60,107 +60,8 @@ NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndb_print_file\fR
 must be run on an NDB Cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
-Options.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.39.\ \&Command\-line options used with the program ndb_print_file
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
+Options
 .PP
-\fB--file-key=hex_data\fR,
-.PP
-\fB \fR\fB-K hex_data\fR\fB \fR
-T}:T{
-Supply encryption key using stdin, tty, or my.cnf file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--file-key-from-stdin\fR\fB \fR
-T}:T{
-Supply encryption key using stdin
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --usage
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--quiet\fR,
-.PP
-\fB \fR\fB-q\fR\fB \fR
-T}:T{
-Reduce verbosity of output
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--verbose\fR,
-.PP
-\fB \fR\fB-v\fR\fB \fR
-T}:T{
-Increase verbosity of output
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 .PP
 \fBndb_print_file\fR
 supports the following options:

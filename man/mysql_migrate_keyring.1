@@ -2,12 +2,12 @@
 .\"     Title: mysql_migrate_keyring
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "MYSQL_MIGRATE_KEYRING" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYSQL_MIGRATE_KEYRING" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,6 +77,16 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -89,6 +99,22 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-component\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--component-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory where keyring components are located\&. This is typically the value of the
 plugin_dir
 system variable for the local MySQL server\&.
@@ -124,6 +150,22 @@ can load and use them\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -141,6 +183,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -162,6 +220,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=str
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysql_migrate_keyring\fR
@@ -187,6 +261,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-destination\-keyring=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--destination-keyring=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The destination keyring component for key migration\&. The format and interpretation of the option value is the same as described for the
 \fB\-\-source\-keyring\fR
 option\&.
@@ -222,6 +312,22 @@ can load and use them\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-destination\-keyring\-configuration\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--destination-keyring-configuration-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 This option applies only if the destination keyring component global configuration file contains
 "read_local_config": true, indicating that component configuration is contained in the local configuration file\&. The option value specifies the directory containing that local file\&.
 .RE
@@ -235,6 +341,22 @@ This option applies only if the destination keyring component global configurati
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--get-server-public-key
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -260,6 +382,28 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--host=host_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+localhost
+T}
+.TE
+.sp 1
 The host location of the running server that is currently using one of the key migration keystores\&. Migration always occurs on the local host, so the option always specifies a value for connecting to a local server, such as
 localhost,
 127\&.0\&.0\&.1,
@@ -275,6 +419,22 @@ localhost,
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -296,7 +456,46 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
+.sp
+See
+\fB\-\-login\-path\fR
+for related information\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -324,6 +523,28 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-online\-migration\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--online-migration
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 This option is mandatory when a running server is using the keyring\&. It tells
 \fBmysql_migrate_keyring\fR
 to perform an online key migration\&. The option has these effects:
@@ -366,6 +587,22 @@ tells the server it can resume keyring operations before disconnecting\&.
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--password[=password]
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The password of the MySQL account used for connecting to the running server that is currently using one of the key migration keystores\&. The password value is optional\&. If not given,
 \fBmysql_migrate_keyring\fR
 prompts for one\&. If given, there must be
@@ -396,6 +633,28 @@ option\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--port=port_num
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
 For TCP/IP connections, the port number for connecting to the running server that is currently using one of the key migration keystores\&.
 .RE
 .sp
@@ -408,6 +667,16 @@ For TCP/IP connections, the port number for connecting to the running server tha
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -423,6 +692,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-public-key-path=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
@@ -456,6 +741,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--socket={file_name|pipe_name}
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 For Unix socket file or Windows named pipe connections, the socket file or named pipe for connecting to the running server that is currently using one of the key migration keystores\&.
 .sp
 On Windows, this option applies only if the server was started with the
@@ -474,6 +775,22 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-source\-keyring=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--source-keyring=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The source keyring component for key migration\&. This is the component library file name specified without any platform\-specific extension such as
 \&.so
 or
@@ -512,6 +829,22 @@ can load and use them\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-source\-keyring\-configuration\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--source-keyring-configuration-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 This option applies only if the source keyring component global configuration file contains
 "read_local_config": true, indicating that component configuration is contained in the local configuration file\&. The option value specifies the directory containing that local file\&.
 .RE
@@ -540,6 +873,45 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ssl-fips-mode={OFF|ON|STRICT}
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+T{
+Valid Values
+T}:T{
+.PP
+OFF
+.PP
+ON
+.PP
+STRICT
+T}
+.TE
+.sp 1
 Controls whether to enable FIPS mode on the client side\&. The
 \fB\-\-ssl\-fips\-mode\fR
 option differs from other
@@ -622,6 +994,22 @@ This option is deprecated\&. Expect it to be removed in a future version of MySQ
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-ciphersuites=ciphersuite_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -635,6 +1023,22 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-sni\-servername=\fR\fB\fIserver_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-sni-servername=server_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 When specified, the name is passed to the
 libmysqlclient
 C API library using the
@@ -656,6 +1060,33 @@ Server Name Indication (SNI) is an extension to the TLS protocol (OpenSSL must b
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-version=protocol_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+.PP
+TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+(OpenSSL 1.1.1 or higher)
+.PP
+TLSv1,TLSv1.1,TLSv1.2
+(otherwise)
+T}
+.TE
+.sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -670,6 +1101,22 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--user=user_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The user name of the MySQL account used for connecting to the running server that is currently using one of the key migration keystores\&.
 .RE
 .sp
@@ -683,6 +1130,16 @@ The user name of the MySQL account used for connecting to the running server tha
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Verbose mode\&. Produce more output about what the program does\&.
 .RE
 .sp
@@ -696,6 +1153,16 @@ Verbose mode\&. Produce more output about what the program does\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"

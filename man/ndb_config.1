@@ -2,12 +2,12 @@
 .\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_CONFIG" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -62,379 +62,7 @@ CONNECTIONS) using one of the options
 All options that can be used with
 \fBndb_config\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.28.\ \&Command\-line options used with the program ndb_config
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
-T}:T{
-Override defaults group suffix when reading cluster_config sections in
-              my.cnf file; used in testing
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--config-binary-file=path/to/file\fR\fB \fR
-T}:T{
-Read this binary configuration file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--config-file=file_name\fR\fB \fR
-T}:T{
-Set the path to config.ini file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--config-from-node=#\fR\fB \fR
-T}:T{
-Obtain configuration data from the node having this ID (must be a data
-              node)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--configinfo\fR\fB \fR
-T}:T{
-Dumps information about all NDB configuration parameters in text format
-              with default, maximum, and minimum values. Use with --xml
-              to obtain XML output
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--connections\fR\fB \fR
-T}:T{
-Print information only about connections specified in [tcp], [tcp
-              default], [sci], [sci default], [shm], or [shm default]
-              sections of cluster configuration file. Cannot be used
-              with --system or --nodes
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retries=#\fR\fB \fR
-T}:T{
-Number of times to retry connection before giving up
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
-T}:T{
-Number of seconds to wait between attempts to contact management server
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--connect-string=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--diff-default\fR\fB \fR
-T}:T{
-Print only configuration parameters that have non-default values
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--fields=string\fR,
-.PP
-\fB \fR\fB-f\fR\fB \fR
-T}:T{
-Field separator
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--host=name\fR\fB \fR
-T}:T{
-Specify host
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--mycnf\fR\fB \fR
-T}:T{
-Read configuration data from my.cnf file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--ndb-connectstring=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Set connect string for connecting to ndb_mgmd. Syntax:
-              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
-              NDB_CONNECTSTRING and my.cnf
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--ndb-mgmd-host=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--nodeid=#\fR\fB \fR
-T}:T{
-Get configuration of node with this ID
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--nodes\fR\fB \fR
-T}:T{
-Print node information ([ndbd] or [ndbd default] section of cluster
-              configuration file) only. Cannot be used with --system or
-              --connections
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--query=string\fR,
-.PP
-\fB \fR\fB-q string\fR\fB \fR
-T}:T{
-One or more query options (attributes)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--query-all\fR,
-.PP
-\fB \fR\fB-a\fR\fB \fR
-T}:T{
-Dumps all parameters and values to a single comma-delimited string
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--rows=string\fR,
-.PP
-\fB \fR\fB-r string\fR\fB \fR
-T}:T{
-Row separator
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--system\fR\fB \fR
-T}:T{
-Print SYSTEM section information only (see ndb_config --configinfo
-              output). Cannot be used with --nodes or --connections
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--type=name\fR\fB \fR
-T}:T{
-Specify node type
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--configinfo --xml\fR\fB \fR
-T}:T{
-Use --xml with --configinfo to obtain a dump of all NDB configuration
-              parameters in XML format with default, maximum, and
-              minimum values
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 .sp
 .RS 4
 .ie n \{\
@@ -1420,7 +1048,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 $> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.43\-ndb\-7\&.5\&.31"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.44\-ndb\-7\&.5\&.32"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1756,6 +1384,28 @@ T}
 .TE
 .sp 1
 Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
 .RE
 .sp
 .RS 4

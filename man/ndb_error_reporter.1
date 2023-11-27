@@ -2,12 +2,12 @@
 .\"     Title: ndb_error_reporter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_ERROR_REPORTER" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_ERROR_REPORTER" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -41,78 +41,7 @@ creates an archive from data node and management node log files that can be used
 Options that can be used with
 \fBndb_error_reporter\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.33.\ \&Command\-line options used with the program ndb_error_reporter
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB \fR\fB--connection-timeout=#\fR\fB \fR
-T}:T{
-Number of seconds to wait when connecting to nodes before timing out
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--dry-scp\fR\fB \fR
-T}:T{
-Disable scp with remote hosts; used in testing only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--fs\fR\fB \fR
-T}:T{
-Include file system data in error report; can use a large amount of disk
-              space
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--skip-nodegroup=#\fR\fB \fR
-T}:T{
-Skip all nodes in the node group having this ID
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 Usage
 .sp
 .if n \{\

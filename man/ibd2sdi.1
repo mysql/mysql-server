@@ -2,12 +2,12 @@
 .\"     Title: ibd2sdi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "IBD2SDI" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "IBD2SDI" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -117,6 +117,28 @@ supports the following options:
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display a help message and exit\&. For example:
 .sp
 .if n \{\
@@ -171,6 +193,28 @@ pretty                            TRUE
 .\}
 \fB\-\-version\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Display version information and exit\&. For example:
 .sp
 .if n \{\
@@ -194,6 +238,28 @@ ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug=options
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Prints a debug log\&. For debug options, refer to
 Section\ \&5.9.4, \(lqThe DBUG Package\(rq\&.
 .sp
@@ -223,6 +289,28 @@ built using this option\&.
 .\}
 \fB\-\-dump\-file=\fR,
 \fB\-d\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--dump-file=file
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Dumps serialized dictionary information (SDI) into the specified dump file\&. If a dump file is not specified, the tablespace SDI is dumped to
 stdout\&.
 .sp
@@ -247,6 +335,28 @@ ibd2sdi \-\-dump\-file=\fIfile_name\fR \&.\&./data/test/t1\&.ibd
 .\}
 \fB\-\-skip\-data\fR,
 \fB\-s\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-data
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Skips retrieval of
 data
 field values from the serialized dictionary information (SDI) and only retrieves the
@@ -288,6 +398,28 @@ $> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-id=\fR\fB\fI#\fR\fR,
 \fB\-i \fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--id=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+.TE
+.sp 1
 Retrieves serialized dictionary information (SDI) matching the specified table or tablespace object id\&. An object id is unique to the object type\&. Table and tablespace object IDs are also found in the
 id
 column of the
@@ -346,9 +478,40 @@ $> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-type=\fR\fB\fI#\fR\fR,
 \fB\-t \fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--type=#
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Valid Values
+T}:T{
+.PP
+1
+.PP
+2
+T}
+.TE
+.sp 1
 Retrieves serialized dictionary information (SDI) matching the specified object type\&. SDI is provided for table (type=1) and tablespace (type=2) objects\&.
 .sp
-This example show output for a tablespace
+This example shows output for a tablespace
 ts1
 in the
 test
@@ -463,6 +626,39 @@ For more information, see the
 .\}
 \fB\-\-strict\-check\fR,
 \fB\-c\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--strict-check=algorithm
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+crc32
+T}
+T{
+Valid Values
+T}:T{
+.PP
+crc32
+.PP
+innodb
+.PP
+none
+T}
+.TE
+.sp 1
 Specifies a strict checksum algorithm for validating the checksum of pages that are read\&. Options include
 innodb,
 crc32, and
@@ -516,6 +712,28 @@ checksums\&.
 .\}
 \fB\-\-no\-check\fR,
 \fB\-n\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Skips checksum validation for pages that are read\&.
 .sp
 .if n \{\
@@ -539,6 +757,28 @@ ibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd
 .\}
 \fB\-\-pretty\fR,
 \fB\-p\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--pretty
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Outputs SDI data in JSON pretty print format\&. Enabled by default\&. If disabled, SDI is not human readable but is smaller in size\&. Use
 \-\-skip\-pretty
 to disable\&.
