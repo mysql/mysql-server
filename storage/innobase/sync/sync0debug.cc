@@ -43,11 +43,12 @@ Created 2012-08-21 Sunny Bains
 #include "ut0new.h"
 #include "srv0start.h"
 
+#include <algorithm>
+#include <functional>
+#include <iostream>
 #include <map>
 #include <vector>
 #include <string>
-#include <algorithm>
-#include <iostream>
 
 #ifdef UNIV_DEBUG
 

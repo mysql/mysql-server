@@ -34,6 +34,7 @@
 #include "sql_error.h"          // Sql_condition
 #include "prealloced_array.h"   // Prealloced_array
 
+#include <functional>
 #include <map>
 #include <string>
 
