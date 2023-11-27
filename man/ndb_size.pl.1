@@ -2,12 +2,12 @@
 .\"     Title: ndb_size.pl
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "NDB_SIZE\&.PL" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "NDB_SIZE\&.PL" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -95,136 +95,7 @@ storage/ndb/tools\&.
 Options that can be used with
 \fBndb_size\&.pl\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B Table\ \&23.48.\ \&Command\-line options used with the program ndb_size\&.pl
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added, Deprecated, or Removed
-T}
-.T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
-T{
 .PP
-\fB \fR\fB--database=string\fR\fB \fR
-T}:T{
-Database or databases to examine; a comma-delimited list; default is ALL
-              (use all databases found on server)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--hostname=string\fR\fB \fR
-T}:T{
-Specify host and optional port in host[:port] format
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--socket=path\fR\fB \fR
-T}:T{
-Specify socket to connect to
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--user=string\fR\fB \fR
-T}:T{
-Specify MySQL user name
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--password=password\fR\fB \fR
-T}:T{
-Specify MySQL user password
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--format=string\fR\fB \fR
-T}:T{
-Set output format (text or HTML)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--excludetables=list\fR\fB \fR
-T}:T{
-Skip any tables in comma-separated list
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--excludedbs=list\fR\fB \fR
-T}:T{
-Skip any databases in comma-separated list
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--savequeries=path\fR\fB \fR
-T}:T{
-Saves all queries on database into file specified
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--loadqueries=path\fR\fB \fR
-T}:T{
-Loads all queries from file specified; does not connect to database
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-T{
-.PP
-\fB \fR\fB--real_table_name=string\fR\fB \fR
-T}:T{
-Designates table to handle unique index size calculations
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.1)
-T}
-.TE
-.sp 1
 Usage
 .sp
 .if n \{\

@@ -2,12 +2,12 @@
 .\"     Title: myisampack
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "MYISAMPACK" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYISAMPACK" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -130,6 +130,16 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -143,6 +153,16 @@ Display a help message and exit\&.
 .\}
 \fB\-\-backup\fR,
 \fB\-b\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup
+T}
+.TE
+.sp 1
 Make a backup of each table\*(Aqs data file using the name
 \fItbl_name\fR\&.OLD\&.
 .RE
@@ -156,6 +176,22 @@ Make a backup of each table\*(Aqs data file using the name
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -170,6 +206,28 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug[=debug_options]
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:o
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -192,6 +250,16 @@ built using this option\&.
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--force
+T}
+.TE
+.sp 1
 Produce a packed table even if it becomes larger than the original or if the intermediate file from an earlier invocation of
 \fBmyisampack\fR
 exists\&. (\fBmyisampack\fR
@@ -220,6 +288,22 @@ packs the table anyway\&.
 .\}
 \fB\-\-join=\fR\fB\fIbig_tbl_name\fR\fR,
 \fB\-j \fR\fB\fIbig_tbl_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--join=big_tbl_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Join all tables named on the command line into a single packed table
 \fIbig_tbl_name\fR\&. All tables that are to be combined
 \fImust\fR
@@ -241,6 +325,16 @@ must exist\&. The source tables are read for the join operation but not modified
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--silent
+T}
+.TE
+.sp 1
 Silent mode\&. Write output only when errors occur\&.
 .RE
 .sp
@@ -254,6 +348,16 @@ Silent mode\&. Write output only when errors occur\&.
 .\}
 \fB\-\-test\fR,
 \fB\-t\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--test
+T}
+.TE
+.sp 1
 Do not actually pack the table, just test packing it\&.
 .RE
 .sp
@@ -267,6 +371,22 @@ Do not actually pack the table, just test packing it\&.
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-T \fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tmpdir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 Use the named directory as the location where
 \fBmyisampack\fR
 creates temporary files\&.
@@ -282,6 +402,16 @@ creates temporary files\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Verbose mode\&. Write information about the progress of the packing operation and its result\&.
 .RE
 .sp
@@ -295,6 +425,16 @@ Verbose mode\&. Write information about the progress of the packing operation an
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
 Display version information and exit\&.
 .RE
 .sp
@@ -308,6 +448,16 @@ Display version information and exit\&.
 .\}
 \fB\-\-wait\fR,
 \fB\-w\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--wait
+T}
+.TE
+.sp 1
 Wait and retry if the table is in use\&. If the
 \fBmysqld\fR
 server was invoked with external locking disabled, it is not a good idea to invoke

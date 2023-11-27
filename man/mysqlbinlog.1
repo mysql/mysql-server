@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/31/2023
+.\"      Date: 11/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.3
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -238,6 +238,16 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
 Display a help message and exit\&.
 .RE
 .sp
@@ -250,6 +260,39 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-base64\-output=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--base64-output=value
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+AUTO
+T}
+T{
+Valid Values
+T}:T{
+.PP
+AUTO
+.PP
+NEVER
+.PP
+DECODE-ROWS
+T}
+.TE
+.sp 1
 This option determines when events should be displayed encoded as base\-64 strings using
 BINLOG
 statements\&. The option has these permissible values (not case\-sensitive):
@@ -348,6 +391,16 @@ the section called \(lqMYSQLBINLOG ROW EVENT DISPLAY\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--bind-address=ip_address
+T}
+.TE
+.sp 1
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
@@ -406,6 +459,22 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -419,6 +488,34 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compress\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compress[={OFF|ON}]
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+.TE
+.sp 1
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
@@ -435,6 +532,39 @@ the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compression-algorithms=value
+T}
+T{
+Type
+T}:T{
+Set
+T}
+T{
+Default Value
+T}:T{
+uncompressed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+zlib
+.PP
+zstd
+.PP
+uncompressed
+T}
+.TE
+.sp 1
 The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
 protocol_compression_algorithms
 system variable\&. The default value is
@@ -453,6 +583,40 @@ Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-connection\-server\-id=\fR\fB\fIserver_id\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connection-server-id=#]
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0 (1)
+T}
+T{
+Minimum Value
+T}:T{
+0 (1)
+T}
+T{
+Maximum Value
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
 \fB\-\-connection\-server\-id\fR
 specifies the server ID that
 \fBmysqlbinlog\fR
@@ -484,6 +648,22 @@ the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
 .\}
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d \fR\fB\fIdb_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--database=db_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 This option causes
 \fBmysqlbinlog\fR
 to output entries from the binary log (local log only) that occur while
@@ -637,6 +817,28 @@ option is applied, using the rewritten database name\&. The order in which the o
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug[=debug_options]
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+d:t:o,/tmp/mysqlbinlog.trace
+T}
+.TE
+.sp 1
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -658,6 +860,28 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-check
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Print some debugging information when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -675,6 +899,28 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-info\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--debug-info
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -692,6 +938,22 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--default-auth=plugin
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -705,6 +967,22 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -722,6 +1000,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
 is not an absolute path name, it is interpreted relative to the current directory\&.
@@ -743,6 +1037,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=str
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysqlbinlog\fR
@@ -773,6 +1083,16 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-disable\-log\-bin\fR,
 \fB\-D\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--disable-log-bin
+T}
+.TE
+.sp 1
 Disable binary logging\&. This is useful for avoiding an endless loop if you use the
 \fB\-\-to\-last\-log\fR
 option and are sending the output to the same MySQL server\&. This option also is useful when restoring after an unexpected exit to avoid duplication of the statements you have logged\&.
@@ -796,6 +1116,27 @@ Section\ \&5.1.9.1, \(lqSystem Variable Privileges\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-exclude\-gtids=\fR\fB\fIgtid_set\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--exclude-gtids=gtid_set
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
 Do not display any of the groups listed in the
 \fIgtid_set\fR\&.
 .RE
@@ -810,6 +1151,16 @@ Do not display any of the groups listed in the
 .\}
 \fB\-\-force\-if\-open\fR,
 \fB\-F\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--force-if-open
+T}
+.TE
+.sp 1
 Read binary log files even if they are open or were not closed properly (IN_USE
 flag is set); do not fail if the file ends with a truncated event\&.
 .sp
@@ -830,6 +1181,16 @@ refuses to process a file with this flag set\&. Since the server may be in the p
 .\}
 \fB\-\-force\-read\fR,
 \fB\-f\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--force-read
+T}
+.TE
+.sp 1
 With this option, if
 \fBmysqlbinlog\fR
 reads a binary log event that it does not recognize, it prints a warning, ignores the event, and continues\&. Without this option,
@@ -846,6 +1207,22 @@ stops if it reads such an event\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--get-server-public-key
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+.TE
+.sp 1
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -871,6 +1248,16 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-hexdump\fR,
 \fB\-H\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--hexdump
+T}
+.TE
+.sp 1
 Display a hex dump of the log in comments, as described in
 the section called \(lqMYSQLBINLOG HEX DUMP FORMAT\(rq\&. The hex output can be helpful for replication debugging\&.
 .RE
@@ -885,6 +1272,28 @@ the section called \(lqMYSQLBINLOG HEX DUMP FORMAT\(rq\&. The hex output can be 
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--host=host_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+localhost
+T}
+.TE
+.sp 1
 Get the binary log from the MySQL server on the given host\&.
 .RE
 .sp
@@ -897,6 +1306,28 @@ Get the binary log from the MySQL server on the given host\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-idempotent\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--idempotent
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+true
+T}
+.TE
+.sp 1
 Tell the MySQL Server to use idempotent mode while processing updates; this causes suppression of any duplicate\-key or key\-not\-found errors that the server encounters in the current session while processing updates\&. This option may prove useful whenever it is desirable or necessary to replay one or more binary logs to a MySQL Server which may not contain all of the data to which the logs refer\&.
 .sp
 The scope of effect for this option includes the current
@@ -913,6 +1344,27 @@ client and session only\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-include\-gtids=\fR\fB\fIgtid_set\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--include-gtids=gtid_set
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
 Display only the groups listed in the
 \fIgtid_set\fR\&.
 .RE
@@ -927,6 +1379,22 @@ Display only the groups listed in the
 .\}
 \fB\-\-local\-load=\fR\fB\fIdir_name\fR\fR,
 \fB\-l \fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--local-load=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 For data loading operations corresponding to
 LOAD DATA
 statements,
@@ -990,6 +1458,22 @@ or any other MySQL program\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -1011,7 +1495,46 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
+.sp
+See
+\fB\-\-login\-path\fR
+for related information\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -1040,6 +1563,22 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-offset=\fR\fB\fIN\fR\fR,
 \fB\-o \fR\fB\fIN\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--offset=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Skip the first
 \fIN\fR
 entries in the log\&.
@@ -1054,6 +1593,40 @@ entries in the log\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-open\-files\-limit=\fR\fB\fIN\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--open-files-limit=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+8
+T}
+T{
+Minimum Value
+T}:T{
+1
+T}
+T{
+Maximum Value
+T}:T{
+[platform dependent]
+T}
+.TE
+.sp 1
 Specify the number of open file descriptors to reserve\&.
 .RE
 .sp
@@ -1067,6 +1640,22 @@ Specify the number of open file descriptors to reserve\&.
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--password[=password]
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysqlbinlog\fR
 prompts for one\&. If given, there must be
@@ -1096,6 +1685,22 @@ option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--plugin-dir=dir_name
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+.TE
+.sp 1
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -1114,6 +1719,28 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--port=port_num
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+3306
+T}
+.TE
+.sp 1
 The TCP/IP port number to use for connecting to a remote server\&.
 .RE
 .sp
@@ -1126,6 +1753,16 @@ The TCP/IP port number to use for connecting to a remote server\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -1141,6 +1778,16 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-table\-metadata\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-table-metadata
+T}
+.TE
+.sp 1
 Print table related metadata from the binary log\&. Configure the amount of table related metadata binary logged using
 binlog\-row\-metadata\&.
 .RE
@@ -1154,6 +1801,41 @@ binlog\-row\-metadata\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--protocol=type
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[see text]
+T}
+T{
+Valid Values
+T}:T{
+.PP
+TCP
+.PP
+SOCKET
+.PP
+PIPE
+.PP
+MEMORY
+T}
+.TE
+.sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
@@ -1167,6 +1849,28 @@ Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-raw\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--raw
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 By default,
 \fBmysqlbinlog\fR
 reads binary log files and writes events in text format\&. The
@@ -1200,6 +1904,16 @@ the section called \(lqUSING MYSQLBINLOG TO BACK UP BINARY LOG FILES\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-read\-from\-remote\-source=\fR\fB\fItype\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--read-from-remote-source=type
+T}
+.TE
+.sp 1
 This option reads binary logs from a MySQL server with the
 COM_BINLOG_DUMP
 or
@@ -1236,6 +1950,22 @@ privilege is required to use these options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-read\-from\-remote\-master=\fR\fB\fItype\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--read-from-remote-master=type
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+.TE
+.sp 1
 Deprecated synonym for
 \fB\-\-read\-from\-remote\-source\fR\&.
 .RE
@@ -1250,6 +1980,16 @@ Deprecated synonym for
 .\}
 \fB\-\-read\-from\-remote\-server=\fR\fB\fIfile_name\fR\fR,
 \fB\-R\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--read-from-remote-server=file_name
+T}
+.TE
+.sp 1
 Read the binary log from a MySQL server rather than reading a local log file\&. This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files, and takes only the binary log file name (including the numeric suffix) as its argument, while ignoring any path\&.
 .sp
 The connection parameter options are used with this option or the
@@ -1280,6 +2020,16 @@ This option is like
 .\}
 \fB\-\-result\-file=\fR\fB\fIname\fR\fR,
 \fB\-r \fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--result-file=name
+T}
+.TE
+.sp 1
 Without the
 \fB\-\-raw\fR
 option, this option indicates the file to which
@@ -1301,6 +2051,28 @@ option value is treated as a prefix that modifies output file names\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-require\-row\-format\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--require-row-format
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Require row\-based binary logging format for events\&. This option enforces row\-based replication events for
 \fBmysqlbinlog\fR
 output\&. The stream of events produced with this option would be accepted by a replication channel that is secured using the
@@ -1337,6 +2109,28 @@ statement\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-rewrite\-db=\*(Aq\fR\fB\fIfrom_name\fR\fR\fB\->\fR\fB\fIto_name\fR\fR\fB\*(Aq\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--rewrite-db='oldname->newname'
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 When reading from a row\-based or statement\-based log, rewrite all occurrences of
 \fIfrom_name\fR
 to
@@ -1411,6 +2205,22 @@ option, there remain no updates that match
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-id=\fR\fB\fIid\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-id=id
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Display only those events created by the server having the given server ID\&.
 .RE
 .sp
@@ -1423,6 +2233,40 @@ Display only those events created by the server having the given server ID\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-id\-bits=\fR\fB\fIN\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-id-bits=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+32
+T}
+T{
+Minimum Value
+T}:T{
+7
+T}
+T{
+Maximum Value
+T}:T{
+32
+T}
+.TE
+.sp 1
 Use only the first
 \fIN\fR
 bits of the
@@ -1449,6 +2293,22 @@ supplied with the NDB Cluster distribution, or built with NDB Cluster support\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-public-key-path=file_name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+.TE
+.sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
@@ -1481,6 +2341,22 @@ Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-set\-charset=\fR\fB\fIcharset_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--set-charset=charset_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 Add a
 SET NAMES \fIcharset_name\fR
 statement to the output to specify the character set to be used for processing log files\&.
@@ -1495,6 +2371,22 @@ statement to the output to specify the character set to be used for processing l
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--shared-memory-base-name=name
+T}
+T{
+Platform Specific
+T}:T{
+Windows
+T}
+.TE
+.sp 1
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -1513,6 +2405,16 @@ system variable enabled to support shared\-memory connections\&.
 .\}
 \fB\-\-short\-form\fR,
 \fB\-s\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--short-form
+T}
+.TE
+.sp 1
 Display only the statements contained in the log, without any extra information or row\-based events\&. This is for testing only, and should not be used in production systems\&. It is deprecated, and you should expect it to be removed in a future release\&.
 .RE
 .sp
@@ -1525,6 +2427,28 @@ Display only the statements contained in the log, without any extra information 
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-gtids[=(true|false)]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-gtids[=true|false]
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
+T}
+.TE
+.sp 1
 Do not include the GTIDs from the binary log files in the output dump file\&. For example:
 .sp
 .if n \{\
@@ -1553,6 +2477,22 @@ can be used to enable the administrator to apply the transactions as if they wer
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--socket={file_name|pipe_name}
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -1587,6 +2527,45 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ssl-fips-mode={OFF|ON|STRICT}
+T}
+T{
+Deprecated
+T}:T{
+Yes
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+T{
+Valid Values
+T}:T{
+.PP
+OFF
+.PP
+ON
+.PP
+STRICT
+T}
+.TE
+.sp 1
 Controls whether to enable FIPS mode on the client side\&. The
 \fB\-\-ssl\-fips\-mode\fR
 option differs from other
@@ -1669,6 +2648,22 @@ This option is deprecated\&. Expect it to be removed in a future version of MySQ
 .IP \(bu 2.3
 .\}
 \fB\-\-start\-datetime=\fR\fB\fIdatetime\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--start-datetime=datetime
+T}
+T{
+Type
+T}:T{
+Datetime
+T}
+.TE
+.sp 1
 Start reading the binary log at the first event having a timestamp equal to or later than the
 \fIdatetime\fR
 argument\&. The
@@ -1704,6 +2699,22 @@ Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&.
 .\}
 \fB\-\-start\-position=\fR\fB\fIN\fR\fR,
 \fB\-j \fR\fB\fIN\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--start-position=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Start decoding the binary log at the log position
 \fIN\fR, including in the output any events that begin at position
 \fIN\fR
@@ -1728,6 +2739,16 @@ Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-stop\-datetime=\fR\fB\fIdatetime\fR\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--stop-datetime=datetime
+T}
+.TE
+.sp 1
 Stop reading the binary log at the first event having a timestamp equal to or later than the
 \fIdatetime\fR
 argument\&. See the description of the
@@ -1749,6 +2770,28 @@ Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-stop\-never\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--stop-never
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 This option is used with
 \fB\-\-read\-from\-remote\-server\fR\&. It tells
 \fBmysqlbinlog\fR
@@ -1786,6 +2829,34 @@ the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-stop\-never\-slave\-server\-id=\fR\fB\fIid\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--stop-never-slave-server-id=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+65535
+T}
+T{
+Minimum Value
+T}:T{
+1
+T}
+.TE
+.sp 1
 This option is deprecated; expect it to be removed in a future release\&. Use the
 \fB\-\-connection\-server\-id\fR
 option instead to specify a server ID for
@@ -1802,6 +2873,22 @@ to report\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-stop\-position=\fR\fB\fIN\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--stop-position=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+.TE
+.sp 1
 Stop decoding the binary log at the log position
 \fIN\fR, excluding from the output any events that begin at position
 \fIN\fR
@@ -1822,6 +2909,22 @@ Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-ciphersuites=ciphersuite_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -1835,6 +2938,22 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-sni\-servername=\fR\fB\fIserver_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-sni-servername=server_name
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 When specified, the name is passed to the
 libmysqlclient
 C API library using the
@@ -1856,6 +2975,33 @@ Server Name Indication (SNI) is an extension to the TLS protocol (OpenSSL must b
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--tls-version=protocol_list
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+.PP
+TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+(OpenSSL 1.1.1 or higher)
+.PP
+TLSv1,TLSv1.1,TLSv1.2
+(otherwise)
+T}
+.TE
+.sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
@@ -1870,6 +3016,16 @@ Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .\}
 \fB\-\-to\-last\-log\fR,
 \fB\-t\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--to-last-log
+T}
+.TE
+.sp 1
 Do not stop at the end of the requested binary log from a MySQL server, but rather continue printing until the end of the last binary log\&. If you send the output to the same MySQL server, this may lead to an endless loop\&. This option requires
 \fB\-\-read\-from\-remote\-server\fR\&.
 .RE
@@ -1884,6 +3040,22 @@ Do not stop at the end of the requested binary log from a MySQL server, but rath
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--user=user_name,
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
 The user name of the MySQL account to use when connecting to a remote server\&.
 .sp
 If you are using the
@@ -1903,6 +3075,16 @@ privilege\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
 Reconstruct row events and display them as commented SQL statements, with table partition information where applicable\&. If this option is given twice (by passing in either "\-vv" or "\-\-verbose \-\-verbose"), the output includes comments to indicate column data types and some metadata, and informational log events such as row query log events if the
 binlog_rows_query_log_events
 system variable is set to
@@ -1926,6 +3108,16 @@ the section called \(lqMYSQLBINLOG ROW EVENT DISPLAY\(rq\&.
 .\}
 \fB\-\-verify\-binlog\-checksum\fR,
 \fB\-c\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verify-binlog-checksum
+T}
+.TE
+.sp 1
 Verify checksums in binary log files\&.
 .RE
 .sp
@@ -1939,11 +3131,17 @@ Verify checksums in binary log files\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
 Display version information and exit\&.
-.sp
-The
-\fBmysqlbinlog\fR
-version number shown when using this option is 3\&.4\&.
 .RE
 .sp
 .RS 4
@@ -1955,6 +3153,22 @@ version number shown when using this option is 3\&.4\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--zstd-compression-level=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+.TE
+.sp 1
 The compression level to use for connections to the server that use the
 zstd
 compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default
