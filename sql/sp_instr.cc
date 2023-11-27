@@ -762,13 +762,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
     */
     if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
         thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE) {
-      /*
-        If an error occurred before execution, make sure next execution is
-        started with a clean statement:
-      */
-      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
-        invalidate();
-      }
       return true;
     }
     /*
