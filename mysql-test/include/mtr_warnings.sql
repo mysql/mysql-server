@@ -328,6 +328,8 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Unable to start XCom Network Provider.*"),
  ("\\[GCS\\] Error initializing the group communication engine.*"),
  ("\\[GCS\\] The group communication engine could not set up its internal event notification mechanism.*"),
+ ("\\[GCS\\] Timed out while waiting for a connection via poll.*"),
+
 
  /*
    Warnings/errors related to SSL connection by mysqlx
