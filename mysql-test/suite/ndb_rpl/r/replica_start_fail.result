@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(32)
+) engine=ndb;
+INSERT INTO t1 VALUES (1, "row 1");
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	row 1
+#
+# BUG#36054134 Fail to run start_hook error
+# - Starting replica to apply changes when NDB is not ready or started
+#   the reported error message is not helpful
+#
+# Stop and reset replica to make it apply everything again
+include/rpl_stop_slaves.inc
+[connection slave]
+include/rpl_reset_slave.inc
+DROP TABLE t1;
+call mtr.add_suppression("An incident event has been written");
+call mtr.add_suppression("Replica: Connection to NDB not ready");
+call mtr.add_suppression("Failed to open");
+call mtr.add_suppression("Could not connect to storage engine");
+# Stop replica cluster
+Executing RESTART on all nodes.
+Starting shutdown. This may take a while. Please wait...
+All DB nodes are being restarted.
+
+# Start replica and inspect error message
+START REPLICA;
+include/wait_for_slave_sql_error.inc [errno=157]
+# Start cluster
+NDB Cluster is being started.
+
+# Start replica again
+include/rpl_start_slaves.inc
+# Cleanup
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

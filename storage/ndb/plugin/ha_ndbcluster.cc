@@ -12572,7 +12572,7 @@ static int ndbcluster_init(void *handlerton_ptr) {
           "Replica: Connection to NDB not ready after %lu seconds. "
           "Consider increasing --ndb-wait-setup value",
           opt_ndb_wait_setup);
-      return false;
+      // Continue and fail with better error when starting to use NDB
     }
     return true;
   };
