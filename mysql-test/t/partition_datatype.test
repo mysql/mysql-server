@@ -412,7 +412,10 @@ ROLLBACK;
 --echo Repeat with multi-table UPDATE syntax (Bug#30787444)
 
 START TRANSACTION;
+# Different warnings with hypergraph and old optimizer.
+--disable_warnings
 UPDATE t2 STRAIGHT_JOIN (SELECT 1) AS dt SET a = TIMESTAMPADD(SECOND, 1, a);
+--enable_warnings
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT * FROM t2 ORDER BY a, tz;
 COMMIT;

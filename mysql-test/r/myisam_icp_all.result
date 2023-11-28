@@ -983,9 +983,9 @@ FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
 ON alias2.pk AND alias2.pk <= alias1.c1
 WHERE alias2.pk = 1;
 i1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
 Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warnings:
 DROP TABLE t1;
 #
 # BUG#12822678 - 2 MORE ROWS WHEN ICP=ON W/ STRAIGHT_JOIN

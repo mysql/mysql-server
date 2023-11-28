@@ -1096,6 +1096,7 @@ ON alias2.pk AND alias2.pk <= alias1.c1
 WHERE alias2.pk = 1;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;

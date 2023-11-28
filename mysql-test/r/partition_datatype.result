@@ -789,9 +789,6 @@ ROLLBACK;
 Repeat with multi-table UPDATE syntax (Bug#30787444)
 START TRANSACTION;
 UPDATE t2 STRAIGHT_JOIN (SELECT 1) AS dt SET a = TIMESTAMPADD(SECOND, 1, a);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 34
-Warning	1264	Out of range value for column 'a' at row 35
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 COUNT(*)
 2
