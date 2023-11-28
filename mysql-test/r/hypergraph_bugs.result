@@ -1456,4 +1456,39 @@ x	score
 abc	0.031008131802082062
 abc abc	0.062016263604164124
 DROP TABLE t;
-SET optimizer_switch='hypergraph_optimizer=default';
+#
+# Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c INT
+);
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n+1<20)
+SELECT n, n%10, n%10 FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
+(SELECT MAX(x2.c) k FROM t1 x2 JOIN t1 x3 ON x2.c < x3.b GROUP BY x3.c) d1
+ON x1.b=d1.k ORDER BY x1.a LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (cost=74.8..74.8 rows=1)
+    -> Nested loop inner join  (cost=74.8..162 rows=20)
+        -> Index scan on x1 using PRIMARY  (cost=0.0125..0.25 rows=20)
+        -> Filter: (x1.b = d1.k)  (cost=73.9..73.9 rows=1)
+            -> Table scan on d1  (cost=70.5..72.9 rows=10)
+                -> Materialize  (cost=70.2..70.2 rows=10)
+                    -> Group aggregate: max(x2.c)  (cost=16.7..69.2 rows=10)
+                        -> Nested loop inner join  (cost=11.2..55.9 rows=133)
+                            -> Sort: x3.c  (cost=10.9..10.9 rows=20)
+                                -> Table scan on x3  (cost=0.0125..0.25 rows=20)
+                            -> Filter: (x2.c < x3.b)  (cost=0.338..2.25 rows=6.67)
+                                -> Table scan on x2  (cost=0.0125..0.25 rows=20)
+
+DROP TABLE t1;

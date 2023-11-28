@@ -1193,4 +1193,29 @@ EXECUTE ps;
 
 DROP TABLE t;
 
-SET optimizer_switch='hypergraph_optimizer=default';
+--echo #
+--echo # Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c INT
+);
+
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+  (SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n+1<20)
+  SELECT n, n%10, n%10 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
+ANALYZE TABLE t1;
+
+# This query should produce a plan with a NLJ between x1 and d1, since we
+# order on an indexed column (x1.a) and have LIMIT.
+# The relatively high first-row cost for d1 should be included in the
+# first-row cost of that NLJ.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
+  (SELECT MAX(x2.c) k FROM t1 x2 JOIN t1 x3 ON x2.c < x3.b GROUP BY x3.c) d1
+  ON x1.b=d1.k ORDER BY x1.a LIMIT 1;
+
+DROP TABLE t1;

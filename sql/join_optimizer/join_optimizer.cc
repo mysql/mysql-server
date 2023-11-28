@@ -4868,16 +4868,16 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // in cost calculations for join_path.
   const AccessPath *outer = join_path.nested_loop_join().outer;
 
-  join_path.set_init_cost(outer->init_cost());
+  // When we estimate cost and init_cost we make the pessimistic assumption
+  // that 'outer' produces at least one row. This is consistent with what
+  // we do for hash join. It also helps avoid risky plans if the row estimate
+  // for 'outer' is very low (e.g. 1e-6), and the cost for 'inner' is very
+  // high (e.g. 1e6). A cost estimate of 1e-6 * 1e6 = 1 would be very
+  // misleading if 'outer' produces a few rows. (@see AccessPath::m_init_cost
+  // for a general description of init_cost.)
+  join_path.set_init_cost(outer->init_cost() + inner->init_cost());
 
-  // NOTE: The ceil() around the number of rows on the left side is a workaround
-  // for an issue where we think the left side has a very low cardinality,
-  // e.g. 1e-5 rows, and we believe that justifies having something hugely
-  // expensive on the right side (e.g. a large table scan). Obviously, this is a
-  // band-aid (we should “just” have better row estimation and/or braking
-  // factors), but it should be fairly benign in general.
-  const double first_loop_cost = (inner->cost() + filter_cost) *
-                                 std::min(1.0, ceil(outer->num_output_rows()));
+  const double first_loop_cost = inner->cost() + filter_cost;
 
   const double subsequent_loops_cost =
       (inner->rescan_cost() + filter_cost) *

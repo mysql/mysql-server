@@ -756,14 +756,12 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 EXPLAIN
--> Nested loop inner join  (rows=0)
-    -> Remove duplicates from input grouped on t3.i  (rows=0)
-        -> Sort: t3.i  (rows=0)
-            -> Nested loop inner join  (rows=0)
-                -> Table scan on t2  (rows=1)
-                -> Table scan on t3  (rows=0)
-    -> Filter: (t1.i = t3.i)  (rows=0.1)
-        -> Table scan on t1  (rows=1)
+-> Nested loop semijoin  (rows=0)
+    -> Table scan on t1  (rows=1)
+    -> Filter: (t1.i = t3.i)  (rows=0)
+        -> Nested loop inner join  (rows=0)
+            -> Table scan on t2  (rows=1)
+            -> Table scan on t3  (rows=0)
 
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1966,12 +1964,12 @@ LIMIT 50;
 EXPLAIN
 -> Limit: 50 row(s)  (rows=0.1)
     -> Nested loop inner join  (rows=0.1)
-        -> Table scan on t2  (rows=1)
         -> Table scan on table1  (rows=0.1)
             -> Materialize  (rows=0.1)
                 -> Limit: 1 row(s)  (rows=0.1)
                     -> Filter: (t1.col1 = 1)  (rows=0.1)
                         -> Table scan on t1  (rows=1)
+        -> Table scan on t2  (rows=1)
 
 SELECT /*+ JOIN_ORDER(table1, t2) */
 *

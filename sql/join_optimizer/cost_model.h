@@ -144,7 +144,11 @@ void EstimateUpdateRowsCost(AccessPath *path);
 /// Estimate the costs and row count for a STREAM AccessPath.
 void EstimateStreamCost(AccessPath *path);
 
-/// Estimate the costs and row count for a LIMIT_OFFSET AccessPath.
+/**
+   Estimate the costs and row count for a WINDOW AccessPath. As described in
+   @see AccessPath::m_init_cost, the cost to read k out of N rows would be
+   init_cost + (k/N) * (cost - init_cost).
+*/
 void EstimateLimitOffsetCost(AccessPath *path);
 
 /// Estimate the costs and row count for a WINDOW AccessPath.
