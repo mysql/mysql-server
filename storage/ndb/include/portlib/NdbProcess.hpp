@@ -123,7 +123,11 @@ class NdbProcess {
   }
 
  private:
+#ifdef _WIN32
+  process_handle_t m_proc{InvalidHandle, InvalidHandle, 0, 0};
+#else
   process_handle_t m_proc{InvalidHandle};
+#endif
   BaseString m_name;
   Pipes *m_pipes;
 
