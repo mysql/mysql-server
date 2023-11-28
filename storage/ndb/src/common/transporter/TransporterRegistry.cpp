@@ -1299,7 +1299,10 @@ Uint32 TransporterRegistry::poll_SHM(TransporterReceiveHandle &recvdata
 
     if (!recvdata.m_transporters.get(trp_id)) continue;
 
-    if (t->isConnected() && is_connected(trp_id)) {
+    if (is_connected(trp_id)) {
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+      require(t->isConnected());
+#endif
       any_connected = true;
       if (t->hasDataToRead()) {
         recvdata.m_has_data_transporters.set(trp_id);
@@ -1541,7 +1544,11 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     idx[i] = maxTransporters + 1;
     if (!recvdata.m_transporters.get(trp_id)) continue;
 
-    if (is_connected(trp_id) && t->isConnected() && ndb_socket_valid(socket)) {
+    if (is_connected(trp_id)) {
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+      require(t->isConnected());
+      require(ndb_socket_valid(socket));
+#endif
       idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
   }
@@ -1563,7 +1570,11 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
       i++;
       continue;
     }
-    if (is_connected(trp_id) && t->isConnected() && ndb_socket_valid(socket)) {
+    if (is_connected(trp_id)) {
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+      require(t->isConnected());
+      require(ndb_socket_valid(socket));
+#endif
       idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
     i++;
@@ -1709,24 +1720,28 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
       assert(recv_thread_idx == transp->get_recv_thread_idx());
 
       /**
-       * First check transporter 'is CONNECTED.
-       * A transporter can only be set into, or taken out of, is_connected'
+       * Check that transporter 'is CONNECTED'.
+       * A transporter can only be set into, or taken out of, 'is_connected'
        * state by ::update_connections(). See comment there about
        * synchronication between ::update_connections() and
        * performReceive()
        *
-       * Transporter::isConnected() state may change asynch.
-       * A mismatch between the TransporterRegistry::is_connected(),
-       * and Transporter::isConnected() state is possible, and indicate
-       * that a change is underway. (Completed by update_connections())
+       * Note that there is also the Transporter::isConnected(), which
+       * is a less restrictive check than 'is CONNECTED'. We may e.g.
+       * still be 'isConnected' while DISCONNECTING. isConnected()
+       * check should only be used in update_connections() to facilitate
+       * transitions between *CONNECT* states.
+       * CONNECTED should always imply -> isConnected().
+       * -> required in debug and instrumented builds
        */
       if (is_connected(trp_id)) {
-        if (t->isConnected()) {
-          int nBytes = t->doReceive(recvdata);
-          if (nBytes > 0) {
-            recvdata.transporter_recv_from(node_id);
-            recvdata.m_has_data_transporters.set(trp_id);
-          }
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+        require(t->isConnected());
+#endif
+        int nBytes = t->doReceive(recvdata);
+        if (nBytes > 0) {
+          recvdata.transporter_recv_from(node_id);
+          recvdata.m_has_data_transporters.set(trp_id);
         }
       }
     } else {
@@ -1734,7 +1749,10 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
       require(transp->getTransporterType() == tt_SHM_TRANSPORTER);
       SHM_Transporter *t = (SHM_Transporter *)transp;
       assert(recvdata.m_transporters.get(trp_id));
-      if (is_connected(trp_id) && t->isConnected()) {
+      if (is_connected(trp_id)) {
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+        require(t->isConnected());
+#endif
         t->doReceive();
         /**
          * Ignore any data we read, the data wasn't collected by the
@@ -1766,7 +1784,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
    * will be cleared, which will terminate further unpacking.
    *
    * NOTE:
-   *  Without reading inconsistent date, we could have removed
+   *  Without reading inconsistent data, we could have removed
    *  the 'connected' checks below, However, there is a requirement
    *  in the CLOSE_COMREQ/CONF protocol between TRPMAN and QMGR
    *  that no signals arrives from disconnecting transporters after a
@@ -1783,49 +1801,50 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
     assert(recvdata.m_transporters.get(trp_id));
 
     if (is_connected(trp_id)) {
-      if (t->isConnected()) {
-        if (unlikely(recvdata.checkJobBuffer())) {
-          recvdata.m_last_trp_id = trp_id;  // Resume from trp after 'last_trp'
-          return 1;                         // Full, can't unpack more
-        }
-        if (unlikely(recvdata.m_handled_transporters.get(trp_id)))
-          continue;  // Skip now to avoid starvation
-        if (t->getTransporterType() == tt_TCP_TRANSPORTER) {
-          TCP_Transporter *t_tcp = (TCP_Transporter *)t;
-          Uint32 *ptr;
-          Uint32 sz = t_tcp->getReceiveData(&ptr);
-          Uint32 szUsed =
-              unpack(recvdata, ptr, sz, node_id, trp_id, stopReceiving);
-          if (likely(szUsed)) {
-            assert(recv_thread_idx == t_tcp->get_recv_thread_idx());
-            t_tcp->updateReceiveDataPtr(szUsed);
-            hasdata = t_tcp->hasReceiveData();
-          }
-        } else {
-#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
-          require(t->getTransporterType() == tt_SHM_TRANSPORTER);
-          SHM_Transporter *t_shm = (SHM_Transporter *)t;
-          Uint32 *readPtr, *eodPtr, *endPtr;
-          t_shm->getReceivePtr(&readPtr, &eodPtr, &endPtr);
-          recvdata.transporter_recv_from(node_id);
-          Uint32 *newPtr = unpack(recvdata, readPtr, eodPtr, endPtr, node_id,
-                                  trp_id, stopReceiving);
-          t_shm->updateReceivePtr(recvdata, newPtr);
-          /**
-           * Set hasdata dependent on if data is still available in
-           * transporter to ensure we follow rules about setting
-           * m_has_data_transporters and m_handled_transporters
-           * when returning from performReceive.
-           */
-          hasdata = t_shm->hasDataToRead();
-#else
-          require(false);
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+      require(t->isConnected());
 #endif
-        }
-        // else, we didn't unpack anything:
-        //   Avail ReceiveData to short to be useful, need to
-        //   receive more before we can resume this transporter.
+      if (unlikely(recvdata.checkJobBuffer())) {
+        recvdata.m_last_trp_id = trp_id;  // Resume from trp after 'last_trp'
+        return 1;                         // Full, can't unpack more
       }
+      if (unlikely(recvdata.m_handled_transporters.get(trp_id)))
+        continue;  // Skip now to avoid starvation
+      if (t->getTransporterType() == tt_TCP_TRANSPORTER) {
+        TCP_Transporter *t_tcp = (TCP_Transporter *)t;
+        Uint32 *ptr;
+        Uint32 sz = t_tcp->getReceiveData(&ptr);
+        Uint32 szUsed =
+            unpack(recvdata, ptr, sz, node_id, trp_id, stopReceiving);
+        if (likely(szUsed)) {
+          assert(recv_thread_idx == t_tcp->get_recv_thread_idx());
+          t_tcp->updateReceiveDataPtr(szUsed);
+          hasdata = t_tcp->hasReceiveData();
+        }
+      } else {
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
+        require(t->getTransporterType() == tt_SHM_TRANSPORTER);
+        SHM_Transporter *t_shm = (SHM_Transporter *)t;
+        Uint32 *readPtr, *eodPtr, *endPtr;
+        t_shm->getReceivePtr(&readPtr, &eodPtr, &endPtr);
+        recvdata.transporter_recv_from(node_id);
+        Uint32 *newPtr = unpack(recvdata, readPtr, eodPtr, endPtr, node_id,
+                                trp_id, stopReceiving);
+        t_shm->updateReceivePtr(recvdata, newPtr);
+        /**
+         * Set hasdata dependent on if data is still available in
+         * transporter to ensure we follow rules about setting
+         * m_has_data_transporters and m_handled_transporters
+         * when returning from performReceive.
+         */
+        hasdata = t_shm->hasDataToRead();
+#else
+        require(false);
+#endif
+      }
+      // else, we didn't unpack anything:
+      //   Avail ReceiveData to short to be useful, need to
+      //   receive more before we can resume this transporter.
     }
     // If transporter still have data, make sure that it's remember to next time
     recvdata.m_has_data_transporters.set(trp_id, hasdata);
@@ -2736,8 +2755,15 @@ Uint32 TransporterRegistry::update_connections(
           spintime = MAX(spintime, shm_trp->get_spintime());
         }
 #endif
+        /**
+         * Detect disconnects not following the 'protocol' - Only a *ING
+         * state allows change in 'isConnected' state and should only be
+         * handled in start_clients_thread()
+         */
+        require(t->isConnected());
         break;
       case DISCONNECTED:
+        require(!t->isConnected());  // As above
         break;
       case CONNECTING:
         if (t->isConnected()) report_connect(recvdata, trpId);
@@ -2896,10 +2922,20 @@ void TransporterRegistry::start_clients_thread() {
                 trpId, nodeId);
             DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u/trp:%u), line: %u\n",
                            localNodeId, nodeId, trpId, __LINE__));
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+            /**
+             * Should not really happen if the 'protocol' is followed?
+             * Believe this handling of finding a transporter connected
+             * while DISCONNECTED is obsolete and can be removed.
+             * For now we just test that when running instrumented builds.
+             */
+            require(!t->isConnected());
+#endif
             t->doDisconnect();
           }
           break;
         case CONNECTED:
+          require(t->isConnected());
           break;
         default:
           break;

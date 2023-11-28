@@ -470,9 +470,7 @@ bool Transporter::connect_client(NdbSocket &&socket) {
         (stderr, "connect_client multi trp node: %u\n", getRemoteNodeId()));
   }
 #endif
-  m_transporter_registry.lockMultiTransporters();
   update_connect_state(true);
-  m_transporter_registry.unlockMultiTransporters();
   DBUG_RETURN(true);
 }
 
