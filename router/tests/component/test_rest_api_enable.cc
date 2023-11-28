@@ -105,6 +105,14 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
                           std::to_string(router_port_x_rw),
                       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
                           std::to_string(router_port_x_ro)});
+
+      if (std::find(additional_config.begin(), additional_config.end(),
+                    "--disable-rw-split") == additional_config.end()) {
+        // if --disable-rw-split isn't set, set the bind-port
+        cmdline.push_back(
+            "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+            std::to_string(router_port_rw_split));
+      }
     }
 
     std::move(std::begin(additional_config), std::end(additional_config),
@@ -363,6 +371,7 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
   uint16_t custom_port;
   uint16_t router_port_rw;
   uint16_t router_port_ro;
+  uint16_t router_port_rw_split;
   uint16_t router_port_x_rw;
   uint16_t router_port_x_ro;
   ProcessWrapper *cluster_node;
@@ -405,6 +414,7 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
   void set_router_accepting_ports() {
     router_port_rw = port_pool_.get_next_available();
     router_port_ro = port_pool_.get_next_available();
+    router_port_rw_split = port_pool_.get_next_available();
     router_port_x_rw = port_pool_.get_next_available();
     router_port_x_ro = port_pool_.get_next_available();
   }

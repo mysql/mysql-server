@@ -86,6 +86,12 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
   const auto server_x_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
 
+  const auto bootstrap_rw_port = port_pool_.get_next_available();
+  const auto bootstrap_ro_port = port_pool_.get_next_available();
+  const auto bootstrap_rw_split_port = port_pool_.get_next_available();
+  const auto bootstrap_x_rw_port = port_pool_.get_next_available();
+  const auto bootstrap_x_ro_port = port_pool_.get_next_available();
+
   std::vector<Config> config{
       {"127.0.0.1", server_port, http_port,
        get_data_dir().join("bootstrap_gr.js").str()},
@@ -111,6 +117,16 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
           "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
           "--conf-set-option=DEFAULT.keyring_path=" + symlinkdir +
               "/data/keyring",
+          "--conf-set-option=routing:bootstrap_rw.bind_port=" +
+              std::to_string(bootstrap_rw_port),
+          "--conf-set-option=routing:bootstrap_ro.bind_port=" +
+              std::to_string(bootstrap_ro_port),
+          "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+              std::to_string(bootstrap_rw_split_port),
+          "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
+              std::to_string(bootstrap_x_rw_port),
+          "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
+              std::to_string(bootstrap_x_ro_port),
       }));
 
   SCOPED_TRACE("// launch mock-server for router");
@@ -1724,6 +1740,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
 
   const auto router_port_rw = port_pool_.get_next_available();
   const auto router_port_ro = port_pool_.get_next_available();
+  const auto router_port_rw_split = port_pool_.get_next_available();
   const auto router_port_x_rw = port_pool_.get_next_available();
   const auto router_port_x_ro = port_pool_.get_next_available();
   std::vector<std::string> bootstrap_params{
@@ -1734,6 +1751,8 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
           std::to_string(router_port_rw),
       "--conf-set-option=routing:bootstrap_ro.bind_port=" +
           std::to_string(router_port_ro),
+      "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+          std::to_string(router_port_rw_split),
       "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
           std::to_string(router_port_x_rw),
       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
@@ -2563,6 +2582,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
 
   const auto router_port_rw = port_pool_.get_next_available();
   const auto router_port_ro = port_pool_.get_next_available();
+  const auto router_port_rw_split = port_pool_.get_next_available();
   const auto router_port_x_rw = port_pool_.get_next_available();
   const auto router_port_x_ro = port_pool_.get_next_available();
   std::vector<std::string> bootsrtap_params{
@@ -2573,6 +2593,8 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
           std::to_string(router_port_rw),
       "--conf-set-option=routing:bootstrap_ro.bind_port=" +
           std::to_string(router_port_ro),
+      "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+          std::to_string(router_port_rw_split),
       "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
           std::to_string(router_port_x_rw),
       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
