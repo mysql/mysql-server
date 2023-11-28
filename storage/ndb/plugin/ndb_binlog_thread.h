@@ -331,7 +331,6 @@ class Ndb_binlog_thread : public Ndb_component {
                             Ndb_blobs_buffer &buffer, ptrdiff_t ptrdiff) const;
   void handle_data_unpack_record(TABLE *table, const NdbValue *value,
                                  MY_BITMAP *defined, uchar *buf) const;
-  int handle_error(NdbEventOperation *pOp) const;
   void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
                              NdbDictionary::Event::TableEvent type);
   int handle_data_event(const NdbEventOperation *pOp,

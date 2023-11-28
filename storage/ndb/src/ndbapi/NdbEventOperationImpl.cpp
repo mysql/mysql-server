@@ -141,7 +141,6 @@ void NdbEventOperationImpl::init() {
   m_data_item = nullptr;
 
   m_custom_data = nullptr;
-  m_has_error = 1;
 
   // we should lookup id in Dictionary, TODO
   // also make sure we only have one listener on each event
@@ -157,9 +156,6 @@ void NdbEventOperationImpl::init() {
 #endif
   m_ref_count = 0;
   DBUG_PRINT("info", ("m_ref_count = 0 for op: %p", this));
-
-  m_has_error = 0;
-
   DBUG_PRINT("exit", ("this: %p  oid: %u", this, m_oid));
 }
 

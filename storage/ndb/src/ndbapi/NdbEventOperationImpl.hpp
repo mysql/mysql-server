@@ -616,7 +616,6 @@ class NdbEventOperationImpl : public NdbEventOperation {
   EventBufData *m_data_item;
 
   void *m_custom_data;
-  int m_has_error;
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;

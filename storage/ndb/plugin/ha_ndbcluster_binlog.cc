@@ -5966,26 +5966,6 @@ void Ndb_binlog_thread::handle_data_unpack_record(TABLE *table,
 }
 
 /**
-  Handle error state on one event received from NDB
-
-  @param pOp The NdbEventOperation which indicated there was an error
-
-  @return 0 for success
-*/
-int Ndb_binlog_thread::handle_error(NdbEventOperation *pOp) const {
-  DBUG_TRACE;
-
-  const Ndb_event_data *const event_data =
-      Ndb_event_data::get_event_data(pOp->getCustomData());
-  const NDB_SHARE *const share = event_data->share;
-
-  log_error("Unhandled error %d for table %s", pOp->hasError(),
-            share->key_string());
-  pOp->clearError();
-  return 0;
-}
-
-/**
    Inject an incident (aka. 'lost events' or 'gap') into the injector,
    indicating that problem has occurred while processing the event stream.
 
@@ -6730,12 +6710,6 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   unsigned trans_row_count = 0;
   unsigned replicated_row_count = 0;
   do {
-    if (i_pOp->hasError() && handle_error(i_pOp) < 0) {
-      // NOTE! The 'handle_error' function currently always return 0
-      log_error("Failed to handle error on event operation");
-      return false;  // Failed to handle error on event op
-    }
-
     assert(check_event_list_consistency(i_ndb, i_pOp));
 
     const NdbDictionary::Event::TableEvent event_type = i_pOp->getEventType();

@@ -70,9 +70,12 @@ int NdbEventOperation::isOverrun() const {
 
 bool NdbEventOperation::isConsistent() const { return true; }
 
-void NdbEventOperation::clearError() { m_impl.m_has_error = 0; }
+void NdbEventOperation::clearError() {}
 
-int NdbEventOperation::hasError() const { return m_impl.m_has_error; }
+int NdbEventOperation::hasError() const {
+  // Never has error
+  return 0;
+}
 
 bool NdbEventOperation::tableNameChanged() const {
   return m_impl.tableNameChanged();
