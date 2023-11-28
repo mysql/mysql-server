@@ -8912,7 +8912,7 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
    * Connect a multi-transporter.
    * For clients this happens by moving the transporters inside the
    * multi-transporter into the allTransporters array and initiate the
-   * CONNECTING protocol with start_connecting_trp(). The multiTransporter parts
+   * CONNECTING protocol with start_connecting(). The multiTransporter parts
    * then connects as any other transporter and finally report_connect'ed.
    * QMGR will wait until all parts of the MultiTransporter has CONNECTED,
    * then 'switch' the MultiTransporter.
@@ -8943,7 +8943,7 @@ void Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id) {
         ("Start connecting trp id %u for node %u, mti = %u, server: %u",
          t->getTransporterIndex(), node_id, t->get_multi_transporter_instance(),
          t->isServer));
-    globalTransporterRegistry.start_connecting_trp(t->getTransporterIndex());
+    globalTransporterRegistry.start_connecting(t->getTransporterIndex());
   }
   globalTransporterRegistry.unlockMultiTransporters();
   signal->theData[0] = ZCHECK_MULTI_TRP_CONNECT;
@@ -9571,7 +9571,7 @@ void Qmgr::check_switch_completed(Signal *signal, NodeId node_id) {
     jam();
     Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
     TrpId trp_id = tmp_trp->getTransporterIndex();
-    globalTransporterRegistry.start_disconnecting_trp(trp_id);
+    globalTransporterRegistry.start_disconnecting(trp_id);
   }
   globalTransporterRegistry.unlockMultiTransporters();
   /**

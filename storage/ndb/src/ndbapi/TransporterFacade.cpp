@@ -2435,12 +2435,18 @@ int TransporterFacade::sendSignal(trp_client *clnt, const NdbApiSignal *aSignal,
  * CONNECTION METHODS  Etc
  ******************************************************************************/
 void TransporterFacade::startConnecting(NodeId aNodeId) {
-  theTransporterRegistry->setIOState(aNodeId, NoHalt);
-  theTransporterRegistry->start_connecting(aNodeId);
+  const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
+  if (trpId != 0) {
+    theTransporterRegistry->setIOState(trpId, NoHalt);
+    theTransporterRegistry->start_connecting(trpId);
+  }
 }
 
 void TransporterFacade::startDisconnecting(NodeId aNodeId) {
-  theTransporterRegistry->start_disconnecting(aNodeId);
+  const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
+  if (trpId != 0) {
+    theTransporterRegistry->start_disconnecting(trpId);
+  }
 }
 
 /**

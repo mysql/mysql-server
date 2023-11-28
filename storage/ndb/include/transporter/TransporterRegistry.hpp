@@ -353,20 +353,17 @@ class TransporterRegistry {
     return performStates[trpId];
   }
   /**
-   * Initiate asynch connecting 'protocol' for node and transporters
+   * Initiate asynch connecting 'protocol' for transporters
    */
-  void start_connecting(NodeId node_id);
-  void start_connecting_trp(TrpId trpId);
+  void start_connecting(TrpId trpId);
   /**
    * start_disconnecting can be issued both from send and recv.
    * It is possible to specify from where it is called
    * in send_source parameter, this enables us to provide more
    * detailed information for disconnects.
    */
-  bool start_disconnecting(NodeId node_id, int errnum = 0,
+  bool start_disconnecting(TrpId trpId, int errnum = 0,
                            bool send_source = true);
-  bool start_disconnecting_trp(TrpId trpId, int errnum = 0,
-                               bool send_source = true);
   bool is_connected(TrpId trpId) const {
     return performStates[trpId] == CONNECTED;
   }
@@ -384,10 +381,9 @@ class TransporterRegistry {
 
  public:
   /**
-   * Set IOState on all Transporters to NodeId
+   * Set IOState on the Transporter
    */
-  void setIOState(NodeId nodeId, IOState state);
-  void setIOState_trp(TrpId trpId, IOState state);
+  void setIOState(TrpId trpId, IOState state);
 
   /**
    * Methods to handle backoff of connection attempts when attempt fails
@@ -679,6 +675,7 @@ class TransporterRegistry {
 
   void get_trps_for_node(NodeId nodeId, TrpId *trp_ids, Uint32 &num_trp_ids,
                          Uint32 max_trp_ids) const;
+  TrpId get_the_only_base_trp(NodeId nodeId) const;
 
   Uint32 get_num_trps();
   TlsKeyManager *getTlsKeyManager() { return &m_tls_keys; }

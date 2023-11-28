@@ -79,61 +79,51 @@ static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
-bool Trpman::handles_this_node(Uint32 nodeId, bool all) {
+bool Trpman::handles_this_trp(TrpId trpId) {
   /* If there's only one receiver then no question */
   if (globalData.ndbMtReceiveThreads <= (Uint32)1) return true;
 
-  /**
-   * Multiple receive threads can handle the node, but only one of the receive
-   * threads will act to change state and so forth, we define this to always
-   * be the first transporter for this node. Often this method is called in
-   * the setup and close phase where only one transporter is existing.
-   * Thus we only look for first transporter below.
-   */
-  Uint32 num_ids;
-  Uint32 max_ids = 1;
-  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
-  if (all) {
-    max_ids = MAX_NODE_GROUP_TRANSPORTERS;
-  }
-  globalTransporterRegistry.lockMultiTransporters();
-  globalTransporterRegistry.get_trps_for_node(nodeId, &trp_ids[0], num_ids,
-                                              max_ids);
   /* There's a global receiver->thread index - look it up */
-  bool ret_val = false;
-  for (Uint32 i = 0; i < num_ids; i++) {
-    if (instance() == (get_recv_thread_idx(trp_ids[i]) + /* proxy */ 1)) {
-      ret_val = true;
-      break;
-    }
-  }
-  globalTransporterRegistry.unlockMultiTransporters();
-  return ret_val;
+  return (instance() == (get_recv_thread_idx(trpId) + /* proxy */ 1));
+}
+
+/**
+ * During the setup phase the node will connect with only the base
+ * transporter. Get the TrpId of this transporter - Crash if
+ * multiple transporters are found as that would be a breakage
+ * of the transporter protocol.
+ */
+TrpId Trpman::get_the_only_base_trp(NodeId nodeId) const {
+  return globalTransporterRegistry.get_the_only_base_trp(nodeId);
 }
 
 void Trpman::execOPEN_COMORD(Signal *signal) {
-  // Connect to the specified NDB node, only QMGR allowed communication
-  // so far with the node
-
-  const BlockReference userRef = signal->theData[0];
+  /**
+   * Connect to the specified NDB node, only QMGR allowed communication
+   * so far with the node. Even if multi-transporters will be used to
+   * communicate with node, we initially open only the single base transporter.
+   */
+  const BlockReference userRef [[maybe_unused]] = signal->theData[0];
   jamEntry();
 
   const Uint32 len = signal->getLength();
   if (len == 2) {
-    Uint32 tStartingNode = signal->theData[1];
+    const NodeId tStartingNode = signal->theData[1];
     ndbrequire(tStartingNode > 0 && tStartingNode < MAX_NODES);
 #ifdef ERROR_INSERT
     if (!((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) &&
           c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
-      if (!handles_this_node(tStartingNode)) {
+      // Connection is initially opened using a non-multi_transporter
+      const TrpId trpId = get_the_only_base_trp(tStartingNode);
+      if (!handles_this_trp(trpId)) {
         jam();
         goto done;
       }
 
-      globalTransporterRegistry.start_connecting(tStartingNode);
-      globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
+      globalTransporterRegistry.start_connecting(trpId);
+      globalTransporterRegistry.setIOState(trpId, HaltIO);
 
       //-----------------------------------------------------
       // Report that the connection to the node is opened
@@ -147,9 +137,11 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
     Uint32 tData2 = signal->theData[2];
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       jam();
-      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2 &&
-          handles_this_node(i)) {
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2) {
         jam();
+
+        const TrpId trpId = get_the_only_base_trp(i);
+        if (!handles_this_trp(trpId)) continue;
 
 #ifdef ERROR_INSERT
         if ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) &&
@@ -157,8 +149,8 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
           continue;
 #endif
 
-        globalTransporterRegistry.start_connecting(i);
-        globalTransporterRegistry.setIOState(i, HaltIO);
+        globalTransporterRegistry.start_connecting(trpId);
+        globalTransporterRegistry.setIOState(trpId, HaltIO);
 
         signal->theData[0] = NDB_LE_CommunicationOpened;
         signal->theData[1] = i;
@@ -171,7 +163,7 @@ done:
   /**
    * NO REPLY for now
    */
-  (void)userRef;
+  return;
 }
 
 void Trpman::execCONNECT_REP(Signal *signal) {
@@ -196,7 +188,10 @@ void Trpman::execCONNECT_REP(Signal *signal) {
    */
   if (type == NodeInfo::MGM) {
     jam();
-    globalTransporterRegistry.setIOState(hostId, NoHalt);
+    const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(hostId);
+    if (trpId != 0) {
+      globalTransporterRegistry.setIOState(trpId, NoHalt);
+    }
   }
 
   //------------------------------------------
@@ -207,19 +202,32 @@ void Trpman::execCONNECT_REP(Signal *signal) {
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 }
 
-void Trpman::close_com_failed_node(Signal *signal, Uint32 nodeId) {
-  if (handles_this_node(nodeId)) {
-    jam();
+void Trpman::close_com_failed_node(Signal *signal, NodeId nodeId) {
+  Uint32 num_ids;
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  globalTransporterRegistry.lockMultiTransporters();
+  globalTransporterRegistry.get_trps_for_node(nodeId, &trp_ids[0], num_ids,
+                                              MAX_NODE_GROUP_TRANSPORTERS);
 
+  // This TRPMAN should only close the transporters handled by its own
+  // recv-thread
+  for (unsigned i = 0; i < num_ids; i++) {
+    const TrpId trpId = trp_ids[i];
+    if (!handles_this_trp(trpId)) continue;
+    globalTransporterRegistry.setIOState(trpId, HaltIO);
+    globalTransporterRegistry.start_disconnecting(trpId);
+  }
+  globalTransporterRegistry.unlockMultiTransporters();
+
+  // Only the TRPMAN responsible for the first transporter
+  // sends the EVENT_REP for the *NodeId* disconnect.
+  if (num_ids > 0 && handles_this_trp(trp_ids[0])) {
     //-----------------------------------------------------
     // Report that the connection to the node is closed
     //-----------------------------------------------------
     signal->theData[0] = NDB_LE_CommunicationClosed;
     signal->theData[1] = nodeId;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-
-    globalTransporterRegistry.setIOState(nodeId, HaltIO);
-    globalTransporterRegistry.start_disconnecting(nodeId);
   }
 }
 
@@ -299,18 +307,20 @@ void Trpman::execCLOSE_COMCONF(Signal *signal) {
              JBA);
 }
 
-void Trpman::enable_com_node(Signal *signal, Uint32 node) {
-  if (!handles_this_node(node)) return;
-  globalTransporterRegistry.setIOState(node, NoHalt);
-  setNodeInfo(node).m_connected = true;
+void Trpman::enable_com_node(Signal *signal, NodeId nodeId) {
+  const TrpId trpId = get_the_only_base_trp(nodeId);
+  if (!handles_this_trp(trpId)) return;
+
+  globalTransporterRegistry.setIOState(trpId, NoHalt);
+  setNodeInfo(nodeId).m_connected = true;
 
   //-----------------------------------------------------
   // Report that the version of the node
   //-----------------------------------------------------
   signal->theData[0] = NDB_LE_ConnectedApiVersion;
-  signal->theData[1] = node;
-  signal->theData[2] = getNodeInfo(node).m_version;
-  signal->theData[3] = getNodeInfo(node).m_mysql_version;
+  signal->theData[1] = nodeId;
+  signal->theData[2] = getNodeInfo(nodeId).m_version;
+  signal->theData[3] = getNodeInfo(nodeId).m_mysql_version;
 
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 }
@@ -460,7 +470,18 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
           rnode++;
           continue;
         }
-        if (!handles_this_node(rnode)) {
+        TrpId trpId;
+        Uint32 num_ids;
+        globalTransporterRegistry.lockMultiTransporters();
+        globalTransporterRegistry.get_trps_for_node(rnode, &trpId, num_ids, 1);
+        globalTransporterRegistry.unlockMultiTransporters();
+
+        /**
+         * The TRPMAN having the first transporter is responsible for reporting
+         * the ndbinfo. It might dirty-read the ndbinfo added from other
+         * (multi-)transporters.
+         */
+        if (num_ids == 0 || !handles_this_trp(trpId)) {
           rnode++;
           continue;
         }
@@ -477,12 +498,6 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
              * first active transporter and report the state for that one
              * as representative for the 'node-connect-state':
              */
-            TrpId trpId;
-            Uint32 num_ids;
-            globalTransporterRegistry.lockMultiTransporters();
-            globalTransporterRegistry.get_trps_for_node(rnode, &trpId, num_ids,
-                                                        1);
-            globalTransporterRegistry.unlockMultiTransporters();
             row.write_uint32(globalTransporterRegistry.getPerformState(trpId));
 
             ndb_sockaddr conn_addr =
@@ -592,8 +607,7 @@ void Trpman::execNDB_TAMPER(Signal *signal) {
 
 void Trpman::execDUMP_STATE_ORD(Signal *signal) {
   DumpStateOrd *const &dumpState = (DumpStateOrd *)&signal->theData[0];
-  Uint32 arg = dumpState->args[0];
-  (void)arg;
+  Uint32 arg [[maybe_unused]] = dumpState->args[0];
 
 #ifdef ERROR_INSERT
   if (arg == 9000 || arg == 9002) {
@@ -607,7 +621,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     if (signal->getLength() == 1 || signal->theData[1]) {
       signal->header.theLength = 2;
       for (Uint32 i = 1; i < MAX_NODES; i++) {
-        if (c_error_9000_nodes_mask.get(i) && handles_this_node(i)) {
+        if (c_error_9000_nodes_mask.get(i)) {
           signal->theData[0] = 0;
           signal->theData[1] = i;
           execOPEN_COMORD(signal);
@@ -626,7 +640,8 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
   if (arg == 9005 && signal->getLength() == 2 && ERROR_INSERTED(9004)) {
     Uint32 db = signal->theData[1];
     Uint32 i = c_error_9000_nodes_mask.find(1);
-    if (handles_this_node(i)) {
+    const TrpId trpId = get_the_only_base_trp(i);
+    if (handles_this_trp(trpId)) {
       signal->theData[0] = i;
       sendSignal(calcQmgrBlockRef(db), GSN_API_FAILREQ, signal, 1, JBA);
       g_eventLogger->info("stopping %u using %u", i, db);
@@ -657,9 +672,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     TransporterReceiveHandle *recvdata = mt_get_trp_receive_handle(instance());
     assert(recvdata != 0);
     for (Uint32 n = 1; n < signal->getLength(); n++) {
-      Uint32 nodeId = signal->theData[n];
-      if (!handles_this_node(nodeId, true)) continue;
-
+      const NodeId nodeId = signal->theData[n];
       if ((nodeId > 0) && (nodeId < MAX_NODES)) {
         TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
         Uint32 num_ids;
@@ -669,6 +682,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
         globalTransporterRegistry.unlockMultiTransporters();
 
         for (unsigned i = 0; i < num_ids; i++) {
+          if (!handles_this_trp(trp_ids[i])) continue;
           if (block) {
             if (!globalTransporterRegistry.isBlocked(trp_ids[i])) {
               g_eventLogger->info(
@@ -718,7 +732,6 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NDB_NODES; node++) {
       if (node == getOwnNodeId()) continue;
-      if (!handles_this_node(node, true)) continue;
 
       // Get all node (multi-)Transporters, block all/some
       TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -729,6 +742,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
       globalTransporterRegistry.unlockMultiTransporters();
 
       for (unsigned i = 0; i < num_ids; i++) {
+        if (!handles_this_trp(trp_ids[i])) continue;
         if (globalTransporterRegistry.is_connected(trp_ids[i])) {
           if (getNodeInfo(node).m_type == NodeInfo::DB) {
             if (!globalTransporterRegistry.isBlocked(trp_ids[i])) {
@@ -764,7 +778,6 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NODES; node++) {
       if (node == getOwnNodeId()) continue;
-      if (!handles_this_node(node, true)) continue;
 
       // Get all node (multi-)Transporters, unblock all
       TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -775,6 +788,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
       globalTransporterRegistry.unlockMultiTransporters();
 
       for (unsigned i = 0; i < num_ids; i++) {
+        if (!handles_this_trp(trp_ids[i])) continue;
         if (globalTransporterRegistry.isBlocked(trp_ids[i])) {
           g_eventLogger->info(
               "(%u)TRPMAN : Unblocking receive on transporter %u"
@@ -792,8 +806,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     TransporterReceiveHandle *recvdata = mt_get_trp_receive_handle(instance());
     assert(recvdata != 0);
     for (Uint32 n = 1; n < signal->getLength(); n++) {
-      Uint32 nodeId = signal->theData[n];
-      if (!handles_this_node(nodeId)) continue;
+      const NodeId nodeId = signal->theData[n];
 
       if ((nodeId > 0) && (nodeId < MAX_NODES)) {
         TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -804,6 +817,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
         globalTransporterRegistry.unlockMultiTransporters();
 
         for (unsigned i = 0; i < num_ids; i++) {
+          if (!handles_this_trp(trp_ids[i])) continue;
           g_eventLogger->info(
               "TRPMAN : Send on transporter %u to node %u"
               " is %sblocked",
@@ -883,7 +897,7 @@ void Trpman::execACTIVATE_TRP_REQ(Signal *signal) {
    * to an already enabled node.
    */
   if (is_recv_thread_for_new_trp(trp_id)) {
-    globalTransporterRegistry.setIOState_trp(trp_id, NoHalt);
+    globalTransporterRegistry.setIOState(trp_id, NoHalt);
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)", instance(),
                    node_id, trp_id));
     ActivateTrpConf *conf = CAST_PTR(ActivateTrpConf, signal->getDataPtrSend());

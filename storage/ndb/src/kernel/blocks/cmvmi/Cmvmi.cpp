@@ -1084,7 +1084,10 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (getNodeInfo(i).m_type == NodeInfo::MGM) {
         jam();
-        globalTransporterRegistry.start_connecting(i);
+        const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(i);
+        if (trpId != 0) {
+          globalTransporterRegistry.start_connecting(trpId);
+        }
       }
     }
     g_eventLogger->info("First START_ORD executed to connect MGM servers");
@@ -1111,13 +1114,16 @@ void Cmvmi::execSTART_ORD(Signal *signal) {
       g_eventLogger->info("Received second START_ORD from node %u",
                           refToNode(signal->getSendersBlockRef()));
     }
-    // Disconnect all nodes as part of the system restart.
+    // Disconnect all transporters as part of the system restart.
     // We need to ensure that we are starting up
-    // without any connected nodes.
+    // without any connected transporters.
     for (unsigned int i = 1; i < MAX_NODES; i++) {
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM) {
-        globalTransporterRegistry.start_disconnecting(i);
-        globalTransporterRegistry.setIOState(i, HaltIO);
+        const TrpId trpId = globalTransporterRegistry.get_the_only_base_trp(i);
+        if (trpId != 0) {
+          globalTransporterRegistry.start_disconnecting(trpId);
+          globalTransporterRegistry.setIOState(trpId, HaltIO);
+        }
       }
     }
     g_eventLogger->info("Disconnect all non-MGM servers");
