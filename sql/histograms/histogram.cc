@@ -1812,7 +1812,6 @@ bool auto_update_table_histograms_from_background_thread(
 
   Disable_binlog_guard binlog_guard(thd);
   Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   auto session_guard = create_scope_guard([&]() {
     close_thread_tables(thd);
@@ -1821,6 +1820,12 @@ bool auto_update_table_histograms_from_background_thread(
     cleanup_session_context(thd);
     DEBUG_SYNC(thd, "background_histogram_update_done");
   });
+
+  // It is crucial that we release objects from the dictionary cache _before_
+  // releasing metadata locks on the same objects. Therefore we construct the
+  // Auto_releaser _after_ the session_guard scope guard that releases metadata
+  // locks, since objects are destructed in the reverse order of construction.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   auto rollback_guard = create_scope_guard([&]() {
     trans_rollback_stmt(thd);
