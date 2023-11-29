@@ -1,10 +1,5 @@
 --source include/have_debug.inc
 
-# This test uses EXPLAIN INTO to test that histograms are used.
-# The JSON EXPLAIN format differs between the two optimizers.
-# We opt to test with the hypergraph optimizer for forward compatibility.
---source include/have_hypergraph.inc
-
 --echo #
 --echo # The [{AUTO|MANUAL} UPDATE] histogram option.
 --echo #
@@ -66,8 +61,9 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ANALYZE TABLE t1;
 
 --echo # With no histogram the default assumed selectivity when filtering a range is 0.333...
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_1_66;
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+--skip_if_hypergraph  # Depends on optimizer EXPLAIN JSON format.
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_33;
 DROP TABLE t1;
 
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
@@ -75,26 +71,20 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ANALYZE TABLE t1;
 --echo # With the updated histogram we should have a selectivity of 1.0.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+--skip_if_hypergraph  # Depends on optimizer EXPLAIN JSON format.
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
 DROP TABLE t1;
 
 --echo #
 --echo # Histogram updates from the InnoDB background statistics thread.
 --echo #
 CREATE TABLE t1 (x INT);
-INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
-ANALYZE TABLE t1; # Stabilizes the row estimate.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
-
---echo # Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_2;
-UPDATE t1 SET x = 2 WHERE x = 3;
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1);
 
 --echo # Wait for the automatic update to kick in.
---echo # The number of buckets in the histogram drops from 3 to 2 following the update.
-let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 2;
+let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 1;
 let $wait_timeout = 15;
 --source include/wait_condition.inc
 
@@ -105,15 +95,21 @@ let $wait_timeout = 15;
 DO SLEEP(0.1);
 
 --echo # Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 1;
+--skip_if_hypergraph  # Depends on optimizer EXPLAIN JSON format.
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
 
---echo # Verify that insertions also trigger background updates of the histogram.
-INSERT INTO t1 VALUES (4), (4), (4), (4);
-let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 3;
+--echo # Insert values into the table and wait for the histogram to be updated in the background.
+INSERT INTO t1 VALUES (2), (2), (2), (2), (2);
+let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS WHERE JSON_LENGTH(histogram->'$."buckets"') = 2;
 let $wait_timeout = 15;
 --source include/wait_condition.inc
+DO SLEEP(0.1);
 
+--echo # Verify that the optimizer uses the new histogram.
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 2;
+--skip_if_hypergraph  # Depends on optimizer EXPLAIN JSON format.
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_50;
 DROP TABLE t1;
 
 --echo #

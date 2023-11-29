@@ -88,10 +88,10 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # With no histogram the default assumed selectivity when filtering a range is 0.333...
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_1_66;
-should_be_1_66
-1.6664999723434448
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_33;
+should_be_33
+"33.33"
 DROP TABLE t1;
 CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
@@ -102,38 +102,34 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 # With the updated histogram we should have a selectivity of 1.0.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x > 0;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
-should_be_5
-5.0
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+should_be_100
+"100.00"
 DROP TABLE t1;
 #
 # Histogram updates from the InnoDB background statistics thread.
 #
 CREATE TABLE t1 (x INT);
-INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
-# Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_2;
-should_be_2
-2.0000000596046448
-UPDATE t1 SET x = 2 WHERE x = 3;
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1);
 # Wait for the automatic update to kick in.
-# The number of buckets in the histogram drops from 3 to 2 following the update.
 DO SLEEP(0.1);
 # Verify that the optimizer uses the new histogram.
-EXPLAIN FORMAT=JSON INTO @explain SELECT x FROM t1 WHERE x = 2;
-SELECT JSON_EXTRACT(@explain, '$."estimated_rows"') AS should_be_5;
-should_be_5
-4.9999998807907104
-# Verify that insertions also trigger background updates of the histogram.
-INSERT INTO t1 VALUES (4), (4), (4), (4);
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 1;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+should_be_100
+"100.00"
+# Insert values into the table and wait for the histogram to be updated in the background.
+INSERT INTO t1 VALUES (2), (2), (2), (2), (2);
+DO SLEEP(0.1);
+# Verify that the optimizer uses the new histogram.
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 2;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_50;
+should_be_50
+"50.00"
 DROP TABLE t1;
 #
 # Test how failures are handled during histogram updates under ANALYZE TABLE.
