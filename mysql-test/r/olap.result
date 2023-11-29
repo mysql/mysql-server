@@ -2332,3 +2332,12 @@ NULL	NULL	1	1	1	2
 SELECT DISTINCT i1, i2, GROUPING(i1), GROUPING(i2) FROM t GROUP BY i1, i2 WITH ROLLUP ORDER BY i1, i2, GROUPING(i1+i2);
 ERROR HY000: Expression #3 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
 DROP TABLE t;
+#
+# Bug#36039905: Assertion `table_num_to_node_num[table_num] != -1' failed
+#
+CREATE TABLE t(x INT);
+SELECT 1 FROM t AS t1, t AS t2,
+(SELECT DISTINCT GROUPING(t3.x) FROM t AS t3, t AS t4
+GROUP BY ROLLUP(t3.x)) AS dt;
+1
+DROP TABLE t;

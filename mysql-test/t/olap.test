@@ -1273,3 +1273,14 @@ SELECT DISTINCT i1, i2, GROUPING(i1), GROUPING(i2), GROUPING(i1+i2), GROUPING(i1
 --error ER_AGGREGATE_IN_ORDER_NOT_SELECT
 SELECT DISTINCT i1, i2, GROUPING(i1), GROUPING(i2) FROM t GROUP BY i1, i2 WITH ROLLUP ORDER BY i1, i2, GROUPING(i1+i2);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36039905: Assertion `table_num_to_node_num[table_num] != -1' failed
+--echo #
+
+CREATE TABLE t(x INT);
+# Used to fail when running with the hypergraph optimizer and --ps-protocol.
+SELECT 1 FROM t AS t1, t AS t2,
+(SELECT DISTINCT GROUPING(t3.x) FROM t AS t3, t AS t4
+ GROUP BY ROLLUP(t3.x)) AS dt;
+DROP TABLE t;

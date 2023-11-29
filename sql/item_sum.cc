@@ -6240,8 +6240,10 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 
   if (Item_func::fix_fields(thd, ref)) return true;
 
+  m_query_block = thd->lex->current_query_block();
+
   // Make GROUPING function dependent upon all tables (prevents const-ness)
-  used_tables_cache |= thd->lex->current_query_block()->all_tables_map();
+  used_tables_cache |= m_query_block->all_tables_map();
 
   /*
     More than 64 args cannot be supported as the bitmask which is
@@ -6256,11 +6258,9 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
     GROUPING() is not allowed in a WHERE condition or a JOIN condition and
     cannot be used without rollup.
   */
-  Query_block *select = thd->lex->current_query_block();
-
-  if (!select->is_non_primitive_grouped() ||
-      select->resolve_place == Query_block::RESOLVE_JOIN_NEST ||
-      select->resolve_place == Query_block::RESOLVE_CONDITION) {
+  if (!m_query_block->is_non_primitive_grouped() ||
+      m_query_block->resolve_place == Query_block::RESOLVE_JOIN_NEST ||
+      m_query_block->resolve_place == Query_block::RESOLVE_CONDITION) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return true;
   }
@@ -6351,8 +6351,7 @@ void Item_func_grouping::update_used_tables() {
     GROUPING function can never be a constant item. It's
     result always depends on ROLLUP result.
   */
-  used_tables_cache |=
-      current_thd->lex->current_query_block()->all_tables_map();
+  used_tables_cache |= m_query_block->all_tables_map();
 }
 
 inline Item *Item_rollup_sum_switcher::current_arg() const {

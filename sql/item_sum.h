@@ -2707,6 +2707,10 @@ class Item_func_grouping : public Item_int_func {
   bool fix_fields(THD *thd, Item **ref) override;
   void update_used_tables() override;
   bool aggregate_check_distinct(uchar *arg) override;
+
+ private:
+  /// The query block in which this function is called.
+  const Query_block *m_query_block{nullptr};
 };
 
 /**
