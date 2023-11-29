@@ -6081,8 +6081,10 @@ void Dbtc::commit020Lab(Signal *signal,
     Tcount += sendCommitLqh(signal, localTcConnectptr.p, apiConnectptr.p);
 
     if (tcConList.next(localTcConnectptr)) {
-      if (Tcount < 16 && !(ERROR_INSERTED(8057) || ERROR_INSERTED(8073) ||
-                           ERROR_INSERTED(8089))) {
+      if (Tcount < 16 &&
+          !(ERROR_INSERTED(8057) || ERROR_INSERTED(8073) ||
+            ERROR_INSERTED(8089) ||
+            (ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) == 0)))) {
         jam();
         continue;
       } else {
@@ -6101,7 +6103,7 @@ void Dbtc::commit020Lab(Signal *signal,
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8089)) {
+        if (ERROR_INSERTED(8089) || ERROR_INSERTED(8123)) {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
@@ -6513,7 +6515,8 @@ void Dbtc::complete010Lab(Signal *signal,
     /* ************ */
     Tcount += sendCompleteLqh(signal, localTcConnectptr.p, apiConnectptr.p);
     if (tcConList.next(localTcConnectptr)) {
-      if (Tcount < 16 && !ERROR_INSERTED(8112)) {
+      if (Tcount < 16 && !ERROR_INSERTED(8112) &&
+          !(ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) != 0))) {
         jamDebug();
         continue;
       } else {
@@ -6525,7 +6528,7 @@ void Dbtc::complete010Lab(Signal *signal,
         signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8112)) {
+        if (ERROR_INSERTED(8112) || ERROR_INSERTED(8123)) {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
@@ -8995,7 +8998,8 @@ void Dbtc::timeOutFoundLab(Signal *signal, Uint32 TapiConPtr, Uint32 errCode) {
       /* or more LQH instances.  We cannot speed this up.                 */
       /* Only in confirmed node failure situations do we take action.     */
       /*------------------------------------------------------------------*/
-      if (errCode == ZNODEFAIL_BEFORE_COMMIT) {
+      if (errCode == ZNODEFAIL_BEFORE_COMMIT ||
+          apiConnectptr.p->failureNr != cfailure_nr) {
         jam();
         /**
          * Node failure handling, switch to serial commit handling
@@ -9022,7 +9026,8 @@ void Dbtc::timeOutFoundLab(Signal *signal, Uint32 TapiConPtr, Uint32 errCode) {
       /* or more LQH instances.  We cannot speed this up.                   */
       /* Only in confirmed node failure situations do we take action.       */
       /*--------------------------------------------------------------------*/
-      if (errCode == ZNODEFAIL_BEFORE_COMMIT) {
+      if (errCode == ZNODEFAIL_BEFORE_COMMIT ||
+          apiConnectptr.p->failureNr != cfailure_nr) {
         jam();
         /**
          * Node failure handling, switch to serial complete handling
