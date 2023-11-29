@@ -171,29 +171,21 @@ int table_data_locks::rnd_next() {
       */
 
       /*
-        PSI_engine_data_lock_iterator::scan() can return an unbounded number
-        of rows during a scan, depending on the application payload, as some
-        user sessions may have an unbounded number or records locked.
-        This can cause severe memory spike, which in turn can take the server
-        down if not handled properly. Here a select on the table
-        performance_schema.data_locks will fail with an error, instead of
-        taking the server down, if out of memory conditions occur.
+        The implementation of PSI_engine_data_lock_iterator::scan(),
+        inside a storage engine, is expected to:
+        - (1) not report all the data at once,
+        - (2) implement re-startable scans internally,
+        - (3) report a bounded number of rows per scan (1).
 
-        This is a fail safe only, the implementation of
-        PSI_engine_data_lock_iterator::scan() in each storage engine
-        should be constrained to return fewer rows at a time if necessary,
-        by making more calls to scan(), to handle the load gracefully.
+        This is to allow allocating only a bounded amount of memory
+        in the data container, to cap the peak memory consumption
+        of the container.
+
+        TODO: Innodb_data_lock_iterator::scan()
+        does not satisfy (3) currently.
       */
 
-      try {
-        DBUG_EXECUTE_IF("simulate_bad_alloc_exception_1",
-                        throw std::bad_alloc(););
-        iterator_done = it->scan(&m_container, true);
-      } catch (const std::bad_alloc &) {
-        my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0),
-                 "while scanning data_locks table", "rnd_next");
-        return ER_STD_BAD_ALLOC_ERROR;
-      }
+      iterator_done = it->scan(&m_container, true);
     }
   }
 
