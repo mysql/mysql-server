@@ -9557,6 +9557,85 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runLargeLockingReads(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int readsize = MIN(100, ctx->getNumRecords());
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (hugoTrans.pkReadRecords(GETNDB(step), readsize, readsize, NdbOperation::LM_Read) != 0) {
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return result;
+}
+
+int runRestartsWithSlowCommitComplete(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  const int numRestarts = 4;
+
+  if (restarter.getNumDbNodes() < 2) {
+    g_err << "Too few nodes" << endl;
+    ctx->stopTest();
+    return NDBT_SKIPPED;
+  }
+
+  for (int i = 0; i < numRestarts && !ctx->isTestStopped(); i++) {
+    int errorCode = 8123;  // Slow commit and complete sending at TC
+    ndbout << "Injecting error " << errorCode << " for slow commits + completes"
+           << endl;
+    restarter.insertErrorInAllNodes(errorCode);
+
+    /* Give some time for things to get stuck in slowness */
+    NdbSleep_MilliSleep(1000);
+
+    const int id = restarter.getNode(NdbRestarter::NS_RANDOM);
+    ndbout << "Restart node " << id << endl;
+
+    if (restarter.restartOneDbNode(id, false, true, true) != 0) {
+      g_err << "Failed to restart Db node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&id, 1)) {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    restarter.insertErrorInAllNodes(0);
+
+    if (restarter.startNodes(&id, 1)) {
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitClusterStarted() != 0) {
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    /* Ensure connected */
+    if (GETNDB(step)->get_ndb_cluster_connection().wait_until_ready(30, 30) !=
+        0) {
+      g_err << "Timeout waiting for NdbApi reconnect" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  ctx->stopTest();
+
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad",
          "Test that one node at a time can be stopped and then restarted "
@@ -10327,6 +10406,13 @@ TESTCASE("TransStallTimeout", "") {
 TESTCASE("TransStallTimeoutNF", "") {
   INITIALIZER(runLoadTable);
   STEP(runTestStallTimeoutAndNF);
+  FINALIZER(runClearTable);
+}
+TESTCASE("TransientStatesNF",
+         "Test node failure handling with transactions in transient states") {
+  INITIALIZER(runLoadTable);
+  STEPS(runLargeLockingReads, 5);
+  STEP(runRestartsWithSlowCommitComplete);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart)
