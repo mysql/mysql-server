@@ -10400,6 +10400,27 @@ ER_BULK_READER_ZSTD_ERROR
 ER_BULK_PARSER_ERROR
   eng "%s"
 
+ER_LH_INFER_UNSUPPORTED_FORMAT
+  eng "File format unsupported for inference."
+
+ER_LH_INVALID_JSON_FILE_FORMAT_SCHEMA
+  eng "Invalid json file format schema: %s"
+
+ER_NON_SCALAR_USED_AS_KEY
+  eng "Non-scalar (e.g., vector) column '%.64s' cannot be used as key."
+
+ER_INCOMPATIBLE_TYPE_AGG
+  eng "Columns aggregated with incompatible types: '%.64s', '%.64s'."
+
+ER_DATA_INCOMPATIBLE_WITH_VECTOR
+  eng "Value of type '%.16s, size: %zu' cannot be converted to 'vector' type."
+
+ER_EXCEEDS_VECTOR_MAX_DIMENSIONS
+  eng "Data size (%zu Bytes, %u dimensions) exceeds VECTOR max (%zu Bytes, %u dimensions) for column: '%.64s'"
+
+ER_TO_VECTOR_CONVERSION
+  eng "Data cannot be converted to a valid vector: '%.*s'"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
