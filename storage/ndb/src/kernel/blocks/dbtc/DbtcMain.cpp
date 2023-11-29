@@ -6415,7 +6415,8 @@ void Dbtc::commit020Lab(Signal* signal)
       if (Tcount < 16 &&
           ! (ERROR_INSERTED(8057) ||
              ERROR_INSERTED(8073) ||
-             ERROR_INSERTED(8089)))
+             ERROR_INSERTED(8089) ||
+             (ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) == 0))))
       {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
@@ -6438,7 +6439,8 @@ void Dbtc::commit020Lab(Signal* signal)
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8089))
+        if (ERROR_INSERTED(8089) ||
+            ERROR_INSERTED(8123))
         {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
@@ -6492,7 +6494,9 @@ Dbtc::sendCommitLqh(Signal* signal,
   Tdata[4] = Uint32(regApiPtr->globalcheckpointid);
   Uint32 len = 5;
 
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
+  const Uint32 destVersion = getNodeInfo(Thostptr.i).m_version;
+  if (unlikely(destVersion != 0 &&  // Disconnected
+               !ndb_check_micro_gcp(destVersion)))
   {
     jam();
     ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
@@ -6922,7 +6926,8 @@ void Dbtc::complete010Lab(Signal* signal)
     localTcConnectptr.i = nextTcConnect;
     if (localTcConnectptr.i != RNIL) {
       if (Tcount < 16 &&
-          !ERROR_INSERTED(8112)) 
+          !ERROR_INSERTED(8112) &&
+          !(ERROR_INSERTED(8123) && ((apiConnectptr.i & 0x1) != 0)))
       {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
@@ -6937,7 +6942,8 @@ void Dbtc::complete010Lab(Signal* signal)
         signal->theData[0] = TcContinueB::ZSEND_COMPLETE_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
-        if (ERROR_INSERTED(8112))
+        if (ERROR_INSERTED(8112) ||
+            ERROR_INSERTED(8123))
         {
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
@@ -9268,7 +9274,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /* or more LQH instances.  We cannot speed this up.                 */
     /* Only in confirmed node failure situations do we take action.     */
     /*------------------------------------------------------------------*/
-    if (errCode == ZNODEFAIL_BEFORE_COMMIT)
+    if (errCode == ZNODEFAIL_BEFORE_COMMIT ||
+        apiConnectptr.p->failureNr != cfailure_nr)
     {
       jam();
       /**
@@ -9297,7 +9304,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /* or more LQH instances.  We cannot speed this up.                   */
     /* Only in confirmed node failure situations do we take action.       */
     /*--------------------------------------------------------------------*/
-    if (errCode == ZNODEFAIL_BEFORE_COMMIT)
+    if (errCode == ZNODEFAIL_BEFORE_COMMIT ||
+        apiConnectptr.p->failureNr != cfailure_nr)
     {
       jam();
       /**
