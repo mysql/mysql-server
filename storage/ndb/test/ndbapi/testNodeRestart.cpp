@@ -65,14 +65,15 @@ static int changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step) {
     g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
           << endl;
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
-    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
+    for (int idx = 0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
       Uint32 oldValue = 0;
       if (iter.get(CFG_DB_START_PARTITION_TIMEOUT, oldValue)) {
         if (defaultValue == Uint32(~0)) {
           defaultValue = oldValue;
         } else if (oldValue != defaultValue) {
           g_err << "StartPartitionedTimeout is not consistent across data node"
-                   "sections" << endl;
+                   "sections"
+                << endl;
           break;
         }
       }
@@ -2832,7 +2833,8 @@ int runCreateBigTable(NDBT_Context *ctx, NDBT_Step *step) {
   do {
     hugoTrans.loadTableStartFrom(GETNDB(step), cnt, 10000);
     cnt += 10000;
-  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 180000);  // 180s
+  } while (cnt < rows &&
+           (NdbTick_CurrentMillisecond() - now) < 180000);  // 180s
   ndbout_c("Loaded %u rows in %llums", cnt, NdbTick_CurrentMillisecond() - now);
 
   return NDBT_OK;
@@ -7869,10 +7871,10 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
   }
   ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
   Uint32 enabledPartialLCP = 1;
-  for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
-    Uint32 nodeId=0;
-    if(iter.get(CFG_NODE_ID, &nodeId)) {
-      if(nodeId == (Uint32) node_1) {
+  for (int idx = 0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
+    Uint32 nodeId = 0;
+    if (iter.get(CFG_NODE_ID, &nodeId)) {
+      if (nodeId == (Uint32)node_1) {
         iter.get(CFG_DB_ENABLE_PARTIAL_LCP, &enabledPartialLCP);
         iter.closeSection();
         break;
@@ -7881,8 +7883,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
     iter.closeSection();
   }
 
-  if (enabledPartialLCP == 0)
-  {
+  if (enabledPartialLCP == 0) {
     g_err << "[SKIPPED] Test skipped. Needs EnablePartialLcp=1" << endl;
     iter.closeSection();
     return NDBT_SKIPPED;
@@ -9454,7 +9455,8 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
 
       CHECK(hugoOps.startTransaction(pNdb, rowNum) == 0,
             "Start transaction failed");
-      CHECK(hugoOps.pkUpdateRecord(pNdb, rowNum, 1) == 0, "Define Update failed");
+      CHECK(hugoOps.pkUpdateRecord(pNdb, rowNum, 1) == 0,
+            "Define Update failed");
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0, "Execute NoCommit failed");
 
       NdbTransaction *trans = hugoOps.getTransaction();
@@ -9532,8 +9534,7 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
 
       if (trans->getNdbError().code != 0) {
         ndbout_c("Got unexpected failure code : %u : %s",
-                 trans->getNdbError().code,
-                 trans->getNdbError().message);
+                 trans->getNdbError().code, trans->getNdbError().message);
         return NDBT_FAILED;
       }
 
@@ -9553,6 +9554,86 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
   }   /* failType */
 
   return NDBT_OK;
+}
+
+int runLargeLockingReads(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int readsize = MIN(100, ctx->getNumRecords());
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (hugoTrans.pkReadRecords(GETNDB(step), readsize, readsize,
+                                NdbOperation::LM_Read) != 0) {
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return result;
+}
+
+int runRestartsWithSlowCommitComplete(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  const int numRestarts = 4;
+
+  if (restarter.getNumDbNodes() < 2) {
+    g_err << "Too few nodes" << endl;
+    ctx->stopTest();
+    return NDBT_SKIPPED;
+  }
+
+  for (int i = 0; i < numRestarts && !ctx->isTestStopped(); i++) {
+    int errorCode = 8123;  // Slow commit and complete sending at TC
+    ndbout << "Injecting error " << errorCode << " for slow commits + completes"
+           << endl;
+    restarter.insertErrorInAllNodes(errorCode);
+
+    /* Give some time for things to get stuck in slowness */
+    NdbSleep_MilliSleep(1000);
+
+    const int id = restarter.getNode(NdbRestarter::NS_RANDOM);
+    ndbout << "Restart node " << id << endl;
+
+    if (restarter.restartOneDbNode(id, false, true, true) != 0) {
+      g_err << "Failed to restart Db node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&id, 1)) {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    restarter.insertErrorInAllNodes(0);
+
+    if (restarter.startNodes(&id, 1)) {
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitClusterStarted() != 0) {
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    /* Ensure connected */
+    if (GETNDB(step)->get_ndb_cluster_connection().wait_until_ready(30, 30) !=
+        0) {
+      g_err << "Timeout waiting for NdbApi reconnect" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  ctx->stopTest();
+
+  return result;
 }
 
 NDBT_TESTSUITE(testNodeRestart);
@@ -10325,6 +10406,13 @@ TESTCASE("TransStallTimeout", "") {
 TESTCASE("TransStallTimeoutNF", "") {
   INITIALIZER(runLoadTable);
   STEP(runTestStallTimeoutAndNF);
+  FINALIZER(runClearTable);
+}
+TESTCASE("TransientStatesNF",
+         "Test node failure handling with transactions in transient states") {
+  INITIALIZER(runLoadTable);
+  STEPS(runLargeLockingReads, 5);
+  STEP(runRestartsWithSlowCommitComplete);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart)
