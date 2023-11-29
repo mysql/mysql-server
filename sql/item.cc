@@ -1103,13 +1103,11 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // pushdown if we have such expressions.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
-    Item_result result_type = INVALID_RESULT;
+    Item_result result_type = this->result_type();
     for (Query_block *qb = derived_query_expression->first_query_block();
          qb != nullptr; qb = qb->next_query_block()) {
       Item *item = qb->get_derived_expr(field->field_index());
-      if (result_type == INVALID_RESULT) {
-        result_type = item->result_type();
-      } else if (result_type != item->result_type()) {
+      if (result_type != item->result_type()) {
         return true;
       }
       if (item->has_subquery() || item->is_non_deterministic()) return true;
