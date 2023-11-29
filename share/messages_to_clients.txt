@@ -10400,6 +10400,12 @@ ER_BULK_READER_ZSTD_ERROR
 ER_BULK_PARSER_ERROR
   eng "%s"
 
+ER_LH_INFER_UNSUPPORTED_FORMAT
+  eng "File format unsupported for inference."
+
+ER_LH_INVALID_JSON_FILE_FORMAT_SCHEMA
+  eng "Invalid json file format schema: %s"
+
 ER_NON_SCALAR_USED_AS_KEY
   eng "Non-scalar (e.g., vector) column '%.64s' cannot be used as key."
 
