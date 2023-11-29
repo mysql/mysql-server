@@ -1,7 +1,6 @@
 # ==== Requirements ====
 # #
 # # R1. When @@global.ssl_fips=1, and replication does not use ssl, replication shall work
-# # R2. When @@global.ssl_fips=1, and replication uses ssl with a weak cipher, replication shall fail to connect
 # # R3. When @@global.ssl_fips=1, and replication uses ssl with a strong cipher, replication shall work
 # #
 # # ==== References ====
@@ -49,18 +48,7 @@ source include/start_slave.inc;
 --echo [on slave]
 connection slave;
 source include/stop_slave.inc;
---echo # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1
-START SLAVE;
---let $slave_io_errno= 2026
---source include/wait_for_slave_io_error.inc
-connection slave;
-select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_connection_status;
-
 --echo # R3: Set the ssl connection ON and strong cipher
-connection slave;
---source include/stop_slave.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256'
 source include/start_slave.inc;

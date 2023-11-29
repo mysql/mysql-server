@@ -16,9 +16,9 @@ SET SESSION sql_log_bin=1;
 SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
-SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL tls_ciphersuites='TLS_CHACHA20_POLY1305_SHA256';
 SET @group_replication_recovery_tls_ciphersuites_saved= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
-SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_CHACHA20_POLY1305_SHA256';
 SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 ALTER INSTANCE RELOAD TLS;
@@ -41,7 +41,7 @@ SET SESSION sql_log_bin=1;
 SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
-SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL tls_ciphersuites='TLS_CHACHA20_POLY1305_SHA256';
 SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 ALTER INSTANCE RELOAD TLS;
@@ -49,7 +49,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_use_ssl=1;
 SET @group_replication_recovery_tls_ciphersuites_saved= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
-SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_CHACHA20_POLY1305_SHA256';
 include/start_group_replication.inc
 #
 # Check the data is there

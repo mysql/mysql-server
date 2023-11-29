@@ -116,18 +116,7 @@ const char blocked_tls12_ciphers[] = {
     "!RC2:"
     "!RC4:"
     "!PSK:"
-    "!DH-RSA-AES128-SHA256:"
-    "!DH-RSA-AES256-SHA256:"
-    "!DH-DSS-AES128-SHA256:"
-    "!DH-DSS-AES128-SHA:"
-    "!DH-DSS-AES256-SHA:"
-    "!DH-DSS-AES256-SHA256:"
-    "!DH-RSA-AES128-SHA:"
-    "!DH-RSA-AES256-SHA:"
-    "!DH-DSS-AES128-GCM-SHA256:"
-    "!DH-DSS-AES256-GCM-SHA384:"
-    "!DH-RSA-AES128-GCM-SHA256:"
-    "!DH-RSA-AES256-GCM-SHA384"};
+    "!kDH"};
 
 /*
   Following ciphers are added to the list of permissible ciphers

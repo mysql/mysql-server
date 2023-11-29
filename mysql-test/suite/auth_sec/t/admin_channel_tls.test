@@ -11,6 +11,8 @@ CALL mtr.add_suppression("Failed to set up SSL because of the following SSL libr
 call mtr.add_suppression("Failed to set up TLS. Check logs for details");
 call mtr.add_suppression("Internal TLS error.*");
 call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
+call mtr.add_suppression("Value for option 'admin_ssl_cipher' contains cipher 'gizmo' that is blocked");
+call mtr.add_suppression("Value for option 'admin_tls_ciphersuites' contains cipher 'gizmo' that is blocked");
 --enable_query_log
 
 --echo # Create test user
@@ -210,7 +212,11 @@ SET GLOBAL admin_ssl_key = 'gizmo';
 SET GLOBAL admin_ssl_capath = 'gizmo';
 SET GLOBAL admin_ssl_crl = 'gizmo';
 SET GLOBAL admin_ssl_crlpath = 'gizmo';
+
+--echo # Must fail
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL admin_ssl_cipher = 'gizmo';
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL admin_tls_ciphersuites = 'gizmo';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL admin_tls_version = 'gizmo';

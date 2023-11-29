@@ -12233,11 +12233,13 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_TLS_CIPHERSUITES:
       opt_use_ssl = true;
-      validate_ciphers("tls-ciphersuites", argument, TLS_version::TLSv13);
+      if (validate_ciphers(opt->name, argument, TLS_version::TLSv13))
+        return true;
       break;
     case OPT_SSL_CIPHER:
       opt_use_ssl = true;
-      validate_ciphers("ssl-cipher", argument, TLS_version::TLSv12);
+      if (validate_ciphers(opt->name, argument, TLS_version::TLSv12))
+        return true;
       break;
     case OPT_TLS_VERSION:
       opt_use_ssl = true;
@@ -12275,12 +12277,14 @@ bool mysqld_get_one_option(int optid,
     case OPT_ADMIN_SSL_CIPHER:
       g_admin_ssl_configured = true;
       opt_use_admin_ssl = true;
-      validate_ciphers("admin-ssl-cipher", argument, TLS_version::TLSv12);
+      if (validate_ciphers(opt->name, argument, TLS_version::TLSv12))
+        return true;
       break;
     case OPT_ADMIN_TLS_CIPHERSUITES:
       g_admin_ssl_configured = true;
       opt_use_admin_ssl = true;
-      validate_ciphers("admin-tls-ciphersuites", argument, TLS_version::TLSv13);
+      if (validate_ciphers(opt->name, argument, TLS_version::TLSv13))
+        return true;
       break;
     case OPT_ADMIN_TLS_VERSION:
       g_admin_ssl_configured = true;

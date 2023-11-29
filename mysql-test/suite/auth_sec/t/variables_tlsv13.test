@@ -7,6 +7,9 @@
 --echo
 --echo # Setup
 --echo
+
+CALL mtr.add_suppression("Value for option .* contains cipher .* that is blocked.");
+
 SELECT @@ssl_cipher INTO @saved_ssl_cipher;
 SELECT @@admin_ssl_cipher INTO @saved_admin_ssl_cipher;
 SELECT @@tls_ciphersuites INTO @saved_tls_ciphersuites;
@@ -22,91 +25,91 @@ CREATE TABLE cipher_db.ciphers_data(ciphers JSON);
 
 --echo # Valid cipher: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Valid ciphers: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
                                              "ECDHE-RSA-AES256-GCM-SHA384"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Deprecated cipher: Search should find warnings
+--echo # Deprecated cipher: Search should find errors
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Deprecated ciphers: Search should find warnings for each of them
+--echo # Deprecated ciphers: Search should find errors for each of them
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-SHA256",
                                              "DHE-RSA-AES256-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Mix of valid and deprecated ciphers: Search should find warnings for two of them
+--echo # Mix of valid and deprecated ciphers: Search should find errors for two of them
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
                                              "ECDHE-RSA-AES128-SHA256",
                                              "DHE-RSA-AES256-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Deprecated cipher with "!" prefix: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["!ECDHE-RSA-AES128-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Deprecated ciphers with "!" prefix: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["!ECDHE-RSA-AES128-GCM-SHA256",
                                              "!ECDHE-RSA-AES256-GCM-SHA384"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
                                              "!ECDHE-RSA-AES128-SHA256",
                                              "!DHE-RSA-AES256-SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --let $TLS_VERSION=TLSv1.3
 
 --echo # Valid cipher: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Valid ciphers: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "TLS_AES_256_GCM_SHA384"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Deprecated cipher: Search should find warnings
+--echo # Deprecated cipher: Search should find errors
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Mix of valid and deprecated ciphers: Search should find warnings for one of them
+--echo # Mix of valid and deprecated ciphers: Search should find errors for one of them
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "TLS_AES_128_CCM_8_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Deprecated cipher with "!" prefix: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["!TLS_AES_128_CCM_8_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
---echo # Mix of valid and deprecated ciphers: Search should find warnings for one of them
+--echo # Mix of valid and deprecated ciphers: Search should find errors for one of them
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "TLS_AES_128_CCM_8_SHA256",
                                              "TLS_CHACHA20_POLY1305_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo # Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
 INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "!TLS_AES_128_CCM_8_SHA256"]');
---source suite/auth_sec/include/wl15800_variables_test.inc
+--source suite/auth_sec/include/variables_test.inc
 TRUNCATE TABLE cipher_db.ciphers_data;
 
 --echo

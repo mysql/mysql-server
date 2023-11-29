@@ -28,34 +28,34 @@ if ($records != "") {
   SELECT @@global.admin_tls_ciphersuites INTO @saved_admin_ciphersuites;
 
   if ($TLS_VERSION == "TLSv1.2") {
+    if ($BLOCKED_CIPHERS == 0) {
       SET GLOBAL ssl_cipher=@ciphers;
       SET GLOBAL admin_ssl_cipher=@ciphers;
+    }
+
+    if ($BLOCKED_CIPHERS == 1) {
+      --error ER_WRONG_VALUE_FOR_VAR
+      SET GLOBAL ssl_cipher=@ciphers;
+      --error ER_WRONG_VALUE_FOR_VAR
+      SET GLOBAL admin_ssl_cipher=@ciphers;
+    }
   }
 
   if ($TLS_VERSION == "TLSv1.3") {
+    if ($BLOCKED_CIPHERS == 0) {
       SET GLOBAL tls_ciphersuites=@ciphers;
       SET GLOBAL admin_tls_ciphersuites=@ciphers;
+    }
+
+    if ($BLOCKED_CIPHERS == 1) {
+      --error ER_WRONG_VALUE_FOR_VAR
+      SET GLOBAL tls_ciphersuites=@ciphers;
+      --error ER_WRONG_VALUE_FOR_VAR
+      SET GLOBAL admin_tls_ciphersuites=@ciphers;
+    }
   }
 
   if ($BLOCKED_CIPHERS == 0) {
-    ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
-    ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-  }
-  if ($BLOCKED_CIPHERS == 1) {
-    --error ER_DA_SSL_LIBRARY_ERROR
-    ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
-    --error ER_DA_SSL_LIBRARY_ERROR
-    ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
-
-    # Reset ciphers to last known good values
-    if ($TLS_VERSION == "TLSv1.2") {
-      SET GLOBAL ssl_cipher=@saved_ciphers;
-      SET GLOBAL admin_ssl_cipher=@saved_admin_ciphers;
-    }
-    if ($TLS_VERSION == "TLSv1.3") {
-      SET GLOBAL tls_ciphersuites=@saved_ciphersuites;
-      SET GLOBAL admin_tls_ciphersuites=@saved_admin_ciphersuites;
-    }
     ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
     ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
   }

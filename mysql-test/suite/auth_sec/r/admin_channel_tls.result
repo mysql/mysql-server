@@ -116,8 +116,11 @@ SET GLOBAL admin_ssl_key = 'gizmo';
 SET GLOBAL admin_ssl_capath = 'gizmo';
 SET GLOBAL admin_ssl_crl = 'gizmo';
 SET GLOBAL admin_ssl_crlpath = 'gizmo';
+# Must fail
 SET GLOBAL admin_ssl_cipher = 'gizmo';
+ERROR 42000: Variable 'admin_ssl_cipher' can't be set to the value of 'gizmo'
 SET GLOBAL admin_tls_ciphersuites = 'gizmo';
+ERROR 42000: Variable 'admin_tls_ciphersuites' can't be set to the value of 'gizmo'
 SET GLOBAL admin_tls_version = 'gizmo';
 ERROR 42000: Variable 'admin_tls_version' can't be set to the value of 'gizmo'
 # Must fail

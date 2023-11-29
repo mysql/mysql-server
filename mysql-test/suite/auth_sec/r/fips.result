@@ -41,19 +41,6 @@ md5(8)
 00000000000000000000000000000000
 Level	Code	Message
 Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
-##Test: Restart server and provide weak cipher CAMELLIA256-SHA
-client will only able to connect with only FIPS mode OFF
-Variable_name	Value
-ssl_fips_mode	OFF
-Variable_name	Value
-ssl_fips_mode	OFF
-mysqld is alive
-WARNING: MYSQL_OPT_SSL_FIPS_MODE is deprecated and will be removed in a future version.
-mysqladmin: connect to server at '127.0.0.1' failed
-error: 'SSL connection error: Failed to set ciphers to use'
-WARNING: MYSQL_OPT_SSL_FIPS_MODE is deprecated and will be removed in a future version.
-mysqladmin: connect to server at '127.0.0.1' failed
-error: 'SSL connection error: Failed to set ciphers to use'
 # restart server using restart default values
 Restart server.
 ##Test: MySQL client, Set fips mode: Default

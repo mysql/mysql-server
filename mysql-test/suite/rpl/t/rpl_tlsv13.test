@@ -49,15 +49,15 @@ ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_master.inc
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
-SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL tls_ciphersuites='TLS_AES_128_GCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FOR CHANNEL 'my_channel';
 --source include/start_slave.inc
 
---let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256
---let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_CCM_8_SHA256"
+--let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256
+--let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_GCM_SHA256"
 --source include/assert.inc
 
 --echo ########################################################################
@@ -68,8 +68,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' 
 
 RESET SLAVE FOR CHANNEL 'my_channel';
 
---let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256
---let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_CCM_8_SHA256"
+--let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256
+--let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = "TLS_AES_128_GCM_SHA256"
 --source include/assert.inc
 
 --echo ########################################################################

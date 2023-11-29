@@ -1,0 +1,29 @@
+--source include/have_tlsv13.inc
+--source include/allowed_ciphers.inc
+--source include/have_fips.inc
+# This test requires the ability to turn FIPS mode on/off to test weak ciphers.
+--source include/not_fips_active.inc
+
+--echo #
+--echo # WL#15801: Remove weak ciphers usage
+--echo #
+
+--echo # Testsing ciphers which are not allowed under FIPS mode
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-fips-mode=ON -e "SHOW STATUS like 'Ssl_cipher'"
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 --ssl-fips-mode=ON -e "SHOW STATUS like 'Ssl_cipher'"
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --tls-ciphersuites=TLS_CHACHA20_POLY1305_SHA256 -e "SHOW STATUS like 'Ssl_cipher'"
+
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-CHACHA20-POLY1305 -e "SHOW STATUS like 'Ssl_cipher'"
+
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-fips-mode=ON --tls-ciphersuites=TLS_CHACHA20_POLY1305_SHA256 -e "SHOW STATUS like 'Ssl_cipher'"
+
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 --ssl-fips-mode=ON --ssl-cipher=DHE-RSA-CHACHA20-POLY1305 -e "SHOW STATUS like 'Ssl_cipher'"

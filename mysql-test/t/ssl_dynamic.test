@@ -5,6 +5,7 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+--disable_query_log
 # The SSL library may fail initializing during this one
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
@@ -13,6 +14,9 @@ call mtr.add_suppression("Failed to validate certificate .*");
 call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 call mtr.add_suppression("Failed to set up TLS. Check logs for details");
 call mtr.add_suppression("Internal TLS error error.*");
+call mtr.add_suppression("Value for option 'ssl_cipher' contains cipher 'gizmo' that is blocked");
+call mtr.add_suppression("Value for option 'tls_ciphersuites' contains cipher 'gizmo' that is blocked");
+--enable_query_log
 
 --echo # Check if ssl is on
 SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
@@ -238,7 +242,11 @@ SET GLOBAL ssl_key = 'gizmo';
 SET GLOBAL ssl_capath = 'gizmo';
 SET GLOBAL ssl_crl = 'gizmo';
 SET GLOBAL ssl_crlpath = 'gizmo';
+
+--echo # Must fail
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL ssl_cipher = 'gizmo';
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL tls_ciphersuites = 'gizmo';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL tls_version = 'gizmo';

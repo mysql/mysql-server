@@ -12589,6 +12589,9 @@ ER_GRP_RPL_MSG_DECODING_FAILED
 ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED
   eng "The Applier process of Group Replication found an error and was requested to stop: %s"
 
+ER_BLOCKED_CIPHER
+   eng "Value for option '%s' contains cipher '%s' that is blocked. Please refer to the documentation for allowed ciphers."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -1,0 +1,277 @@
+#=======================================================================
+
+# Setup
+
+CALL mtr.add_suppression("Value for option .* contains cipher .* that is blocked.");
+SELECT @@ssl_cipher INTO @saved_ssl_cipher;
+SELECT @@admin_ssl_cipher INTO @saved_admin_ssl_cipher;
+SELECT @@tls_ciphersuites INTO @saved_tls_ciphersuites;
+SELECT @@admin_tls_ciphersuites INTO @saved_admin_tls_ciphersuites;
+CREATE DATABASE cipher_db;
+CREATE TABLE cipher_db.ciphers_data(ciphers JSON);
+
+#=======================================================================
+
+# Valid cipher: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256"]');
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-GCM-SHA256
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Valid ciphers: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for ECDHE-RSA-AES256-GCM-SHA384
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES256-GCM-SHA384' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES256-GCM-SHA384' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated cipher: Search should find errors
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-SHA256
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated ciphers: Search should find errors for each of them
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+
+
+# Checking error messages (if any) for DHE-RSA-AES256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is blocked" found
+
+
+#-----------------------------------------------------------------------
+
+# Mix of valid and deprecated ciphers: Search should find errors for two of them
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+
+
+# Checking error messages (if any) for DHE-RSA-AES256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is blocked" found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated cipher with "!" prefix: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: !ECDHE-RSA-AES128-SHA256
+
+# Checking error messages (if any) for !ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher '!ECDHE-RSA-AES128-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher '!ECDHE-RSA-AES128-SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated ciphers with "!" prefix: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: !ECDHE-RSA-AES128-GCM-SHA256:!ECDHE-RSA-AES256-GCM-SHA384
+
+# Checking error messages (if any) for !ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher '!ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher '!ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for !ECDHE-RSA-AES256-GCM-SHA384
+Pattern "Value for option 'ssl_cipher' contains cipher '!ECDHE-RSA-AES256-GCM-SHA384' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher '!ECDHE-RSA-AES256-GCM-SHA384' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: ECDHE-RSA-AES128-GCM-SHA256:!ECDHE-RSA-AES128-SHA256:!DHE-RSA-AES256-SHA256
+
+# Checking error messages (if any) for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for !ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher '!ECDHE-RSA-AES128-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher '!ECDHE-RSA-AES128-SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for !DHE-RSA-AES256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher '!DHE-RSA-AES256-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher '!DHE-RSA-AES256-SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Valid cipher: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_GCM_SHA256
+
+# Checking error messages (if any) for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Valid ciphers: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384
+
+# Checking error messages (if any) for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for TLS_AES_256_GCM_SHA384
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_256_GCM_SHA384' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_256_GCM_SHA384' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated cipher: Search should find errors
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_CCM_8_SHA256
+
+# Checking error messages (if any) for TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+
+
+#-----------------------------------------------------------------------
+
+# Mix of valid and deprecated ciphers: Search should find errors for one of them
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256
+
+# Checking error messages (if any) for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+
+
+#-----------------------------------------------------------------------
+
+# Deprecated cipher with "!" prefix: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: !TLS_AES_128_CCM_8_SHA256
+
+# Checking error messages (if any) for !TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher '!TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher '!TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Mix of valid and deprecated ciphers: Search should find errors for one of them
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256:TLS_CHACHA20_POLY1305_SHA256
+
+# Checking error messages (if any) for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+
+
+# Checking error messages (if any) for TLS_CHACHA20_POLY1305_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_CHACHA20_POLY1305_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_CHACHA20_POLY1305_SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+# Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
+
+#-----------------------------------------------------------------------
+
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:!TLS_AES_128_CCM_8_SHA256
+
+# Checking error messages (if any) for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+
+
+# Checking error messages (if any) for !TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher '!TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher '!TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+
+
+#-----------------------------------------------------------------------
+
+
+#=======================================================================
+
+# Cleanup
+
+
+#=======================================================================

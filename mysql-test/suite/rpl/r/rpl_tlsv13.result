@@ -24,12 +24,12 @@ include/assert.inc [TLS_CIPHERSUITES has the default NULL value]
 include/stop_slave.inc [FOR CHANNEL 'my_channel']
 [connection master]
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
-SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET GLOBAL tls_ciphersuites='TLS_AES_128_GCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 [connection slave]
-CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FOR CHANNEL 'my_channel';
 include/start_slave.inc [FOR CHANNEL 'my_channel']
-include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
+include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 ########################################################################
 # 3. RESET SLAVE does not clean MASTER_TLS_CIPHERSUITES.
 [connection slave]
@@ -37,7 +37,7 @@ include/stop_slave.inc [FOR CHANNEL 'my_channel']
 RESET SLAVE FOR CHANNEL 'my_channel';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
+include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 ########################################################################
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
 #    and slave will fail.

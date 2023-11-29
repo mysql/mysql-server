@@ -1,0 +1,12 @@
+#
+# WL#15801: Remove weak ciphers usage
+#
+# Testsing ciphers which are not allowed under FIPS mode
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER

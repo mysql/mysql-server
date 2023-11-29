@@ -1,10 +1,3 @@
-call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
-call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
-call mtr.add_suppression("CA certificate/certficates is invalid. Please check logs for more details.");
-call mtr.add_suppression("Failed to validate certificate .*");
-call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
-call mtr.add_suppression("Failed to set up TLS. Check logs for details");
-call mtr.add_suppression("Internal TLS error error.*");
 # Check if ssl is on
 SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status
 WHERE VARIABLE_NAME='Ssl_cipher';
@@ -141,8 +134,11 @@ SET GLOBAL ssl_key = 'gizmo';
 SET GLOBAL ssl_capath = 'gizmo';
 SET GLOBAL ssl_crl = 'gizmo';
 SET GLOBAL ssl_crlpath = 'gizmo';
+# Must fail
 SET GLOBAL ssl_cipher = 'gizmo';
+ERROR 42000: Variable 'ssl_cipher' can't be set to the value of 'gizmo'
 SET GLOBAL tls_ciphersuites = 'gizmo';
+ERROR 42000: Variable 'tls_ciphersuites' can't be set to the value of 'gizmo'
 SET GLOBAL tls_version = 'gizmo';
 ERROR 42000: Variable 'tls_version' can't be set to the value of 'gizmo'
 # Must fail

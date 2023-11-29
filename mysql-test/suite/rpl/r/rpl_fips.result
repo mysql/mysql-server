@@ -31,20 +31,7 @@ include/start_slave.inc
 include/check_slave_no_error.inc
 [on slave]
 include/stop_slave.inc
-# R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
-CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_io_error.inc [errno=2026]
-select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_connection_status;
-SERVICE_STATE	LAST_ERROR_NUMBER
-OFF	2026
 # R3: Set the ssl connection ON and strong cipher
-include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

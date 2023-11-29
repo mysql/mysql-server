@@ -134,5 +134,5 @@ enum class TLS_version { TLSv12 = 0, TLSv13 };
 /**
   Helper method to validate values of --ssl-cipher and --admin-ssl-cipher
 */
-void validate_ciphers(const char *option, const char *val, TLS_version version);
+bool validate_ciphers(const char *option, const char *val, TLS_version version);
 #endif  // !SSL_INIT_CALLBACK_INCLUDED

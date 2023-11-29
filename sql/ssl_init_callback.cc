@@ -90,9 +90,11 @@ static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
   return check_tls_version(nullptr, nullptr, var);
 }
 
-void validate_ciphers(const char *option, const char *val,
+bool validate_ciphers(const char *option, const char *val,
                       TLS_version version) {
-  if (!val || !*val) return;
+  bool retval = false;
+  /* If nothing is specified viosslfactories.cc will use default ciphers */
+  if (!val || !*val) return retval;
   std::string ciphers{val};
   std::string haystack{};
   switch (version) {
@@ -110,28 +112,27 @@ void validate_ciphers(const char *option, const char *val,
   while (index != std::string::npos) {
     auto needle = ciphers.substr(0, index);
     if ((needle[0] != '!') && (haystack.find(needle) == std::string::npos)) {
-      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER, option,
-             needle.c_str());
+      LogErr(ERROR_LEVEL, ER_BLOCKED_CIPHER, option, needle.c_str());
+      retval = true;
     }
     ciphers.erase(0, index + 1);
     index = ciphers.find(':');
   }
   if ((ciphers[0] != '!') && (haystack.find(ciphers) == std::string::npos)) {
-    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER, option,
-           ciphers.c_str());
+    LogErr(ERROR_LEVEL, ER_BLOCKED_CIPHER, option, ciphers.c_str());
+    retval = true;
   }
+  return retval;
 }
 
 static bool check_tls12_ciphers(sys_var *var, THD *, set_var *value) {
-  validate_ciphers(var->name.str, value->save_result.string_value.str,
-                   TLS_version::TLSv12);
-  return false;
+  return validate_ciphers(var->name.str, value->save_result.string_value.str,
+                          TLS_version::TLSv12);
 }
 
 static bool check_tls13_ciphers(sys_var *var, THD *, set_var *value) {
-  validate_ciphers(var->name.str, value->save_result.string_value.str,
-                   TLS_version::TLSv13);
-  return false;
+  return validate_ciphers(var->name.str, value->save_result.string_value.str,
+                          TLS_version::TLSv13);
 }
 
 /*

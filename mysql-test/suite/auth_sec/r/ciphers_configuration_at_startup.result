@@ -1,0 +1,51 @@
+CALL mtr.add_suppression("Value for option .* contains cipher .* that is blocked.");
+#
+# WL#15801: Remove weak ciphers usage
+#
+# Stop server
+# Server should fail to start: Invalid --ssl-cipher value
+# Must find error for ECDHE-RSA-AES128-SHA256 for ssl-cipher
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" not found
+# Server should fail to start: Invalid --admin-ssl-cipher value
+# Must find error for ECDHE-RSA-AES128-SHA256 for admin-ssl-cipher
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+# Server should fail to start: Valid and invalid --ssl-cipher values
+# Must not find error for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+# Must find error for ECDHE-RSA-AES128-SHA256 for ssl-cipher
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" not found
+# Server should fail to start: Valid and invalid --admin-ssl-cipher values
+# Must not find error for ECDHE-RSA-AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-GCM-SHA256' that is blocked" not found
+# Must find error for ECDHE-RSA-AES128-SHA256 for admin-ssl-cipher
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is blocked" found
+# Server should fail to start: Invalid --tls-ciphersuites value
+# Must find error for TLS_AES_128_CCM_8_SHA256 for tls-ciphersuites
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+# Server should fail to start: Invalid --admin-tls-ciphersuites value
+# Must find error for TLS_AES_128_CCM_8_SHA256 for admin-tls-ciphersuites
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+# Server should fail to start: Valid and invalid --tls-ciphersuites values
+# Must not find error for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+# Must find error for TLS_AES_128_CCM_8_SHA256 for tls-ciphersuites
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+# Server should fail to start: Valid and invalid --admin-tls-ciphersuites values
+# Must not find error for TLS_AES_128_GCM_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_GCM_SHA256' that is blocked" not found
+# Must find error for TLS_AES_128_CCM_8_SHA256 for admin-tls-ciphersuites
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" not found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is blocked" found
+# start server with all defaults
+# restart
