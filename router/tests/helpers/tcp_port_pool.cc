@@ -45,9 +45,9 @@
 using mysql_harness::Path;
 
 namespace {
+#ifndef _WIN32
 std::error_code posix_error_code() { return {errno, std::generic_category()}; }
-
-#ifdef _WIN32
+#else
 std::error_code win32_error_code() {
   return {static_cast<int>(GetLastError()), std::generic_category()};
 }
