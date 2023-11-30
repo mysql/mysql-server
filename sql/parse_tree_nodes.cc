@@ -4373,7 +4373,7 @@ bool PT_subquery::do_contextualize(Parse_context *pc) {
   if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
-  if (!lex->expr_allows_subselect || lex->sql_command == SQLCOM_PURGE) {
+  if (!lex->expr_allows_subquery || lex->sql_command == SQLCOM_PURGE) {
     error(pc, m_pos);
     return true;
   }

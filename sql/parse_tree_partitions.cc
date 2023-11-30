@@ -387,7 +387,10 @@ bool PT_part_type_def::itemize_part_expr(Partition_parse_context *pc,
                                          const POS &pos, Item **item) {
   LEX *const lex = pc->thd->lex;
   lex->safe_to_cache_query = true;
+  lex->expr_allows_subquery = false;
   if ((*item)->itemize(pc, item)) return true;
+
+  lex->expr_allows_subquery = true;
 
   if (!lex->safe_to_cache_query) {
     error(pc, pos, ER_THD(pc->thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));

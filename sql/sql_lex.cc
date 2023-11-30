@@ -442,7 +442,7 @@ void LEX::reset() {
   m_sql_cmd = nullptr;
   query_tables = nullptr;
   reset_query_tables_list(false);
-  expr_allows_subselect = true;
+  expr_allows_subquery = true;
   use_only_table_context = false;
   contains_plaintext_password = false;
   keep_diagnostics = DA_KEEP_NOTHING;

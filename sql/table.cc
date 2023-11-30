@@ -2614,8 +2614,8 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   const CHARSET_INFO *save_character_set_client =
       thd->variables.character_set_client;
   // Subquery is not allowed in generated expression
-  const bool save_allow_subselects = thd->lex->expr_allows_subselect;
-  thd->lex->expr_allows_subselect = false;
+  const bool save_allows_subquery = thd->lex->expr_allows_subquery;
+  thd->lex->expr_allows_subquery = false;
   // allow_sum_func is also 0, banning group aggregates and window functions.
   assert(thd->lex->allow_sum_func == 0);
 
@@ -2650,7 +2650,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
     thd->swap_query_arena(save_arena, &val_generator_arena);
     thd->variables.character_set_client = save_character_set_client;
     thd->want_privilege = save_old_privilege;
-    thd->lex->expr_allows_subselect = save_allow_subselects;
+    thd->lex->expr_allows_subquery = save_allows_subquery;
   };
 
   // Properties that need to be restored before leaving the scope if an
@@ -2675,7 +2675,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   assert((*val_generator)->expr_item != nullptr &&
          (*val_generator)->expr_str.str == nullptr);
 
-  thd->lex->expr_allows_subselect = save_allow_subselects;
+  thd->lex->expr_allows_subquery = save_allows_subquery;
 
   // Set the stored_in_db attribute of the column it depends on (if any)
   if (field != nullptr) (*val_generator)->set_field_stored(field->stored_in_db);
