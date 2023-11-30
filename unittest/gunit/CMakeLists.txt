@@ -298,6 +298,10 @@ SET(SERVER_TESTS
   xid_extract
   log_event_status_size
 )
+# Hangs forever.
+IF(LINUX_ARM AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  LIST(REMOVE_ITEM SERVER_TESTS bgc_ticket_manager)
+ENDIF()
 # Endless loop in FatalSignalDeathTest
 IF(LINUX_ALPINE)
   LIST(REMOVE_ITEM SERVER_TESTS segfault)
