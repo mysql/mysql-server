@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET (VERIFIED_PLATFORMS
+  LINUX_ALPINE
   LINUX_FEDORA
   LINUX_RHEL7
   LINUX_RHEL8
