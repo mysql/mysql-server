@@ -438,7 +438,7 @@ ProcessWrapper &ProcessManager::launch_router(
 std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
     const std::string &json_file, uint16_t port, uint16_t http_port,
     uint16_t x_port, const std::string &module_prefix /* = "" */,
-    const std::string &bind_address /*= "0.0.0.0"*/,
+    const std::string &bind_address /*= "127.0.0.1"*/,
     bool enable_ssl /* = false */) {
   std::vector<std::string> server_params{
       "--filename",       json_file,             //

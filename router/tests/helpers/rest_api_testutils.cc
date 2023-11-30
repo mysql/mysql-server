@@ -263,6 +263,7 @@ std::vector<std::string> RestApiComponentTest::get_restapi_config(
       mysql_harness::ConfigBuilder::build_section(
           "http_server",
           {
+              {"bind_address", "127.0.0.1"},
               {"port", std::to_string(http_port_)},
           }),
       mysql_harness::ConfigBuilder::build_section(component, authentication),

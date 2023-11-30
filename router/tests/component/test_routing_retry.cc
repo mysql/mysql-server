@@ -171,7 +171,7 @@ TEST_P(RoutingRetryTest, retry_at_greeting) {
   launch_mysql_server_mock(
       mysql_server_mock_cmdline_args(
           get_data_dir().join("max_connections_reached_at_greeting.js").str(),
-          server_port_, 0, 0, "", "0.0.0.0", true),
+          server_port_, 0, 0, "", "127.0.0.1", true),
       EXIT_SUCCESS);
 
   auto writer = config_writer(conf_dir_.name());
@@ -223,7 +223,7 @@ TEST_P(RoutingRetryTest, retry_at_auth) {
   launch_mysql_server_mock(
       mysql_server_mock_cmdline_args(
           get_data_dir().join("max_connections_reached_at_auth.js").str(),
-          server_port_, 0, 0, "", "0.0.0.0", true),
+          server_port_, 0, 0, "", "127.0.0.1", true),
       EXIT_SUCCESS);
 
   auto writer = config_writer(conf_dir_.name());

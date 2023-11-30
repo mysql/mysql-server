@@ -974,7 +974,7 @@ TEST_P(SessionReuseTest, SessionReuse) {
   for (size_t i = 0; i < kClusterNodes; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i], 0,
-        "", "0.0.0.0", 30s, /*enable_ssl*/ test_params.server_ssl_enabled));
+        "", "127.0.0.1", 30s, /*enable_ssl*/ test_params.server_ssl_enabled));
     set_mock_metadata(http_ports[i], "uuid",
                       classic_ports_to_gr_nodes(classic_ports), 0,
                       classic_ports_to_cluster_nodes(classic_ports));

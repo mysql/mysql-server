@@ -261,7 +261,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
   }
 
   const std::string node_host = param.ipv6 ? "[::1]" : "127.0.0.1";
-  const std::string bind_address = param.ipv6 ? "::" : "0.0.0.0";
+  const std::string bind_address = param.ipv6 ? "::" : "127.0.0.1";
 
   SCOPED_TRACE(
       "// Launch 3 server mocks that will act as our metadata servers");

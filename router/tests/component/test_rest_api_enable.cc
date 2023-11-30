@@ -106,12 +106,25 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
                       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
                           std::to_string(router_port_x_ro)});
 
+      // Let's overwrite the default bind_address to prevent the MacOS firewall
+      // from complaining
+      cmdline.insert(
+          cmdline.end(),
+          {"--conf-set-option=DEFAULT.bind_address=127.0.0.1",
+           "--conf-set-option=routing:bootstrap_rw.bind_address=127.0.0.1",
+           "--conf-set-option=routing:bootstrap_ro.bind_address=127.0.0.1",
+           "--conf-set-option=routing:bootstrap_x_rw.bind_address=127.0.0.1",
+           "--conf-set-option=routing:bootstrap_x_ro.bind_address=127.0.0.1"});
+
       if (std::find(additional_config.begin(), additional_config.end(),
                     "--disable-rw-split") == additional_config.end()) {
-        // if --disable-rw-split isn't set, set the bind-port
-        cmdline.push_back(
-            "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
-            std::to_string(router_port_rw_split));
+        // if --disable-rw-split isn't set, set the bind-port and bind-address
+        cmdline.insert(
+            cmdline.end(),
+            {"--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+                 std::to_string(router_port_rw_split),
+             "--conf-set-option=routing:bootstrap_rw_split.bind_address="
+             "127.0.0.1"});
       }
     }
 

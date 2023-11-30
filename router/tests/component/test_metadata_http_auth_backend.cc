@@ -102,23 +102,19 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   }
 
   std::string get_rest_section() const {
-    const std::string result =
-        "[http_server]\n"
-        "port=" +
-        std::to_string(http_server_port) +
-        "\n"
-        "[rest_router]\n"
-        "require_realm = somerealm\n"
-        "[rest_api]\n"
-        "[http_auth_realm:somerealm]\n"
-        "backend = somebackend\n"
-        "method = basic\n"
-        "name = test\n" +
-        auth_backend_settings() +
-        "[rest_routing]\n"
-        "require_realm = somerealm\n";
-
-    return result;
+    return mysql_harness::ConfigBuilder::build_section("rest_api", {}) +
+           mysql_harness::ConfigBuilder::build_section(
+               "rest_router", {{"require_realm", "somerealm"}}) +
+           mysql_harness::ConfigBuilder::build_section(
+               "rest_routing", {{"require_realm", "somerealm"}}) +
+           mysql_harness::ConfigBuilder::build_section(
+               "http_auth_realm:somerealm", {{"backend", "somebackend"},
+                                             {"method", "basic"},
+                                             {"name", "test"}}) +
+           mysql_harness::ConfigBuilder::build_section(
+               "http_server", {{"port", std::to_string(http_server_port)},
+                               {"bind_address", "127.0.0.1"}}) +
+           auth_backend_settings();
   }
 
   std::string create_state_file_content(const std::string &cluster_id,

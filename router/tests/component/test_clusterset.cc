@@ -82,6 +82,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   std::string routing_section(uint16_t router_port, const std::string &role,
                               const std::string &strategy) {
     std::map<std::string, std::string> options{
+        {"bind_address", "127.0.0.1"},
         {"bind_port", std::to_string(router_port)},
         {"destinations", "metadata-cache://test/default?role=" + role},
         {"protocol", "classic"}};

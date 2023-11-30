@@ -76,6 +76,16 @@ using mysqlrouter::ClusterType;
 // for the test with no param
 class RouterBootstrapTest : public RouterComponentBootstrapTest {};
 
+// if we plan to run the Router after the bootstrap we want to overwrite the
+// bind adddresses to prevent MacOS firewall pop ups
+static const std::vector<std::string> overwrite_routing_bind_addresses{
+    "--conf-set-option=routing:bootstrap_rw.bind_address=127.0.0.1",
+    "--conf-set-option=routing:bootstrap_ro.bind_address=127.0.0.1",
+    "--conf-set-option=routing:bootstrap_rw_split.bind_address=127.0.0.1",
+    "--conf-set-option=routing:bootstrap_x_rw.bind_address=127.0.0.1",
+    "--conf-set-option=routing:bootstrap_x_ro.bind_address=127.0.0.1",
+};
+
 #ifndef _WIN32
 // needs symlink()
 TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
@@ -108,26 +118,31 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
   // point the bootstrap at the symlink dir.
   bootstrap_dir.reset(symlinkdir);
 
+  std::vector<std::string> router_options{
+      "--conf-set-option=DEFAULT.plugin_folder=" +
+          mysql_harness::get_plugin_dir(get_origin().str()),
+      "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
+      "--conf-set-option=DEFAULT.keyring_path=" + symlinkdir + "/data/keyring",
+      "--conf-set-option=routing:bootstrap_rw.bind_port=" +
+          std::to_string(bootstrap_rw_port),
+      "--conf-set-option=routing:bootstrap_ro.bind_port=" +
+          std::to_string(bootstrap_ro_port),
+      "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
+          std::to_string(bootstrap_rw_split_port),
+      "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
+          std::to_string(bootstrap_x_rw_port),
+      "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
+          std::to_string(bootstrap_x_ro_port),
+  };
+
+  router_options.insert(router_options.end(),
+                        overwrite_routing_bind_addresses.begin(),
+                        overwrite_routing_bind_addresses.end());
+
   SCOPED_TRACE("// bootstrap into the symlink dir");
-  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
-      config, ClusterType::GR_V2, {}, EXIT_SUCCESS, {}, 30s, {2, 0, 3},
-      {
-          "--conf-set-option=DEFAULT.plugin_folder=" +
-              mysql_harness::get_plugin_dir(get_origin().str()),
-          "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
-          "--conf-set-option=DEFAULT.keyring_path=" + symlinkdir +
-              "/data/keyring",
-          "--conf-set-option=routing:bootstrap_rw.bind_port=" +
-              std::to_string(bootstrap_rw_port),
-          "--conf-set-option=routing:bootstrap_ro.bind_port=" +
-              std::to_string(bootstrap_ro_port),
-          "--conf-set-option=routing:bootstrap_rw_split.bind_port=" +
-              std::to_string(bootstrap_rw_split_port),
-          "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
-              std::to_string(bootstrap_x_rw_port),
-          "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
-              std::to_string(bootstrap_x_ro_port),
-      }));
+  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, ClusterType::GR_V2, {},
+                                             EXIT_SUCCESS, {}, 30s, {2, 0, 3},
+                                             router_options));
 
   SCOPED_TRACE("// launch mock-server for router");
   const std::string runtime_json_stmts =
@@ -1759,6 +1774,10 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
           std::to_string(router_port_x_ro)};
 
   bootstrap_params.insert(bootstrap_params.end(),
+                          overwrite_routing_bind_addresses.begin(),
+                          overwrite_routing_bind_addresses.end());
+
+  bootstrap_params.insert(bootstrap_params.end(),
                           GetParam().bootstrap_params.begin(),
                           GetParam().bootstrap_params.end());
 
@@ -2585,7 +2604,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   const auto router_port_rw_split = port_pool_.get_next_available();
   const auto router_port_x_rw = port_pool_.get_next_available();
   const auto router_port_x_ro = port_pool_.get_next_available();
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "-d",
       bootstrap_directory.name(),
@@ -2607,8 +2626,12 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
       "--ssl-crl=some",
       "--ssl-crlpath=some"};
 
+  bootstrap_params.insert(bootstrap_params.end(),
+                          overwrite_routing_bind_addresses.begin(),
+                          overwrite_routing_bind_addresses.end());
+
   // launch the router in bootstrap mode
-  auto &router = launch_router_for_bootstrap(bootsrtap_params);
+  auto &router = launch_router_for_bootstrap(bootstrap_params);
 
   check_exit_code(router, EXIT_SUCCESS);
 

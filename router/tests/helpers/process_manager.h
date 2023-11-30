@@ -331,7 +331,7 @@ class ProcessManager {
       const std::string &json_file, unsigned port, int expected_exit_code = 0,
       bool debug_mode = false, uint16_t http_port = 0, uint16_t x_port = 0,
       const std::string &module_prefix = "",
-      const std::string &bind_address = "0.0.0.0",
+      const std::string &bind_address = "127.0.0.1",
       std::chrono::milliseconds wait_for_notify_ready =
           std::chrono::seconds(30),
       bool enable_ssl = false);
@@ -351,7 +351,7 @@ class ProcessManager {
   std::vector<std::string> mysql_server_mock_cmdline_args(
       const std::string &json_file, uint16_t port, uint16_t http_port = 0,
       uint16_t x_port = 0, const std::string &module_prefix = "",
-      const std::string &bind_address = "0.0.0.0", bool enable_ssl = false);
+      const std::string &bind_address = "127.0.0.1", bool enable_ssl = false);
 
   /** @brief Launches a process.
    *

@@ -196,6 +196,7 @@ class MysqlServerMockFrontend {
 
       auto &http_server_config = loader_config->add("http_server", "");
       http_server_config.set("library", "http_server");
+      http_server_config.set("bind_address", config_.bind_address);
       http_server_config.set("port", config_.http_port);
       http_server_config.set("static_folder", "");
     }
@@ -220,6 +221,7 @@ class MysqlServerMockFrontend {
     if (!config_.xport.empty()) {
       auto &mock_x_server_config = loader_config->add("mock_server", "x");
       mock_x_server_config.set("library", "mock_server");
+      mock_x_server_config.set("bind_address", config_.bind_address);
       mock_x_server_config.set("port", config_.xport);
       mock_x_server_config.set("filename", config_.queries_filename);
       mock_x_server_config.set("module_prefix", config_.module_prefix);

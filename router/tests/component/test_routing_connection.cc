@@ -34,6 +34,7 @@
 #endif
 #include <rapidjson/document.h>
 
+#include "config_builder.h"
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -189,21 +190,19 @@ class ConfigGenerator {
         mysql_harness::Path(config_dir).join("users").str();
 
     monitoring_section_ =
-        "[rest_api]\n"
-        "[rest_metadata_cache]\n"
-        "require_realm=somerealm\n"
-        "[http_auth_realm:somerealm]\n"
-        "backend=somebackend\n"
-        "method=basic\n"
-        "name=somename\n"
-        "[http_auth_backend:somebackend]\n"
-        "backend=file\n"
-        "filename=" +
-        passwd_filename +
-        "\n"
-        "[http_server]\n"
-        "port=" +
-        std::to_string(monitoring_port_) + "\n";
+        mysql_harness::ConfigBuilder::build_section("rest_api", {}) +
+        mysql_harness::ConfigBuilder::build_section(
+            "rest_metadata_cache", {{"require_realm", "somerealm"}}) +
+        mysql_harness::ConfigBuilder::build_section("http_auth_realm:somerealm",
+                                                    {{"backend", "somebackend"},
+                                                     {"method", "basic"},
+                                                     {"name", "somename"}}) +
+        mysql_harness::ConfigBuilder::build_section(
+            "http_auth_backend:somebackend",
+            {{"backend", "file"}, {"filename", passwd_filename}}) +
+        mysql_harness::ConfigBuilder::build_section(
+            "http_server", {{"port", std::to_string(monitoring_port_)},
+                            {"bind_address", "127.0.0.1"}});
   }
 
   std::string make_DEFAULT_section(

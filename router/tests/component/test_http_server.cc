@@ -397,6 +397,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-10",
      localhost_ipv4,
      {
+         {"bind_address", " 127.0.0.1"},
          {"port", std::string(kPlaceholder)},
      },
      true,
@@ -457,6 +458,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-16",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", "does-not-exist"},
      },
@@ -472,6 +474,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", " "},
      },
@@ -487,6 +490,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", ""},
      },
@@ -502,6 +506,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir + "/" + std::string(kSubdirWithSpace)},
      },
@@ -519,6 +524,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-20",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -534,6 +540,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-22",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -549,6 +556,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891:TS-23,WL11891::TS-15",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -564,6 +572,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-24",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -579,6 +588,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-25",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -594,6 +604,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-26",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -609,6 +620,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-27",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -626,6 +638,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-29",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -643,6 +656,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -658,6 +672,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-31",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -673,6 +688,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-31",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -688,6 +704,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-32",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -703,6 +720,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -718,6 +736,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
@@ -735,6 +754,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL12524::TS_01",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
          {"ssl", "0"},
@@ -751,6 +771,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL12524::TS_02",
      localhost_ipv4,
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
          {"ssl", "0"},
@@ -915,6 +936,7 @@ class HttpClientSecureTest
             mysql_harness::ConfigBuilder::build_section(
                 "http_server",
                 {
+                    {"bind_address", "127.0.0.1"},
                     {"port", std::to_string(http_port_)},  // port to listen on
                     {"ssl", "1"},                          // enable SSL
                     {"ssl_cert",
@@ -1277,6 +1299,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl, no cert, no key",
      "WL12524::TS_CR_01",
      {
+         {"bind_address", "127.0.0.1"},        //
          {"port", std::string(kPlaceholder)},  //
          {"ssl", "1"},                         // enable SSL
      },
@@ -1286,6 +1309,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl_is_hex",
      "",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "0x1"},  // hex-numbers should fail.
          {"ssl_key", std::string(kPlaceholder)},
@@ -1296,6 +1320,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, no cert",
      "WL12524::TS_CR_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},  // enable SSL
          {"ssl_key", std::string(kPlaceholder)},
@@ -1306,6 +1331,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, no key",
      "WL12524::TS_CR_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},  // enable SSL
          {"ssl_cert",
@@ -1316,6 +1342,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, bad cert",
      "WL12524::TS_CR_02",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key", "does-not-exist"},
@@ -1327,6 +1354,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, cert, some unacceptable ciphers",
      "WL12524::TS_CR_05",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1342,6 +1370,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, cert, only acceptable ciphers",
      "WL12524::TS_CR_07",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1357,6 +1386,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh_param file does not exist",
      "",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1371,6 +1401,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh_param file is no PEM",
      "WL12524::TS_CR_08",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1385,6 +1416,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh ciphers, default dh-params",
      "WL12524::TS_CR_09",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1401,6 +1433,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh ciphers, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1419,6 +1452,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"non-dh-cipher, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1436,6 +1470,7 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh ciphers, weak dh-params",
      "WL12524::TS_SR7_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1471,6 +1506,7 @@ const HttpServerSecureParams http_server_secure_params_pre_openssl_111[]{
     {"ssl_1_cert_only_unacceptable_ciphers",
      "WL12524::TS_CR_04",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1501,6 +1537,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
     {"ssl_cert weak",
      "WL12524::TS_SR6_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1513,6 +1550,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
     {"ecdh cipher",
      "WL12524::TS_SR6_01",
      {
+         {"bind_address", "127.0.0.1"},
          {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
@@ -1578,7 +1616,8 @@ class HttpServerAuthTest
             mysql_harness::join(
                 std::vector<std::string>{
                     mysql_harness::ConfigBuilder::build_section(
-                        "http_server", {{"port", std::to_string(http_port_)},
+                        "http_server", {{"bind_address", "127.0.0.1"},
+                                        {"port", std::to_string(http_port_)},
                                         {"require_realm", "secure"}}),
                     mysql_harness::ConfigBuilder::build_section(
                         "http_auth_backend:local",
