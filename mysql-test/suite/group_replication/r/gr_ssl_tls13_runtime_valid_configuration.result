@@ -108,7 +108,7 @@ include/stop_group_replication.inc
 #    --tls-version='TLSv1.3'
 #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
 #    server2: --tls-ciphersuites='TLS_AES_256_GCM_SHA384:TLS_AES_128_CCM_SHA256'
-#    server3: --tls-ciphersuites='TLS_AES_128_CCM_8_SHA256: TLS_AES_256_GCM_SHA384'
+#    server3: --tls-ciphersuites='TLS_CHACHA20_POLY1305_SHA256: TLS_AES_256_GCM_SHA384'
 #    Outcome: group will work.
 [connection server1]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
@@ -126,9 +126,9 @@ ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
 [connection server3]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_CCM_8_SHA256: TLS_AES_256_GCM_SHA384';
+SET @@GLOBAL.tls_ciphersuites= 'TLS_CHACHA20_POLY1305_SHA256: TLS_AES_256_GCM_SHA384';
 SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
-SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_8_SHA256: TLS_AES_256_GCM_SHA384';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_CHACHA20_POLY1305_SHA256: TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc

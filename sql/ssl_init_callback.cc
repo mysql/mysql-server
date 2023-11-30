@@ -111,6 +111,7 @@ bool validate_ciphers(const char *option, const char *val,
 
   while (index != std::string::npos) {
     auto needle = ciphers.substr(0, index);
+    needle.erase(std::remove(needle.begin(), needle.end(), ' '), needle.end());
     if ((needle[0] != '!') && (haystack.find(needle) == std::string::npos)) {
       LogErr(ERROR_LEVEL, ER_BLOCKED_CIPHER, option, needle.c_str());
       retval = true;
@@ -118,6 +119,8 @@ bool validate_ciphers(const char *option, const char *val,
     ciphers.erase(0, index + 1);
     index = ciphers.find(':');
   }
+  ciphers.erase(std::remove(ciphers.begin(), ciphers.end(), ' '),
+                ciphers.end());
   if ((ciphers[0] != '!') && (haystack.find(ciphers) == std::string::npos)) {
     LogErr(ERROR_LEVEL, ER_BLOCKED_CIPHER, option, ciphers.c_str());
     retval = true;
