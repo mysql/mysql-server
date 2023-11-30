@@ -26,6 +26,7 @@
 #include <my_sharedlib.h>
 #include <profile.h>
 
+#include "auth_ldap_sasl_client.h"
 #include "log_client.h"
 #include "my_config.h"
 
@@ -74,34 +75,12 @@ bool Krb5_interface::initialize() {
 /* Windows case:
 the functions are provided by 2 MIT Kerberos libraries krb5_64.dll and
 xpprof64.dll. Normally they are shipped by MySQL and located in the same
-directory as the executable, so look for them there.
+directory as all 3. party libs like libsasl.dll.
 */
 #if defined(WIN32)
-
-  char libs_dir[MAX_PATH] = "";
   int ret_executable_path = 0;
-  /**
-    Getting the current executable path, Kerberos dlls will be copied in
-    executable path.
-  */
-  ret_executable_path = GetModuleFileName(NULL, libs_dir, sizeof(libs_dir));
-  if ((ret_executable_path == 0) || (ret_executable_path == sizeof(libs_dir))) {
-    log_error("Failed to get path to Kerberos libraries.");
-    return false;
-  }
-  char *pos = strrchr(libs_dir, '\\');
-  if (pos != NULL) {
-    *(pos + 1) = '\0';
-  }
-  log_dbg("Path to Kerberos libraries is ", libs_dir);
-
-  std::string krb5_path_str(libs_dir);
-  const char *krb5_path = krb5_path_str.append("krb5_64.dll").c_str();
-  std::string xpprof_path_str(libs_dir);
-  const char *xpprof_path = xpprof_path_str.append("xpprof64.dll").c_str();
-
-  if (!load_lib(krb5_path, krb5_lib_handle) ||
-      !load_lib(xpprof_path, profile_lib_handle))
+  if (!load_lib("krb5_64.dll", krb5_lib_handle) ||
+      !load_lib("xpprof64.dll", profile_lib_handle))
     return false;
 
 /* Linux case:
@@ -197,7 +176,11 @@ path.
 }
 
 bool Krb5_interface::load_lib(const char *name, void *&handle) {
-#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
+#ifdef _WIN32
+  handle = LoadLibraryEx(
+      name, nullptr,
+      LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS);
+#elif defined(HAVE_ASAN) || defined(HAVE_LSAN)
   // Do not unload the shared object during dlclose().
   // LeakSanitizer needs this in order to provide call stacks,
   // and to match entries in lsan.supp.
@@ -212,6 +195,7 @@ bool Krb5_interface::load_lib(const char *name, void *&handle) {
     log_error(errmsg);
     return false;
   }
+  log_dbg("Loaded ", name);
   return true;
 }
 

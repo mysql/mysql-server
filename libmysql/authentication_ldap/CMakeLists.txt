@@ -81,7 +81,6 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   ${SASL_LIBRARY}
   ${LDAP_KERBEROS_LIBS}
   OpenSSL::SSL OpenSSL::Crypto
-  ${SSL_LIBRARIES}
   ${LIBDL}
   mysys
   CLIENT_ONLY
@@ -123,31 +122,32 @@ IF(WIN32)
   MESSAGE(STATUS "SASL_SCRAM_PLUGIN = ${SASL_SCRAM_PLUGIN}")
   MESSAGE(STATUS "SASL_GSSAPI_PLUGIN = ${SASL_GSSAPI_PLUGIN}")
 
-  # Note that "libsasl.dll", "saslSCRAM.dll" and "saslGSSAPI.dll" go into the "bin" directory
-  # where "mysql.exe" and other client executables are located.
+  # Note that SASL library (libsasl.dll") goes into "bin" directory 
+  # (where "mysql.exe" and other client executables are located)
+  # SASL plugins ("saslSCRAM.dll" and "saslGSSAPI.dll") go into "bin/sasl2" directory
   INSTALL(FILES "${SASL_LIBRARY_DLL}"
           DESTINATION ${INSTALL_BINDIR}
           COMPONENT SharedLibraries)
   INSTALL(FILES "${SASL_SCRAM_PLUGIN}"
-          DESTINATION ${INSTALL_BINDIR}
+          DESTINATION "${INSTALL_BINDIR}/sasl2"
           COMPONENT SharedLibraries)
   INSTALL(FILES "${SASL_GSSAPI_PLUGIN}"
-          DESTINATION ${INSTALL_BINDIR}
+          DESTINATION "${INSTALL_BINDIR}/sasl2"
           COMPONENT SharedLibraries)
 
   # To run client executables that load the plug-in from the build tree we need
-  # to copy the SASL library DLL, SASL SCRAM and GSSAPI libraries DLLs to the same
-  # directory as the client executables.
+  # to copy SASL library to the same directory as the client executables.
+  # Accordingly, we need to copy SASL plugins to sasl2 subdirectory,
   ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_LIBRARY_DLL}"
       "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_SCRAM_PLUGIN}"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/sasl2/${SASL_SCRAM_PLUGIN_NAME}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_GSSAPI_PLUGIN}"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_GSSAPI_PLUGIN_NAME}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/sasl2/${SASL_GSSAPI_PLUGIN_NAME}"
   )
   ADD_DEPENDENCIES(authentication_ldap_sasl_client mysqltest)
 

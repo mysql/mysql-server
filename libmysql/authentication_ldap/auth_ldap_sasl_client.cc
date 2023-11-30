@@ -420,54 +420,65 @@ EXIT:
 }
 
 #if defined(SASL_CUSTOM_LIBRARY) || defined(WIN32)
+/**
+  Tell SASL where to look for plugins:
+
+  Custom versions of libsasl2.so and libscram.so will be copied to
+    <build directory>/library_output_directory/
+  and
+    <build directory>/library_output_directory/sasl2
+  respectively during build, and to
+    <install directory>/lib/private
+    <install directory>/lib/private/sasl2
+  after 'make install'.
+
+  sasl_set_path() must be called before sasl_client_init(),
+  and is not thread-safe.
+ */
 static int set_sasl_plugin_path() {
 #if defined(WIN32)
 
-  char sasl_plugin_dir[MAX_PATH] = "";
-  int ret_executable_path = 0;
+  char libsasl_dir[MAX_PATH] = "";
+  const char *sub_dir = "\\sasl2";
+  HMODULE dll_handle(nullptr);
+  int libsasl_path_len(0);
+
   /**
-    Getting the current executable path, SASL SCRAM dll will be copied in
-    executable path. Using/Setting the path from cmake file may not work as
-    during installation SASL SCRAM DLL may be copied to any path based on
-    installable path.
-  */
-  ret_executable_path =
-      GetModuleFileName(NULL, sasl_plugin_dir, sizeof(sasl_plugin_dir));
-  if ((ret_executable_path == 0) ||
-      (ret_executable_path == sizeof(sasl_plugin_dir))) {
+  Compute SASL plugins directory as follows :
+   1) sasl_set_path() is provided by libsasl.dll, get handle to libsasl.dll
+   2) using this handle get full path of libsasl.dll
+   3) from that path extract the dir -this is the dir with all 3. party dlls
+   4) SASL plugins are located in the \sasl2 subdir of this dir
+   */
+
+  if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                         reinterpret_cast<LPCSTR>(&sasl_set_path),
+                         &dll_handle)) {
     log_error(
-        "SASL client initialization failed: executable path not found or "
-        "buffer size for path is too small.");
+        "SASL client initialization failed: cannot get handle of libsasl.dll.");
     return 1;
   }
-  char *pos = strrchr(sasl_plugin_dir, '\\');
-  if (pos != NULL) {
-    *pos = '\0';
+
+  libsasl_path_len = GetModuleFileName(dll_handle, libsasl_dir, MAX_PATH);
+  if ((libsasl_path_len == 0) || (libsasl_path_len == sizeof(libsasl_dir))) {
+    log_error(
+        "SASL client initialization failed: cannot get path of libsasl.dll.");
+    return 1;
   }
-  /**
-    Sasl SCRAM dll default search path is C:\CMU2,
-    This is the reason we have copied in the executable folder and setting the
-    same from the code.
-  */
-  sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
-  log_info("SASL client initialization: plugin path is ", sasl_plugin_dir);
+
+  char *path_end = strrchr(libsasl_dir, '\\');
+  if (path_end == nullptr) path_end = libsasl_dir;
+  if (libsasl_dir + sizeof(libsasl_dir) < path_end + sizeof(sub_dir)) {
+    log_error(
+        "SASL client initialization failed: cannot compute SASL plugins dir.");
+    return 1;
+  }
+  strcpy(path_end, sub_dir);
+  sasl_set_path(SASL_PATH_TYPE_PLUGIN, libsasl_dir);
+  log_info("SASL client initialization: SASL plugin path is ", libsasl_dir);
   return 0;
 #elif defined(SASL_CUSTOM_LIBRARY)
-  /**
-    Tell SASL where to look for plugins:
-
-    Custom versions of libsasl2.so and libscram.so will be copied to
-      <build directory>/library_output_directory/
-    and
-      <build directory>/library_output_directory/sasl2
-    respectively during build, and to
-      <install directory>/lib/private
-      <install directory>/lib/private/sasl2
-    after 'make install'.
-
-    sasl_set_path() must be called before sasl_client_init(),
-    and is not thread-safe.
-   */
   char sasl_plugin_dir[PATH_MAX]{};
   // dlopen(NULL, ) should not fail ...
   void *main_handle = dlopen(nullptr, RTLD_LAZY);
