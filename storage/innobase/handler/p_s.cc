@@ -427,21 +427,23 @@ void Innodb_data_lock_inspector::destroy_data_lock_wait_iterator(
 }
 
 /** Allocate identifier in performance schema container.
-@param[in]      container       The container to fill
-@param[in]      id_str          The identifier string
-@param[out]     id_length       The identifier string length
+@param[in]  container        The container to fill
+@param[in]  kind             The identifier kind
+@param[in]  id_str           The identifier string
+@param[out] cached_id        The cached identifier string
+@param[out] cached_id_length The cached identifier string length
 @returns string allocated in the performance schema container.
 */
-const char *alloc_identifier(PSI_server_data_lock_container *container,
-                             std::string &id_str, size_t *id_length) {
-  *id_length = id_str.length();
-  const char *id_name = nullptr;
-
-  if (*id_length > 0) {
-    id_name = container->cache_data(id_str.c_str(), *id_length);
+void alloc_identifier(PSI_server_data_lock_container *container,
+                      PSI_identifier kind, const std::string &id_str,
+                      const char **cached_id, size_t *cached_id_length) {
+  if (id_str.length() > 0) {
+    container->cache_identifier(kind, id_str.c_str(), id_str.length(),
+                                cached_id, cached_id_length);
+  } else {
+    *cached_id = nullptr;
+    *cached_id_length = 0;
   }
-
-  return (id_name);
 }
 
 /** Parse a table path string.
@@ -484,11 +486,14 @@ void parse_table_path(PSI_server_data_lock_container *container,
     dict_name::get_partition(partition, true, part, sub_part);
   }
 
-  *table_schema = alloc_identifier(container, schema, table_schema_length);
-  *table_name = alloc_identifier(container, table, table_name_length);
-  *partition_name = alloc_identifier(container, part, partition_name_length);
-  *subpartition_name =
-      alloc_identifier(container, sub_part, subpartition_name_length);
+  alloc_identifier(container, PSI_IDENTIFIER_SCHEMA, schema, table_schema,
+                   table_schema_length);
+  alloc_identifier(container, PSI_IDENTIFIER_TABLE, table, table_name,
+                   table_name_length);
+  alloc_identifier(container, PSI_IDENTIFIER_PARTITION, part, partition_name,
+                   partition_name_length);
+  alloc_identifier(container, PSI_IDENTIFIER_SUBPARTITION, sub_part,
+                   subpartition_name, subpartition_name_length);
 }
 
 /** Print a table lock id.

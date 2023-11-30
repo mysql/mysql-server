@@ -123,6 +123,7 @@ name
 memory/performance_schema/accounts
 memory/performance_schema/cond_class
 memory/performance_schema/cond_instances
+memory/performance_schema/data_container
 memory/performance_schema/events_errors_summary_by_account_by_error
 memory/performance_schema/events_errors_summary_by_host_by_error
 memory/performance_schema/events_errors_summary_by_thread_by_error

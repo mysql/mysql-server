@@ -224,8 +224,7 @@ int table_data_locks::rnd_pos(const void *pos) {
   /*
     TODO: avoid requesting column LOCK_DATA if not used.
   */
-  it->fetch(&m_container, m_pk_pos.m_engine_lock_id,
-            m_pk_pos.m_engine_lock_id_length, true);
+  it->fetch(&m_container, m_pk_pos.str(), m_pk_pos.length(), true);
   data = m_container.get_row(0);
   if (data != nullptr) {
     m_row = data;
@@ -285,8 +284,8 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           set_field_varchar_utf8mb4(f, m_row->m_engine);
           break;
         case 1: /* ENGINE_LOCK_ID */
-          set_field_varchar_utf8mb4(f, m_row->m_hidden_pk.m_engine_lock_id,
-                                    m_row->m_hidden_pk.m_engine_lock_id_length);
+          set_field_varchar_utf8mb4(f, m_row->m_hidden_pk.str(),
+                                    m_row->m_hidden_pk.length());
           break;
         case 2: /* ENGINE_TRANSACTION_ID */
           if (m_row->m_transaction_id != 0) {

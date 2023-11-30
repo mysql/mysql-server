@@ -215,10 +215,10 @@ int table_data_lock_waits::rnd_pos(const void *pos) {
   PSI_engine_data_lock_wait_iterator *it = m_iterator[index];
 
   m_container.clear();
-  it->fetch(&m_container, m_pk_pos.m_requesting_engine_lock_id,
-            m_pk_pos.m_requesting_engine_lock_id_length,
-            m_pk_pos.m_blocking_engine_lock_id,
-            m_pk_pos.m_blocking_engine_lock_id_length);
+  it->fetch(&m_container, m_pk_pos.get_requesting_lock_id(),
+            m_pk_pos.get_requesting_lock_id_length(),
+            m_pk_pos.get_blocking_lock_id(),
+            m_pk_pos.get_blocking_lock_id_length());
   data = m_container.get_row(0);
   if (data != nullptr) {
     m_row = data;
@@ -284,8 +284,8 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 1: /* REQUESTING_ENGINE_LOCK_ID */
           set_field_varchar_utf8mb4(
-              f, m_row->m_hidden_pk.m_requesting_engine_lock_id,
-              m_row->m_hidden_pk.m_requesting_engine_lock_id_length);
+              f, m_row->m_hidden_pk.get_requesting_lock_id(),
+              m_row->m_hidden_pk.get_requesting_lock_id_length());
           break;
         case 2: /* REQUESTING_ENGINE_TRANSACTION_ID */
           set_field_ulonglong(f, m_row->m_requesting_transaction_id);
@@ -301,8 +301,8 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 6: /* BLOCKING_ENGINE_LOCK_ID */
           set_field_varchar_utf8mb4(
-              f, m_row->m_hidden_pk.m_blocking_engine_lock_id,
-              m_row->m_hidden_pk.m_blocking_engine_lock_id_length);
+              f, m_row->m_hidden_pk.get_blocking_lock_id(),
+              m_row->m_hidden_pk.get_blocking_lock_id_length());
           break;
         case 7: /* BLOCKING_ENGINE_TRANSACTION_ID */
           set_field_ulonglong(f, m_row->m_blocking_transaction_id);

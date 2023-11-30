@@ -30,6 +30,8 @@
 #include <assert.h>
 #include <stddef.h>
 
+#include "storage/perfschema/pfs_std_allocator.h"
+
 /* clang-format off */
 /**
   @page PAGE_PFS_DATA_LOCKS Performance schema data locks
@@ -180,25 +182,6 @@
 */
 /* clang-format on */
 
-PFS_data_cache::PFS_data_cache() = default;
-
-PFS_data_cache::~PFS_data_cache() = default;
-
-const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
-  /*
-    std::string is just a sequence of bytes,
-    which actually can contain a 0 byte ...
-    Never use strlen() on the binary data.
-  */
-  const std::string key(ptr, length);
-  std::pair<set_type::iterator, bool> ret;
-
-  ret = m_set.insert(key);
-  return (*ret.first).data();
-}
-
-void PFS_data_cache::clear() { m_set.clear(); }
-
 PFS_data_lock_container::PFS_data_lock_container()
     : m_logical_row_index(0), m_filter(nullptr) {}
 
@@ -211,6 +194,47 @@ const char *PFS_data_lock_container::cache_string(const char *string) {
 const char *PFS_data_lock_container::cache_data(const char *ptr,
                                                 size_t length) {
   return m_cache.cache_data(ptr, length);
+}
+
+void PFS_data_lock_container::cache_identifier(PSI_identifier kind,
+                                               const char *str, size_t length,
+                                               const char **cached_ptr,
+                                               size_t *cached_length) {
+  char working_buffer[NAME_LEN];
+  const char *normalized_str = nullptr;
+  size_t normalized_length = 0;
+
+  switch (kind) {
+    case PSI_IDENTIFIER_SCHEMA: {
+      PFS_schema_name::normalize(str, length, working_buffer,
+                                 sizeof(working_buffer), &normalized_str,
+                                 &normalized_length);
+      break;
+    }
+    case PSI_IDENTIFIER_TABLE: {
+      PFS_table_name::normalize(str, length, working_buffer,
+                                sizeof(working_buffer), &normalized_str,
+                                &normalized_length);
+      break;
+    }
+    case PSI_IDENTIFIER_INDEX: {
+      PFS_index_name::normalize(str, length, working_buffer,
+                                sizeof(working_buffer), &normalized_str,
+                                &normalized_length);
+      break;
+    }
+    case PSI_IDENTIFIER_PARTITION:
+    case PSI_IDENTIFIER_SUBPARTITION:
+    case PSI_IDENTIFIER_NONE:
+    default: {
+      normalized_str = str;
+      normalized_length = length;
+      break;
+    }
+  }
+
+  *cached_ptr = m_cache.cache_data(normalized_str, normalized_length);
+  *cached_length = normalized_length;
 }
 
 bool PFS_data_lock_container::accept_engine(const char *engine,
@@ -273,19 +297,7 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_engine = engine;
 
-  if (engine_lock_id != nullptr) {
-    size_t len = engine_lock_id_length;
-    if (len > sizeof(row.m_hidden_pk.m_engine_lock_id)) {
-      assert(false);
-      len = sizeof(row.m_hidden_pk.m_engine_lock_id);
-    }
-    if (len > 0) {
-      memcpy(row.m_hidden_pk.m_engine_lock_id, engine_lock_id, len);
-    }
-    row.m_hidden_pk.m_engine_lock_id_length = len;
-  } else {
-    row.m_hidden_pk.m_engine_lock_id_length = 0;
-  }
+  row.m_hidden_pk.set(engine_lock_id, engine_lock_id_length);
 
   row.m_transaction_id = transaction_id;
   row.m_thread_id = thread_id;
@@ -293,11 +305,11 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_index_row.m_object_row.m_object_type = OBJECT_TYPE_TABLE;
 
-  row.m_index_row.m_object_row.m_schema_name.set(table_schema,
-                                                 table_schema_length);
+  row.m_index_row.m_object_row.m_schema_name.set_view(table_schema,
+                                                      table_schema_length);
 
-  row.m_index_row.m_object_row.m_object_name.set_as_table(table_name,
-                                                          table_name_length);
+  row.m_index_row.m_object_row.m_object_name.set_view_as_table(
+      table_name, table_name_length);
 
   row.m_partition_name = partition_name;
   row.m_partition_name_length = partition_name_length;
@@ -306,9 +318,10 @@ void PFS_data_lock_container::add_lock_row(
   row.m_sub_partition_name_length = sub_partition_name_length;
 
   if (index_name_length > 0) {
-    memcpy(row.m_index_row.m_index_name, index_name, index_name_length);
+    row.m_index_row.m_index_name.set_view(index_name, index_name_length);
+  } else {
+    row.m_index_row.m_index_name.reset();
   }
-  row.m_index_row.m_index_name_length = index_name_length;
 
   row.m_identity = identity;
   row.m_lock_mode = lock_mode;
@@ -437,40 +450,14 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
 
   row.m_engine = engine;
 
-  if (requesting_engine_lock_id != nullptr) {
-    size_t len = requesting_engine_lock_id_length;
-    if (len > sizeof(row.m_hidden_pk.m_requesting_engine_lock_id)) {
-      assert(false);
-      len = sizeof(row.m_hidden_pk.m_requesting_engine_lock_id);
-    }
-    if (len > 0) {
-      memcpy(row.m_hidden_pk.m_requesting_engine_lock_id,
-             requesting_engine_lock_id, len);
-    }
-    row.m_hidden_pk.m_requesting_engine_lock_id_length = len;
-  } else {
-    row.m_hidden_pk.m_requesting_engine_lock_id_length = 0;
-  }
+  row.m_hidden_pk.set(requesting_engine_lock_id,
+                      requesting_engine_lock_id_length, blocking_engine_lock_id,
+                      blocking_engine_lock_id_length);
 
   row.m_requesting_transaction_id = requesting_transaction_id;
   row.m_requesting_thread_id = requesting_thread_id;
   row.m_requesting_event_id = requesting_event_id;
   row.m_requesting_identity = requesting_identity;
-
-  if (blocking_engine_lock_id != nullptr) {
-    size_t len = blocking_engine_lock_id_length;
-    if (len > sizeof(row.m_hidden_pk.m_blocking_engine_lock_id)) {
-      assert(false);
-      len = sizeof(row.m_hidden_pk.m_blocking_engine_lock_id);
-    }
-    if (len > 0) {
-      memcpy(row.m_hidden_pk.m_blocking_engine_lock_id, blocking_engine_lock_id,
-             len);
-    }
-    row.m_hidden_pk.m_blocking_engine_lock_id_length = len;
-  } else {
-    row.m_hidden_pk.m_blocking_engine_lock_id_length = 0;
-  }
 
   row.m_blocking_transaction_id = blocking_transaction_id;
   row.m_blocking_thread_id = blocking_thread_id;
