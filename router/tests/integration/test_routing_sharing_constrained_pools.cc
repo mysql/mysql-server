@@ -432,7 +432,8 @@ class SharedRouter {
                      {"backend", "file"},
                      {"filename", userfile},
                  })
-        .section("http_server", {{"port", std::to_string(rest_port_)}});
+        .section("http_server", {{"bind_address", "127.0.0.1"},
+                                 {"port", std::to_string(rest_port_)}});
 
     std::vector<std::vector<std::string>> split_dests;
 

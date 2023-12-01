@@ -514,7 +514,8 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_default) {
                    {"backend", "file"},
                    {"filename", userfile},
                })
-      .section("http_server", {{"port", std::to_string(rest_port_)}})
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
       .section(
           "routing:under_test",
           {
@@ -626,7 +627,8 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_zero) {
                    {"backend", "file"},
                    {"filename", userfile},
                })
-      .section("http_server", {{"port", std::to_string(rest_port_)}})
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
       .section(
           "routing:under_test",
           {
@@ -741,7 +743,8 @@ TEST_F(RoutingSharingConfig, connection_sharing_delay_is_small) {
                    {"backend", "file"},
                    {"filename", userfile},
                })
-      .section("http_server", {{"port", std::to_string(rest_port_)}})
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
       .section(
           "routing:under_test",
           {
@@ -942,7 +945,8 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
                    {"backend", "file"},
                    {"filename", userfile},
                })
-      .section("http_server", {{"port", std::to_string(rest_port_)}})
+      .section("http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(rest_port_)}})
       .section(
           "routing:with_sharing",
           {

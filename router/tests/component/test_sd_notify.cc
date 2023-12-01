@@ -333,6 +333,7 @@ TEST_F(NotifyTest, NotifyReadyHttpPlugins) {
       ConfigBuilder::build_section(
           "http_server",
           {
+              {"bind_address", "127.0.0.1"},
               {"port", std::to_string(port_pool_.get_next_available())},
           }),
       ConfigBuilder::build_section("http_auth_realm:somerealm",
@@ -396,6 +397,7 @@ TEST_F(NotifyTest, NotifyReadyManyPlugins) {
       ConfigBuilder::build_section(
           "http_server",
           {
+              {"bind_address", "127.0.0.1"},
               {"port", std::to_string(port_pool_.get_next_available())},
           }),
       ConfigBuilder::build_section("http_auth_realm:somerealm",

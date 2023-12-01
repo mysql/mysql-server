@@ -80,6 +80,7 @@ TEST_F(RoutingConnectionErrorTest, connect_successful) {
                    {"filename", pwfile},
                })
       .section("http_server", {
+                                  {"bind_address", "127.0.0.1"},
                                   {"port", std::to_string(rest_port)},
                               });
   auto &r = router_spawner().spawn({"-c", writer.write()});
@@ -164,6 +165,7 @@ TEST_F(RoutingConnectionErrorTest, connect_backend_not_reachable) {
                    {"filename", pwfile},
                })
       .section("http_server", {
+                                  {"bind_address", "127.0.0.1"},
                                   {"port", std::to_string(rest_port)},
                               });
   auto &r = router_spawner().spawn({"-c", writer.write()});
@@ -257,6 +259,7 @@ TEST_F(RoutingConnectionErrorTest, connect_from_connection_pool) {
                    {"filename", pwfile},
                })
       .section("http_server", {
+                                  {"bind_address", "127.0.0.1"},
                                   {"port", std::to_string(rest_port)},
                               });
   auto &r = router_spawner().spawn({"-c", writer.write()});
