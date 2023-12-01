@@ -261,7 +261,8 @@ TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
   auto writer =
       config_writer(tmp_dir.name())
           .section("rest_signal", {})
-          .section("http_server", {{"port", std::to_string(http_port)}});
+          .section("http_server", {{"bind_address", "127.0.0.1"},
+                                   {"port", std::to_string(http_port)}});
 
   // --core-file is added automatically by router_spawner()
   auto &r = router_spawner()
@@ -390,7 +391,8 @@ TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
   auto writer =
       config_writer(tmp_dir.name())
           .section("rest_signal", {})
-          .section("http_server", {{"port", std::to_string(http_port)}});
+          .section("http_server", {{"bind_address", "127.0.0.1"},
+                                   {"port", std::to_string(http_port)}});
 
   auto &r = router_spawner()
                 .with_core_dump(false)  // avoid the automatic --core-file
@@ -452,7 +454,8 @@ TEST_F(RouterStacktraceTest, no_core_file) {
   auto writer =
       config_writer(tmp_dir.name())
           .section("rest_signal", {})
-          .section("http_server", {{"port", std::to_string(http_port)}});
+          .section("http_server", {{"bind_address", "127.0.0.1"},
+                                   {"port", std::to_string(http_port)}});
 
   auto &r = router_spawner()
                 .with_core_dump(false)
@@ -513,7 +516,8 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   auto writer =
       config_writer(tmp_dir.name())
           .section("rest_signal", {})
-          .section("http_server", {{"port", std::to_string(http_port)}});
+          .section("http_server", {{"bind_address", "127.0.0.1"},
+                                   {"port", std::to_string(http_port)}});
 
   auto &r = router_spawner()
                 .with_core_dump(false)

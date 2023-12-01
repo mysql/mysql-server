@@ -173,7 +173,8 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
                "http_auth_backend:somebackend",
                {{"backend", "file"}, {"filename", passwd_filename}}) +
            mysql_harness::ConfigBuilder::build_section(
-               "http_server", {{"port", std::to_string(monitoring_port)}});
+               "http_server", {{"bind_address", "127.0.0.1"},
+                               {"port", std::to_string(monitoring_port)}});
   }
 
   std::string get_destination_status_section(

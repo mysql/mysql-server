@@ -2411,7 +2411,7 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
     for (size_t i = 0; i < num; i++) {
       launch_mysql_server_mock(json_stmts, dest_classic_ports_[i], EXIT_SUCCESS,
                                false, dest_http_ports_[i], dest_x_ports_[i], "",
-                               "0.0.0.0", 30s,
+                               "127.0.0.1", 30s,
                                /*enable_ssl*/ true);
     }
   }
