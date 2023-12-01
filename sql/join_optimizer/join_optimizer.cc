@@ -4146,6 +4146,12 @@ void CostingReceiver::ProposeHashJoin(
     return;
   }
 
+  if (Overlaps(right, forced_leftmost_table)) {
+    // A recursive reference cannot be put in a hash table, so don't propose any
+    // hash join with this order.
+    return;
+  }
+
   // A semijoin by definition should have a semijoin condition to work with and
   // also that the inner table of a semijoin should not be visible outside of
   // the semijoin. However, MySQL's semijoin transformation when combined with
