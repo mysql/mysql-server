@@ -34,8 +34,10 @@
 #include <variant>
 #include <vector>
 
+#include "basic_protocol_splicer.h"
 #include "channel.h"
 #include "classic_prepared_statement.h"
+#include "classic_protocol_state.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
@@ -47,210 +49,6 @@
 #include "sql_exec_context.h"
 #include "trace_span.h"
 #include "tracer.h"
-
-/**
- * protocol state of a classic protocol connection.
- */
-class ClassicProtocolState : public ProtocolStateBase {
- public:
-  ClassicProtocolState() = default;
-
-  ClassicProtocolState(
-      classic_protocol::capabilities::value_type server_caps,
-      classic_protocol::capabilities::value_type client_caps,
-      std::optional<classic_protocol::message::server::Greeting>
-          server_greeting,
-      std::string username,  //
-      std::string schema,    //
-      std::string attributes)
-      : server_caps_{server_caps},
-        client_caps_{client_caps},
-        server_greeting_{std::move(server_greeting)},
-        username_{std::move(username)},
-        schema_{std::move(schema)},
-        sent_attributes_{std::move(attributes)} {}
-
-  void server_capabilities(classic_protocol::capabilities::value_type caps) {
-    server_caps_ = caps;
-  }
-
-  void client_capabilities(classic_protocol::capabilities::value_type caps) {
-    client_caps_ = caps;
-  }
-
-  classic_protocol::capabilities::value_type client_capabilities() const {
-    return client_caps_;
-  }
-
-  classic_protocol::capabilities::value_type server_capabilities() const {
-    return server_caps_;
-  }
-
-  classic_protocol::capabilities::value_type shared_capabilities() const {
-    return server_caps_ & client_caps_;
-  }
-
-  std::optional<classic_protocol::message::client::Greeting> client_greeting()
-      const {
-    return client_greeting_;
-  }
-
-  void client_greeting(
-      std::optional<classic_protocol::message::client::Greeting> msg) {
-    client_greeting_ = std::move(msg);
-  }
-
-  std::optional<classic_protocol::message::server::Greeting> server_greeting()
-      const {
-    return server_greeting_;
-  }
-
-  void server_greeting(
-      std::optional<classic_protocol::message::server::Greeting> msg) {
-    server_greeting_ = std::move(msg);
-  }
-
-  uint8_t &seq_id() { return seq_id_; }
-  uint8_t seq_id() const { return seq_id_; }
-
-  void seq_id(uint8_t id) { seq_id_ = id; }
-
-  struct FrameInfo {
-    uint8_t seq_id_;               //!< sequence id.
-    size_t frame_size_;            //!< size of the whole frame.
-    size_t forwarded_frame_size_;  //!< size of the whole frame that's already
-                                   //!< forwarded.
-  };
-
-  std::optional<FrameInfo> &current_frame() { return current_frame_; }
-  std::optional<uint8_t> &current_msg_type() { return msg_type_; }
-
-  uint64_t columns_left{};
-  uint32_t params_left{};
-
-  [[nodiscard]] std::string auth_method_name() const {
-    return auth_method_name_;
-  }
-
-  void auth_method_name(std::string name) {
-    auth_method_name_ = std::move(name);
-  }
-
-  [[nodiscard]] std::string auth_method_data() const {
-    return auth_method_data_;
-  }
-
-  void auth_method_data(std::string data) {
-    auth_method_data_ = std::move(data);
-  }
-
-  std::string username() { return username_; }
-  void username(std::string user) { username_ = std::move(user); }
-
-  void password(std::optional<std::string> pw) { password_ = std::move(pw); }
-  const std::optional<std::string> &password() const { return password_; }
-
-  std::string schema() { return schema_; }
-  void schema(std::string s) { schema_ = std::move(s); }
-
-  // connection attributes there were received.
-  std::string attributes() { return recv_attributes_; }
-  void attributes(std::string attrs) { recv_attributes_ = std::move(attrs); }
-
-  // connection attributes that were sent.
-  std::string sent_attributes() { return sent_attributes_; }
-  void sent_attributes(std::string attrs) {
-    sent_attributes_ = std::move(attrs);
-  }
-
-  using PreparedStatements = std::unordered_map<uint32_t, PreparedStatement>;
-
-  const PreparedStatements &prepared_statements() const {
-    return prepared_stmts_;
-  }
-  PreparedStatements &prepared_statements() { return prepared_stmts_; }
-
-  classic_protocol::status::value_type status_flags() const {
-    return status_flags_;
-  }
-
-  void status_flags(classic_protocol::status::value_type val) {
-    status_flags_ = val;
-  }
-
-  /**
-   * trace the events of the commands.
-   *
-   * - enabled by ROUTER SET trace = 1
-   * - disabled by ROUTER SET trace = 0, change-user or reset-connection.
-   *
-   * @retval true if 'ROUTER SET trace' is '1'
-   * @retval false if 'ROUTER SET trace' is '0'
-   */
-  bool trace_commands() const { return trace_commands_; }
-  void trace_commands(bool val) { trace_commands_ = val; }
-
-  // executed GTIDs for this connection.
-  void gtid_executed(const std::string &gtid_execed) {
-    gtid_executed_ = gtid_execed;
-  }
-  std::string gtid_executed() const { return gtid_executed_; }
-
-  void wait_for_my_writes(bool v) { wait_for_my_writes_ = v; }
-  bool wait_for_my_writes() const { return wait_for_my_writes_; }
-
-  std::chrono::seconds wait_for_my_writes_timeout() const {
-    return wait_for_my_writes_timeout_;
-  }
-  void wait_for_my_writes_timeout(std::chrono::seconds timeout) {
-    wait_for_my_writes_timeout_ = timeout;
-  }
-
-  enum class AccessMode {
-    ReadWrite,
-    ReadOnly,
-  };
-
-  std::optional<AccessMode> access_mode() const { return access_mode_; }
-  void access_mode(std::optional<AccessMode> v) { access_mode_ = v; }
-
- private:
-  classic_protocol::capabilities::value_type server_caps_{};
-  classic_protocol::capabilities::value_type client_caps_{};
-
-  std::optional<classic_protocol::message::client::Greeting> client_greeting_{};
-  std::optional<classic_protocol::message::server::Greeting> server_greeting_{};
-
-  std::optional<FrameInfo> current_frame_{};
-  std::optional<uint8_t> msg_type_{};
-
-  uint8_t seq_id_{255};  // next use will increment to 0
-
-  std::string username_;
-  std::optional<std::string> password_;
-  std::string schema_;
-  std::string recv_attributes_;
-  std::string sent_attributes_;
-
-  std::string auth_method_name_;
-  std::string auth_method_data_;
-
-  PreparedStatements prepared_stmts_;
-
-  // status flags of the last statement.
-  classic_protocol::status::value_type status_flags_{};
-
-  // if commands shall be traced.
-  bool trace_commands_{false};
-
-  std::string gtid_executed_;
-
-  bool wait_for_my_writes_{routing::kDefaultWaitForMyWrites};
-  std::chrono::seconds wait_for_my_writes_timeout_{
-      routing::kDefaultWaitForMyWritesTimeout};
-
-  std::optional<AccessMode> access_mode_{};
-};
 
 class MysqlRoutingClassicConnectionBase
     : public MySQLRoutingConnectionBase,
@@ -269,19 +67,23 @@ class MysqlRoutingClassicConnectionBase
         destinations_{route_destination_ != nullptr
                           ? route_destination_->destinations()
                           : Destinations{}},
-        socket_splicer_{std::make_unique<ProtocolSplicerBase>(
-            TlsSwitchableConnection{std::move(client_connection),
-                                    std::move(client_routing_connection),
-                                    context.source_ssl_mode(),
-                                    std::make_unique<ClassicProtocolState>()},
-            TlsSwitchableConnection{nullptr, nullptr, context.dest_ssl_mode(),
-                                    std::make_unique<ClassicProtocolState>()})},
-        read_timer_{socket_splicer()->client_conn().connection()->io_ctx()},
-        connect_timer_{socket_splicer()->client_conn().connection()->io_ctx()},
+        client_conn_{std::move(client_connection),
+                     std::move(client_routing_connection),
+                     context.source_ssl_mode(),
+                     ClientSideConnection::protocol_state_type{}},
+        server_conn_{nullptr, nullptr, context.dest_ssl_mode(),
+                     ServerSideConnection::protocol_state_type{}},
+        read_timer_{client_conn_.connection()->io_ctx()},
+        connect_timer_{client_conn_.connection()->io_ctx()},
         wait_for_my_writes_{context.wait_for_my_writes()},
         wait_for_my_writes_timeout_{context.wait_for_my_writes_timeout()} {}
 
  public:
+  using ClientSideConnection =
+      TlsSwitchableConnection<ClientSideClassicProtocolState>;
+  using ServerSideConnection =
+      TlsSwitchableConnection<ServerSideClassicProtocolState>;
+
   // create a new shared_ptr<ThisClass>
   //
   template <typename... Args>
@@ -310,24 +112,20 @@ class MysqlRoutingClassicConnectionBase
   void on_handshake_received();
   void on_handshake_aborted();
 
-  SslMode source_ssl_mode() const {
-    return this->socket_splicer()->source_ssl_mode();
-  }
+  SslMode source_ssl_mode() const { return client_conn_.ssl_mode(); }
 
-  SslMode dest_ssl_mode() const {
-    return this->socket_splicer()->dest_ssl_mode();
-  }
+  SslMode dest_ssl_mode() const { return server_conn_.ssl_mode(); }
 
   net::impl::socket::native_handle_type get_client_fd() const override {
-    return socket_splicer()->client_conn().native_handle();
+    return client_conn().native_handle();
   }
 
   std::string get_client_address() const override {
-    return socket_splicer()->client_conn().endpoint();
+    return client_conn().endpoint();
   }
 
   std::string get_server_address() const override {
-    return socket_splicer()->server_conn().endpoint();
+    return server_conn().endpoint();
   }
 
   void disconnect() override;
@@ -452,31 +250,27 @@ class MysqlRoutingClassicConnectionBase
   virtual void done();
 
  public:
-  ClassicProtocolState *client_protocol() {
-    return dynamic_cast<ClassicProtocolState *>(
-        socket_splicer()->client_conn().protocol());
+  ClientSideConnection::protocol_state_type &client_protocol() {
+    return client_conn().protocol();
   }
 
-  const ClassicProtocolState *client_protocol() const {
-    return dynamic_cast<const ClassicProtocolState *>(
-        socket_splicer()->client_conn().protocol());
+  const ClientSideConnection::protocol_state_type &client_protocol() const {
+    return client_conn().protocol();
   }
 
-  ClassicProtocolState *server_protocol() {
-    return dynamic_cast<ClassicProtocolState *>(
-        socket_splicer()->server_conn().protocol());
+  ServerSideConnection::protocol_state_type &server_protocol() {
+    return server_conn().protocol();
   }
 
-  const ClassicProtocolState *server_protocol() const {
-    return dynamic_cast<const ClassicProtocolState *>(
-        socket_splicer()->server_conn().protocol());
+  const ServerSideConnection::protocol_state_type &server_protocol() const {
+    return server_conn().protocol();
   }
 
-  const ProtocolSplicerBase *socket_splicer() const {
-    return socket_splicer_.get();
-  }
+  ClientSideConnection &client_conn() { return client_conn_; }
+  const ClientSideConnection &client_conn() const { return client_conn_; }
 
-  ProtocolSplicerBase *socket_splicer() { return socket_splicer_.get(); }
+  ServerSideConnection &server_conn() { return server_conn_; }
+  const ServerSideConnection &server_conn() const { return server_conn_; }
 
   std::string get_destination_id() const override {
     return expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
@@ -630,7 +424,8 @@ class MysqlRoutingClassicConnectionBase
   RouteDestination *route_destination_;
   Destinations destinations_;
 
-  std::unique_ptr<ProtocolSplicerBase> socket_splicer_;
+  ClientSideConnection client_conn_;
+  ServerSideConnection server_conn_;
 
   std::string rw_destination_id_;  // read-write destination-id
   std::string ro_destination_id_;  // read-only destination-id

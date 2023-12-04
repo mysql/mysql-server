@@ -69,7 +69,7 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::command() {
   trace_event_connect_and_forward_command_ =
       trace_connect_and_forward_command(trace_event_command_);
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
   } else {
@@ -90,18 +90,15 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::connect() {
 }
 
 stdx::expected<Processor::Result, std::error_code> DebugForwarder::connected() {
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
-    auto *socket_splicer = connection()->socket_splicer();
-    auto *src_channel = socket_splicer->client_channel();
-    auto *src_protocol = connection()->client_protocol();
+    auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.
-    auto recv_res =
-        ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+    auto recv_res = ClassicFrame::ensure_has_full_frame(src_conn);
     if (!recv_res) return recv_client_failed(recv_res.error());
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("debug::connect::error"));
@@ -111,7 +108,7 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::connected() {
     trace_command_end(trace_event_command_);
 
     stage(Stage::Done);
-    return reconnect_send_error_msg(src_channel, src_protocol);
+    return reconnect_send_error_msg(src_conn);
   }
 
   if (auto &tr = tracer()) {
@@ -141,15 +138,14 @@ DebugForwarder::forward_done() {
 }
 
 stdx::expected<Processor::Result, std::error_code> DebugForwarder::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Eof = ClassicFrame::cmd_byte<classic_protocol::message::server::Eof>(),
@@ -168,7 +164,7 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::response() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage(
         "debug::response\n" +
-        mysql_harness::hexify(src_channel->recv_plain_view())));
+        mysql_harness::hexify(src_channel.recv_plain_view())));
   }
 
   return stdx::unexpected(make_error_code(std::errc::bad_message));
@@ -188,13 +184,11 @@ stdx::expected<Processor::Result, std::error_code> DebugForwarder::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> DebugForwarder::error() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::server::Error>(src_channel,
-                                                          src_protocol);
+      classic_protocol::borrowed::message::server::Error>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   auto msg = *msg_res;

@@ -90,7 +90,7 @@ TEST(QuitSenderTest, sender) {
       [](auto *) {});
 
   // taint the seq-id
-  conn->server_protocol()->seq_id(42);
+  conn->server_protocol().seq_id(42);
 
   QuitSender sender(conn.get());
 
@@ -105,7 +105,7 @@ TEST(QuitSenderTest, sender) {
     EXPECT_EQ(sender.stage(), QuitSender::Stage::CloseSocket);
 
     // send-buffer should contain a Quit message.
-    EXPECT_THAT(conn->socket_splicer()->server_channel()->send_buffer(),
+    EXPECT_THAT(conn->server_conn().channel().send_buffer(),
                 ::testing::ElementsAreArray({0x01, 0x00, 0x00, 0x00, 0x01}));
   }
 

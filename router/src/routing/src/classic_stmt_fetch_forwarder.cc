@@ -56,13 +56,10 @@ StmtFetchForwarder::command() {
     tr.trace(Tracer::Event().stage("stmt_fetch::command"));
   }
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
-  if (!server_conn.is_open()) {
-    auto *src_channel = connection()->socket_splicer()->client_channel();
-    auto *src_protocol = connection()->client_protocol();
+  if (!connection()->server_conn().is_open()) {
+    auto &src_conn = connection()->client_conn();
 
-    auto frame_res =
-        ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+    auto frame_res = ClassicFrame::ensure_has_full_frame(src_conn);
     if (!frame_res) return recv_client_failed(frame_res.error());
 
     // discard the recv'ed message as there is ...
@@ -70,13 +67,12 @@ StmtFetchForwarder::command() {
     // - no server connection to send it to
     // - and therefore no prepared statement that could be executed on the
     //   server.
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
-        src_channel, src_protocol,
-        {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id", "HY000"},
-        src_protocol->shared_capabilities());
+        src_conn,
+        {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id", "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Done);
@@ -90,15 +86,13 @@ StmtFetchForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtFetchForwarder::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Row = 0x00,

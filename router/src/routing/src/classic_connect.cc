@@ -92,15 +92,16 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::process() {
   harness_assert_this_should_not_execute();
 }
 
-static TlsSwitchableConnection make_connection_from_pooled(
-    PooledClassicConnection &&other) {
+static MysqlRoutingClassicConnectionBase::ServerSideConnection
+make_connection_from_pooled(PooledClassicConnection &&other) {
   return {std::move(other.connection()),
           nullptr,  // routing_conn
-          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(
-              other.server_capabilities(), other.client_capabilities(),
-              other.server_greeting(), other.username(), other.schema(),
-              other.attributes())};
+          other.ssl_mode(), Channel(std::move(other.ssl())),
+          MysqlRoutingClassicConnectionBase::ServerSideConnection::
+              protocol_state_type(other.server_capabilities(),
+                                  other.client_capabilities(),
+                                  other.server_greeting(), other.username(),
+                                  other.schema(), other.attributes())};
 }
 
 // get the socket-error from a connection.
@@ -108,8 +109,8 @@ static TlsSwitchableConnection make_connection_from_pooled(
 // error   if getting socket error failed.
 // success if error could be fetched
 static stdx::expected<std::error_code, std::error_code> sock_error_code(
-    TlsSwitchableConnection &conn) {
-  auto tcp_conn = dynamic_cast<TcpConnection *>(conn.connection().get());
+    MysqlRoutingClassicConnectionBase::ServerSideConnection &conn) {
+  auto *tcp_conn = dynamic_cast<TcpConnection *>(conn.connection().get());
 
   net::socket_base::error sock_err;
   const auto getopt_res = tcp_conn->get_option(sock_err);
@@ -287,11 +288,11 @@ stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::init_connect() {
   // trace(Tracer::Event().stage("connect::init_connect"));
 
-  auto tcp_conn = dynamic_cast<TcpConnection *>(
-      connection()->socket_splicer()->server_conn().connection().get());
+  auto *tcp_conn = dynamic_cast<TcpConnection *>(
+      connection()->server_conn().connection().get());
 
   // close socket if it is already open
-  if (tcp_conn) (void)tcp_conn->close();
+  if (tcp_conn != nullptr) (void)tcp_conn->close();
 
   connection()->connect_error_code({});  // reset the connect-error-code.
 
@@ -305,10 +306,9 @@ ConnectProcessor::init_connect() {
 
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::from_pool() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *client_protocol = connection()->client_protocol();
+  auto &client_protocol = connection()->client_protocol();
 
-  if (!client_protocol->client_greeting()) {
+  if (!client_protocol.client_greeting()) {
     // taking a connection from the pool requires that the client's greeting
     // must been received already.
     stage(Stage::Connect);
@@ -326,7 +326,7 @@ ConnectProcessor::from_pool() {
     // - endpoint
     // - capabilities
 
-    auto client_caps = client_protocol->shared_capabilities();
+    auto client_caps = client_protocol.shared_capabilities();
 
     client_caps
         // connection specific.
@@ -384,16 +384,14 @@ ConnectProcessor::from_pool() {
         // if the socket would be closed, recv() would return 0 for "eof".
         //
         // socket is still alive. good.
-        socket_splicer->server_conn() =
+        connection()->server_conn() =
             make_connection_from_pooled(std::move(*pool_res));
 
-        (void)socket_splicer->server_conn().connection()->set_io_context(
-            socket_splicer->client_conn().connection()->io_ctx());
+        (void)connection()->server_conn().connection()->set_io_context(
+            connection()->client_conn().connection()->io_ctx());
 
         // reset the seq-id of the server side as this is a new command.
-        if (connection()->server_protocol() != nullptr) {
-          connection()->server_protocol()->seq_id(0xff);
-        }
+        connection()->server_protocol().seq_id(0xff);
 
         if (connection()->expected_server_mode() ==
             mysqlrouter::ServerMode::Unavailable) {
@@ -414,7 +412,7 @@ ConnectProcessor::from_pool() {
         }
 
         // update the msg-tracer callback to the new connection.
-        if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+        if (auto *server_ssl = connection()->server_conn().channel().ssl()) {
           SSL_set_msg_callback_arg(server_ssl, connection());
         }
 
@@ -531,7 +529,7 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
       connection()->disconnect_request([this, &server_sock](bool req) {
         if (req) return true;
 
-        connection()->socket_splicer()->server_conn().assign_connection(
+        connection()->server_conn().assign_connection(
             std::make_unique<TcpConnection>(std::move(server_sock),
                                             server_endpoint_));
 
@@ -567,20 +565,18 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
           tr.trace(Tracer::Event().stage("connect::timed_out"));
         }
 
-        auto *socket_splicer = connection()->socket_splicer();
-        auto &server_conn = socket_splicer->server_conn();
+        auto &server_conn = connection()->server_conn();
 
         connection()->connect_error_code(make_error_code(std::errc::timed_out));
 
         (void)server_conn.cancel();
       });
 
-      connection()->socket_splicer()->server_conn().async_wait_error(
+      connection()->server_conn().async_wait_error(
           [conn = connection()](std::error_code ec) {
             if (ec) return;
 
-            auto *socket_splicer = conn->socket_splicer();
-            auto &server_conn = socket_splicer->server_conn();
+            auto &server_conn = conn->server_conn();
 
             auto sock_ec_res = sock_error_code(server_conn);
             if (!sock_ec_res) {
@@ -614,7 +610,7 @@ stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::connect_finish() {
   connection()->connect_timer().cancel();
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
 
   // cancel all handlers.
   (void)server_conn.cancel();
@@ -807,7 +803,7 @@ ConnectProcessor::connected() {
 
 stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
   auto *tcp_conn = dynamic_cast<TcpConnection *>(
-      connection()->socket_splicer()->server_conn().connection().get());
+      connection()->server_conn().connection().get());
 
   // close socket if it is already open
   if (tcp_conn != nullptr) (void)tcp_conn->close();

@@ -76,7 +76,7 @@ ResetConnectionForwarder::command() {
   // trace" to the new, reset session.
   connection()->events().active(false);
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
     return Result::Again;
@@ -98,25 +98,22 @@ ResetConnectionForwarder::connect() {
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::connected() {
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
-    auto *socket_splicer = connection()->socket_splicer();
-    auto *src_channel = socket_splicer->client_channel();
-    auto *src_protocol = connection()->client_protocol();
+    auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.
-    auto recv_res =
-        ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+    auto recv_res = ClassicFrame::ensure_has_full_frame(src_conn);
     if (!recv_res) return recv_client_failed(recv_res.error());
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("reset_connection::connect::error"));
     }
 
     stage(Stage::Done);
-    return reconnect_send_error_msg(src_channel, src_protocol);
+    return reconnect_send_error_msg(src_conn);
   }
 
   if (auto &tr = tracer()) {
@@ -129,15 +126,13 @@ ResetConnectionForwarder::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
@@ -157,15 +152,15 @@ ResetConnectionForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::ok() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
-  auto *dst_channel = socket_splicer->client_channel();
-  auto *dst_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
+
+  auto &dst_conn = connection()->client_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -176,14 +171,13 @@ ResetConnectionForwarder::ok() {
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()),
-        src_protocol->shared_capabilities());
+        net::buffer(msg.session_changes()), src_protocol.shared_capabilities());
     if (!track_res) {
       // ignore
     }
   }
 
-  dst_protocol->status_flags(msg.status_flags());
+  dst_protocol.status_flags(msg.status_flags());
 
   connection()->reset_to_initial();
 
@@ -206,10 +200,10 @@ SET @@SESSION.session_track_system_variables = "*",
   if (!connection()->events().empty()) {
     msg.warning_count(msg.warning_count() + 1);
 
-    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    auto send_res = ClassicFrame::send_msg(dst_conn, msg);
     if (!send_res) return stdx::unexpected(send_res.error());
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     return Result::SendToClient;
   }

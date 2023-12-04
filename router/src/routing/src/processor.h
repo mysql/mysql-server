@@ -116,7 +116,13 @@ class Processor : public BasicProcessor {
    * @pre ensure_full_frame() must true.
    */
   stdx::expected<void, std::error_code> discard_current_msg(
-      Channel *src_channel, ClassicProtocolState *src_protocol);
+      Channel &src_channel, ClassicProtocolState &src_protocol);
+
+  template <class Proto>
+  stdx::expected<void, std::error_code> discard_current_msg(
+      TlsSwitchableConnection<Proto> &conn) {
+    return discard_current_msg(conn.channel(), conn.protocol());
+  }
 
   /**
    * log a message with error-code as error.

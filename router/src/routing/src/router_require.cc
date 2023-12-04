@@ -37,7 +37,7 @@
 IMPORT_LOG_FUNCTIONS()
 
 stdx::expected<void, classic_protocol::message::server::Error>
-RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
+RouterRequire::enforce(Channel &client_channel, Attributes attrs) {
   // as stdx::expected(unexpect, ...) is 'explicit', return {} can't be used.
   using ret_type =
       stdx::expected<void, classic_protocol::message::server::Error>;
@@ -51,13 +51,13 @@ RouterRequire::enforce(Channel *client_channel, Attributes attrs) {
 
   bool ssl_is_required = (attrs.ssl && *attrs.ssl) || x509_is_required;
 
-  if (ssl_is_required && (client_channel->ssl() == nullptr)) {
+  if (ssl_is_required && (client_channel.ssl() == nullptr)) {
     return ret_type{stdx::unexpect, 1045, "Access denied (required: ssl)",
                     "28000"};
   }
 
   if (x509_is_required) {
-    auto *client_ssl = client_channel->ssl();
+    auto *client_ssl = client_channel.ssl();
 
     if (X509_V_OK != SSL_get_verify_result(client_ssl)) {
       return ret_type{stdx::unexpect, 1045,

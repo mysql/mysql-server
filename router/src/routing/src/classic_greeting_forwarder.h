@@ -124,8 +124,8 @@ class ServerGreetor : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> auth_ok();
   stdx::expected<Result, std::error_code> error();
 
-  void client_greeting_server_adjust_caps(ClassicProtocolState *src_protocol,
-                                          ClassicProtocolState *dst_protocol);
+  void client_greeting_server_adjust_caps(ClassicProtocolState &src_protocol,
+                                          ClassicProtocolState &dst_protocol);
 
   bool in_handshake_;
 
@@ -257,8 +257,8 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> fetch_user_attrs();
   stdx::expected<Result, std::error_code> fetch_user_attrs_done();
 
-  void client_greeting_server_adjust_caps(ClassicProtocolState *src_protocol,
-                                          ClassicProtocolState *dst_protocol);
+  void client_greeting_server_adjust_caps(ClassicProtocolState &rc_protocol,
+                                          ClassicProtocolState &st_protocol);
 
   size_t client_last_recv_buf_size_{};
   size_t client_last_send_buf_size_{};

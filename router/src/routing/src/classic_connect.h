@@ -40,7 +40,7 @@ class ConnectProcessor : public Processor {
           on_error,
       TraceEvent *parent_event)
       : Processor(conn),
-        io_ctx_{conn->socket_splicer()->client_conn().connection()->io_ctx()},
+        io_ctx_{conn->client_conn().connection()->io_ctx()},
         destinations_{conn->current_destinations()},
         destinations_it_{destinations_.begin()},
         on_error_(std::move(on_error)),

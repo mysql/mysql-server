@@ -65,8 +65,6 @@ AwaitClientOrServerProcessor::init() {
  */
 stdx::expected<Processor::Result, std::error_code>
 AwaitClientOrServerProcessor::wait_both() {
-  auto *socket_splicer = connection()->socket_splicer();
-
   switch (connection()->recv_from_either()) {
     case MysqlRoutingClassicConnectionBase::FromEither::RecvedFromServer: {
       // server side sent something.
@@ -76,7 +74,7 @@ AwaitClientOrServerProcessor::wait_both() {
 
       stage(Stage::WaitClientCancelled);
 
-      (void)socket_splicer->client_conn().cancel();
+      (void)connection()->client_conn().cancel();
 
       // end this execution branch.
       return Result::Void;
@@ -88,7 +86,7 @@ AwaitClientOrServerProcessor::wait_both() {
       // - read from client in ::wait_server_cancelled
       stage(Stage::WaitServerCancelled);
 
-      (void)socket_splicer->server_conn().cancel();
+      (void)connection()->server_conn().cancel();
 
       // end this execution branch.
       return Result::Void;

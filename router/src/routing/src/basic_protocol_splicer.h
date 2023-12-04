@@ -287,11 +287,6 @@ using TcpConnection = BasicConnection<net::ip::tcp>;
 using UnixDomainConnection = BasicConnection<local::stream_protocol>;
 #endif
 
-class ProtocolStateBase {
- public:
-  virtual ~ProtocolStateBase() = default;
-};
-
 /**
  * a Connection that can be switched to TLS.
  *
@@ -302,6 +297,7 @@ class ProtocolStateBase {
  * - a tls switchable (a SSL_CTX * wrapper)
  * - protocol state (classic, xproto)
  */
+template <class T>
 class TlsSwitchableConnection {
  public:
   //    16kb per buffer
@@ -310,29 +306,29 @@ class TlsSwitchableConnection {
   // 10000   connections
   // = 640MByte
   static constexpr size_t kRecvBufferSize{16UL * 1024};
+  using protocol_state_type = T;
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
-                          SslMode ssl_mode,
-                          std::unique_ptr<ProtocolStateBase> state)
+                          SslMode ssl_mode, protocol_state_type state)
       : conn_{std::move(conn)},
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
-        channel_{std::make_unique<Channel>()},
+        channel_{},
         protocol_{std::move(state)} {
-    channel_->recv_buffer().reserve(kRecvBufferSize);
+    channel_.recv_buffer().reserve(kRecvBufferSize);
   }
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
-                          SslMode ssl_mode, std::unique_ptr<Channel> channel,
-                          std::unique_ptr<ProtocolStateBase> state)
+                          SslMode ssl_mode, Channel channel,
+                          protocol_state_type state)
       : conn_{std::move(conn)},
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
         channel_{std::move(channel)},
         protocol_{std::move(state)} {
-    channel_->recv_buffer().reserve(kRecvBufferSize);
+    channel_.recv_buffer().reserve(kRecvBufferSize);
   }
 
   [[nodiscard]] std::vector<std::pair<std::string, std::string>>
@@ -355,15 +351,14 @@ class TlsSwitchableConnection {
   template <class Func>
   void async_recv(Func &&func) {
     harness_assert(conn_ != nullptr);
-    harness_assert(channel_ != nullptr);
 
     // discard everything that has been marked as 'consumed'
-    channel_->view_discard_raw();
+    channel_.view_discard_raw();
 
-    conn_->async_recv(channel_->recv_buffer(),
+    conn_->async_recv(channel_.recv_buffer(),
                       [this, func = std::forward<Func>(func)](
                           std::error_code ec, size_t transferred) {
-                        channel_->view_sync_raw();
+                        channel_.view_sync_raw();
 
                         func(ec, transferred);
                       });
@@ -376,7 +371,7 @@ class TlsSwitchableConnection {
    */
   template <class Func>
   void async_send(Func &&func) {
-    conn_->async_send(channel_->send_buffer(), std::forward<Func>(func));
+    conn_->async_send(channel_.send_buffer(), std::forward<Func>(func));
   }
 
   /**
@@ -394,9 +389,9 @@ class TlsSwitchableConnection {
     conn_->async_wait_error(std::forward<Func>(func));
   }
 
-  [[nodiscard]] Channel *channel() { return channel_.get(); }
+  [[nodiscard]] Channel &channel() { return channel_; }
 
-  [[nodiscard]] const Channel *channel() const { return channel_.get(); }
+  [[nodiscard]] const Channel &channel() const { return channel_; }
 
   [[nodiscard]] SslMode ssl_mode() const { return ssl_mode_; }
 
@@ -443,10 +438,10 @@ class TlsSwitchableConnection {
     return conn_->cancel();
   }
 
-  [[nodiscard]] ProtocolStateBase *protocol() { return protocol_.get(); }
+  [[nodiscard]] protocol_state_type &protocol() { return protocol_; }
 
-  [[nodiscard]] const ProtocolStateBase *protocol() const {
-    return protocol_.get();
+  [[nodiscard]] const protocol_state_type &protocol() const {
+    return protocol_;
   }
 
   std::unique_ptr<ConnectionBase> &connection() { return conn_; }
@@ -458,7 +453,7 @@ class TlsSwitchableConnection {
    * - if transport is secure, the channel is secure
    */
   [[nodiscard]] bool is_secure_transport() const {
-    return conn_->is_secure_transport() || channel_->ssl();
+    return conn_->is_secure_transport() || (channel_.ssl() != nullptr);
   }
 
  private:
@@ -469,117 +464,10 @@ class TlsSwitchableConnection {
   SslMode ssl_mode_;
 
   // socket buffers
-  std::unique_ptr<Channel> channel_;
+  Channel channel_;
 
   // higher-level protocol
-  std::unique_ptr<ProtocolStateBase> protocol_;
-};
-
-/**
- * splices two connections together.
- */
-class ProtocolSplicerBase {
- public:
-  ProtocolSplicerBase(TlsSwitchableConnection client_conn,
-                      TlsSwitchableConnection server_conn)
-      : client_conn_{std::move(client_conn)},
-        server_conn_{std::move(server_conn)} {}
-
-  template <class Func>
-  void async_wait_send_server(Func &&func) {
-    server_conn_.async_wait_send(std::forward<Func>(func));
-  }
-
-  template <class Func>
-  void async_recv_server(Func &&func) {
-    server_conn_.async_recv(std::forward<Func>(func));
-  }
-
-  template <class Func>
-  void async_send_server(Func &&func) {
-    server_conn_.async_send(std::forward<Func>(func));
-  }
-
-  template <class Func>
-  void async_recv_client(Func &&func) {
-    client_conn_.async_recv(std::forward<Func>(func));
-  }
-
-  template <class Func>
-  void async_send_client(Func &&func) {
-    client_conn_.async_send(std::forward<Func>(func));
-  }
-
-  template <class Func>
-  void async_client_wait_error(Func &&func) {
-    client_conn_.async_wait_error(std::forward<Func>(func));
-  }
-
-  [[nodiscard]] TlsSwitchableConnection &client_conn() { return client_conn_; }
-
-  [[nodiscard]] const TlsSwitchableConnection &client_conn() const {
-    return client_conn_;
-  }
-
-  [[nodiscard]] TlsSwitchableConnection &server_conn() { return server_conn_; }
-
-  [[nodiscard]] const TlsSwitchableConnection &server_conn() const {
-    return server_conn_;
-  }
-
-  [[nodiscard]] SslMode source_ssl_mode() const {
-    return client_conn().ssl_mode();
-  }
-
-  [[nodiscard]] SslMode dest_ssl_mode() const {
-    return server_conn().ssl_mode();
-  }
-
-  [[nodiscard]] Channel *client_channel() { return client_conn().channel(); }
-
-  [[nodiscard]] const Channel *client_channel() const {
-    return client_conn().channel();
-  }
-
-  [[nodiscard]] Channel *server_channel() { return server_conn().channel(); }
-
-  /**
-   * accept a TLS connection from the client_channel_.
-   */
-  [[nodiscard]] stdx::expected<void, std::error_code> tls_accept() {
-    // write socket data to SSL struct
-    auto *channel = client_conn_.channel();
-
-    {
-      const auto flush_res = channel->flush_from_recv_buf();
-      if (!flush_res) return stdx::unexpected(flush_res.error());
-    }
-
-    if (!channel->tls_init_is_finished()) {
-      const auto res = channel->tls_accept();
-
-      // flush the TLS message to the send-buffer.
-      {
-        const auto flush_res = channel->flush_to_send_buf();
-        if (!flush_res) {
-          const auto ec = flush_res.error();
-          if (ec != make_error_code(std::errc::operation_would_block)) {
-            return stdx::unexpected(flush_res.error());
-          }
-        }
-      }
-
-      if (!res) {
-        return stdx::unexpected(res.error());
-      }
-    }
-
-    return {};
-  }
-
- protected:
-  TlsSwitchableConnection client_conn_;
-  TlsSwitchableConnection server_conn_;
+  protocol_state_type protocol_;
 };
 
 #endif

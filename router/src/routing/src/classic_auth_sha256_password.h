@@ -47,18 +47,18 @@ class AuthSha256Password : public AuthBase {
                                              std::string_view pwd);
 
   static stdx::expected<size_t, std::error_code> send_public_key_request(
-      Channel *dst_channel, ClassicProtocolState *dst_protocol);
+      Channel &dst_channel, ClassicProtocolState &dst_protocol);
 
   static stdx::expected<size_t, std::error_code> send_public_key(
-      Channel *dst_channel, ClassicProtocolState *dst_protocol,
+      Channel &dst_channel, ClassicProtocolState &dst_protocol,
       const std::string &public_key);
 
   static stdx::expected<size_t, std::error_code> send_plaintext_password(
-      Channel *dst_channel, ClassicProtocolState *dst_protocol,
+      Channel &dst_channel, ClassicProtocolState &dst_protocol,
       const std::string &password);
 
   static stdx::expected<size_t, std::error_code> send_encrypted_password(
-      Channel *dst_channel, ClassicProtocolState *dst_protocol,
+      Channel &dst_channel, ClassicProtocolState &dst_protocol,
       const std::string &password);
 
   static bool is_public_key_request(const std::string_view &data);

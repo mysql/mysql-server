@@ -54,17 +54,15 @@ StmtResetForwarder::command() {
     tr.trace(Tracer::Event().stage("stmt_reset::command"));
   }
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
-    auto *src_channel = connection()->socket_splicer()->client_channel();
-    auto *src_protocol = connection()->client_protocol();
+    auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.
-    auto recv_res =
-        ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+    auto recv_res = ClassicFrame::ensure_has_full_frame(src_conn);
     if (!recv_res) return recv_client_failed(recv_res.error());
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("stmt_reset::error"));
@@ -72,8 +70,7 @@ StmtResetForwarder::command() {
 
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
-        src_channel, src_protocol,
-        {1243, "Unknown prepared statement handler", "HY000"});
+        src_conn, {1243, "Unknown prepared statement handler", "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Done);
@@ -87,15 +84,13 @@ StmtResetForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtResetForwarder::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
@@ -119,14 +114,14 @@ StmtResetForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtResetForwarder::ok() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
-  auto *dst_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->server_conn();
+
+  auto &dst_conn = connection()->client_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   auto msg = *msg_res;
@@ -135,7 +130,7 @@ stdx::expected<Processor::Result, std::error_code> StmtResetForwarder::ok() {
     tr.trace(Tracer::Event().stage("stmt_reset::ok"));
   }
 
-  dst_protocol->status_flags(msg.status_flags());
+  dst_protocol.status_flags(msg.status_flags());
 
   stage(Stage::Done);
 

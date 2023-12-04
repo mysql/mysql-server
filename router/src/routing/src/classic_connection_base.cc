@@ -92,7 +92,7 @@ static void log_fatal_error_code(const char *msg, std::error_code ec) {
 
 void MysqlRoutingClassicConnectionBase::on_handshake_received() {
   auto &blocked_endpoints = this->context().blocked_endpoints();
-  auto &client_conn = this->socket_splicer()->client_conn();
+  auto &client_conn = this->client_conn();
 
   const uint64_t old_value = client_conn.reset_error_count(blocked_endpoints);
 
@@ -105,7 +105,7 @@ void MysqlRoutingClassicConnectionBase::on_handshake_received() {
 
 void MysqlRoutingClassicConnectionBase::on_handshake_aborted() {
   auto &blocked_endpoints = this->context().blocked_endpoints();
-  auto &client_conn = this->socket_splicer()->client_conn();
+  auto &client_conn = this->client_conn();
   const uint64_t new_value =
       client_conn.increment_error_count(blocked_endpoints);
 
@@ -158,7 +158,7 @@ void MysqlRoutingClassicConnectionBase::recv_client_failed(std::error_code ec,
 
 void MysqlRoutingClassicConnectionBase::server_socket_failed(std::error_code ec,
                                                              bool call_finish) {
-  auto &server_conn = this->socket_splicer()->server_conn();
+  auto &server_conn = this->server_conn();
 
   if (server_conn.is_open()) {
     if (ec != net::stream_errc::eof) {
@@ -175,22 +175,20 @@ void MysqlRoutingClassicConnectionBase::server_socket_failed(std::error_code ec,
 
 void MysqlRoutingClassicConnectionBase::client_socket_failed(std::error_code ec,
                                                              bool call_finish) {
-  auto &client_conn = this->socket_splicer()->client_conn();
-
-  if (client_conn.is_open()) {
+  if (client_conn().is_open()) {
     if (!client_greeting_sent_) {
       log_info("[%s] %s closed connection before finishing handshake",
                this->context().get_name().c_str(),
-               client_conn.endpoint().c_str());
+               client_conn().endpoint().c_str());
 
       on_handshake_aborted();
     }
 
     if (ec != net::stream_errc::eof) {
       // the other side hasn't closed yet, shutdown our send-side.
-      (void)client_conn.shutdown(net::socket_base::shutdown_send);
+      (void)client_conn().shutdown(net::socket_base::shutdown_send);
     }
-    (void)client_conn.close();
+    (void)client_conn().close();
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event()
                    .stage("close::client")
@@ -202,16 +200,16 @@ void MysqlRoutingClassicConnectionBase::client_socket_failed(std::error_code ec,
 }
 
 void MysqlRoutingClassicConnectionBase::async_send_client(Function next) {
-  auto socket_splicer = this->socket_splicer();
-  auto dst_channel = socket_splicer->client_channel();
+  auto &dst_conn = client_conn();
+  auto &dst_channel = dst_conn.channel();
 
   if (disconnect_requested()) {
     return send_client_failed(make_error_code(std::errc::operation_canceled));
   }
 
   ++active_work_;
-  socket_splicer->async_send_client(
-      [this, next, to_transfer = dst_channel->send_buffer().size()](
+  dst_conn.async_send(
+      [this, next, to_transfer = dst_channel.send_buffer().size()](
           std::error_code ec, size_t transferred) {
         --active_work_;
         if (ec) return send_client_failed(ec);
@@ -233,8 +231,10 @@ void MysqlRoutingClassicConnectionBase::async_recv_client(Function next) {
     return recv_client_failed(make_error_code(std::errc::operation_canceled));
   }
 
+  auto &src_conn = client_conn();
+
   ++active_work_;
-  this->socket_splicer()->async_recv_client(
+  src_conn.async_recv(
       [this, next](std::error_code ec, size_t transferred [[maybe_unused]]) {
         --active_work_;
 
@@ -254,12 +254,12 @@ void MysqlRoutingClassicConnectionBase::async_send_server(Function next) {
     return send_server_failed(make_error_code(std::errc::operation_canceled));
   }
 
-  auto socket_splicer = this->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
+  auto &dst_conn = server_conn();
+  auto &dst_channel = dst_conn.channel();
 
   ++active_work_;
-  socket_splicer->async_send_server(
-      [this, next, to_transfer = dst_channel->send_buffer().size()](
+  dst_conn.async_send(
+      [this, next, to_transfer = dst_channel.send_buffer().size()](
           std::error_code ec, size_t transferred) {
         --active_work_;
         if (ec) return send_server_failed(ec);
@@ -281,9 +281,10 @@ void MysqlRoutingClassicConnectionBase::async_recv_server(Function next) {
     return recv_server_failed(make_error_code(std::errc::operation_canceled));
   }
 
-  ++active_work_;
+  auto &src_conn = server_conn();
 
-  this->socket_splicer()->async_recv_server(
+  ++active_work_;
+  src_conn.async_recv(
       [this, next](std::error_code ec, size_t transferred [[maybe_unused]]) {
         --active_work_;
 
@@ -304,9 +305,8 @@ void MysqlRoutingClassicConnectionBase::async_recv_both(Function next) {
   ++active_work_;  // client
   ++active_work_;  // server
 
-  this->socket_splicer()->async_recv_client([this, next](std::error_code ec,
-                                                         size_t transferred
-                                                         [[maybe_unused]]) {
+  client_conn().async_recv([this, next](std::error_code ec,
+                                        size_t transferred [[maybe_unused]]) {
     --active_work_;
 
     if (ec == std::errc::operation_canceled) {
@@ -335,8 +335,8 @@ void MysqlRoutingClassicConnectionBase::async_recv_both(Function next) {
                                    "io::recv", next);
   });
 
-  this->socket_splicer()->async_recv_server([this, next](std::error_code ec,
-                                                         size_t transferred) {
+  server_conn().async_recv([this, next](std::error_code ec,
+                                        size_t transferred) {
     (void)transferred;
 
     --active_work_;
@@ -369,10 +369,8 @@ void MysqlRoutingClassicConnectionBase::async_recv_both(Function next) {
 }
 
 void MysqlRoutingClassicConnectionBase::async_wait_send_server(Function next) {
-  auto socket_splicer = this->socket_splicer();
-
   ++active_work_;
-  socket_splicer->async_wait_send_server([this, next](std::error_code ec) {
+  server_conn().async_wait_send([this, next](std::error_code ec) {
     --active_work_;
 
     if (ec == std::errc::operation_canceled &&
@@ -389,7 +387,7 @@ void MysqlRoutingClassicConnectionBase::async_wait_send_server(Function next) {
 
 void MysqlRoutingClassicConnectionBase::disconnect() {
   disconnect_request([this](auto &req) {
-    auto &io_ctx = socket_splicer()->client_conn().connection()->io_ctx();
+    auto &io_ctx = client_conn().connection()->io_ctx();
 
     if (io_ctx.stopped()) abort();
 
@@ -399,8 +397,8 @@ void MysqlRoutingClassicConnectionBase::disconnect() {
     //
     // queue the cancel in the connections io-ctx to make it thread-safe.
     net::dispatch(io_ctx, [this, self = shared_from_this()]() {
-      (void)socket_splicer()->client_conn().cancel();
-      (void)socket_splicer()->server_conn().cancel();
+      (void)client_conn().cancel();
+      (void)server_conn().cancel();
     });
   });
 }
@@ -411,8 +409,8 @@ void MysqlRoutingClassicConnectionBase::disconnect() {
 // isn't blocked due to the server's max_connect_errors.
 void MysqlRoutingClassicConnectionBase::server_side_client_greeting() {
   auto encode_res = encode_server_side_client_greeting(
-      this->socket_splicer()->server_channel()->send_buffer(), 1,
-      client_protocol()->shared_capabilities());
+      this->server_conn().channel().send_buffer(), 1,
+      client_conn().protocol().shared_capabilities());
   if (!encode_res) return send_server_failed(encode_res.error());
 
   return async_send_server(Function::kFinish);
@@ -424,8 +422,8 @@ void MysqlRoutingClassicConnectionBase::server_side_client_greeting() {
 //
 // called multiple times (once per "active_work_").
 void MysqlRoutingClassicConnectionBase::finish() {
-  auto &client_socket = this->socket_splicer()->client_conn();
-  auto &server_socket = this->socket_splicer()->server_conn();
+  auto &client_socket = this->client_conn();
+  auto &server_socket = this->server_conn();
 
   if (server_socket.is_open() && !client_socket.is_open()) {
     // client side closed while server side is still open ...
@@ -571,8 +569,8 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             tr.trace(Tracer::Event().stage(oss.str()));
           }
 
-          server_protocol()->schema(schema);
-          client_protocol()->schema(schema);
+          server_protocol().schema(schema);
+          client_protocol().schema(schema);
         }
       } break;
       case Type::State: {
@@ -609,7 +607,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
         } else {
           const auto gtid = decode_value_res->second;
 
-          client_protocol()->gtid_executed(std::string(gtid.gtid()));
+          client_protocol().gtid_executed(std::string(gtid.gtid()));
 
           if (auto &tr = tracer()) {
             std::ostringstream oss;
@@ -831,8 +829,8 @@ void MysqlRoutingClassicConnectionBase::loop() {
 bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
   const auto &sysvars = exec_ctx_.system_variables();
 
-  return context_.connection_sharing() &&              // config must allow it.
-         client_protocol()->password().has_value() &&  // a password is required
+  return context_.connection_sharing() &&             // config must allow it.
+         client_protocol().password().has_value() &&  // a password is required
          sysvars.get("session_track_gtids") == "OWN_GTID" &&
          sysvars.get("session_track_state_change") == "ON" &&
          sysvars.get("session_track_system_variables") == "*" &&
@@ -952,7 +950,7 @@ std::string MysqlRoutingClassicConnectionBase::connection_sharing_blocked_by()
 
   // "possible"
   if (!context_.connection_sharing()) return "config";
-  if (!client_protocol()->password().has_value()) return "no-password";
+  if (!client_protocol().password().has_value()) return "no-password";
   if (sysvars.get("session_track_gtids") != Value("OWN_GTID"))
     return "session-track-gtids";
   if (sysvars.get("session_track_state_change") != Value("ON"))
@@ -985,7 +983,7 @@ void MysqlRoutingClassicConnectionBase::connection_sharing_allowed_reset() {
 }
 
 void MysqlRoutingClassicConnectionBase::reset_to_initial() {
-  auto *src_protocol = client_protocol();
+  auto &src_protocol = client_protocol();
 
   // allow connection sharing again.
   connection_sharing_allowed_reset();
@@ -994,22 +992,22 @@ void MysqlRoutingClassicConnectionBase::reset_to_initial() {
   execution_context().diagnostics_area().warnings().clear();
 
   // clear the prepared statements.
-  src_protocol->prepared_statements().clear();
+  src_protocol.prepared_statements().clear();
 
   // back to 'auto'
-  src_protocol->access_mode({});
+  src_protocol.access_mode({});
 
   // disable the tracer.
-  src_protocol->trace_commands(false);
+  src_protocol.trace_commands(false);
   events().active(false);
 
   // reset the sticky read-only backend.
   read_only_destination_id({});
 
   // reset to initial values.
-  src_protocol->gtid_executed({});
+  src_protocol.gtid_executed({});
 
-  src_protocol->wait_for_my_writes(context().wait_for_my_writes());
-  src_protocol->wait_for_my_writes_timeout(
+  src_protocol.wait_for_my_writes(context().wait_for_my_writes());
+  src_protocol.wait_for_my_writes_timeout(
       context().wait_for_my_writes_timeout());
 }

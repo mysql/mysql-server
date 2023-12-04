@@ -322,13 +322,9 @@ CommandProcessor::wait_both() {
 
         return Result::Again;
       case AwaitClientOrServerProcessor::AwaitResult::ServerReadable: {
-        auto *socket_splicer = connection()->socket_splicer();
+        auto &src_conn = connection()->server_conn();
 
-        auto *src_channel = socket_splicer->server_channel();
-        auto *src_protocol = connection()->server_protocol();
-
-        auto read_res =
-            ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+        auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
         if (!read_res) return recv_server_failed(read_res.error());
 
         stage(Stage::Done);
@@ -349,18 +345,18 @@ CommandProcessor::wait_both() {
 }
 
 stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->client_channel();
-  auto *src_protocol = connection()->client_protocol();
-  auto &server_conn = socket_splicer->server_conn();
+  auto &src_conn = connection()->client_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
+
+  auto &server_conn = connection()->server_conn();
 
   if (connection()->disconnect_requested()) {
     stage(Stage::Done);
     return Result::Again;
   }
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) {
     // nothing to read. Wait for
     //
@@ -457,10 +453,9 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     return recv_client_failed(ec);
   }
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
-  connection()->client_protocol()->seq_id(
-      src_protocol->current_frame()->seq_id_);
+  connection()->client_protocol().seq_id(src_protocol.current_frame()->seq_id_);
 
   namespace client = classic_protocol::message::client;
 
@@ -502,15 +497,13 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
 
   // init the command tracer.
   connection()->events().active(
-      connection()->client_protocol()->trace_commands());
+      connection()->client_protocol().trace_commands());
 
   // The query processor handles SHOW WARNINGS which fetches the events.
   if (Msg{msg_type} != Msg::Query) connection()->events().clear();
 
   // reset the seq-id of the server side as this is a new command.
-  if (connection()->server_protocol() != nullptr) {
-    connection()->server_protocol()->seq_id(0xff);
-  }
+  connection()->server_protocol().seq_id(0xff);
 
   switch (Msg{msg_type}) {
     case Msg::Quit:
@@ -565,22 +558,21 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
 
   // unknown command
   // drain the current command from the recv-buffers.
-  (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+  (void)ClassicFrame::ensure_has_full_frame(src_conn);
 
   log_debug("client sent unknown command: %s",
-            hexify(src_channel->recv_plain_view()).c_str());
+            hexify(src_channel.recv_plain_view()).c_str());
 
   // try to discard the current message.
   //
   // if the current message isn't received completely yet, drop the connection
   // after sending the error-message.
-  const auto discard_res = discard_current_msg(src_channel, src_protocol);
+  const auto discard_res = discard_current_msg(src_conn);
 
   const auto send_res = ClassicFrame::send_msg<
       classic_protocol::borrowed::message::server::Error>(
-      src_channel, src_protocol,
-      {ER_UNKNOWN_COM_ERROR, "Unknown command " + std::to_string(msg_type),
-       "HY000"});
+      src_conn, {ER_UNKNOWN_COM_ERROR,
+                 "Unknown command " + std::to_string(msg_type), "HY000"});
   if (!discard_res || !send_res) {
     stage(Stage::Done);  // closes the connection after the error-msg was sent.
 

@@ -53,15 +53,15 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuitSender::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *dst_protocol = connection()->server_protocol();
-  auto *dst_channel = socket_splicer->server_channel();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_channel = dst_conn.channel();
+  auto &dst_protocol = dst_conn.protocol();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("quit::command"));
   }
 
-  dst_protocol->seq_id(0xff);
+  dst_protocol.seq_id(0xff);
 
   auto msg_res =
       ClassicFrame::send_msg<classic_protocol::borrowed::message::client::Quit>(
@@ -73,15 +73,13 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuitSender::close_socket() {
-  auto *socket_splicer = connection()->socket_splicer();
-
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event()
                  .stage("quit::close")
                  .direction(Tracer::Event::Direction::kServerClose));
   }
 
-  (void)socket_splicer->server_conn().close();
+  (void)connection()->server_conn().close();
 
   stage(Stage::Done);
   return Result::Again;

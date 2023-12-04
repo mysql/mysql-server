@@ -43,8 +43,8 @@ StmtParamAppendDataForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtParamAppendDataForwarder::command() {
-  auto *src_channel = connection()->socket_splicer()->client_channel();
-  auto *src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_protocol = src_conn.protocol();
 
   if (auto &tr = tracer()) {
     // NOTE: as the recv_msg<> of StmtExecute is only called when the tracer is
@@ -52,7 +52,7 @@ StmtParamAppendDataForwarder::command() {
     //
     auto msg_res = ClassicFrame::recv_msg<
         classic_protocol::borrowed::message::client::StmtParamAppendData>(
-        src_channel, src_protocol);
+        src_conn);
     if (!msg_res) {
       // discard the recv'ed message as there is ...
       //
@@ -63,7 +63,7 @@ StmtParamAppendDataForwarder::command() {
       // StmtParamAppendData also has no way to report errors.
       stage(Stage::Done);
 
-      discard_current_msg(src_channel, src_protocol);
+      discard_current_msg(src_conn);
 
       return Result::Again;
     }
@@ -76,8 +76,8 @@ StmtParamAppendDataForwarder::command() {
                               ", param-id: " + std::to_string(msg.param_id())));
 
     // track that this parameter was already sent.
-    auto it = src_protocol->prepared_statements().find(msg.statement_id());
-    if (it != src_protocol->prepared_statements().end()) {
+    auto it = src_protocol.prepared_statements().find(msg.statement_id());
+    if (it != src_protocol.prepared_statements().end()) {
       // found
       if (msg.param_id() < it->second.parameters.size()) {
         it->second.parameters[msg.param_id()].param_already_sent = true;
@@ -85,15 +85,14 @@ StmtParamAppendDataForwarder::command() {
     }
   }
 
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   if (!server_conn.is_open()) {
-    auto frame_res =
-        ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+    auto frame_res = ClassicFrame::ensure_has_full_frame(src_conn);
     if (!frame_res) return recv_client_failed(frame_res.error());
 
     stage(Stage::Done);
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     return Result::Again;
   }

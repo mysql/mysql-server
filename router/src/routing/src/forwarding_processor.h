@@ -27,6 +27,7 @@
 
 #include <chrono>
 
+#include "basic_protocol_splicer.h"
 #include "classic_connection_base.h"
 #include "processor.h"
 
@@ -82,13 +83,13 @@ class ForwardingProcessor : public Processor {
    * @retval true if the msg can be forwarded as is.
    */
   template <class T>
-  static bool message_can_be_forwarded_as_is(ClassicProtocolState *src_protocol,
-                                             ClassicProtocolState *dst_protocol,
+  static bool message_can_be_forwarded_as_is(ClassicProtocolState &src_protocol,
+                                             ClassicProtocolState &dst_protocol,
                                              const T &msg [[maybe_unused]]) {
     const auto mask = classic_protocol::Codec<T>::depends_on_capabilities();
 
-    return (src_protocol->shared_capabilities() & mask) ==
-           (dst_protocol->shared_capabilities() & mask);
+    return (src_protocol.shared_capabilities() & mask) ==
+           (dst_protocol.shared_capabilities() & mask);
   }
 
   /**
@@ -143,7 +144,13 @@ class ForwardingProcessor : public Processor {
    * @retval Result::SendToClient on success.
    */
   stdx::expected<Processor::Result, std::error_code> reconnect_send_error_msg(
-      Channel *src_channel, ClassicProtocolState *src_protocol);
+      Channel &src_channel, ClassicProtocolState &src_protocol);
+
+  template <class Proto>
+  stdx::expected<Processor::Result, std::error_code> reconnect_send_error_msg(
+      TlsSwitchableConnection<Proto> &conn) {
+    return reconnect_send_error_msg(conn.channel(), conn.protocol());
+  }
 
   /**
    * set the reconnect error.

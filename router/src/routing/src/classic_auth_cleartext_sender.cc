@@ -57,12 +57,10 @@ AuthCleartextSender::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> AuthCleartextSender::init() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
 
   auto send_res = ClassicFrame::send_msg(
-      dst_channel, dst_protocol,
+      dst_conn,
       classic_protocol::borrowed::message::client::AuthMethodData{password_});
   if (!send_res) return send_server_failed(send_res.error());
 
@@ -78,16 +76,15 @@ stdx::expected<Processor::Result, std::error_code> AuthCleartextSender::init() {
 stdx::expected<Processor::Result, std::error_code>
 AuthCleartextSender::response() {
   // ERR|OK|EOF|other
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
   // ensure the recv_buf has at last frame-header (+ msg-byte)
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
@@ -104,10 +101,10 @@ AuthCleartextSender::response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel.recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
-  (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+  (void)ClassicFrame::ensure_has_full_frame(src_conn);
 
   log_debug("received unexpected message from server in cleartext-auth:\n%s",
             hexify(recv_buf).c_str());

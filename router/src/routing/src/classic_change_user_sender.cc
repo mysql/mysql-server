@@ -207,60 +207,59 @@ static std::optional<std::string> scramble_them_all(
 }
 
 static classic_protocol::message::client::ChangeUser change_user_for_reuse(
-    Channel *src_channel, ClassicProtocolState *src_protocol,
-    [[maybe_unused]] ClassicProtocolState *dst_protocol,
+    Channel &src_channel, ClientSideClassicProtocolState &src_protocol,
+    [[maybe_unused]] ServerSideClassicProtocolState &dst_protocol,
     std::vector<std::pair<std::string, std::string>>
         initial_connection_attributes) {
-  harness_assert(src_protocol->client_greeting().has_value());
-  harness_assert(dst_protocol->server_greeting().has_value());
+  harness_assert(src_protocol.client_greeting().has_value());
+  harness_assert(dst_protocol.server_greeting().has_value());
 
   const auto append_attrs_res =
       classic_proto_decode_and_add_connection_attributes(
-          src_protocol->attributes(),
+          src_protocol.attributes(),
           vector_splice(initial_connection_attributes,
-                        client_ssl_connection_attributes(src_channel->ssl())));
+                        client_ssl_connection_attributes(src_channel.ssl())));
   // if decode/append fails forward the attributes as is. The server should
   // fail too.
-  auto attrs = append_attrs_res.value_or(src_protocol->attributes());
+  auto attrs = append_attrs_res.value_or(src_protocol.attributes());
 
-  if (src_protocol->password().has_value()) {
+  if (src_protocol.password().has_value()) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol->password());
+    auto pwd = *(src_protocol.password());
 
     // if the password set and not empty, rehash it.
     if (auto scramble_res = scramble_them_all(
-            src_protocol->auth_method_name(),
-            strip_trailing_null(dst_protocol->auth_method_data()), pwd)) {
+            src_protocol.auth_method_name(),
+            strip_trailing_null(dst_protocol.auth_method_data()), pwd)) {
       return {
-          src_protocol->username(),                      // username
-          *scramble_res,                                 // auth_method_data
-          src_protocol->schema(),                        // schema
-          src_protocol->client_greeting()->collation(),  // collation
-          src_protocol->auth_method_name(),              // auth_method_name
-          attrs,                                         // attributes
+          src_protocol.username(),                      // username
+          *scramble_res,                                // auth_method_data
+          src_protocol.schema(),                        // schema
+          src_protocol.client_greeting()->collation(),  // collation
+          src_protocol.auth_method_name(),              // auth_method_name
+          attrs,                                        // attributes
       };
     }
   }
 
   return {
-      src_protocol->username(),                      // username
-      "",                                            // auth_method_data
-      src_protocol->schema(),                        // schema
-      src_protocol->client_greeting()->collation(),  // collation
-      "switch_me_if_you_can",                        // auth_method_name
-      attrs,                                         // attributes
+      src_protocol.username(),                      // username
+      "",                                           // auth_method_data
+      src_protocol.schema(),                        // schema
+      src_protocol.client_greeting()->collation(),  // collation
+      "switch_me_if_you_can",                       // auth_method_name
+      attrs,                                        // attributes
   };
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &src_conn = socket_splicer->client_conn();
-  auto *src_channel = socket_splicer->client_channel();
-  auto *src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
-  auto *dst_channel = socket_splicer->server_channel();
-  auto *dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   change_user_msg_ =
       change_user_for_reuse(src_channel, src_protocol, dst_protocol,
@@ -284,10 +283,9 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::command() {
 
   trace_event_command_ = trace_span(parent_event_, "mysql/change_user");
 
-  dst_protocol->seq_id(0xff);  // reset seq-id
+  dst_protocol.seq_id(0xff);  // reset seq-id
 
-  auto send_res =
-      ClassicFrame::send_msg(dst_channel, dst_protocol, *change_user_msg_);
+  auto send_res = ClassicFrame::send_msg(dst_conn, *change_user_msg_);
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::InitialResponse);
@@ -304,15 +302,13 @@ ChangeUserSender::initial_response() {
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserSender::final_response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
@@ -336,14 +332,15 @@ ChangeUserSender::final_response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
-  auto *dst_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
+
+  auto &dst_conn = connection()->client_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   auto msg = *msg_res;
@@ -362,38 +359,35 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()),
-        src_protocol->shared_capabilities());
+        net::buffer(msg.session_changes()), src_protocol.shared_capabilities());
     if (!track_res) {
       // ignore
     }
   }
 
-  dst_protocol->status_flags(msg.status_flags());
+  dst_protocol.status_flags(msg.status_flags());
 
   connection()->authenticated(true);
 
-  src_protocol->username(change_user_msg_->username());
-  dst_protocol->username(change_user_msg_->username());
-  src_protocol->schema(change_user_msg_->schema());
-  dst_protocol->schema(change_user_msg_->schema());
-  src_protocol->sent_attributes(change_user_msg_->attributes());
-  dst_protocol->sent_attributes(change_user_msg_->attributes());
+  src_protocol.username(change_user_msg_->username());
+  dst_protocol.username(change_user_msg_->username());
+  src_protocol.schema(change_user_msg_->schema());
+  dst_protocol.schema(change_user_msg_->schema());
+  src_protocol.sent_attributes(change_user_msg_->attributes());
+  dst_protocol.sent_attributes(change_user_msg_->attributes());
 
   stage(Stage::Done);
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::server::Error>(src_channel,
-                                                          src_protocol);
+      classic_protocol::borrowed::message::server::Error>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   auto msg = *msg_res;
@@ -418,6 +412,6 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
   on_error_({msg.error_code(), std::string(msg.message()),
              std::string(msg.sql_state())});
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
   return Result::Again;
 }

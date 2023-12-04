@@ -77,21 +77,19 @@ stdx::expected<Processor::Result, std::error_code> QuitForwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_protocol = connection()->client_protocol();
-  auto *src_channel = socket_splicer->client_channel();
+  auto &src_conn = connection()->client_conn();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::client::Quit>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("quit::command"));
   }
 
-  if (!socket_splicer->server_conn().is_open()) {
-    discard_current_msg(src_channel, src_protocol);
+  if (!connection()->server_conn().is_open()) {
+    discard_current_msg(src_conn);
 
     stage(Stage::ServerTlsShutdownFirst);
 
@@ -111,7 +109,7 @@ stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
     }
 
     // the connect was pooled, discard the Quit message.
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     stage(Stage::ServerTlsShutdownFirst);
 
@@ -123,18 +121,17 @@ stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
   // Merge the COM_QUIT and the TLS shutdown into one write() by not flushing
   // to the socket yet.
   const bool delay_com_quit_for_tls_shutdown{
-      socket_splicer->server_channel()->ssl() != nullptr};
+      connection()->server_conn().channel().ssl() != nullptr};
 
   return forward_client_to_server(delay_com_quit_for_tls_shutdown);
 }
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::server_tls_shutdown_first() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *dst_channel = socket_splicer->server_channel();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_channel = dst_conn.channel();
 
-  if (dst_channel->ssl() == nullptr ||
-      !socket_splicer->server_conn().is_open()) {
+  if (dst_channel.ssl() == nullptr || !dst_conn.is_open()) {
     // no TLS or no socket, continue with the client.
     stage(Stage::ServerShutdownSend);
     return Result::Again;
@@ -145,9 +142,9 @@ QuitForwarder::server_tls_shutdown_first() {
   }
 
   // the COM_QUIT is not encrypted yet, flush it to the send-buffer.
-  dst_channel->flush_to_send_buf();
+  dst_channel.flush_to_send_buf();
 
-  const auto res = dst_channel->tls_shutdown();
+  const auto res = dst_channel.tls_shutdown();
   if (!res) {
     const auto ec = res.error();
 
@@ -156,7 +153,7 @@ QuitForwarder::server_tls_shutdown_first() {
                                      res.error().message()));
     }
 
-    if (!dst_channel->send_buffer().empty()) {
+    if (!dst_channel.send_buffer().empty()) {
       assert(ec == TlsErrc::kWantRead);
 
       if (ec != TlsErrc::kWantRead) {
@@ -183,17 +180,15 @@ QuitForwarder::server_tls_shutdown_first() {
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::server_shutdown_send() {
-  auto *socket_splicer = connection()->socket_splicer();
+  auto &server_conn = connection()->server_conn();
 
-  auto &conn = socket_splicer->server_conn();
-
-  if (!conn.is_open()) {
+  if (!server_conn.is_open()) {
     // no socket, continue with the client.
     stage(Stage::ClientTlsShutdownFirst);
     return Result::Again;
   }
 
-  auto shutdown_res = conn.shutdown(net::socket_base::shutdown_send);
+  auto shutdown_res = server_conn.shutdown(net::socket_base::shutdown_send);
   if (!shutdown_res) {
     auto ec = shutdown_res.error();
 
@@ -207,7 +202,7 @@ QuitForwarder::server_shutdown_send() {
                      .direction(Tracer::Event::Direction::kServerClose));
       }
 
-      (void)conn.close();
+      (void)server_conn.close();
     } else {
       log_debug("Quit::server_shutdown_send: shutdown() failed: %s",
                 ec.message().c_str());
@@ -225,11 +220,10 @@ QuitForwarder::server_shutdown_send() {
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::client_tls_shutdown_first() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->client_channel();
+  auto &src_conn = connection()->client_conn();
+  auto &src_channel = src_conn.channel();
 
-  if (src_channel->ssl() == nullptr ||
-      !socket_splicer->client_conn().is_open()) {
+  if (src_channel.ssl() == nullptr || !src_conn.is_open()) {
     // client isn't TLS or the socket is already closed.
     stage(Stage::ClientShutdownSend);
 
@@ -240,7 +234,7 @@ QuitForwarder::client_tls_shutdown_first() {
     tr.trace(Tracer::Event().stage("tls_shutdown::client::first"));
   }
 
-  const auto res = src_channel->tls_shutdown();
+  const auto res = src_channel.tls_shutdown();
   if (!res) {
     const auto ec = res.error();
 
@@ -249,7 +243,7 @@ QuitForwarder::client_tls_shutdown_first() {
                                      res.error().message()));
     }
 
-    if (!src_channel->send_buffer().empty()) {
+    if (!src_channel.send_buffer().empty()) {
       if (ec != TlsErrc::kWantRead) {
         stage(Stage::Done);
       }
@@ -275,17 +269,15 @@ QuitForwarder::client_tls_shutdown_first() {
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::client_shutdown_send() {
-  auto *socket_splicer = connection()->socket_splicer();
+  auto &client_conn = connection()->client_conn();
 
-  auto &conn = socket_splicer->client_conn();
-
-  if (!conn.is_open()) {
+  if (!client_conn.is_open()) {
     // no socket, continue with the server.
     stage(Stage::ServerTlsShutdownResponse);
     return Result::Again;
   }
 
-  auto shutdown_res = conn.shutdown(net::socket_base::shutdown_send);
+  auto shutdown_res = client_conn.shutdown(net::socket_base::shutdown_send);
   if (!shutdown_res) {
     auto ec = shutdown_res.error();
 
@@ -297,7 +289,7 @@ QuitForwarder::client_shutdown_send() {
                      .direction(Tracer::Event::Direction::kClientClose));
       }
 
-      (void)conn.close();
+      (void)client_conn.close();
     }
   } else {
     if (auto &tr = tracer()) {
@@ -312,17 +304,16 @@ QuitForwarder::client_shutdown_send() {
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::server_tls_shutdown_response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &conn = socket_splicer->server_conn();
+  auto &server_conn = connection()->server_conn();
   // SSL_shutdown() could be called a 2nd time, but the server won't send a TLS
   // alert anyway. Close the socket right away.
-  if (conn.is_open()) {
+  if (server_conn.is_open()) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event()
                    .stage("close::server")
                    .direction(Tracer::Event::Direction::kServerClose));
     }
-    (void)conn.close();
+    (void)server_conn.close();
   }
 
   stage(Stage::ClientTlsShutdownResponse);
@@ -332,16 +323,15 @@ QuitForwarder::server_tls_shutdown_response() {
 
 stdx::expected<Processor::Result, std::error_code>
 QuitForwarder::client_tls_shutdown_response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &conn = socket_splicer->client_conn();
+  auto &client_conn = connection()->client_conn();
 
-  if (conn.is_open()) {
+  if (client_conn.is_open()) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event()
                    .stage("close::client")
                    .direction(Tracer::Event::Direction::kClientClose));
     }
-    (void)conn.close();
+    (void)client_conn.close();
   }
 
   if (auto &tr = tracer()) {

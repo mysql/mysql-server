@@ -52,19 +52,18 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionSender::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *dst_channel = socket_splicer->server_channel();
-  auto *dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("set_option::command: " +
                                    std::to_string(option_)));
   }
 
-  dst_protocol->seq_id(0xff);
+  dst_protocol.seq_id(0xff);
 
   auto send_res = ClassicFrame::send_msg(
-      dst_channel, dst_protocol,
+      dst_conn,
       classic_protocol::borrowed::message::client::SetOption{option_});
   if (!send_res) return send_server_failed(send_res.error());
 
@@ -73,15 +72,13 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionSender::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Error = ClassicFrame::cmd_byte<classic_protocol::message::server::Error>(),
@@ -105,13 +102,12 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionSender::eof() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -122,7 +118,7 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::eof() {
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
+        net::buffer(msg.session_changes()), src_protocol.shared_capabilities(),
         true /* ignore some-stage-changed. */
     );
     if (!track_res) {
@@ -134,36 +130,33 @@ stdx::expected<Processor::Result, std::error_code> SetOptionSender::eof() {
 
   switch (option_) {
     case MYSQL_OPTION_MULTI_STATEMENTS_OFF:
-      src_protocol->client_capabilities(
-          src_protocol->client_capabilities().reset(cap));
+      src_protocol.client_capabilities(
+          src_protocol.client_capabilities().reset(cap));
       break;
     case MYSQL_OPTION_MULTI_STATEMENTS_ON:
-      src_protocol->client_capabilities(
-          src_protocol->client_capabilities().set(cap));
+      src_protocol.client_capabilities(
+          src_protocol.client_capabilities().set(cap));
       break;
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   stage(Stage::Done);
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionSender::error() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
 
   auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::server::Error>(src_channel,
-                                                          src_protocol);
+      classic_protocol::borrowed::message::server::Error>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("set_option::error"));
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   stage(Stage::Done);
   return Result::Again;

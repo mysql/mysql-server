@@ -294,20 +294,18 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::command() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::command"));
     tr.trace(Tracer::Event().stage(">> " + stmt_));
   }
 
-  dst_protocol->seq_id(0xff);
+  dst_protocol.seq_id(0xff);
 
   auto send_res = ClassicFrame::send_msg(
-      dst_channel, dst_protocol,
-      classic_protocol::borrowed::message::client::Query{stmt_});
+      dst_conn, classic_protocol::borrowed::message::client::Query{stmt_});
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::Response);
@@ -316,15 +314,13 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::response() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  uint8_t msg_type = src_protocol->current_msg_type().value();
+  uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Error = ClassicFrame::cmd_byte<classic_protocol::message::server::Error>(),
@@ -349,13 +345,11 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::load_data() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::wire::String>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -364,16 +358,14 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::load_data() {
 
   // we could decode the filename here.
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   stage(Stage::Data);
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::data() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::data"));
@@ -381,17 +373,17 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::data() {
 
   // an empty packet.
   auto send_res =
-      ClassicFrame::send_msg<classic_protocol::borrowed::wire::String>(
-          dst_channel, dst_protocol, {});
+      ClassicFrame::send_msg<classic_protocol::borrowed::wire::String>(dst_conn,
+                                                                       {});
   if (!send_res) return send_server_failed(send_res.error());
 
   return Result::SendToServer;
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::column_count() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::server::ColumnCount>(src_channel,
@@ -406,27 +398,26 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column_count() {
 
   columns_left_ = msg_res->count();
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   stage(Stage::Column);
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::column() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::message::server::ColumnMeta>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::column"));
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   if (handler_) handler_->on_column(*msg_res);
 
@@ -435,7 +426,7 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column() {
         classic_protocol::capabilities::pos::text_result_with_session_tracking;
 
     const bool server_skips_end_of_columns{
-        src_protocol->shared_capabilities().test(skips_eof_pos)};
+        src_protocol.shared_capabilities().test(skips_eof_pos)};
 
     if (server_skips_end_of_columns) {
       // next is a Row, not a EOF packet.
@@ -449,35 +440,31 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::column_end() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::column_end"));
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   stage(Stage::RowOrEnd);
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::row_or_end() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  uint8_t msg_type = src_protocol->current_msg_type().value();
+  uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Error = ClassicFrame::cmd_byte<classic_protocol::message::server::Error>(),
@@ -499,19 +486,17 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row_or_end() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::row() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Row>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::message::server::Row>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::row"));
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   if (handler_) handler_->on_row(*msg_res);
 
@@ -520,12 +505,11 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::row_end() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Eof>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::message::server::Eof>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   auto eof_msg = std::move(*msg_res);
@@ -535,13 +519,13 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row_end() {
   if (!eof_msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
         net::buffer(eof_msg.session_changes()),
-        src_protocol->shared_capabilities());
+        src_protocol.shared_capabilities());
     if (!track_res) {
       // ignore
     }
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   if (eof_msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {
@@ -561,15 +545,14 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row_end() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   auto msg = std::move(*msg_res);
 
@@ -583,7 +566,7 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
     auto changes_state = classify(sql_parser_state.lexer(), false);
 
     auto track_res = connection()->track_session_changes(
-        net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
+        net::buffer(msg.session_changes()), src_protocol.shared_capabilities(),
         changes_state & StmtClassifier::NoStateChangeIgnoreTracker);
     if (!track_res) {
       // ignore
@@ -606,20 +589,18 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QuerySender::error() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol);
+          src_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::error"));
   }
 
-  discard_current_msg(src_channel, src_protocol);
+  discard_current_msg(src_conn);
 
   if (handler_) handler_->on_error(*msg_res);
 

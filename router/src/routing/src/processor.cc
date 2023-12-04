@@ -91,11 +91,11 @@ Processor::client_socket_failed(std::error_code ec) {
 }
 
 stdx::expected<void, std::error_code> Processor::discard_current_msg(
-    Channel *src_channel, ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_view();
+    Channel &src_channel, ClassicProtocolState &src_protocol) {
+  auto &recv_buf = src_channel.recv_plain_view();
 
   do {
-    auto &opt_current_frame = src_protocol->current_frame();
+    auto &opt_current_frame = src_protocol.current_frame();
     if (!opt_current_frame) return {};
 
     auto current_frame = *opt_current_frame;
@@ -109,12 +109,12 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
       return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
 
-    src_channel->consume_plain(current_frame.frame_size_);
+    src_channel.consume_plain(current_frame.frame_size_);
 
     auto msg_has_more_frames = current_frame.frame_size_ == (0xffffff + 4);
 
     // unset current frame and also current-msg
-    src_protocol->current_frame().reset();
+    src_protocol.current_frame().reset();
 
     if (!msg_has_more_frames) break;
 
@@ -124,7 +124,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
     }
   } while (true);
 
-  src_protocol->current_msg_type().reset();
+  src_protocol.current_msg_type().reset();
 
   return {};
 }
@@ -181,19 +181,17 @@ TraceEvent *Processor::trace_connect(TraceEvent *parent_span) {
 }
 
 void Processor::trace_set_connection_attributes(TraceEvent *ev) {
-  auto &server_conn = connection()->socket_splicer()->server_conn();
+  auto &server_conn = connection()->server_conn();
   ev->attrs.emplace_back("mysql.remote.is_connected", server_conn.is_open());
 
   if (server_conn.is_open()) {
     ev->attrs.emplace_back("mysql.remote.endpoint",
                            connection()->get_destination_id());
-    ev->attrs.emplace_back("mysql.remote.connection_id",
-                           static_cast<int64_t>(connection()
-                                                    ->server_protocol()
-                                                    ->server_greeting()
-                                                    ->connection_id()));
-    ev->attrs.emplace_back("db.name",
-                           connection()->server_protocol()->schema());
+    ev->attrs.emplace_back(
+        "mysql.remote.connection_id",
+        static_cast<int64_t>(
+            server_conn.protocol().server_greeting()->connection_id()));
+    ev->attrs.emplace_back("db.name", server_conn.protocol().schema());
   }
 }
 

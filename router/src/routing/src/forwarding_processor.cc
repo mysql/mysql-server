@@ -55,35 +55,34 @@ ForwardingProcessor::forward_client_to_server(bool noflush) {
 }
 
 static PooledClassicConnection make_pooled_connection(
-    TlsSwitchableConnection &&other) {
-  auto *classic_protocol_state =
-      dynamic_cast<ClassicProtocolState *>(other.protocol());
+    MysqlRoutingClassicConnectionBase::ServerSideConnection &&other) {
+  auto classic_protocol_state = other.protocol();
   return {std::move(other.connection()),
-          other.channel()->release_ssl(),
-          classic_protocol_state->server_capabilities(),
-          classic_protocol_state->client_capabilities(),
-          classic_protocol_state->server_greeting(),
+          other.channel().release_ssl(),
+          classic_protocol_state.server_capabilities(),
+          classic_protocol_state.client_capabilities(),
+          classic_protocol_state.server_greeting(),
           other.ssl_mode(),
-          classic_protocol_state->username(),
-          classic_protocol_state->schema(),
-          classic_protocol_state->sent_attributes()};
+          classic_protocol_state.username(),
+          classic_protocol_state.schema(),
+          classic_protocol_state.sent_attributes()};
 }
 
-static TlsSwitchableConnection make_connection_from_pooled(
-    PooledClassicConnection &&other) {
+static MysqlRoutingClassicConnectionBase::ServerSideConnection
+make_connection_from_pooled(PooledClassicConnection &&other) {
   return {std::move(other.connection()),
           nullptr,  // routing_conn
-          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(
-              other.server_capabilities(), other.client_capabilities(),
-              other.server_greeting(), other.username(), other.schema(),
-              other.attributes())};
+          other.ssl_mode(), Channel(std::move(other.ssl())),
+          MysqlRoutingClassicConnectionBase::ServerSideConnection::
+              protocol_state_type(other.server_capabilities(),
+                                  other.client_capabilities(),
+                                  other.server_greeting(), other.username(),
+                                  other.schema(), other.attributes())};
 }
 
 stdx::expected<bool, std::error_code>
 ForwardingProcessor::pool_server_connection() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &server_conn = socket_splicer->server_conn();
+  auto &server_conn = connection()->server_conn();
 
   if (server_conn.is_open()) {
     // move the connection to the pool.
@@ -94,23 +93,24 @@ ForwardingProcessor::pool_server_connection() {
     if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
       auto ssl_mode = server_conn.ssl_mode();
 
-      if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+      if (auto *server_ssl = server_conn.channel().ssl()) {
         SSL_set_msg_callback_arg(server_ssl, nullptr);
       }
 
       auto is_full_res = pool->add_if_not_full(make_pooled_connection(
-          std::exchange(socket_splicer->server_conn(),
+          std::exchange(connection()->server_conn(),
                         TlsSwitchableConnection{
                             nullptr,   // connection
                             nullptr,   // routing-connection
                             ssl_mode,  //
-                            std::make_unique<ClassicProtocolState>()})));
+                            MysqlRoutingClassicConnectionBase::
+                                ServerSideConnection::protocol_state_type()})));
 
       if (is_full_res) {
         // pool is full, restore the connection.
         server_conn = make_connection_from_pooled(std::move(*is_full_res));
 
-        if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+        if (auto *server_ssl = server_conn.channel().ssl()) {
           SSL_set_msg_callback_arg(server_ssl, connection());
         }
 
@@ -149,9 +149,7 @@ ForwardingProcessor::mysql_reconnect_start(TraceEvent *parent_event) {
 stdx::expected<Processor::Result, std::error_code>
 ForwardingProcessor::recv_server_failed_and_check_client_socket(
     std::error_code ec) {
-  auto *socket_splicer = connection()->socket_splicer();
-
-  if (ec == TlsErrc::kWantRead && socket_splicer->client_conn().is_open()) {
+  if (ec == TlsErrc::kWantRead && connection()->client_conn().is_open()) {
     // monitor the client side while we wait for the server to return the
     // resultset.
     //
@@ -176,7 +174,7 @@ ForwardingProcessor::recv_server_failed_and_check_client_socket(
 
 stdx::expected<Processor::Result, std::error_code>
 ForwardingProcessor::reconnect_send_error_msg(
-    Channel *src_channel, ClassicProtocolState *src_protocol) {
+    Channel &src_channel, ClassicProtocolState &src_protocol) {
   auto err = reconnect_error_.error_code() != 0
                  ? reconnect_error_
                  : classic_protocol::message::server::Error{
@@ -185,7 +183,7 @@ ForwardingProcessor::reconnect_send_error_msg(
   if (err.error_code() == 1045) {
     // rewrite the auth-fail error.
     err.message("Access denied for user '" +
-                connection()->client_protocol()->username() +
+                connection()->client_conn().protocol().username() +
                 "' for router while reauthenticating");
   }
 
@@ -202,16 +200,16 @@ bool ForwardingProcessor::connect_error_is_transient(
 
 stdx::expected<Processor::Result, std::error_code>
 ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto *src_channel = socket_splicer->server_channel();
-  auto *src_protocol = connection()->server_protocol();
-  auto *dst_channel = socket_splicer->client_channel();
-  auto *dst_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_protocol = src_conn.protocol();
+
+  auto &dst_conn = connection()->client_conn();
+  auto &dst_protocol = dst_conn.protocol();
 
   const auto skips_eof =
       classic_protocol::capabilities::pos::text_result_with_session_tracking;
-  const auto server_skips = src_protocol->shared_capabilities().test(skips_eof);
-  const auto router_skips = dst_protocol->shared_capabilities().test(skips_eof);
+  const auto server_skips = src_protocol.shared_capabilities().test(skips_eof);
+  const auto router_skips = dst_protocol.shared_capabilities().test(skips_eof);
 
   if (server_skips) {
     // server does not send a EOF
@@ -221,8 +219,7 @@ ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
 
     // ... but client expects a EOF packet.
     auto send_res = ClassicFrame::send_msg<
-        classic_protocol::borrowed::message::server::Eof>(dst_channel,
-                                                          dst_protocol, {});
+        classic_protocol::borrowed::message::server::Eof>(dst_conn, {});
     if (!send_res) return stdx::unexpected(send_res.error());
 
     return Result::SendToClient;
@@ -231,11 +228,10 @@ ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
   if (router_skips) {
     // drop the Eof packet the server sent as the client does not want it.
     auto msg_res = ClassicFrame::recv_msg<
-        classic_protocol::borrowed::message::server::Eof>(src_channel,
-                                                          src_protocol);
+        classic_protocol::borrowed::message::server::Eof>(src_conn);
     if (!msg_res) return stdx::unexpected(msg_res.error());
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     return Result::Again;
   }

@@ -63,16 +63,15 @@ AuthSha256Forwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> AuthSha256Forwarder::init() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->client_channel();
-  auto dst_protocol = connection()->client_protocol();
+  auto &dst_conn = connection()->client_conn();
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("sha256_password::forward::switch"));
   }
 
   auto send_res = ClassicFrame::send_msg<
       classic_protocol::borrowed::message::server::AuthMethodSwitch>(
-      dst_channel, dst_protocol, {Auth::kName, initial_server_auth_data_});
+      dst_conn, {Auth::kName, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
 
   stage(Stage::ClientData);
@@ -82,31 +81,30 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Forwarder::init() {
 
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::client_data() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::client::AuthMethodData>(
-      src_channel, src_protocol);
+      classic_protocol::borrowed::message::client::AuthMethodData>(src_conn);
   if (!msg_res) return recv_client_failed(msg_res.error());
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("sha256_password::forward::client_data:\n" +
                                    hexify(msg_res->auth_method_data())));
   }
 
-  if (src_channel->ssl() ||
+  if (src_channel.ssl() ||
       msg_res->auth_method_data() == Auth::kEmptyPassword) {
     // password is null-terminated, remove it.
-    src_protocol->password(std::string(
+    src_protocol.password(std::string(
         AuthBase::strip_trailing_null(msg_res->auth_method_data())));
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                     hexify(*src_protocol->password())));
+                                     hexify(*src_protocol.password())));
     }
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     return send_password();
   } else if (Auth::is_public_key_request(msg_res->auth_method_data())) {
@@ -118,7 +116,7 @@ AuthSha256Forwarder::client_data() {
     if (AuthBase::connection_has_public_key(connection())) {
       // send the router's public-key to be able to decrypt the client's
       // password.
-      discard_current_msg(src_channel, src_protocol);
+      discard_current_msg(src_conn);
 
       if (auto &tr = tracer()) {
         tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
@@ -138,8 +136,7 @@ AuthSha256Forwarder::client_data() {
         // couldn't get the public key, fail the auth.
         auto send_res = ClassicFrame::send_msg<
             classic_protocol::borrowed::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
+            src_conn, {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
         if (!send_res) return send_client_failed(send_res.error());
       } else {
         // send the router's public key to the client.
@@ -163,7 +160,7 @@ AuthSha256Forwarder::client_data() {
       return forward_client_to_server();
     }
   } else {
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     Tracer::Event().stage("sha256_password::forward::bad_message:\n" +
                           hexify(msg_res->auth_method_data()));
@@ -175,17 +172,15 @@ AuthSha256Forwarder::client_data() {
 // encrypted password from client to server.
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::encrypted_password() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_protocol = src_conn.protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::client::AuthMethodData>(
-      src_channel, src_protocol);
+      classic_protocol::borrowed::message::client::AuthMethodData>(src_conn);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (AuthBase::connection_has_public_key(connection())) {
-    auto nonce = src_protocol->auth_method_data();
+    auto nonce = src_protocol.auth_method_data();
 
     // if there is a trailing zero, strip it.
     if (nonce.size() == Auth::kNonceLength + 1 &&
@@ -204,14 +199,14 @@ AuthSha256Forwarder::encrypted_password() {
       return recv_client_failed(recv_res.error());
     }
 
-    src_protocol->password(*recv_res);
+    src_protocol.password(*recv_res);
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                     hexify(*src_protocol->password())));
+                                     hexify(*src_protocol.password())));
     }
 
-    discard_current_msg(src_channel, src_protocol);
+    discard_current_msg(src_conn);
 
     return send_password();
   } else {
@@ -228,13 +223,14 @@ AuthSha256Forwarder::encrypted_password() {
 // encrypted password from client to server.
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::send_password() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_protocol = src_conn.protocol();
 
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_protocol = dst_conn.protocol();
+  auto &dst_channel = dst_conn.channel();
 
-  if (dst_channel->ssl() || src_protocol->password()->empty()) {
+  if (dst_channel.ssl() || src_protocol.password()->empty()) {
     // the server-side is encrypted (or the password is empty):
     //
     // send plaintext password
@@ -246,7 +242,7 @@ AuthSha256Forwarder::send_password() {
     stage(Stage::Response);
 
     auto send_res = Auth::send_plaintext_password(
-        dst_channel, dst_protocol, src_protocol->password().value());
+        dst_channel, dst_protocol, src_protocol.password().value());
     if (!send_res) return send_server_failed(send_res.error());
   } else {
     // the server is NOT encrypted: ask for the server's publickey
@@ -267,16 +263,15 @@ AuthSha256Forwarder::send_password() {
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::response() {
   // ERR|OK|EOF|other
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
   // ensure the recv_buf has at last frame-header (+ msg-byte)
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
@@ -297,10 +292,10 @@ AuthSha256Forwarder::response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel.recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
-  (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+  (void)ClassicFrame::ensure_has_full_frame(src_conn);
 
   log_debug(
       "received unexpected message from server in sha256-password-auth:\n%s",
@@ -312,16 +307,15 @@ AuthSha256Forwarder::response() {
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::public_key_response() {
   // ERR|OK|EOF|other
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto &src_conn = connection()->server_conn();
+  auto &src_channel = src_conn.channel();
+  auto &src_protocol = src_conn.protocol();
 
   // ensure the recv_buf has at last frame-header (+ msg-byte)
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+  auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  const uint8_t msg_type = src_protocol->current_msg_type().value();
+  const uint8_t msg_type = src_protocol.current_msg_type().value();
 
   enum class Msg {
     AuthData = ClassicFrame::cmd_byte<
@@ -343,10 +337,10 @@ AuthSha256Forwarder::public_key_response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel.recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
-  (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+  (void)ClassicFrame::ensure_has_full_frame(src_conn);
 
   log_debug(
       "received unexpected message from server in sha256-password-auth:\n%s",
@@ -361,21 +355,22 @@ AuthSha256Forwarder::public_key_response() {
  */
 stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::public_key() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
-  auto src_protocol = connection()->client_protocol();
+  auto &src_conn = connection()->client_conn();
+  auto &src_protocol = src_conn.protocol();
+
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_channel = dst_conn.channel();
+  auto &dst_protocol = dst_conn.protocol();
 
   const auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::borrowed::message::server::AuthMethodData>(
-      dst_channel, dst_protocol);
+      classic_protocol::borrowed::message::server::AuthMethodData>(dst_conn);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
   }
 
-  if (!src_protocol->password().has_value()) {
+  if (!src_protocol.password().has_value()) {
     stage(Stage::EncryptedPassword);
 
     return forward_server_to_client();
@@ -387,7 +382,7 @@ AuthSha256Forwarder::public_key() {
   if (!pubkey_res) return recv_server_failed(pubkey_res.error());
 
   // invalidates 'msg'
-  discard_current_msg(dst_channel, dst_protocol);
+  discard_current_msg(dst_conn);
 
   auto nonce = initial_server_auth_data_;
 
@@ -398,7 +393,7 @@ AuthSha256Forwarder::public_key() {
   }
 
   const auto encrypted_res =
-      Auth::rsa_encrypt_password(*pubkey_res, *src_protocol->password(), nonce);
+      Auth::rsa_encrypt_password(*pubkey_res, *src_protocol.password(), nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   if (auto &tr = tracer()) {

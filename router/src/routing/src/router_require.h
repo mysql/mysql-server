@@ -43,7 +43,7 @@ class RouterRequire {
   };
 
   static stdx::expected<void, classic_protocol::message::server::Error> enforce(
-      Channel *client_channel, Attributes attrs);
+      Channel &client_channel, Attributes attrs);
 };
 
 class RouterRequireFetcher {
