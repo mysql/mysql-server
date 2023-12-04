@@ -40,7 +40,7 @@
 #include <sys/types.h>
 #include <cstdint>
 #include <string_view>
-#if defined(__linux__) || defined(__sun)
+#if defined(__linux__) || defined(__sun) || defined(__FreeBSD__)
 #include <sys/syscall.h>
 #ifdef HAVE_EXT_BACKTRACE
 #include <backtrace/stacktrace.hpp>
