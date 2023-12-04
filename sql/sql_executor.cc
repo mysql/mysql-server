@@ -4309,7 +4309,7 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
       new_item = item->get_tmp_table_item(thd);
     else if (item->type() == Item::FUNC_ITEM &&
              ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC &&
-             !windowing) {
+             (!windowing || item->has_wf())) {
       field = item->get_tmp_table_field();
       if (field != nullptr) {
         /*
