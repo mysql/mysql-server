@@ -2427,6 +2427,7 @@ void CostingReceiver::ProposeIndexSkipScan(
     int node_idx, RANGE_OPT_PARAM *param, AccessPath *skip_scan_path,
     TABLE *table, OverflowBitset all_predicates, size_t num_where_predicates,
     size_t predicate_idx, double num_output_rows_after_filter, bool inexact) {
+  skip_scan_path->set_init_cost(0.0);
   skip_scan_path->set_cost_before_filter(skip_scan_path->cost());
   skip_scan_path->num_output_rows_before_filter =
       skip_scan_path->num_output_rows();
@@ -2473,7 +2474,6 @@ void CostingReceiver::ProposeIndexSkipScan(
   if (skip_scan_path->type == AccessPath::INDEX_SKIP_SCAN)
     skip_scan_path->set_num_output_rows(num_output_rows_after_filter);
 
-  skip_scan_path->set_init_cost(0.0);
   ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
                                  /*obsolete_orderings=*/0, skip_scan_path,
                                  "index skip scan");
