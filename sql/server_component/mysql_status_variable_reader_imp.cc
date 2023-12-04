@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_status_variable_reader_imp.h"
 #include <mysql/components/minimal_chassis.h>  // mysql_components_handle_std_exception
+#include <sql/mysqld.h>                        // server_shutting_down
 #include <sql/sql_show.h>
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "storing_auto_thd.h"
@@ -35,6 +36,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 DEFINE_BOOL_METHOD(mysql_status_variable_reader_imp::get,
                    (MYSQL_THD hthd, const char *name, bool get_global,
                     my_h_string *out_string)) {
+  /* Cannot get status variable when server is shutting down. */
+  rwlock_scoped_lock rdlock(&LOCK_server_shutting_down, false, __FILE__,
+                            __LINE__);
+
+  if (server_shutting_down) return true;
+
   try {
     char buf[SHOW_VAR_FUNC_BUFF_SIZE + 1];
     size_t length = sizeof(buf);
