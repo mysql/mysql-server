@@ -1836,6 +1836,15 @@ SELECT @a;
 0
 DROP TABLE t1;
 #
+# Bug#36008133 Assertion `false' failed in replace_embedded_rollup_references_with_tmp_fields
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT @A := (CUME_DIST() OVER () + f1 + RANK() OVER ()) FROM t1 GROUP BY f1 WITH ROLLUP;
+@A := (CUME_DIST() OVER () + f1 + RANK() OVER ())
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t1;
+#
 # Bug#35537311 nth_value window function assertion error
 #
 CREATE TABLE t0(c1 TINYINT UNSIGNED, c5 BIT);
