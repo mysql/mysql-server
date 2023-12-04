@@ -160,6 +160,7 @@ using std::swap;
   }
 
 #define caching_sha2_password_plugin_name "caching_sha2_password"
+#define MYSQL_NATIVE_PASSWORD_PLUGIN_NAME "mysql_native_password"
 
 PSI_memory_key key_memory_mysql_options;
 PSI_memory_key key_memory_MYSQL_DATA;
@@ -6932,7 +6933,7 @@ static mysql_state_machine_status csm_parse_handshake(
       }
     } else {
       ctx->scramble_data_len = (int)(pkt_end - ctx->scramble_data);
-      ctx->scramble_plugin = caching_sha2_password_plugin_name;
+      ctx->scramble_plugin = MYSQL_NATIVE_PASSWORD_PLUGIN_NAME;
     }
   } else {
     set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
