@@ -1037,116 +1037,12 @@ bool get_json_wrapper(Item **args, uint arg_idx, String *str,
   return false;
 }
 
-/**
-  Extended type ids so that JSON_TYPE() can give useful type
-  names to certain sub-types of J_OPAQUE.
-*/
-enum class enum_json_opaque_type {
-  J_OPAQUE_BLOB = static_cast<int>(enum_json_type::J_ERROR) + 1,
-  J_OPAQUE_BIT,
-  J_OPAQUE_GEOMETRY
-};
-
-/**
-  Maps the enumeration value of type enum_json_type into a string.
-  For example:
-  json_type_string_map[J_OBJECT] == "OBJECT"
-*/
-static constexpr const char *json_type_string_map[] = {
-    "NULL",
-    "DECIMAL",
-    "INTEGER",
-    "UNSIGNED INTEGER",
-    "DOUBLE",
-    "STRING",
-    "OBJECT",
-    "ARRAY",
-    "BOOLEAN",
-    "DATE",
-    "TIME",
-    "DATETIME",
-    "TIMESTAMP",
-    "OPAQUE",
-    "ERROR",
-
-    // OPAQUE types with special names
-    "BLOB",
-    "BIT",
-    "GEOMETRY",
-};
-
-/// A constexpr version of std::strlen.
-static constexpr uint32 strlen_const(const char *str) {
-  return *str == '\0' ? 0 : 1 + strlen_const(str + 1);
-}
-
-/// Find the length of the longest string in a range.
-static constexpr uint32 longest_string(const char *const *begin,
-                                       const char *const *end) {
-  return begin == end
-             ? 0
-             : std::max(strlen_const(*begin), longest_string(begin + 1, end));
-}
-
-/**
-   The maximum length of a string in json_type_string_map including
-   a final zero char.
-*/
-static constexpr uint32 typelit_max_length =
-    longest_string(
-        json_type_string_map,
-        json_type_string_map + array_elements(json_type_string_map)) +
-    1;
-
 bool Item_func_json_type::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
   set_nullable(true);
   m_value.set_charset(&my_charset_utf8mb4_bin);
-  set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
+  set_data_type_string(kMaxJsonTypeNameLength + 1, &my_charset_utf8mb4_bin);
   return false;
-}
-
-/**
-   Compute an index into json_type_string_map
-   to be applied to certain sub-types of J_OPAQUE.
-
-   @param field_type The refined field type of the opaque value.
-
-   @return an index into json_type_string_map
-*/
-static uint opaque_index(enum_field_types field_type) {
-  switch (field_type) {
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_BLOB);
-
-    case MYSQL_TYPE_BIT:
-      return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_BIT);
-
-    case MYSQL_TYPE_GEOMETRY: {
-      /**
-        Should not get here. This path should be orphaned by the
-        work done on implicit CASTing of geometry values to geojson
-        objects. However, that work was done late in the project
-        cycle for WL#7909. Do something sensible in case we missed
-        something.
-
-        FIXME.
-      */
-      /* purecov: begin deadcode */
-      assert(false);
-      return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_GEOMETRY);
-      /* purecov: end */
-    }
-
-    default:
-      return static_cast<uint>(enum_json_type::J_OPAQUE);
-  }
 }
 
 String *Item_func_json_type::val_str(String *) {
@@ -1160,14 +1056,8 @@ String *Item_func_json_type::val_str(String *) {
       return nullptr;
     }
 
-    const enum_json_type type = wr.type();
-    uint typename_idx = static_cast<uint>(type);
-    if (type == enum_json_type::J_OPAQUE) {
-      typename_idx = opaque_index(wr.field_type());
-    }
-
     m_value.length(0);
-    if (m_value.append(json_type_string_map[typename_idx]))
+    if (m_value.append(json_type_name(wr)))
       return error_str(); /* purecov: inspected */
 
   } catch (...) {

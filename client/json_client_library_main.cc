@@ -33,6 +33,7 @@
 #include <new>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "field_types.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -43,6 +44,7 @@
 #include "sql-common/json_path.h"
 #include "sql-common/my_decimal.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 namespace {
 void CoutDefaultDepthHandler() { std::cout << "Doc too deep"; }
@@ -225,12 +227,35 @@ int main() {
     // Sort array and use binary search to lookup values
     arr->sort();
     bool result = arr->binary_search(dom1.get());
-    std::cout << "7 it is: " << std::boolalpha << result
+    std::cout << "7.1. it is: " << std::boolalpha << result
               << " that array contains 1\n";
 
     result = arr->binary_search(dom2.get());
-    std::cout << "7 it is: " << std::boolalpha << result
+    std::cout << "7.2. it is: " << std::boolalpha << result
               << " that array contains 155.2\n";
+  }
+
+  // Make sure json_type_name() is visible.
+  {
+    std::cout << "8.1. Type of empty wrapper is "
+              << json_type_name(Json_wrapper{}) << ".\n";
+    {
+      Json_array array;
+      std::cout << "8.2. Type of array is "
+                << json_type_name(Json_wrapper{&array, /*alias=*/true})
+                << ".\n";
+    }
+    {
+      Json_string string;
+      std::cout << "8.3. Type of string is "
+                << json_type_name(Json_wrapper{&string, /*alias=*/true})
+                << ".\n";
+    }
+    {
+      Json_opaque blob{MYSQL_TYPE_BLOB};
+      std::cout << "8.4. Type of blob is "
+                << json_type_name(Json_wrapper{&blob, /*alias=*/true}) << ".\n";
+    }
   }
 
   return 0;

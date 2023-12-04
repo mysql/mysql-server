@@ -35,6 +35,8 @@
 #include <cmath>       // std::isfinite
 #include <functional>  // std::function
 #include <new>
+#include <numeric>
+#include <string_view>
 #include <utility>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
@@ -94,6 +96,9 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #define key_memory_JSON PSI_NOT_INSTRUMENTED
 #endif
+
+using namespace std::literals;
+using std::string_view;
 
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
 
@@ -3848,4 +3853,83 @@ bool json_wrapper_contains(const Json_wrapper &doc_wrapper,
 
   *result = (doc_wrapper.compare(containee_wr) == 0);
   return false;
+}
+
+namespace {
+/**
+  Extended type ids so that JSON_TYPE() can give useful type
+  names to certain sub-types of J_OPAQUE.
+*/
+enum class enum_json_opaque_type {
+  J_OPAQUE_BLOB = static_cast<int>(enum_json_type::J_ERROR) + 1,
+  J_OPAQUE_BIT,
+};
+
+/**
+  Maps the enumeration value of type enum_json_type into a string.
+  For example:
+
+      json_type_string_map[J_OBJECT] == "OBJECT"
+*/
+constexpr std::array json_type_string_map = {
+    "NULL"sv,
+    "DECIMAL"sv,
+    "INTEGER"sv,
+    "UNSIGNED INTEGER"sv,
+    "DOUBLE"sv,
+    "STRING"sv,
+    "OBJECT"sv,
+    "ARRAY"sv,
+    "BOOLEAN"sv,
+    "DATE"sv,
+    "TIME"sv,
+    "DATETIME"sv,
+    "TIMESTAMP"sv,
+    "OPAQUE"sv,
+    "ERROR"sv,
+
+    // OPAQUE types with special names.
+    "BLOB"sv,
+    "BIT"sv,
+};
+
+/**
+   Compute an index into json_type_string_map
+   to be applied to certain sub-types of J_OPAQUE.
+
+   @param field_type The refined field type of the opaque value.
+
+   @return An index into json_type_string_map.
+*/
+size_t opaque_index(enum_field_types field_type) {
+  switch (field_type) {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+      return static_cast<size_t>(enum_json_opaque_type::J_OPAQUE_BLOB);
+    case MYSQL_TYPE_BIT:
+      return static_cast<size_t>(enum_json_opaque_type::J_OPAQUE_BIT);
+    default:
+      return static_cast<size_t>(enum_json_type::J_OPAQUE);
+  }
+}
+}  // namespace
+
+// Set max type name length to the length of the longest string in
+// json_type_string_map.
+const size_t kMaxJsonTypeNameLength = std::transform_reduce(
+    json_type_string_map.begin(), json_type_string_map.end(), size_t{0},
+    [](size_t length1, size_t length2) { return std::max(length1, length2); },
+    [](string_view type_name) { return type_name.length(); });
+
+string_view json_type_name(const Json_wrapper &doc) {
+  const enum_json_type type = doc.type();
+  if (type == enum_json_type::J_OPAQUE) {
+    return json_type_string_map[opaque_index(doc.field_type())];
+  }
+  return json_type_string_map[static_cast<size_t>(type)];
 }

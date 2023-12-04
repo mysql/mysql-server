@@ -30,6 +30,7 @@
 #include <memory>  // unique_ptr
 #include <new>
 #include <string>
+#include <string_view>
 #include <type_traits>  // is_base_of
 #include <utility>
 #include <vector>
@@ -1958,4 +1959,11 @@ class Json_scalar_holder {
 */
 bool json_wrapper_contains(const Json_wrapper &doc_wrapper,
                            const Json_wrapper &containee_wr, bool *result);
+
+/// Returns the name of the type of the JSON document contained in "doc".
+std::string_view json_type_name(const Json_wrapper &doc);
+
+/// The maximum length of the type name returned from JSON_TYPE.
+extern const size_t kMaxJsonTypeNameLength;
+
 #endif /* JSON_DOM_INCLUDED */
