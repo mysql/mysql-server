@@ -20,14 +20,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (VERIFIED_PLATFORMS
-  LINUX_ALPINE
-  LINUX_FEDORA
-  LINUX_RHEL7
-  LINUX_RHEL8
-  LINUX_RHEL9
+SET(VERIFIED_PLATFORMS
+  FREEBSD
+  LINUX
   SOLARIS
-)
+  )
+
 UNSET(VERIFIED_PLATFORM)
 FOREACH(platform ${VERIFIED_PLATFORMS})
   IF(${platform})
@@ -50,8 +48,9 @@ IF(NOT WITH_EXT_BACKTRACE)
   RETURN()
 ENDIF()
 
-IF(NOT LINUX AND NOT SOLARIS)
-  MESSAGE(FATAL_ERROR "libbacktrace can only be used on linux/solaris builds")
+IF(NOT LINUX AND NOT SOLARIS AND NOT FREEBSD)
+  MESSAGE(FATAL_ERROR
+    "libbacktrace can only be used on linux/solaris/freebsd builds")
 ENDIF()
 
 IF(VERIFIED_PLATFORM)

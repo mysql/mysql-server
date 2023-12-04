@@ -63,6 +63,12 @@ SET(BACKTRACE_DEFINITIONS
   HAVE_SYS_TYPES_H=1
   HAVE_UNISTD_H=1
 )
+IF(FREEBSD)
+  LIST(APPEND BACKTRACE_DEFINITIONS
+    HAVE_KERN_PROC=1
+    HAVE_KERN_PROC_ARGS=1
+    )
+ENDIF()
 
 # Ensure no tail-call optimization to stabilize the number of reported frames
 ADD_COMPILE_FLAGS(src/stacktrace.cc COMPILE_FLAGS -fno-optimize-sibling-calls)
