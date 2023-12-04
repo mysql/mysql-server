@@ -641,6 +641,13 @@ struct mtr_t {
       it->check_is_not_latching();
     }
   }
+  /** This method is useful to detect if the thread is already inside an mtr.
+  We should not do the log_free_check() in the child mtrs if a thread is
+  already inside an mtr.
+  @return true if thread is not inside an mtr, false otherwise */
+  static bool is_this_thread_inside_mtr() {
+    return !s_my_thread_active_mtrs.empty();
+  }
 #endif
 
   /** Matrix to check if a mode update request should be ignored. */
