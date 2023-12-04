@@ -1,0 +1,41 @@
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(32)
+) engine=ndb;
+INSERT INTO t1 VALUES (1, "row 1");
+SELECT a FROM t1;
+a
+1
+#
+# 1. stop/start
+#
+# Restart MySQL Server
+# restart
+SELECT a FROM t1;
+a
+1
+#
+# 2. stop/start without NDB
+#
+call mtr.add_suppression("Tables not available after [0-9]* seconds");
+# Stop data nodes
+Executing RESTART on all nodes.
+Starting shutdown. This may take a while. Please wait...
+All DB nodes are being restarted.
+
+# Error since data nodes are down
+SELECT a FROM t1;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+# Restart MySQL Server (with data nodes in no start)
+# restart
+# Error since data nodes are still down
+SELECT a FROM t1;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+# Start data nodes again
+NDB Cluster is being started.
+NDB Cluster is being started.
+
+SELECT a FROM t1;
+a
+1
+DROP TABLE t1;

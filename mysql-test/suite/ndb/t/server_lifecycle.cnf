@@ -1,0 +1,6 @@
+!include ../my.cnf
+
+[mysqld.1.1]
+# Decrease time to wait for setup to NDB
+ndb-wait-setup=1
+ndb-wait-connected=1
