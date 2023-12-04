@@ -1159,4 +1159,30 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,count(0) AS `Name_exp_2` from `test`.`t2` where (`test`.`t2`.`a` > 0) group by `test`.`t2`.`a`) `derived_1_2` where ((`derived_1_2`.`a` = (`test`.`t1`.`a` + `test`.`t1`.`b`)) and reject_if((`derived_1_2`.`Name_exp_2` > 1)))
 DROP TABLE t1, t2;
+#
+# Bug#36060557 WL#15540: Expression containing Non-deterministic function
+#              UUID() is transformed
+#
+CREATE TABLE t1(x INT, y INT);
+CREATE TABLE t2(a INT, b INT);
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE RAND() = t2.a ) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (rand() = `test`.`t2`.`a`)) > 0)
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE UUID() = t2.a ) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (cast(uuid() as double) = cast(`test`.`t2`.`a` as double))) > 0)
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE UUID() + t1.x = t2.a ) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((uuid() + `test`.`t1`.`x`) = `test`.`t2`.`a`)) > 0)
+DROP TABLE t1, t2;
 SET optimizer_switch = 'subquery_to_derived=default';

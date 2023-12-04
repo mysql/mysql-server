@@ -4245,7 +4245,7 @@ bool Item_func_uuid::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  pc->thd->lex->safe_to_cache_query = false;
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
 }
 

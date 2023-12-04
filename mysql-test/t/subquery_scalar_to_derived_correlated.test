@@ -841,6 +841,21 @@ eval EXPLAIN $query;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#36060557 WL#15540: Expression containing Non-deterministic function
+--echo #              UUID() is transformed
+--echo #
+CREATE TABLE t1(x INT, y INT);
+CREATE TABLE t2(a INT, b INT);
+# was not transformed
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE RAND() = t2.a ) > 0;
+# was transformed
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE UUID() = t2.a ) > 0;
+# was transformed
+EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE UUID() + t1.x = t2.a ) > 0;
+
+DROP TABLE t1, t2;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql
