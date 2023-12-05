@@ -158,8 +158,8 @@ Transporter::~Transporter() { delete m_socket_client; }
 bool Transporter::start_disconnecting(int err, bool send_source) {
   DEB_MULTI_TRP(("Disconnecting trp_id %u for node %u", getTransporterIndex(),
                  remoteNodeId));
-  return m_transporter_registry.start_disconnecting(getTransporterIndex(),
-                                                    err, send_source);
+  return m_transporter_registry.start_disconnecting(getTransporterIndex(), err,
+                                                    send_source);
 }
 
 bool Transporter::configure(const TransporterConfiguration *conf) {
@@ -519,7 +519,7 @@ void Transporter::checksum_state::dumpBadChecksumInfo(
 }
 
 void Transporter::set_get(ndb_socket_t fd, int level, int optval,
-                          const char *optname[[maybe_unused]], int val) {
+                          const char *optname [[maybe_unused]], int val) {
   int actual = 0, defval = 0;
 
   ndb_getsockopt(fd, level, optval, &defval);

@@ -3217,9 +3217,9 @@ static int bugtest_36756() {
       {{-1, 626, 0, 0, NdbTransaction::Aborted},    // AE
        {0, 626, 0, 626, NdbTransaction::Started}},  // IE
                                                     // PkWrite
-      {{0, 0, 0, 0, NdbTransaction::Started},   // AE
-       {0, 0, 0, 0, NdbTransaction::Started}},  // IE
-                                                // PkDelete
+      {{0, 0, 0, 0, NdbTransaction::Started},       // AE
+       {0, 0, 0, 0, NdbTransaction::Started}},      // IE
+                                                    // PkDelete
       {{-1, 626, 0, 0, NdbTransaction::Aborted},    // AE
        {0, 626, 0, 626, NdbTransaction::Started}},  // IE
                                                     // UkRead
@@ -3232,8 +3232,8 @@ static int bugtest_36756() {
       {{-1, 626, 0, 0, NdbTransaction::Aborted},    // AE
        {0, 626, 0, 626, NdbTransaction::Started}},  // IE
                                                     // UkDelete
-      {{-1, 626, 0, 0, NdbTransaction::Aborted},   // AE
-       {0, 626, 0, 626, NdbTransaction::Started}}  // IE
+      {{-1, 626, 0, 0, NdbTransaction::Aborted},    // AE
+       {0, 626, 0, 626, NdbTransaction::Started}}   // IE
   };
 
   DBG("bugtest_36756 : IgnoreError Delete of nonexisting tuple aborts");

@@ -94,8 +94,8 @@ Uint32 Dbtup::allocTabDescr(Uint32 allocSize) {
   /*       ALWAYS ALLOCATE A MULTIPLE OF 16 WORDS                     */
   /* ---------------------------------------------------------------- */
   allocSize = (((allocSize - 1) >> 4) + 1) << 4;
-  Uint32 list = nextHigherTwoLog(allocSize -
-                                 1); /* CALCULATE WHICH LIST IT BELONGS TO */
+  Uint32 list =
+      nextHigherTwoLog(allocSize - 1); /* CALCULATE WHICH LIST IT BELONGS TO */
   for (Uint32 i = list; i < 16; i++) {
     jam();
     if (cfreeTdList[i] != RNIL) {

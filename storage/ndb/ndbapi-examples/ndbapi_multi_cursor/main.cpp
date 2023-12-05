@@ -126,8 +126,8 @@ const char *dept_managerDef =
     "   KEY         (emp_no),"
     "   KEY         (dept_no),"
     //"   FOREIGN KEY (emp_no)  REFERENCES employees (emp_no)    ON DELETE
-    //CASCADE," "   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON
-    //DELETE CASCADE,"
+    // CASCADE," "   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON
+    // DELETE CASCADE,"
     "   UNIQUE KEY MYINDEXNAME (my_key),"
     "   PRIMARY KEY (emp_no,dept_no))"
     " ENGINE=NDB"

@@ -43,10 +43,7 @@ enum SendStatus {
   SEND_UNKNOWN_NODE = 5
 };
 
-enum TransporterType {
-  tt_TCP_TRANSPORTER = 1,
-  tt_SHM_TRANSPORTER = 3
-};
+enum TransporterType { tt_TCP_TRANSPORTER = 1, tt_SHM_TRANSPORTER = 3 };
 
 enum SB_LevelType {
   SB_NO_RISK_LEVEL = 0,

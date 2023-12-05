@@ -285,9 +285,9 @@ int populate(Ndb *myNdb, int data, async_callback_t *cbData) {
        * Set data used by the callback
        */
       cb->retries = 0;
-      cb->data = data;            // this is the data we want to insert
-      cb->transaction = current;  // This is the number (id)  of this
-                                  // transaction
+      cb->data = data;                // this is the data we want to insert
+      cb->transaction = current;      // This is the number (id)  of this
+                                      // transaction
       transaction[current].used = 1;  // Mark the transaction as used
       break;
     }

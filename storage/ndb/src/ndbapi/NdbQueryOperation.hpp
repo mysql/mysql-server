@@ -311,7 +311,6 @@ class NdbQueryOperation {
   int setResultRowBuf(const NdbRecord *rec, char *resBuffer,
                       const unsigned char *result_mask = nullptr);
 
-
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
    * retrieval a bitmask should supplied.

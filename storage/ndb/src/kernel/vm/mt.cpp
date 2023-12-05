@@ -2357,8 +2357,8 @@ void thr_send_threads::insert_trp(
 
   TrpId first_trp = send_instance->m_first_trp;
   struct thr_send_trps &last_trp_state = m_trp_state[send_instance->m_last_trp];
-  assert(trp_state.m_next == 0); // Not already inserted
-  assert(send_instance->m_last_trp != trp_id); // Not already inserted
+  assert(trp_state.m_next == 0);                // Not already inserted
+  assert(send_instance->m_last_trp != trp_id);  // Not already inserted
   trp_state.m_next = 0;
   send_instance->m_last_trp = trp_id;
   assert(trp_state.m_data_available > 0);

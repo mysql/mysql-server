@@ -1440,16 +1440,18 @@ struct NdbApiWrapper {
     obj.setAutoGrowSpecification(p0);
   }
 
-  static void NdbDictionary__Tablespace__setDefaultLogfileGroup__0  // disambiguate
-                                                                    // overloaded
-                                                                    // function
+  static void
+      NdbDictionary__Tablespace__setDefaultLogfileGroup__0  // disambiguate
+                                                            // overloaded
+                                                            // function
       (NdbDictionary::Tablespace &obj, const char *p0) {
     obj.setDefaultLogfileGroup(p0);
   }
 
-  static void NdbDictionary__Tablespace__setDefaultLogfileGroup__1  // disambiguate
-                                                                    // overloaded
-                                                                    // function
+  static void
+      NdbDictionary__Tablespace__setDefaultLogfileGroup__1  // disambiguate
+                                                            // overloaded
+                                                            // function
       (NdbDictionary::Tablespace &obj, const NdbDictionary::LogfileGroup &p0) {
     obj.setDefaultLogfileGroup(p0);
   }

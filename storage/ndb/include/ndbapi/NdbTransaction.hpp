@@ -1137,9 +1137,10 @@ class NdbTransaction {
                                      // Current meanings :
                                      //   0x00FE11DC : NdbTransaction not in use
                                      //   0x37412619 : NdbTransaction in use
-                          //   0x00FE11DF : NdbTransaction for scan operation
-                          //                scan definition not yet complete
-  Uint32 thePriority;  // Transaction Priority
+                                     //   0x00FE11DF : NdbTransaction for scan
+                                     //                operation scan definition
+                                     //                not yet complete
+  Uint32 thePriority;                // Transaction Priority
 
   enum ReturnType { ReturnSuccess, ReturnFailure };
   ReturnType theReturnStatus;  // Did we have any read/update/delete failing
