@@ -40,7 +40,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --let $rpl_server_parameters= --innodb_autoinc_lock_mode=1
 --source include/rpl_restart_server.inc
 
---echo # Restart slave with innodb_autoinc_lock_mode = 1
+--echo # Restart replica with innodb_autoinc_lock_mode = 1
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
 --let $rpl_server_number=2
 --source include/rpl_restart_server.inc
@@ -62,7 +62,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --source include/rpl_restart_server.inc
 
 
---echo # Restart slave with innodb_autoinc_lock_mode = 0
+--echo # Restart replica with innodb_autoinc_lock_mode = 0
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
 --let $rpl_server_number=2
 --source include/rpl_restart_server.inc
@@ -83,7 +83,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc
 
---echo # Restart slave with innodb_autoinc_lock_mode = 2
+--echo # Restart replica with innodb_autoinc_lock_mode = 2
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc
@@ -96,7 +96,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 # Master : Interleaved lock mode; Slave : Traditional lock mode                          #
 ##########################################################################################
 
---echo # Restart slave with innodb_autoinc_lock_mode = 0
+--echo # Restart replica with innodb_autoinc_lock_mode = 0
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
@@ -111,7 +111,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 # Master : Interleaved lock mode; Slave : Consecutive lock mode                          #
 ##########################################################################################
 
---echo # Restart slave with innodb_autoinc_lock_mode = 1
+--echo # Restart replica with innodb_autoinc_lock_mode = 1
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
@@ -137,7 +137,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 # Master : Traditonal lock mode; Slave : Interleaved lock mode                           #
 ##########################################################################################
 
---echo # Restart slave with innodb_autoinc_lock_mode = 2
+--echo # Restart replica with innodb_autoinc_lock_mode = 2
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
@@ -164,7 +164,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 # Master : Consecutive lock mode; Slave : Traditonal lock mode                           #
 ##########################################################################################
 
---echo # Restart slave with innodb_autoinc_lock_mode = 0
+--echo # Restart replica with innodb_autoinc_lock_mode = 0
 --connection slave
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
@@ -184,7 +184,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc
 
---echo # Restart slave with innodb_autoinc_lock_mode = 2
+--echo # Restart replica with innodb_autoinc_lock_mode = 2
 --let $rpl_server_number=2
 --let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc

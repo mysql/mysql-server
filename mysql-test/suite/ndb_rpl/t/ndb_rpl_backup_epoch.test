@@ -113,7 +113,7 @@ select max(a) from test.ticker;
 use test;
 create table ticker (a int primary key) engine=ndb;
 
-start slave;
+START REPLICA;
 
 --connection master
 --sync_slave_with_master
@@ -157,7 +157,7 @@ while($backup_count)
 
   --connection slave
 
-  start slave;
+  START REPLICA;
 
   --connection master
   --sync_slave_with_master
@@ -180,7 +180,7 @@ while($backup_count)
 
   --connection slave
 
-  start slave;
+  START REPLICA;
 
   --connection master
   --sync_slave_with_master
@@ -223,7 +223,7 @@ drop table ticker;
 reset binary logs and gtids;
 
 --connection slave
-#start slave;
+#start replica;
 
 --remove_file $outfile
 

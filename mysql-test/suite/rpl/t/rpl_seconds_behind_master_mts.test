@@ -19,7 +19,7 @@
 # Bug #25407335 SLAVE DON'T REPORT SECONDS_BEHIND_MASTER WHEN RUNNING
 #               REPLICA_PARALLEL_WORKERS > 0
 
-# Start slave in MTS mode
+# Start replica in MTS mode
 connection slave;
 --let $debug_point= dbug.mta.force_clock_diff_eq_0
 --source include/add_debug_point.inc

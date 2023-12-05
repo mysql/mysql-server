@@ -41,7 +41,7 @@ SET GLOBAL debug= '+d,dbug.return_null_SOURCE_UUID';
 --let $instrumented_master_uuid=
 
 --echo #
---echo # START SLAVE will return a NULL for master_uuid now as per our debug behaviour.
+--echo # START REPLICA will return a NULL for master_uuid now as per our debug behaviour.
 --echo #
 
 --source include/start_slave.inc

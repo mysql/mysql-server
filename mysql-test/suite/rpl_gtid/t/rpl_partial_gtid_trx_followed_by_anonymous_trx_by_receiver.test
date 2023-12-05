@@ -98,7 +98,7 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 INSERT INTO t1 VALUES (3);
 
 --source include/rpl_connection_slave.inc
-# Start slave IO thread and sync slave with master
+# Start replica IO thread and sync slave with master
 --source include/start_slave_io.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_io_with_master.inc

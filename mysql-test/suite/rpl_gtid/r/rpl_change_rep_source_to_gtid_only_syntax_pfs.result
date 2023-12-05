@@ -110,7 +110,7 @@ Note	1760	Storing MySQL user name or password information in the connection meta
 include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=on_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
 include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
-START SLAVE;
+START REPLICA;
 ERROR HY000: Replication cannot start for channel '' with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON.
 #
 # 12 Cleanup

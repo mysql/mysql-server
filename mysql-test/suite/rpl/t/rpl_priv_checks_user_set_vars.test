@@ -29,7 +29,7 @@
 # 1) Create a table on the master and insert a record.
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.
-# 3) Start slave and wait for applier to error out.
+# 3) Start replica and wait for applier to error out.
 # 4) Stop the slave.
 # 5) Grant `SYSTEM_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
 # 6) Start the slave and sync it with master.
@@ -41,7 +41,7 @@
 # 1) Create a table on the master and insert a record.
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.
-# 3) Start slave and wait for applier to error out.
+# 3) Start replica and wait for applier to error out.
 # 4) Stop the slave.
 # 5) Grant `SUPER` to the `PRIVILEGE_CHECKS_USER` user.
 # 6) Start the slave and sync it with master.
@@ -53,7 +53,7 @@
 # 1) Create a table on the master and insert a record.
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.
-# 3) Start slave and wait for applier to error out.
+# 3) Start replica and wait for applier to error out.
 # 4) Stop the slave.
 # 5) Grant `SESSION_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
 # 6) Start the slave and sync it with master.
@@ -67,7 +67,7 @@
 #    database.
 # 2) Ensure that `PRIVILEGE_CHECKS_USER` doesn't have the necessary privileges
 #    to set `default_table_encryption`.
-# 3) Start slave and wait for applier to error out.
+# 3) Start replica and wait for applier to error out.
 # 4) Grant `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN` to
 #    `PRIVILEGE_CHECKS_USER` user.
 # 5) Start the slave and sync it with master.
@@ -102,8 +102,8 @@ CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopp
 GRANT REPLICATION_APPLIER, CREATE, INSERT, DROP ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 
-# 3) Start slave and wait for applier to error out.
-START SLAVE;
+# 3) Start replica and wait for applier to error out.
+START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
@@ -115,7 +115,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
-START SLAVE;
+START REPLICA;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
@@ -144,8 +144,8 @@ INSERT INTO t_super VALUES (1), (2);
 # -> Already done in previous test-case
 SHOW GRANTS FOR 'u1'@'localhost';
 
-# 3) Start slave and wait for applier to error out.
-START SLAVE;
+# 3) Start replica and wait for applier to error out.
+START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
@@ -157,7 +157,7 @@ GRANT SUPER ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
-START SLAVE;
+START REPLICA;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
@@ -185,8 +185,8 @@ INSERT INTO t_session VALUES (1), (2);
 # -> Already done in previous test-case
 SHOW GRANTS FOR 'u1'@'localhost';
 
-# 3) Start slave and wait for applier to error out.
-START SLAVE;
+# 3) Start replica and wait for applier to error out.
+START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
@@ -198,7 +198,7 @@ GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 
 # 6) Start the slave and sync it with master.
-START SLAVE;
+START REPLICA;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 
@@ -227,8 +227,8 @@ CREATE DATABASE new_db;
 #    to set `default_table_encryption`.
 REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'localhost';
 
-# 3) Start slave and wait for applier to error out.
-START SLAVE;
+# 3) Start replica and wait for applier to error out.
+START REPLICA;
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
@@ -239,7 +239,7 @@ GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 
 # 5) Start the slave and sync it with master.
-START SLAVE;
+START REPLICA;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 

@@ -443,7 +443,7 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
 connect(con_rep_slave_test,localhost,u1,pwd,,,,);
 --error 1227
-START SLAVE;
+START REPLICA;
 --error 1227
 STOP SLAVE;
 DISCONNECT con_rep_slave_test;
@@ -451,9 +451,9 @@ CONNECTION default;
 GRANT REPLICATION_SLAVE_ADMIN ON *.* to u1@localhost;
 connect(con_rep_slave_test,localhost,u1,pwd,,,,);
 --error 1200
-START SLAVE;
+START REPLICA;
 --error 1200
-START SLAVE;
+START REPLICA;
 DISCONNECT con_rep_slave_test;
 --echo #
 --echo # Bad privilege- or auth identifiers shouldn't crash the server

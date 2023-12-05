@@ -67,7 +67,7 @@ SELECT * FROM mysql.role_edges;
 
 --source include/rpl_connection_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='u1';
-START SLAVE;
+START REPLICA;
 
 # Wait until IO_THREAD is inactive
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE service_state='OFF'
@@ -84,7 +84,7 @@ SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
 --source include/rpl_connection_slave.inc
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 
 --echo

@@ -58,7 +58,7 @@ reset binary logs and gtids;
 source include/stop_slave.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SLAVE_MYPORT;
-start slave;
+START REPLICA;
 
 --echo *** must be having the replicate-same-server-id IO thread error ***
 let $slave_io_errno= 13117;

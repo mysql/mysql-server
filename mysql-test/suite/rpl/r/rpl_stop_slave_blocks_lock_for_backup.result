@@ -21,9 +21,7 @@ SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 [connection slave]
 SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 [connection slave1]
@@ -46,9 +44,7 @@ SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 [connection slave]
 SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 [connection slave1]

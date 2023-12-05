@@ -10,7 +10,7 @@ Starting the slave server
 RUN CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_USER= 'root'
 
 0 rows affected
-RUN START SLAVE
+RUN START REPLICA
 
 0 rows affected
 Mysqlx.Ok {

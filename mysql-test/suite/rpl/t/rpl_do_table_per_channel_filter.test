@@ -5,7 +5,7 @@
 #
 # 0. Start multi-source replication server_1->server_2, server_3->server_2
 #    with channels '' and 'channel_3_2' respectively.
-# 1. Restart slave server to activate replicate-do-table per-channel filter.
+# 1. Restart replica server to activate replicate-do-table per-channel filter.
 # 2. Check that the replicate-do-table filter has been activated.
 # 3. Do some transactions on server_1.
 # 4. Check that the replicate-do-table filter has been applied correctly.
@@ -41,7 +41,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=$SERVER_M
 --source include/start_slave.inc
 
 --echo
---echo # Restart slave server to activate replicate-do-table per-channel filter.
+--echo # Restart replica server to activate replicate-do-table per-channel filter.
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc
 

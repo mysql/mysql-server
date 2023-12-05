@@ -49,7 +49,7 @@ connection slave;
 --let $debug_point= simulate_sql_replica_error_on_init
 --source include/add_debug_point.inc
 
-start slave;
+START REPLICA;
 
 #
 # slave is going to stop because of emulated failures
@@ -84,7 +84,7 @@ reset slave;
 
 SET GLOBAL init_replica= "garbage";
 
-start slave;
+START REPLICA;
 # 13145 = ER_SERVER_REPLICA_INIT_QUERY_FAILED
 --let $slave_sql_errno= 13145
 --let $show_slave_sql_error= 1

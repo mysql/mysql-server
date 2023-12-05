@@ -64,10 +64,10 @@ FLUSH PRIVILEGES;
 --echo [on slave]
 --source include/sync_slave_sql_with_master.inc
 
---echo ==== Restart slave without privileges =====
-# (slave.err will contain access denied error for this START SLAVE command)
+--echo ==== Restart replica without privileges =====
+# (slave.err will contain access denied error for this START REPLICA command)
 source include/stop_slave.inc;
-START SLAVE;
+START REPLICA;
 source include/wait_for_slave_sql_to_start.inc;
 --let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
 source include/wait_for_slave_io_to_stop.inc;

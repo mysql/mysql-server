@@ -12,7 +12,7 @@ DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
 --enable_warnings
 sync_slave_with_master;
 STOP SLAVE;
-START SLAVE;
+START REPLICA;
 
 connection master;
 eval CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;

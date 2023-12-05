@@ -12,7 +12,7 @@
 # - Stop slave
 # - Change Master_public_key file on slave
 # - Execute FLUSH PRIVILEGES on master
-# - start slave and expect timeout
+# - start replica and expect timeout
 
 --echo #
 --echo # Bug#27122947: RSA PUBLIC KEY GETS CACHED ON SLAVE
@@ -58,9 +58,9 @@ FLUSH PRIVILEGES;
 # Also update t1 to verify replication a later stage
 INSERT INTO t1 VALUES (2);
 
---echo ==== Try START SLAVE on slave : I/O thread should throw error ====
+--echo ==== Try START REPLICA on slave : I/O thread should throw error ====
 --source include/rpl_connection_slave.inc
-START SLAVE;
+START REPLICA;
 # 2061 : CR_AUTH_PLUGIN_ERR
 --let $slave_io_errno= 2061
 --let $slow_slave_io_error= 1

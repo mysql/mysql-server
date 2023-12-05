@@ -77,7 +77,7 @@ CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
 
 connection slave;
-START SLAVE;
+START REPLICA;
 
 connection master;
 sync_slave_with_master;

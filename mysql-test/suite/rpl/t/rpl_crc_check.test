@@ -38,7 +38,7 @@
 # 2) Stop slave applier thread.
 # 3) Write an event into binary log on master
 #    when master disables binlog_checksum.
-# 4) Start slave applier thread to verify that
+# 4) Start replica applier thread to verify that
 #    their is no event crc check failure.
 #
 
@@ -55,7 +55,7 @@
 CREATE TABLE t1 (c1 INT);
 
 --echo #
---echo # Start slave applier thread to verify that
+--echo # Start replica applier thread to verify that
 --echo # their is no event crc check failure.
 --echo #
 --source include/rpl_connection_slave.inc

@@ -38,23 +38,17 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
-# 8. start slave and verify for error ER_REPLICA_FATAL_ERROR
-START SLAVE FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+# 8. start replica and verify for error ER_REPLICA_FATAL_ERROR
+START REPLICA FOR CHANNEL 'ch3_2';
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
-# 9. start slave io and verify for error ER_REPLICA_FATAL_ERROR
-START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+# 9. start replica io and verify for error ER_REPLICA_FATAL_ERROR
+START REPLICA IO_THREAD FOR CHANNEL 'ch3_2';
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
-# 10. start slave sql and verify for error ER_REPLICA_FATAL_ERROR
-START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+# 10. start replica sql and verify for error ER_REPLICA_FATAL_ERROR
+START REPLICA SQL_THREAD FOR CHANNEL 'ch3_2';
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 11. Verify occurrence of error message

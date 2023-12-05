@@ -1,6 +1,6 @@
 # === Purpose ===
 #
-# The purpose of this test is to check that after the START SLAVE command, the
+# The purpose of this test is to check that after the START REPLICA command, the
 # APPLYING_TRANSACTION* fields in the performance_schema table
 # replication_applier_status_by_worker are cleared.
 #
@@ -79,7 +79,7 @@ while ($scenario < 3)
 
   --let $unix_ts_before= `SELECT UNIX_TIMESTAMP('$applying_trx_start_apply_before')`
   --let $unix_ts_after= `SELECT UNIX_TIMESTAMP('$last_applied_trx_start_apply_after')`
-  --let $assert_text = Start apply timestamp must be more recent after start slave to prove that the transaction info was reset
+  --let $assert_text = Start apply timestamp must be more recent after start replica to prove that the transaction info was reset
   --let $assert_cond = $unix_ts_after > $unix_ts_before
   --source include/assert.inc
 

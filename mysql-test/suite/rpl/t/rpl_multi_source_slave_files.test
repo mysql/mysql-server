@@ -17,23 +17,23 @@
 --source include/rpl_init.inc
 
 --echo #
---echo # On slave, issue start slave/stop slave command. Slave should not
+--echo # On slave, issue start replica/stop slave command. Slave should not
 --echo # error out anywhere.
 --echo #
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 #check till sql_thread returned Yes
 --let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
 --source include/rpl_for_each_connection.inc
 
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 #check till sql_thread returned Yes
 --let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
 --source include/rpl_for_each_connection.inc
 
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 #check till sql_thread returned Yes
 --let $rpl_source_file= include/wait_for_slave_io_to_start.inc
 --source include/rpl_for_each_connection.inc
@@ -44,7 +44,7 @@ STOP SLAVE;
 --let $rpl_source_file= include/wait_for_slave_sql_to_stop.inc
 --source include/rpl_for_each_connection.inc
 
-START SLAVE;
+START REPLICA;
 --let $rpl_source_file= include/wait_for_slave_io_to_start.inc
 --source include/rpl_for_each_connection.inc
 --let $rpl_source_file= include/wait_for_slave_sql_to_start.inc

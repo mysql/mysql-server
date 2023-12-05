@@ -98,7 +98,7 @@ query_result;
 
 -->macro GR_start_applier_sql_thread
 noquery_result;
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 quiet;
 wait_for 1	SELECT service_state="ON"
                 FROM performance_schema.replication_applier_status

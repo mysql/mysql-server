@@ -89,7 +89,7 @@ RESET SLAVE;
 --echo # 7. Start the slave.
 --echo #
 --source include/rpl_connection_slave.inc
-START SLAVE;
+START REPLICA;
 
 --echo #
 --echo # 8. Check that the options values are instantiated.

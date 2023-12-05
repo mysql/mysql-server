@@ -101,7 +101,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STR
 
   --echo ---- Resolve the conflict on the slave and restart SQL thread ----
   DELETE FROM t1 WHERE a = 1;
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   source include/wait_for_slave_sql_to_start.inc;
 }
 
@@ -151,7 +151,7 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.replica_exec_mode = 'STR
 
   --echo ---- Resolve the conflict on the slave and restart SQL thread ----
   INSERT INTO t1 VALUES (1);
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   source include/wait_for_slave_sql_to_start.inc;
 }
 

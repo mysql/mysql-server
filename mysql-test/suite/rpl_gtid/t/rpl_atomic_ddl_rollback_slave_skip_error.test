@@ -46,7 +46,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 --copy_file std_data/rpl_atomic_ddl_rollback_full.000001 $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 
-START SLAVE;
+START REPLICA;
 
 # wait until slave reads and applies all events from relay log
 --let $slave_param= Slave_SQL_Running_State

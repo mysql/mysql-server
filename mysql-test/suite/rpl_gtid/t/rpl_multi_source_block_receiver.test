@@ -64,7 +64,7 @@ DROP TABLE t4;
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-START SLAVE FOR CHANNEL 'channel_4';
+START REPLICA FOR CHANNEL 'channel_4';
 --echo Wait until channel_4 be synchronized with master
 --let $wait_condition= SELECT RECEIVED_TRANSACTION_SET='$server4_gtid_executed' FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = 'channel_4'
 --source include/wait_condition_or_abort.inc

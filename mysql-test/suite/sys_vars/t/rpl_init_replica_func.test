@@ -73,7 +73,7 @@ STOP SLAVE;
 --wait_for_slave_to_stop
 RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
-START SLAVE;
+START REPLICA;
 source include/wait_for_slave_to_start.inc;
 #
 # wait for the slave threads have set the global variable.
@@ -92,7 +92,7 @@ STOP SLAVE;
 --wait_for_slave_to_stop
 RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
-START SLAVE;
+START REPLICA;
 source include/wait_for_slave_to_start.inc;
 #
 SHOW VARIABLES LIKE 'init_replica';

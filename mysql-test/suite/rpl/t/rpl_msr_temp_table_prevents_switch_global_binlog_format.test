@@ -15,7 +15,7 @@
 #    of all replication channels have open temporary table(s).
 # 6. Set binlog format to statement for replicating
 #    CREATE TEMPORARY TABLE temp1 on server_1
-# 7. Start slave applier on channel_1, so that
+# 7. Start replica applier on channel_1, so that
 #    SET @@global.binlog_format=STATEMENT takes
 #    effect on channel_1.
 # 8. Connect to master server_1
@@ -65,7 +65,7 @@ SET @@global.binlog_format=ROW;
 --echo #
 SET @@global.binlog_format=STATEMENT;
 --echo #
---echo # Start slave applier on channel_1, so that
+--echo # Start replica applier on channel_1, so that
 --echo # SET @@global.binlog_format=STATEMENT takes
 --echo # effect on channel_1.
 --echo #
@@ -118,7 +118,7 @@ SET @@global.binlog_format=ROW;
 --error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 SET @@persist.binlog_format=ROW;
 
-# Start slave threads on slave channel_1.
+# Start replica threads on slave channel_1.
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave.inc
 

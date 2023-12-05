@@ -32,7 +32,7 @@ call loadgen(400);
 --enable_result_log
 
 --connection slave
-START SLAVE;
+START REPLICA;
 
 --echo Wait for replication to catch up
 --connection master

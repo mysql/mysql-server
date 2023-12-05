@@ -289,7 +289,7 @@ RESET REPLICA ALL;
 --source include/check_slave_param.inc
 
 --error ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
-START SLAVE;
+START REPLICA;
 
 --echo #
 --echo # 12 Cleanup

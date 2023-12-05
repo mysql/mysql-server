@@ -18,9 +18,7 @@ begin;
 insert into t1 values (1,1);
 insert into t1 values (2,2);
 commit;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from t1;
 pk	uk
 1	1

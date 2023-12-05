@@ -127,7 +127,7 @@ BEGIN;
   }
 COMMIT;
 
---echo # Start slave sql thread
+--echo # Start replica sql thread
 --source include/start_slave_sql.inc
 
 --let $slave_timeout= 60

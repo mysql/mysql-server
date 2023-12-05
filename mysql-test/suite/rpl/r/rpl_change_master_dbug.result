@@ -5,9 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
-START SLAVE io_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA io_thread;
 include/wait_for_slave_io_to_stop.inc
 RESET SLAVE;
 Warnings:

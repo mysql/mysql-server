@@ -38,9 +38,7 @@ include/wait_for_slave_to_stop.inc
 #
 ########################################################################
 # Connection: slave
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 # Connection: master
 CREATE DATABASE mysqltest1;
 CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));

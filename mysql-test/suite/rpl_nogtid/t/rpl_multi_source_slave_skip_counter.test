@@ -16,7 +16,7 @@
 # The process like:
 #
 # SET GLOBAL sql_replica_skip_counter = 5;
-# START SLAVE FOR CHANNEL 'ch1';
+# START REPLICA FOR CHANNEL 'ch1';
 #
 # SHOW SLAVE STATUS FOR CHANNEL 'channel_1';
 # Skip_count item will be 5.
@@ -25,7 +25,7 @@
 # It will be 0.
 #
 #
-# START SLAVE will report the error ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER if it is
+# START REPLICA will report the error ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER if it is
 # starting more than one channels.
 #
 #
@@ -63,7 +63,7 @@ STOP SLAVE SQL_THREAD;
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo # Verify that START SLAVE FOR CHANNEL will copy sql_replica_skip_counter's
+--echo # Verify that START REPLICA FOR CHANNEL will copy sql_replica_skip_counter's
 --echo # value to the channel and reset sql_replica_skip_counter to 0
 --echo #
 
@@ -86,28 +86,28 @@ STOP SLAVE SQL_THREAD;
 --source include/assert.inc
 
 --echo #
---echo # START SLAVE [SQL_THREAD] will fail when sql_replica_skip_counter is 1
+--echo # START REPLICA [SQL_THREAD] will fail when sql_replica_skip_counter is 1
 --echo # and there are more than one channels
 --echo #
 SET GLOBAL sql_replica_skip_counter = 1;
 
 --error ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER
-START SLAVE;
+START REPLICA;
 
 --error ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 --echo #
---echo # START SLAVE IO_THREAD should not fail.
+--echo # START REPLICA IO_THREAD should not fail.
 --echo #
 
 --disable_warnings
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --enable_warnings
 --let $rpl_source_file= include/wait_for_slave_io_to_start.inc
 --source include/rpl_for_each_connection.inc
 
---let $assert_text= All two IO threads are running after START SLAVE IO_THREAD
+--let $assert_text= All two IO threads are running after START REPLICA IO_THREAD
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 2;
 --source include/assert.inc
 

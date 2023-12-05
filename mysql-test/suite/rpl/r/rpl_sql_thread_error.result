@@ -7,9 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Relay log read failure");
 SET @save_debug=@@GLOBAL.debug;
 SET GLOBAL debug="+d,force_sql_thread_error";
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug=@save_debug;
 include/start_slave.inc

@@ -13,10 +13,10 @@
 # 1) Create a table on master and insert a row.
 # 2) On slave create a user 'u1' which will be used as a PIVILEGE_CHECKS_USER to
 #    connect to master and create a table similar to the one on master.
-# 3) Start slave and expect an error as the user doesn't have FILE and INSERT
+# 3) Start replica and expect an error as the user doesn't have FILE and INSERT
 #    privileges.
 # 4) Stop slave and grant FILE and INSERT privilege.
-# 5) Start slave again and this time there should not be any error.
+# 5) Start replica again and this time there should not be any error.
 # 6) Revoke the privileges granted to user 'u1'.
 # 7) Add a debug option to skip the privilege check for Begin_load_query and
 #    only perform the check for Execute_load_query event
@@ -32,9 +32,9 @@
 #    the table.
 # 3) Load this in the table at master, expecting a failure as the primary key is
 #    the same. This will create a Begin_load_query and a Delete_file event.
-# 4) Start slave and expect an error as the user doesn't have FILE privilege.
+# 4) Start replica and expect an error as the user doesn't have FILE privilege.
 # 5) Stop slave and grant FILE privilege.
-# 6) Start slave again and this time there should not be any error.
+# 6) Start replica again and this time there should not be any error.
 # 7) Revoke the privileges granted to user 'u1'.
 # 8) Add a debug option to skip the privilege check for Begin_load_query and
 #    only perform the check for Delete_file event
@@ -80,12 +80,12 @@ CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FI
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
 
-START SLAVE;
+START REPLICA;
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 --eval GRANT FILE, INSERT  ON *.* TO $grant_to
-START SLAVE;
+START REPLICA;
 --source include/sync_slave_sql.inc
 
 # Now check for the privilege required by Execute_load_query_log_event separately.
@@ -100,7 +100,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
-START SLAVE;
+START REPLICA;
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
@@ -111,7 +111,7 @@ STOP SLAVE;
 
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
-START SLAVE;
+START REPLICA;
 --source include/sync_slave_sql.inc
 DROP TABLE t1;
 STOP SLAVE;
@@ -148,13 +148,13 @@ CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 # We want to replicate only from the last LOAD DATA INFILE statement
 # So doing a change master and start replicating from master_log_pos_1
 
-START SLAVE;
+START REPLICA;
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
 
 --eval GRANT FILE  ON *.* TO $grant_to
 
-START SLAVE;
+START REPLICA;
 --source include/sync_slave_sql.inc
 
 # Now check for the privilege required by Delete_file event separately.
@@ -168,7 +168,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
-START SLAVE;
+START REPLICA;
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 --let $slave_sql_errno= convert_error(ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
 --source include/wait_for_slave_sql_error.inc
@@ -179,7 +179,7 @@ STOP SLAVE;
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
 eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
-START SLAVE;
+START REPLICA;
 --source include/sync_slave_sql.inc
 DROP TABLE t1;
 STOP SLAVE;

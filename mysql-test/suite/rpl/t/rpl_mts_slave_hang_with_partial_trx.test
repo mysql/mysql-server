@@ -65,7 +65,7 @@ COMMIT;
 # queuing a WRITE_ROWS event anymore
 SET GLOBAL DEBUG= @save_debug;
 
-# Restart slave I/O thread
+# Restart replica I/O thread
 --source include/start_slave_io.inc
 
 # Sync the slave with the master

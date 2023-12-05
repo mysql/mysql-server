@@ -163,7 +163,7 @@ INSERT INTO t1 VALUES ('8');
 --source include/sync_slave_io_with_master.inc
 --connection master
 
---echo ---- Restart slave server ----
+--echo ---- Restart replica server ----
 
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc

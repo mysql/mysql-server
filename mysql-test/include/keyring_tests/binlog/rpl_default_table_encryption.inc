@@ -85,7 +85,7 @@
 --write_file $script_dir/check_encryption.inc
   --echo ==== $statement [master_session:$master_session master_global:$master_global slave_global:$slave_global] ====
   --echo # $desc
-  # Restart slave threads to force them take the global value.
+  # Restart replica threads to force them take the global value.
   --source include/rpl_connection_slave.inc
   --source include/stop_slave_sql.inc
   --source include/start_slave_sql.inc

@@ -38,7 +38,7 @@ set @my_max_binlog_size= @@global.max_binlog_size;
 set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
-start slave;
+START REPLICA;
 sync_with_master;
 --source include/check_slave_is_running.inc
 
@@ -50,7 +50,7 @@ stop slave;
 reset slave;
 set global max_relay_log_size=(5*4096);
 query_vertical select @@global.max_relay_log_size;
-start slave;
+START REPLICA;
 sync_with_master;
 --source include/check_slave_is_running.inc
 
@@ -62,7 +62,7 @@ stop slave;
 reset slave;
 set global max_relay_log_size=0;
 query_vertical select @@global.max_relay_log_size;
-start slave;
+START REPLICA;
 sync_with_master;
 --source include/check_slave_is_running.inc
 
@@ -81,7 +81,7 @@ flush logs;
 --echo #
 
 reset slave;
-start slave;
+START REPLICA;
 sync_with_master;
 # test of relay log rotation when the slave is started
 flush logs;

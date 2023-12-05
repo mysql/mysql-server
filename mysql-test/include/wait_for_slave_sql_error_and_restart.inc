@@ -1,9 +1,9 @@
 # ==== Purpose ====
 #
-# Wait for SQL error and restart slave.
+# Wait for SQL error and restart replica.
 #
 # This script is normally used to wait for slave to error out with given SQL
-# error code and restart slave. It also asserts last SQL error code and error
+# error code and restart replica. It also asserts last SQL error code and error
 # message in performance_schema.replication_applier_status_by_worker.
 # And before restarting slave, if gtid to skip is provided it will skip the
 # given transaction with injecting empty transaction so slave can be started.

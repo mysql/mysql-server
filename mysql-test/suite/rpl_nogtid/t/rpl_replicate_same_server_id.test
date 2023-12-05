@@ -5,7 +5,7 @@
 #  1. If a server replicates to itself (and log-replica-updates is off)
 #     then every transaction should be executed twice.
 #
-#  2. START SLAVE UNTIL should work correctly if replicate-same-server-id
+#  2. START REPLICA UNTIL should work correctly if replicate-same-server-id
 #     is enabled and master and slave have different server_ids. This is
 #     to test BUG#38934.
 #
@@ -58,7 +58,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $MASTER_MYPORT;
 # Verifying that slave performs all events until the master_log_pos
 # in presense of --replicate-same-server-id the slave is started with.
 
---echo ==== START SLAVE UNTIL works with replicate-same-server-id ====
+--echo ==== START REPLICA UNTIL works with replicate-same-server-id ====
 
 --echo ---- Initialize ----
 
@@ -79,7 +79,7 @@ CREATE TABLE t2(n int);
 
 --replace_result $until_pos UNTIL_POS
 --disable_warnings
-eval START SLAVE UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = $until_pos;
+eval START REPLICA UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = $until_pos;
 --enable_warnings
 --source include/wait_for_slave_io_to_start.inc
 

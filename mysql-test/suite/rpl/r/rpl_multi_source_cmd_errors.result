@@ -18,16 +18,16 @@ SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 SELECT SOURCE_POS_WAIT("dummy-bin.000001", 4);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
+START REPLICA UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
 #--error ER_REPLICA_MULTIPLE_CHANNELS_CMD
 #SELECT WAIT_FOR_EXECUTED_GTID_SET("1111-1111-1111-1111:1");
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.000001", SOURCE_LOG_POS = 4;
+START REPLICA UNTIL SOURCE_LOG_FILE = "dummy-bin.000001", SOURCE_LOG_POS = 4;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 #
 # 2. Test errors of commands on an invalid channel
 #
-START SLAVE FOR CHANNEL "non_existent";
+START REPLICA FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
 STOP SLAVE FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.

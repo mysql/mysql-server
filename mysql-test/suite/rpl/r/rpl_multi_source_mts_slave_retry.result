@@ -20,7 +20,7 @@ SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 #
 SET GLOBAL replica_transaction_retries=10;
 SET GLOBAL innodb_lock_wait_timeout=2;
-#start slave
+#start replica
 include/rpl_start_slaves.inc
 #
 # Lock the rows of the table t1

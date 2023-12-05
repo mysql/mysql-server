@@ -72,7 +72,7 @@ while ($restarts)
   --dec $restarts
   if ($restarts)
   {
-    START SLAVE IO_THREAD;
+    START REPLICA IO_THREAD;
   }
 }
 

@@ -141,7 +141,7 @@ source include/rpl_start_server.inc;
 --let $relocate_index_file=$slave_datadir/slave-relay-bin.index
 --source include/relocate_binlogs.inc
 
---echo # Restart slave with options log-bin, relay-log set to the new paths
+--echo # Restart replica with options log-bin, relay-log set to the new paths
 --let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
 --let $include_silent=1
 --let $rpl_server_number= 2

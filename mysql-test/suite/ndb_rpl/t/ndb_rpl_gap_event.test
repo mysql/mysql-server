@@ -64,7 +64,7 @@ drop table if exists t1;
 --echo Get IO thread to reconnect to Master
 --connection slave
 --disable_result_log
-start slave;
+START REPLICA;
 --enable_result_log
 
 let $slave_sql_errno= 13119; # ER_REPLICA_INCIDENT

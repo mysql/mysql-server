@@ -58,7 +58,7 @@ SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET GLOBAL REPLICA_PARALLEL_WORKERS=4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo ############################################################
@@ -68,7 +68,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo ############################################################
@@ -78,7 +78,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo ############################################################
@@ -89,7 +89,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= ON;
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo ############################################################
@@ -98,7 +98,7 @@ START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo ############################################################
@@ -108,7 +108,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --source include/gr_stop_applier_sql_thread.inc
 --source include/group_replication_end.inc

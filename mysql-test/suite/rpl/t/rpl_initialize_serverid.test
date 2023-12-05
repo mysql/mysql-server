@@ -2,7 +2,7 @@
 #
 # This test ensures that replication is successful when slave server is
 # initialized by providing server-id and started without providing server-id
-# In this scenario, START SLAVE failed and fix of Bug#26730000 solved the issue
+# In this scenario, START REPLICA failed and fix of Bug#26730000 solved the issue
 #
 # The test also verifies the behaviour when server-id provided during
 # server initialization is different from that given during starting server
@@ -166,8 +166,8 @@ mkdir $NEWDATADIR_4;
 --source include/rpl_start_server.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
-START SLAVE;
-# Verify that slave IO error occurs on START SLAVE
+START REPLICA;
+# Verify that slave IO error occurs on START REPLICA
 # 13117 is the code for ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc

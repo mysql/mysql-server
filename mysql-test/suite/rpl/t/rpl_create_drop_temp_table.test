@@ -12,7 +12,7 @@
 #  3) Stop slave io thread
 #  4) Kill Master which generates Format Description event
 #  5) Restart Master again
-#  6) Start slave io thread
+#  6) Start replica io thread
 #  7) Wait till SQL thread applies all events
 #     (which includes newly generated Format Description event)
 #  8) Now verify that Replica_open_temp_tables has '0' value
@@ -52,7 +52,7 @@ CREATE TEMPORARY TABLE temp (i INT);
 # drop all temporary tables)
 --source include/rpl_start_server.inc
 
-# 6. Start slave io_thread
+# 6. Start replica io_thread
 --connection slave
 --source include/start_slave_io.inc
 --connection master

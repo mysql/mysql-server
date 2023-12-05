@@ -69,7 +69,7 @@ eval CHANGE REPLICATION SOURCE TO
   SOURCE_LOG_POS = $the_pos ;
 --enable_result_log
 --enable_query_log
-start slave;
+START REPLICA;
 
 # insert some more values on the first master
 connection master;

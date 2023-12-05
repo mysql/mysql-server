@@ -18,9 +18,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from t1;
 n
 1
@@ -35,14 +33,10 @@ include/diff_tables.inc [master:t1, slave:t1]
 include/stop_slave.inc
 delete from t1 where a=2;
 CHANGE REPLICATION SOURCE TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
-start slave sql_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA sql_thread;
 include/wait_for_slave_sql_to_start.inc
 include/diff_tables.inc [master:t1, slave:t1]
-start slave io_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA io_thread;
 include/wait_for_slave_io_to_start.inc
 set global relay_log_purge=1;
 drop table t1;
@@ -88,43 +82,33 @@ include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <source_bind>);
 CHANGE REPLICATION SOURCE to SOURCE_HOST=<source_bind>, SOURCE_BIND=<source_bind>;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <source_bind>);
 CHANGE REPLICATION SOURCE to  SOURCE_BIND=<source_bind>;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_io_error.inc [errno=2003]
 got expected error 2003
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_BIND='';
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <source_bind>);
 CHANGE REPLICATION SOURCE to SOURCE_HOST=<source_bind>, SOURCE_BIND=<source_bind>;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <source_bind>);
 CHANGE REPLICATION SOURCE to  SOURCE_BIND=<source_bind>;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc

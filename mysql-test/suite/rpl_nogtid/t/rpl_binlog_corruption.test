@@ -40,7 +40,7 @@ let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
 source include/setup_fake_relay_log.inc;
 
 --echo ==== Test ====
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 let $slave_sql_errno= 13121; # ER_REPLICA_RELAY_LOG_READ_FAILURE
 let $show_slave_sql_error= 1;
 source include/wait_for_slave_sql_error.inc;

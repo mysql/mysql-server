@@ -24,9 +24,7 @@ CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t4 VALUES(1);
 DROP TABLE t4;
 [connection server_2]
-START SLAVE FOR CHANNEL 'channel_4';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA FOR CHANNEL 'channel_4';
 Wait until channel_4 be synchronized with master
 [connection server_3]
 CREATE TABLE t2 (a int);

@@ -8,7 +8,7 @@ include/stop_slave_sql.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);
 #
-# Start slave applier thread to verify that
+# Start replica applier thread to verify that
 # their is no event crc check failure.
 #
 [connection slave]

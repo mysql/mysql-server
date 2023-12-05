@@ -12,15 +12,13 @@ SET GLOBAL binlog_encryption=OFF;
 SET DEBUG_SYNC='now WAIT_FOR sysvar_before_unlock';
 [connection server_2_2]
 SET DEBUG_SYNC='after_locking_channel_map_in_start_replica SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
-START SLAVE;
+START REPLICA;
 [connection slave]
 SET DEBUG_SYNC='now WAIT_FOR after_channelmap_lock';
 SET DEBUG_SYNC='now SIGNAL cont_set_binlog_enc';
 SET DEBUG_SYNC='now SIGNAL cont_start_slave';
 [connection server_2_1]
 [connection server_2_2]
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 SET GLOBAL binlog_encryption=ON;
 include/rpl_end.inc

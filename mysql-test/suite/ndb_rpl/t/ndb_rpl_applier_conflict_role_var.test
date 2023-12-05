@@ -60,7 +60,7 @@ set global ndb_applier_conflict_role = "NONE";
 --echo Now test transitions not possible due to 
 --echo Slave SQL thread running
 
-start slave sql_thread;
+START REPLICA sql_thread;
 --source include/show_slave_status.inc
 
 --echo From NONE
@@ -82,7 +82,7 @@ stop slave sql_thread;
 --echo From PRIMARY
 set global ndb_applier_conflict_role = "PRIMARY";
 
-start slave sql_thread;
+START REPLICA sql_thread;
 
 set global ndb_applier_conflict_role = "PRIMARY";
 --error 1220
@@ -100,7 +100,7 @@ stop slave sql_thread;
 --echo From SECONDARY
 set global ndb_applier_conflict_role = "SECONDARY";
 
-start slave sql_thread;
+START REPLICA sql_thread;
 
 set global ndb_applier_conflict_role = "SECONDARY";
 --error 1220
@@ -119,7 +119,7 @@ stop slave sql_thread;
 set global ndb_applier_conflict_role = "NONE";
 set global ndb_applier_conflict_role = "PASS";
 
-start slave sql_thread;
+START REPLICA sql_thread;
 
 set global ndb_applier_conflict_role = "PASS";
 --error 1220
@@ -167,7 +167,7 @@ show global variables like 'ndb_applier_conflict_role';
 
 set global ndb_applier_conflict_role = NON;
 
-start slave sql_thread;
+START REPLICA sql_thread;
 
 --source include/rpl_end.inc
 

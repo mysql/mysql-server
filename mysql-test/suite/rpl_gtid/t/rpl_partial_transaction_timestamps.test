@@ -46,7 +46,7 @@ COMMIT;
 
 # Debug point disappears on restart
 
-# Start slave
+# Start replica
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_io_with_master.inc

@@ -58,12 +58,12 @@ reset slave;
 source include/check_slave_no_error.inc;
 
 #
-# verifying start slave resets Last_IO_Error and Last_IO_Errno.
+# verifying start replica resets Last_IO_Error and Last_IO_Errno.
 #
 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
-start slave;
+START REPLICA;
 let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
@@ -87,7 +87,7 @@ source include/check_slave_no_error.inc;
 
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
-start slave;
+START REPLICA;
 let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
@@ -119,7 +119,7 @@ reset slave;
 
 reset slave all;
 --error ER_BAD_REPLICA
-start slave;
+START REPLICA;
 
 --let $_show_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
 if ($_show_master_host != No such row)
@@ -157,7 +157,7 @@ if ($_show_master_host != No such row)
 --let $rpl_reset_slave_all= 0
 --source include/rpl_reset_slave.inc
 
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_io_error.inc

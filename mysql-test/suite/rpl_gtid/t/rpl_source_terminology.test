@@ -25,7 +25,7 @@
 #
 # ==== References ====
 #
-# WL#14189: Replace old terms in CHANGE MASTER TO and START SLAVE params
+# WL#14189: Replace old terms in CHANGE MASTER TO and START REPLICA params
 #
 
 --source include/rpl_connection_slave.inc

@@ -13,14 +13,14 @@ SET @old_binlog_row_image= @@binlog_row_image;
 SET @old_transaction_isolation= @@session.transaction_isolation;
 SET SESSION transaction_isolation='READ-COMMITTED';
 # Set the binlog_row_image to FULL on both master and slave.
-CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
+CON: 'master', IMG: 'FULL', RESTART REPLICA: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
-CON: 'slave', IMG: 'FULL', RESTART SLAVE: 'Y'
+CON: 'slave', IMG: 'FULL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc

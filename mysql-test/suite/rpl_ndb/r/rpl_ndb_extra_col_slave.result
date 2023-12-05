@@ -21,7 +21,7 @@ ENGINE='NDB';
 *** Create t1 on Master ***
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t1 () VALUES(1,2,'TEXAS'),(2,1,'AUSTIN'),(3,4,'QA');
@@ -50,7 +50,7 @@ ENGINE='NDB';
 *** Create t2 on Master ***
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
@@ -79,7 +79,7 @@ ENGINE='NDB';
 *** Create t3 on Master ***
 CREATE TABLE t3 (a BLOB, b INT PRIMARY KEY, c CHAR(20)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1';
@@ -102,7 +102,7 @@ ENGINE='NDB';
 *** Create t4 on Master ***
 CREATE TABLE t4 (a DECIMAL(8,2), b INT PRIMARY KEY, c CHAR(20)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
@@ -124,7 +124,7 @@ f DECIMAL(8,2))ENGINE='NDB';
 CREATE TABLE t5 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT, e BLOB,
 f FLOAT) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
@@ -145,7 +145,7 @@ c FLOAT, d INT)ENGINE='NDB';
 CREATE TABLE t6 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT 
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
@@ -171,7 +171,7 @@ ENGINE='NDB';
 *** Create t7 on Master ***
 CREATE TABLE t7 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1';
@@ -201,7 +201,7 @@ SET sql_mode = default;
 *** Create t8 on Master ***
 CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -218,7 +218,7 @@ c CHAR(5), e INT DEFAULT '1')ENGINE='NDB';
 *** Create t10 on Master ***
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -239,7 +239,7 @@ c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 *** Create t11 on Master ***
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -260,7 +260,7 @@ c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 *** Create t12 on Master ***
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -292,7 +292,7 @@ e TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 *** Create t13 on Master ***
 CREATE TABLE t13 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -324,7 +324,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 *** Create t14 on Master ***
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
@@ -356,7 +356,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 *** Create t14a on Master ***
 CREATE TABLE t14a (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -380,7 +380,7 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 *** Master Drop c5 ***
 ALTER TABLE t14a DROP COLUMN c5;
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -435,7 +435,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 *** Create t15 on Master ***
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5)) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
 call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
@@ -494,7 +494,7 @@ c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 *** Create t16 on Master ***
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5))ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -557,7 +557,7 @@ ENGINE='NDB';
 *** Create t17 on Master ***
 CREATE TABLE t17 (a BIGINT PRIMARY KEY, b INT, c CHAR(10)
 ) ENGINE='NDB';
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');

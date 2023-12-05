@@ -184,7 +184,7 @@ RESET SLAVE;
 connection master;
 RESET BINARY LOGS AND GTIDS;
 connection slave;
-START SLAVE;
+START REPLICA;
 
 ################### TEST 2 TPCB for disk data ###########################
 # Requirement: To have Stored Procedures and Functions that are used to #
@@ -374,7 +374,7 @@ while ($j)
 # 5.
 --echo * 5. *
 connection slave;
-START SLAVE;
+START REPLICA;
 
 --echo **** We should be ready to continue on *************
 

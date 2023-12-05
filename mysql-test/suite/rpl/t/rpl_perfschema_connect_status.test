@@ -179,7 +179,7 @@ eval CHANGE REPLICATION SOURCE to
   SOURCE_USER='replssl',
   SOURCE_PASSWORD='';
 
-start slave io_thread;
+START REPLICA io_thread;
 let $slave_param= Last_IO_Errno;
 let $slave_param_value= 1045;
 source include/wait_for_slave_param.inc;

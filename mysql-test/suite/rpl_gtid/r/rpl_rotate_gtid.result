@@ -24,7 +24,7 @@ CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 include/sync_slave_io_with_master.inc
 # Restart the SQL thread until the beginning of the last relay log file
 [connection slave]
-START SLAVE SQL_THREAD UNTIL
+START REPLICA SQL_THREAD UNTIL
 RELAY_LOG_FILE= 'slave-relay-bin.000003',
 RELAY_LOG_POS= 4;
 include/wait_for_slave_sql_to_stop.inc

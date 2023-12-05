@@ -93,7 +93,7 @@ INSERT INTO t4 VALUES(1, "rpltest");
 
 --connection slave
 --echo [On Slave]
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_CANNOT_FIND_KEY_IN_KEYRING)
 --source include/wait_for_slave_sql_error.inc
 

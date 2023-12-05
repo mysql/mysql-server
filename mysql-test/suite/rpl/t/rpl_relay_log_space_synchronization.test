@@ -30,10 +30,10 @@ CREATE TABLE t1 (i INT);
 --source include/stop_slave_sql.inc
 SET GLOBAL debug='+d,wait_in_purge_index_entry';
 
-# Create a new relay log so the START SLAVE SQL_THREAD tries
+# Create a new relay log so the START REPLICA SQL_THREAD tries
 # to purge the old relay logs and hits the debug point.
 FLUSH LOCAL RELAY LOGS;
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 SET DEBUG_SYNC="now WAIT_FOR in_purge_index_entry";
 
 # Do a DML on master so that IO thread calls queue_event and

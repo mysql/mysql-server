@@ -7,9 +7,7 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=4;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 USE test;
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format

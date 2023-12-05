@@ -56,9 +56,7 @@ COMMIT;
 INSERT INTO d4.t1 VALUES (9);
 include/sync_slave_io_with_master.inc
 [connection slave1]
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 [connection slave]
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]
@@ -129,9 +127,7 @@ COMMIT;
 INSERT INTO d4.t1 VALUES (9);
 include/sync_slave_io_with_master.inc
 [connection slave1]
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 [connection slave]
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]

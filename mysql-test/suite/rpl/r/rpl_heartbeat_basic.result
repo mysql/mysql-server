@@ -300,9 +300,7 @@ include/stop_slave_io.inc
 Number of received heartbeat events while io thread stopped: 0
 
 *** Started IO thread ***
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_to_start.inc
 Heartbeat event received
 
@@ -311,9 +309,7 @@ include/stop_slave_sql.inc
 Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
 
 *** Started SQL thread ***
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc
 Heartbeat event received
 

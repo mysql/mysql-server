@@ -46,19 +46,19 @@ INSERT INTO t1 VALUES(repeat('a',8192)), (repeat('b', 8192));
 #  is split across the relay logs.
 SET @saved_debug=@@GLOBAL.debug;
 SET GLOBAL debug="+d,stop_io_after_reading_write_rows_log_event";
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 SET GLOBAL debug=@saved_debug;
 
 # Make sure there are no replication issues
 --disable_warnings
-START SLAVE;
+START REPLICA;
 --enable_warnings
 
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 --disable_warnings
-START SLAVE;
+START REPLICA;
 --enable_warnings
 
 --let $rpl_connection_name= server_1

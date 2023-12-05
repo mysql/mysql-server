@@ -7,7 +7,7 @@
 #
 # The test case generate a situation that will result into a SQL thread
 # error. The error will not happen during the thread startup, so the
-# "START SLAVE" command will succeed.
+# "START REPLICA" command will succeed.
 #
 # The plug-in, once activated a certain debug point, will:
 # a) unregister the thread stop hook;
@@ -23,7 +23,7 @@
 #
 # The test case generate a situation that will result into a I/O thread
 # error. The error will not happen during the thread startup, so the
-# "START SLAVE IO_THREAD" command will succeed.
+# "START REPLICA IO_THREAD" command will succeed.
 #
 # The plug-in, once activated a certain debug point, will:
 # a) unregister the thread stop hook;

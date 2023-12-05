@@ -41,9 +41,7 @@ FLUSH BINARY LOGS;
 [connection slave]
 include/stop_slave.inc
 # Adding debug point 'request_source_log_pos_3' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
 include/wait_for_slave_io_error.inc [errno=13114]
 # Removing debug point 'request_source_log_pos_3' from @@GLOBAL.debug

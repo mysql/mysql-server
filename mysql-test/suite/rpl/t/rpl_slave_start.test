@@ -1,6 +1,6 @@
 --echo # Bug#47699 rpl.rpl_backup_block fails sporadically
 --echo #
---echo # START SLAVE released the lock and returned before it cleared the error,
+--echo # START REPLICA released the lock and returned before it cleared the error,
 --echo # so there is a possibility that Slave_SQL_Error is not 0.
 --source include/not_group_replication_plugin.inc
 source include/have_debug_sync.inc;
@@ -30,7 +30,7 @@ DROP TABLE t1;
 
 --echo # Block SQL thread immediately after it starts.
 SET DEBUG_SYNC='after_start_replica WAIT_FOR signal.continue';
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 source include/wait_for_slave_sql_to_start.inc;
 --echo # Check Slave_SQL_Error, there should not be an error.
 source include/check_slave_no_error.inc;

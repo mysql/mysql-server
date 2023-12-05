@@ -20,21 +20,21 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
-# 4.1 start slave and start GR and verify for
+# 4.1 start replica and start GR and verify for
 #     ER_GROUP_REPLICATION_CONFIGURATION error
 include/start_slave.inc [FOR CHANNEL 'ch3_2']
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 include/stop_slave.inc [FOR CHANNEL 'ch3_2']
 
-# 4.2 start slave io and start GR and verify for
+# 4.2 start replica io and start GR and verify for
 #     ER_GROUP_REPLICATION_CONFIGURATION error
 include/start_slave_io.inc [FOR CHANNEL 'ch3_2']
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 include/stop_slave_io.inc [FOR CHANNEL 'ch3_2']
 
-# 4.3 start slave sql and start GR and verify for
+# 4.3 start replica sql and start GR and verify for
 #     ER_GROUP_REPLICATION_CONFIGURATION error
 include/start_slave_sql.inc [FOR CHANNEL 'ch3_2']
 START GROUP_REPLICATION;

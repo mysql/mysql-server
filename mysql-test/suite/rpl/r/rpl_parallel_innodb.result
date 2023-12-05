@@ -5,15 +5,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 call mtr.add_suppression('Replica: Error dropping database');
 include/stop_slave.inc
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 insert into test0.benchmark set state='slave is processing load';
-start slave sql_thread;
+START REPLICA sql_thread;
 use test0;
 insert into benchmark set state='slave ends load';
 use test;

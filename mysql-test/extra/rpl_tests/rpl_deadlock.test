@@ -96,7 +96,7 @@ BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 # Wait until slave stopped with error 'Lock wait timeout exceeded'
 --connection slave2
-START SLAVE;
+START REPLICA;
 --connection slave
 let $slave_sql_errno= 1205;
 --source include/wait_for_slave_sql_error.inc
@@ -113,7 +113,7 @@ source include/check_slave_is_running.inc;
 
 # 3) Test lock wait timeout and purged relay log
 # Set max_relay_log_size=0, block slave and wait lock timeout error.
-# Restart slave and check that no erros appear
+# Restart replica and check that no erros appear
 --echo *** Test lock wait timeout and purged relay logs ***
 
 connection slave;
@@ -130,7 +130,7 @@ BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 # Wait until slave stopped with error 'Lock wait timeout exceeded'
 --connection slave2
-START SLAVE;
+START REPLICA;
 --connection slave
 let $slave_sql_errno= 1205;
 --source include/wait_for_slave_sql_error.inc
@@ -185,7 +185,7 @@ BEGIN;
 SELECT count(*) as zero FROM t1 FOR UPDATE;
 
 --connection slave2
-START SLAVE;
+START REPLICA;
 --connection slave
 
 --echo *** Now the slave must be stopped due to timeout ***

@@ -19,7 +19,7 @@ include/start_slave.inc
 [connection server1]
 include/sync_slave_sql_with_master.inc
 # On the slave (server3), test that the data is properly replicated
-# after the start slave is complete.
+# after the start replica is complete.
 include/diff_tables.inc [server1:test.t1, server3:test.t1]
 
 [connection server2]

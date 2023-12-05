@@ -50,7 +50,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 --copy_file std_data/rpl_atomic_ddl_rollback_table.000001 $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 
-START SLAVE;
+START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
 --source include/wait_for_slave_sql_error.inc
@@ -94,7 +94,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 --copy_file std_data/rpl_atomic_ddl_rollback_view.000001 $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 
-START SLAVE;
+START REPLICA;
 
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
 --source include/wait_for_slave_sql_error.inc

@@ -26,9 +26,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=QUERY_POS, SOURCE_AUTO_POSITION=0;
 include/start_slave_io.inc
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc

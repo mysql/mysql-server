@@ -64,5 +64,5 @@ if (!$can_convert) {
        On_Master = $source_value,
        Error = "$error";
   SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
-  START SLAVE;
+  START REPLICA;
 }

@@ -23,9 +23,7 @@ include/wait_for_slave_param.inc [Last_SQL_Errno]
 include/rpl_reset.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_param.inc [Last_IO_Errno]
 *** must be having the replicate-same-server-id IO thread error ***
 include/assert.inc [Last_IO_Error_Timestamp is not null and matches the expected format]

@@ -169,7 +169,7 @@ INSERT INTO mem_t7 VALUES (1), (2), (3), (4);
 INSERT INTO mem_t8 VALUES (1), (2), (3), (4);
 --source include/sync_slave_sql_with_master.inc
 
-# Restart slave
+# Restart replica
 --let $rpl_server_number=2
 --source include/rpl_restart_server.inc
 --source include/start_slave.inc

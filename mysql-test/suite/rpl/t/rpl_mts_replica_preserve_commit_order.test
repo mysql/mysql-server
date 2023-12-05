@@ -145,7 +145,7 @@ DROP TABLE t1;
 --source include/stop_slave_sql.inc
 SET GLOBAL replica_parallel_type = 'DATABASE';
 --error ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 --let rpl_only_running_threads= 1;

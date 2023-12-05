@@ -51,9 +51,7 @@ max(a)
 Replicate as normal
 use test;
 create table ticker (a int primary key) engine=ndb;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect 200 entries on Slave
 select count(1) from test.ticker;
 count(1)
@@ -73,9 +71,7 @@ select @backup_max_val:=max(a) from test.ticker;
 select @backup_rows - @backup_max_val;
 @backup_rows - @backup_max_val
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect 200 rows when backup and binlog subset combined on slave
 select count(1) from test.ticker;
 count(1)
@@ -89,9 +85,7 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select @log_rows:=count(1) from test.ticker;
 select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows
@@ -112,9 +106,7 @@ select @backup_max_val:=max(a) from test.ticker;
 select @backup_rows - @backup_max_val;
 @backup_rows - @backup_max_val
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect 200 rows when backup and binlog subset combined on slave
 select count(1) from test.ticker;
 count(1)
@@ -128,9 +120,7 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select @log_rows:=count(1) from test.ticker;
 select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows

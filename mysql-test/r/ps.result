@@ -2305,15 +2305,11 @@ execute abc;
 execute abc;
 execute abc;
 deallocate prepare abc;
-create procedure proc_1() start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+create procedure proc_1() START REPLICA;
 drop procedure proc_1;
-create function func_1() returns int begin start slave; return 1; end|
+create function func_1() returns int begin START REPLICA; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
-prepare abc from "start slave";
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+prepare abc from "START REPLICA";
 deallocate prepare abc;
 create procedure proc_1() stop slave;
 Warnings:

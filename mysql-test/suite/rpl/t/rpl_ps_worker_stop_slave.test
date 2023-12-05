@@ -9,12 +9,12 @@
 #
 # We test four scenarios in which we stop and start the slave, changing between
 # STS and MTS or keeping the number of workers. In each scenario, we test is the
-# values after the stop slave and after the start slave are as expected.
+# values after the stop slave and after the start replica are as expected.
 #
 # === References ===
 #
 # BUG#28191382 LAST_APPLIED_TRANSACTION* AND APPLYING_TRANSACTION* ARE PRESERVED
-#              ON START SLAVE
+#              ON START REPLICA
 
 
 # the test in binlog format agnostic
@@ -34,16 +34,16 @@ SET @@GLOBAL.replica_parallel_workers = 0;
 # Four scenarios are tested:
 # Scenario 1:
 #  - Switch: STS to STS
-#  - Expected outcome: the values must be preserved after START SLAVE
+#  - Expected outcome: the values must be preserved after START REPLICA
 # Scenario 2:
 #  - Switch: STS to MTS
-#  - Expected outcome: the values must be cleared after START SLAVE
+#  - Expected outcome: the values must be cleared after START REPLICA
 # Scenario 3:
 #  - Switch: MTS to MTS
-#  - Expected outcome: the values must be cleared after START SLAVE
+#  - Expected outcome: the values must be cleared after START REPLICA
 # Scenario 4:
 #  - Switch: MTS to STS
-#  - Expected outcome: the values must be cleared after START SLAVE
+#  - Expected outcome: the values must be cleared after START REPLICA
 #
 # In all four scenarios the values must be preserved after STOP SLAVE
 

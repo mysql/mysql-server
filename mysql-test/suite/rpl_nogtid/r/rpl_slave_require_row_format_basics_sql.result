@@ -30,9 +30,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -63,9 +61,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -97,9 +93,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -132,9 +126,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -165,9 +157,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -198,9 +188,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:
@@ -233,9 +221,7 @@ include/start_slave_io.inc
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
 STOP SLAVE;
 Warnings:

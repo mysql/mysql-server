@@ -29,7 +29,7 @@ call mtr.add_suppression('The replica I/O thread was stopped because a fatal err
 --let $debug_point= undefined_algorithm_on_replica
 --source include/add_debug_point.inc
 
-START SLAVE;
+START REPLICA;
 --let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 

@@ -126,7 +126,7 @@ if (!$crash_commit)
 #--source include/rpl_connection_slave.inc
 # First, a regular error
 --eval CREATE TABLE $table (a int)
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno=convert_error(ER_TABLE_EXISTS_ERROR)
 --source include/wait_for_slave_sql_error.inc
 --eval DROP TABLE $table
@@ -159,7 +159,7 @@ while ($loops)
   --eval SET @@GLOBAL.debug=$crash_commit
   --source include/gtid_step_reset.inc
   --error 0,2013
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
 
   # Server wait for stop and restart
   --enable_reconnect

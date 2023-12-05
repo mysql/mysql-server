@@ -29,7 +29,7 @@
 # possible.
 #
 # Enable replicate-same-server-id. Set slave's info repository to be tables
-# and set relay-log-recovery=1. Start slave io_thread to ensure that
+# and set relay-log-recovery=1. Start replica io_thread to ensure that
 # Relay_Master_Log_File is not initialized. Stop and restart the slave server.
 # Relay log recovery will not happen slave will generate an error in error log
 # as shown below.
@@ -54,7 +54,7 @@ RESET BINARY LOGS AND GTIDS;
 --source include/wait_for_slave_to_stop.inc
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_PORT=$SLAVE_MYPORT;
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 
 # Restart the slave server

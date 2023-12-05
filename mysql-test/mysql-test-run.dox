@@ -2509,35 +2509,35 @@
   failures, not due to problems with the tests themselves.
 
   The slave-control include files address the issue that it is not
-  always sufficient to use a <b>START SLAVE</b> or <b>STOP
+  always sufficient to use a <b>START REPLICA</b> or <b>STOP
   SLAVE</b> statement by itself: When the statement returns, the
   slave may not have reached the desired operational state. For
-  example, with <b>START SLAVE</b>, the following considerations
+  example, with <b>START REPLICA</b>, the following considerations
   apply:
 
   <ul>
     <li>
       It is not necessary to wait for the SQL thread after <b>START
-      SLAVE</b> or <b>START SLAVE SQL_THREAD</b> because the thread
+      SLAVE</b> or <b>START REPLICA SQL_THREAD</b> because the thread
       will have started by the time statement returns.
     </li>
 
     <li>
       By contrast, it is necessary to wait for the I/O thread after
-      <b>START SLAVE</b> or <b>START SLAVE IO_THREAD</b> because
+      <b>START REPLICA</b> or <b>START REPLICA IO_THREAD</b> because
       although the thread will have started when the statement returns,
       it may not yet have established the connection to the master.
     </li>
   </ul>
 
   To verify that a slave has reached the desired state, combine the
-  use of <b>START SLAVE</b> or <b>STOP SLAVE</b> with an
+  use of <b>START REPLICA</b> or <b>STOP SLAVE</b> with an
   appropriate “wait” include file. The file contains code that waits
   until the state has been reached or a timeout occurs. For example,
   to verify that both slave threads have started, do this:
 
   @verbatim
-  START SLAVE
+  START REPLICA
   --source include/wait_for_slave_to_start.inc
   @endverbatim
 
@@ -2556,7 +2556,7 @@
       <tt>wait_for_slave_to_start.inc</tt>
 
       Waits for both slave threads (I/O and SQL) to start. Should be
-      preceded by a <b>START SLAVE</b> statement.
+      preceded by a <b>START REPLICA</b> statement.
     </li>
 
     <li>

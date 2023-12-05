@@ -101,7 +101,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 
 connection slave;
 set @@global.debug='d,simulate_replica_unaware_checksum';
-start slave;
+START REPLICA;
 let $slave_io_errno= 13114; # ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
 # Mask line numbers
@@ -149,7 +149,7 @@ connection slave;
 # C2. Failure by IO thread
 # instruction to io thread
 set @@global.debug='d,simulate_checksum_test_failure';
-start slave io_thread;
+START REPLICA io_thread;
 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 let $slave_io_errno= 13122, 13115;
 --let $show_slave_io_error= 0
@@ -158,7 +158,7 @@ source include/wait_for_slave_io_error.inc;
 set @@global.debug='';
 
 # to make IO thread re-read it again w/o the failure
-start slave io_thread;
+START REPLICA io_thread;
 --connection master
 --source include/sync_slave_io_with_master.inc
 
@@ -166,7 +166,7 @@ start slave io_thread;
 # instruction to sql thread;
 set @@global.replica_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
-start slave sql_thread;
+START REPLICA sql_thread;
 let $slave_sql_errno= 13117; # ER_REPLICA_FATAL_ERROR
 --let $show_slave_sql_error= 1
 source include/wait_for_slave_sql_error.inc;

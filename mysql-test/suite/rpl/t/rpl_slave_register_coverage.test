@@ -19,7 +19,7 @@ CREATE USER rpl_user;
 --source include/stop_slave_io.inc
 
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user';
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 --let $slave_io_errno= 13120
 --source include/wait_for_slave_io_error.inc
@@ -35,7 +35,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 
 # Simulate register_slave_to_master is killed
 SET GLOBAL debug = '+d,simulate_register_replica_killed';
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 --source include/wait_for_slave_io_to_stop.inc
 SET GLOBAL debug = '-d,simulate_register_replica_killed';

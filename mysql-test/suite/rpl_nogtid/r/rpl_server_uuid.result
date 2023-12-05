@@ -38,9 +38,7 @@ include/check_slave_param.inc [Slave_IO_Running]
 # option is set.
 -----------------------------------------------------------------------------
 include/rpl_restart_server.inc [server_number=1]
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]
 include/rpl_restart_server.inc [server_number=1]
 

@@ -96,7 +96,7 @@ SET GLOBAL debug=@save_debug;
 SET @@GLOBAL.replica_checkpoint_group= @save_replica_checkpoint_group;
 set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 include/start_slave.inc
-include/assert_grep.inc [Assert that the expected entry is in the error log during START SLAVE]
+include/assert_grep.inc [Assert that the expected entry is in the error log during START REPLICA]
 [connection master]
 include/sync_slave_sql_with_master.inc
 [connection master]

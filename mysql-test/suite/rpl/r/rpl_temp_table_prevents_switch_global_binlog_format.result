@@ -20,7 +20,7 @@ SET @@global.binlog_format=STATEMENT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
-# Start slave applier, so that SET @@global.binlog_format=STATEMENT
+# Start replica applier, so that SET @@global.binlog_format=STATEMENT
 # takes effect on the default slave channel.
 #
 include/start_slave_sql.inc

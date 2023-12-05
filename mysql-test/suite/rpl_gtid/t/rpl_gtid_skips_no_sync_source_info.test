@@ -47,7 +47,7 @@ INSERT INTO t1 VALUES (30);
 
 --source include/stop_slave.inc
 SET GLOBAL debug="+d,reached_heart_beat_queue_event";
-START SLAVE;
+START REPLICA;
 SET DEBUG_SYNC="now WAIT_FOR check_replica_source_info";
 let $sync_source_info_before= query_get_value(SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA='mysql' AND OBJECT_NAME ='slave_master_info', count_star, 1);
 SET DEBUG_SYNC="now SIGNAL proceed_write_rotate";

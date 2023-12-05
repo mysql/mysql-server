@@ -190,7 +190,7 @@ while ($i<3)
   }
 
   --source include/rpl_connection_slave.inc
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
   --source include/wait_for_slave_sql_error.inc
 

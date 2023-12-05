@@ -79,7 +79,7 @@ INSERT INTO t1 VALUES (2);
 --source include/rpl_connection_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 
-START SLAVE;
+START REPLICA;
 
 # BUG#13727933 causes this test to fail sporadically on the following line
 # apparently the binlog is not always purged on the master (?)
@@ -92,7 +92,7 @@ START SLAVE;
 SET @saved_debug= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= '+d,simulate_long_missing_gtids';
 --source include/rpl_connection_slave.inc
-START SLAVE;
+START REPLICA;
 
 --let $slave_io_errno= 13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc

@@ -31,7 +31,7 @@ stop slave;
 connection master;
 set password for root@"localhost" = 'foo';
 connection slave;
-start slave;
+START REPLICA;
 connection master;
 #
 # Give slave time to do at last one failed connect retry
@@ -82,7 +82,7 @@ enable_query_log;
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
 lock tables t1 read;
-start slave;
+START REPLICA;
 connection master;
 --source include/sync_slave_io_with_master.inc
 unlock tables;

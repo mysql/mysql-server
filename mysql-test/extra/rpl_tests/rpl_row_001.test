@@ -24,7 +24,7 @@ STOP SLAVE;
 connection master;
 SET PASSWORD FOR root@"localhost" = 'foo';
 connection slave;
-START SLAVE;
+START REPLICA;
 connection master;
 #
 # Give slave time to do at last one failed connect retry

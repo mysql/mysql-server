@@ -66,7 +66,7 @@ CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 --source include/rpl_connection_slave.inc
 # Disable warnings to avoid logging "UNTIL condtion is not supported ..." on MTS
 --disable_warnings
-START SLAVE SQL_THREAD UNTIL
+START REPLICA SQL_THREAD UNTIL
   RELAY_LOG_FILE= 'slave-relay-bin.000003',
   RELAY_LOG_POS= 4;
 --enable_warnings

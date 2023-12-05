@@ -9,9 +9,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
 # Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=13117]
 Last_SQL_Error = 'Fatal error: Failed during replica thread initialization'
 SET SESSION sql_log_bin= 0;
@@ -25,9 +23,7 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET GLOBAL init_replica= "garbage";
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=13145]
 Last_SQL_Error = 'Replica SQL thread aborted. Can't execute init_replica query, MY-001064 - 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1''
 SET GLOBAL init_replica= "";

@@ -338,7 +338,7 @@ RESET SLAVE ALL;
 --source include/assert.inc
 
 # SQL thread is still not able to read encrypted relay log files
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_sql_error.inc
 

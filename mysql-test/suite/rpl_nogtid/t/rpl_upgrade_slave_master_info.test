@@ -189,7 +189,7 @@ RESET SLAVE ALL;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2
 
 --error ER_REPLICA_CONFIGURATION
-START SLAVE;
+START REPLICA;
 
 # Restore the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info

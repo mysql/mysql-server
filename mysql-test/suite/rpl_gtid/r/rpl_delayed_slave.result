@@ -64,12 +64,12 @@ include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds aft
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
 [connection master]
-==== STOP SLAVE / START SLAVE + DML ====
+==== STOP SLAVE / START REPLICA + DML ====
 [connection slave]
 include/stop_slave.inc
 include/start_slave.inc
 [on master]
-INSERT INTO t1 VALUES ('stop slave and start slave: DML', 5);
+INSERT INTO t1 VALUES ('stop slave and START REPLICA: DML', 5);
 [on slave]
 include/stop_slave.inc
 include/assert.inc [SQL thread position should not increase after STOP SLAVE]
@@ -86,7 +86,7 @@ include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds aft
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
 [connection master]
-==== STOP SLAVE / START SLAVE + DDL ====
+==== STOP SLAVE / START REPLICA + DDL ====
 This verifies BUG#56442
 [on master]
 CREATE TABLE t_check_dml_not_executed_prematurely (a INT);

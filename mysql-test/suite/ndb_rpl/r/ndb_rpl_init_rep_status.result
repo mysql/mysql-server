@@ -23,9 +23,7 @@ Default, no data, max replicated epoch will be 0.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select server_id from mysql.ndb_apply_status order by server_id;
 server_id
 1
@@ -39,9 +37,7 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select server_id from mysql.ndb_apply_status order by server_id;
 server_id
 1
@@ -64,9 +60,7 @@ insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log
 insert into mysql.ndb_apply_status values (@other_local_server_id, 222, 'Fictional log', 222, 333);
 insert into mysql.ndb_apply_status values (@other_remote_server_id, 444, 'Fictional log', 222, 333);
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(3);;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select server_id from mysql.ndb_apply_status order by server_id;
 server_id
 1
@@ -78,8 +72,6 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 drop table test.t1;
 include/rpl_end.inc

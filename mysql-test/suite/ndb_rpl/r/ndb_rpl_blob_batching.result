@@ -194,7 +194,7 @@ b blob,
 c blob) engine=ndb;
 stop slave;
 set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
-start slave;
+START REPLICA;
 insert into tsync values (2);
 insert into tv values ("Sync", "Sync");
 insert into tb1 values ("Sync", "Sync");

@@ -134,7 +134,7 @@ set foreign_key_checks= 0;
 delete from ti2 where b=1;
 set foreign_key_checks= 1;
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -169,7 +169,7 @@ set foreign_key_checks= 0;
 insert into ti1 set b=3;
 set foreign_key_checks= 1;
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -208,7 +208,7 @@ set foreign_key_checks= 0;
 delete from ti1 where b=1;
 set foreign_key_checks= 1;
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -241,7 +241,7 @@ eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -259,7 +259,7 @@ eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -281,7 +281,7 @@ eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -301,7 +301,7 @@ eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
 set global replica_exec_mode='IDEMPOTENT';
-start slave sql_thread;
+START REPLICA sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;

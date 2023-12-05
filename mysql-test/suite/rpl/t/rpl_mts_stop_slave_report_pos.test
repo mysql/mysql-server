@@ -117,8 +117,8 @@ set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 --source include/start_slave.inc
 
 # Assert that the positions that are reported by the applier thread during
-# START SLAVE are the same as the positions reported during STOP SLAVE.
---let $assert_text= Assert that the expected entry is in the error log during START SLAVE
+# START REPLICA are the same as the positions reported during STOP SLAVE.
+--let $assert_text= Assert that the expected entry is in the error log during START REPLICA
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after = Replica SQL thread exiting, replication stopped in log
 --let $assert_select= Replica SQL thread for channel '' initialized, starting replication in log '$exec_master_log_file' at position $exec_master_log_pos

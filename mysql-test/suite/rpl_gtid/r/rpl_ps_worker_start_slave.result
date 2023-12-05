@@ -25,7 +25,7 @@ include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Confirm that we are checking the correct transaction]
-include/assert.inc [Start apply timestamp must be more recent after start slave to prove that the transaction info was reset]
+include/assert.inc [Start apply timestamp must be more recent after start replica to prove that the transaction info was reset]
 include/stop_slave.inc
 SET GLOBAL replica_parallel_workers = 1;
 include/start_slave.inc
@@ -40,7 +40,7 @@ include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Confirm that we are checking the correct transaction]
-include/assert.inc [Start apply timestamp must be more recent after start slave to prove that the transaction info was reset]
+include/assert.inc [Start apply timestamp must be more recent after start replica to prove that the transaction info was reset]
 include/stop_slave.inc
 SET GLOBAL replica_parallel_workers = 1;
 include/start_slave.inc

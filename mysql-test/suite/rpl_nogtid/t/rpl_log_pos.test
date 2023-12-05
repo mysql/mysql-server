@@ -21,7 +21,7 @@ source include/stop_slave.inc;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=75;
 let $status_items= Read_Master_Log_Pos;
 source include/show_slave_status.inc;
-start slave;
+START REPLICA;
 let $slave_io_errno= 13114;
 --let $show_slave_io_error= 1
 # Mask line numbers
@@ -39,7 +39,7 @@ save_master_pos;
 connection slave;
 --replace_result 4 MASTER_LOG_POS
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-start slave;
+START REPLICA;
 sync_with_master;
 select * from t1 ORDER BY n;
 connection master;

@@ -258,7 +258,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 SET @@global.replica_parallel_workers=1;
 # to avoid warnings
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
-start slave;
+START REPLICA;
 
 --connection master
 create database d1;

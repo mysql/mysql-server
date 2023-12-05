@@ -13,7 +13,7 @@
 # =====
 # Enable GTID protocol and execute the test with both master_auto_postion
 # on and master_auto_postion off. Generate gaps in MTS, on the slave and
-# restart slave server with relay-log-recovery=1. The gaps should
+# restart replica server with relay-log-recovery=1. The gaps should
 # be filled because of GTID protocol and slave should be in sync with master.
 ###############################################################################
 --source include/force_restart.inc

@@ -473,7 +473,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2";
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -487,7 +487,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4";
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -501,7 +501,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:6";
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:6";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -515,7 +515,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:8";
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:8";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc

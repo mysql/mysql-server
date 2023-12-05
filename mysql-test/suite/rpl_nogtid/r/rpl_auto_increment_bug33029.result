@@ -8,9 +8,7 @@ SET @old_relay_log_purge= @@global.relay_log_purge;
 include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001
 ==== Test ====
-start slave sql_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA sql_thread;
 include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 # Result on slave
 SELECT * FROM t1;

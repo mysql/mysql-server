@@ -40,7 +40,7 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=TRUE --sync_source_info=1 --relay-log-recovery=1]
 [connection slave]
 Relay log recovery should fail as MTS stopped due to an error
-START SLAVE;
+START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 Eliminate the cause of MTS error
 DELETE FROM d2.t WHERE a=2;

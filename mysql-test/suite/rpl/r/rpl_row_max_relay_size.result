@@ -25,9 +25,7 @@ Warning	1292	Truncated incorrect max_relay_log_size value: '8191'
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/check_slave_is_running.inc
 #
 # Test 2
@@ -41,9 +39,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/check_slave_is_running.inc
 #
 # Test 3: max_relay_log_size = 0
@@ -57,9 +53,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/check_slave_is_running.inc
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
@@ -77,9 +71,7 @@ flush logs;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 flush logs;
 create table t1 (a int);
 include/sync_slave_sql_with_master.inc

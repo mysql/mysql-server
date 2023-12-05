@@ -28,11 +28,11 @@ enable_query_log;
 save_master_pos;
 
 connection slave;
-start slave;
+START REPLICA;
 let $wait_condition= SELECT COUNT(*) > 0 FROM t1;
 source include/wait_condition_or_abort.inc;
 stop slave io_thread;
-start slave io_thread;
+START REPLICA io_thread;
 source include/wait_for_slave_to_start.inc;
 sync_with_master;
 
@@ -172,7 +172,7 @@ UNLOCK TABLES;
 --reap
 --source include/wait_for_slave_to_stop.inc
 
---echo # Start slave again
+--echo # Start replica again
 --source include/start_slave.inc
 
 --echo # Clean up
@@ -196,7 +196,7 @@ let $master_pos= `SELECT $master_pos + 1`;
 --replace_regex /[0-9]+/MASTER_POS/
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos;
 
-START SLAVE;
+START REPLICA;
 # ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG 13114
 --let $slave_param=Last_IO_Errno
 --let $slave_param_value=13114

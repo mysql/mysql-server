@@ -11,9 +11,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/sync_slave_sql_with_io.inc
 include/assert.inc ["The expected read count and actual read count are same"]
 The read count for @@GLOBAL.rpl_read_size= 8192 is  883
@@ -26,9 +24,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/sync_slave_sql_with_io.inc
 include/assert.inc ["The expected read count and actual read count are same"]
 The read count for @@GLOBAL.rpl_read_size= 1048576 is  7

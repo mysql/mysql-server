@@ -104,7 +104,7 @@ include/assert.inc [No additional transaction is added on slave]
 
 # On slave, remove syncpoint_commit_order_manager_after_wait_100 and
 # rpl_fake_commit_order_deadlock_for_timestamp_100 debug sync points, and
-# then restart slave sql thread. Verify all data is synced to slave.
+# then restart replica sql thread. Verify all data is synced to slave.
 
 SET DEBUG_SYNC= 'now SIGNAL continue_commit_order_manager_after_wait_100';
 # Removing debug point 'syncpoint_commit_order_manager_after_wait_100' from @@GLOBAL.debug

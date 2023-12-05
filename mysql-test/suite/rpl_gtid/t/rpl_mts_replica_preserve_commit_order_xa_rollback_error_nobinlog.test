@@ -41,7 +41,7 @@
 #
 # 8. On slave, remove syncpoint_commit_order_manager_after_wait_100 and
 #    rpl_fake_commit_order_deadlock_for_timestamp_100 debug sync points, and
-#    then restart slave sql thread. Verify all data is synced to slave.
+#    then restart replica sql thread. Verify all data is synced to slave.
 #
 # 9. Cleanup.
 
@@ -163,7 +163,7 @@ COMMIT;
 --echo
 --echo # On slave, remove syncpoint_commit_order_manager_after_wait_100 and
 --echo # rpl_fake_commit_order_deadlock_for_timestamp_100 debug sync points,
---echo # and then restart slave sql thread. Verify all data is synced to slave.
+--echo # and then restart replica sql thread. Verify all data is synced to slave.
 --echo
 
 # unblock so XA COMMIT can resume

@@ -68,7 +68,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 # 4) Wait for slave to catch-up and expect error.
 #
 --source include/rpl_connection_slave.inc
-START SLAVE;
+START REPLICA;
 
 --let $slave_sql_errno = convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
@@ -82,7 +82,7 @@ START SLAVE;
 #
 STOP SLAVE;
 --eval GRANT SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
-START SLAVE;
+START REPLICA;
 
 #
 # 2) Wait for slave to catch-up and expect success.

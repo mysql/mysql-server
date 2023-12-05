@@ -124,7 +124,7 @@ set @@global.replica_net_timeout= 10;
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 0.5;
 --query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
-start slave;
+START REPLICA;
 
 --let $rpl_connection_name= master
 --source include/rpl_connection.inc
@@ -223,7 +223,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 # behavior was therefore un-intuitive.
 #
 # In the test we test the behaviour of heartbeat_period with RESET SLAVE,
-# STOP SLAVE, CHANGE MASTER, START SLAVE and RESET SLAVE ALL.
+# STOP SLAVE, CHANGE MASTER, START REPLICA and RESET SLAVE ALL.
 #
 # 1. RESET SLAVE:
 #    ===========
@@ -231,7 +231,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 #    Execute a RESET SLAVE and verify that the heartbeat_period is what we
 #    set in the latest CHANGE MASTER and not the the default value.
 #
-# 2. CHANGE MASTER, START SLAVE:
+# 2. CHANGE MASTER, START REPLICA:
 #    ==========================
 #
 # a. Changing host resets heartbeat_period to default.

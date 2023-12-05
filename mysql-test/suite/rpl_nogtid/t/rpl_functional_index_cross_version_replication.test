@@ -58,7 +58,7 @@ call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t
 #
 # 3) Start the slave.
 #
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 #
 # 4) Check table included in the relay log exists.

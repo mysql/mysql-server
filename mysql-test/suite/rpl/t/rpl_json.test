@@ -783,7 +783,7 @@ DROP TABLE data,json_data;
 --echo #               IF JSON HAS DIFFERENT BINARY FORMAT
 --echo #
 
-# Restart slave threads to make the change in binlog format take effect
+# Restart replica threads to make the change in binlog format take effect
 # for them.
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc

@@ -32,9 +32,7 @@ id	created
 create table t3 like t2;
 create temporary table t4 like t2;
 create table t5 select * from t4;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 select * from t2;
 id	created

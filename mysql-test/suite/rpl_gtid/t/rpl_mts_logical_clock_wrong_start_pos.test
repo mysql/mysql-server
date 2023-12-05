@@ -17,7 +17,7 @@
 # Stop slave threads to reconfigure retrival from an already read, executed and
 # group internal position (COMMIT/Xid event position is chosen to avoid
 # a GTID specific error).
-# Restart slave threads and observe the SQL applier has processed events.
+# Restart replica threads and observe the SQL applier has processed events.
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Either event.*is from an old source");
@@ -48,7 +48,7 @@ INSERT INTO t1 SET a=1;
 --replace_result $query_pos QUERY_POS
 --eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$query_pos, SOURCE_AUTO_POSITION=0
 --source include/start_slave_io.inc
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 #
 # Cleanup

@@ -21,14 +21,14 @@ n
 include/stop_slave.inc
 DROP TABLE t1;
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = MASTER_PORT;
-==== START SLAVE UNTIL works with replicate-same-server-id ====
+==== START REPLICA UNTIL works with replicate-same-server-id ====
 ---- Initialize ----
 [connection master]
 CREATE TABLE t1(n int);
 CREATE TABLE t2(n int);
 ---- Test ----
 [connection slave]
-START SLAVE UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = UNTIL_POS;
+START REPLICA UNTIL SOURCE_LOG_FILE = 'master-bin.000001', SOURCE_LOG_POS = UNTIL_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [t1 should be replicated, t2 should not]

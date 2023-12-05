@@ -15,7 +15,7 @@ SET GLOBAL debug= '+d,dbug.return_null_SOURCE_UUID';
 #
 include/assert.inc [source_uuid field should be non-empty.]
 #
-# START SLAVE will return a NULL for master_uuid now as per our debug behaviour.
+# START REPLICA will return a NULL for master_uuid now as per our debug behaviour.
 #
 include/start_slave.inc
 #

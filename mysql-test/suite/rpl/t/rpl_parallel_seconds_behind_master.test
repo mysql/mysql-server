@@ -18,7 +18,7 @@
 -- source include/have_binlog_format_statement.inc
 
 
-# restart slave in MTS mode
+# restart replica in MTS mode
 connection slave;
 source include/stop_slave.inc;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;

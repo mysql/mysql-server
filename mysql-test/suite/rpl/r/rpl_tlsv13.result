@@ -42,9 +42,7 @@ include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
 #    and slave will fail.
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
-START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD FOR CHANNEL 'my_channel';
 include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 ########################################################################
 # 5. Check replication with TLSv1.3 and empty ciphersuite on slave will
@@ -55,9 +53,7 @@ ALTER INSTANCE RELOAD TLS;
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
 include/assert.inc [TLS_CIPHERSUITES has the value ""]
-START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD FOR CHANNEL 'my_channel';
 include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 ########################################################################
 # 6. Clean-up.

@@ -90,7 +90,7 @@ while ($restarts > 0)
   }
   # We should not use "start_slave_io.inc" here because the IO thread
   # will stop just a few events after starting.
-  START SLAVE IO_THREAD;
+  START REPLICA IO_THREAD;
 }
 
 --source include/rpl_connection_master.inc

@@ -109,7 +109,7 @@ INSERT INTO t1 SELECT delay_on_slave(2), 4;
 --source extra/rpl_tests/check_slave_delay.inc
 
 
---echo ==== STOP SLAVE / START SLAVE + DML ====
+--echo ==== STOP SLAVE / START REPLICA + DML ====
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
@@ -122,7 +122,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY = $delay;
 
 --echo [on master]
 --connection master
-INSERT INTO t1 VALUES ('stop slave and start slave: DML', 5);
+INSERT INTO t1 VALUES ('stop slave and START REPLICA: DML', 5);
 
 --echo [on slave]
 --connection slave
@@ -151,7 +151,7 @@ INSERT INTO t1 VALUES ('stop slave and start slave: DML', 5);
 --source extra/rpl_tests/check_slave_delay.inc
 
 
---echo ==== STOP SLAVE / START SLAVE + DDL ====
+--echo ==== STOP SLAVE / START REPLICA + DDL ====
 
 --echo This verifies BUG#56442
 

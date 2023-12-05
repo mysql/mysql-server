@@ -72,9 +72,7 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DROP TABLE t1;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 create table t1 (a int primary key, b int) engine=ndb;
 show variables like '%log_orig%';
 Variable_name	Value
@@ -119,9 +117,7 @@ inserts	updates	deletes	schemaops	orig_server_id
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name
 2	slave-bin.000001
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 'Master' now has own serverid entry as well.
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name

@@ -71,7 +71,7 @@ source include/wait_for_slave_to_stop.inc;
 --echo # Connection: slave
 --connection slave
 
-START SLAVE;
+START REPLICA;
 
 --echo # Connection: master
 --connection master

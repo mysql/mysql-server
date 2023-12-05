@@ -352,7 +352,7 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 
 # Check received heartbeat events for started IO thread
 --echo *** Started IO thread ***
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --source include/wait_for_rpl_pfs_status.inc
@@ -371,7 +371,7 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 
 # Check received heartbeat events for started SQL thread
 --echo *** Started SQL thread ***
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --source include/wait_for_slave_sql_to_start.inc
 let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --source include/wait_for_rpl_pfs_status.inc

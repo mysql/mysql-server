@@ -2,7 +2,7 @@
 # is reading a transaction, the transaction spans on two or more
 # relay logs. If STOP SLAVE occurs while the SQL thread is
 # executing a part of the transaction in the non-first relay logs,
-# we test if START SLAVE will resume in the beginning of the
+# we test if START REPLICA will resume in the beginning of the
 # transaction (i.e., step back to the first relay log)
   
 # The slave is started with max_binlog_size=16384 bytes,
@@ -35,7 +35,7 @@ enable_query_log;
 save_master_pos;
 connection slave;
 reset slave;
-start slave;
+START REPLICA;
 # We wait 1 sec for the SQL thread to be somewhere in
 # the middle of the transaction, hopefully not in
 # the first relay log, and hopefully before the COMMIT.
@@ -50,7 +50,7 @@ stop slave;
 # If so the transaction was rolled back
 # and the table is now empty.
 # Now restart
-start slave;
+START REPLICA;
 # And see if the table contains $loop_max
 # which proves that the transaction restarted at
 # the right place.

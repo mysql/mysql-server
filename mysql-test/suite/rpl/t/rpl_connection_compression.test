@@ -2,7 +2,7 @@
 #
 # R1. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
 # master's @@global.protocol_compression_algorithms is nonempty, then
-# the connection in START SLAVE shall succeed and use zlib if
+# the connection in START REPLICA shall succeed and use zlib if
 # possible; otherwise zstd; otherwise uncompressed.
 #
 # R2. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
@@ -211,7 +211,7 @@ EOF
 
   --let $bytes_before = `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
 
-  --echo START SLAVE IO_THREAD
+  --echo START REPLICA IO_THREAD
   # Verify that slave can connect
   --source include/rpl_connection_slave.inc
   --source include/start_slave_io.inc
@@ -333,13 +333,13 @@ EOF
 # ---- Implementation ----
 #
 # - Execute the CHANGE REPLICATION SOURCE statement
-# - Execute START SLAVE IO_THREAD
+# - Execute START REPLICA IO_THREAD
 # - Wait until error happens.
 --write_file $script_dir/test_master_slave_compression_error.inc
 
   --source $script_dir/configure_slave.inc
 
-  START SLAVE IO_THREAD;
+  START REPLICA IO_THREAD;
   --let $slave_io_errno = 3922, 2066
   # 3922 = ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
   # 2066 = CR_COMPRESSION_WRONGLY_CONFIGURED

@@ -32,7 +32,7 @@ SET @save_debug=@@GLOBAL.debug;
 SET GLOBAL debug="+d,force_sql_thread_error";
 
 # Start SQL thread
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 # Step 2) Wait for SQL thread to go down with the injected error.
 # Before fix, SQL thread would not have released

@@ -36,7 +36,7 @@ let $before_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --let $wait_counter= 10000
 --source include/rpl_restart_server.inc
 
-# Restart slave io thread after restarting master server
+# Restart replica io thread after restarting master server
 connection slave;
 --source include/start_slave_io.inc
 

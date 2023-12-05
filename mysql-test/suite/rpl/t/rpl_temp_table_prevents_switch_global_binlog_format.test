@@ -12,7 +12,7 @@
 #    of all replication channels have open temporary table(s).
 # 5. Set binlog format to statement for replicating
 #    CREATE TEMPORARY TABLE temp1 on master.
-# 6. Start slave applier, so that SET @@global.binlog_format=STATEMENT
+# 6. Start replica applier, so that SET @@global.binlog_format=STATEMENT
 #    takes effect on the default slave channel.
 # 7. Replicate the 'CREATE TEMPORARY TABLE temp1' to slave, so that
 #    the default slave channel has an open temporary table.
@@ -47,7 +47,7 @@ SET @@global.binlog_format=ROW;
 --echo #
 SET @@global.binlog_format=STATEMENT;
 --echo #
---echo # Start slave applier, so that SET @@global.binlog_format=STATEMENT
+--echo # Start replica applier, so that SET @@global.binlog_format=STATEMENT
 --echo # takes effect on the default slave channel.
 --echo #
 --source include/start_slave_sql.inc

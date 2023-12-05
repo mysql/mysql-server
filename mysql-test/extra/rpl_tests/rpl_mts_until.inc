@@ -75,7 +75,7 @@ if ($until_type == 'BEFORE_GTIDS')
   --let $__until_clause= SQL_BEFORE_GTIDS="$before_gtids"
 }
 
-eval START SLAVE SQL_THREAD UNTIL $__until_clause;
+eval START REPLICA SQL_THREAD UNTIL $__until_clause;
 
 --let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for workers to exit" OR state = "Waiting for Replica Worker to release partition"
 --source include/wait_condition.inc
@@ -90,7 +90,7 @@ ROLLBACK;
 
 # Since until condition is already satisfied, it should stop immediately.
 --replace_result $__until_clause SAME_UNTIO_OPTION
-eval START SLAVE SQL_THREAD UNTIL $__until_clause;
+eval START REPLICA SQL_THREAD UNTIL $__until_clause;
 
 --source include/wait_for_slave_sql_to_stop.inc
 --let $diff_tables= master:db1.v1, slave:db1.t1, slave:db2.t1, slave:db3.t1

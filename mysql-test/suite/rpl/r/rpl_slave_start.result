@@ -1,6 +1,6 @@
 # Bug#47699 rpl.rpl_backup_block fails sporadically
 #
-# START SLAVE released the lock and returned before it cleared the error,
+# START REPLICA released the lock and returned before it cleared the error,
 # so there is a possibility that Slave_SQL_Error is not 0.
 include/master-slave.inc
 Warnings:
@@ -20,9 +20,7 @@ include/wait_for_slave_sql_error.inc [errno=1050]
 DROP TABLE t1;
 # Block SQL thread immediately after it starts.
 SET DEBUG_SYNC='after_start_replica WAIT_FOR signal.continue';
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc
 # Check Slave_SQL_Error, there should not be an error.
 include/check_slave_no_error.inc

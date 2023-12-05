@@ -78,7 +78,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --echo *** Start replication ***
 connection slave;
-START SLAVE;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 
 --echo *** Insert data on master and display it. ***

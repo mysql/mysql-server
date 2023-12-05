@@ -396,7 +396,7 @@ create table tb2(a varchar(20) character set utf8 primary key,
 
 stop slave;
 set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
-start slave;
+START REPLICA;
 
 --connection master
 # Make sure the slave has e.g. 'discovered' all of the tables

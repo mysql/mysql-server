@@ -16,14 +16,10 @@ include/save_master_pos.inc
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=4117]
 GRANT FILE, INSERT  ON *.* TO 'u1'@'localhost';
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/sync_slave_sql.inc
 STOP SLAVE;
 Warnings:
@@ -34,9 +30,7 @@ CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURC
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 include/wait_for_slave_sql_error.inc [errno=4117]
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
@@ -48,9 +42,7 @@ CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURC
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/sync_slave_sql.inc
 DROP TABLE t1;
 STOP SLAVE;
@@ -71,14 +63,10 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1;
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 [connection slave]
 CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=4117]
 GRANT FILE  ON *.* TO 'u1'@'localhost';
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/sync_slave_sql.inc
 STOP SLAVE;
 Warnings:
@@ -89,9 +77,7 @@ CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURC
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
 include/wait_for_slave_sql_error.inc [errno=4117]
 SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
@@ -103,9 +89,7 @@ CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURC
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/sync_slave_sql.inc
 DROP TABLE t1;
 STOP SLAVE;

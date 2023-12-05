@@ -35,7 +35,7 @@ if (!$source_bind_error_expected)
 
 --replace_result $source_bind <source_bind>
 eval CHANGE REPLICATION SOURCE to $_master_host SOURCE_BIND=$source_bind;
-start slave;
+START REPLICA;
 
 # Check that SHOW SLAVE STATUS has Master_bind column set to $source_bind
 let $source_bind_value= query_get_value(SHOW SLAVE STATUS, Master_Bind, 1);
@@ -58,7 +58,7 @@ if ($source_bind_error_expected)
 
   # Reset the source_bind so that cleanup can run
   eval CHANGE REPLICATION SOURCE to SOURCE_BIND='';
-  start slave;
+  START REPLICA;
 
 }
 

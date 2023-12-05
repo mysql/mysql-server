@@ -22,26 +22,23 @@ insert into t3 values(2);
 insert into t3 values(3);
 commit;
 insert into t3 values(4);
-start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 show tables;
 Tables_in_test
 t1
 t2
-start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 n
 1
-start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
+START REPLICA until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 select * from t3;

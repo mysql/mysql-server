@@ -1,7 +1,7 @@
 #
 # BUG#45214
 # The common part of the "rpl_get_master_version_and_clock" test. 
-# Restart slave under network disconnection between slave and master
+# Restart replica under network disconnection between slave and master
 # following the steps:
 #    0 - Set DEBUG_SYNC_ACTION to wait 
 #        before call mysql_real_query(...) function in get_master_version_and_clock(...)
@@ -39,7 +39,7 @@ if (!$debug_sync_action)
     --die Cannot continue. Please set value for debug_sync_action.
 }
 
-# Restart slave
+# Restart replica
 --source include/stop_slave.inc
 
 eval SET @@global.debug= "+d,$dbug_sync_point";

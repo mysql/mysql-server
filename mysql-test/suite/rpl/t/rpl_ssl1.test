@@ -20,7 +20,7 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
-start slave;
+START REPLICA;
 
 #showing that replication don't work
 --let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
@@ -31,7 +31,7 @@ start slave;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_SSL=1 , SOURCE_SSL_CA ='$MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.2';
-start slave;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 
 #avoiding unneeded sleeps
@@ -52,7 +52,7 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0;
-start slave;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 connection master;
 SET SQL_LOG_BIN= 0;
@@ -78,7 +78,7 @@ eval CHANGE REPLICATION SOURCE to
  SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem',
  SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem',
  SOURCE_SSL_VERIFY_SERVER_CERT=1;
-start slave;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 
 connection master;
@@ -112,7 +112,7 @@ drop table t1;
 #
 # We test the following:
 # - The behaviour of ssl_verify_server_cert with RESET SLAVE.
-# - Test that neither of STOP SLAVE or START SLAVE affects the value of
+# - Test that neither of STOP SLAVE or START REPLICA affects the value of
 #   ssl_verify_server_cert.
 # - Test that CHANGE MASTER with no ssl_verify_server_cert option doesnt
 #   affect ssl_verify_server_cert value.
@@ -142,7 +142,7 @@ RESET SLAVE;
 
 --source include/start_slave.inc
 --let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.
+--let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on START REPLICA.
 --source include/assert.inc
 
 --connection master

@@ -127,7 +127,7 @@ COMMIT;
 include/rpl_stop_server.inc [server_number=2]
 [connection slave]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON_PERMISSIVE --enforce-gtid-consistency --log-replica-updates]
-START SLAVE;
+START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates]
 include/start_slave.inc
@@ -142,7 +142,7 @@ DROP DATABASE d2;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 #
-# 4. Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+# 4. Even if gaps exist, using  START REPLICA UNTIL SQL_AFTER_MTS_GAPS will throw
 #    an warning stating that gaps were not calculated.
 # Sourcing extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
 [connection slave]

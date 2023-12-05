@@ -164,7 +164,7 @@ SELECT COUNT(*) FROM t1;
 --exec $NDB_WAITER > /dev/null
 
 #
-# Restart slave (node 2)
+# Restart replica (node 2)
 #
 
 --exec $NDB_MGM -e "2 restart -n"
@@ -187,7 +187,7 @@ SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1;
 
 #
-# Restart slave (node 1) initial
+# Restart replica (node 1) initial
 #
 
 --exec $NDB_MGM -e "1 restart -n -i"

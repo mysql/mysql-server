@@ -44,9 +44,7 @@ INSERT INTO t VALUES(20);
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
 include/stop_slave.inc
 SET GLOBAL sql_replica_skip_counter = 1;
 Warnings:

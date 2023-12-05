@@ -11,7 +11,7 @@ include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 include/start_group_replication.inc
 
-# 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
+# 2. Start replica for channel 'ch3_1' between server1(slave) and server3(master)
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT for channel 'ch3_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

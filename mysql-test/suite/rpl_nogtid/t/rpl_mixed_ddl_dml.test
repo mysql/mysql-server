@@ -38,7 +38,7 @@ create temporary table t4 like t2;
 create table t5 select * from t4;
 save_master_pos;
 connection slave;
-start slave;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
 select * from t2;

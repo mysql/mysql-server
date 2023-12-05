@@ -24,7 +24,7 @@
 SET @save_global_debug=@@GLOBAL.DEBUG;
 # This debug point internally fake that IO thread is started 3 minutes ago.
 SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_fake_rotate_log_event';
-# Start slave threads after enabling the debug point.
+# Start replica threads after enabling the debug point.
 --disable_warnings
 --source include/start_slave.inc
 --enable_warnings

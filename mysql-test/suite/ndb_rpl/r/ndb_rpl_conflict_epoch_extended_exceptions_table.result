@@ -10,9 +10,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=SLAVE_PORT,SOUR
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 MASTER_SERVER_ID: 1
 Setup ndb_replication and exceptions tables
 Populate ndb_replication table as necessary
@@ -224,9 +222,7 @@ x	a	b	c	d	e
 21	8	9	10	Master updated data 8	17
 21	9	10	11	Master updated data 9	17
 21	10	11	12	Master updated data 10	17
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should have been realigned to Primary
 Slave contents
 select * from t1 order by a;

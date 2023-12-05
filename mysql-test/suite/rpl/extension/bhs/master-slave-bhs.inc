@@ -15,7 +15,7 @@ STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 RESET SLAVE;
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
-START SLAVE;
+START REPLICA;
 source include/wait_for_slave_to_start.inc;
 
 # Stop slave and reconnect to blackhole slave
@@ -23,7 +23,7 @@ connection slave;
 STOP SLAVE;
 RESET SLAVE;
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$BHS_MYPORT;
-START SLAVE;
+START REPLICA;
 source include/wait_for_slave_to_start.inc;
 
 --enable_query_log

@@ -42,7 +42,7 @@
 # 11. When data inserted in step 5 is successfully received by slave,
 #     server aborts before it flushes to disk. We wait for slave to
 #     shutdown and after it is down we replace redo log files with files
-#     saved in step 3 and then restart slave.
+#     saved in step 3 and then restart replica.
 # 12. Verify data inserted in step 5 is not there on the slave as slave
 #     was aborted before data was flushed.
 # 13. Start replication on server2 and verify that missing data is now
@@ -249,7 +249,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 --echo # 11. When data inserted in step 5 is successfully received by slave,
 --echo #     server aborts before it flushes to disk. We wait for slave to
 --echo #     shutdown and after it is down we replace redo log files with files
---echo #     saved in step 3 and then restart slave.
+--echo #     saved in step 3 and then restart replica.
 --echo
 
 --source include/rpl_connection_slave.inc

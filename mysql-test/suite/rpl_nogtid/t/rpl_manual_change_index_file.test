@@ -98,7 +98,7 @@ FLUSH LOGS;
 CREATE TABLE t4(c1 INT);
 
 connection slave;
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 source include/wait_for_slave_io_to_start.inc;
 
 connection master;
@@ -141,7 +141,7 @@ move_file $MASTER_DATADIR/master-bin.000001 $MASTER_DATADIR/master-bin.bak;
 connection slave;
 --echo [ on slave ]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000001';
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 --echo # Instead of EE_FILENOTFOUND, ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --echo # and the specific information are sent to slave.
 --let $slave_io_errno= 13114

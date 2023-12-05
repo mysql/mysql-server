@@ -60,5 +60,5 @@ source include/wait_for_slave_sql_to_stop.inc;
 --source include/diff_tables.inc
 
 connection slave;
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 source include/wait_for_slave_sql_to_start.inc;

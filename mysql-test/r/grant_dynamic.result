@@ -1088,14 +1088,14 @@ GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
-START SLAVE;
+START REPLICA;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 STOP SLAVE;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 GRANT REPLICATION_SLAVE_ADMIN ON *.* to u1@localhost;
-START SLAVE;
+START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
-START SLAVE;
+START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
 #
 # Bad privilege- or auth identifiers shouldn't crash the server

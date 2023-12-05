@@ -59,27 +59,27 @@ zlib,zstd,uncompressed
 [connection master]
 ---- master:zlib,zstd,uncompressed slave:default slave_option:0 expected:uncompressed ----
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:default slave_option:1 expected:zlib ----
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:zlib slave_option:0 expected:zlib ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -87,7 +87,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -96,7 +96,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -104,7 +104,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -112,7 +112,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -120,14 +120,14 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -135,7 +135,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -144,7 +144,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -156,9 +156,7 @@ zlib
 ---- master:zlib slave:default slave_option:0 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -166,7 +164,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zlib slave:default slave_option:1 expected:zlib ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -174,7 +172,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -182,9 +180,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -193,9 +189,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -204,7 +198,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -212,7 +206,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -220,7 +214,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -228,9 +222,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -239,7 +231,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -251,9 +243,7 @@ zstd
 ---- master:zstd slave:default slave_option:0 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -261,9 +251,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd slave:default slave_option:1 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -272,9 +260,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -282,7 +268,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd slave:zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -290,7 +276,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -299,9 +285,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -310,9 +294,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -320,7 +302,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd slave:zlib,zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -328,7 +310,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -337,9 +319,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -347,7 +327,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd slave:zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -355,7 +335,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -363,7 +343,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 ---- master:zstd slave:zlib,zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -371,7 +351,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -384,16 +364,14 @@ uncompressed
 ---- master:uncompressed slave:default slave_option:0 expected:uncompressed ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:uncompressed slave:default slave_option:1 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -402,9 +380,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -413,9 +389,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -424,7 +398,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -432,9 +406,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -443,9 +415,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -454,7 +424,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -462,7 +432,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -470,7 +440,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -482,9 +452,7 @@ zlib,zstd
 ---- master:zlib,zstd slave:default slave_option:0 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -492,7 +460,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zlib,zstd slave:default slave_option:1 expected:zlib ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -500,14 +468,14 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd slave:zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -515,7 +483,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -524,9 +492,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -535,7 +501,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -543,7 +509,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -551,14 +517,14 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd slave:zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -566,7 +532,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -575,7 +541,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -587,14 +553,14 @@ zlib,uncompressed
 ---- master:zlib,uncompressed slave:default slave_option:0 expected:uncompressed ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,uncompressed slave:default slave_option:1 expected:zlib ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -602,7 +568,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -610,9 +576,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -621,7 +585,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -629,7 +593,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -637,7 +601,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -645,7 +609,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -653,7 +617,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -661,7 +625,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -673,16 +637,14 @@ zstd,uncompressed
 ---- master:zstd,uncompressed slave:default slave_option:0 expected:uncompressed ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zstd,uncompressed slave:default slave_option:1 expect:error ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -691,9 +653,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -701,7 +661,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd,uncompressed slave:zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -709,7 +669,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -718,7 +678,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -726,9 +686,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 got error
 RESET SLAVE ALL;
 Warnings:
@@ -736,7 +694,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 ---- master:zstd,uncompressed slave:zlib,zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -744,7 +702,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -753,14 +711,14 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zstd,uncompressed slave:zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -768,7 +726,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -776,7 +734,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 ---- master:zstd,uncompressed slave:zlib,zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -784,7 +742,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -797,14 +755,14 @@ zlib,zstd,uncompressed
 ---- master:zlib,zstd,uncompressed slave:default slave_option:0 expected:uncompressed ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:default slave_option:1 expected:zlib ----
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -812,14 +770,14 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:zstd slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -827,7 +785,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -836,7 +794,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [More than 1000000 bytes should be sent uncompressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -844,7 +802,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 1;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -852,7 +810,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -860,14 +818,14 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ---- master:zlib,zstd,uncompressed slave:zstd,uncompressed slave_option:0 expect:zstd level:default ----
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -875,7 +833,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -884,7 +842,7 @@ include/assert.inc [Compression ratio should be better than previous algorithm]
 CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = 'zlib,zstd,uncompressed';
 CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = 22;
 SET @@global.replica_compressed_protocol = 0;
-START SLAVE IO_THREAD
+START REPLICA IO_THREAD
 include/assert.inc [Less than 1000000 bytes should be sent compressed]
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

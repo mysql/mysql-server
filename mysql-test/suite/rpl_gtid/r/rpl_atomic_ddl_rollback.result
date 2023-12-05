@@ -12,9 +12,7 @@ CALL mtr.add_suppression("Replica worker thread has failed to apply an event. As
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=13113]
 include/stop_slave.inc
 include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
@@ -31,9 +29,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=13113]
 include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
 include/stop_slave.inc

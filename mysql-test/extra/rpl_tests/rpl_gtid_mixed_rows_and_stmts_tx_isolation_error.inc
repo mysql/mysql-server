@@ -37,7 +37,7 @@
 #        and will finish with "XA END; XA COMMIT"
 #
 
-# The following START slave is taking place just to put a Warning message
+# The following START replica is taking place just to put a Warning message
 # in the slave's error log. This message will be used by the "assert_grep.inc"
 # to know where to start counting for lines with the expected pattern.
 --source include/rpl_connection_slave.inc
@@ -86,7 +86,7 @@ if ($use_xa)
 # Assert that the error message was logged on slave
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
 # Show entries only after the last occurrence of the following pattern
-# produced by the STOP/START slave in the beginning of this include file
+# produced by the STOP/START replica in the beginning of this include file
 --let $assert_only_after=.* \[Warning\] Storing MySQL user name or password information
 # Each test will log only one error line
 # (one per QUERY mixed with rows events)

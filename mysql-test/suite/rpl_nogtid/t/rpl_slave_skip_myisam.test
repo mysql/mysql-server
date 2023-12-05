@@ -39,7 +39,7 @@ connection slave;
 
 # Stop when reaching the the first table map event.
 --replace_result $master_log_pos MASTER_LOG_POS
-eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
+eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 let $slave_param= Exec_Master_Log_Pos;
 let $slave_param_value= $master_log_pos;
@@ -50,7 +50,7 @@ source include/check_slave_no_error.inc;
 # after that table map event, *one* of the involved tables will be
 # changed.
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
-START SLAVE;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
 
@@ -76,10 +76,10 @@ source include/show_binlog_events.inc;
 
 connection slave;
 --replace_result $master_log_pos MASTER_LOG_POS
-eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
+eval START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
-START SLAVE;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
 

@@ -75,7 +75,7 @@ DROP TABLE t1;
 # Test ndb_log_apply_status option
 
 --connection master
-start slave;
+START REPLICA;
 create table t1 (a int primary key, b int) engine=ndb;
 show variables like '%log_orig%';
 
@@ -114,7 +114,7 @@ select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlo
 --echo 'Master' still has only Slave's serverid entry
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 
-start slave;
+START REPLICA;
 --connection slave 
 --sync_slave_with_master master
 

@@ -60,9 +60,7 @@ SHOW BINLOG EVENTS;
 SET @max_allowed_packet_1= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_2= @@session.max_allowed_packet;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 DROP TABLE t1;
 select @@global.max_allowed_packet;

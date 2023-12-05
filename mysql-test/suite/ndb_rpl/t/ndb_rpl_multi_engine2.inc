@@ -12,7 +12,7 @@ connection master;
 RESET BINARY LOGS AND GTIDS;
 
 connection slave;
-START SLAVE;
+START REPLICA;
 
 --echo --- Populate t1 with data ---
 connection master;

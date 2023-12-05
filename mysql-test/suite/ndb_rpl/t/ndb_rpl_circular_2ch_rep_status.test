@@ -173,7 +173,7 @@ select
     and
     variable_value = epoch;
 
---echo Now start slaves up
+--echo Now start replicas up
 --source include/rpl_start_slaves.inc
 
 --echo Show that applying something from Cluster B causes the

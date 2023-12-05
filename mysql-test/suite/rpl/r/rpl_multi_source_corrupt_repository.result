@@ -70,8 +70,8 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
 include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
-===== START SLAVE without 'FOR CHANNEL' clause.
-START SLAVE;
+===== START REPLICA without 'FOR CHANNEL' clause.
+START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
@@ -276,8 +276,8 @@ Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
 include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
-===== START SLAVE without 'FOR CHANNEL' clause.
-START SLAVE;
+===== START REPLICA without 'FOR CHANNEL' clause.
+START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
@@ -482,8 +482,8 @@ Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 === Assert that all channels IO and SQL threads are in OFF state ===
 include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
-===== START SLAVE without 'FOR CHANNEL' clause.
-START SLAVE;
+===== START REPLICA without 'FOR CHANNEL' clause.
+START REPLICA;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]

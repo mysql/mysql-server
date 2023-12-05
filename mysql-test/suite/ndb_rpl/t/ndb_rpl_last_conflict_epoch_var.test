@@ -18,7 +18,7 @@ echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SLAVE_MYPORT,SOURCE_USER="root"
-START SLAVE;
+START REPLICA;
 let $MASTER_SERVER_ID= `select @@server_id`;
 echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
 
@@ -84,7 +84,7 @@ where Variable_name="Ndb_last_commit_epoch_session";
 show status like 'ndb_conflict_last_conflict_epoch';
 
 --echo Restart Secondary->Primary replication
-start slave;
+START REPLICA;
 
 --connection slave
 --sync_slave_with_master master
@@ -120,7 +120,7 @@ select @conflict_detected_epoch+0 > @max_replicated_epoch+0 as '@conflict_detect
 --echo Now bring it back
 
 --connection slave
-start slave;
+START REPLICA;
 
 --echo Now sync up
 --connection master

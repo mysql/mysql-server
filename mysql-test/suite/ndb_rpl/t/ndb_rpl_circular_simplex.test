@@ -35,7 +35,7 @@ STOP SLAVE;
 --source include/rpl_change_topology.inc
 connection master;
 
-START SLAVE;
+START REPLICA;
 
 connection slave;
 sync_slave_with_master master;
@@ -67,7 +67,7 @@ STOP SLAVE;
 save_master_pos;
 
 connection slave;
-START SLAVE;
+START REPLICA;
 
 # check that we have the data on the slave
 sync_with_master;

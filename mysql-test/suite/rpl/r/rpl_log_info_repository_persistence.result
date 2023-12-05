@@ -16,7 +16,7 @@ FLUSH PRIVILEGES;
 STOP REPLICA FOR CHANNEL "";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
-# Restart slave with TABLE repository to test with privilege_checks_user config.
+# Restart replica with TABLE repository to test with privilege_checks_user config.
 #
 include/rpl_restart_server.inc [server_number=2 parameters: --debug=d,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check that mysql.slave_relay_log_info has 1 entries for 1 channels]
@@ -74,7 +74,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_username_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -89,7 +89,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_hostname_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -103,7 +103,7 @@ UPDATE mysql.slave_relay_log_info SET Privilege_checks_username='replication_app
 COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -115,7 +115,7 @@ UPDATE mysql.slave_relay_log_info SET Privilege_checks_username=NULL, Privilege_
 COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -129,7 +129,7 @@ UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="", Privilege_ch
 COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
@@ -143,7 +143,7 @@ UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_app
 COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
-START SLAVE FOR CHANNEL "ch1";
+START REPLICA FOR CHANNEL "ch1";
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET REPLICA FOR CHANNEL "ch1";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL "ch1";

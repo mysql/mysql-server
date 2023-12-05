@@ -5,9 +5,7 @@ CHANGE MASTER TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, M
 Warnings:
 Warning	1287	'CHANGE MASTER' is deprecated and will be removed in a future release. Please use CHANGE REPLICATION SOURCE instead
 Warning	1287	'MASTER_HOST' is deprecated and will be removed in a future release. Please use SOURCE_HOST instead
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 SET GLOBAL RELAY_LOG_PURGE=ON;
 STOP SLAVE SQL_THREAD;
 Warnings:

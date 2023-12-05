@@ -17,15 +17,15 @@
 #    following commands on the GR channels.
 #  a) CHANGE MASTER command is blocked for other options than
 #     `PRIVILEGE_CHECKS_USER` for group replication applier channel.
-#  b) START SLAVE IO_THREAD is blocked on group_replication_applier
-#  c) START SLAVE IO_THREAD with UNTIL option is blocked on
+#  b) START REPLICA IO_THREAD is blocked on group_replication_applier
+#  c) START REPLICA IO_THREAD with UNTIL option is blocked on
 #     group_replication_applier
 #  d) STOP SLAVE IO_THREAD is blocked on group_replication_applier
-#  r) START SLAVE is blocked on group_replication_applier
+#  r) START REPLICA is blocked on group_replication_applier
 #  f) STOP SLAVE is blocked on group_replication_applier
 #  g) SHOW SLAVE STATUS is blocked on group_replication_applier
-#  h) START SLAVE SQL_THREAD is not allowed on group_replication_applier
-#  i) START SLAVE SQL_THREAD with UNTIL option is not allowed on
+#  h) START REPLICA SQL_THREAD is not allowed on group_replication_applier
+#  i) START REPLICA SQL_THREAD with UNTIL option is not allowed on
 #     group_replication_applier
 #  j) STOP SLAVE SQL_THREAD is not allowed on group_replication_applier
 #  k) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
@@ -33,12 +33,12 @@
 # 2. Stop GR on member i.e. make M1 OFFLINE. Now, check the execution of
 #    following commands on the GR channels.
 #  a) CHM is blocked on group_replication_applier
-#  b) START SLAVE IO_THREAD is blocked on group_replication_applier
+#  b) START REPLICA IO_THREAD is blocked on group_replication_applier
 #  c) STOP SLAVE IO_THREAD is blocked on group_replication_applier
-#  d) START SLAVE is blocked on group_replication_applier
+#  d) START REPLICA is blocked on group_replication_applier
 #  e) STOP SLAVE is blocked on group_replication_applier
 #  f) SHOW SLAVE STATUS is blocked on group_replication_applier
-#  g) START SLAVE SQL_THREAD is allowed on group_replication_applier
+#  g) START REPLICA SQL_THREAD is allowed on group_replication_applier
 #  h) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
 #  i) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
 #
@@ -59,7 +59,7 @@
 #  a) RESET SLAVE is blocked on group_replication_applier
 #  b) RESET SLAVE ALL is blocked on group_replication_applier
 #
-# 8. START SLAVE SQL_THREAD on the channel. Stop GR on M2 (OFFLINE). Then,
+# 8. START REPLICA SQL_THREAD on the channel. Stop GR on M2 (OFFLINE). Then,
 #  a) RESET SLAVE ALL is allowed on group_replication_applier
 #  b) RESET SLAVE - check that channel doesn't exists
 ################################################################################
@@ -87,9 +87,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "grou
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
 
 --echo
---echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
+--echo # error when executing START REPLICA IO_THREAD FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+START REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE IO_THREAD FOR CHANNEL
@@ -97,14 +97,14 @@ START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # error when executing START SLAVE IO_THREAD FOR CHANNEL with UNTIL option
+--echo # error when executing START REPLICA IO_THREAD FOR CHANNEL with UNTIL option
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
+START REPLICA IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # error when executing START SLAVE FOR CHANNEL
+--echo # error when executing START REPLICA FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE FOR CHANNEL 'group_replication_applier';
+START REPLICA FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE FOR CHANNEL
@@ -117,7 +117,7 @@ STOP SLAVE FOR CHANNEL 'group_replication_applier';
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # START SLAVE SQL_THREAD command will not work for group_replication_applier
+--echo # START REPLICA SQL_THREAD command will not work for group_replication_applier
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
@@ -126,13 +126,13 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
---echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
+--echo # START REPLICA SQL_THREAD with UNTIL option will not work for group_replication_applier
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
+START REPLICA SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
 
---echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
+--echo # START REPLICA SQL_THREAD with UNTIL option will not work for group_replication_applier
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
+START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # SHOW RELAYLOG EVENTS for channel will work for all channels
@@ -171,9 +171,9 @@ DROP USER gr_applier_slave_user;
 SET SESSION sql_log_bin= 1;
 
 --echo
---echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
+--echo # error when executing START REPLICA IO_THREAD FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+START REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE IO_THREAD FOR CHANNEL
@@ -181,9 +181,9 @@ START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # error when executing START SLAVE FOR CHANNEL
+--echo # error when executing START REPLICA FOR CHANNEL
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE FOR CHANNEL 'group_replication_applier';
+START REPLICA FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE FOR CHANNEL
@@ -196,7 +196,7 @@ STOP SLAVE FOR CHANNEL 'group_replication_applier';
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
---echo # START SLAVE SQL_THREAD command will work for group_replication_applier
+--echo # START REPLICA SQL_THREAD command will work for group_replication_applier
 --source include/gr_start_applier_sql_thread.inc
 
 --echo

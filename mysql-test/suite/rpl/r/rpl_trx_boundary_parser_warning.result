@@ -52,9 +52,7 @@ master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 master-bin.000001	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 [connection slave]
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 # This is the event #3 of current slave relay log file
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

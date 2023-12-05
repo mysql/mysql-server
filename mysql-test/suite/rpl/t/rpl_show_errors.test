@@ -76,7 +76,7 @@ source include/wait_for_slave_param.inc;
 -- source include/stop_slave.inc
 -- replace_result $SLAVE_MYPORT SLAVE_PORT
 -- eval CHANGE REPLICATION SOURCE to SOURCE_PORT=$SLAVE_MYPORT
-START SLAVE;
+START REPLICA;
 
 -- let $slave_param= Last_IO_Errno
 -- let $slave_param_value= 13117

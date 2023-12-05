@@ -145,14 +145,14 @@ if ($rpl_corrupt_channel_name != "''")
 --source include/assert.inc
 
 ################################################################################
-# Step-3.2: START SLAVE should be able to bring all the *good* channels's IO and SQL
-# thread up except the corrupted channel. START SLAVE should throw error
+# Step-3.2: START REPLICA should be able to bring all the *good* channels's IO and SQL
+# thread up except the corrupted channel. START REPLICA should throw error
 # ER_REPLICA_AM_INIT_REPOSITORY because it is unable to bring up corrupted
 # channel's IO and SQL thread.
 ################################################################################
---echo ===== START SLAVE without 'FOR CHANNEL' clause.
+--echo ===== START REPLICA without 'FOR CHANNEL' clause.
 --error ER_REPLICA_AM_INIT_REPOSITORY
-START SLAVE;
+START REPLICA;
 
 --echo === Assert that all channels IO and SQL threads are in expected state ===
 --let $assert_text= Corrupted channel's IO thread should be in OFF state.

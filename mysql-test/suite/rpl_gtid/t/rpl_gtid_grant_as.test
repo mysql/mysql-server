@@ -91,7 +91,7 @@ while ($user_number <= 7) {
   --inc $user_number
 }
 
-# 1.5 Stop slave -> drop users -> apply binary log -> start slave -> verify
+# 1.5 Stop slave -> drop users -> apply binary log -> start replica -> verify
 --let $rpl_connection_name = slave
 --source include/rpl_connection.inc
 --source include/stop_slave.inc
@@ -192,7 +192,7 @@ while ($user_number <= 7) {
 }
 
 
-# 2.5 Stop slave -> drop users -> apply binary log -> start slave -> verify
+# 2.5 Stop slave -> drop users -> apply binary log -> start replica -> verify
 --let $rpl_connection_name = slave
 --source include/rpl_connection.inc
 --source include/stop_slave.inc

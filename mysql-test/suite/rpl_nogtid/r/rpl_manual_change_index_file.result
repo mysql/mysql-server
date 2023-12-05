@@ -16,9 +16,7 @@ FLUSH LOGS;
 CREATE TABLE t3(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t4(c1 INT);
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_to_start.inc
 include/sync_slave_sql_with_master.inc
 SHOW TABLES;
@@ -53,9 +51,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000001';
 Warnings:
 Warning	3023	CHANGE REPLICATION SOURCE TO with a SOURCE_LOG_FILE clause but no SOURCE_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 # Instead of EE_FILENOTFOUND, ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 # and the specific information are sent to slave.
 include/wait_for_slave_io_error.inc [errno=13114]

@@ -51,9 +51,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
@@ -72,9 +70,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
 reset slave;
@@ -98,7 +94,7 @@ include/stop_slave.inc
 reset slave all;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-start slave;
+START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT;
 Warnings:
@@ -116,9 +112,7 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 # Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
 include/rpl_reset_slave.inc
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]
 # Check the user is still empty
 include/assert.inc [User_name in slave_master_info is empty]

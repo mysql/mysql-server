@@ -42,7 +42,7 @@ CREATE TABLE t1 (a int);
 --source include/wait_for_slave_sql_error.inc
 
 # Slave should not be able to start the SQL thread
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
 --source include/wait_for_slave_sql_error.inc
 

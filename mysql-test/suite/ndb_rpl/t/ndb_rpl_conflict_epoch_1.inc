@@ -196,7 +196,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart secondary Masters slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -241,8 +241,8 @@ select * from test.t1 order by a;
 
 select * from test.t1 order by a;
 
---echo -- Now restart slave, will re-align row
-start slave;
+--echo -- Now restart replica, will re-align row
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -285,7 +285,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart Secondary Master slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -325,7 +325,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart Secondary Master slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -365,7 +365,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart Secondary Master slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -419,10 +419,10 @@ delete from test.t1 where a=3;
 insert into test.t1 values (3, "Dalriada");
 
 --echo -- Restart replication in both directions
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
@@ -487,7 +487,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart Secondary Master's slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -529,7 +529,7 @@ select * from test.t1 order by a;
 select * from test.t1 order by a;
 
 --echo -- Restart Secondary Master slave
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc

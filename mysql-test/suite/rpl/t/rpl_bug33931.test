@@ -29,7 +29,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',
                       SOURCE_PORT=$MASTER_MYPORT;
 --enable_query_log
 
-start slave;
+START REPLICA;
 
 #
 # slave is going to stop because of emulated failures

@@ -82,7 +82,7 @@
   --reap
 
   # 6) Check that the slave stopped and re-start it.
-  START SLAVE;
+  START REPLICA;
 
   --source include/rpl_connection_slave.inc
   SET DEBUG = "-d,stop_replica_dont_release_backup_lock";

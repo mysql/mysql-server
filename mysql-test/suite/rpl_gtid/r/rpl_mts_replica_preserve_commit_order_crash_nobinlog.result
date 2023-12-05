@@ -134,7 +134,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # 11. When data inserted in step 5 is successfully received by slave,
 #     server aborts before it flushes to disk. We wait for slave to
 #     shutdown and after it is down we replace redo log files with files
-#     saved in step 3 and then restart slave.
+#     saved in step 3 and then restart replica.
 
 [connection slave]
 include/rpl_reconnect.inc

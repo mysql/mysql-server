@@ -27,7 +27,7 @@ let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 RESET BINARY LOGS AND GTIDS;
 STOP SLAVE;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_PORT,SOURCE_USER="root"
-START SLAVE;
+START REPLICA;
 select @primary_server_id:=(variable_value+0)
        from performance_schema.global_variables
        where variable_name like 'server_id';
@@ -39,7 +39,7 @@ let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_PORT,SOURCE_USER="root"
-START SLAVE;
+START REPLICA;
 
 --enable_result_log
 --enable_query_log
@@ -134,7 +134,7 @@ select * from t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -175,7 +175,7 @@ select * from test.t1 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -219,7 +219,7 @@ select * from test.t1 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -269,7 +269,7 @@ select * from test.t2 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
@@ -313,7 +313,7 @@ select * from t1 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -369,7 +369,7 @@ select * from test.t1 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -512,7 +512,7 @@ select * from test.balances order by name;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Bank sites re-connected
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
@@ -665,7 +665,7 @@ select * from test.t4 order by a;
 
 --echo Now restart rep to Secondary, and check realignment
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
@@ -715,7 +715,7 @@ select * from test.t4 order by a;
 
 --echo Show effect of transaction on Secondary
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
@@ -769,12 +769,12 @@ select left(b,1), length(b) from test.t5 order by a;
 --echo Restart Primary Slave
 set global sql_replica_skip_counter=1;
 
-START SLAVE;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Restart Secondary Slave
-START SLAVE;
+START REPLICA;
 
 flush logs;
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
@@ -991,7 +991,7 @@ if ($HAVE_EPOCH2)
 
 --echo Now sync with Secondary to show outcomes
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
@@ -1284,7 +1284,7 @@ if ($HAVE_EPOCH2)
 
 --echo Restart SECONDARY Slave
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-START SLAVE;
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 

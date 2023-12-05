@@ -12,9 +12,7 @@ drop table t1;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-start slave io_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA io_thread;
 include/wait_for_slave_param.inc [Slave_IO_State]
 include/stop_slave_io.inc
 reset slave;

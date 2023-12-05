@@ -77,7 +77,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --let $show_slave_sql_error= 0
 --let $slave_sql_error_replace= / at [0-9]*/ at XXX/
 
-START SLAVE FOR CHANNEL 'ch3_1';
+START REPLICA FOR CHANNEL 'ch3_1';
 --source include/wait_for_slave_io_error.inc
 --source include/wait_for_slave_sql_error.inc
 
@@ -89,13 +89,13 @@ START SLAVE FOR CHANNEL 'ch3_1';
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_select = Can't start IO THREAD for channel 'ch3_1' when group replication is running a group configuration operation
---let $assert_text = Found the expected error about failure to start slave IO THREAD.
+--let $assert_text = Found the expected error about failure to start replica IO THREAD.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_select = Can't start SQL THREAD for channel 'ch3_1' when group replication is running a group configuration operation
---let $assert_text = Found the expected error about failure to start slave SQL THREAD.
+--let $assert_text = Found the expected error about failure to start replica SQL THREAD.
 --source include/assert_grep.inc
 
 --echo

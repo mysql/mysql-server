@@ -1,6 +1,6 @@
 ################################################################################
 # This test intends to prove that group replication channels are not affected
-# by START SLAVE and STOP SLAVE commands.
+# by START REPLICA and STOP SLAVE commands.
 #
 # Test:
 # 0) The test requires three servers: M1 and M2.
@@ -9,7 +9,7 @@
 #    channel and group_replication_applier channel are present on M1.
 # 3) With a running slave channel and group replication active do a STOP SLAVE.
 #    The slave channel should stop but the group replication channel shouldn't.
-# 4) With a stopped slave channel and group replication off do a START SLAVE.
+# 4) With a stopped slave channel and group replication off do a START REPLICA.
 #    The slave channel should start but the group replication channel shouldn't.
 # 5) Restart the server with no automatic plugin start.
 #    The slave channel should start but the group replication channel shouldn't.
@@ -72,7 +72,7 @@
 --source include/assert.inc
 
 #
-# Phase 4: After being stopped, check that after a START SLAVE the plugin channel is still OFF
+# Phase 4: After being stopped, check that after a START REPLICA the plugin channel is still OFF
 #
 
 --source include/stop_group_replication.inc

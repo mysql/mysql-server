@@ -444,7 +444,7 @@ CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
 c CHAR(5), e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -479,7 +479,7 @@ CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -514,7 +514,7 @@ CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -559,7 +559,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -633,7 +633,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -683,7 +683,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Create Index and Data Insert ***
@@ -731,7 +731,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -789,7 +789,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -846,7 +846,7 @@ c6 LONG,
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1331,7 +1331,7 @@ CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
 c CHAR(5), e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1366,7 +1366,7 @@ CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1401,7 +1401,7 @@ CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1446,7 +1446,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1520,7 +1520,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1570,7 +1570,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Create Index and Data Insert ***
@@ -1618,7 +1618,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1676,7 +1676,7 @@ c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***
@@ -1733,7 +1733,7 @@ c6 LONG,
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='NDB';
 
-*** Start Slave ***
+*** Start Replica ***
 include/rpl_reset.inc
 
 *** Master Data Insert ***

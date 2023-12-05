@@ -36,7 +36,7 @@ eval CHANGE REPLICATION SOURCE to
   SOURCE_SSL_CA ='$MYSQL_TEST_DIR/std_data/cacert.pem',
   SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem',
   SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem';
-start slave;
+START REPLICA;
 
 # Switch to master and insert one record, then sync it to slave
 connection master;
@@ -67,7 +67,7 @@ disable_testcase BUG#32756;
 let $i= 100;
 while ($i)
 {
-  start slave;
+  START REPLICA;
   connection master;
   insert into t1 values (NULL);
   select * from t1; # Some variance
@@ -77,7 +77,7 @@ while ($i)
   dec $i;
 }
 enable_testcase;
-START SLAVE;
+START REPLICA;
 enable_query_log;
 enable_result_log;
 connection master;

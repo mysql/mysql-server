@@ -44,9 +44,7 @@ SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave io_thread;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA io_thread;
 include/wait_for_slave_param.inc [Last_IO_Errno]
 
 # Extract the error related fields from SSS and PS table and compare

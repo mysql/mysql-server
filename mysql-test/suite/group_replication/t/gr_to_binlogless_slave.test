@@ -15,9 +15,9 @@
 # 0. The test requires three servers: M1, M2 and M3.
 # 1. Bootstrap start a group on M1. Start GR on M2 and add some data.
 # 2. Connect the third server to one of the member of the group, establishing
-#    an asynchronous replication connection (M1->M3). Start slave on M3.
+#    an asynchronous replication connection (M1->M3). Start replica on M3.
 # 3. On the slave (M3), test that the data is properly replicated after the
-#    start slave is completed. Diff check the table on M1 and M3.
+#    start replica is completed. Diff check the table on M1 and M3.
 # 4. Verify if the available backup (binlog file) can be later restored
 #    successfully on a binlogless-server.
 # 5. Verify if binlogless-server cannot be added to the GR group
@@ -66,7 +66,7 @@ SET SESSION sql_log_bin=1;
 --source include/sync_slave_sql_with_master.inc
 
 --echo # On the slave (server3), test that the data is properly replicated
---echo # after the start slave is complete.
+--echo # after the start replica is complete.
 --let $diff_tables= server1:test.t1, server3:test.t1
 --source include/diff_tables.inc
 

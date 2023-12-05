@@ -121,7 +121,7 @@ PROCEDURE
 
   if ($stop_slave_thread != '')
   {
-    --eval START SLAVE $stop_slave_thread
+    --eval START REPLICA $stop_slave_thread
   }
 #END OF
 PROCEDURE

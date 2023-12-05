@@ -33,7 +33,7 @@ CHANGE REPLICATION SOURCE TO
   SOURCE_RETRY_COUNT= 0;
 
 #
-# Start slave with new replication account - this should trigger connection
+# Start replica with new replication account - this should trigger connection
 # to the master server.
 #
 --source include/start_slave.inc

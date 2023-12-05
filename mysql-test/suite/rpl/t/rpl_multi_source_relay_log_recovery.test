@@ -15,7 +15,7 @@
 # 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot be executed
 # when the slave was stopped with an error or killed in MTS mode; consider
 # using RESET SLAVE or restart the server with --relay-log-recovery = 0
-# followed by START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+# followed by START REPLICA UNTIL SQL_AFTER_MTS_GAPS.
 #
 # i.e relay-log-recovery will not work in MTS mode.
 ###############################################################################
@@ -52,7 +52,7 @@
 SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
 
---echo #start slave
+--echo #start replica
 --source include/rpl_start_slaves.inc
 
 --echo #
@@ -83,7 +83,7 @@ CALL mtr.add_suppression("Recovery from source pos");
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-START SLAVE;
+START REPLICA;
 
 
 #

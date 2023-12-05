@@ -11,7 +11,7 @@
 # R1: Verify that execution gaps on the relay log when using the multi threaded
 #     applier don't affect replica restarts when --relay-log-recovery=ON or OFF
 #
-# R2: Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+# R2: Even if gaps exist, using  START REPLICA UNTIL SQL_AFTER_MTS_GAPS will throw
 #     an warning stating that gaps were not calculated.
 #
 # === Implementation ====
@@ -23,7 +23,7 @@
 #    and relay log recovery is used
 # 3. Check the replica can't start after a restart that leaves gaps on the relay log
 #    if GTID_MODE != ON even with relay log recovery
-# 4. Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+# 4. Even if gaps exist, using  START REPLICA UNTIL SQL_AFTER_MTS_GAPS will throw
 #    an warning stating that gaps were not calculated.
 # 5. Cleanup
 #
@@ -125,7 +125,7 @@ END_OF_PROCEDURE
 --source $restart_server_with_gaps_file
 
 --error ER_REPLICA_AM_INIT_REPOSITORY
-START SLAVE;
+START REPLICA;
 
 --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates
 --source include/rpl_restart_server.inc
@@ -134,7 +134,7 @@ START SLAVE;
 --source $sync_check_clean_file
 
 --echo #
---echo # 4. Even if gaps exist, using  START SLAVE UNTIL SQL_AFTER_MTS_GAPS will throw
+--echo # 4. Even if gaps exist, using  START REPLICA UNTIL SQL_AFTER_MTS_GAPS will throw
 --echo #    an warning stating that gaps were not calculated.
 
 --let $relay_log_recovery_param = 0

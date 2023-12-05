@@ -55,7 +55,7 @@ while ($case < 2)
   --let $ignore_gtids_on_sync=1
   --source include/sync_slave_io_with_master.inc
   # Start reading from the relay log file
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   # Wait until all workload was read and applied
   --let $ignore_gtids_on_sync=1
   --source include/sync_slave_sql_with_io.inc

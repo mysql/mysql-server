@@ -67,7 +67,7 @@ CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change
 --source include/rpl_set_gtid_mode.inc
 
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 # Replica will complain about having different gtid value on source.
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
@@ -140,7 +140,7 @@ eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
 --source include/assert_grep.inc
 
 --error ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON
-START SLAVE;
+START REPLICA;
 
 # Set the gtid_mode=ON
 --let $rpl_gtid_mode= ON
@@ -223,7 +223,7 @@ INSERT INTO t VALUES(12);
 --source include/stop_slave.inc
 
 --error ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID
-START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
+START REPLICA UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
 
 --echo  TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
 

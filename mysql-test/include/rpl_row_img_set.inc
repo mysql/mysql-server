@@ -9,7 +9,7 @@
 #
 #   conid   -- connection id (eg, master)
 #   value   -- binlog_row_image value to set (eg, FULL)
-#   Y_or_N  -- Issue stop and start slave (eg, Y) 
+#   Y_or_N  -- Issue stop and start replica (eg, Y) 
 # 
 # Sample usage:
 #
@@ -33,7 +33,7 @@ while (`SELECT HEX('$row_img_set') != HEX('')`)
 
   -- let $is_slave_restart= `SELECT LTRIM(SUBSTRING('$tuple', LENGTH('$conn') + LENGTH('$rimg')+ 3))`
 
-  -- echo CON: '$conn', IMG: '$rimg', RESTART SLAVE: '$is_slave_restart'
+  -- echo CON: '$conn', IMG: '$rimg', RESTART REPLICA: '$is_slave_restart'
 
   -- connection $conn
   -- eval SET SESSION binlog_row_image= '$rimg'

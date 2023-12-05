@@ -273,7 +273,7 @@ while ($point < 13)
 --let $binlog_start =
 
 --echo # Part 3
-# Start slave threads so it can sync with master
+# Start replica threads so it can sync with master
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc

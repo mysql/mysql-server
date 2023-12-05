@@ -18,7 +18,7 @@ echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SLAVE_MYPORT,SOURCE_USER="root"
-START SLAVE;
+START REPLICA;
 let $MASTER_SERVER_ID= `select @@server_id`;
 echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
 
@@ -257,7 +257,7 @@ select * from t1 order by a;
 select * from t2 order by a;
 
 --connection slave
-start slave;
+START REPLICA;
 
 --connection master
 

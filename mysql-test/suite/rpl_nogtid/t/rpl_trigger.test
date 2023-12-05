@@ -344,7 +344,7 @@ let $binlog_version= query_get_value(SHOW BINLOG EVENTS, Info, 1);
 
 connection slave;
 RESET SLAVE;
-START SLAVE;
+START REPLICA;
 
 SELECT SOURCE_POS_WAIT('master-bin.000001', 513) >= 0;
 
@@ -371,10 +371,10 @@ SHOW TRIGGERS;
 
 RESET BINARY LOGS AND GTIDS;
 
-# Restart slave.
+# Restart replica.
 
 connection slave;
-START SLAVE;
+START REPLICA;
 
 
 #

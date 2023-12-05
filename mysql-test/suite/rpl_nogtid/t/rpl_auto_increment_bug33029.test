@@ -38,7 +38,7 @@ SET @old_relay_log_purge= @@global.relay_log_purge;
 --source include/setup_fake_relay_log.inc
 
 --echo ==== Test ====
-start slave sql_thread;
+START REPLICA sql_thread;
 --let $slave_param= Exec_Master_Log_Pos
 --let $slave_param_value= 3776
 --source include/wait_for_slave_param.inc

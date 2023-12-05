@@ -51,7 +51,7 @@ DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 4;
 DELETE FROM t1 WHERE a = 5;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -100,7 +100,7 @@ BEGIN;
 DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 4;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -149,7 +149,7 @@ BEGIN;
 DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 5;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -196,7 +196,7 @@ include/assert.inc [Verify table t1 has 3 values]
 BEGIN;
 DELETE FROM t1 WHERE a = 3;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -246,7 +246,7 @@ DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 4;
 DELETE FROM t1 WHERE a = 5;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -294,7 +294,7 @@ BEGIN;
 DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 4;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -342,7 +342,7 @@ BEGIN;
 DELETE FROM t1 WHERE a = 3;
 DELETE FROM t1 WHERE a = 5;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]
@@ -388,7 +388,7 @@ include/assert.inc [Verify table t1 has 3 values]
 BEGIN;
 DELETE FROM t1 WHERE a = 3;
 COMMIT;
-# Start slave sql thread
+# Start replica sql thread
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 [connection master]

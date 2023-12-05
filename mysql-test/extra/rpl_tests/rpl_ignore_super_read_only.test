@@ -11,12 +11,12 @@
 # 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
 # 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
 # 8) Execute 'RESET SLAVE' command
-# 9) Execute 'START SLAVE' command
+# 9) Execute 'START REPLICA' command
 # 10) Execute 'RESET BINARY LOGS AND GTIDS' command (with GTID_MODE=ON will assert)
 # 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
 # 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''
 # command
-# 13) Restart Slave and verify that slave_master_info table is updated during
+# 13) Restart Replica and verify that slave_master_info table is updated during
 #     shutdown.
 # 14) Check that replication works fine
 # 15) Restore GLOBAL super_read_only to 0
@@ -76,7 +76,7 @@ RESET SLAVE ALL FOR CHANNEL 'aaa';
 RESET SLAVE;
 
 --echo ####################################################################
---echo # Test Case5: START SLAVE command
+--echo # Test Case5: START REPLICA command
 --echo ####################################################################
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
@@ -122,7 +122,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo # Test Case9: Server Restart
 --echo ####################################################################
 
-# Restart Slave and verify that slave_master_info table is updated during shutdown.
+# Restart Replica and verify that slave_master_info table is updated during shutdown.
 --let $io_pos_before_restart = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
 --let $rpl_server_number = 2
 --source include/rpl_restart_server.inc
@@ -133,7 +133,7 @@ RESET BINARY LOGS AND GTIDS;
 --let $assert_cond= $io_pos_before_restart = $io_pos_after_restart
 --source include/assert.inc
 
-# Restart slave threads
+# Restart replica threads
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc

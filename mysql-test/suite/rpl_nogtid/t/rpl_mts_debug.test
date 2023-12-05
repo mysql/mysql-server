@@ -93,7 +93,7 @@ set @save.debug= @@global.debug;
 SET @@global.debug= "+d,mta_worker_thread_fails";
 set @@global.replica_parallel_workers= 2;
 
-start slave sql_thread;
+START REPLICA sql_thread;
 --let $slave_sql_errno= 13117
 source include/wait_for_slave_sql_error.inc;
 
@@ -161,7 +161,7 @@ SET @@global.replica_checkpoint_group=524281;
 --source include/stop_slave.inc
 --let $saved_debug=`SELECT @global.debug`
 SET @@global.debug= "+d,inject_init_worker_init_info_fault";
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 SET @@global.debug= @save.debug;
@@ -182,7 +182,7 @@ set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 ## Rpl_info_factory::reset_workers() error branch
 
 call mtr.add_suppression("Could not delete from Replica Workers info repository.");
-# restart slave with workers
+# restart replica with workers
 --source include/stop_slave.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 2;
@@ -201,7 +201,7 @@ eval CHANGE REPLICATION SOURCE to relay_log_file='$relay_file', relay_log_pos=$r
 
 set @@global.debug= "-d,mta_debug_reset_workers_fails";
 set @@global.debug= "+d,mta_debug_recovery_reset_fails";
-start slave sql_thread;
+START REPLICA sql_thread;
 # ER_REPLICA_FATAL_ERROR
 --let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
@@ -220,7 +220,7 @@ call mtr.add_suppression("Error creating applier metadata: Failed to create the 
 
 set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 --error ER_CONNECTION_METADATA
-start slave sql_thread;
+START REPLICA sql_thread;
 
 #
 # clean up

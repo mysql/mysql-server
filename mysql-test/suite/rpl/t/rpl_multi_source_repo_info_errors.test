@@ -29,14 +29,14 @@ RESET SLAVE ALL;
 --enable_warnings
 
 --echo #
---echo # RESTART SLAVE SERVER
+--echo # RESTART REPLICA SERVER
 --echo #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=4 --relay-log-purge=0
 --source include/rpl_restart_server.inc
 
 # This command earlier failed with error ER_CONNECTION_METADATA and the server would
-# crash when start slave was issued in the later stages.
+# crash when start replica was issued in the later stages.
 #
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -61,12 +61,12 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 --enable_warnings
 
 # Lets start the slave (and as such, assert that the
-# START SLAVE command is not failing any more).
+# START REPLICA command is not failing any more).
 #
 # (There are two channels connected to the same server
 # though, which may render the slave unable to connect,
 # thence not using --source include/start_slave.inc )
-START SLAVE;
+START REPLICA;
 
 # clean up
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
@@ -112,16 +112,16 @@ SET @@global.replica_parallel_workers=5;
 
 # make sure that the IO thread related part for the
 # existing channel is indeed started (on slow systems
-# START SLAVE is asynchronous and thus the server
+# START REPLICA is asynchronous and thus the server
 # could shutdown without having the structures initialized).
 --source include/start_slave.inc
 
---echo === RESTART SLAVE SERVER ===
+--echo === RESTART REPLICA SERVER ===
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=5
 --source include/rpl_restart_server.inc
 --source include/rpl_connection_slave.inc
-START SLAVE;
+START REPLICA;
 
 # clean up
 --source include/stop_slave.inc

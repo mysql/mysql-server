@@ -17,7 +17,7 @@
 --let $rpl_skip_start_slave=1;
 --source include/master-slave.inc
 
-# set replica_net_timeout to 10 seconds and then start slave threads
+# set replica_net_timeout to 10 seconds and then start replica threads
 --connection slave
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=5;
 SET @save_old_replica_net_timeout=@@global.replica_net_timeout;
@@ -51,7 +51,7 @@ INSERT INTO t1 VALUES (1);
 --connection master
 DROP TABLE t1;
 
-# Start slave thread
+# Start replica thread
 --connection slave
 --source include/start_slave.inc
 

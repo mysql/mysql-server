@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # This test case verify if a server will throw the proper error when
-# trying to configure it as a slave and start slave's threads when it's
+# trying to configure it as a slave and start replica's threads when it's
 # server-id is 0.
 #
 # The "Part One" of the test case will have a slave started with
@@ -52,9 +52,9 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 --source include/stop_slave.inc
 SET @@GLOBAL.server_id= 0;
 
-# Start slave should fail
+# Start replica should fail
 --error ER_BAD_REPLICA
-START SLAVE;
+START REPLICA;
 
 # Assert that the reason of the failure was the server_id=0
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -66,16 +66,16 @@ START SLAVE;
 # Change master still works
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
-# Start slave for channel should fail
+# Start replica for channel should fail
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-START SLAVE FOR CHANNEL 'any_channel';
+START REPLICA FOR CHANNEL 'any_channel';
 
 # Change master still works and will create the channel
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4, SOURCE_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
 
-# Start slave for channel should fail
+# Start replica for channel should fail
 --error ER_BAD_REPLICA
-START SLAVE FOR CHANNEL 'any_channel';
+START REPLICA FOR CHANNEL 'any_channel';
 
 # Assert that the reason of the failure was the server_id=0
 --let $assert_text= Slave for channel didn't started because of server_id=0
@@ -89,7 +89,7 @@ RESET SLAVE ALL FOR CHANNEL 'any_channel';
 # Remove the t1 table on slave to allow it to be replicated again
 DROP TABLE t1;
 
-# Restore slave's server_id and start slave again
+# Restore slave's server_id and start replica again
 --eval SET @@GLOBAL.server_id= $original_slave_server_id
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
@@ -110,17 +110,17 @@ DROP TABLE t1;
 --let $assert_cond= [ SELECT @@GLOBAL.server_id = 0 ]
 --source include/assert.inc
 
-# Start slave should fail as not configured
+# Start replica should fail as not configured
 --error ER_REPLICA_CONFIGURATION
-START SLAVE;
+START REPLICA;
 
 # Change master should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
-# Start slave for channel should fail as not configured
+# Start replica for channel should fail as not configured
 --error ER_REPLICA_CONFIGURATION
-START SLAVE FOR CHANNEL 'any_channel';
+START REPLICA FOR CHANNEL 'any_channel';
 
 # Change master for channel should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
@@ -129,17 +129,17 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 # Set original slave's server_id into @@GLOBAL.server_id
 --eval SET @@GLOBAL.server_id= $original_slave_server_id
 
-# Start slave should still fail as not configured
+# Start replica should still fail as not configured
 --error ER_REPLICA_CONFIGURATION
-START SLAVE;
+START REPLICA;
 
 # Change master should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
-# Start slave for channel should still fail as not configured
+# Start replica for channel should still fail as not configured
 --error ER_REPLICA_CONFIGURATION
-START SLAVE FOR CHANNEL 'any_channel';
+START REPLICA FOR CHANNEL 'any_channel';
 
 # Change master for channel should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION

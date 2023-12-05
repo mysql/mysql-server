@@ -90,9 +90,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET @@global.replica_parallel_workers=1;
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 create database d1;
 create table d1.t1(a int);
 insert into d1.t1 values(1);

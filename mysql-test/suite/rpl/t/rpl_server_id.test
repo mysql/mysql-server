@@ -14,7 +14,7 @@
 --source include/rpl_init.inc
 
 --connection server_2
-START SLAVE;
+START REPLICA;
 # 13117 = ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1

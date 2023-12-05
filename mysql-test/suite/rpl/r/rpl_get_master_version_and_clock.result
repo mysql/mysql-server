@@ -47,9 +47,7 @@ include/wait_for_slave_param.inc [Slave_IO_Running]
 reset binary logs and gtids;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 *** must be having the replicate-same-server-id IO thread error ***
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on replica but this does not always make sense; please check the manual before using it).'

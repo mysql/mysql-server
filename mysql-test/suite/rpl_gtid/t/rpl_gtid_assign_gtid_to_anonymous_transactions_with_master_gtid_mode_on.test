@@ -118,7 +118,7 @@ INSERT INTO t VALUES(20);
 --source include/sync_slave_io_with_master.inc
 
 --replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
---eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position
+--eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position
 --source include/stop_slave.inc
 
 SET GLOBAL sql_replica_skip_counter = 1;

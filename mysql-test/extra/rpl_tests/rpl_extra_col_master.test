@@ -464,10 +464,10 @@ eval CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
                       c CHAR(5), e INT DEFAULT '1')ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -518,10 +518,10 @@ eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -571,10 +571,10 @@ eval CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -624,10 +624,10 @@ eval CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -698,7 +698,7 @@ connection slave;
 # Execute RESET REPLICA before calling rpl_reset.inc
 # To avoid failure in MTS and rpl-priv_checks_user runs
 RESET REPLICA;
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -723,10 +723,10 @@ eval CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -761,7 +761,7 @@ DROP TABLE t15;
 
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -786,10 +786,10 @@ eval CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -837,7 +837,7 @@ DROP TABLE t16;
 
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -862,10 +862,10 @@ eval CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -928,10 +928,10 @@ eval CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -991,10 +991,10 @@ eval CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       )ENGINE=$engine_type;
 
 --echo
---echo *** Start Slave ***
+--echo *** Start Replica ***
 connection slave;
 
-# reset binary logs and gtids and slave and start slave
+# reset binary logs and gtids and slave and start replica
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 

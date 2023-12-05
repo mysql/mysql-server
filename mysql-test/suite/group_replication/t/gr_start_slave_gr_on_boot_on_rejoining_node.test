@@ -7,7 +7,7 @@
 ##    M1 and M2 are connected through GR.
 ##    M1 connects with M3 through asynchronous replication.
 ## 1. Start GR on server1 & 2
-## 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
+## 2. Start replica for channel 'ch3_1' between server1(slave) and server3(master)
 ## 3. Add some data to server3 & server2
 ## 4. Verify servers are in sync and data is replicated to server1
 ## 5. Restart server1 with group replication start on boot
@@ -46,7 +46,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/start_group_replication.inc
 
 --echo
---echo # 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
+--echo # 2. Start replica for channel 'ch3_1' between server1(slave) and server3(master)
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 

@@ -37,7 +37,7 @@ include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
 #    replica threads and fails with with
 #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF error.
 #
-START SLAVE;
+START REPLICA;
 ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON.
 #
 # 6. Clean up.

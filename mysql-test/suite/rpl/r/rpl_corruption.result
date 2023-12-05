@@ -20,29 +20,21 @@ include/stop_slave.inc
 SHOW BINLOG EVENTS;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Error reading Log_event at position #: Failed decoding event: Event crc check failed! Most likely there is event corruption.
 # 3. Master read a corrupted event from binlog and send the error to slave
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13114]
 # 4. Master read a corrupted event from binlog and send it to slave
 SET GLOBAL source_verify_checksum=0;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13122,13115]
 # Removing debug point 'corrupt_read_log_event' from @@GLOBAL.debug
 SET GLOBAL source_verify_checksum=1;
 # 5. Slave. Corruption in network
 # Adding debug point 'corrupt_queue_event' to @@GLOBAL.debug
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13122,13115]
 # 6. Slave. Corruption in relay log
 # Adding debug point 'corrupt_read_log_event' to @@GLOBAL.debug
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=13117]
 # 7. Seek diff for tables on master and slave
 # Removing debug point 'corrupt_read_log_event' from @@GLOBAL.debug

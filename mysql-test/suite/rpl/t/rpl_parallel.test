@@ -15,7 +15,7 @@
 #
 #  The duration recorded in the file accounts the SQL thread/workers work.
 #  That is benchmarking on the slave side is effectively started with
-#  `start slave sql_thread'.
+#  `start replica sql_thread'.
 # Example of usage.
 # To gather a collection of figures:
 #  mysql-test$ export slave;

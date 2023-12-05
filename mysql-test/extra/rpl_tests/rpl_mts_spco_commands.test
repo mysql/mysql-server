@@ -25,7 +25,7 @@
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
-# Start slave with 10 worker threads
+# Start replica with 10 worker threads
 --let $mts_replica_parallel_workers= 10
 --let $mts_spco_save_gtid_executed = 1
 --let $mts_spco_check_gtid_executed_before_rollback = 0

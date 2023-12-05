@@ -50,7 +50,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --echo #
 --echo # Process the binlog with Anonymous_GTID log events.
 --echo #
-START SLAVE;
+START REPLICA;
 --echo #
 --echo # Wait for SQL thread error.
 --echo #

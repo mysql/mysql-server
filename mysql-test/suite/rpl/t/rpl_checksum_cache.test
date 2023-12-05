@@ -22,7 +22,7 @@ set @@global.source_verify_checksum = 1;
 # SQL Thread stopped with incomplete event group having non-transactional
 # changes" error.
 --source include/sync_slave_sql_with_master.inc
-# restart slave to force the dump thread to verify events (on master side)
+# restart replica to force the dump thread to verify events (on master side)
 source include/stop_slave.inc;
 source include/start_slave.inc;
 

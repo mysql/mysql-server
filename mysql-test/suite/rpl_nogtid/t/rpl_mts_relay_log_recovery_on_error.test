@@ -15,7 +15,7 @@
 # 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot be executed when
 # the slave was stopped with an error or killed in MTS mode; consider using
 # RESET SLAVE or restart the server with --relay-log-recovery = 0 followed by
-# START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+# START REPLICA UNTIL SQL_AFTER_MTS_GAPS.
 #
 # i.e relay-log-recovery will not work in MTS mode.
 ###############################################################################
@@ -66,7 +66,7 @@ source include/wait_for_slave_sql_error.inc;
 --exec echo "Relay log recovery should fail as MTS stopped due to an error"
 
 --error ER_REPLICA_AM_INIT_REPOSITORY
-START SLAVE;
+START REPLICA;
 
 # Remove the affending rows from slave.
 --exec echo "Eliminate the cause of MTS error"

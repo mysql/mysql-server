@@ -14,7 +14,7 @@ set @old_session_binlog_format=  @@session.binlog_format;
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
-# start slave so that slave sql thread's binlog format is re-read
+# start replica so that slave sql thread's binlog format is re-read
 # from @@global.binlog_format
 --source include/start_slave.inc
 

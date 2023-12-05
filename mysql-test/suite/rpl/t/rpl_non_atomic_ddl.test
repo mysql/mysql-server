@@ -84,7 +84,7 @@ if (!$crash_commit)
 --eval SET @@GLOBAL.debug=$crash_commit
 
 --error 0,2013
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 # Server wait for stop and restart
 --enable_reconnect
@@ -99,7 +99,7 @@ START SLAVE SQL_THREAD;
 --source include/assert.inc
 
 # The last executed position post crash recovery is extraneous.
-# Eventual 'START SLAVE' must succeed and would not when the last execution
+# Eventual 'START REPLICA' must succeed and would not when the last execution
 # coordiate remained as before the crash as the table could not be
 # re-CREATE-ed.
 --let $assert_text=The executed coordinates must be as after the crashing '$current_query'

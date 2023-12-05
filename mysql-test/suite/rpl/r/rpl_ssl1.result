@@ -17,15 +17,11 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
 CHANGE REPLICATION SOURCE to SOURCE_SSL=1 , SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.2';
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 insert into t1 values (1);
 include/sync_slave_sql_with_master.inc
@@ -47,9 +43,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 SET SQL_LOG_BIN= 0;
 drop user replssl@localhost;
@@ -74,9 +68,7 @@ SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem',
 SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
 SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem',
 SOURCE_SSL_VERIFY_SERVER_CERT=1;
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 create table t1 (t int);
 insert into t1 values (1);
@@ -103,7 +95,7 @@ include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET SLA
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
 include/start_slave.inc
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.]
+include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
 DROP TABLE IF EXISTS t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc

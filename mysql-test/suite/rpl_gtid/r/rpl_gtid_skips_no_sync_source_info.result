@@ -15,9 +15,7 @@ INSERT INTO t1 VALUES (30);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL debug="+d,reached_heart_beat_queue_event";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SET DEBUG_SYNC="now WAIT_FOR check_replica_source_info";
 SET DEBUG_SYNC="now SIGNAL proceed_write_rotate";
 SET GLOBAL debug="-d,reached_heart_beat_queue_event";

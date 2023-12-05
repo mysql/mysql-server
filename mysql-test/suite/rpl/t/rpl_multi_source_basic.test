@@ -333,7 +333,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 --source include/assert.inc
 
 # since conflict has occurred remove the entry from the slave
-#  and start slave again
+#  and start replica again
 DELETE FROM dbcommon.t101 where a=1729;
 
 --disable_warnings

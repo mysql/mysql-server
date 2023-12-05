@@ -9,11 +9,11 @@
 # 2. Verify server1 is primary and so server2 will be secondary.
 # 3. Create new channel ch3_2: server2(slave), server3(master).
 # 4. Verify for following scenarios:
-#    1. start slave and start GR and verify for
+#    1. start replica and start GR and verify for
 #       ER_GROUP_REPLICATION_CONFIGURATION error.
-#    2. start slave io and start GR and verify for
+#    2. start replica io and start GR and verify for
 #       ER_GROUP_REPLICATION_CONFIGURATION error.
-#    3. start slave sql and start GR and verify for
+#    3. start replica sql and start GR and verify for
 #       ER_GROUP_REPLICATION_CONFIGURATION error.
 # 5. Verify three occurrence of error message due to error in starting
 #    group replication three times in step 3.
@@ -74,7 +74,7 @@ if (!$group_replication_found_primary_out_var)
 --enable_query_log
 
 --echo
---echo # 4.1 start slave and start GR and verify for
+--echo # 4.1 start replica and start GR and verify for
 --echo #     ER_GROUP_REPLICATION_CONFIGURATION error
 
 --source include/start_slave.inc
@@ -86,7 +86,7 @@ START GROUP_REPLICATION;
 
 
 --echo
---echo # 4.2 start slave io and start GR and verify for
+--echo # 4.2 start replica io and start GR and verify for
 --echo #     ER_GROUP_REPLICATION_CONFIGURATION error
 
 --source include/start_slave_io.inc
@@ -98,7 +98,7 @@ START GROUP_REPLICATION;
 
 
 --echo
---echo # 4.3 start slave sql and start GR and verify for
+--echo # 4.3 start replica sql and start GR and verify for
 --echo #     ER_GROUP_REPLICATION_CONFIGURATION error
 
 --source include/start_slave_sql.inc

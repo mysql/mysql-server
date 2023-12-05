@@ -156,7 +156,7 @@ START GROUP_REPLICATION;
 --echo #      as the group_name.
 
 --error ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
-start slave;
+START REPLICA;
 
 --echo
 --echo ###################################################################
@@ -165,7 +165,7 @@ start slave;
 --replace_result $save_group_replication_group_name SAVE_GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$save_group_replication_group_name"
 --source include/start_group_replication.inc
-start slave;
+START REPLICA;
 --echo
 --echo ###################################################################
 --echo #  5. Execute some transactions on server 3 and sync with server 1

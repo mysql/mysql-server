@@ -26,7 +26,7 @@
 --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_2 for channel 'ch2_1'
 
-# start slave
+# start replica
 --let $rpl_channel_name='ch2_1'
 --source include/start_slave.inc
 

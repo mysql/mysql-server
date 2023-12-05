@@ -11,9 +11,9 @@
 # 1) Create a table on master and insert a row
 # 2) On slave create an user 'u1' which will be used as a
 #    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
-# 3) Start slave and expect an error as the user doesn't have INSERT privilege.
+# 3) Start replica and expect an error as the user doesn't have INSERT privilege.
 # 4) Stop slave and grant INSERT privilege.
-# 5) Start slave again and this time there should not be any error.
+# 5) Start replica again and this time there should not be any error.
 # 6) Revoke the privilege granted in step 4)
 # 7) Ensure the table is the same on master and slave.
 # 9) Drop the table from master and slave.
@@ -52,8 +52,8 @@ if ($grant_to == '')
   --source include/save_master_pos.inc
 
   --source include/rpl_connection_slave.inc
-  # 3) Start slave and expect an error as the user doesn't have the privilege.
-  START SLAVE;
+  # 3) Start replica and expect an error as the user doesn't have the privilege.
+  START REPLICA;
   --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
   --source include/wait_for_slave_sql_error.inc
 
@@ -61,8 +61,8 @@ if ($grant_to == '')
   STOP SLAVE;
   --eval GRANT $privilege ON $priv_context TO $grant_to
 
-  # 5) Start slave again and this time there should not be any error.
-  START SLAVE;
+  # 5) Start replica again and this time there should not be any error.
+  START REPLICA;
   --source include/sync_slave_sql.inc
 
   # 6) Revoke the privilege granted in step 4)
@@ -144,7 +144,7 @@ while ($context != 0)
         INSERT INTO t VALUES(10, 10);
         --source include/save_master_pos.inc
         --source include/rpl_connection_slave.inc
-        START SLAVE;
+        START REPLICA;
         --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
         --source include/wait_for_slave_sql_error.inc
         STOP SLAVE;

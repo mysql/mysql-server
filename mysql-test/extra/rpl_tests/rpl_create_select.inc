@@ -71,7 +71,7 @@ FLUSH LOGS;
 
 --echo # Crash slave server when applying row event (the INSERT)
 SET global DEBUG='+d, crash_on_transactional_ddl_insert';
-START SLAVE;
+START REPLICA;
 
 --echo # Wait for server to stop
 --source include/expect_crash.inc

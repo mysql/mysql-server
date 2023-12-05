@@ -39,7 +39,7 @@ CREATE TABLE t1 (a INT);
 
 --source include/rpl_connection_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000002', SOURCE_LOG_POS=4, SOURCE_AUTO_POSITION=0;
-START SLAVE;
+START REPLICA;
 --let $slave_io_errno=13114
 --source include/wait_for_slave_io_error.inc
 

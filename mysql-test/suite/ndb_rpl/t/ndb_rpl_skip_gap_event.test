@@ -55,7 +55,7 @@ let $binlog_file=master-bin.000002;
 --disable_result_log
 --connection slave
 # Get slave to try reconnection now.  Ignore errors if already started.
-start slave;
+START REPLICA;
 --connection master
 --enable_result_log
 

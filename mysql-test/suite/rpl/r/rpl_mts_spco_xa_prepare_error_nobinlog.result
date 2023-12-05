@@ -67,7 +67,7 @@ ROLLBACK;;
 # On slave, verify table t1 has only two rows which were inserted before
 # XA transaction. Wait for slave sql thread to fail with ER_UNKNOWN_ERROR
 # error and then remove rpl_fake_commit_order_deadlock_for_timestamp_100
-# debug sync points, and then restart slave sql thread.
+# debug sync points, and then restart replica sql thread.
 
 include/wait_for_slave_sql_error.inc [errno=1105, 1402, 3030]
 # Removing debug point 'rpl_fake_commit_order_deadlock_for_timestamp_100' from @@GLOBAL.debug

@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# This test verifies that executing START SLAVE command after restart of an
+# This test verifies that executing START REPLICA command after restart of an
 # initialized slave shall return no error.
 #
 # ==== Implementation ====
@@ -8,7 +8,7 @@
 # 1. Initialize the slave by sourcing master-slave.inc without starting the
 #    slave threads.
 #
-# 2. Verify that START SLAVE doesn't throw any error when
+# 2. Verify that START REPLICA doesn't throw any error when
 #
 #    2.1 Server is shutdown and restarted with --relay-log-recovery=1 so that
 #        STOP EVENT is generated in the relay log.
@@ -23,7 +23,7 @@
 # ==== References ====
 #
 # Bug#28996606 REPLICATION DOES NOT START IF RESTART MYSQL AFTER INIT
-#              WITHOUT START SLAVE
+#              WITHOUT START REPLICA
 
 --source include/have_binlog_format_row.inc
 --source include/not_rpl_gtid_only.inc
@@ -42,7 +42,7 @@ CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
 CALL mtr.add_suppression("Recovery from source pos*");
 
-# 2. Verify that START SLAVE doesn't throw any error when
+# 2. Verify that START REPLICA doesn't throw any error when
 #
 # 2.1 Server is shutdown and restarted with --relay-log-recovery=1 so that
 #     STOP EVENT is generated in the relay log.
@@ -66,7 +66,7 @@ while ($i < 2)
   --let $rpl_connection_name= server_2
   --source include/rpl_connection.inc
 
-  # START SLAVE should not throw any error.
+  # START REPLICA should not throw any error.
   --source include/start_slave.inc
 
   # Reset all servers to a clean state without syncing the servers.

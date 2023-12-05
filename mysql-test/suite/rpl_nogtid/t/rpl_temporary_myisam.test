@@ -26,7 +26,7 @@ reset binary logs and gtids;
 
 # ##################################################################
 # BUG#41725: slave crashes when inserting into temporary table after
-#            stop/start slave
+#            stop/start replica
 #
 #  This test checks that both reported issues (assertion failure and
 #  crash) go away. It is implemented as follows:
@@ -35,7 +35,7 @@ reset binary logs and gtids;
 #      i) create and insert into temporary table on master (insert
 #         produces warnings)
 #     ii) sync slave with master
-#    iii) stop and restart slave
+#    iii) stop and restart replica
 #     iv) insert into master more values
 #      v) sync slave with master
 

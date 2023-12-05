@@ -31,7 +31,7 @@ CREATE DATABASE db3;
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
-# Restart slave for channel_3 so that SELECT returns unsorted data.
+# Restart replica for channel_3 so that SELECT returns unsorted data.
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 --source include/start_slave.inc

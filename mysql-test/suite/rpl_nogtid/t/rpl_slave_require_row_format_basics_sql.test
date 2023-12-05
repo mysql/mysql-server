@@ -74,7 +74,7 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
 
   --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
-  START SLAVE;
+  START REPLICA;
 
   --let $slave_sql_errno= convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
   --source include/wait_for_slave_sql_error.inc

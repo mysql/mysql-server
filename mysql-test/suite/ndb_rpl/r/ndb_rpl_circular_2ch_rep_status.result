@@ -108,7 +108,7 @@ variable_name='Ndb_slave_max_replicated_epoch'
 variable_value = epoch;
 count(1)
 1
-Now start slaves up
+Now start replicas up
 include/rpl_start_slaves.inc
 Show that applying something from Cluster B causes the
 old Max Rep Epoch to be loaded from ndb_apply_status

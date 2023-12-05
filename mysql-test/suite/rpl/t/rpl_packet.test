@@ -33,7 +33,7 @@ SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 
 --source include/sync_slave_sql_with_master.inc
-# Restart slave for setting to take effect
+# Restart replica for setting to take effect
 call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 source include/stop_slave.inc;
 source include/start_slave.inc;
@@ -89,7 +89,7 @@ connection master;
 SET @@global.max_allowed_packet=4096 + (floor(64 * 3 * 254 / 1024) + 1) * 1024;
 SET @@global.net_buffer_length=@@global.max_allowed_packet;
 
-# Restart slave for new setting to take effect
+# Restart replica for new setting to take effect
 connection slave;
 source include/stop_slave.inc;
 source include/start_slave.inc;
@@ -192,7 +192,7 @@ if (`SELECT NOT(@max_allowed_packet_0 = @max_allowed_packet_1 AND @max_allowed_p
 
 connection slave;
 
-START SLAVE;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 
 connection master;
@@ -229,7 +229,7 @@ INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 
 --let $old_replica_max_allowed_packet= `SELECT @@global.max_allowed_packet`
 SET @@global.max_allowed_packet=1048576;
-# Restart slave session for new settings to take effect.
+# Restart replica session for new settings to take effect.
 --connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,)
 --connection slave2
 

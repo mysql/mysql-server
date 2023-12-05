@@ -28,7 +28,7 @@ CREATE TABLE t1(i INT);
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
-# Case:1  Stop and Start slave IO thread
+# Case:1  Stop and Start replica IO thread
 --source include/stop_slave_io.inc
 --source include/start_slave_io.inc
 
@@ -37,7 +37,7 @@ DROP TABLE t1;
 --let SEARCH_PATTERN=Lost connection to MySQL server during query
 --source include/search_pattern.inc
 
-# Case:2 Stop and Start slave SQL thread
+# Case:2 Stop and Start replica SQL thread
 --source include/stop_slave_sql.inc
 --source include/start_slave_sql.inc
 
@@ -46,7 +46,7 @@ DROP TABLE t1;
 --let SEARCH_PATTERN=Lost connection to MySQL server during query
 --source include/search_pattern.inc
 
-# Case:3 Stop and start slave IO and SQL thread
+# Case:3 Stop and start replica IO and SQL thread
 --source include/stop_slave.inc
 --source include/start_slave.inc
 

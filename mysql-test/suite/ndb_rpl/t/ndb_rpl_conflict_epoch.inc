@@ -187,7 +187,7 @@ drop procedure test.doit;
 --source suite/ndb_rpl/t/ndb_conflict_info.inc
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-start slave;
+START REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Look at Seconday row
@@ -237,7 +237,7 @@ delimiter ;%
 
 call test.doit(200);
 
---echo -- Restart slave on Primary Cluster
+--echo -- Restart replica on Primary Cluster
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # TODO : Reenable with new slave counts
 #--source suite/ndb_rpl/include/ndb_init_replica_counts.inc
@@ -260,8 +260,8 @@ select * from test.t1 where a=1;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 select * from test.t1 where a=1;
 
---echo --Restart slave on Secondary Cluster
-start slave;
+--echo --Restart replica on Secondary Cluster
+START REPLICA;
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 

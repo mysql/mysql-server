@@ -173,7 +173,7 @@ DROP TABLE t1;
 #
 #STOP SLAVE;
 #--source include/wait_for_slave_to_stop.inc
-#START SLAVE;
+#START REPLICA;
 #--source include/wait_for_slave_to_start.inc
 #
 #let $y=0;
@@ -290,7 +290,7 @@ DROP TABLE t1;
 #
 #STOP SLAVE;
 #source include/wait_for_slave_to_stop.inc;
-#START SLAVE;
+#START REPLICA;
 #--source include/wait_for_slave_to_start.inc
 
 --echo ################################################################################

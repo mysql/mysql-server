@@ -25,13 +25,13 @@ SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 
 --echo # Test for Single Threaded Slave
 SET GLOBAL replica_parallel_workers= 0;
-START SLAVE;
+START REPLICA;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 --echo # Test for Multi Threaded Slave
 STOP SLAVE;
 SET GLOBAL replica_parallel_workers = 2;
-START SLAVE;
+START REPLICA;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 #Cleanup
@@ -39,7 +39,7 @@ STOP SLAVE;
 --disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
-START SLAVE;
+START REPLICA;
 
 --let $rpl_skip_sync= 1
 --source include/rpl_end.inc

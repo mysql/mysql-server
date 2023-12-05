@@ -27,7 +27,7 @@ SET @@global.binlog_format=STATEMENT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
-# Start slave applier on channel_1, so that
+# Start replica applier on channel_1, so that
 # SET @@global.binlog_format=STATEMENT takes
 # effect on channel_1.
 #

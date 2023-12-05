@@ -25,7 +25,7 @@ select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Run
 #  Test 2. The slave IO thread is started but not yet got connected to master
 #          and SQL thread is not started
 
-start slave io_thread;
+START REPLICA io_thread;
 
 #
 # Notice a difference between versions in showing p.2: 
@@ -53,7 +53,7 @@ select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Run
 # Test 4. The slave IO thread is started and got connected to master
 #         and SQL thread is started
 
-start slave sql_thread;
+START REPLICA sql_thread;
 source include/wait_for_slave_sql_to_start.inc;
 
 --echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries

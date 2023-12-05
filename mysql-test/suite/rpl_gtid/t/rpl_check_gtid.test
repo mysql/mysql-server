@@ -59,7 +59,7 @@
 # 6. On the slave, rotate logs by start/stop and calling CHANGE MASTER TO
 #    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
 #    FLUSH LOGS.
-# 7. On the slave, rotate logs by start/stop and calling START SLAVE UNTIL
+# 7. On the slave, rotate logs by start/stop and calling START REPLICA UNTIL
 #    GTID. On the master, rotate logs through FLUSH LOGS.
 #
 # We also check if the aforementioned properties hold after crashes:
@@ -712,7 +712,7 @@ while ($i != 5)
 #  7.1 - Generates a set of transactions on the master.
 #
 #  7.2 - Makes the slave to retrieve and apply these transactions through
-#        START SLAVE UNTIL GTID.
+#        START REPLICA UNTIL GTID.
 #
 #  7.3 - Rotates the binary log on master by calling FLUSH LOGS.
 #
@@ -752,7 +752,7 @@ while ($i != 5)
   --let $sequence= `SELECT ($i * 2)`
   --replace_result $master_uuid MASTER_UUID
   --disable_warnings
-  --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:$sequence"
+  --eval START REPLICA UNTIL SQL_BEFORE_GTIDS= "$master_uuid:$sequence"
   --enable_warnings
   --source include/wait_for_slave_sql_to_stop.inc
   --source include/stop_slave.inc
@@ -998,7 +998,7 @@ call mtr.add_suppression("Can not create thread to compress gtid_executed table 
 call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
 call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
 --let $rpl_server_parameters=
-# Restart slave server without setting simulate_create_compress_thread_failure
+# Restart replica server without setting simulate_create_compress_thread_failure
 --source include/rpl_restart_server.inc
 --source include/start_slave.inc
 

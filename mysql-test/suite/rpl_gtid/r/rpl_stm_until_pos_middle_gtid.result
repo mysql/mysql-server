@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection slave]
 include/stop_slave_sql.inc
-# Saving master position to use on UNTIL clause of START SLAVE
+# Saving master position to use on UNTIL clause of START REPLICA
 [connection master]
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 BEGIN;
@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (1);
 COMMIT;
 include/sync_slave_io_with_master.inc
 # Start SQL thread until it executed the CREATE TABLE
-START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "MASTER_FILE", SOURCE_LOG_POS = MASTER_POS;
+START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "MASTER_FILE", SOURCE_LOG_POS = MASTER_POS;
 # Wait until SQL thread reaches last master binlog file
 include/wait_for_slave_param.inc [Relay_Master_Log_File]
 # Wait until SQL thread reaches desired master binlog position

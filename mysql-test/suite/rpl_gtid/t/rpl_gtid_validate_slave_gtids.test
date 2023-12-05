@@ -33,12 +33,12 @@ CALL mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*"); #
 CREATE TABLE t1(i INT);  # GTID-4
 DROP TABLE t1;           # GTID-5
 
-# Step-3) Start Slave IO thread which will request Master to send all
+# Step-3) Start Replica IO thread which will request Master to send all
 # transactions.
 --connection slave
 --replace_result $master_uuid master_uuid
 --eval SET GLOBAL GTID_PURGED = "$master_uuid:1"
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 # Step-4)since Master has already purged binary logs  containing GTID 1 and 2,
 # it should throw error and I/O thread should not be started.
@@ -52,7 +52,7 @@ START SLAVE IO_THREAD;
 --replace_result $master_uuid master_uuid
 --eval SET GLOBAL GTID_PURGED= "$master_uuid:1-2"
 
-# Now start slave threads. Slave will ask Master to send all GTIDs
+# Now start replica threads. Slave will ask Master to send all GTIDs
 # except GTID:1-2 which should not be a problem and should not throw
 # any errors.
 --source include/start_slave.inc
@@ -87,7 +87,7 @@ START SLAVE IO_THREAD;
 #  2) Let it reach Slave
 #  3) Fake raid failure( by manually deleting binary log file)
 #  4) Restart Master, thus removing those gtids from executed gtid set.
-#  5) Restart slave's I/O thread, Slave sends its gtids which are purged on
+#  5) Restart replica's I/O thread, Slave sends its gtids which are purged on
 #      Master
 #  6) Make sure I/O thread gets error and informs the situation to the Slave.
 #  7) Verify that situation is recovered back normal after setting GTID_PURGED
@@ -118,9 +118,9 @@ DELETE FROM mysql.gtid_executed;
 # Step-4) Restart Master, thus removing those gtids from executed gtid set.
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
-# Step-5) Restart slave's I/O thread, Slave sends its gtids which are purged on Master
+# Step-5) Restart replica's I/O thread, Slave sends its gtids which are purged on Master
 --connection slave
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 # Step-6) Make sure I/O thread gets error and informs the situation to the Slave.
 --let $slave_io_errno=13114

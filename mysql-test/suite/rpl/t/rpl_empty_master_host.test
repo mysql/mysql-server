@@ -47,7 +47,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master_Host = '$master_host' (expected '127.0.0.1')
 
-# start slave must succeed.
-START SLAVE;
+# start replica must succeed.
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 --source include/rpl_end.inc

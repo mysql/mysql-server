@@ -49,7 +49,7 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 0 0;
     let rpl_server_number = 1;
     source include/rpl_restart_server.inc;
     connection slave;
-    # Start slave to avoid I/O thread retry errors
+    # Start replica to avoid I/O thread retry errors
     disable_warnings;
     source include/start_slave.inc;
     enable_warnings;

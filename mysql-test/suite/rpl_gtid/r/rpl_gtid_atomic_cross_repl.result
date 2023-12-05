@@ -13,9 +13,7 @@ SET @@global.debug="+d,simulate_error_in_ddl";
 CREATE TABLE t1 (a int);
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=13113]
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=13113]
 SET @@global.debug="-d,simulate_error_in_ddl";
 include/start_slave_sql.inc

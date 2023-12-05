@@ -482,7 +482,7 @@ eval SET GLOBAL debug= '$old_debug';
 DROP TABLE t1, t2, t4;
 RESET BINARY LOGS AND GTIDS;
 
-# restart slave again
+# restart replica again
 -- connection slave
 -- source include/start_slave.inc
 -- connection master

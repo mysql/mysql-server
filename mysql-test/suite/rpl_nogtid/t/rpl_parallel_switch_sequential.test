@@ -122,7 +122,7 @@ while ($i) {
         let $workers= 0;
       }
       eval SET GLOBAL replica_parallel_workers= $workers;
-      START SLAVE;
+      START REPLICA;
       --connection master
       let $slave_status= 0;
     }

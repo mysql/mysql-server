@@ -18,9 +18,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_drop_t1;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_drop_t1;
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 n
@@ -29,9 +27,7 @@ n
 3
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
-START SLAVE UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 n
@@ -40,31 +36,25 @@ n
 3
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_to_start.inc
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_create_t2
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_create_t2
 include/wait_for_slave_param.inc [Until_Log_Pos]
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
-START SLAVE UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001';
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001';
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000009';
+START REPLICA UNTIL RELAY_LOG_FILE='slave-relay-bin.000009';
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=SOURCE_LOG_POS;
+START REPLICA UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=SOURCE_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
-START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
@@ -78,8 +68,6 @@ include/stop_slave_sql.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 include/sync_slave_io_with_master.inc
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [table t1 should have two rows.]
 include/start_slave.inc

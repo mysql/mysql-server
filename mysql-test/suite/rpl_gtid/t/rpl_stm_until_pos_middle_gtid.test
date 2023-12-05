@@ -10,7 +10,7 @@
 # the SQL thread using the UNTIL MASTER_LOG_FILE/POS clause, pointing to the
 # first byte of the created transaction (inside of the Gtid_log_event).
 #
-# The test expects that, after issuing the START SLAVE SQL_THREAD with the
+# The test expects that, after issuing the START REPLICA SQL_THREAD with the
 # UNTIL clause, the SQL thread will apply the created transaction (both
 # GTID and QUERY events) even though pointing to stop after the GTID.
 # The test also expects that the SQL thread will update its position
@@ -34,7 +34,7 @@
 --source include/rpl_connection_slave.inc
 --source include/stop_slave_sql.inc
 
---echo # Saving master position to use on UNTIL clause of START SLAVE
+--echo # Saving master position to use on UNTIL clause of START REPLICA
 --source include/rpl_connection_master.inc
 --let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
@@ -59,7 +59,7 @@ COMMIT;
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
 # Disable warnings to avoid logging "UNTIL condtion is not supported ..." on MTS
 --disable_warnings
-eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "$master_file", SOURCE_LOG_POS = $master_pos;
+eval START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE = "$master_file", SOURCE_LOG_POS = $master_pos;
 --enable_warnings
 
 --echo # Wait until SQL thread reaches last master binlog file

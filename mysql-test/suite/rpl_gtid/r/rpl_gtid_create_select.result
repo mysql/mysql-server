@@ -24,9 +24,7 @@ FLUSH LOGS;
 [connection slave]
 # Crash slave server when applying row event (the INSERT)
 SET global DEBUG='+d, crash_on_transactional_ddl_insert';
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 # Wait for server to stop
 # Restart the server.
 include/rpl_start_server.inc [server_number=2]

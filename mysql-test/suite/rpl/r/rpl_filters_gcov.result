@@ -96,9 +96,7 @@ SET GLOBAL debug='-d,simulate_out_of_memory_on_global_CRF';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_CRF_FOR_CHA';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL '' ;
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
-START SLAVE SQL_THREAD FOR CHANNEL '';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD FOR CHANNEL '';
 SET GLOBAL debug= @saved_debug;
 [connection master]
 include/rpl_end.inc

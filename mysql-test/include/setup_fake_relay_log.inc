@@ -9,7 +9,7 @@
 #
 #   let $fake_relay_log= /path/to/fake-relay-log-file.000001
 #   source include/setup_fake_relay_log.inc;
-#   START REPLICA SQL_THREAD; # setup_fake_relay_log doesn't start slave
+#   START REPLICA SQL_THREAD; # setup_fake_relay_log doesn't start replica
 #   ...
 #   source include/cleanup_fake_relay_log.inc
 #

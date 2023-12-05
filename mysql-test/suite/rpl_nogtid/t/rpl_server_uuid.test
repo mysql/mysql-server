@@ -90,7 +90,7 @@ connection master;
 --source include/rpl_restart_server.inc
 
 connection slave;
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 let $show_statement= SHOW SLAVE STATUS;
 --let $slave_io_errno= 13117

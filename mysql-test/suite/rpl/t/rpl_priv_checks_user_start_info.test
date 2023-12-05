@@ -5,7 +5,7 @@
 #
 # ==== Requirements ====
 #
-# R1. Issuing `START SLAVE` for a channel with `PRIVILEGE_CHECKS_USER` will log
+# R1. Issuing `START REPLICA` for a channel with `PRIVILEGE_CHECKS_USER` will log
 #     an informational message about slave stating that includes the applier
 #     user information.
 #
@@ -15,7 +15,7 @@
 #
 # ==== Implementation ====
 #
-# TC1. `START SLAVE` issues an info message that includes applier user info
+# TC1. `START REPLICA` issues an info message that includes applier user info
 # -------------------------------------------------------------------------
 # 1) Set `PRIVELEGE_CHECKS_USER` to a user with `REPLICATION_APPLIER`
 #    privilege.
@@ -38,7 +38,7 @@
 --source include/have_binlog_format_row.inc
 
 --echo #
---echo # TC1. `START SLAVE` issues an info message that includes applier user
+--echo # TC1. `START REPLICA` issues an info message that includes applier user
 --echo #      info
 --echo # --------------------------------------------------------------------
 --echo #
@@ -56,7 +56,7 @@
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
 --let $assert_count = 1
 --let $assert_select = .*Replica SQL thread.*user: 'u1'@'localhost'.*
---let $assert_text = Start slave message found in log contains applier user info
+--let $assert_text = Start replica message found in log contains applier user info
 --source include/assert_grep.inc
 
 --echo #
@@ -80,7 +80,7 @@
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
 --let $assert_count = 2
 --let $assert_select = .*Replica SQL thread.*user: 'u1'@'localhost'.*
---let $assert_text = Start slave message with user info found twice in log, after restart
+--let $assert_text = Start replica message with user info found twice in log, after restart
 --source include/assert_grep.inc
 
 # Cleanup

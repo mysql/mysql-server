@@ -3,15 +3,15 @@
 #
 # The aim of this test :
 # 1. To check if io threads and sql threads of all channels
-#     are started with START SLAVE IO_THREAD and START SLAVE SQL_THREAD
+#     are started with START REPLICA IO_THREAD and START REPLICA SQL_THREAD
 #     respecively.
 # 2. To check that individually the start of io_thread and sql_thread
 #    are independent i.e if sql_threads of all channels are running
-#    and if a START SLAVE IO_THREAD is issued, io_threads of all
+#    and if a START REPLICA IO_THREAD is issued, io_threads of all
 #    channels must be running.
 # 3. Test that per channel start and stop slave commands work
-#     -a) START SLAVE IO_THREAD FOR CHANNEL
-#     -b) START SLAVE SQL_THREAD FOR CHANNEL
+#     -a) START REPLICA IO_THREAD FOR CHANNEL
+#     -b) START REPLICA SQL_THREAD FOR CHANNEL
 #     -c) STOP SLAVE IO_THREAD FOR CHANNEL
 #     -d) STOP SLAVE SQL_THREAD FOR CHANNEL
 
@@ -34,18 +34,18 @@
 --source include/rpl_connection.inc
 
 --echo #
---echo # 1) Execute START SLAVE IO_THREAD; io_threads of all channels shall start
+--echo # 1) Execute START REPLICA IO_THREAD; io_threads of all channels shall start
 --echo #
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 
 # check till IO_thread returned Yes
 --let $rpl_source_file= include/wait_for_slave_io_to_start.inc
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo # 2) Execute START SLAVE SQL_THREAD; sql_threads of all channels shall start
+--echo # 2) Execute START REPLICA SQL_THREAD; sql_threads of all channels shall start
 --echo #
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 # check till SQL_thread returned Yes
 --let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
@@ -60,9 +60,9 @@ STOP SLAVE IO_THREAD;
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo #  Do  start slave.  IO threads should be up independently.
+--echo #  Do  start replica.  IO threads should be up independently.
 --echo #
-START SLAVE;
+START REPLICA;
 
 --let $rpl_source_file= include/wait_for_slave_io_to_start.inc
 --source include/rpl_for_each_connection.inc
@@ -80,11 +80,11 @@ STOP SLAVE;
 --echo #    the threads are run. No Notes shall be emitted also.
 --echo #
 
---echo # 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
+--echo # 3.a) Test START REPLICA IO_THREAD FOR CHANNEL
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave_io.inc
 
---echo # 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
+--echo # 3.b) Test START REPLICA SQL_THREAD FOR CHANNEL
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave_sql.inc
 

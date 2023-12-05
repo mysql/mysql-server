@@ -40,7 +40,7 @@ connection slave;
 call mtr.add_suppression('Replica: Error dropping database'); ## todo: fix
 
 source include/stop_slave.inc;
-start slave;
+START REPLICA;
 
 connection master;
 
@@ -256,7 +256,7 @@ insert into test0.benchmark set state='slave is processing load';
 # TODO: replace with another algorithm
 #set @save.mts_exp_slave_local_timestamp=@@global.mts_exp_slave_local_timestamp;
 #set @@global.mts_exp_slave_local_timestamp=1;
-start slave sql_thread;
+START REPLICA sql_thread;
 
 let $wait_timeout= 600;
 let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test0.benchmark;

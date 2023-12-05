@@ -14,9 +14,7 @@ DROP TABLE t1;
 # Active injected error during getting server id from master
 #
 # Adding debug point 'get_source_server_id.ER_NET_READ_INTERRUPTED' to @@GLOBAL.debug
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 include/wait_for_slave_io_to_start.inc
 [connection master]
 include/sync_slave_io_with_master.inc

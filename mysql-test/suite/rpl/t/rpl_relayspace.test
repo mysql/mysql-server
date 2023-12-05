@@ -15,7 +15,7 @@ create table t1 (a int);
 drop table t1;
 connection slave;
 reset slave;
-start slave io_thread;
+START REPLICA io_thread;
 # Give the I/O thread time to block.
 let $slave_param= Slave_IO_State;
 let $slave_param_value= Waiting for the replica SQL thread to free relay log space;

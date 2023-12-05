@@ -46,7 +46,7 @@
 #      iv) remove file
 #
 #      On Slave,
-#       v) start slave
+#       v) start replica
 #      vi) sync it with master so that it gets the updates from binlog (which 
 #          should have bin logged in row format). 
 #
@@ -95,7 +95,7 @@ connection master;
 remove_file $file;
 
 # now that the file is removed it is safe (regarding what we want to test) 
-# to start slave
+# to start replica
 connection slave;
 source include/start_slave.inc;
 

@@ -31,16 +31,12 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="PRIMARY";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="SECONDARY";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Create some initial data
 ------------------------
 insert into test.t1 values 
@@ -109,9 +105,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Re-enable SECONDARY Slave, and check state there
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SECONDARY content
 select * from test.t1 order by k;
 k	v	c
@@ -182,9 +176,7 @@ k	v	c
 4	440	Fell running
 Allow Primary change to propagate to Secondary
 (Which will delete the new, updated row on the Secondary)
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY - row 4 deleted
 select * from test.t1 order by k;
 k	v	c
@@ -196,9 +188,7 @@ while blocking the return path...
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
 select * from test.t1 order by k;
@@ -231,9 +221,7 @@ Now allow the Binlog of the PRIMARY (containing the
 reflected DELETE + Insert (4, 440, "Fell running")
 to be applied locally
 The SECONDARY should reject this application
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY : Row 4 should be untouched
 (4, 4444, "Cyclo-cross").
 Insert will be rejected as row already exists.
@@ -269,9 +257,7 @@ stable_epoch_is_older_than_max_replicated
 0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Show data on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -306,9 +292,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -333,9 +317,7 @@ Now allow Primary binlog, containing reflected update op
 setting column c of row 1 to "Bathing" to be applied
 it should be rejected by the Secondary, and increment
 the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -366,9 +348,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the second update
 (To 'Paddling') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -425,9 +405,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -450,9 +428,7 @@ k	v	c
 Now allow Primary binlog, containing reflected delete op
 on row 2 to be applied it should be rejected by the 
 Secondary, and increment the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -483,9 +459,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the insert
 (To 'Rock-climbing') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -549,9 +523,7 @@ k	v	c
 5	500	Line dancing
 Reset conflict counters on Secondary
 Allow Primary insert to trample Secondary insert.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by k;
 k	v	c
 1	10	Paddling
@@ -581,9 +553,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now allow Secondary writes to propagate to Primary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect that the Secondary insert succeeded as no row existed
 on arrival, but then the secondary row was trampled by the
 primary, and then a secondary update was applied...
@@ -621,9 +591,7 @@ Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
 Now allow Primary changes to propagate back to Secondary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Look at Secondary content
 select * from test.t1 order by k;
 k	v	c
@@ -680,12 +648,8 @@ insert into test.t1 values
 (2,20, "Cycling"),
 (3,30, "Running"),
 (4,40, "Triathlon");
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
+START REPLICA;
 Content on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -747,9 +711,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Re-enable SECONDARY Slave, and check state there
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SECONDARY content
 select * from test.t1 order by k;
 k	v	c
@@ -820,9 +782,7 @@ k	v	c
 4	440	Fell running
 Allow Primary change to propagate to Secondary
 (Which will delete the new, updated row on the Secondary)
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY - row 4 deleted
 select * from test.t1 order by k;
 k	v	c
@@ -834,9 +794,7 @@ while blocking the return path...
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
 select * from test.t1 order by k;
@@ -869,9 +827,7 @@ Now allow the Binlog of the PRIMARY (containing the
 reflected DELETE + Insert (4, 440, "Fell running")
 to be applied locally
 The SECONDARY should reject this application
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY : Row 4 should be untouched
 (4, 4444, "Cyclo-cross").
 Insert will be rejected as row already exists.
@@ -907,9 +863,7 @@ stable_epoch_is_older_than_max_replicated
 0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Show data on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -944,9 +898,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -971,9 +923,7 @@ Now allow Primary binlog, containing reflected update op
 setting column c of row 1 to "Bathing" to be applied
 it should be rejected by the Secondary, and increment
 the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -1004,9 +954,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the second update
 (To 'Paddling') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -1063,9 +1011,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -1088,9 +1034,7 @@ k	v	c
 Now allow Primary binlog, containing reflected delete op
 on row 2 to be applied it should be rejected by the 
 Secondary, and increment the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -1121,9 +1065,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the insert
 (To 'Rock-climbing') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -1187,9 +1129,7 @@ k	v	c
 5	500	Line dancing
 Reset conflict counters on Secondary
 Allow Primary insert to trample Secondary insert.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by k;
 k	v	c
 1	10	Paddling
@@ -1219,9 +1159,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now allow Secondary writes to propagate to Primary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect that the Secondary insert succeeded as no row existed
 on arrival, but then the secondary row was trampled by the
 primary, and then a secondary update was applied...
@@ -1259,9 +1197,7 @@ Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
 Now allow Primary changes to propagate back to Secondary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Look at Secondary content
 select * from test.t1 order by k;
 k	v	c
@@ -1318,12 +1254,8 @@ insert into test.t1 values
 (2,20, "Cycling"),
 (3,30, "Running"),
 (4,40, "Triathlon");
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
+START REPLICA;
 Content on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -1385,9 +1317,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Re-enable SECONDARY Slave, and check state there
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SECONDARY content
 select * from test.t1 order by k;
 k	v	c
@@ -1458,9 +1388,7 @@ k	v	c
 4	440	Fell running
 Allow Primary change to propagate to Secondary
 (Which will delete the new, updated row on the Secondary)
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY - row 4 deleted
 select * from test.t1 order by k;
 k	v	c
@@ -1472,9 +1400,7 @@ while blocking the return path...
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
 select * from test.t1 order by k;
@@ -1507,9 +1433,7 @@ Now allow the Binlog of the PRIMARY (containing the
 reflected DELETE + Insert (4, 440, "Fell running")
 to be applied locally
 The SECONDARY should reject this application
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY : Row 4 should be untouched
 (4, 4444, "Cyclo-cross").
 Insert will be rejected as row already exists.
@@ -1545,9 +1469,7 @@ stable_epoch_is_older_than_max_replicated
 0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Show data on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -1582,9 +1504,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -1609,9 +1529,7 @@ Now allow Primary binlog, containing reflected update op
 setting column c of row 1 to "Bathing" to be applied
 it should be rejected by the Secondary, and increment
 the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -1642,9 +1560,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the second update
 (To 'Paddling') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -1701,9 +1617,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -1726,9 +1640,7 @@ k	v	c
 Now allow Primary binlog, containing reflected delete op
 on row 2 to be applied it should be rejected by the 
 Secondary, and increment the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -1759,9 +1671,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the insert
 (To 'Rock-climbing') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -1825,9 +1735,7 @@ k	v	c
 5	500	Line dancing
 Reset conflict counters on Secondary
 Allow Primary insert to trample Secondary insert.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by k;
 k	v	c
 1	10	Paddling
@@ -1857,9 +1765,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now allow Secondary writes to propagate to Primary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect that the Secondary insert succeeded as no row existed
 on arrival, but then the secondary row was trampled by the
 primary, and then a secondary update was applied...
@@ -1897,9 +1803,7 @@ Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
 Now allow Primary changes to propagate back to Secondary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Look at Secondary content
 select * from test.t1 order by k;
 k	v	c
@@ -1956,12 +1860,8 @@ insert into test.t1 values
 (2,20, "Cycling"),
 (3,30, "Running"),
 (4,40, "Triathlon");
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
+START REPLICA;
 Content on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -2023,9 +1923,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Re-enable SECONDARY Slave, and check state there
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SECONDARY content
 select * from test.t1 order by k;
 k	v	c
@@ -2096,9 +1994,7 @@ k	v	c
 4	440	Fell running
 Allow Primary change to propagate to Secondary
 (Which will delete the new, updated row on the Secondary)
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY - row 4 deleted
 select * from test.t1 order by k;
 k	v	c
@@ -2110,9 +2006,7 @@ while blocking the return path...
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
 select * from test.t1 order by k;
@@ -2145,9 +2039,7 @@ Now allow the Binlog of the PRIMARY (containing the
 reflected DELETE + Insert (4, 440, "Fell running")
 to be applied locally
 The SECONDARY should reject this application
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Examine data on the SECONDARY : Row 4 should be untouched
 (4, 4444, "Cyclo-cross").
 Insert will be rejected as row already exists.
@@ -2183,9 +2075,7 @@ stable_epoch_is_older_than_max_replicated
 0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Show data on PRIMARY
 select * from test.t1 order by k;
 k	v	c
@@ -2220,9 +2110,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -2247,9 +2135,7 @@ Now allow Primary binlog, containing reflected update op
 setting column c of row 1 to "Bathing" to be applied
 it should be rejected by the Secondary, and increment
 the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -2280,9 +2166,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the second update
 (To 'Paddling') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -2339,9 +2223,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now propagate to Primary...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Updated data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -2364,9 +2246,7 @@ k	v	c
 Now allow Primary binlog, containing reflected delete op
 on row 2 to be applied it should be rejected by the 
 Secondary, and increment the defined + rejected counts
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Data on Secondary (should be unchanged)
 select * from test.t1 order by k;
 k	v	c
@@ -2397,9 +2277,7 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now allow sync...
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Allowing the sync should have allowed the insert
 (To 'Rock-climbing') to be reflected, and rejected
 Data on Secondary (should be unchanged)
@@ -2463,9 +2341,7 @@ k	v	c
 5	500	Line dancing
 Reset conflict counters on Secondary
 Allow Primary insert to trample Secondary insert.
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by k;
 k	v	c
 1	10	Paddling
@@ -2495,9 +2371,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now allow Secondary writes to propagate to Primary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Expect that the Secondary insert succeeded as no row existed
 on arrival, but then the secondary row was trampled by the
 primary, and then a secondary update was applied...
@@ -2535,9 +2409,7 @@ Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
 Now allow Primary changes to propagate back to Secondary
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Look at Secondary content
 select * from test.t1 order by k;
 k	v	c
@@ -2590,17 +2462,13 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PASS";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PASS";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Initial data on Primary
 select * from test.t1 order by k;
 k	v	c
@@ -2641,9 +2509,7 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Now restart the secondary slave and allow propagation
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Synchronise
 Now look at primary content and conflict counters
 select * from test.t1 order by k;
@@ -2871,17 +2737,13 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PRIMARY";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="SECONDARY";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Test ndb_conflict_last_stable_epoch
 This status var is intended to help in situations
 where there is an unexpected PRIMARY failure, and
@@ -2956,9 +2818,7 @@ stable_epoch_is_older_than_max_replicated
 0
 Now Start SECONDARY slave, to get conflict realignment
 and following SECONDARY epochs re-applied on the SEOCNDARY
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Now look at variables on the SECONDARY again
 Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
 replicated epochs are not yet stable.
@@ -2972,9 +2832,7 @@ SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOC
 STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 0
 Now make a SECONDARY change and allow it to flow
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 delete from test.t1 where k >=10;
 Now look at variables on the SECONDARY for third time
 Expect 1,0,1 - stability has returned
@@ -2994,16 +2852,12 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global ndb_applier_conflict_role="NONE";
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead

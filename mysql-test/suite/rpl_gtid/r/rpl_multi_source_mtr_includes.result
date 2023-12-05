@@ -78,9 +78,7 @@ INSERT INTO t1 VALUES (4);
 include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL '']
 include/start_slave_io.inc [FOR CHANNEL 'ch1']
 include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL '']
-START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD FOR CHANNEL 'ch1';
 include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'ch1']
 include/start_slave_io.inc [FOR CHANNEL '']
 include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL 'ch1']

@@ -47,7 +47,7 @@ call mtr.add_suppression("using --replicate-same-server-id in conjunction with -
 # 6) Start replica in parallel mode.
 SET GLOBAL RELAY_LOG_PURGE=OFF;
 CHANGE MASTER TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=1, MASTER_HOST='dummy';
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 # 7) Wait for replica to finish.
 --let $show_statement= SHOW PROCESSLIST

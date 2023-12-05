@@ -82,7 +82,7 @@ INSERT INTO t1 VALUES(2);
 --let $debug_point= pause_on_queuing_event
 --source include/add_debug_point.inc
 # Start the IO thread to start receiving events from master
-START SLAVE IO_THREAD;
+START REPLICA IO_THREAD;
 # Disabling query log during queue event counting
 --disable_query_log
 ###

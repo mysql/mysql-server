@@ -94,9 +94,7 @@ INSERT INTO t6 VALUES(10, 1977);
 SET SQL_LOG_BIN= 1;
 DELETE FROM t6 WHERE num= 10;
 [connection slave]
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1032]
 include/stop_slave.inc
 INSERT INTO t6 VALUES(10, 1977);
@@ -158,9 +156,7 @@ INSERT INTO t6 VALUES(10, 1977);
 SET SQL_LOG_BIN= 1;
 UPDATE t6 SET num= 9 WHERE num= 10;
 [connection slave]
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1032]
 include/stop_slave.inc
 INSERT INTO t6 VALUES(10, 1977);

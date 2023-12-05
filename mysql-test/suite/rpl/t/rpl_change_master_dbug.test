@@ -18,7 +18,7 @@
 -- connection slave
 -- source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
-START SLAVE io_thread;
+START REPLICA io_thread;
 
 # We wait for slave to stop and inspect the number of retries in 
 # the error message. Given that we force the slave to always report

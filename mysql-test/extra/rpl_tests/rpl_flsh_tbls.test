@@ -44,7 +44,7 @@ drop table t1;
 
 connection slave;
 flush tables with read lock;
-start slave;
+START REPLICA;
 source include/wait_for_slave_to_start.inc;
 --error 1192
 stop slave;

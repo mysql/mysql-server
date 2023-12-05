@@ -45,16 +45,14 @@ ERROR HY000: The server is not configured properly to be an active member of the
 include/assert_grep.inc [An error will be generated when GR is started with an UUID already in use by ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS]
 # 3.4  Verify that on slave start we get error related to the UUID value for  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS being same
 #      as the group_name.
-start slave;
+START REPLICA;
 ERROR HY000: Replication '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_group_name
 
 ###################################################################
 #  4. Fix the configuration by assigning the group_name a different value(the old value)
 SET GLOBAL group_replication_group_name= "SAVE_GROUP_REPLICATION_GROUP_NAME";
 include/start_group_replication.inc
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 
 ###################################################################
 #  5. Execute some transactions on server 3 and sync with server 1

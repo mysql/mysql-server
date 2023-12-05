@@ -52,7 +52,7 @@ include/sync_slave_io_with_master.inc
 INSERT INTO t1 VALUES ('<LONG_TEXT>');
 INSERT INTO t1 VALUES ('8');
 include/sync_slave_io_with_master.inc
----- Restart slave server ----
+---- Restart replica server ----
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave_io.inc
 INSERT INTO t1 VALUES ('9');

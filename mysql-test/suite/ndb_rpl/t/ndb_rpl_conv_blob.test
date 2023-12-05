@@ -17,7 +17,7 @@ PRIMARY KEY (id)
 
 stop slave;
 set global replica_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
-start slave;
+START REPLICA;
 
 # Drop and recreate table with blob storage
 # Master will log varbinary changes discretely

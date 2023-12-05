@@ -10,9 +10,7 @@ TC1. Test with assign_gtids_to_anonymous_transactions = OFF.
 [connection slave]
 include/rpl_set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
-START SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'The replication receiver thread cannot start because the source has GTID_MODE = OFF and this server has GTID_MODE = ON.'
 RESET SLAVE;
@@ -39,7 +37,7 @@ Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on th
 include/assert.inc [A warning will be generated stating the limitation of ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS option]
 include/rpl_restart_server.inc [server_number=2 gtids=off]
 include/assert_grep.inc [When assign_gtids_to_anonymous_transactions is set to LOCAL|UUID attempt to restart the slave with gtid-mode= off to get ER_REPLICA_RENAME_TXN_IS_LOCAL_OR_UUID_AND_GTID_MODE_OFF]
-START SLAVE;
+START REPLICA;
 ERROR HY000: Replication cannot start for channel '' with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> as this server uses @@GLOBAL.GTID_MODE <> ON.
 include/rpl_set_gtid_mode.inc [ON on servers 2]
 include/start_slave.inc
@@ -78,7 +76,7 @@ include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/gtid_step_assert.inc [count=0, only_count=0]
 include/stop_slave.inc
-START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
+START REPLICA UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
 ERROR HY000: The SQL_AFTER_GTIDS or SQL_BEFORE_GTIDS clauses for START REPLICA cannot be used when the replication channel is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>.
 TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;

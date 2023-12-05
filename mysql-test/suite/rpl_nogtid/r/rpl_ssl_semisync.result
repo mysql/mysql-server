@@ -27,7 +27,7 @@ INSERT INTO table1 VALUES(1);
 [connection slave]
 include/start_slave_io.inc
 
-# RE-START SLAVE and execute on master, verify that replication works fine.
+# RE-START REPLICA and execute on master, verify that replication works fine.
 
 [connection master]
 INSERT INTO table1 VALUES(2);

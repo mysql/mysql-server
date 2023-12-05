@@ -177,9 +177,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET BINARY LOGS AND GTIDS;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 ******** Create additional TABLESPACE test 2 **************
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile03.dat'
@@ -290,9 +288,7 @@ SOURCE_LOG_FILE = 'master-bin.000001',
 SOURCE_LOG_POS = <the_pos> ;
 * 4. *
 * 5. *
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 **** We should be ready to continue on *************
 ****** Let's make sure we match *******
 ***** MASTER *******

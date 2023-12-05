@@ -16,7 +16,7 @@ master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 drop table if exists t1;
 Get IO thread to reconnect to Master
-start slave;
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=13119]
 Last_SQL_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysqld startup'
 Slave_IO_Running = 'Yes'

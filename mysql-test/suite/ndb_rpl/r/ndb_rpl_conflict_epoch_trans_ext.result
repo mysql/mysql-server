@@ -90,9 +90,7 @@ ndb_conflict_trans_conflict_commit_count
 1
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should have been realigned to Primary
 select * from t1 order by a;
 a	b
@@ -169,9 +167,7 @@ ndb_conflict_trans_conflict_commit_count
 1
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should have been realigned to Primary
 select * from test.t1 order by a;
 a	b
@@ -243,9 +239,7 @@ ndb_conflict_trans_reject_count
 2
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should have been realigned to Primary
 select * from test.t1 order by a;
 a	b
@@ -324,9 +318,7 @@ ndb_conflict_trans_reject_count
 2
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should have been realigned to primary
 select * from test.t1 order by a;
 a	b
@@ -390,9 +382,7 @@ ndb_conflict_trans_conflict_commit_count
 1
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary should be aligned with Primary
 select * from t1 order by a;
 a	b
@@ -504,9 +494,7 @@ ndb_conflict_trans_conflict_commit_count
 1
 ndb_epoch_delete_delete_count
 0
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Secondary cluster should be realigned with Primary
 select * from test.t1 order by a;
 a	b
@@ -621,9 +609,7 @@ Larry	98
 Newsagent	1
 Yacht dealer	0
 Bank sites re-connected
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Records at Primary bank site
 select * from test.transactions order by auto_key;
 auto_key	from_name	to_name	detail	amount
@@ -793,9 +779,7 @@ ndb_conflict_trans_conflict_commit_count
 ndb_epoch_delete_delete_count
 0
 Now restart rep to Secondary, and check realignment
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by a;
 a	b
 1	100
@@ -899,9 +883,7 @@ ndb_conflict_trans_conflict_commit_count
 ndb_epoch_delete_delete_count
 0
 Show effect of transaction on Secondary
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 select * from test.t1 order by a;
 a	b
 1	100
@@ -960,13 +942,9 @@ Check that Primary Slave has stopped
 include/wait_for_slave_sql_error.inc [errno=1296]
 Restart Primary Slave
 set global sql_replica_skip_counter=1;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Restart Secondary Slave
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 flush logs;
 drop table test.t3;
 drop table test.t4;
@@ -1103,9 +1081,7 @@ ndb_conflict_trans_reject_count
 ndb_epoch_delete_delete_count
 1
 Now sync with Secondary to show outcomes
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 SECONDARY:
 
 set @secondary_ok:=
@@ -1235,9 +1211,7 @@ select @primary_ok;
 @primary_ok
 1
 Restart SECONDARY Slave
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA;
 Sync PRIMARY -> SECONDARY
 SECONDARY content
 set @secondary_ok:=
