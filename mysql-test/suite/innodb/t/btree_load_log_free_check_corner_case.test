@@ -1,0 +1,39 @@
+--source include/have_debug.inc
+
+# The test simulates a scenario where m_n_recs could be 0 when log_free_check is
+# called. This was possible because m_n_recs was only being updated in
+# Btree_load::build, whereas FTS was using Btree_load::insert method directly.
+# Hence FTS is used to simulate this scenario.
+#
+# In the bug scenario, the affected index is FTS_INDEX_TABLE_IND. It is the
+# inverted index of the FTS Auxiliary table which maps each word to a vector
+# of document IDs (row where word was found) and position inside the document
+# (offset in the row). For this scenario to occur, prepare_space must reach
+# the log_free_check call. This can only happen if the new tuple being inserted
+# does not fit in the current page, and the sibling of this page is a leaf node.
+# The easiset way to ensure this is to have a large list of long words which are
+# unique in the document. Since we are inserting actual row data, the sibling
+# page is always leaf node (specific to this index)
+#
+# For generating long unique words, MD5(RAND()) is used. It is not mandatory
+# that word length be fixed - however, if we use shorter words, we may need more
+# number of words to hit the scenario. CONCAT_WS is used to convert these
+# strings into a single space separated string.
+
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(255));
+
+--let $row_num = 0
+while($row_num < 32) {
+  --eval INSERT INTO t1 VALUES ($row_num + 1, CONCAT_WS(" ", MD5(RAND()), MD5(RAND()), MD5(RAND()), MD5(RAND()), MD5(RAND()), MD5(RAND()), MD5(RAND())))
+  --inc $row_num
+}
+
+SELECT COUNT(c1) FROM t1;
+
+SET GLOBAL DEBUG="+d,btree_load_simulate_log_free";
+CREATE FULLTEXT INDEX id1 ON t1(c2);
+SET GLOBAL DEBUG="-d,btree_load_simulate_log_free";
+
+SELECT COUNT(c1) FROM t1;
+
+DROP TABLE t1;

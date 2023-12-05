@@ -107,6 +107,10 @@ class Btree_load : private ut::Non_copyable {
   @return error code */
   [[nodiscard]] dberr_t insert(dtuple_t *dtuple, size_t level) noexcept;
 
+  /** Public getter function to return number of records inserted
+  @return Number of records inserted */
+  [[nodiscard]] inline uint64_t get_n_recs() noexcept { return m_n_recs; }
+
  private:
   /** Set the root page on completion.
   @param[in] last_page_no       Last page number (the new root).
