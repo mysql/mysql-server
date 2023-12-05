@@ -1063,8 +1063,8 @@ static bool mysql_test_set_fields(THD *thd,
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     return true; /* purecov: inspected */
 
-  thd->lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  thd->lex->set_using_hypergraph_optimizer(
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
   const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -1134,8 +1134,8 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
     query_block->context.resolve_in_select_list = true;
 
-    lex->using_hypergraph_optimizer =
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+    lex->set_using_hypergraph_optimizer(
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
     const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -1160,8 +1160,8 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
                               MYSQL_OPEN_FORCE_SHARED_MDL))
       return true;
 
-    lex->using_hypergraph_optimizer =
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+    lex->set_using_hypergraph_optimizer(
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
   }
 
   set_prepared();

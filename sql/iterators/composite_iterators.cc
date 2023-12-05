@@ -231,7 +231,7 @@ bool AggregateIterator::Init() {
   // This is a hack. It would be good to get rid of the slice system altogether
   // (the hypergraph join optimizer does not use it).
   if (!(m_join->implicit_grouping || m_join->group_optimized_away) &&
-      !thd()->lex->using_hypergraph_optimizer) {
+      !thd()->lex->using_hypergraph_optimizer()) {
     m_output_slice = m_join->get_ref_item_slice();
   }
 

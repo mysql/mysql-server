@@ -6762,6 +6762,7 @@ int init_common_variables() {
     }
   }
   update_parser_max_mem_size();
+  update_optimizer_switch();
 
   if (set_default_auth_plugin(default_auth_plugin,
                               strlen(default_auth_plugin))) {

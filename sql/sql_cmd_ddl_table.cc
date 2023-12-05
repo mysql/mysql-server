@@ -331,13 +331,13 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
     if (!query_expression->is_prepared()) {
       // Use the desired optimizer during following preparation
-      lex->using_hypergraph_optimizer = need_hypergraph_optimizer;
+      lex->set_using_hypergraph_optimizer(need_hypergraph_optimizer);
     }
-    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer &&
+    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer() &&
         ask_to_reprepare(thd)) {
       return true;
     }
-    assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer);
+    assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer());
 
     /* The table already exists */
     if (create_table->table || create_table->is_view()) {

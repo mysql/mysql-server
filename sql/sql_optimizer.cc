@@ -256,7 +256,7 @@ static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
 
 bool JOIN::check_access_path_with_fts() const {
   // Only relevant to the old optimizer.
-  assert(!thd->lex->using_hypergraph_optimizer);
+  assert(!thd->lex->using_hypergraph_optimizer());
 
   assert(query_block->has_ft_funcs());
   assert(rollup_state != RollupState::NONE);
@@ -442,7 +442,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     }
   }
 
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // The hypergraph optimizer also wants all subselect items to be optimized,
     // so that it has cost information to attach to filter nodes.
     for (Query_expression *unit = query_block->first_inner_query_expression();
@@ -593,7 +593,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     }
   }
 
-  if (thd->lex->using_hypergraph_optimizer &&
+  if (thd->lex->using_hypergraph_optimizer() &&
       query_block->is_table_value_constructor) {
     // Let the hypergraph optimizer handle table value constructors, even though
     // they are table-less queries.
@@ -622,7 +622,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
       }
   }
 
-  if (!thd->lex->using_hypergraph_optimizer) {
+  if (!thd->lex->using_hypergraph_optimizer()) {
     sort_by_table = get_sort_by_table(order.order, group_list.order,
                                       query_block->leaf_tables);
   }
@@ -637,7 +637,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // Ensure there are no errors prior making query plan
   if (thd->is_error()) return true;
 
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // Get the WHERE and HAVING clauses with the IN-to-EXISTS predicates
     // removed, so that we can plan both with and without the IN-to-EXISTS
     // conversion.
@@ -710,7 +710,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   //       All of this is never called for the hypergraph join optimizer!
   // ----------------------------------------------------------------------------
 
-  assert(!thd->lex->using_hypergraph_optimizer);
+  assert(!thd->lex->using_hypergraph_optimizer());
   // Don't expect to get here if the hypergraph optimizer is enabled via an
   // optimizer switch. The "is_regular()" case is necessary for SET statements.
   assert(!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) ||
@@ -10843,7 +10843,7 @@ bool JOIN::optimize_fts_query() {
   assert(query_block->has_ft_funcs());
 
   // Only used by the old optimizer.
-  assert(!thd->lex->using_hypergraph_optimizer);
+  assert(!thd->lex->using_hypergraph_optimizer());
 
   for (uint i = const_tables; i < tables; i++) {
     JOIN_TAB *tab = best_ref[i];
@@ -11591,7 +11591,7 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
           // may be too low. Get the cardinality from the handler's statistics
           // instead.
           if (subpath->type == AccessPath::INDEX_SCAN &&
-              !current_thd->lex->using_hypergraph_optimizer) {
+              !current_thd->lex->using_hypergraph_optimizer()) {
             num_output_rows = table->file->stats.records;
           }
 

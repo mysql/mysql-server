@@ -2992,7 +2992,7 @@ static AccessPath *add_filter_access_path(THD *thd, AccessPath *path,
                                           const Query_block *query_block) {
   AccessPath *filter_path = NewFilterAccessPath(thd, path, condition);
   CopyBasicProperties(*path, filter_path);
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
     // as on repeated execution of a prepared query, the condition may contain
     // references to subqueries that are destroyed and not re-optimized yet.

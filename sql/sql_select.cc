@@ -545,8 +545,8 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   if (sql_command_code() == SQLCOM_SELECT) DEBUG_SYNC(thd, "after_table_open");
 #endif
 
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  lex->set_using_hypergraph_optimizer(
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
   if (thd->lex->validate_use_in_old_optimizer()) {
     return true;
@@ -731,11 +731,11 @@ bool Sql_cmd_dml::execute(THD *thd) {
     const bool need_hypergraph_optimizer =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer &&
+    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer() &&
         ask_to_reprepare(thd)) {
       goto err;
     }
-    assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer);
+    assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer());
 
     // Bind table and field information
     if (restore_cmd_properties(thd)) goto err;
@@ -1907,7 +1907,7 @@ void JOIN::destroy() {
       }
       qep_tab[i].cleanup();
     }
-  } else if (thd->lex->using_hypergraph_optimizer) {
+  } else if (thd->lex->using_hypergraph_optimizer()) {
     // Same, for hypergraph queries.
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
@@ -3726,7 +3726,7 @@ void JOIN::cleanup() {
       if (!table) continue;
       cleanup_table(table);
     }
-  } else if (thd->lex->using_hypergraph_optimizer) {
+  } else if (thd->lex->using_hypergraph_optimizer()) {
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       cleanup_table(tl->table);
     }

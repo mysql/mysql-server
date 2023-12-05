@@ -1647,7 +1647,7 @@ bool Table_ref::optimize_derived(THD *thd) {
   // doesn't care about const tables, though, so it prefers to do this
   // at execution time (in fact, it will get confused and crash if it has
   // already been materialized).
-  if (!thd->lex->using_hypergraph_optimizer) {
+  if (!thd->lex->using_hypergraph_optimizer()) {
     if (materializable_is_const() &&
         (create_materialized_table(thd) || materialize_derived(thd)))
       return true;

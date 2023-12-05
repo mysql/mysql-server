@@ -10497,7 +10497,7 @@ bool init_ftfuncs(THD *thd, Query_block *query_block) {
   DBUG_PRINT("info", ("Performing FULLTEXT search"));
   THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // Set the no_ranking hint if ranking of the results is not required. The
     // old optimizer does this when it determines which scan to use. The
     // hypergraph optimizer doesn't know until the full plan is built, so do it

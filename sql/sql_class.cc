@@ -3701,7 +3701,7 @@ void THD::init_cost_model() {
 }
 
 const Cost_model_server *THD::cost_model() const {
-  if (lex->using_hypergraph_optimizer) {
+  if (lex->using_hypergraph_optimizer()) {
     return &m_cost_model_hypergraph;
   } else {
     return &m_cost_model;

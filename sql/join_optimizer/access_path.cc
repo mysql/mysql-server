@@ -877,7 +877,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         const Mem_root_array<Item *> *extra_conditions =
             GetExtraHashJoinConditions(
-                mem_root, thd->lex->using_hypergraph_optimizer, conditions,
+                mem_root, thd->lex->using_hypergraph_optimizer(), conditions,
                 join_predicate->expr->join_conditions);
         if (extra_conditions == nullptr) return nullptr;
         const bool probe_input_batch_mode =
@@ -931,7 +931,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // path instead of being computed here? We do make the same checks in
         // the cost model, so perhaps it should set the flag as well.
         uint64_t *hash_table_generation =
-            (thd->lex->using_hypergraph_optimizer &&
+            (thd->lex->using_hypergraph_optimizer() &&
              path->parameter_tables == 0)
                 ? &join->hash_table_generation
                 : nullptr;
@@ -949,7 +949,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // change existing behavior.) Note that we always try the probe input
         // first for left join and antijoin.
         const HashJoinInput first_input =
-            (thd->lex->using_hypergraph_optimizer &&
+            (thd->lex->using_hypergraph_optimizer() &&
              first_row_cost(*param.inner) > first_row_cost(*param.outer))
                 ? HashJoinInput::kProbe
                 : HashJoinInput::kBuild;
