@@ -85,7 +85,7 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
   }
 
   // ban subqueries in WHERE and LIMIT clauses
-  lex->expr_allows_subselect = false;
+  lex->expr_allows_subquery = false;
 
   Item *one = new (thd->mem_root) Item_int(1);
   if (one == nullptr) return true;  // OOM
@@ -107,7 +107,7 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
   if (m_opt_limit_clause != nullptr && m_opt_limit_clause->contextualize(pc))
     return true;
 
-  lex->expr_allows_subselect = true;
+  lex->expr_allows_subquery = true;
 
   /* Stored functions are not supported for HANDLER READ. */
   if (lex->uses_stored_routines()) {
@@ -142,11 +142,11 @@ Sql_cmd *PT_handler_index_scan::make_cmd(THD *thd) {
 Sql_cmd *PT_handler_index_range_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
-  thd->lex->expr_allows_subselect = false;
+  thd->lex->expr_allows_subquery = false;
   Parse_context pc(thd, thd->lex->current_query_block());
   if (m_keypart_values->contextualize(&pc) || super::contextualize(&pc))
     return nullptr;
-  thd->lex->expr_allows_subselect = true;
+  thd->lex->expr_allows_subquery = true;
 
   return new (thd->mem_root)
       Sql_cmd_handler_read(enum_ha_read_modes::RKEY, m_index,

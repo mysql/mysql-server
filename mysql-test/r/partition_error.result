@@ -1476,7 +1476,8 @@ ERROR HY000: This partition function is not allowed
 create table t1 (a int)
 partition by range (a + (select count(*) from t1))
 (partition p1 values less than (1));
-ERROR HY000: This partition function is not allowed
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select count(*) from t1))
+(partition p1 values less than (1))' at line 2
 create table t1 (a char(10))
 partition by hash (extractvalue(a,'a'));
 ERROR HY000: This partition function is not allowed
@@ -1938,3 +1939,30 @@ Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 i
 Warning	1441	Datetime function: from_days field overflow
 DROP TABLE t1;
 SET sql_mode=default;
+# Bug#35476172: MySQL server fails when executing query
+CREATE TABLE t0(c1 INTEGER);
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY HASH ((SELECT c1 FROM t0));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0))' at line 2
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY HASH ((SELECT c1 FROM t0))
+AS TABLE t0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0))
+AS TABLE t0' at line 2
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY RANGE ((SELECT c1 FROM t0)) (PARTITION a1 VALUES LESS THAN (1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0)) (PARTITION a1 VALUES LESS THAN (1))' at line 2
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY RANGE ((SELECT c1 FROM t0)) (PARTITION a1 VALUES LESS THAN (1))
+AS TABLE t0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0)) (PARTITION a1 VALUES LESS THAN (1))
+AS TABLE t0' at line 2
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY LIST ((SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0))' at line 2
+CREATE TABLE t1(c3 INTEGER)
+PARTITION BY LIST ((SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0))
+AS TABLE t0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0))
+AS TABLE t0' at line 2
+DROP TABLE t0;

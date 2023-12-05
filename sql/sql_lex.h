@@ -3906,7 +3906,7 @@ struct LEX : public Query_tables_list {
     KILL, HA_READ, CREATE/ALTER EVENT etc. Set this to `false` to get
     syntax error back.
   */
-  bool expr_allows_subselect;
+  bool expr_allows_subquery{true};
   /**
     If currently re-parsing a CTE's definition, this is the offset in bytes
     of that definition in the original statement which had the WITH
