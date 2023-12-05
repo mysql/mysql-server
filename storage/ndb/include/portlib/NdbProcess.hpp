@@ -269,9 +269,7 @@ inline bool NdbProcess::start_process(process_handle_t &pid, const char *path,
     if (len > 0) path = full_path;
   }
 
-  /* Extract the command name from the full path, then append the arguments */
-  std::filesystem::path cmdName(std::filesystem::path(path).filename());
-  BaseString cmdLine(cmdName.string().c_str());
+  BaseString cmdLine(path);
   BaseString argStr;
   argStr.assign(args.args(), " ");
   cmdLine.append(" ");
