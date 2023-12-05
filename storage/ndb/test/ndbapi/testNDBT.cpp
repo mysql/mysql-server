@@ -231,9 +231,7 @@ TESTCASE("AtrtClient", "Test AtrtClient class") {
 /*
   $> testNDBT -n SqlClient
 */
-TESTCASE("SqlClient", "Test SqlClient class") {
-  INITIALIZER(runTestSqlClient);
-}
+TESTCASE("SqlClient", "Test SqlClient class") { INITIALIZER(runTestSqlClient); }
 TESTCASE("SqlClientThreads", "Test SqlClient class with threads") {
   STEPS(runTestSqlClientThread, 10);
 }

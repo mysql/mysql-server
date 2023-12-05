@@ -553,4 +553,3 @@ int main(int argc, const char **argv) {
   test_event_mysqld.setRunAllTables(true);
   return test_event_mysqld.execute(argc, argv);
 }
-

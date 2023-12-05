@@ -2600,7 +2600,7 @@ from other transactions.
     if (tNoComp >= tNoSent) {
       return 0;  // No more operations to wait for
     }            // if
-       // Not completed the reception yet.
+                 // Not completed the reception yet.
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();

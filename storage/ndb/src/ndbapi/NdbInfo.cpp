@@ -98,7 +98,6 @@ bool NdbInfo::load_hardcoded_tables(void) {
   return true;
 }
 
-
 bool NdbInfo::addColumn(Uint32 tableId, Column aCol) {
   // Find the table with correct id
   Table *table = nullptr;
@@ -285,7 +284,7 @@ bool NdbInfo::load_tables() {
     // All table ids should be unique
     std::sort(m_table_ids.begin(), m_table_ids.end());
     for (unsigned i = 1; i < m_table_ids.size(); i++) {
-      assert(m_table_ids[i-1] != m_table_ids[i]);
+      assert(m_table_ids[i - 1] != m_table_ids[i]);
     }
   }
 

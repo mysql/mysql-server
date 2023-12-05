@@ -109,7 +109,7 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
               scm, szInternName, szDisplayName,
               dwDesiredAccess,  // default: SERVICE_ALL_ACCESS
               dwServiceType,    // default: SERVICE_WIN32_OWN_PROCESS
-                              // default: SERVICE_AUTOSTART
+                                // default: SERVICE_AUTOSTART
               (startType == 1 ? SERVICE_AUTO_START : SERVICE_DEMAND_START),
               dwErrorControl,    // default: SERVICE_ERROR_NORMAL
               szFullPath,        // exec full path

@@ -120,7 +120,7 @@ class CommandInterpreter {
   int setBackupEncryptionPassword(BaseString &encryption_password,
                                   bool &encryption_password_set,
                                   bool interactive);
-  void startEventThread(const char * host, unsigned short port);
+  void startEventThread(const char *host, unsigned short port);
   void waitForEventThread();
 
  public:
@@ -1031,7 +1031,7 @@ static void *event_thread_run(void *p) {
     } while (do_event_thread.load());
     ndb_mgm_destroy_logevent_handle(&log_handle);
   } else {
-    do_event_thread.store(-1); // prevent 30-second wait in parent thread
+    do_event_thread.store(-1);  // prevent 30-second wait in parent thread
   }
 
   DBUG_RETURN(NULL);
@@ -1042,7 +1042,7 @@ int CommandInterpreter::test_tls() {
   return connect(false) ? 0 : 1;
 }
 
-void CommandInterpreter::startEventThread(const char * host,
+void CommandInterpreter::startEventThread(const char *host,
                                           unsigned short port) {
   m_mgmsrv2 = ndb_mgm_create_handle();
   if (m_mgmsrv2 == nullptr) {
@@ -1067,7 +1067,7 @@ void CommandInterpreter::startEventThread(const char * host,
       return;
     }
   } else {  // Test whether server requires TLS
-    ndb_mgm_severity dummy {NDB_MGM_EVENT_SEVERITY_ON, 0};
+    ndb_mgm_severity dummy{NDB_MGM_EVENT_SEVERITY_ON, 0};
     if (ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv2, &dummy, 1)) {
       int err = ndb_mgm_get_latest_error(m_mgmsrv2);
       if ((err == NDB_MGM_NOT_AUTHORIZED) ||
@@ -1085,18 +1085,17 @@ void CommandInterpreter::startEventThread(const char * host,
   struct event_thread_param p;
   p.m = &m_mgmsrv2;
   p.p = &m_print_mutex;
-  m_event_thread = NdbThread_Create(event_thread_run, (void **)&p,
-                                    0,  // default stack size
-                                    "CommandInterpreted_event_thread",
-                                    NDB_THREAD_PRIO_LOW);
+  m_event_thread =
+      NdbThread_Create(event_thread_run, (void **)&p,
+                       0,  // default stack size
+                       "CommandInterpreted_event_thread", NDB_THREAD_PRIO_LOW);
   if (m_event_thread) {
     DBUG_PRINT("info", ("Thread created ok, waiting for started..."));
     int iter = 1000;  // try for 30 seconds
     while (do_event_thread.load() == 0 && iter-- > 0) NdbSleep_MilliSleep(30);
   }
 
-  if (do_event_thread.load() < 1)
-    waitForEventThread();
+  if (do_event_thread.load() < 1) waitForEventThread();
 }
 
 void CommandInterpreter::waitForEventThread() {
@@ -1158,14 +1157,16 @@ bool CommandInterpreter::connect(bool interactive) {
     startEventThread(host, port);
 
     if (!m_event_thread)
-      printf("Warning, event connect failed, degraded printouts as result\n"
-             "code: %d, msg: %s\n", ndb_mgm_get_latest_error(m_mgmsrv2),
-             ndb_mgm_get_latest_error_msg(m_mgmsrv2));
+      printf(
+          "Warning, event connect failed, degraded printouts as result\n"
+          "code: %d, msg: %s\n",
+          ndb_mgm_get_latest_error(m_mgmsrv2),
+          ndb_mgm_get_latest_error_msg(m_mgmsrv2));
   }
 
   if (m_verbose || interactive)
-    printf("Connected to management server at %s port %d (using %s)\n",
-           host, port, ndb_mgm_has_tls(m_mgmsrv) ? "TLS" : "cleartext");
+    printf("Connected to management server at %s port %d (using %s)\n", host,
+           port, ndb_mgm_has_tls(m_mgmsrv) ? "TLS" : "cleartext");
 
   DBUG_RETURN(m_connected);
 }

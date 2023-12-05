@@ -2610,12 +2610,12 @@ void TransporterFacade::propose_poll_owner() {
         (recv_client && recv_client->m_poll.m_poll_queue &&
          recv_client->m_state == ReceiveThreadClient::ACTIVE)
             ? recv_client
-        // Avoid the recv_client as it is not ACTIVE
-        : (m_poll_queue_tail == recv_client &&
-           m_poll_queue_tail->m_poll.m_prev != nullptr)
-            // 'tail' is the recv_client, prefer another
-            ? m_poll_queue_tail->m_poll.m_prev
-            : m_poll_queue_tail;
+            // Avoid the recv_client as it is not ACTIVE
+            : (m_poll_queue_tail == recv_client &&
+               m_poll_queue_tail->m_poll.m_prev != nullptr)
+                  // 'tail' is the recv_client, prefer another
+                  ? m_poll_queue_tail->m_poll.m_prev
+                  : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock

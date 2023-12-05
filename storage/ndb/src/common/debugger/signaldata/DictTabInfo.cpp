@@ -210,8 +210,8 @@ void DictTabInfo::Table::init() {
 void DictTabInfo::Attribute::init() {
   std::memset(AttributeName, 0, sizeof(AttributeName));  // AttributeName[0] =
                                                          // 0;
-  AttributeId = 0xFFFF;  // ZNIL
-  AttributeType = ~0,    // deprecated
+  AttributeId = 0xFFFF;                                  // ZNIL
+  AttributeType = ~0,                                    // deprecated
       AttributeSize = DictTabInfo::a32Bit;
   AttributeArraySize = 1;
   AttributeArrayType = NDB_ARRAYTYPE_FIXED;

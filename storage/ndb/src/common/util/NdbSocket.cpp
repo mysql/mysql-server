@@ -319,8 +319,7 @@ ssize_t NdbSocket::ssl_send(const char *buf, size_t len) const {
     if (NdbMutex_Trylock(mutex)) {
       return TLS_BUSY_TRY_AGAIN;
     }
-    if (unlikely(ssl == nullptr ||
-                 SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN)) {
+    if (unlikely(ssl == nullptr || SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN)) {
       NdbMutex_Unlock(mutex);
       return -1;
     }

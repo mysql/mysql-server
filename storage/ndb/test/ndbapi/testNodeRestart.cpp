@@ -65,14 +65,15 @@ static int changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step) {
     g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
           << endl;
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
-    for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
+    for (int idx = 0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
       Uint32 oldValue = 0;
       if (iter.get(CFG_DB_START_PARTITION_TIMEOUT, oldValue)) {
         if (defaultValue == Uint32(~0)) {
           defaultValue = oldValue;
         } else if (oldValue != defaultValue) {
           g_err << "StartPartitionedTimeout is not consistent across data node"
-                   "sections" << endl;
+                   "sections"
+                << endl;
           break;
         }
       }
@@ -2832,7 +2833,8 @@ int runCreateBigTable(NDBT_Context *ctx, NDBT_Step *step) {
   do {
     hugoTrans.loadTableStartFrom(GETNDB(step), cnt, 10000);
     cnt += 10000;
-  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 180000);  // 180s
+  } while (cnt < rows &&
+           (NdbTick_CurrentMillisecond() - now) < 180000);  // 180s
   ndbout_c("Loaded %u rows in %llums", cnt, NdbTick_CurrentMillisecond() - now);
 
   return NDBT_OK;
@@ -7870,10 +7872,10 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
   }
   ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
   Uint32 enabledPartialLCP = 1;
-  for(int idx=0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
-    Uint32 nodeId=0;
-    if(iter.get(CFG_NODE_ID, &nodeId)) {
-      if(nodeId == (Uint32) node_1) {
+  for (int idx = 0; iter.openSection(CFG_SECTION_NODE, idx); idx++) {
+    Uint32 nodeId = 0;
+    if (iter.get(CFG_NODE_ID, &nodeId)) {
+      if (nodeId == (Uint32)node_1) {
         iter.get(CFG_DB_ENABLE_PARTIAL_LCP, &enabledPartialLCP);
         iter.closeSection();
         break;
@@ -7882,8 +7884,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
     iter.closeSection();
   }
 
-  if (enabledPartialLCP == 0)
-  {
+  if (enabledPartialLCP == 0) {
     g_err << "[SKIPPED] Test skipped. Needs EnablePartialLcp=1" << endl;
     iter.closeSection();
     return NDBT_SKIPPED;
@@ -9456,7 +9457,8 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
 
       CHECK(hugoOps.startTransaction(pNdb, rowNum) == 0,
             "Start transaction failed");
-      CHECK(hugoOps.pkUpdateRecord(pNdb, rowNum, 1) == 0, "Define Update failed");
+      CHECK(hugoOps.pkUpdateRecord(pNdb, rowNum, 1) == 0,
+            "Define Update failed");
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0, "Execute NoCommit failed");
 
       NdbTransaction *trans = hugoOps.getTransaction();
@@ -9534,8 +9536,7 @@ int runTestStallTimeoutAndNF(NDBT_Context *ctx, NDBT_Step *step) {
 
       if (trans->getNdbError().code != 0) {
         ndbout_c("Got unexpected failure code : %u : %s",
-                 trans->getNdbError().code,
-                 trans->getNdbError().message);
+                 trans->getNdbError().code, trans->getNdbError().message);
         return NDBT_FAILED;
       }
 
@@ -9564,7 +9565,8 @@ int runLargeLockingReads(NDBT_Context *ctx, NDBT_Step *step) {
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step), readsize, readsize, NdbOperation::LM_Read) != 0) {
+    if (hugoTrans.pkReadRecords(GETNDB(step), readsize, readsize,
+                                NdbOperation::LM_Read) != 0) {
       return NDBT_FAILED;
     }
     i++;

@@ -103,6 +103,7 @@ class SqlClient {
   bool waitConnected(int timeout = 120);
 
   unsigned long long selectCountTable(const char *table);
+
  protected:
   /**
     Run query using prepared statement interface, this allow the query to

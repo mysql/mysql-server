@@ -3503,19 +3503,19 @@ const TriggerEvent::Value triggerEventValues[] = {
     TriggerEvent::TE_INSERT, TriggerEvent::TE_UPDATE, TriggerEvent::TE_DELETE};
 
 const Backup::State Backup::validSlaveTransitions[] = {
-    INITIAL,  DEFINING, DEFINING, DEFINED,  DEFINED,  STARTED,  STARTED,
+    INITIAL, DEFINING, DEFINING, DEFINED, DEFINED, STARTED, STARTED,
     STARTED,  // Several START_BACKUP_REQ is sent
-    STARTED,  SCANNING, SCANNING, STARTED,  STARTED,  STOPPING, STOPPING,
-    CLEANING, CLEANING, INITIAL,
+    STARTED, SCANNING, SCANNING, STARTED, STARTED, STOPPING, STOPPING, CLEANING,
+    CLEANING, INITIAL,
 
-    INITIAL,  ABORTING,  // Node fail
-    DEFINING, ABORTING, DEFINED,  ABORTING, STARTED,  ABORTING, SCANNING,
+    INITIAL, ABORTING,  // Node fail
+    DEFINING, ABORTING, DEFINED, ABORTING, STARTED, ABORTING, SCANNING,
     ABORTING, STOPPING, ABORTING, CLEANING, ABORTING,  // Node fail w/ master
                                                        // takeover
     ABORTING, ABORTING,  // Slave who initiates ABORT should have this
                          // transition
 
-    ABORTING, INITIAL,  INITIAL,  INITIAL};
+    ABORTING, INITIAL, INITIAL, INITIAL};
 
 const Uint32 Backup::validSlaveTransitionsCount =
     sizeof(Backup::validSlaveTransitions) / sizeof(Backup::State);
