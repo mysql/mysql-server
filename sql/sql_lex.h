@@ -4331,6 +4331,7 @@ struct LEX : public Query_tables_list {
     query_block = nullptr;
     all_query_blocks_list = nullptr;
     m_current_query_block = nullptr;
+    explain_format = nullptr;
     destroy_values_map();
   }
 
