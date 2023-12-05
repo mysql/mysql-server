@@ -104,7 +104,7 @@ class Master_info : public Rpl_info {
 
  private:
   /**
-    If true, USER/PASSWORD was specified when running START SLAVE.
+    If true, USER/PASSWORD was specified when running START REPLICA.
   */
   bool start_user_configured;
   /**
@@ -116,20 +116,20 @@ class Master_info : public Rpl_info {
   */
   char password[MAX_PASSWORD_LENGTH + 1];
   /**
-    User specified when running START SLAVE.
+    User specified when running START REPLICA.
   */
   char start_user[USERNAME_LENGTH + 1];
   /**
-    Password specified when running START SLAVE.
+    Password specified when running START REPLICA.
   */
   char start_password[MAX_PASSWORD_LENGTH + 1];
   /**
-    Stores the authentication plugin specified when running START SLAVE.
+    Stores the authentication plugin specified when running START REPLICA.
   */
   char start_plugin_auth[FN_REFLEN + 1];
   /**
     Stores the authentication plugin directory specified when running
-    START SLAVE.
+    START REPLICA.
   */
   char start_plugin_dir[FN_REFLEN + 1];
 
@@ -166,13 +166,13 @@ class Master_info : public Rpl_info {
  public:
   /**
     Returns if USER/PASSWORD was specified when running
-    START SLAVE.
+    START REPLICA.
 
     @return true or false.
   */
   bool is_start_user_configured() const { return start_user_configured; }
   /**
-    Returns if DEFAULT_AUTH was specified when running START SLAVE.
+    Returns if DEFAULT_AUTH was specified when running START REPLICA.
 
     @return true or false.
   */
@@ -180,7 +180,7 @@ class Master_info : public Rpl_info {
     return (start_plugin_auth[0] != 0);
   }
   /**
-    Returns if PLUGIN_DIR was specified when running START SLAVE.
+    Returns if PLUGIN_DIR was specified when running START REPLICA.
 
     @return true or false.
   */
@@ -189,7 +189,7 @@ class Master_info : public Rpl_info {
   }
   /**
     Defines that USER/PASSWORD was specified or not when running
-    START SLAVE.
+    START REPLICA.
 
     @param config is true or false.
   */
@@ -198,7 +198,7 @@ class Master_info : public Rpl_info {
   }
   /**
     Sets either user's name in the master.info repository when CHANGE
-    MASTER is executed or user's name used in START SLAVE if USER is
+    MASTER is executed or user's name used in START REPLICA if USER is
     specified.
 
     @param user_arg is user's name.
@@ -219,7 +219,7 @@ class Master_info : public Rpl_info {
     return (start_user_configured ? sizeof(start_user) : sizeof(user));
   }
   /**
-    If an user was specified when running START SLAVE, this function returns
+    If an user was specified when running START REPLICA, this function returns
     such user. Otherwise, it returns the user stored in master.info.
 
     @return user's name.
@@ -229,7 +229,7 @@ class Master_info : public Rpl_info {
   }
   /**
     Stores either user's password in the master.info repository when CHANGE
-    MASTER is executed or user's password used in START SLAVE if PASSWORD
+    MASTER is executed or user's password used in START REPLICA if PASSWORD
     is specified.
 
     @param password_arg is user's password.
@@ -238,7 +238,7 @@ class Master_info : public Rpl_info {
   void set_password(const char *password_arg);
   /**
     Returns either user's password in the master.info repository or
-    user's password used in START SLAVE.
+    user's password used in START REPLICA.
 
     @param[out] password_arg is user's password.
     @param[out] password_arg_size is user's password size.
@@ -247,29 +247,29 @@ class Master_info : public Rpl_info {
   */
   bool get_password(char *password_arg, size_t *password_arg_size);
   /**
-    Cleans in-memory password defined by START SLAVE.
+    Cleans in-memory password defined by START REPLICA.
   */
   void reset_start_info();
   /**
-    Returns the DEFAULT_AUTH defined by START SLAVE.
+    Returns the DEFAULT_AUTH defined by START REPLICA.
 
     @return DEFAULT_AUTH.
   */
   const char *get_start_plugin_auth() { return start_plugin_auth; }
   /**
-    Returns the PLUGIN_DIR defined by START SLAVE.
+    Returns the PLUGIN_DIR defined by START REPLICA.
 
     @return PLUGIN_DIR.
   */
   const char *get_start_plugin_dir() { return start_plugin_dir; }
   /**
-    Stores the DEFAULT_AUTH defined by START SLAVE.
+    Stores the DEFAULT_AUTH defined by START REPLICA.
   */
   void set_plugin_auth(const char *src) {
     if (src) strmake(start_plugin_auth, src, sizeof(start_plugin_auth) - 1);
   }
   /**
-    Stores the DEFAULT_AUTH defined by START SLAVE.
+    Stores the DEFAULT_AUTH defined by START REPLICA.
   */
   void set_plugin_dir(const char *src) {
     if (src) strmake(start_plugin_dir, src, sizeof(start_plugin_dir) - 1);
@@ -661,7 +661,7 @@ class Master_info : public Rpl_info {
     This is the channel lock. It is a rwlock used to serialize all replication
     administrative commands that cannot be performed concurrently for a given
     replication channel:
-    - START SLAVE;
+    - START REPLICA;
     - STOP SLAVE;
     - CHANGE MASTER;
     - RESET SLAVE;

@@ -461,7 +461,7 @@ class Multisource_info {
   channel_map.rdlock() when querying P_S.replication_applier_filters table,
   we keep the rpl_channel_filters. So that we just need to hold the small
   rpl_channel_filters.rdlock() when querying P_S.replication_applier_filters
-  table. Many operations (RESET SLAVE [FOR CHANNEL], START SLAVE, INIT SLAVE,
+  table. Many operations (RESET SLAVE [FOR CHANNEL], START REPLICA, INIT SLAVE,
   END SLAVE, CHANGE MASTER TO, FLUSH RELAY LOGS, START CHANNEL, PURGE CHANNEL,
   and so on) hold the channel_map.wrlock().
 

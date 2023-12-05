@@ -489,7 +489,7 @@ void ReplicaInitializer::start_replication_threads(bool skip_replica_start) {
 
 void ReplicaInitializer::start_threads() {
   /*
-    Loop through the channel_map and start slave threads for each channel.
+    Loop through the channel_map and start replica threads for each channel.
   */
   for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
        it++) {
@@ -545,7 +545,7 @@ int ReplicaInitializer::init_replica() {
 
   /*
     This is called when mysqld starts. Before client connections are
-    accepted. However bootstrap may conflict with us if it does START SLAVE.
+    accepted. However bootstrap may conflict with us if it does START REPLICA.
     So it's safer to take the lock.
   */
   channel_map.wrlock();
@@ -620,7 +620,7 @@ bool start_slave(THD *thd) {
       if sql_replica_skip_counter > 0. It throws an error to the session.
     */
     mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
-    /* sql_replica_skip_counter > 0 && !(START SLAVE IO_THREAD) */
+    /* sql_replica_skip_counter > 0 && !(START REPLICA IO_THREAD) */
     if (sql_replica_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO)) {
       my_error(ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
       mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
@@ -703,7 +703,7 @@ int stop_slave(THD *thd) {
 }
 
 /**
-  Entry point to the START SLAVE command. The function
+  Entry point to the START REPLICA command. The function
   decides to start replication threads on several channels
   or a single given channel.
 
@@ -749,10 +749,10 @@ bool start_slave_cmd(THD *thd) {
       disable this command here as, in some cases, group replication does not
       support them.
 
-      For channel group_replication_applier we disable START SLAVE [IO_THREAD]
+      For channel group_replication_applier we disable START REPLICA [IO_THREAD]
       command.
 
-      For channel group_replication_recovery we disable START SLAVE command
+      For channel group_replication_recovery we disable START REPLICA command
       and its two thread variants.
     */
     if (mi &&
@@ -773,7 +773,7 @@ bool start_slave_cmd(THD *thd) {
       goto err;
     }
     /*
-      START SLAVE for channel group_replication_applier is disallowed while
+      START REPLICA for channel group_replication_applier is disallowed while
       Group Replication is running.
     */
     if (mi &&
@@ -1185,7 +1185,7 @@ int init_recovery(Master_info *mi) {
 /*
   Relay log recovery in the case of MTS, is handled by the following function.
   Gaps in MTS execution are filled using implicit execution of
-  START SLAVE UNTIL SQL_AFTER_MTS_GAPS call. Once slave reaches a consistent
+  START REPLICA UNTIL SQL_AFTER_MTS_GAPS call. Once slave reaches a consistent
   gapless state receiver thread's positions are initialized to applier thread's
   positions and the old relay logs are discarded. This completes the recovery
   process.
@@ -1248,7 +1248,7 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
 err:
   /*
     If recovery failed means we failed to initialize rli object in the case
-    of MTS. We should not allow the START SLAVE command to work as we do in
+    of MTS. We should not allow the START REPLICA command to work as we do in
     the case of STS. i.e if init_recovery call fails then we set inited=0.
   */
   rli->end_info();
@@ -1277,7 +1277,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
 
   /*
     When info tables are used and autocommit= 0 we force a new
-    transaction start to avoid table access deadlocks when START SLAVE
+    transaction start to avoid table access deadlocks when START REPLICA
     is executed after RESET SLAVE.
   */
   if (is_autocommit_off(thd)) {
@@ -1344,7 +1344,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
 end:
   /*
     When info tables are used and autocommit= 0 we force transaction
-    commit to avoid table access deadlocks when START SLAVE is executed
+    commit to avoid table access deadlocks when START REPLICA is executed
     after RESET SLAVE.
   */
   if (is_autocommit_off(thd))
@@ -2141,8 +2141,8 @@ void end_slave() {
   /*
     This is called when the server terminates, in close_connections().
     It terminates slave threads. However, some CHANGE MASTER etc may still be
-    running presently. If a START SLAVE was in progress, the mutex lock below
-    will make us wait until slave threads have started, and START SLAVE
+    running presently. If a START REPLICA was in progress, the mutex lock below
+    will make us wait until slave threads have started, and START REPLICA
     returns, then we terminate them here.
   */
   channel_map.wrlock();
@@ -4864,7 +4864,7 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
 
   This function may fail to apply the event for the following reasons:
 
-   - The position specified by the UNTIL condition of the START SLAVE
+   - The position specified by the UNTIL condition of the START REPLICA
      command is reached.
 
    - It was not possible to read the event from the log.
@@ -5851,7 +5851,7 @@ extern "C" void *handle_slave_io(void *arg) {
     THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);
     mysql_mutex_lock(&mi->run_lock);
     /*
-      Clean information used to start slave in order to avoid
+      Clean information used to start replica in order to avoid
       security issues.
     */
     mi->reset_start_info();
@@ -6244,7 +6244,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
   /*
     When info tables are used and autocommit= 0 we force a new
-    transaction start to avoid table access deadlocks when START SLAVE
+    transaction start to avoid table access deadlocks when START REPLICA
     is executed after STOP SLAVE with MTS enabled.
   */
   if (is_autocommit_off(thd))
@@ -6284,7 +6284,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
   /*
     When info tables are used and autocommit= 0 we force transaction
-    commit to avoid table access deadlocks when START SLAVE is executed
+    commit to avoid table access deadlocks when START REPLICA is executed
     after STOP SLAVE with MTS enabled.
   */
   if (is_autocommit_off(thd))
@@ -6716,7 +6716,7 @@ end:
   /*
     Free the buffer that was being used to report worker's status through
     the table performance_schema.table_replication_applier_status_by_worker
-    between stop slave and next start slave.
+    between stop slave and next start replica.
   */
   for (int i = static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0;
        i--) {
@@ -6815,7 +6815,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
 
     /*
       Make copies for reporting through the performance schema tables.
-      This is preserved until the next START SLAVE.
+      This is preserved until the next START REPLICA.
     */
     Slave_worker *worker_copy = new Slave_worker(
         nullptr,
@@ -7122,11 +7122,10 @@ extern "C" void *handle_slave_sql(void *arg) {
       Reset errors for a clean start (otherwise, if the master is idle, the SQL
       thread may execute no Query_log_event, so the error will remain even
       though there's no problem anymore). Do not reset the master timestamp
-      (imagine the slave has caught everything, the STOP SLAVE and START SLAVE:
-      as we are not sure that we are going to receive a query, we want to
-      remember the last master timestamp (to say how many seconds behind we are
-      now.
-      But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
+      (imagine the slave has caught everything, the STOP SLAVE and START
+      REPLICA: as we are not sure that we are going to receive a query, we want
+      to remember the last master timestamp (to say how many seconds behind we
+      are now. But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
     */
     rli->clear_error();
     if (rli->workers_array_initialized) {
@@ -8779,7 +8778,7 @@ bool reencrypt_relay_logs() {
 uint sql_replica_skip_counter;
 
 /**
-   Executes a START SLAVE statement.
+   Executes a START REPLICA statement.
 
   @param thd                 Pointer to THD object for the client thread
                              executing the statement.
@@ -8812,7 +8811,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
   DBUG_TRACE;
 
   /*
-    START SLAVE command should ignore 'read-only' and 'super_read_only'
+    START REPLICA command should ignore 'read-only' and 'super_read_only'
     options so that it can update 'mysql.slave_master_info' and
     'mysql.slave_relay_log_info' replication repository tables.
   */
@@ -8855,7 +8854,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
     } else if (*mi->host || !(thread_mask & SLAVE_IO)) {
       /*
         If we will start IO thread we need to take care of possible
-        options provided through the START SLAVE if there is any.
+        options provided through the START REPLICA if there is any.
       */
       if (thread_mask & SLAVE_IO) {
         if (connection_param->user) {
@@ -10326,7 +10325,7 @@ static std::pair<bool, bool> validate_change_replication_source_options(
     if (mi->rli->mts_recovery_group_cnt) {
       /*
         Change-Master can't be done if there is a mts group gap.
-        That requires mts-recovery which START SLAVE provides.
+        That requires mts-recovery which START REPLICA provides.
       */
       assert(mi->rli->recovery_parallel_workers);
       my_error(ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS, MYF(0));
@@ -10720,7 +10719,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         Coordinates in rli were spoilt by purge_relay_logs(),
         so restore them to good values. If we left them to ''/0, that would
         work. But that would fail in the case of 2 successive CHANGE MASTER
-        (without a START SLAVE in between): because first one would set the
+        (without a START REPLICA in between): because first one would set the
         coords in mi to the good values of those in rli, then set those i>n rli
         to ''/0, then second CHANGE MASTER would set the coords in mi to those
         of rli, i.e. to ''/0: we have lost all copies of the original good
@@ -10759,8 +10758,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
 
     /*
       If we don't write new coordinates to disk now, then old will remain in
-      relay-log.info until START SLAVE is issued; but if mysqld is shutdown
-      before START SLAVE, then old will remain in relay-log.info, and will be
+      relay-log.info until START REPLICA is issued; but if mysqld is shutdown
+      before START REPLICA, then old will remain in relay-log.info, and will be
       the in-memory value at restart (thus causing errors, as the old relay log
       does not exist anymore).
 
@@ -11267,8 +11266,8 @@ static bool check_replica_configuration_errors(Master_info *mi,
          Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF)) {
       /*
         This function may be called either during server start (when
-        --skip-start-replica is not used) or during START SLAVE. The error
-        should only be generated during START SLAVE. During server start, an
+        --skip-start-replica is not used) or during START REPLICA. The error
+        should only be generated during START REPLICA. During server start, an
         error has already been written to the log for this case (in
         init_replica).
       */

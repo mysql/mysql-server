@@ -601,8 +601,8 @@ class Slave_worker : public Relay_log_info {
   /*
     This function is used to make a copy of the worker object before we
     destroy it on STOP SLAVE. This new object is then used to report the
-    worker status until next START SLAVE following which the new worker objects
-    will be used.
+    worker status until next START REPLICA following which the new worker
+    objects will be used.
   */
   void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
                            THD *worker_thd, const Error &last_error,

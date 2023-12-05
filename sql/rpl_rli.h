@@ -339,7 +339,7 @@ class Relay_log_info : public Rpl_info {
   /* The following variables are safe to read any time */
 
   /*
-    When we restart slave thread we need to have access to the previously
+    When we restart replica thread we need to have access to the previously
     created temporary tables. Modified only on init/end and by the SQL
     thread, read only by SQL thread.
   */
@@ -932,7 +932,7 @@ class Relay_log_info : public Rpl_info {
   mysql_cond_t log_space_cond;
 
   /*
-     Condition and its parameters from START SLAVE UNTIL clause.
+     Condition and its parameters from START REPLICA UNTIL clause.
 
      UNTIL condition is tested with is_until_satisfied() method that is
      called by exec_relay_log_event(). is_until_satisfied() caches the result
@@ -1852,7 +1852,7 @@ class Relay_log_info : public Rpl_info {
     This is set with CHANGE MASTER TO MASTER_DELAY=X.
 
     Guarded by data_lock.  Initialized by the client thread executing
-    START SLAVE.  Written by client threads executing CHANGE MASTER TO
+    START REPLICA.  Written by client threads executing CHANGE MASTER TO
     MASTER_DELAY=X.  Read by SQL thread and by client threads
     executing SHOW SLAVE STATUS.  Note: must not be written while the
     slave SQL thread is running, since the SQL thread reads it without
@@ -2015,7 +2015,7 @@ class Relay_log_info : public Rpl_info {
   */
   bool m_allow_drop_write_set;
 
-  /* The object stores and handles START SLAVE UNTIL option */
+  /* The object stores and handles START REPLICA UNTIL option */
   Until_option *until_option;
 
  public:
@@ -2087,7 +2087,7 @@ class Relay_log_info : public Rpl_info {
    Initialize until option object when starting slave.
 
    @param[in] thd The thread object of current session.
-   @param[in] master_param the parameters of START SLAVE.
+   @param[in] master_param the parameters of START REPLICA.
 
    @return int
      @retval 0      Succeeds to initialize until option object.

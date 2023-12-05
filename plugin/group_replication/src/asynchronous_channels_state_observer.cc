@@ -68,7 +68,7 @@ int Asynchronous_channels_state_observer::thread_start(
     }
   }
 
-  /* Can't start slave relay io thread when group replication is running on
+  /* Can't start replica relay io thread when group replication is running on
    single-primary mode on secondary */
   if (is_plugin_configured_and_starting() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
@@ -152,7 +152,7 @@ int Asynchronous_channels_state_observer::applier_start(
     }
   }
 
-  /* Can't start slave relay sql thread when group replication is running on
+  /* Can't start replica relay sql thread when group replication is running on
      single-primary mode on secondary */
   if (is_plugin_configured_and_starting() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&

@@ -1389,13 +1389,13 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var) {
        ROW/MIXED, the server must not write CREATE/DROP TEMPORARY TABLE
       to the binary log) in the following case:
         slave> SET @@global.binlog_format=STATEMENT;
-        slave> START SLAVE;
+        slave> START REPLICA;
         master> CREATE TEMPORARY TABLE t1(a INT);
         slave> [wait for t1 to replicate]
         slave> STOP SLAVE;
         slave> SET @@global.binlog_format=ROW / SET @@persist.binlog_format=ROW
         master> DROP TEMPORARY TABLE t1;
-        slave> START SLAVE;
+        slave> START REPLICA;
       Note: SET @@persist_only.binlog_format is not disallowed if any
       replication channel has temporary table(s), since unlike PERSIST,
       PERSIST_ONLY does not modify the runtime global system variable value.
@@ -7146,7 +7146,7 @@ bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
   /* We unlock in following statement to avoid deadlock involving following
    * conditions.
    * ------------------------------------------------------------------------
-   * Thread 1 (START SLAVE)  has locked channel_map and waiting for cond_wait
+   * Thread 1 (START REPLICA)  has locked channel_map and waiting for cond_wait
    * that is supposed to be done by Thread 2.
    *
    * Thread 2 (handle_slave_io) is supposed to signal Thread 1 but waiting to

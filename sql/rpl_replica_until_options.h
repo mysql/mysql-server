@@ -148,8 +148,8 @@ class Until_position : public Until_option {
   /**
      Initialize the until position when starting the slave.
 
-     @param[in] log_name the log name in START SLAVE UNTIL option.
-     @param[in] log_pos the log position in START SLAVE UNTIL option.
+     @param[in] log_name the log name in START REPLICA UNTIL option.
+     @param[in] log_pos the log position in START REPLICA UNTIL option.
 
      @return int
        @retval 0 if succeeds.
@@ -198,7 +198,7 @@ class Until_position : public Until_option {
   bool check_position(const char *log_name, my_off_t log_pos);
 
  private:
-  /* They store the log name and log position in START SLAVE UNTIL option */
+  /* They store the log name and log position in START REPLICA UNTIL option */
   char m_until_log_name[FN_REFLEN];
   ulonglong m_until_log_pos;
 
@@ -263,7 +263,7 @@ class Until_gtids : public Until_option {
   /**
      Initialize the until gtids when starting the slave.
 
-     @param[in] gtid_set_str the gtid set in START SLAVE UNTIL option.
+     @param[in] gtid_set_str the gtid set in START REPLICA UNTIL option.
 
      @return int
        @retval 0 if succeeds.
@@ -273,7 +273,7 @@ class Until_gtids : public Until_option {
 
  protected:
   /**
-    Stores the gtids of START SLAVE UNTIL SQL_*_GTIDS.
+    Stores the gtids of START REPLICA UNTIL SQL_*_GTIDS.
     Each time a gtid is about to be processed, we check if it is in the
     set. Depending on until_condition, SQL thread is stopped before or
     after applying the gtid.
@@ -370,7 +370,7 @@ class Until_view_id : public Until_option {
   /**
      Initialize the view_id when starting the slave.
 
-     @param[in] view_id the view_id in START SLAVE UNTIO option.
+     @param[in] view_id the view_id in START REPLICA UNTIO option.
 
      @return int
        @retval 0 if succeeds.

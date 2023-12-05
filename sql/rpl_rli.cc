@@ -1075,7 +1075,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     init_info checks for the existence of the relay log, this fails and
     init_info leaves inited to 0.
     In that pathological case, master_log_pos* will be properly reinited at
-    the next START SLAVE (as RESET SLAVE or CHANGE MASTER, the callers of
+    the next START REPLICA (as RESET SLAVE or CHANGE MASTER, the callers of
     purge_relay_logs, will delete bogus *.info files or replace them with
     correct files), however if the user does SHOW SLAVE STATUS before START
     SLAVE, he will see old, confusing master_log_*. In other words, we reinit

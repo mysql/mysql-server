@@ -7518,7 +7518,7 @@ int Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli) {
 
   /*
     If there was an error the slave is going to stop, leave the
-    file so that we can re-execute this event at START SLAVE.
+    file so that we can re-execute this event at START REPLICA.
   */
   if (!error) {
     /*

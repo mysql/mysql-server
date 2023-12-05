@@ -1241,9 +1241,9 @@ static bool shall_skip_gtids(const Log_event *ev) {
   R1. After FLUSH [RELAY] LOGS
   R2. When mysqld receives SIGHUP
   R3. When relay log size grows too big
-  R4. Immediately after START SLAVE
+  R4. Immediately after START REPLICA
   R5. When slave IO thread reconnects without user doing
-      START SLAVE/STOP SLAVE
+      START REPLICA/STOP SLAVE
   R6. When master dump thread starts a new binlog
   R7. CHANGE MASTER which deletes all relay logs
   R8. RESET SLAVE

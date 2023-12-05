@@ -554,7 +554,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
 /*
   This function is used to make a copy of the worker object before we
   destroy it while STOP SLAVE. This new object is then used to report the
-  worker status until next START SLAVE following which the new worker objects
+  worker status until next START REPLICA following which the new worker objects
   will be used.
 */
 void Slave_worker::copy_values_for_PFS(ulong worker_id,
