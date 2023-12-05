@@ -40,10 +40,6 @@ class ndb_socket_poller {
   // Current number of fds in the list
   unsigned m_count;
 
-  // Number of sockets with SSL data ready to read when they
-  // were added to the list.
-  unsigned m_ssl_pending;
-
   // The list of pollfds, initial size is 1 and m_pfds will
   // then point at m_one_pfd. After dynamic expand points at
   // dynamic list of pollfds
@@ -51,12 +47,9 @@ class ndb_socket_poller {
   posix_poll_fd *m_pfds;
 
  public:
-  ndb_socket_poller(void) : m_max_count(1), m_pfds(&m_one_pfd) { clear(); }
+  ndb_socket_poller(void) : m_max_count(1), m_count(0), m_pfds(&m_one_pfd) {}
 
-  void clear(void) {
-    m_count = 0;
-    m_ssl_pending = 0;
-  }
+  void clear(void) { m_count = 0; }
 
   ~ndb_socket_poller() {
     if (m_pfds != &m_one_pfd) delete[] m_pfds;
@@ -66,7 +59,7 @@ class ndb_socket_poller {
 
   unsigned add(ndb_socket_t sock, bool read, bool write);
 
-  unsigned add_readable(ndb_socket_t sock, struct ssl_st *ssl = nullptr);
+  unsigned add_readable(ndb_socket_t sock) { return add(sock, true, false); }
 
   unsigned add_writable(ndb_socket_t sock) { return add(sock, false, true); }
 

@@ -23,8 +23,6 @@
 */
 #include "ndb_global.h"
 
-#include <openssl/ssl.h>
-
 #include "portlib/NdbTick.h"
 #include "portlib/ndb_socket.h"
 #include "portlib/ndb_socket_poller.h"
@@ -40,20 +38,6 @@ bool ndb_socket_poller::set_max_count(unsigned count) {
   m_pfds = pfds;
   m_max_count = count;
   return true;
-}
-
-unsigned int ndb_socket_poller::add_readable(ndb_socket_t sock, SSL *ssl) {
-  if (ssl && SSL_pending(ssl)) {
-    assert(m_count < m_max_count);
-    const unsigned index = m_count;
-    m_ssl_pending++;
-    posix_poll_fd &pfd = m_pfds[m_count++];
-    pfd.events = 0;        // don't actually poll
-    pfd.revents = POLLIN;  // show that socket is ready to read
-    return index;
-  }
-
-  return add(sock, true, false);
 }
 
 unsigned int ndb_socket_poller::add(ndb_socket_t sock, bool read, bool write) {
@@ -74,17 +58,11 @@ unsigned int ndb_socket_poller::add(ndb_socket_t sock, bool read, bool write) {
 }
 
 int ndb_socket_poller::poll(int timeout) {
-  if (m_ssl_pending > 0 && m_ssl_pending == m_count)
-    return m_ssl_pending;  // no need to actually poll
-
   do {
     const NDB_TICKS start = NdbTick_getCurrentTicks();
 
     const int res = poll_unsafe(timeout);
-    if (likely(res >= 0))
-      return res + m_ssl_pending;
-    else if (m_ssl_pending)
-      return m_ssl_pending;
+    if (likely(res >= 0)) return res;
 
     const int error = ndb_socket_errno();
     if (res == -1 && (error == EINTR || error == EAGAIN)) {

@@ -146,13 +146,14 @@ class NdbSocket {
   int readln(int timeout, int *time, char *buf, int len, NdbMutex *) const;
   int write(int timeout, int *, const char *buf, int len) const;
 
+  /* Do the socket have pending data to be read immediately? */
+  bool has_pending() const;
+
   int shutdown() const;
   int close();
   void close_with_reset();
 
   /* ndb_socket_poller.h */
-  uint add_readable(ndb_socket_poller *) const;
-  uint add_writable(ndb_socket_poller *) const;
   int poll_readable(int timeout_msec) const;
   int poll_writable(int timeout_msec) const;
   bool check_hup() const;
@@ -160,6 +161,7 @@ class NdbSocket {
  private:
   void invalidate_socket_handle();
 
+  bool ssl_has_pending() const;
   ssize_t ssl_recv(char *buf, size_t len) const;
   ssize_t ssl_peek(char *buf, size_t len) const;
   ssize_t ssl_send(const char *buf, size_t len) const;
@@ -280,19 +282,17 @@ inline void NdbSocket::close_with_reset() {
   invalidate_socket_handle();
 }
 
+inline bool NdbSocket::has_pending() const {
+  if (ssl != nullptr) return ssl_has_pending();
+  return false;
+}
+
 /* ndb_socket_poller.h */
-inline uint NdbSocket::add_readable(ndb_socket_poller *poller) const {
-  return poller->add_readable(s, ssl);
-}
-
-inline uint NdbSocket::add_writable(ndb_socket_poller *poller) const {
-  return poller->add_writable(s);
-}
-
 inline int NdbSocket::poll_readable(int timeout) const {
   if (!is_valid()) return -1;
+  if (has_pending()) return 1;
   ndb_socket_poller poller;
-  poller.add_readable(s, ssl);
+  poller.add_readable(s);
   return poller.poll(timeout);
 }
 
