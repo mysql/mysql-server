@@ -740,6 +740,7 @@ MySQL clients support the protocol:
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_memory.h"
 #include "sql/mysqld_cs.h"
+#include "sql/signal_handler.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_socket.h"
@@ -1035,7 +1036,6 @@ inline void setup_fpu() {
 #endif /* __i386__ */
 }
 
-extern "C" void handle_fatal_signal(int sig);
 void my_server_abort();
 
 /* Constants */
@@ -3571,7 +3571,8 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers) {
 #endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
   __try {
     my_set_exception_pointers(ex_pointers);
-    handle_fatal_signal(ex_pointers->ExceptionRecord->ExceptionCode);
+    handle_fatal_signal(ex_pointers->ExceptionRecord->ExceptionCode, nullptr,
+                        nullptr);
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     DWORD written;
     const char msg[] = "Got exception in exception handler!\n";
@@ -3643,9 +3644,10 @@ void my_init_signals() {
       SA_RESETHAND resets handler action to default when entering handler.
       SA_NODEFER allows receiving the same signal during handler.
       E.g. SIGABRT during our signal handler will dump core (default action).
+      SA_SIGINFO means: use sa.sa_sigaction rather than sa.sa_handler.
     */
-    sa.sa_flags = SA_RESETHAND | SA_NODEFER;
-    sa.sa_handler = handle_fatal_signal;
+    sa.sa_flags = SA_RESETHAND | SA_NODEFER | SA_SIGINFO;
+    sa.sa_sigaction = handle_fatal_signal;
     // Treat these as fatal and handle them.
     sigaction(SIGABRT, &sa, nullptr);
     sigaction(SIGFPE, &sa, nullptr);
@@ -3660,6 +3662,7 @@ void my_init_signals() {
 
   // Ignore SIGPIPE
   sa.sa_flags = 0;
+  sa.sa_sigaction = nullptr;
   sa.sa_handler = SIG_IGN;
   (void)sigaction(SIGPIPE, &sa, nullptr);
 
