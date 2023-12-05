@@ -1285,7 +1285,6 @@ TEST_P(SplittingConnectionTest, prepare_instance_local_statements_fails) {
            "SHUTDOWN",
            "START GROUP_REPLICATION",
            "START REPLICA",
-           "START SLAVE",
            "STOP GROUP_REPLICATION",
            "STOP REPLICA",
            "STOP SLAVE",

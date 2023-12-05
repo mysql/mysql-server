@@ -443,8 +443,8 @@ static bool setup_repl(atrt_process *dst, atrt_process *src) {
     return false;
   }
 
-  if (!run_query(src, "START SLAVE")) {
-    g_logger.error("Failed to start slave: %s", mysql_error(&src->m_mysql));
+  if (!run_query(src, "START REPLICA")) {
+    g_logger.error("Failed to start replica: %s", mysql_error(&src->m_mysql));
     return false;
   }
 

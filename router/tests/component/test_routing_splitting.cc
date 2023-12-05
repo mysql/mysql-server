@@ -621,7 +621,6 @@ TEST_F(RoutingSplittingTest, instance_local_stmt_is_forbidden) {
            "SHUTDOWN",
            "START GROUP_REPLICATION",
            "START REPLICA",
-           "START SLAVE",
            "STOP GROUP_REPLICATION",
            "STOP REPLICA",
            "STOP SLAVE",
