@@ -35,7 +35,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=JSON SELECT * FROM t1, t1 t2 WHERE t1.a = t2.a;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where multiple equal(`test`.`t1`.`a`, `test`.`t2`.`a`)",
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where multiple equal(`test`.`t1`.`a`, `t2`.`a`)",
   "inputs": [
     {
       "operation": "Table scan on t1 in secondary engine MOCK",

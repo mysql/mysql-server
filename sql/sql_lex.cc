@@ -3799,9 +3799,7 @@ bool LEX::can_not_use_merged() {
 */
 
 bool LEX::need_correct_ident() {
-  if (is_explain() && explain_format->is_iterator_based() &&
-      explain_format->is_hierarchical())
-    return true;
+  if (is_explain() && explain_format->is_iterator_based()) return true;
   switch (sql_command) {
     case SQLCOM_SHOW_CREATE:
     case SQLCOM_SHOW_TABLES:

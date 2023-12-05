@@ -417,7 +417,7 @@ EXPLAIN
             -> Materialize  (rows=41)
                 -> Nested loop inner join  (rows=41)
                     -> Table scan on cs  (rows=41)
-                    -> Single-row index lookup on col using PRIMARY (id=mysql.cs.default_collation_id)  (rows=1)
+                    -> Single-row index lookup on col using PRIMARY (id=cs.default_collation_id)  (rows=1)
 
 select * from information_schema.character_sets order by 1 limit 3;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN

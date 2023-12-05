@@ -21,7 +21,7 @@ Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`test`.`i`.`f1`) from `test`.`t1` `i` where (`test`.`i`.`f1` > `test`.`t1`.`f1`)))",
+  "query": "/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)))",
   "inputs": [
     {
       "operation": "Table scan on t1",
@@ -373,7 +373,7 @@ WHERE alias2.col_varchar_key >= t1.col_varchar)
 GROUP BY field1;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on(((`test`.`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`))) where true group by `field1`",
+  "query": "/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on(((`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`))) where true group by `field1`",
   "inputs": [
     {
       "inputs": [
@@ -472,7 +472,7 @@ EXPLAIN
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
 {
-  "query": "/* select#1 */ select `information_schema`.`e`.`ENGINE` AS `ENGINE`,`information_schema`.`e`.`SUPPORT` AS `SUPPORT`,`information_schema`.`e`.`COMMENT` AS `COMMENT`,`information_schema`.`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`information_schema`.`e`.`XA` AS `XA`,`information_schema`.`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`information_schema`.`e`.`ENGINE` = 'MyISAM')",
+  "query": "/* select#1 */ select `e`.`ENGINE` AS `ENGINE`,`e`.`SUPPORT` AS `SUPPORT`,`e`.`COMMENT` AS `COMMENT`,`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`e`.`XA` AS `XA`,`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`e`.`ENGINE` = 'MyISAM')",
   "inputs": [
     {
       "inputs": [
@@ -509,8 +509,8 @@ EXPLAIN
       "estimated_first_row_cost": 0.015
     }
   ],
-  "condition": "(information_schema.e.`ENGINE` = 'MyISAM')",
-  "operation": "Filter: (information_schema.e.`ENGINE` = 'MyISAM')",
+  "condition": "(e.`ENGINE` = 'MyISAM')",
+  "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
   "estimated_total_cost": 115.0,
@@ -834,7 +834,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 LEFT JOIN t1 AS c ON b.a=c.a;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`b`.`a` AS `a`,`test`.`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on(multiple equal(`test`.`b`.`a`, `test`.`c`.`a`))",
+  "query": "/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a`,`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on(multiple equal(`b`.`a`, `c`.`a`))",
   "inputs": [
     {
       "alias": "a",
@@ -903,7 +903,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` = (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
+  "query": "/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` = (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))",
   "inputs": [
     {
       "alias": "x1",
@@ -1005,7 +1005,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` < (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
+  "query": "/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` < (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))",
   "inputs": [
     {
       "alias": "x1",
@@ -1113,7 +1113,7 @@ EXPLAIN FORMAT=JSON SELECT LAST_VALUE((SELECT x1.a FROM t1))
 OVER (PARTITION BY b) FROM t1 x1;
 EXPLAIN
 {
-  "query": "/* select#1 */ select last_value(`(select #2)`) OVER (PARTITION BY `test`.`x1`.`b` )  AS `LAST_VALUE((SELECT x1.a FROM t1))\nOVER (PARTITION BY b)` from `test`.`t1` `x1`",
+  "query": "/* select#1 */ select last_value(`(select #2)`) OVER (PARTITION BY `x1`.`b` )  AS `LAST_VALUE((SELECT x1.a FROM t1))\nOVER (PARTITION BY b)` from `test`.`t1` `x1`",
   "inputs": [
     {
       "inputs": [

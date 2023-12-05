@@ -3150,9 +3150,7 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   }
 
   if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0] &&
-      (!alias_name_used() ||
-       (thd->lex->is_explain() && thd->lex->explain_format->is_hierarchical() &&
-        thd->lex->explain_format->is_iterator_based()))) {
+      !alias_name_used()) {
     const size_t d_name_len = strlen(d_name);
     if (!((query_type & QT_NO_DEFAULT_DB) &&
           db_is_default_db(d_name, d_name_len, thd))) {
