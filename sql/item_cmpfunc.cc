@@ -2610,7 +2610,7 @@ float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
       }
     };
 
-    if (!thd->lex->using_hypergraph_optimizer) {
+    if (!thd->lex->using_hypergraph_optimizer()) {
       return get_histogram_selectivity(
           thd, *fld->field, histograms::enum_operator::NOT_EQUALS_TO, *this);
 
@@ -2672,7 +2672,7 @@ static double GetEqualSelectivity(THD *thd, Item_eq_base *equal,
     // The index calculation might be useful for the original optimizer too,
     // but we are loth to change existing plans and therefore restrict
     // it to Hypergraph.
-    if (!thd->lex->using_hypergraph_optimizer) {
+    if (!thd->lex->using_hypergraph_optimizer()) {
       return get_histogram_selectivity(
           thd, *field.field, histograms::enum_operator::EQUALS_TO, *equal);
 

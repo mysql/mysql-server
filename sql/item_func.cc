@@ -909,7 +909,7 @@ const Item_field *Item_func::contributes_to_filter(
   // We are loth to change existing plans. Therefore we keep the existing
   // behavior for the original optimizer, which is to return nullptr if
   // any of PSEUDO_TABLE_BITS are set in used_tables().
-  const table_map remaining_tables = thd->lex->using_hypergraph_optimizer
+  const table_map remaining_tables = thd->lex->using_hypergraph_optimizer()
                                          ? (~read_tables & ~PSEUDO_TABLE_BITS)
                                          : ~read_tables;
 

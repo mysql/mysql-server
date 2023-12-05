@@ -1392,7 +1392,7 @@ static unique_ptr<Json_object> SetObjectMembers(
 
       const Mem_root_array<Item *> *extra_join_conditions =
           GetExtraHashJoinConditions(
-              thd->mem_root, thd->lex->using_hypergraph_optimizer,
+              thd->mem_root, thd->lex->using_hypergraph_optimizer(),
               equijoin_conditions, predicate->expr->join_conditions);
       if (extra_join_conditions == nullptr) return nullptr;
 

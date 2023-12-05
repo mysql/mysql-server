@@ -325,6 +325,20 @@ bool Sql_cmd_create_table::execute(THD *thd) {
         [lex] { lex->set_secondary_engine_execution_context(nullptr); });
     if (open_tables_for_query(thd, lex->query_tables, false)) return true;
 
+    // Use the hypergraph optimizer for the SELECT statement, if enabled.
+    const bool need_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
+    if (!query_expression->is_prepared()) {
+      // Use the desired optimizer during following preparation
+      lex->set_using_hypergraph_optimizer(need_hypergraph_optimizer);
+    }
+    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer() &&
+        ask_to_reprepare(thd)) {
+      return true;
+    }
+    assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer());
+
     /* The table already exists */
     if (create_table->table || create_table->is_view()) {
       if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS) {
@@ -372,8 +386,8 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       }
 
       // Use the hypergraph optimizer for the SELECT statement, if enabled.
-      lex->using_hypergraph_optimizer =
-          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+      lex->set_using_hypergraph_optimizer(
+          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
       if (query_expression->prepare(thd, result, nullptr, SELECT_NO_UNLOCK,
                                     0)) {

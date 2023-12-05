@@ -583,7 +583,7 @@ AccessPath *Item_in_subselect::root_access_path() const {
     // the query to the log for debugging, it isn't fully optimized
     // yet and might not yet have an iterator. Thus, return nullptr instead of
     // assert-failing.
-    assert(current_thd->lex->using_hypergraph_optimizer);
+    assert(current_thd->lex->using_hypergraph_optimizer());
     return nullptr;
   }
 }
@@ -1571,7 +1571,7 @@ bool Item_exists_subselect::is_semijoin_candidate(THD *thd) {
       !inner->has_windows() &&                                     // 5
       (outer->resolve_place == Query_block::RESOLVE_CONDITION ||   // 6a
        (outer->resolve_place == Query_block::RESOLVE_JOIN_NEST &&  // 6a
-        (!thd->lex->using_hypergraph_optimizer ||
+        (!thd->lex->using_hypergraph_optimizer() ||
          (thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !Overlaps(

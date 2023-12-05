@@ -1948,7 +1948,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   //    usable by substituting existing 'key_item_field'.
   //    The hypergraph optimizer do not provide a reliable Item_equal.
   //
-  const Item_equal *item_equal = (!m_thd->lex->using_hypergraph_optimizer)
+  const Item_equal *item_equal = (!m_thd->lex->using_hypergraph_optimizer())
                                      ? table->get_item_equal(key_item_field)
                                      : nullptr;
   if (item_equal != nullptr) {
@@ -2256,7 +2256,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
    * those key_fields within the equality set.
    * When using the Hypergraph optimizer we can't use the Item_equal's.
    **/
-  const bool use_item_equal = !m_thd->lex->using_hypergraph_optimizer;
+  const bool use_item_equal = !m_thd->lex->using_hypergraph_optimizer();
 
   for (uint key_part_no = 0; key_part_no < table->get_no_of_key_fields();
        key_part_no++) {

@@ -461,7 +461,7 @@ void LEX::reset() {
   server_options.reset();
   explain_format = nullptr;
   is_explain_analyze = false;
-  using_hypergraph_optimizer = false;
+  set_using_hypergraph_optimizer(false);
   is_lex_started = true;
   reset_slave_info.all = false;
   mi.channel = nullptr;
@@ -5224,7 +5224,7 @@ bool LEX::validate_use_in_old_optimizer() {
   if (sql_command == SQLCOM_CREATE_VIEW || sql_command == SQLCOM_SHOW_CREATE)
     return false;
   if (can_execute_only_in_hypergraph_optimizer() &&
-      !using_hypergraph_optimizer) {
+      !using_hypergraph_optimizer()) {
     // Certain queries cannot be executed in the old optimizer.
     my_error(ER_SUPPORTED_ONLY_WITH_HYPERGRAPH, MYF(0),
              get_only_supported_in_hypergraph_reason_str());

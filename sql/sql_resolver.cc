@@ -7922,7 +7922,7 @@ bool Query_block::lift_fulltext_from_having_to_select_list(THD *thd) {
                      // results from a temporary table instead of evaluating the
                      // expressions if they have been materialized. So we wrap
                      // these items in an Item_ref later.
-                     if (!thd->lex->using_hypergraph_optimizer) {
+                     if (!thd->lex->using_hypergraph_optimizer()) {
                        return refs_to_fulltext.push_back(ref);
                      }
                      return false;
@@ -7932,7 +7932,7 @@ bool Query_block::lift_fulltext_from_having_to_select_list(THD *thd) {
 
   // Add Item_ref indirection in the old optimizer.
   for (Item **item_to_replace : refs_to_fulltext) {
-    assert(!thd->lex->using_hypergraph_optimizer);
+    assert(!thd->lex->using_hypergraph_optimizer());
     having_cond = TransformItem(having_cond, [&](Item *sub_item) -> Item * {
       if (sub_item == *item_to_replace) {
         return new (thd->mem_root)
