@@ -524,7 +524,7 @@ AccessPath *Item_in_subselect::root_access_path() const {
     // the query to the log for debugging, it isn't fully optimized
     // yet and might not yet have an iterator. Thus, return nullptr instead of
     // assert-failing.
-    assert(current_thd->lex->using_hypergraph_optimizer);
+    assert(current_thd->lex->using_hypergraph_optimizer());
     return nullptr;
   }
 }

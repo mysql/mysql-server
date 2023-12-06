@@ -1694,7 +1694,7 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
 
   lex->in_update_value_clause = false;
 
-  if (select_insert && !lex->using_hypergraph_optimizer) {
+  if (select_insert && !lex->using_hypergraph_optimizer()) {
     /*
       Traverse the update values list and substitute fields from the
       select for references (Item_ref objects) to them. This is done in

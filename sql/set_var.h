@@ -1110,7 +1110,6 @@ bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                     LEX_STRING *ls);
 bool sql_mode_quoted_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls);
-void update_parser_max_mem_size();
 
 extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;

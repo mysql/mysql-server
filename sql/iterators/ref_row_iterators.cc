@@ -607,7 +607,7 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
   // hand, maintains alternative plans with and without index scans throughout
   // the planning, and doesn't determine whether it should use the indexed or
   // non-indexed plan until the full query plan has been constructed.
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // Should not already be enabled.
     assert(!ft_func->score_from_index_scan);
     // Should operate on the main object.

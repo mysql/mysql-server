@@ -5445,7 +5445,7 @@ TEST_F(HypergraphOptimizerTest, PropagateCondConstants) {
       ParseAndResolve("SELECT t1.x FROM t1 WHERE t1.x = 10 and t1.x <> 11",
                       /*nullable=*/true);
 
-  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  m_initializer.thd()->lex->set_using_hypergraph_optimizer(true);
   COND_EQUAL *cond_equal = nullptr;
   EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
                              nullptr, &query_block->cond_value));
@@ -6109,7 +6109,7 @@ TEST_F(HypergraphSecondaryEngineTest, SemiJoinWithOuterJoinMultipleEqual) {
   // happens as intended. If not, resolver would think its the old join
   // optimizer and does the transformation anyways which makes testing
   // this use case harder.
-  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  m_initializer.thd()->lex->set_using_hypergraph_optimizer(true);
   m_initializer.thd()->set_secondary_engine_optimization(
       Secondary_engine_optimization::SECONDARY);
   handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
@@ -6176,7 +6176,7 @@ TEST_F(HypergraphSecondaryEngineTest, SemiJoinWithOuterJoin) {
   // happens as intended. If not, resolver would think its the old join
   // optimizer and does the transformation anyways which makes testing
   // this use case harder.
-  m_initializer.thd()->lex->using_hypergraph_optimizer = true;
+  m_initializer.thd()->lex->set_using_hypergraph_optimizer(true);
   m_initializer.thd()->set_secondary_engine_optimization(
       Secondary_engine_optimization::SECONDARY);
   handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);

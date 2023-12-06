@@ -3307,7 +3307,7 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
     AccessPath *old_path = path;
     path = NewFilterAccessPath(thd, path, having_cond);
     CopyBasicProperties(*old_path, path);
-    if (thd->lex->using_hypergraph_optimizer) {
+    if (thd->lex->using_hypergraph_optimizer()) {
       // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
       // as on repeated execution of a prepared query, the condition may contain
       // references to subqueries that are destroyed and not re-optimized yet.

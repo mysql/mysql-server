@@ -286,7 +286,7 @@ static bool OptimizeSecondaryEngine(THD *thd [[maybe_unused]], LEX *lex) {
 
   DEBUG_SYNC(thd, "before_mock_optimize");
 
-  if (lex->using_hypergraph_optimizer) {
+  if (lex->using_hypergraph_optimizer()) {
     WalkAccessPaths(lex->unit->root_access_path(), nullptr,
                     WalkAccessPathPolicy::ENTIRE_TREE,
                     [](AccessPath *path, const JOIN *) {

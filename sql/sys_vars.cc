@@ -3380,7 +3380,7 @@ static Sys_var_ulonglong Sys_parser_max_mem_size(
   Also update global_system_variables, so 'SELECT parser_max_mem_size'
   reports correct data.
 */
-export void update_parser_max_mem_size() {
+void update_parser_max_mem_size() {
   const ulonglong max_max = max_system_variables.parser_max_mem_size;
   if (max_max == max_mem_sz) return;
   // In case parser-max-mem-size is also set:
@@ -3388,6 +3388,13 @@ export void update_parser_max_mem_size() {
       std::min(max_max, global_system_variables.parser_max_mem_size);
   Sys_parser_max_mem_size.update_default(new_val);
   global_system_variables.parser_max_mem_size = new_val;
+}
+
+void update_optimizer_switch() {
+#ifndef WITH_HYPERGRAPH_OPTIMIZER
+  global_system_variables.optimizer_switch &=
+      ~OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+#endif
 }
 
 static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
