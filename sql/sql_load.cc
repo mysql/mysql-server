@@ -2141,8 +2141,8 @@ bool Sql_cmd_load_table::execute(THD *thd) {
   else if (thd->is_strict_mode())
     thd->push_internal_handler(&strict_handler);
 
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  lex->set_using_hypergraph_optimizer(
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
   bool res = execute_inner(thd, lex->duplicates);
 

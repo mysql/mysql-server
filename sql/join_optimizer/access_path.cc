@@ -810,7 +810,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // path instead of being computed here? We do make the same checks in
         // the cost model, so perhaps it should set the flag as well.
         uint64_t *hash_table_generation =
-            (thd->lex->using_hypergraph_optimizer &&
+            (thd->lex->using_hypergraph_optimizer() &&
              path->parameter_tables == 0)
                 ? &join->hash_table_generation
                 : nullptr;

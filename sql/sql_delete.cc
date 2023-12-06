@@ -772,7 +772,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   // enables it to perform optimizations like sort avoidance and semi-join
   // flattening even if features specific to single-table DELETE (that is, ORDER
   // BY and LIMIT) are used.
-  if (lex->using_hypergraph_optimizer) {
+  if (lex->using_hypergraph_optimizer()) {
     multitable = true;
   }
 
@@ -921,7 +921,7 @@ DeleteRowsIterator::DeleteRowsIterator(
       m_tables_to_delete_from(tables_to_delete_from),
       m_immediate_tables(immediate_tables),
       // The old optimizer does not use hash join in DELETE statements.
-      m_hash_join_tables(thd->lex->using_hypergraph_optimizer
+      m_hash_join_tables(thd->lex->using_hypergraph_optimizer()
                              ? GetHashJoinTables(join->root_access_path())
                              : 0),
       m_tempfiles(thd->mem_root),
@@ -1262,7 +1262,7 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
   // using the hypergraph optimizer is when there is an impossible WHERE clause,
   // in which case join order optimization is short-circuited. See
   // JOIN::create_access_paths_for_zero_rows().
-  if (join->thd->lex->using_hypergraph_optimizer) {
+  if (join->thd->lex->using_hypergraph_optimizer()) {
     assert(join->root_access_path()->type == AccessPath::ZERO_ROWS);
     return 0;
   }

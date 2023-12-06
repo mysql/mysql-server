@@ -470,7 +470,7 @@ void LEX::reset() {
   server_options.reset();
   explain_format = nullptr;
   is_explain_analyze = false;
-  using_hypergraph_optimizer = false;
+  set_using_hypergraph_optimizer(false);
   is_lex_started = true;
   reset_slave_info.all = false;
   mi.channel = nullptr;

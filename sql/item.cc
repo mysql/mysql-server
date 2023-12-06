@@ -5633,7 +5633,7 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
            qsl->group_list.elements == 0;
   else
     return (sl->resolve_place == Query_block::RESOLVE_SELECT_LIST ||
-            (thd->lex->using_hypergraph_optimizer && sl->is_ordered())) &&
+            (thd->lex->using_hypergraph_optimizer() && sl->is_ordered())) &&
            sl->with_sum_func && sl->group_list.elements == 0 &&
            thd->lex->in_sum_func == nullptr;
 }

@@ -1911,7 +1911,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
     return ExplainIterator(explain_thd, query_thd, nullptr);
   }
 
-  if (query_thd->lex->using_hypergraph_optimizer) {
+  if (query_thd->lex->using_hypergraph_optimizer()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "EXPLAIN with TRADITIONAL format");
     return true;
@@ -2267,10 +2267,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   // offloaded to a secondary engine, so we return a fake plan with that
   // information.
   const bool fake_explain_for_secondary_engine =
-      query_thd->lex->using_hypergraph_optimizer && secondary_engine &&
+      query_thd->lex->using_hypergraph_optimizer() && secondary_engine &&
       !lex->explain_format->is_hierarchical();
 
-  if (query_thd->lex->using_hypergraph_optimizer &&
+  if (query_thd->lex->using_hypergraph_optimizer() &&
       !fake_explain_for_secondary_engine) {
     // With hypergraph, JSON is iterator-based. So it must be TRADITIONAL.
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),

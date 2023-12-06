@@ -881,7 +881,7 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
 /// have been created.
 static bool finalize_full_text_functions(THD *thd,
                                          Query_expression *query_expression) {
-  assert(thd->lex->using_hypergraph_optimizer);
+  assert(thd->lex->using_hypergraph_optimizer());
   for (Query_expression *qe = query_expression; qe != nullptr;
        qe = qe->next_query_expression()) {
     for (Query_block *qb = qe->first_query_block(); qb != nullptr;
@@ -1127,7 +1127,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       return true;
     }
 
-    if (thd->lex->using_hypergraph_optimizer) {
+    if (thd->lex->using_hypergraph_optimizer()) {
       if (finalize_full_text_functions(thd, this)) {
         return true;
       }
@@ -1181,7 +1181,7 @@ bool Query_expression::force_create_iterators(THD *thd) {
 
   if (m_root_iterator == nullptr) return true;
 
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     if (finalize_full_text_functions(thd, this)) {
       return true;
     }
