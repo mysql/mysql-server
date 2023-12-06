@@ -441,3 +441,34 @@ EXPLAIN
 
 SET optimizer_switch="hash_set_operations=default";
 DROP TABLE t;
+#
+# Bug#36075756 ASAN crash on
+# MaterializeIterator<Profiler>::load_HF_row_into_hash_map()
+#
+CREATE TABLE t1 (c1 INT, c2 TIME);
+INSERT INTO t1 VALUES (4,'09:29:08'), (NULL,'19:11:10'), (2,'11:57:26'),
+(6,'00:39:46'), (6,'03:28:15'),    (8,'06:44:18'),
+(2,'14:36:39'), (6,'18:42:45'),    (8,'02:57:29'),
+(3,'16:46:13');
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+# Used to assert with -DWITH_DEBUG=1 -DWITH_ASAN=1 (both required)
+# build on Oracle Linux Server 8
+SELECT SUBSTRING(t.rep, 1, 4) AS sub, LENGTH(t.rep) AS len
+FROM
+( SELECT REPEAT(c1, c2) AS rep FROM view_t1
+EXCEPT DISTINCT
+SELECT DISTINCT RANK() OVER () FROM t1 ) AS t
+ORDER BY len;
+sub	len
+NULL	NULL
+6666	3946
+8888	25729
+6666	32815
+8888	64418
+4444	92908
+2222	115726
+2222	143639
+3333	164613
+6666	184245
+DROP VIEW view_t1;
+DROP TABLE t1;
