@@ -26,6 +26,7 @@
 #define _TCP_PORT_POOL_H_
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -120,10 +121,12 @@ class UniqueId {
   UniqueId(const UniqueId &) = delete;
   UniqueId &operator=(const UniqueId &) = delete;
   UniqueId(UniqueId &&other) noexcept
-      : id_(std::exchange(other.id_, {})),
+      : proc_ids_(std::move(other.proc_ids_)),
+        id_(std::exchange(other.id_, {})),
         lock_file_fd_(std::exchange(other.lock_file_fd_, {})) {}
 
   UniqueId &operator=(UniqueId &&other) noexcept {
+    proc_ids_ = std::move(other.proc_ids_);
     id_ = std::exchange(other.id_, {});
     lock_file_fd_ = std::exchange(other.lock_file_fd_, {});
 
@@ -137,7 +140,9 @@ class UniqueId {
  private:
   stdx::expected<void, std::error_code> lock_file(const std::string &file_name);
 
-  static ProcessUniqueIds &process_unique_ids();
+  static std::shared_ptr<UniqueId::ProcessUniqueIds> process_unique_ids();
+
+  std::shared_ptr<UniqueId::ProcessUniqueIds> proc_ids_;
 
   static std::string get_lock_file_dir();
 

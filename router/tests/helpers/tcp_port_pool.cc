@@ -34,8 +34,9 @@
 #endif
 
 #include <cstring>
+#include <memory>  // shared_ptr
 #include <system_error>
-#include <utility>
+#include <utility>  // move
 
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/stdx/expected.h"
@@ -199,7 +200,8 @@ std::string UniqueId::get_lock_file_dir() {
 #endif
 }
 
-UniqueId::UniqueId(value_type start_from, value_type range) {
+UniqueId::UniqueId(value_type start_from, value_type range)
+    : proc_ids_(process_unique_ids()) {
   const std::string lock_file_dir = get_lock_file_dir();
   mysql_harness::mkdir(lock_file_dir, 0777);
 #ifndef _WIN32
@@ -209,7 +211,7 @@ UniqueId::UniqueId(value_type start_from, value_type range) {
 #endif
 
   for (auto i = start_from; i < start_from + range; i++) {
-    if (process_unique_ids().contains(i)) continue;
+    if (proc_ids_->contains(i)) continue;
 
     Path lock_file_path(lock_file_dir);
     lock_file_path.append(std::to_string(i));
@@ -218,7 +220,7 @@ UniqueId::UniqueId(value_type start_from, value_type range) {
     if (lock_res) {
       id_ = i;
 
-      process_unique_ids().insert(i);
+      proc_ids_->insert(i);
 
       // obtained the lock, we are good to go
       return;
@@ -231,12 +233,29 @@ UniqueId::UniqueId(value_type start_from, value_type range) {
 UniqueId::~UniqueId() {
   // release the process unique-id if we own one.
   if (id_) {
-    process_unique_ids().erase(*id_);
+    proc_ids_->erase(*id_);
   }
 }
 
-UniqueId::ProcessUniqueIds &UniqueId::process_unique_ids() {
-  static ProcessUniqueIds ids;
+// process-wide unique-ids
+//
+// is a "static shared_ptr<>" instead of a "static" as the TcpPort may be part
+// of a "static" too.
+//
+// It would create:
+// 1. (static) TcpPortPool
+// 2. static ProcessUniqueIds
+//
+// ... and then at destruct in reverse order:
+// * ProcessUniqueIds
+// * TcpPortPool ... but the TcpPortPool would try to remove itself from the
+//   ProcessUniqueIds
+//
+//
+//
+std::shared_ptr<UniqueId::ProcessUniqueIds> UniqueId::process_unique_ids() {
+  static std::shared_ptr<UniqueId::ProcessUniqueIds> ids =
+      std::make_shared<UniqueId::ProcessUniqueIds>();
 
   return ids;
 }
