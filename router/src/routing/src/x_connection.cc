@@ -1574,19 +1574,20 @@ void MysqlRoutingXConnection::tls_accept() {
     }
 
     auto res = src_channel.tls_accept();
-    if (!res) {
-      const auto ec = res.error();
 
-      // flush the TLS message to the send-buffer.
-      {
-        const auto flush_res = src_channel.flush_to_send_buf();
-        if (!flush_res) {
-          const auto ec = flush_res.error();
-          if (ec != make_error_code(std::errc::operation_would_block)) {
-            return recv_client_failed(flush_res.error());
-          }
+    // flush the TLS message to the send-buffer.
+    {
+      const auto flush_res = src_channel.flush_to_send_buf();
+      if (!flush_res) {
+        const auto ec = flush_res.error();
+        if (ec != make_error_code(std::errc::operation_would_block)) {
+          return recv_client_failed(flush_res.error());
         }
       }
+    }
+
+    if (!res) {
+      const auto ec = res.error();
 
       // if there is something in the send_buffer, send it.
       if (!src_channel.send_buffer().empty()) {
