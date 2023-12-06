@@ -1,6 +1,6 @@
 Licensing Information User Manual
 
-MySQL NDB Cluster 7.5.32 Community
+MySQL NDB Cluster 7.5.33 Community
      __________________________________________________________________
 
 Introduction
@@ -8,18 +8,18 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
-   MySQL NDB Cluster 7.5.32 Community.
+   MySQL NDB Cluster 7.5.33 Community.
 
-   Last updated: November 2023
+   Last updated: December 2023
 
 Licensing Information
 
-   This release of MySQL NDB Cluster 7.5.32 Community is brought to you by
+   This release of MySQL NDB Cluster 7.5.33 Community is brought to you by
    the MySQL team at Oracle. This software is released under version 2 of
    the GNU General Public License (GPLv2), as set forth below, with the
    following additional permissions:
 
-   This distribution of MySQL NDB Cluster 7.5.32 Community is distributed
+   This distribution of MySQL NDB Cluster 7.5.33 Community is distributed
    with certain software (including but not limited to OpenSSL) that is
    licensed under separate terms, as designated in a particular file or
    component or in the license documentation. Without limiting your rights
