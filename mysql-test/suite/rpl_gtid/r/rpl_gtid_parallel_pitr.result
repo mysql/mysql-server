@@ -1,0 +1,36 @@
+include/rpl_init.inc [topology=none]
+
+# 1. On server_1: generate few transactions. Restart the server.
+#    Generate more transactions
+
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (NULL), (NULL), (NULL);
+INSERT INTO t VALUES (NULL), (NULL), (NULL);
+include/rpl_restart_server.inc [server_number=1]
+INSERT INTO t VALUES (NULL), (NULL), (NULL);
+INSERT INTO t VALUES (NULL), (NULL), (NULL);
+DROP TABLE t;
+include/save_master_pos.inc
+
+# 2. Copy generated binlog and index files into the server_2 data
+#    directory
+
+
+# 3. Restart the server_2 with adjusted relay log and relay log index
+#    filenames
+
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-index=binlog.index --relay-log=binlog]
+
+# 4. Apply binlog files with MTA on server_2
+
+[connection server_2]
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='binlog.000001', RELAY_LOG_POS=4, SOURCE_HOST='dummy', SOURCE_USER='root' FOR CHANNEL 'pitr';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+START REPLICA FOR CHANNEL 'pitr';
+
+# 5. Wait for expected gtid set on server_2
+
+include/sync_slave_sql.inc
+include/rpl_end.inc

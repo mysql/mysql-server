@@ -83,6 +83,10 @@ class Mts_submode {
   virtual int wait_for_workers_to_finish(Relay_log_info *rli,
                                          Slave_worker *ignore = nullptr) = 0;
 
+  /// @brief indicates the start of new file, which may e.g. update internal
+  /// counters in the submode
+  virtual void indicate_start_of_new_file() {}
+
   /**
     Sets additional context before the event is set to execute.
    */
@@ -172,10 +176,12 @@ class Mts_submode_logical_clock : public Mts_submode {
                                           Slave_worker_array *ws,
                                           Log_event *ev) override;
   /* Sets the force new group variable */
-  inline void start_new_group() {
-    force_new_group = true;
-    first_event = true;
-  }
+  inline void start_new_group() { force_new_group = true; }
+
+  /// @brief Sets a flag to indicate that we are starting a new binlog file,
+  /// therefore we need to skip the check for logical clock to not compare
+  /// against sequence_number from previous event (previous file)
+  virtual void indicate_start_of_new_file() override { first_event = true; }
   /**
     Withdraw the delegated_job increased by the group.
   */

@@ -5469,6 +5469,13 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
 }
 
 int Format_description_log_event::do_update_pos(Relay_log_info *rli) {
+  // if we are processing FDE from the binlog file directly (binlog file
+  // is being applied directly acting as the relay log), we need to
+  // skip logical clock check in the first event that updates the logical clock
+  if (!is_relay_log_event()) {
+    rli->current_mts_submode->indicate_start_of_new_file();
+  }
+
   if (server_id == (uint32)::server_id) {
     /*
       We only increase the relay log position if we are skipping
