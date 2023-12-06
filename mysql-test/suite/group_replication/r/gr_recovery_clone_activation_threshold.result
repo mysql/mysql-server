@@ -21,10 +21,15 @@ include/start_and_bootstrap_group_replication.inc
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Plugin group_replication reported.*");
 SET SESSION sql_log_bin = 1;
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 include/start_group_replication.inc
+include/assert.inc [P_S table replication_group_members must only contain 1 member]
+include/assert_and_disable_offline_mode.inc
 include/assert_grep.inc [ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD found in server error log]
 #
 # Cleaning up
 #
 include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 include/group_replication_end.inc

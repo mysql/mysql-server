@@ -60,10 +60,19 @@ SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Plugin group_replication reported.*");
 SET SESSION sql_log_bin = 1;
 
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+
 # Clone plugin is not installed, as such the member will error
 # during recovery.
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
+
+--let $assert_text= P_S table replication_group_members must only contain 1 member
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_members]" = 1
+--source include/assert.inc
+
+--source include/assert_and_disable_offline_mode.inc
 
 # Assert that recovery using clone is logged to the server error log.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
@@ -76,4 +85,5 @@ SET SESSION sql_log_bin = 1;
 --echo # Cleaning up
 --echo #
 --source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 --source include/group_replication_end.inc

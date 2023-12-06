@@ -1163,6 +1163,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       leave_group_on_failure::mask leave_actions;
       leave_actions.set(leave_group_on_failure::SKIP_SET_READ_ONLY, true);
       leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
+      leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
       leave_group_on_failure::leave(leave_actions,
                                     ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR,
                                     &m_notification_ctx, "");
@@ -1294,6 +1296,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       */
       leave_group_on_failure::mask leave_actions;
       leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
+      leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
       leave_group_on_failure::leave(leave_actions, 0, &m_notification_ctx, "");
       return;
     }
