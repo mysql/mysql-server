@@ -51,6 +51,10 @@ class SqlParserState {
     return {&session_};
   }
 
+  THD *thd() { return &session_; }
+
+  Parser_state *parser_state() { return &parser_state_; }
+
  private:
   MEM_ROOT mem_root_;
   THD session_;

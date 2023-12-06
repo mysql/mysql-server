@@ -255,9 +255,9 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
   m_cpp_utf8_processed_ptr = end_ptr;
 }
 
-void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *yylval) {
+void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *lval) {
   if (m_digest != nullptr) {
-    m_digest = digest_add_token(m_digest, token, yylval);
+    m_digest = digest_add_token(m_digest, token, lval);
   }
 }
 
