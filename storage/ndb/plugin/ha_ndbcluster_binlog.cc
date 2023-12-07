@@ -6991,7 +6991,7 @@ bool Ndb_binlog_thread::check_reconnect_incident(
 
   // Write an incident event to the binlog since it's not possible to know what
   // has happened in the cluster while not being connected.
-  LEX_CSTRING msg;
+  LEX_CSTRING msg{};
   switch (incident_id) {
     case MYSQLD_STARTUP:
       msg = {STRING_WITH_LEN("mysqld startup")};
