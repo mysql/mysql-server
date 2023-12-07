@@ -476,9 +476,9 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
             globalTransporterRegistry.get_transporter_node_id(trpId);
         Ndbinfo::Row row(signal, req);
         row.write_uint32(getOwnNodeId());  // Node id
+        row.write_uint32(instance());      // Block instance reporting
         row.write_uint32(trpId);           // Transporter id
         row.write_uint32(nodeId);          // Remote node id
-        row.write_uint32(instance());      // Block instance reporting
 
         row.write_uint32(globalTransporterRegistry.getPerformState(trpId));
 
