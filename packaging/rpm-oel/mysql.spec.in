@@ -100,6 +100,9 @@
 %{?el9:                          %global with_debuginfo 1}
 %{!?with_debuginfo:              %global without_debuginfo 1}
 
+%{?el8:%global __strip /opt/rh/gcc-toolset-12/root/usr/bin/strip}
+%{?el8:%global __brp_strip_static_archive %{nil}}
+
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
@@ -181,6 +184,7 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
 %{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
 %{?el8:BuildRequires:  gcc-toolset-12-binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-dwz}
 %{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
 %{?el8:BuildRequires:  gcc-toolset-12-gcc}
 %{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
