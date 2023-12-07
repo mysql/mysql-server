@@ -258,5 +258,64 @@ int main() {
     }
   }
 
+  // Make sure coerce_* functions are visible.
+  {
+    {
+      Json_wrapper jw = Json_wrapper(
+          create_dom_ptr<Json_string>("2015-01-15 23:24:25.000000"));
+      MYSQL_TIME ltime;
+      bool res = jw.coerce_date(
+          [](const char *, int) { std::cout << "9.1. ERROR \n"; },
+          [](MYSQL_TIME_STATUS &) { std::cout << "9.1. checking \n"; }, &ltime);
+      std::cout << "9.1. 2015-01-15 23:24:25.000000 is" << (res ? " NOT " : " ")
+                << "a valid DATE \n";
+    }
+    {
+      Json_wrapper jw = Json_wrapper(
+          create_dom_ptr<Json_string>("2015-99-15 23:24:25.000000"));
+      MYSQL_TIME ltime;
+      bool res = jw.coerce_date(
+          [](const char *, int) { std::cout << "9.2. ERROR \n"; },
+          [](MYSQL_TIME_STATUS &) { std::cout << "9.2. checking \n"; }, &ltime);
+      std::cout << "9.2. 2015-99-15 23:24:25.000000 is" << (res ? " NOT " : " ")
+                << "a valid DATE \n";
+    }
+    {
+      Json_wrapper jw = Json_wrapper(
+          create_dom_ptr<Json_string>("2015-99-15 23:24:25.000000"));
+      double res = jw.coerce_real(
+          [](const char *, int) { std::cout << "9.3. ERROR \n"; });
+      std::cout << "9.3. 2015-99-15 23:24:25.000000 coerced to DOUBLE is "
+                << res << "\n";
+    }
+    {
+      Json_wrapper jw =
+          Json_wrapper(create_dom_ptr<Json_string>("1988.9999999"));
+      my_decimal dec;
+      jw.coerce_decimal([](const char *, int) { std::cout << "9.4. ERROR \n"; },
+                        &dec);
+      int len = 128;
+      const std::unique_ptr<char[]> buff(new char[len]{'\0'});
+      decimal2string(&dec, buff.get(), &len);
+      std::cout << "9.4. 1988.9999999 coerced to DECIMAL is " << buff << "\n";
+    }
+    {
+      Json_wrapper jw = Json_wrapper(create_dom_ptr<Json_string>("1988"));
+      double res = jw.coerce_int(
+          [](const char *, int) { std::cout << "9.5. ERROR \n"; });
+      std::cout << "9.5. 1988 coerced to INTEGER is " << res << "\n";
+    }
+    {
+      Json_wrapper jw = Json_wrapper(
+          create_dom_ptr<Json_string>("2015-01-15 23:24:25.000000"));
+      MYSQL_TIME ltime;
+      bool res = jw.coerce_time(
+          [](const char *, int) { std::cout << "9.6. ERROR \n"; },
+          [](MYSQL_TIME_STATUS &) { std::cout << "9.6. checking \n"; }, &ltime);
+      std::cout << "9.6. 2023-12-11 09:23:00.360900 is" << (res ? " NOT " : " ")
+                << "a valid TIME \n";
+    }
+  }
+
   return 0;
 }

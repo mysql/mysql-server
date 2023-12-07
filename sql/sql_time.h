@@ -117,6 +117,8 @@ void make_datetime(const Date_time_format *format, const MYSQL_TIME *l_time,
                    String *str, uint dec);
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec);
 
+my_time_flags_t DatetimeConversionFlags(const THD *thd);
+
 void propagate_datetime_overflow_helper(THD *thd, int *warnings);
 
 /**

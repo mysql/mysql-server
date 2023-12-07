@@ -86,6 +86,7 @@
 #include "sql/sql_optimizer.h"
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_select.h"
+#include "sql/sql_time.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/srs_fetcher.h"    // Srs_fetcher
 #include "sql/system_variables.h"
@@ -5886,7 +5887,7 @@ double Item_sum_json::val_real() {
   }
   if (null_value || m_wrapper->empty()) return 0.0;
 
-  return m_wrapper->coerce_real(func_name());
+  return m_wrapper->coerce_real(JsonCoercionWarnHandler{func_name()});
 }
 
 longlong Item_sum_json::val_int() {
@@ -5901,7 +5902,7 @@ longlong Item_sum_json::val_int() {
   }
   if (null_value || m_wrapper->empty()) return 0;
 
-  return m_wrapper->coerce_int(func_name());
+  return m_wrapper->coerce_int(JsonCoercionWarnHandler{func_name()});
 }
 
 my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
@@ -5918,19 +5919,23 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
     return error_decimal(decimal_value);
   }
 
-  return m_wrapper->coerce_decimal(decimal_value, func_name());
+  return m_wrapper->coerce_decimal(JsonCoercionWarnHandler{func_name()},
+                                   decimal_value);
 }
 
 bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
   if (null_value || m_wrapper->empty()) return true;
 
-  return m_wrapper->coerce_date(ltime, func_name());
+  return m_wrapper->coerce_date(JsonCoercionWarnHandler{func_name()},
+                                JsonCoercionDeprecatedDefaultHandler{}, ltime,
+                                DatetimeConversionFlags(current_thd));
 }
 
 bool Item_sum_json::get_time(MYSQL_TIME *ltime) {
   if (null_value || m_wrapper->empty()) return true;
 
-  return m_wrapper->coerce_time(ltime, func_name());
+  return m_wrapper->coerce_time(JsonCoercionWarnHandler{func_name()},
+                                JsonCoercionDeprecatedDefaultHandler{}, ltime);
 }
 
 void Item_sum_json::reset_field() {

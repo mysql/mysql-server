@@ -27,11 +27,16 @@
 #include <functional>
 
 class THD;
+struct CHARSET_INFO;
+struct MYSQL_TIME_STATUS;
 
 using JsonParseErrorHandler =
     std::function<void(const char *parse_err, size_t err_offset)>;
 using JsonErrorHandler = std::function<void()>;
-
+using JsonCoercionHandler =
+    std::function<void(const char *target_type, int error_code)>;
+using JsonCoercionDeprecatedHandler =
+    std::function<void(MYSQL_TIME_STATUS &status)>;
 /**
   Error handler for the functions that serialize a JSON value in the JSON binary
   storage format. The member functions are called when an error occurs, and they
@@ -99,6 +104,39 @@ class JsonSerializationDefaultErrorHandler final
 
  private:
   const THD *m_thd;
+};
+
+/// Callback function called when a coercion error occurs. It reports the
+/// error as ERROR
+class JsonCoercionErrorHandler {
+ public:
+  explicit JsonCoercionErrorHandler(const char *msgnam) : m_msgnam(msgnam) {}
+  void operator()(const char *target_type, int error_code) const;
+
+ private:
+  /// The name of the field/expression being coerced to be used
+  /// in error message if conversion failed.
+  const char *m_msgnam;
+};
+
+/// Callback function called when a coercion error occurs. It reports the
+/// error as WARNING
+class JsonCoercionWarnHandler {
+ public:
+  explicit JsonCoercionWarnHandler(const char *msgnam) : m_msgnam(msgnam) {}
+  void operator()(const char *target_type, int error_code) const;
+
+ private:
+  /// The name of the field/expression being coerced to be used
+  /// in error message if conversion failed.
+  const char *m_msgnam;
+};
+
+/// Callback function that checks if MYSQL_TIME_STATUS contains a deprecation
+/// warning. If it does, it issues the warning and resets the status indication.
+class JsonCoercionDeprecatedDefaultHandler {
+ public:
+  void operator()(MYSQL_TIME_STATUS &status) const;
 };
 
 #endif  // MYSQL_SERVER

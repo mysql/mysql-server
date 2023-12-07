@@ -7480,9 +7480,13 @@ bool Item_json::val_json(Json_wrapper *result) {
   syntax which gets translated into Item_json objects by the parser.
 */
 
-double Item_json::val_real() { return m_value->coerce_real(item_name.ptr()); }
+double Item_json::val_real() {
+  return m_value->coerce_real(JsonCoercionWarnHandler{item_name.ptr()});
+}
 
-longlong Item_json::val_int() { return m_value->coerce_int(item_name.ptr()); }
+longlong Item_json::val_int() {
+  return m_value->coerce_int(JsonCoercionWarnHandler{item_name.ptr()});
+}
 
 String *Item_json::val_str(String *str) {
   str->length(0);
@@ -7492,15 +7496,18 @@ String *Item_json::val_str(String *str) {
 }
 
 my_decimal *Item_json::val_decimal(my_decimal *buf) {
-  return m_value->coerce_decimal(buf, item_name.ptr());
+  return m_value->coerce_decimal(JsonCoercionWarnHandler{item_name.ptr()}, buf);
 }
 
 bool Item_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
-  return m_value->coerce_date(ltime, item_name.ptr());
+  return m_value->coerce_date(JsonCoercionWarnHandler{item_name.ptr()},
+                              JsonCoercionDeprecatedDefaultHandler{}, ltime,
+                              DatetimeConversionFlags(current_thd));
 }
 
 bool Item_json::get_time(MYSQL_TIME *ltime) {
-  return m_value->coerce_time(ltime, item_name.ptr());
+  return m_value->coerce_time(JsonCoercionWarnHandler{item_name.ptr()},
+                              JsonCoercionDeprecatedDefaultHandler{}, ltime);
 }
 
 Item *Item_json::clone_item() const {
@@ -10137,7 +10144,7 @@ double Item_cache_json::val_real() {
 
   if (null_value) return 0.0;
 
-  return wr.coerce_real(whence(cached_field));
+  return wr.coerce_real(JsonCoercionWarnHandler{whence(cached_field)});
 }
 
 my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
@@ -10147,7 +10154,8 @@ my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
 
   if (null_value) return error_decimal(decimal_value);
 
-  return wr.coerce_decimal(decimal_value, whence(cached_field));
+  return wr.coerce_decimal(JsonCoercionWarnHandler{whence(cached_field)},
+                           decimal_value);
 }
 
 bool Item_cache_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
@@ -10157,7 +10165,9 @@ bool Item_cache_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
 
   if (null_value) return true;
 
-  return wr.coerce_date(ltime, whence(cached_field));
+  return wr.coerce_date(JsonCoercionWarnHandler{whence(cached_field)},
+                        JsonCoercionDeprecatedDefaultHandler{}, ltime,
+                        DatetimeConversionFlags(current_thd));
 }
 
 bool Item_cache_json::get_time(MYSQL_TIME *ltime) {
@@ -10167,7 +10177,8 @@ bool Item_cache_json::get_time(MYSQL_TIME *ltime) {
 
   if (null_value) return true;
 
-  return wr.coerce_time(ltime, whence(cached_field));
+  return wr.coerce_time(JsonCoercionWarnHandler{whence(cached_field)},
+                        JsonCoercionDeprecatedDefaultHandler{}, ltime);
 }
 
 longlong Item_cache_json::val_int() {
@@ -10176,7 +10187,7 @@ longlong Item_cache_json::val_int() {
 
   if (null_value) return 0;
 
-  return wr.coerce_int(whence(cached_field));
+  return wr.coerce_int(JsonCoercionWarnHandler{whence(cached_field)});
 }
 
 void Item_cache_json::sort() {

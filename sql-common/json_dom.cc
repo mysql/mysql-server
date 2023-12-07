@@ -66,6 +66,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/dtoa.h"
 #include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql-common/json_binary.h"
 #include "sql-common/json_error_handler.h"
@@ -79,7 +80,6 @@
 
 #ifdef MYSQL_SERVER
 #include "mysql/strings/int2str.h"
-#include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
@@ -2672,46 +2672,8 @@ int Json_wrapper::compare(const Json_wrapper &other,
   return 1;      /* purecov: inspected */
 }
 
-#ifdef MYSQL_SERVER
-/**
-  Push a warning/error about a problem encountered when coercing a JSON
-  value to some other data type.
-
-  @param[in] cr_error     what to issue: a warning, an error or nothing
-  @param[in] target_type  the name of the target type of the coercion
-  @param[in] error_code   the error code to use for the warning
-  @param[in] msgnam       the name of the field/expression being coerced
-*/
-
-static void handle_coercion_error(enum_coercion_error cr_error,
-                                  const char *target_type, int error_code,
-                                  const char *msgnam) {
-  switch (cr_error) {
-    case CE_WARNING: {
-      /*
-        One argument is no longer used (the empty string), but kept to avoid
-        changing error message format.
-      */
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING, error_code,
-          ER_THD_NONCONST(current_thd, error_code), target_type, "", msgnam,
-          current_thd->get_stmt_da()->current_row_for_condition());
-      return;
-    }
-    case CE_ERROR: {
-      my_error(error_code, MYF(0), target_type, "", msgnam,
-               current_thd->get_stmt_da()->current_row_for_condition());
-      return;
-    }
-    case CE_IGNORE:
-      // Caller will handle the error
-      return;
-  }
-}
-
-longlong Json_wrapper::coerce_int(const char *msgnam,
-                                  enum_coercion_error cr_error, bool *err,
-                                  bool *unsigned_flag) const {
+longlong Json_wrapper::coerce_int(const JsonCoercionHandler &error_handler,
+                                  bool *err, bool *unsigned_flag) const {
   if (err) *err = false;
   if (unsigned_flag != nullptr) *unsigned_flag = false;
   switch (type()) {
@@ -2736,7 +2698,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam,
         int code =
             (error == MY_ERRNO_ERANGE ? ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE
                                       : ER_INVALID_JSON_VALUE_FOR_CAST);
-        handle_coercion_error(cr_error, "INTEGER", code, msgnam);
+        error_handler("INTEGER", code);
         if (err) *err = true;
       }
 
@@ -2772,22 +2734,19 @@ longlong Json_wrapper::coerce_int(const char *msgnam,
         return (longlong)rint(j);
       }
 
-      handle_coercion_error(cr_error, "INTEGER",
-                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      error_handler("INTEGER", ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE);
       if (err) *err = true;
       return res;
     }
     default:;
   }
 
-  handle_coercion_error(cr_error, "INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
-                        msgnam);
+  error_handler("INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST);
   if (err) *err = true;
   return 0;
 }
 
-double Json_wrapper::coerce_real(const char *msgnam,
-                                 enum_coercion_error cr_error,
+double Json_wrapper::coerce_real(const JsonCoercionHandler &error_handler,
                                  bool *err) const {
   if (err) *err = false;
   switch (type()) {
@@ -2814,7 +2773,7 @@ double Json_wrapper::coerce_real(const char *msgnam,
       if (error || end != start + length) {
         int code = (error == EOVERFLOW ? ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE
                                        : ER_INVALID_JSON_VALUE_FOR_CAST);
-        handle_coercion_error(cr_error, "DOUBLE", code, msgnam);
+        error_handler("DOUBLE", code);
         if (err) *err = true;
       }
       return value;
@@ -2830,16 +2789,14 @@ double Json_wrapper::coerce_real(const char *msgnam,
     default:;
   }
 
-  handle_coercion_error(cr_error, "DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
-                        msgnam);
+  error_handler("DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST);
   if (err) *err = true;
   return 0.0;
 }
 
-my_decimal *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
-                                         const char *msgnam,
-                                         enum_coercion_error cr_error,
-                                         bool *err) const {
+my_decimal *Json_wrapper::coerce_decimal(
+    const JsonCoercionHandler &error_handler, my_decimal *decimal_value,
+    bool *err) const {
   if (err) *err = false;
   switch (type()) {
     case enum_json_type::J_DECIMAL:
@@ -2857,29 +2814,26 @@ my_decimal *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
       if (error) {
         int code = (error == E_DEC_OVERFLOW ? ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE
                                             : ER_INVALID_JSON_VALUE_FOR_CAST);
-        handle_coercion_error(cr_error, "DECIMAL", code, msgnam);
+        error_handler("DECIMAL", code);
         if (err) *err = true;
       }
       return decimal_value;
     }
     case enum_json_type::J_DOUBLE:
       if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value)) {
-        handle_coercion_error(cr_error, "DECIMAL",
-                              ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+        error_handler("DECIMAL", ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE);
         if (err) *err = true;
       }
       return decimal_value;
     case enum_json_type::J_INT:
       if (longlong2decimal(get_int(), decimal_value)) {
-        handle_coercion_error(cr_error, "DECIMAL",
-                              ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+        error_handler("DECIMAL", ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE);
         if (err) *err = true;
       }
       return decimal_value;
     case enum_json_type::J_UINT:
       if (longlong2decimal(get_uint(), decimal_value)) {
-        handle_coercion_error(cr_error, "DECIMAL",
-                              ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+        error_handler("DECIMAL", ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE);
         if (err) *err = true;
       }
       return decimal_value;
@@ -2891,17 +2845,17 @@ my_decimal *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
     default:;
   }
 
-  handle_coercion_error(cr_error, "DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
-                        msgnam);
+  error_handler("DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST);
   if (err) *err = true;
 
   my_decimal_set_zero(decimal_value);
   return decimal_value;
 }
 
-bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
-                               enum_coercion_error cr_error,
-                               my_time_flags_t date_flags_arg) const {
+bool Json_wrapper::coerce_date(
+    const JsonCoercionHandler &error_handler,
+    const JsonCoercionDeprecatedHandler &deprecation_checker, MYSQL_TIME *ltime,
+    my_time_flags_t date_flags_arg) const {
   switch (type()) {
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_DATE:
@@ -2911,36 +2865,27 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
       return false;
     case enum_json_type::J_STRING: {
       MYSQL_TIME_STATUS status;
-      THD *thd = current_thd;
       // @see Field_datetime::date_flags
-      my_time_flags_t date_flags = TIME_FUZZY_DATE | date_flags_arg;
-      if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
-        date_flags |= TIME_NO_ZERO_DATE;
-      if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
-        date_flags |= TIME_NO_ZERO_IN_DATE;
-      if (thd->variables.sql_mode & MODE_INVALID_DATES)
-        date_flags |= TIME_INVALID_DATES;
-      if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
-        date_flags |= TIME_FRAC_TRUNCATE;
-      if (!str_to_datetime(get_data(), get_data_length(), ltime, date_flags,
+      if (!str_to_datetime(get_data(), get_data_length(), ltime, date_flags_arg,
                            &status) &&
           !status.warnings) {
-        check_deprecated_datetime_format(current_thd, &my_charset_utf8mb4_bin,
-                                         status);
+        deprecation_checker(status);
         break;
       }
     }
       [[fallthrough]];
     default:
-      handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
-                            ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+      error_handler("DATE/TIME/DATETIME/TIMESTAMP",
+                    ER_INVALID_JSON_VALUE_FOR_CAST);
       return true;
   }
   return false;
 }
 
-bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
-                               enum_coercion_error cr_error) const {
+bool Json_wrapper::coerce_time(
+    const JsonCoercionHandler &error_handler,
+    const JsonCoercionDeprecatedHandler &deprecation_checker,
+    MYSQL_TIME *ltime) const {
   switch (type()) {
     case enum_json_type::J_TIME:
       set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
@@ -2952,21 +2897,18 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
       if (!str_to_time(get_data(), get_data_length(), ltime, &status,
                        TIME_STRICT_COLON) &&
           !status.warnings) {
-        check_deprecated_datetime_format(current_thd, &my_charset_utf8mb4_bin,
-                                         status);
+        deprecation_checker(status);
         break;
       }
     }
       [[fallthrough]];
     default:
-      handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
-                            ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+      error_handler("DATE/TIME/DATETIME/TIMESTAMP",
+                    ER_INVALID_JSON_VALUE_FOR_CAST);
       return true;
   }
   return false;
 }
-
-#endif
 
 namespace {
 

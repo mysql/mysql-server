@@ -89,6 +89,30 @@ const LEX_CSTRING interval_type_to_name[INTERVAL_LAST] = {
     {STRING_WITH_LEN("SECOND_MICROSECOND")}};
 
 /**
+  Generate flags to use when converting a string to a date or datetime value
+
+  @todo Consider whether to always accept zero date and zero in date.
+        (Add TIME_FUZZY_DATE).
+  Accept invalid dates when ALLOW_INVALID_DATES SQL mode is set.
+  Reject zero date if TIME_NO_ZERO_DATE is set.
+  Reject dates with zero as day or month when TIME_NO_ZERO_IN_DATE is set,
+  even if TIME_FUZZY_DATE is also set.
+  TIME_FRAC_TRUNCATE controls whether to round or truncate if the input
+  value has greater precision than the wanted result.
+
+  @param thd  Thread handle
+
+  @returns    Flags to use for calls to e.g my_str_to_datetime()
+*/
+my_time_flags_t DatetimeConversionFlags(const THD *thd) {
+  const sql_mode_t mode = thd->variables.sql_mode;
+  return (mode & MODE_INVALID_DATES ? TIME_INVALID_DATES : 0) |
+         (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0) |
+         (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
+         (thd->is_fsp_truncate_mode() ? TIME_FRAC_TRUNCATE : 0);
+}
+
+/**
   Convert a string to 8-bit representation,
   for use in str_to_time/str_to_date/str_to_date.
 

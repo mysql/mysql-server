@@ -1308,7 +1308,7 @@ bool Item_func_geomfromgeojson::get_positions(const Json_array *coordinates,
     */
     Json_wrapper coord((*coordinates)[i]);
     coord.set_alias();
-    const double coordinate = coord.coerce_real("");
+    const double coordinate = coord.coerce_real(JsonCoercionWarnHandler{""});
     if (i == 0) {
       // Longitude.
       if (coordinate <= m_min_longitude || coordinate > m_max_longitude) {

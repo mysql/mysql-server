@@ -1094,7 +1094,9 @@ static bool get_date_from_json(Item_func *item, MYSQL_TIME *ltime,
   Json_wrapper wr;
   if (item->val_json(&wr)) return true;
   if (item->null_value) return true;
-  return wr.coerce_date(ltime, item->func_name());
+  return wr.coerce_date(JsonCoercionWarnHandler{item->func_name()},
+                        JsonCoercionDeprecatedDefaultHandler{}, ltime,
+                        DatetimeConversionFlags(current_thd));
 }
 
 bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
@@ -1105,7 +1107,8 @@ static bool get_time_from_json(Item_func *item, MYSQL_TIME *ltime) {
   Json_wrapper wr;
   if (item->val_json(&wr)) return true;
   if (item->null_value) return true;
-  return wr.coerce_time(ltime, item->func_name());
+  return wr.coerce_time(JsonCoercionWarnHandler{item->func_name()},
+                        JsonCoercionDeprecatedDefaultHandler{}, ltime);
 }
 
 bool Item_json_func::get_time(MYSQL_TIME *ltime) {
@@ -1116,7 +1119,7 @@ longlong val_int_from_json(Item_func *item) {
   Json_wrapper wr;
   if (item->val_json(&wr)) return 0;
   if (item->null_value) return 0;
-  return wr.coerce_int(item->func_name());
+  return wr.coerce_int(JsonCoercionWarnHandler{item->func_name()});
 }
 
 longlong Item_json_func::val_int() { return val_int_from_json(this); }
@@ -1125,7 +1128,7 @@ static double val_real_from_json(Item_func *item) {
   Json_wrapper wr;
   if (item->val_json(&wr)) return 0.0;
   if (item->null_value) return 0.0;
-  return wr.coerce_real(item->func_name());
+  return wr.coerce_real(JsonCoercionWarnHandler{item->func_name()});
 }
 
 double Item_json_func::val_real() { return val_real_from_json(this); }
@@ -1137,8 +1140,8 @@ static my_decimal *val_decimal_from_json(Item_func *item,
     return item->error_decimal(decimal_value);
   }
   if (item->null_value) return nullptr;
-
-  return wr.coerce_decimal(decimal_value, item->func_name());
+  return wr.coerce_decimal(JsonCoercionWarnHandler{item->func_name()},
+                           decimal_value);
 }
 
 my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value) {
@@ -3871,7 +3874,12 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
     return (fld->store_json(w) != TYPE_OK);
   }
 
-  const enum_coercion_error cr_error = no_error ? CE_WARNING : CE_ERROR;
+  JsonCoercionHandler error_handler;
+  if (no_error) {
+    error_handler = JsonCoercionWarnHandler{field->field_name};
+  } else {
+    error_handler = JsonCoercionErrorHandler{field->field_name};
+  }
   if (w->type() == enum_json_type::J_ARRAY ||
       w->type() == enum_json_type::J_OBJECT) {
     if (!no_error)
@@ -3889,8 +3897,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
   bool err = false;
   switch (field->result_type()) {
     case INT_RESULT: {
-      const longlong value =
-          w->coerce_int(field->field_name, cr_error, &err, nullptr);
+      const longlong value = w->coerce_int(error_handler, &err, nullptr);
 
       // If the Json_wrapper holds a numeric value, grab the signedness from it.
       // If not, grab the signedness from the column where we are storing the
@@ -3925,7 +3932,9 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
           case enum_json_type::J_DATETIME:
           case enum_json_type::J_TIMESTAMP:
             date_time_handled = true;
-            err = w->coerce_date(&ltime, "JSON_TABLE", cr_error);
+            err = w->coerce_date(error_handler,
+                                 JsonCoercionDeprecatedDefaultHandler{}, &ltime,
+                                 DatetimeConversionFlags(current_thd));
             break;
           default:
             break;
@@ -3933,7 +3942,8 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       } else if (field->type() == MYSQL_TYPE_TIME &&
                  w->type() == enum_json_type::J_TIME) {
         date_time_handled = true;
-        err = w->coerce_time(&ltime, "JSON_TABLE", cr_error);
+        err = w->coerce_time(error_handler,
+                             JsonCoercionDeprecatedDefaultHandler{}, &ltime);
       }
       if (date_time_handled) {
         err = err || field->store_time(&ltime);
@@ -3958,13 +3968,13 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       break;
     }
     case REAL_RESULT: {
-      const double value = w->coerce_real(field->field_name, cr_error, &err);
+      const double value = w->coerce_real(error_handler, &err);
       if (!err && (field->store(value) >= TYPE_WARN_OUT_OF_RANGE)) err = true;
       break;
     }
     case DECIMAL_RESULT: {
       my_decimal value;
-      w->coerce_decimal(&value, field->field_name, cr_error, &err);
+      w->coerce_decimal(error_handler, &value, &err);
       if (!err && (field->store_decimal(&value) >= TYPE_WARN_OUT_OF_RANGE))
         err = true;
       break;
@@ -4838,7 +4848,7 @@ int64_t Item_func_json_value::extract_integer_value() {
   bool err = false;
   bool unsigned_val = false;
   const int64_t value =
-      wr.coerce_int(func_name(), CE_IGNORE, &err, &unsigned_val);
+      wr.coerce_int([](const char *, int) {}, &err, &unsigned_val);
 
   if (!err && (unsigned_flag == unsigned_val || value >= 0)) return value;
 
@@ -4871,7 +4881,7 @@ int64_t Item_func_json_value::extract_year_value() {
   bool err = false;
   bool unsigned_val = false;
   const int64_t value =
-      wr.coerce_int(func_name(), CE_IGNORE, &err, &unsigned_val);
+      wr.coerce_int([](const char *, int) {}, &err, &unsigned_val);
 
   if (!err && ((value == 0) || (value > 1900 && value <= 2155))) return value;
 
@@ -4896,8 +4906,10 @@ bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
     *ltime = *return_default->temporal_default;
     return false;
   }
-
-  if (!wr.coerce_date(ltime, func_name(), CE_IGNORE)) return false;
+  if (!wr.coerce_date([](const char *, int) {},
+                      JsonCoercionDeprecatedDefaultHandler{}, ltime,
+                      DatetimeConversionFlags(current_thd)))
+    return false;
 
   if (handle_json_value_conversion_error(m_on_error, "DATE", this) ||
       null_value) {
@@ -4922,8 +4934,9 @@ bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
     *ltime = *return_default->temporal_default;
     return false;
   }
-
-  if (!wr.coerce_time(ltime, func_name(), CE_IGNORE)) return false;
+  if (!wr.coerce_time([](const char *, int) {},
+                      JsonCoercionDeprecatedDefaultHandler{}, ltime))
+    return false;
 
   if (handle_json_value_conversion_error(m_on_error, "TIME", this) ||
       null_value) {
@@ -4949,7 +4962,9 @@ bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
     return false;
   }
 
-  if (!wr.coerce_date(ltime, func_name(), CE_IGNORE, TIME_DATETIME_ONLY))
+  if (!wr.coerce_date(
+          [](const char *, int) {}, JsonCoercionDeprecatedDefaultHandler{},
+          ltime, TIME_DATETIME_ONLY | DatetimeConversionFlags(current_thd)))
     return false;
 
   if (handle_json_value_conversion_error(m_on_error, "DATETIME", this) ||
@@ -4976,7 +4991,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
   }
 
   bool err = false;
-  wr.coerce_decimal(value, func_name(), CE_IGNORE, &err);
+  wr.coerce_decimal([](const char *, int) {}, value, &err);
   if (!err && decimal_within_range(this, value)) return value;
 
   if (handle_json_value_conversion_error(m_on_error, "DECIMAL", this) ||
@@ -5045,7 +5060,7 @@ double Item_func_json_value::extract_real_value() {
   if (return_default != nullptr) return return_default->real_default;
 
   bool err = false;
-  const double value = wr.coerce_real(func_name(), CE_IGNORE, &err);
+  const double value = wr.coerce_real([](const char *, int) {}, &err);
   if (!err) {
     if (data_type() == MYSQL_TYPE_FLOAT) {
       // Remove any extra (double) precision.
