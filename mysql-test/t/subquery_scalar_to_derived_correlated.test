@@ -1045,6 +1045,36 @@ EXPLAIN SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE UUID() + t1.x = t2.a ) > 
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#36070542 unnest scalar subquery using groupby produces wrong result
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (5,5), (6,6);
+ANALYZE TABLE t1, t3;
+# there were wrong before: we do not transform these since the NULL test can make
+# semantics different after transform: original subquery would not return NULL, but
+# transform would. The below functions/operators do not yield NULL if SUM(t3.b) is
+# NULL, but the transform would, so we should see no transform.
+let $query = SELECT (SELECT COALESCE(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT (SELECT IFNULL(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT (SELECT SUM(t3.b) IS NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT (SELECT SUM(t3.b) IS NOT NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT (SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t3;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql

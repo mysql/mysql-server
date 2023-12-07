@@ -7795,6 +7795,16 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
       down_cast<Item_func *>(select_item)->is_non_deterministic())
     return false;
 
+  // Check whether the select expression may change nulls to non-nulls:
+  // it may change semantics of the transformed query if so, hence we deny this
+  for (auto *sel_expr : visible_fields()) {
+    if (WalkItem(sel_expr, enum_walk::PREFIX, [](Item *inner_item) {
+          return inner_item->type() == Item::FUNC_ITEM &&
+                 !down_cast<Item_func *>(inner_item)->is_null_on_null();
+        }))
+      return false;
+  }
+
   // Only allow outer reference in the WHERE clause, check now
 
   // 1. select list

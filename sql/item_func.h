@@ -172,6 +172,8 @@ class Item_func : public Item_result_field {
   table_map not_null_tables_cache{0};
 
  public:
+  bool is_null_on_null() const { return null_on_null; }
+
   /*
     When updating Functype with new spatial functions,
     is_spatial_operator() should also be updated.

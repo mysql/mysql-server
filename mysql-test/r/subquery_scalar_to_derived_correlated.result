@@ -1485,4 +1485,81 @@ Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where ((uuid() + `test`.`t1`.`x`) = `test`.`t2`.`a`)) > 0)
 DROP TABLE t1, t2;
+#
+# Bug#36070542 unnest scalar subquery using groupby produces wrong result
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (5,5), (6,6);
+ANALYZE TABLE t1, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT (SELECT COALESCE(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+(SELECT COALESCE(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a)
+0
+0
+0
+0
+EXPLAIN SELECT (SELECT COALESCE(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select coalesce(sum(`test`.`t3`.`b`),0) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT COALESCE(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
+SELECT (SELECT IFNULL(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+(SELECT IFNULL(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a)
+0
+0
+0
+0
+EXPLAIN SELECT (SELECT IFNULL(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select ifnull(sum(`test`.`t3`.`b`),0) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT IFNULL(SUM(t3.b), 0) FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
+SELECT (SELECT SUM(t3.b) IS NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+(SELECT SUM(t3.b) IS NULL FROM t3 WHERE t1.a=t3.a)
+1
+1
+1
+1
+EXPLAIN SELECT (SELECT SUM(t3.b) IS NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select (sum(`test`.`t3`.`b`) is null) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT SUM(t3.b) IS NULL FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
+SELECT (SELECT SUM(t3.b) IS NOT NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+(SELECT SUM(t3.b) IS NOT NULL FROM t3 WHERE t1.a=t3.a)
+0
+0
+0
+0
+EXPLAIN SELECT (SELECT SUM(t3.b) IS NOT NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select (sum(`test`.`t3`.`b`) is not null) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT SUM(t3.b) IS NOT NULL FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
+SELECT (SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+(SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a)
+1
+1
+1
+1
+EXPLAIN SELECT (SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a) FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select (sum(`test`.`t3`.`b`) <=> NULL) from `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`a`)) AS `(SELECT SUM(t3.b) <=> NULL FROM t3 WHERE t1.a=t3.a)` from `test`.`t1`
+DROP TABLE t1, t3;
 SET optimizer_switch = 'subquery_to_derived=default';
