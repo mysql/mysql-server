@@ -31,6 +31,8 @@
 enum class DestinationsErrc {
   kNotSet = 1,
   kNoDestinations = 2,
+  kIgnored = 3,
+  kQuarantined = 4,
 };
 
 namespace std {

@@ -203,12 +203,12 @@ TEST_F(RoutingConnectionErrorTest, connect_backend_not_reachable) {
   r.wait_for_exit();
 
   // the log should not contain "closed connection before ..."
-  EXPECT_THAT(
-      r.get_logfile_content(),
-      ::testing::AllOf(::testing::HasSubstr("connecting to backend failed"),
-                       ::testing::Not(::testing::AnyOf(
-                           ::testing::HasSubstr("closed connection before"),
-                           ::testing::HasSubstr("blocking client host for")))));
+  EXPECT_THAT(r.get_logfile_content(),
+              ::testing::AllOf(
+                  ::testing::HasSubstr("connecting to backend(s) for client"),
+                  ::testing::Not(::testing::AnyOf(
+                      ::testing::HasSubstr("closed connection before"),
+                      ::testing::HasSubstr("blocking client host for")))));
 }
 
 TEST_F(RoutingConnectionErrorTest, connect_from_connection_pool) {

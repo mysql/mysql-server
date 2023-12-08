@@ -35,10 +35,14 @@ const std::error_category &destinations_error_category() noexcept {
         case DestinationsErrc::kNotSet:
           return "not set";
         case DestinationsErrc::kNoDestinations:
-          return "no destinations";
-        default:
-          return "(unrecognized error)";
+          return "no more destinations";
+        case DestinationsErrc::kIgnored:
+          return "ignored";
+        case DestinationsErrc::kQuarantined:
+          return "is quarantined";
       }
+
+      return "(unrecognized error)";
     }
   };
 
