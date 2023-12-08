@@ -265,13 +265,14 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   # We have a template .cmake.in file for any plugin that needs cleanup.
 
   # NOTE: scripts should work for 'make install' and 'make package'.
-  IF(LINUX AND UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  IF(LINUX AND (UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR WITH_MLE))
     IF(${target} STREQUAL "mysqld")
       INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
     ENDIF()
     # These plugins depend, directly or indirectly, on protobuf.
     IF(${target} STREQUAL "group_replication" OR
         ${target} STREQUAL "telemetry_client" OR
+        ${target} STREQUAL "component_mle" OR
         ${target} STREQUAL "component_telemetry"
         )
       GET_TARGET_PROPERTY(output_name ${target} OUTPUT_NAME)
