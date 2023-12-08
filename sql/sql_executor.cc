@@ -1522,6 +1522,10 @@ static void RecalculateTablePathCost(AccessPath *path,
       EstimateMaterializeCost(current_thd, path);
       break;
 
+    case AccessPath::WINDOW:
+      EstimateWindowCost(path);
+      break;
+
     default:
       assert(false);
   }
@@ -1548,6 +1552,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
       case AccessPath::CONST_TABLE:
       case AccessPath::INDEX_SCAN:
       case AccessPath::INDEX_RANGE_SCAN:
+      case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
         // We found our real bottom.
         path->materialize().table_path = sub_path;
         if (explain) {
@@ -1608,6 +1613,9 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
         bottom_of_table_path->materialize()
             .param->query_blocks[0]
             .subquery_path = path;
+        break;
+      case AccessPath::WINDOW:
+        bottom_of_table_path->window().child = path;
         break;
       default:
         assert(false);
