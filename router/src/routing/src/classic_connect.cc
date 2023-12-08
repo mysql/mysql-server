@@ -217,7 +217,7 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
             std::chrono::steady_clock::now() - started);
     connect_errors_.emplace_back(
         "resolve(" + destination->hostname() + ") failed after " +
-            mysqlrouter::to_string(resolve_duration.count()) + "ms",
+            std::to_string(resolve_duration.count()) + "ms",
         resolve_res.error());
 
     log_debug("resolve(%s,%d) failed: %s:%s", destination->hostname().c_str(),
@@ -547,8 +547,7 @@ ConnectProcessor::connect_finish() {
     connect_errors_.emplace_back(
         "connect(" +
             pretty_endpoint(server_endpoint_, (*destinations_it_)->hostname()) +
-            ") failed after " +
-            mysqlrouter::to_string(connect_duration.count()) + "ms",
+            ") failed after " + std::to_string(connect_duration.count()) + "ms",
         ec);
 
     destination_ec_ = ec;
@@ -570,8 +569,6 @@ ConnectProcessor::connect_finish() {
       tr.trace(
           Tracer::Event().stage("connect::connect_finish: " + ec.message()));
     }
-
-    connection()->connect_timer().expiry().time_since_epoch();
 
     connect_errors_.emplace_back(
         "connect(" +
@@ -601,8 +598,7 @@ ConnectProcessor::connect_finish() {
     connect_errors_.emplace_back(
         "connect(" +
             pretty_endpoint(server_endpoint_, (*destinations_it_)->hostname()) +
-            ") failed after " +
-            mysqlrouter::to_string(connect_duration.count()) + "ms",
+            ") failed after " + std::to_string(connect_duration.count()) + "ms",
         sock_ec);
 
     destination_ec_ = sock_ec;
