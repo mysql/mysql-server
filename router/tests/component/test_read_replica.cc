@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "config_builder.h"
 #include "keyring/keyring_manager.h"
@@ -900,7 +901,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   const unsigned quarantine_threshold = GetParam();
   const auto &router = launch_router(quarantine_threshold);
 
-  // remove first read replica [D]
+  SCOPED_TRACE("// remove first read replica [D]");
   const auto classic_port_E = cluster_nodes_[4].classic_port;
   const auto classic_port_D = remove_node(gr_nodes_count, false);
   EXPECT_TRUE(
@@ -912,12 +913,13 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
                            cluster_nodes_[gr_nodes_count].classic_port);
   }
 
-  check_log_contains(router,
-                     "add destination '127.0.0.1:" +
-                         std::to_string(classic_port_D) + "' to quarantine",
-                     1);
+  ASSERT_NO_FATAL_FAILURE(check_log_contains(
+      router,
+      "add destination '127.0.0.1:" + std::to_string(classic_port_D) +
+          "' to quarantine",
+      1));
 
-  // bring back read replica [D]
+  SCOPED_TRACE("// bring back read replica [D]");
   add_read_replica_node(classic_port_D, false, /*position=*/gr_nodes_count);
 
   EXPECT_TRUE(wait_log_contains(
@@ -926,7 +928,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
           "' is available, remove it from quarantine",
       10s));
 
-  // check RR [D] is back in the rotation
+  SCOPED_TRACE("// check RR [D] is back in the rotation");
   const auto expected_ports =
       std::vector<uint16_t>{classic_port_D, classic_port_E};
   std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
@@ -936,32 +938,38 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   }
   check_all_ports_used(expected_ports, ro_cons);
 
-  // remove second read replica [E] now
+  SCOPED_TRACE("// remove second read replica [E] now");
   remove_node(gr_nodes_count + 1, false);
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   for (size_t i = 0; i < 2 * quarantine_threshold + 1; i++) {
-    make_new_connection_ok(router_port_ro, classic_port_D);
+    ASSERT_NO_FATAL_FAILURE(
+        make_new_connection_ok(router_port_ro, classic_port_D));
   }
 
-  check_log_contains(router,
-                     "add destination '127.0.0.1:" +
-                         std::to_string(classic_port_E) + "' to quarantine",
-                     1);
+  ASSERT_NO_FATAL_FAILURE(check_log_contains(
+      router,
+      "add destination '127.0.0.1:" + std::to_string(classic_port_E) +
+          "' to quarantine",
+      1));
 
-  // remove the first RR [D] again
+  SCOPED_TRACE("// remove the first RR [D] again");
   remove_node(gr_nodes_count, false);
+
+  SCOPED_TRACE("// triggering quarantine: threshold=" +
+               std::to_string(quarantine_threshold));
   for (size_t i = 0; i < quarantine_threshold; i++) {
-    verify_new_connection_fails(router_port_ro);
+    ASSERT_NO_FATAL_FAILURE(verify_new_connection_fails(router_port_ro));
   }
 
-  check_log_contains(router,
-                     "add destination '127.0.0.1:" +
-                         std::to_string(classic_port_D) + "' to quarantine",
-                     2);
+  ASSERT_NO_FATAL_FAILURE(check_log_contains(
+      router,
+      "add destination '127.0.0.1:" + std::to_string(classic_port_D) +
+          "' to quarantine",
+      2));
 
-  // bring back second RR [E]
+  SCOPED_TRACE("// bring back second RR [E]");
   add_read_replica_node(classic_port_E, false, /*position=*/gr_nodes_count);
 
   EXPECT_TRUE(wait_log_contains(
@@ -971,7 +979,8 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
       10s));
 
   for (size_t i = 0; i < 2 * quarantine_threshold; i++) {
-    make_new_connection_ok(router_port_ro, classic_port_E);
+    ASSERT_NO_FATAL_FAILURE(
+        make_new_connection_ok(router_port_ro, classic_port_E));
   }
 }
 

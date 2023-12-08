@@ -92,8 +92,10 @@ void RouterComponentTest::check_log_contains(
     const ProcessWrapper &router, const std::string &expected_string,
     size_t expected_occurences /*=1*/) {
   const std::string log_content = router.get_logfile_content();
-  EXPECT_EQ(expected_occurences,
+  ASSERT_EQ(expected_occurences,
             count_str_occurences(log_content, expected_string))
+      << "Expected: " << expected_string << "\n"
+      << "in:\n"
       << log_content;
 }
 
