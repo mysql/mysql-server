@@ -951,7 +951,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             path->materialize().table_path->type == AccessPath::CONST_TABLE ||
             path->materialize().table_path->type == AccessPath::INDEX_SCAN ||
             path->materialize().table_path->type ==
-                AccessPath::INDEX_RANGE_SCAN);
+                AccessPath::INDEX_RANGE_SCAN ||
+            path->materialize().table_path->type ==
+                AccessPath::DYNAMIC_INDEX_RANGE_SCAN);
 
         MaterializePathParameters *param = path->materialize().param;
         if (job.children.is_null()) {

@@ -1148,8 +1148,8 @@ struct AccessPath {
     } stream;
     struct {
       // NOTE: The only legal access paths within table_path are
-      // TABLE_SCAN, REF, REF_OR_NULL, EQ_REF, ALTERNATIVE and
-      // CONST_TABLE (the latter is somewhat nonsensical).
+      // TABLE_SCAN, REF, REF_OR_NULL, EQ_REF, ALTERNATIVE,
+      // CONST_TABLE (somewhat nonsensical), INDEX_SCAN and DYNAMIC_INDEX_SCAN
       AccessPath *table_path;
 
       // Large, and has nontrivial destructors, so split out
