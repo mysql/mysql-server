@@ -10267,9 +10267,10 @@ bool mysql_create_table(THD *thd, Table_ref *create_table,
         else {
           assert(new_table != nullptr);
           // Check for usage of prefix key index in PARTITION BY KEY() function.
-          dd::warn_on_deprecated_prefix_key_partition(thd, create_table->db,
-                                                      create_table->table_name,
-                                                      new_table, false);
+          if (dd::prefix_key_partition_exists(
+                  create_table->db, create_table->table_name, new_table, false))
+            result = true;
+
           /*
             If we are to support FKs for storage engines which don't support
             atomic DDL we need to decide what to do for such SEs in case of
@@ -17127,8 +17128,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   if (!is_tmp_table) {
     // Check for usage of prefix key index in PARTITION BY KEY() function.
-    dd::warn_on_deprecated_prefix_key_partition(
-        thd, alter_ctx.db, alter_ctx.table_name, table_def, false);
+    if (dd::prefix_key_partition_exists(alter_ctx.db, alter_ctx.table_name,
+                                        table_def, false))
+      goto err_new_table_cleanup;
   }
 
   if (remove_secondary_engine(thd, *table_list, *create_info, old_table_def))

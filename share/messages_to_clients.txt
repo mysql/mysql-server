@@ -9371,7 +9371,7 @@ ER_HOSTNAME_TOO_LONG
   eng "Hostname cannot be longer than %d characters."
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
-ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
+OBSOLETE_ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
   eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
 
 ER_GROUP_REPLICATION_USER_EMPTY_MSG
@@ -10375,6 +10375,9 @@ ER_LH_JSON_PARSING
 
 ER_ENGINE_CANNOT_BE_DEFAULT
   eng "Engine %s cannot be set as default_storage_engine."
+
+ER_PARTITION_PREFIX_KEY_NOT_SUPPORTED
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is not supported."
 
 #
 #  End of 8.1+ error messages (server-to-client).

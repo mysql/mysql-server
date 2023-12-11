@@ -1800,8 +1800,9 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       fk_number, &cc_spec_list_unused, table.file);
 
   // Check for usage of prefix key index in PARTITION BY KEY() function.
-  dd::warn_on_deprecated_prefix_key_partition(
-      thd, schema_name.c_str(), table_name.c_str(), table_def.get(), true);
+  if (dd::prefix_key_partition_exists(schema_name.c_str(), table_name.c_str(),
+                                      table_def.get(), true))
+    return true;
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
     LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY, schema_name.c_str(),

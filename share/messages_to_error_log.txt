@@ -10828,7 +10828,7 @@ ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
 ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
   eng "%s"
 
-ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
+OBSOLETE_ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
   eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
 
 ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
@@ -12698,6 +12698,10 @@ ER_GRP_RPL_PREEMPTIVE_GARBAGE_COLLECTION_DIFF_FROM_GRP
 # Messages intended to be sent to _clients_ go in messages_to_clients.txt!
 #
 
+start-error-number 15500
+
+ER_LOG_PARTITION_PREFIX_KEY_NOT_SUPPORTED
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is not supported."
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for

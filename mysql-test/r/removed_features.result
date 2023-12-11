@@ -1,0 +1,265 @@
+
+# WL#16054 Remove support for prefix keys in partition functions.
+# Test added by WL#13588 Deprecate support for prefix partition keys
+# in deprecated_features.test are moved to this test file and modified
+# for feature removal
+
+CREATE SCHEMA testdb;
+
+# Should give error on CREATE TABLE with partition prefix keys.
+
+CREATE TABLE testdb.t1 (
+a VARCHAR (10000),
+b VARCHAR (25),
+c VARCHAR (10),
+PRIMARY KEY (a(10),b,c(2))
+) PARTITION BY KEY() PARTITIONS 2;
+ERROR HY000: Column 'testdb.t1.a' having prefix key part 'a(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t2 (
+a VARCHAR (200),
+b VARCHAR (10),
+PRIMARY KEY (a(2),b)
+) PARTITION BY KEY() PARTITIONS 2;
+ERROR HY000: Column 'testdb.t2.a' having prefix key part 'a(2)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t3 (
+a VARCHAR (200),
+b VARCHAR (10),
+PRIMARY KEY (a(2),b)
+) PARTITION BY KEY() PARTITIONS 10;
+ERROR HY000: Column 'testdb.t3.a' having prefix key part 'a(2)' in the PARTITION BY KEY() clause is not supported.
+
+# Should not give error if prefix key is not used
+# in the PARTITION BY KEY() clause.
+CREATE TABLE testdb.t4 (
+a VARCHAR (200),
+b VARCHAR (10),
+c VARCHAR (100),
+KEY (a),
+KEY (b(5))
+) PARTITION BY KEY(c) PARTITIONS 10;
+
+# Should give error if a table having prefix keys is
+# altered to be partitioned by key.
+CREATE TABLE testdb.t5 (
+a VARCHAR (10000),
+b VARCHAR (25),
+c VARCHAR (10),
+PRIMARY KEY (a(10),b,c(2))
+);
+ALTER TABLE testdb.t5 PARTITION BY KEY() PARTITIONS 10;
+ERROR HY000: Column 'testdb.t5.a' having prefix key part 'a(10)' in the PARTITION BY KEY() clause is not supported.
+
+# Should not give error if prefix length = column length.
+CREATE TABLE testdb.t6 (
+a VARCHAR (200),
+b VARCHAR (10),
+PRIMARY KEY (a(200),b)
+) PARTITION BY KEY() PARTITIONS 10;
+
+# Should give error if prefix key is used in the
+# PARTITION BY KEY() clause, regardless of lettercase.
+CREATE TABLE testdb.t7 (
+a VARCHAR (200),
+b VARCHAR (10),
+c VARCHAR (100),
+KEY (a),
+KEY (b(5))
+) PARTITION BY KEY(B) PARTITIONS 2;
+ERROR HY000: Column 'testdb.t7.b' having prefix key part 'b(5)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t8 (
+A VARCHAR (200),
+B VARCHAR (10),
+C VARCHAR (100),
+KEY (A),
+KEY (B(5))
+) PARTITION BY KEY(b) PARTITIONS 2;
+ERROR HY000: Column 'testdb.t8.B' having prefix key part 'B(5)' in the PARTITION BY KEY() clause is not supported.
+
+# Should not give error when there is no index.
+CREATE TABLE testdb.m1 (
+firstname VARCHAR (25) NOT NULL,
+lastname VARCHAR (25) NOT NULL,
+username VARCHAR (16) NOT NULL,
+email VARCHAR (35),
+joined DATE NOT NULL
+) PARTITION BY KEY(joined) PARTITIONS 6;
+
+# Should not give error for table partitioned by range.
+CREATE TABLE testdb.m2 (
+firstname VARCHAR (25) NOT NULL,
+lastname VARCHAR (25) NOT NULL,
+username VARCHAR (16) NOT NULL,
+email VARCHAR (35),
+joined DATE NOT NULL
+) PARTITION BY RANGE(YEAR(joined)) (
+PARTITION p0 VALUES LESS THAN (1960),
+PARTITION p1 VALUES LESS THAN (1970),
+PARTITION p2 VALUES LESS THAN (1980),
+PARTITION p3 VALUES LESS THAN (1990),
+PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+
+# Should not give error for table with a prefix key
+# partitioned by range
+CREATE TABLE testdb.m3 (
+firstname VARCHAR (25) NOT NULL,
+lastname VARCHAR (25) NOT NULL,
+username VARCHAR (16) NOT NULL,
+email VARCHAR (35),
+joined DATE NOT NULL,
+PRIMARY KEY(firstname(5),joined)
+) PARTITION BY RANGE(YEAR(joined)) (
+PARTITION p0 VALUES LESS THAN (1960),
+PARTITION p1 VALUES LESS THAN (1970),
+PARTITION p2 VALUES LESS THAN (1980),
+PARTITION p3 VALUES LESS THAN (1990),
+PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+
+# Should give error for table with a prefix key
+# on text field type as it is not supported
+CREATE TABLE testdb.m4 (
+f1 int(11) DEFAULT '0' NOT NULL,
+f2 varchar(16) DEFAULT '' NOT NULL,
+f5 text,
+PRIMARY KEY(f1,f2,f5(16))
+) PARTITION BY KEY() PARTITIONS 2;
+ERROR HY000: A BLOB field is not allowed in partition function
+
+# Should give error for table with a prefix key
+# on blob field type as it is not supported
+CREATE TABLE testdb.m4 (
+f1 int(11) DEFAULT '0' NOT NULL,
+f2 varchar(16) DEFAULT '' NOT NULL,
+f5 blob,
+PRIMARY KEY(f1,f2,f5(6))
+) PARTITION BY KEY() PARTITIONS 2;
+ERROR HY000: A BLOB field is not allowed in partition function
+
+# Should give not supported error for combinations of column type
+# CHAR|VARCHAR|BINARY|VARBINARY, [LINEAR] KEY, and ALGORITHM=1|2
+
+CREATE TABLE testdb.t_char_linear_alg1 (
+prefix_col CHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_char_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+CREATE TABLE testdb.t_char_linear_alg1 (
+prefix_col CHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_char_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varchar_linear_alg1 (
+prefix_col VARCHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varchar_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_binary_linear_alg1 (
+prefix_col BINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_binary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varbinary_linear_alg1 (
+prefix_col VARBINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varbinary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_char_nonlinear_alg1 (
+prefix_col CHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_char_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varchar_nonlinear_alg1 (
+prefix_col VARCHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varchar_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_binary_nonlinear_alg1 (
+prefix_col BINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_binary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varbinary_nonlinear_alg1 (
+prefix_col VARBINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varbinary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_char_linear_alg2 (
+prefix_col CHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_char_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varchar_linear_alg2 (
+prefix_col VARCHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varchar_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_binary_linear_alg2 (
+prefix_col BINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_binary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varbinary_linear_alg2 (
+prefix_col VARBINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varbinary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_char_nonlinear_alg2 (
+prefix_col CHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_char_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varchar_nonlinear_alg2 (
+prefix_col VARCHAR (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varchar_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_binary_nonlinear_alg2 (
+prefix_col BINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_binary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+CREATE TABLE testdb.t_varbinary_nonlinear_alg2 (
+prefix_col VARBINARY (100),
+other_col VARCHAR (5),
+PRIMARY KEY (prefix_col(10), other_col)
+) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
+ERROR HY000: Column 'testdb.t_varbinary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is not supported.
+
+# Cleanup.
+
+DROP SCHEMA testdb;

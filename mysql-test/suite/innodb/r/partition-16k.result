@@ -42,14 +42,11 @@ SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 #
 SET @orig_innodb_file_per_table= @@innodb_file_per_table;
 SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
-CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c(99))) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
-Warnings:
-Warning	1681	Column 'test.t1.c' having prefix key part 'c(99)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c)) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
 SET GLOBAL innodb_file_per_table = 0;
 SET SESSION innodb_strict_mode = 0;
 ALTER TABLE t1 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
 Warnings:
-Warning	1681	Column 'test.t1.c' having prefix key part 'c(99)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
@@ -74,7 +71,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
   `c` varchar(186) DEFAULT NULL,
-  KEY `c` (`c`(99))
+  KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
 /*!50100 PARTITION BY LINEAR KEY (c)
 PARTITIONS 3 */

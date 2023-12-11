@@ -2978,21 +2978,20 @@ bool uses_general_tablespace(const Table &t) {
   return false;
 }
 
-void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
-                                             const char *orig_table_name,
-                                             const Table *table,
-                                             const bool is_upgrade) {
+bool prefix_key_partition_exists(const char *schema_name,
+                                 const char *orig_table_name,
+                                 const Table *table, const bool is_upgrade) {
   DBUG_TRACE;
   assert(table);
 
   // Check if table is partitioned.
   const Table::enum_partition_type pt_type = table->partition_type();
-  if (pt_type == Table::enum_partition_type::PT_NONE) return;
+  if (pt_type == Table::enum_partition_type::PT_NONE) return false;
 
   // Check if table is partitioned by [LINEAR] KEY.
   if (pt_type != Table::PT_KEY_51 && pt_type != Table::PT_KEY_55 &&
       pt_type != Table::PT_LINEAR_KEY_51 && pt_type != Table::PT_LINEAR_KEY_55)
-    return;
+    return false;
 
   // Parse the partition expression to get the list of columns used.
   // NOTE : This is similar to working of set_field_list().
@@ -3063,21 +3062,21 @@ void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
       const CHARSET_INFO *cs = dd_get_mysql_charset(column->collation_id());
       const uint prefix_key_length = index_element->length() / cs->mbmaxlen;
 
-      // In case of UPGRADE from 5.7 or lower 8.0.x version, send warning to the
-      // error log. In case of CREATE|ALTER TABLE, send warning to client.
+      // In case of UPGRADE from 5.7 or lower 8.0.x version, send error to the
+      // error log. In case of CREATE|ALTER TABLE, send error to client.
       if (is_upgrade)
-        LogErr(WARNING_LEVEL, ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY,
+        LogErr(ERROR_LEVEL, ER_LOG_PARTITION_PREFIX_KEY_NOT_SUPPORTED,
                schema_name, orig_table_name, column_name.c_str(),
                column_name.c_str(), prefix_key_length);
       else
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING,
-            ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-            ER_THD(thd, ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY),
-            schema_name, orig_table_name, column_name.c_str(),
-            column_name.c_str(), prefix_key_length);
+        my_error(ER_PARTITION_PREFIX_KEY_NOT_SUPPORTED, MYF(0), schema_name,
+                 orig_table_name, column_name.c_str(), column_name.c_str(),
+                 prefix_key_length);
+      // Return error when first prefix key is encountered
+      return true;
     }
   }
+  return false;
 }
 
 bool get_implicit_tablespace_options(THD *thd, const Table *table,

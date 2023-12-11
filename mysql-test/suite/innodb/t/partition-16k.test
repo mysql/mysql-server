@@ -41,7 +41,7 @@ SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SET @orig_innodb_file_per_table= @@innodb_file_per_table;
 SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 
-CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c(99))) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
+CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c)) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
 
 SET GLOBAL innodb_file_per_table = 0;
 SET SESSION innodb_strict_mode = 0;

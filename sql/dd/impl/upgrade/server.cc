@@ -49,9 +49,9 @@
 #include "scripts/sql_firewall_sp_set_firewall_mode.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_table.h"  // dd::warn_on_deprecated_prefix_key_partition
-#include "sql/dd/dd_tablespace.h"                 // dd::fill_table_and_parts...
-#include "sql/dd/dd_trigger.h"                    // dd::create_trigger
+#include "sql/dd/dd_table.h"                 // dd::prefix_key_partition_exists
+#include "sql/dd/dd_tablespace.h"            // dd::fill_table_and_parts...
+#include "sql/dd/dd_trigger.h"               // dd::create_trigger
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::DD_bootstrap_ctx
 #include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
@@ -716,8 +716,9 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
     invalid_triggers(thd, schema->name().c_str(), *table);
 
     // Check for usage of prefix key index in PARTITION BY KEY() function.
-    dd::warn_on_deprecated_prefix_key_partition(
-        thd, schema->name().c_str(), table->name().c_str(), table.get(), true);
+    if (dd::prefix_key_partition_exists(
+            schema->name().c_str(), table->name().c_str(), table.get(), true))
+      return true;
 
     // Check for partitioned innodb tables using shared spaces.
     if (!shared_spaces->empty() &&
