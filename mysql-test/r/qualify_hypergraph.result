@@ -382,7 +382,7 @@ a
 4
 SELECT b,c, MAX(a)
 FROM t1 GROUP BY b,c WITH ROLLUP
-QUALIFY LEAD(b) OVER(ORDER BY c) >1 AND b IS NULL;
+QUALIFY LEAD(b) OVER(ORDER BY a,b,c) >1 AND b IS NULL;
 b	c	MAX(a)
 NULL	NULL	5
 SET @@sql_mode = @orig_sql_mode;

@@ -209,7 +209,7 @@ QUALIFY LAG(c,6) OVER () > 4;
 --sorted_result
 SELECT b,c, MAX(a)
 FROM t1 GROUP BY b,c WITH ROLLUP
-QUALIFY LEAD(b) OVER(ORDER BY c) >1 AND b IS NULL;
+QUALIFY LEAD(b) OVER(ORDER BY a,b,c) >1 AND b IS NULL;
 
 SET @@sql_mode = @orig_sql_mode;
 DROP TABLE t1;
