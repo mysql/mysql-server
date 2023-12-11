@@ -278,7 +278,9 @@ while ($srv_id <= $rpl_server_count) {
   --let $rpl_connection_name= server$srv_id
   --source include/rpl_connection.inc
   --source include/stop_group_replication.inc
+  --disable_query_log
   --eval SET GLOBAL group_replication_gtid_assignment_block_size=$block_size_saved
+  --enable_query_log
   RESET BINARY LOGS AND GTIDS;
   --inc $srv_id
 }
