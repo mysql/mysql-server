@@ -1332,6 +1332,67 @@ bool set_and_validate_user_attributes(
       should be a no-op and be ignored.
     */
     assert(command == SQLCOM_CREATE_USER || command == SQLCOM_CREATE_ROLE);
+
+    /* use the stored plugin when it's not supplied */
+    if (!Str->first_factor_auth_info.uses_identified_with_clause)
+      Str->first_factor_auth_info.plugin = default_auth_plugin_name;
+    else
+      optimize_plugin_compare_by_pointer(&Str->first_factor_auth_info.plugin);
+
+    /*
+      Make sure the hashed credentials are set so the statement is logged
+      correctly. We need the plugin reference for this.
+    */
+    st_mysql_auth *auth = nullptr;
+    assert(plugin == nullptr);
+    if (Str->first_factor_auth_info.uses_identified_by_clause ||
+        Str->first_factor_auth_info.uses_authentication_string_clause) {
+      plugin =
+          my_plugin_lock_by_name(nullptr, Str->first_factor_auth_info.plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
+
+      /* check if plugin is loaded */
+      if (!plugin) {
+        what_to_set.m_what = NONE_ATTR;
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0),
+                 Str->first_factor_auth_info.plugin.str);
+        return true;
+      }
+      auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+    }
+
+    if (Str->first_factor_auth_info.uses_identified_by_clause) {
+      inbuf = Str->first_factor_auth_info.auth.str;
+      inbuflen = (unsigned)Str->first_factor_auth_info.auth.length;
+      if (auth->generate_authentication_string(outbuf, &buflen, inbuf,
+                                               inbuflen)) {
+        plugin_unlock(nullptr, plugin);
+        what_to_set.m_what = NONE_ATTR;
+        /*
+          generate_authentication_string may return error status
+          without setting actual error.
+        */
+        if (!thd->is_error()) {
+          String error_user;
+          log_user(thd, &error_user, Str, false);
+          my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
+        }
+        return true;
+      }
+      password = strmake_root(thd->mem_root, outbuf, buflen);
+      Str->first_factor_auth_info.auth = {password, buflen};
+    } else if (Str->first_factor_auth_info.uses_authentication_string_clause) {
+      assert(!is_role);
+      if (auth->validate_authentication_string(
+              const_cast<char *>(Str->first_factor_auth_info.auth.str),
+              (unsigned)Str->first_factor_auth_info.auth.length)) {
+        my_error(ER_PASSWORD_FORMAT, MYF(0));
+        plugin_unlock(nullptr, plugin);
+        what_to_set.m_what = NONE_ATTR;
+        return true;
+      }
+    }
+    if (plugin) plugin_unlock(nullptr, plugin);
     what_to_set.m_what = NONE_ATTR;
     return false;
   }
