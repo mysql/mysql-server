@@ -79,7 +79,7 @@ static BaseString path(const char *first, ...) {
 
 class Mgmd {
  protected:
-  NdbProcess *m_proc;
+  std::unique_ptr<NdbProcess> m_proc;
   int m_nodeid;
   BaseString m_name;
   BaseString m_exe;
@@ -89,13 +89,13 @@ class Mgmd {
   Mgmd(const Mgmd &other) = delete;
 
  public:
-  Mgmd(int nodeid) : m_proc(NULL), m_nodeid(nodeid) {
+  Mgmd(int nodeid) : m_nodeid(nodeid) {
     m_name.assfmt("ndb_mgmd_%d", nodeid);
 
     NDBT_find_ndb_mgmd(m_exe);
   }
 
-  Mgmd() : m_proc(NULL) {
+  Mgmd() {
     no_node_config = no_node_config + 1;
     m_name.assfmt("ndb_mgmd_autonode_%d", no_node_config);
     NDBT_find_ndb_mgmd(m_exe);
@@ -132,7 +132,7 @@ class Mgmd {
       m_proc = NdbProcess::create(name(), BaseString(exe_valgrind), working_dir,
                                   copy);
     }
-    return (m_proc != NULL);
+    return (bool)m_proc;
   }
 
   bool start_from_config_ini(const char *working_dir,
@@ -191,7 +191,7 @@ class Mgmd {
     // Diconnect and close our "builtin" client
     m_mgmd_client.close();
 
-    if (m_proc == 0 || !m_proc->stop()) {
+    if (!m_proc || !m_proc->stop()) {
       fprintf(stderr, "Failed to stop process %s\n", name());
       return false;  // Can't kill with -9 -> fatal error
     }
@@ -210,9 +210,7 @@ class Mgmd {
       fprintf(stderr, "Process %s stopped with ret: %u\n", name(), ret);
     }
 
-    delete m_proc;
-    m_proc = 0;
-
+    m_proc.reset();
     return true;
   }
 
@@ -223,9 +221,8 @@ class Mgmd {
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false;
     }
-    delete m_proc;
-    m_proc = 0;
 
+    m_proc.reset();
     return true;
   }
 

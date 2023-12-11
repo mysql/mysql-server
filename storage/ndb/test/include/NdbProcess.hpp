@@ -51,6 +51,10 @@ class NdbProcess {
    public:
     void add(const char *str) { m_args.push_back(str); }
 
+    /*
+     * For '--name=value' options which will be passed as one argument.
+     * Example: args.add("--id=", 7);
+     */
     void add(const char *str, const char *str2) {
       BaseString tmp;
       tmp.assfmt("%s%s", str, str2);
@@ -60,6 +64,23 @@ class NdbProcess {
     void add(const char *str, int val) {
       BaseString tmp;
       tmp.assfmt("%s%d", str, val);
+      m_args.push_back(tmp);
+    }
+
+    /*
+     * For '-name value' options which will be passed as two arguments.
+     * Example: args.add2("-id",7);
+     */
+    void add2(const char *str, const char *str2) {
+      BaseString tmp;
+      m_args.push_back(str);
+      m_args.push_back(str2);
+    }
+
+    void add2(const char *str, int val) {
+      m_args.push_back(str);
+      BaseString tmp;
+      tmp.assfmt("%d", val);
       m_args.push_back(tmp);
     }
 
@@ -86,27 +107,27 @@ class NdbProcess {
   }
 #endif
 
-  static NdbProcess *create(const BaseString &name, const BaseString &path,
-                            const BaseString &cwd, const Args &args) {
-    NdbProcess *proc = new NdbProcess(name);
+  static std::unique_ptr<NdbProcess> create(const BaseString &name,
+                                            const BaseString &path,
+                                            const BaseString &cwd,
+                                            const Args &args) {
+    std::unique_ptr<NdbProcess> proc(new NdbProcess(name));
+
     if (!proc) {
       fprintf(stderr, "Failed to allocate memory for new process\n");
-      return NULL;
     }
 
-    // Check existence of cwd
     if (cwd.c_str() && access(cwd.c_str(), F_OK) != 0) {
       fprintf(stderr, "The specified working directory '%s' does not exist\n",
               cwd.c_str());
-      delete proc;
-      return NULL;
+      proc.reset(nullptr);
     }
 
     if (!start_process(proc->m_pid, path.c_str(), cwd.c_str(), args)) {
       fprintf(stderr, "Failed to create process '%s'\n", name.c_str());
-      delete proc;
-      return NULL;
+      proc.reset(nullptr);
     }
+
     return proc;
   }
 
@@ -266,7 +287,7 @@ class NdbProcess {
 
     char **argv = BaseString::argify(path, args_str.c_str());
     // printf("name: %s\n", path);
-    execv(path, argv);
+    execvp(path, argv);
 
     fprintf(stderr, "execv failed, errno: %d\n", errno);
     exit(1);
