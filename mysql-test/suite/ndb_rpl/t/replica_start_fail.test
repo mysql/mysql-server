@@ -1,0 +1,58 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+# Configure replication and start replicating
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b VARCHAR(32)
+) engine=ndb;
+
+INSERT INTO t1 VALUES (1, "row 1");
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # BUG#36054134 Fail to run start_hook error
+--echo # - Starting replica to apply changes when NDB is not ready or started
+--echo #   the reported error message is not helpful
+--echo #
+
+
+--echo # Stop and reset replica to make it apply everything again
+--source include/rpl_stop_slaves.inc
+--source include/rpl_connection_slave.inc
+--source include/rpl_reset_slave.inc
+DROP TABLE t1;
+
+call mtr.add_suppression("An incident event has been written");
+call mtr.add_suppression("Replica: Connection to NDB not ready");
+call mtr.add_suppression("Failed to open");
+call mtr.add_suppression("Could not connect to storage engine");
+
+--echo # Stop replica cluster
+--exec $NDB_MGM --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE -e "all restart -n"
+--exec $NDB_WAITER --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE --not-started  2>&1 > /dev/null
+
+--echo # Start replica and inspect error message
+START REPLICA;
+--let $slave_sql_errno=157
+--source include/wait_for_slave_sql_error.inc
+
+--echo # Start cluster
+--exec $NDB_MGM --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE -e "all start"
+--exec $NDB_WAITER --ndb-connectstring=$NDB_CONNECTSTRING_SLAVE 2>&1 > /dev/null
+
+--echo # Start replica again
+--source include/rpl_start_slaves.inc
+
+--echo # Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

@@ -68,7 +68,6 @@ bool Ndb_replica::Channel::is_started() const { return m_started; }
 bool Ndb_replica::Channel::do_stop() {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("channel_name: '%s'", m_channel_name.c_str()));
-  assert(m_started == true);
   m_started = false;
   return true;
 }

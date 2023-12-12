@@ -1,0 +1,6 @@
+!include suite/ndb_rpl/my.cnf
+
+[mysqld.1.slave]
+# Don't wait so long for NDB setup, this affects both replica and sessions
+# so might make test unstable, it's a tradeoff versus how long the test takes
+ndb-wait-setup=15
