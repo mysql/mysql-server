@@ -71,7 +71,7 @@ DROP TABLE t;
 --copy_file $server_1_datadir/master-bin.000001 $server_2_datadir/binlog.000001
 --copy_file $server_1_datadir/master-bin.000002 $server_2_datadir/binlog.000002
 --copy_file $server_1_datadir/master-bin.index $server_2_datadir/binlog-pitr.index
---exec perl -pi -e 's/master-bin/binlog/g' $server_2_datadir/binlog-pitr.index
+--exec perl -pi.bak -e "s/master-bin/binlog/g" $server_2_datadir/binlog-pitr.index
 
 --echo
 --echo # 3. Restart the server_2 with adjusted relay log and relay log index
@@ -90,13 +90,16 @@ DROP TABLE t;
 --source include/rpl_connection.inc
 
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='binlog.000001', RELAY_LOG_POS=4, SOURCE_HOST='dummy', SOURCE_USER='root' FOR CHANNEL 'pitr';
-START REPLICA FOR CHANNEL 'pitr';
+START REPLICA SQL_THREAD FOR CHANNEL 'pitr';
 
 --echo
 --echo # 5. Wait for expected gtid set on server_2
 --echo
 
 --source include/sync_slave_sql.inc
+
+# Clean up
+--remove_file $server_2_datadir/binlog-pitr.index.bak
 
 --let $rpl_skip_sync = 1
 --source include/rpl_end.inc
