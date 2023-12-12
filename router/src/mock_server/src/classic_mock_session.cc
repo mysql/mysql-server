@@ -191,7 +191,8 @@ void MySQLServerMockSessionClassic::client_greeting() {
           [this](std::error_code ec, size_t /* transferred */) {
             if (ec) {
               if (ec != std::errc::operation_canceled &&
-                  ec != make_error_condition(std::errc::connection_reset)) {
+                  ec != make_error_condition(std::errc::connection_reset) &&
+                  ec != net::stream_errc::eof) {
                 // op-cancelled: .cancel() was called
                 // connection-reset: client closed the connection after
                 // handshake was sent.

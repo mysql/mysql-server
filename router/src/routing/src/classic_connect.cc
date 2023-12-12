@@ -785,7 +785,8 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
         .stop_socket_acceptors();
   }
 
-  connection()->client_greeting_sent(true);
+  connection()->server_protocol()->handshake_state(
+      ClassicProtocolState::HandshakeState::kConnected);
   connection()->authenticated(false);
 
   stage(Stage::Done);

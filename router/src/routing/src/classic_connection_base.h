@@ -50,6 +50,13 @@
  */
 class ClassicProtocolState : public ProtocolStateBase {
  public:
+  enum class HandshakeState {
+    kConnected,
+    kServerGreeting,
+    kClientGreeting,
+    kFinished,
+  };
+
   ClassicProtocolState() = default;
 
   ClassicProtocolState(
@@ -160,6 +167,10 @@ class ClassicProtocolState : public ProtocolStateBase {
     sent_attributes_ = std::move(attrs);
   }
 
+  HandshakeState handshake_state() const { return handshake_state_; }
+
+  void handshake_state(HandshakeState state) { handshake_state_ = state; }
+
   using PreparedStatements = std::unordered_map<uint32_t, PreparedStatement>;
 
   const PreparedStatements &prepared_statements() const {
@@ -200,6 +211,8 @@ class ClassicProtocolState : public ProtocolStateBase {
 
   // status flags of the last statement.
   classic_protocol::status::value_type status_flags_{};
+
+  HandshakeState handshake_state_{HandshakeState::kConnected};
 };
 
 class MysqlRoutingClassicConnectionBase
@@ -463,12 +476,7 @@ class MysqlRoutingClassicConnectionBase
 
   bool authenticated_{false};
 
-  bool client_greeting_sent_{false};
-
  public:
-  bool client_greeting_sent() const { return client_greeting_sent_; }
-  void client_greeting_sent(bool sent) { client_greeting_sent_ = sent; }
-
   /**
    * if the router is sending the initial server-greeting.
    *

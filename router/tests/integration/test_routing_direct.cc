@@ -3591,7 +3591,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
       EXIT_SUCCESS
 #endif
   };
-  const auto host = shared_router()->host();
+  const auto *host = shared_router()->host();
   const auto port = shared_router()->port(GetParam());
   auto &long_running_query =
       launch_command(ProcessManager::get_origin().join("mysqltest").str(),
@@ -3605,7 +3605,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
                      },
                      expected_exit_status, true, -1s);
 
-  // wait until the SLEEP appears in the processlist
+  SCOPED_TRACE("// wait until the SLEEP appears in the processlist");
   for (auto start = clock_type::now();; std::this_thread::sleep_for(100ms)) {
     ASSERT_LT(clock_type::now() - start, 10s);
 
@@ -3620,11 +3620,16 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
     if (result.size() == 1 && result[0][1] == "Query") break;
   }
 
-  // interrupt the SLEEP() query
-  long_running_query.send_shutdown_event(
-      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+  SCOPED_TRACE("// interrupt the SLEEP() query");
 
-  // wait until it is gone.
+  auto ec = long_running_query.send_shutdown_event(
+      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+  ASSERT_EQ(ec, std::error_code{});
+
+  // throws on timeout.
+  ASSERT_NO_THROW(long_running_query.native_wait_for_exit());
+
+  SCOPED_TRACE("// wait until it is gone.");
   for (auto start = clock_type::now();; std::this_thread::sleep_for(500ms)) {
     // the server will check that the query is killed every 5 seconds since it
     // started to SLEEP()

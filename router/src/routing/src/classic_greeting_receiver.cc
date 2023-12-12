@@ -159,6 +159,12 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::error() {
 
   auto &client_conn = connection()->socket_splicer()->client_conn();
 
+  if (connection()->client_protocol()->handshake_state() ==
+      ClassicProtocolState::HandshakeState::kClientGreeting) {
+    // reached the error, but still are in the initial ClientGreeting state.
+    connection()->on_handshake_aborted();
+  }
+
   (void)client_conn.cancel();
   (void)client_conn.shutdown(net::socket_base::shutdown_both);
 
@@ -270,6 +276,10 @@ ClientGreetor::server_greeting() {
   dst_protocol->auth_method_data(server_greeting_msg.auth_method_data());
   dst_protocol->server_greeting(server_greeting_msg);
 
+  // ServerGreeting is sent, expecting a ClientGreeting next.
+  connection()->client_protocol()->handshake_state(
+      ClassicProtocolState::HandshakeState::kServerGreeting);
+
   stage(Stage::ClientGreeting);
   return Result::SendToClient;
 }
@@ -342,6 +352,12 @@ ClientGreetor::client_greeting() {
   if (!msg_res) {
     const auto ec = msg_res.error();
 
+    if (!src_channel->recv_plain_view().empty()) {
+      // something was received, but it failed to decode.
+      connection()->client_protocol()->handshake_state(
+          ClassicProtocolState::HandshakeState::kClientGreeting);
+    }
+
     if (ec.category() != classic_protocol::codec_category()) {
       return recv_client_failed(ec);
     }
@@ -359,6 +375,11 @@ ClientGreetor::client_greeting() {
 
     return Result::SendToClient;
   }
+
+  // got a greeting, treat all errors that abort the connection
+  // in abnormal way as "connect-errors".
+  connection()->client_protocol()->handshake_state(
+      ClassicProtocolState::HandshakeState::kClientGreeting);
 
   if (src_protocol->seq_id() != 1) {
     discard_current_msg(src_channel, src_protocol);
@@ -389,6 +410,10 @@ ClientGreetor::client_greeting() {
 
   if (!client_ssl_mode_is_satisfied(connection()->source_ssl_mode(),
                                     src_protocol->shared_capabilities())) {
+    // do NOT treat ssl-mode-errors as "connect-error"
+    connection()->client_protocol()->handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+
     // config says: client->router MUST be encrypted, but client didn't set
     // the SSL cap.
     //
@@ -405,6 +430,10 @@ ClientGreetor::client_greeting() {
   // checking the server's capabilities.
   if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
                                     src_protocol->shared_capabilities())) {
+    // do NOT treat compress-mode-errors as "connect-error"
+    connection()->client_protocol()->handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
         src_channel, src_protocol,
@@ -497,6 +526,11 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
       // accept failed.
       if (!client_channel->send_buffer().empty()) {
         if (ec != TlsErrc::kWantRead) {
+          // do NOT treat tls-handshake-errors that are returned
+          // to the client as "connect-error"
+          connection()->client_protocol()->handshake_state(
+              ClassicProtocolState::HandshakeState::kFinished);
+
           log_debug("tls-accept failed: %s", ec.message().c_str());
 
           stage(Stage::Error);
@@ -582,6 +616,10 @@ ClientGreetor::client_greeting_after_tls() {
   discard_current_msg(src_channel, src_protocol);
 
   if (!authentication_method_is_supported(msg.auth_method_name())) {
+    // do NOT treat auth-errors as "connect-error"
+    connection()->client_protocol()->handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
@@ -606,6 +644,11 @@ ClientGreetor::client_greeting_after_tls() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
+
+    // do NOT treat compress-mode-errors as "connect-error"
+    connection()->client_protocol()->handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Error>(
         src_channel, src_protocol,
@@ -720,6 +763,11 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
   }
 
   auto *dst_protocol = connection()->server_protocol();
+
+  // treat the client-handshake as finished. No further tracking of
+  // max-connect-errors.
+  connection()->client_protocol()->handshake_state(
+      ClassicProtocolState::HandshakeState::kFinished);
 
   stage(Stage::Authenticated);
 

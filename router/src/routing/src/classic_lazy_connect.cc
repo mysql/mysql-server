@@ -207,7 +207,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
    * if the connection is from the pool, we need a change user.
    */
   if (server_protocol->server_greeting()) {
-    connection()->client_greeting_sent(true);
+    connection()->server_protocol()->handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
 
     if (!in_handshake_ &&
         ((client_protocol->username() == server_protocol->username()) &&
