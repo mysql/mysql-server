@@ -2335,6 +2335,7 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
       remove_allTransporters(this_trp);
     }
   }  // End of multiTransporter DISCONNECT handling
+  unlockMultiTransporters();
 
   if (ready_to_disconnect)  //  5)
   {
@@ -2342,7 +2343,6 @@ void TransporterRegistry::report_disconnect(TransporterReceiveHandle &recvdata,
                    localNodeId, node_id));
     recvdata.reportDisconnect(node_id, errnum);
   }
-  unlockMultiTransporters();
   DBUG_VOID_RETURN;
 }
 
