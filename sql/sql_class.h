@@ -111,6 +111,11 @@
 #include "thr_lock.h"
 #include "violite.h"
 
+#include "state/coroutine_scheduler/coroutine_scheduler.h"
+#include "state/allocator/log_offset_allocator.h"
+#include "state/allocator/buffer_allocator.h"
+#include "state/rdma_connection/qp_manager.h"
+
 enum enum_check_fields : int;
 enum enum_tx_isolation : int;
 enum ha_notification_type : int;
@@ -943,6 +948,14 @@ class THD : public MDL_context_owner,
 
  public:
   MDL_context mdl_context;
+
+  /* @StateReplicate: add a coroutine scheduler to manage the RDMA operation
+  */
+  CoroutineScheduler* coro_sched;
+  RDMABufferAllocator* rdma_buffer_allocator;
+  LogOffsetAllocator* log_offset_allocator;
+  QPManager* qp_manager;
+  
 
   /**
     MARK_COLUMNS_NONE:  Means mark_used_columns is not set and no indicator to

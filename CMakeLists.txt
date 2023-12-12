@@ -1034,6 +1034,10 @@ OPTION(SHOW_SUPPRESSED_COMPILER_WARNINGS
   "Show suppressed compiler warnings, without failing with -Werror" OFF)
 MARK_AS_ADVANCED(SHOW_SUPPRESSED_COMPILER_WARNINGS)
 
+if(NOT SHOW_SUPPRESSED_COMPILER_WARNINGS)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
+endif()
+
 FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
   # Strip off possible leading -Wno- or -W
   STRING(REGEX REPLACE "^-Wno-" "" WARNING_OPTION ${WARNING_OPTION})
@@ -1566,6 +1570,13 @@ ELSE()
   ENDIF()
 ENDIF()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=missing-field-initializers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-variable")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=return-type")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=class-memaccess")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=sign-compare")
+
 # Run platform tests
 INCLUDE(configure.cmake)
 
@@ -1595,6 +1606,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/state
+  ${CMAKE_SOURCE_DIR}/state/thirdparty
   )
 
 IF(WITH_LTO)
@@ -2660,3 +2673,6 @@ IF(HAVE_WITH_NDBCLUSTER)
   SET(WITH_NDBCLUSTER ${WITH_NDB} CACHE BOOL
     "Deprecated legacy option for MySQL Cluster")
 ENDIF()
+
+
+ADD_SUBDIRECTORY(state)

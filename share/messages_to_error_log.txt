@@ -326,6 +326,9 @@ ER_CONNECTION_HANDLING_OOM
 ER_THREAD_HANDLING_OOM
   eng "Could not allocate memory for thread handling"
 
+ER_RDMA_REGION_ALLOCATE_OOM 14068
+  eng "Could not allocate memory for rdma region"
+
 ER_CANT_CREATE_TEST_FILE
   eng "Can't create test file %s"
 

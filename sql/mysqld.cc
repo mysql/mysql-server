@@ -885,6 +885,8 @@ MySQL clients support the protocol:
 #include "typelib.h"
 #include "violite.h"
 
+#include "state/allocator/region_allocator.h"
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -11151,6 +11153,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   }
   if (Global_THD_manager::create_instance()) {
     LogErr(ERROR_LEVEL, ER_THREAD_HANDLING_OOM);
+    return 1;
+  }
+
+  /* @StateReplicate: init global resource manager used for RDMA operations
+      the life cycle of global_meta_mgr and global RDMARegionAllocator is the same as Global_THD_manager
+  */
+  MetaManager* global_meta_mgr = new MetaManager();
+  // There is global MetaManager to manager meta_info for states in remote StateNode
+  // we assume that the thread count is the same as the max_connections/max_threads in MySQL
+  if(RDMARegionAllocator::create_instance(global_meta_mgr, Connection_handler_manager::get_instance()->max_threads)) {
+    // LogErr(ERROR_LEVEL, ER_RDMA_ALLOCATE_OOM);
     return 1;
   }
 
