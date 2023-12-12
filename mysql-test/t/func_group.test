@@ -1504,3 +1504,23 @@ INSERT INTO t2 VALUES
 SELECT VARIANCE(value) FROM t2 GROUP BY grp;
 
 DROP TABLE t2;
+
+--echo #
+--echo # Bug#35444004: Result diff seen with hypergraph off and on
+--echo #               (different number of rows)
+--echo #
+
+CREATE TABLE t(x INT, KEY (x));
+INSERT INTO t VALUES (0), (1), (2), (3), (4), (5), (6);
+
+SELECT MAX(x) FROM t WHERE x <= 1 AND x BETWEEN 3 AND 5;
+SELECT MAX(x) FROM t WHERE x BETWEEN 3 AND 5 AND x <= 1;
+SELECT MAX(x) FROM t WHERE x < 5 AND x BETWEEN 3 AND 5;
+SELECT MAX(x) FROM t WHERE x < 5 AND x BETWEEN 2 AND 4;
+
+SELECT MIN(x) FROM t WHERE x >= 5 AND x BETWEEN 1 AND 3;
+SELECT MIN(x) FROM t WHERE x BETWEEN 1 AND 3 AND x >= 5;
+SELECT MIN(x) FROM t WHERE x > 1 AND x BETWEEN 1 AND 3;
+SELECT MIN(x) FROM t WHERE x > 1 AND x BETWEEN 2 AND 4;
+
+DROP TABLE t;

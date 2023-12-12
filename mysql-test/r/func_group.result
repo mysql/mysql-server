@@ -2284,3 +2284,34 @@ INSERT INTO t2 VALUES
 SELECT VARIANCE(value) FROM t2 GROUP BY grp;
 ERROR 22003: DOUBLE value is out of range in 'variance(`test`.`t2`.`value`)'
 DROP TABLE t2;
+#
+# Bug#35444004: Result diff seen with hypergraph off and on
+#               (different number of rows)
+#
+CREATE TABLE t(x INT, KEY (x));
+INSERT INTO t VALUES (0), (1), (2), (3), (4), (5), (6);
+SELECT MAX(x) FROM t WHERE x <= 1 AND x BETWEEN 3 AND 5;
+MAX(x)
+NULL
+SELECT MAX(x) FROM t WHERE x BETWEEN 3 AND 5 AND x <= 1;
+MAX(x)
+NULL
+SELECT MAX(x) FROM t WHERE x < 5 AND x BETWEEN 3 AND 5;
+MAX(x)
+4
+SELECT MAX(x) FROM t WHERE x < 5 AND x BETWEEN 2 AND 4;
+MAX(x)
+4
+SELECT MIN(x) FROM t WHERE x >= 5 AND x BETWEEN 1 AND 3;
+MIN(x)
+NULL
+SELECT MIN(x) FROM t WHERE x BETWEEN 1 AND 3 AND x >= 5;
+MIN(x)
+NULL
+SELECT MIN(x) FROM t WHERE x > 1 AND x BETWEEN 1 AND 3;
+MIN(x)
+2
+SELECT MIN(x) FROM t WHERE x > 1 AND x BETWEEN 2 AND 4;
+MIN(x)
+2
+DROP TABLE t;

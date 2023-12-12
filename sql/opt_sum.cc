@@ -682,6 +682,50 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
 }
 
 /**
+  Check if a predicate should make the endpoint for the MIN/MAX optimization
+  move towards -Inf for MAX or towards +Inf for MIN.
+
+  It is assumed that the current endpoint is stored in the field accessed by
+  "cond", and that "cond" represents a comparison of a field and constant values
+  using the <, >, <=, >= or BETWEEN operator.
+*/
+static bool move_endpoint(bool is_max, Item *cond) {
+  const Item_func::Functype type = down_cast<Item_func *>(cond)->functype();
+  assert(is_function_of_type(cond, Item_func::LT_FUNC) ||
+         is_function_of_type(cond, Item_func::LE_FUNC) ||
+         is_function_of_type(cond, Item_func::GT_FUNC) ||
+         is_function_of_type(cond, Item_func::GE_FUNC) ||
+         is_function_of_type(cond, Item_func::BETWEEN));
+
+  if (type != Item_func::BETWEEN) {
+    // For <, <=, >, >= operators, just check if "cond" evaluates to true on the
+    // current endpoint. If it does not, it represents a stricter condition than
+    // those seen before, so the endpoint should be moved.
+    return cond->val_int() == 0;
+  }
+
+  // For BETWEEN, we check similarly, but only using the upper bound constant
+  // for MAX and the lower bound constant for MIN.
+  Item_func_between *const between = down_cast<Item_func_between *>(cond);
+  Item_func_inequality *compare_endpoints = nullptr;
+  if (is_max) {
+    compare_endpoints =
+        new Item_func_le(between->get_arg(0), between->get_arg(2));
+  } else {
+    compare_endpoints =
+        new Item_func_ge(between->get_arg(0), between->get_arg(1));
+  }
+
+  if (compare_endpoints == nullptr) return false;
+
+  if (compare_endpoints->set_cmp_func()) return true;
+  compare_endpoints->update_used_tables();
+  compare_endpoints->quick_fix_field();
+
+  return compare_endpoints->val_int() == 0;
+}
+
+/**
   Check whether a condition matches a key to get {MAX|MIN}(field):.
 
    For the index specified by the keyinfo parameter and an index that
@@ -861,7 +905,7 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
 
   if (org_key_part_used != *key_part_used ||
       (is_field_part && (between || eq_type || max_fl == less_fl) &&
-       !cond->val_int())) {
+       move_endpoint(max_fl, cond))) {
     /*
       It's the first predicate for this part or a predicate of the
       following form  that moves upper/lower bounds for max/min values:
@@ -908,7 +952,7 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
     }
     if (is_field_part) {
       if (between || eq_type)
-        *range_fl &= ~(NO_MAX_RANGE | NO_MIN_RANGE);
+        *range_fl &= ~(NO_MAX_RANGE | NO_MIN_RANGE | NEAR_MAX | NEAR_MIN);
       else {
         *range_fl &= ~(max_fl ? NO_MAX_RANGE : NO_MIN_RANGE);
         if (noeq_type)
