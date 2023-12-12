@@ -35,6 +35,7 @@
 
 #include "basic_protocol_splicer.h"
 #include "channel.h"  // Channel, ClassicProtocolState
+#include "classic_protocol_state.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -176,7 +177,10 @@ void MysqlRoutingClassicConnectionBase::server_socket_failed(std::error_code ec,
 void MysqlRoutingClassicConnectionBase::client_socket_failed(std::error_code ec,
                                                              bool call_finish) {
   if (client_conn().is_open()) {
-    if (!client_greeting_sent_) {
+    // only log the connection-error, if the client started to send a handshake
+    // and then aborted before the handshake finished.
+    if (client_conn().protocol().handshake_state() ==
+        ClassicProtocolState::HandshakeState::kClientGreeting) {
       log_info("[%s] %s closed connection before finishing handshake",
                this->context().get_name().c_str(),
                client_conn().endpoint().c_str());
@@ -422,19 +426,22 @@ void MysqlRoutingClassicConnectionBase::server_side_client_greeting() {
 //
 // called multiple times (once per "active_work_").
 void MysqlRoutingClassicConnectionBase::finish() {
-  auto &client_socket = this->client_conn();
-  auto &server_socket = this->server_conn();
+  auto &client_socket = client_conn();
+  auto &server_socket = server_conn();
 
   if (server_socket.is_open() && !client_socket.is_open()) {
     // client side closed while server side is still open ...
-    if (!client_greeting_sent_) {
+    if (server_socket.protocol().handshake_state() ==
+        ClassicProtocolState::HandshakeState::kServerGreeting) {
       // client hasn't sent a greeting to the server. The server would track
       // this as "connection error" and block the router. Better send our own
       // client-greeting.
-      client_greeting_sent_ = true;
+      server_socket.protocol().handshake_state(
+          ClassicProtocolState::HandshakeState::kClientGreeting);
       return server_side_client_greeting();
     } else {
-      // if the server is waiting on something, as client is already gone.
+      // if the server is waiting on something, cancel it,
+      // as client is already gone.
       (void)server_socket.cancel();
     }
   } else if (!server_socket.is_open() && client_socket.is_open()) {

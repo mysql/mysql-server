@@ -409,8 +409,8 @@ ServerGreetor::server_greeting() {
  */
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::server_greeting_error() {
-  // don't increment the error-counter
-  connection()->client_greeting_sent(true);
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kFinished);
 
   auto &src_conn = connection()->server_conn();
 
@@ -520,6 +520,10 @@ ServerGreetor::server_greeting_greeting() {
 #endif
 
   auto server_greeting_msg = *msg_res;
+
+  // engage the "send-client-greeting-on-early-client-abort"
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kServerGreeting);
 
   auto caps = server_greeting_msg.capabilities();
 
@@ -709,9 +713,6 @@ ServerGreetor::client_greeting() {
   dst_protocol.username(src_protocol.username());
   dst_protocol.attributes(src_protocol.attributes());
 
-  // the client greeting was received and will be forwarded to the server
-  // soon.
-  connection()->client_greeting_sent(true);
   connection()->on_handshake_received();
 
   trace_event_client_greeting_ =
@@ -756,6 +757,9 @@ ServerGreetor::client_greeting_start_tls() {
                     ""   // attributes
                 });
   if (!send_res) return send_server_failed(send_res.error());
+
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kClientGreeting);
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("client::greeting (start-tls)"));
@@ -861,6 +865,9 @@ ServerGreetor::client_greeting_full() {
   return ClassicFrame::send_msg(dst_conn, client_greeting_msg)
       .and_then(
           [this](auto /* sent */) -> stdx::expected<Result, std::error_code> {
+            connection()->server_conn().protocol().handshake_state(
+                ClassicProtocolState::HandshakeState::kClientGreeting);
+
             stage(Stage::InitialResponse);
 
             return Result::SendToServer;
@@ -1158,6 +1165,9 @@ ServerGreetor::final_response() {
   // ensure the recv_buf has at last frame-header (+ msg-byte)
   auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
+
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kFinished);
 
   const uint8_t msg_type = src_protocol.current_msg_type().value();
 
@@ -1544,7 +1554,6 @@ ServerFirstAuthenticator::client_greeting() {
 
   // the client greeting was received and will be forwarded to the server
   // soon.
-  connection()->client_greeting_sent(true);
   connection()->on_handshake_received();
 
   if (dst_protocol.shared_capabilities().test(
@@ -1598,6 +1607,13 @@ ServerFirstAuthenticator::client_greeting_start_tls() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::greeting (forward-tls)"));
     }
+
+    // whatever happens next is encrypted and will not be treated as
+    // connection-error.
+    connection()->client_conn().protocol().handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+    connection()->server_conn().protocol().handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
 
     stage(Stage::TlsForwardInit);
   } else {
@@ -2050,6 +2066,9 @@ ServerFirstAuthenticator::final_response() {
   // ensure the recv_buf has at last frame-header (+ msg-byte)
   auto read_res = ClassicFrame::ensure_has_msg_prefix(src_conn);
   if (!read_res) return recv_server_failed(read_res.error());
+
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kFinished);
 
   const uint8_t msg_type = src_protocol.current_msg_type().value();
 

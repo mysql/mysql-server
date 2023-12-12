@@ -25,6 +25,7 @@
 #include <chrono>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "config_builder.h"
 #include "mysql/harness/string_utils.h"  // split_string
@@ -288,11 +289,11 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteOptionMissingInTheConfig) {
 
   launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
 
-  make_bad_connection(router_port);
+  EXPECT_NO_THROW(make_bad_connection(router_port));
 
   // since we set the max_connect_errors threshold to 1 and made one connection
   // error already the next connection attempt should fail
-  verify_new_connection_fails(router_port);
+  EXPECT_NO_FATAL_FAILURE(verify_new_connection_fails(router_port));
 }
 
 class OverwriteIgnoreUnknownOptionTest

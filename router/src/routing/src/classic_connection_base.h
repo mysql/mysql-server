@@ -344,12 +344,7 @@ class MysqlRoutingClassicConnectionBase
 
   bool authenticated_{false};
 
-  bool client_greeting_sent_{false};
-
  public:
-  bool client_greeting_sent() const { return client_greeting_sent_; }
-  void client_greeting_sent(bool sent) { client_greeting_sent_ = sent; }
-
   /**
    * if the router is sending the initial server-greeting.
    *

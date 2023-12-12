@@ -35,6 +35,13 @@
  */
 class ClassicProtocolState {
  public:
+  enum class HandshakeState {
+    kConnected,
+    kServerGreeting,
+    kClientGreeting,
+    kFinished,
+  };
+
   ClassicProtocolState() = default;
 
   ClassicProtocolState(
@@ -146,6 +153,11 @@ class ClassicProtocolState {
   void sent_attributes(std::string attrs) {
     sent_attributes_ = std::move(attrs);
   }
+
+  HandshakeState handshake_state() const { return handshake_state_; }
+
+  void handshake_state(HandshakeState state) { handshake_state_ = state; }
+
 #if 0
   classic_protocol::status::value_type status_flags() const {
     return status_flags_;
@@ -178,6 +190,8 @@ class ClassicProtocolState {
 
   // status flags of the last statement.
   classic_protocol::status::value_type status_flags_{};
+
+  HandshakeState handshake_state_{HandshakeState::kConnected};
 };
 
 class ClientSideClassicProtocolState : public ClassicProtocolState {
