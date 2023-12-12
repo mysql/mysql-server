@@ -320,10 +320,15 @@ class Ndb_dd_client {
   bool get_schema_uuid(dd::String_type *value) const;
   bool update_schema_uuid(const char *value) const;
 
+#ifndef NDEBUG
   // Print all NDB tables registered in DD to stderr
   bool dump_NDB_tables();
   // Shuffle the se_private_id of all NDB tables installed in DD
   bool dbug_shuffle_spi_for_NDB_tables();
+  // Change the version of one table in DD
+  bool change_version_for_table(const char *schema_name, const char *table_name,
+                                uint new_version);
+#endif
 };
 
 #endif

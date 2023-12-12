@@ -26,9 +26,9 @@
 #define NDB_THD_NDB_H
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
-#include "map_helpers.h"
 #include "storage/ndb/plugin/ndb_applier.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -330,7 +330,7 @@ class Thd_ndb {
   bool valid_ndb(void) const;
   bool recycle_ndb(void);
 
-  const THD *get_thd() const { return m_thd; }
+  THD *get_thd() const { return m_thd; }
 
   int sql_command() const { return thd_sql_command(m_thd); }
 

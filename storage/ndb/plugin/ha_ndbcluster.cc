@@ -50,6 +50,7 @@
 #include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin_var.h"  // SYS_VAR
+#include "sql/transaction.h"
 #ifndef NDEBUG
 #include "sql/sql_test.h"  // print_where
 #endif
@@ -11976,7 +11977,10 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     return 1;
   }
 
-  {
+  // Function to install table in DD
+  const auto install_in_dd = [](Thd_ndb *thd_ndb,
+                                const NdbDictionary::Table *ndbtab,
+                                const char *db, const char *name) {
     Uint32 version;
     void *unpacked_data;
     Uint32 unpacked_len;
@@ -11991,19 +11995,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
 
     ndb_log_info("Attempting to install table %s.%s in DD", db, name);
 
-    // Since installing table in DD  requires commit it's not allowed to
-    // discover while in an active transaction.
-    if (thd->in_active_multi_stmt_transaction()) {
-      thd_ndb->push_warning(
-          "Failed to discover table '%s' from NDB, not allowed in "
-          "active transaction",
-          name);
-      my_error(ER_TABLE_DEF_CHANGED, MYF(0), db, name);
-      free(unpacked_data);
-      return 1;
-    }
-
-    Ndb_dd_client dd_client(thd);
+    Ndb_dd_client dd_client(thd_ndb->get_thd());
     if (version == 1) {
       // Upgrade the "old" metadata and install the table into DD,
       // don't use force_overwrite since this function would never
@@ -12016,7 +12008,6 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
             "not upgrade table with extra metadata version 1",
             name);
         my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
-        ndbtab_g.invalidate();
         free(unpacked_data);
         return 1;
       }
@@ -12025,7 +12016,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       dd::sdi_t sdi;
       sdi.assign(static_cast<const char *>(unpacked_data), unpacked_len);
       const std::string tablespace_name =
-          ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
+          ndb_table_tablespace_name(thd_ndb->ndb->getDictionary(), ndbtab);
       if (!tablespace_name.empty()) {
         // Acquire IX MDL on tablespace
         if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
@@ -12034,7 +12025,6 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
               "not acquire metadata lock on tablespace '%s'",
               name, tablespace_name.c_str());
           my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
-          ndbtab_g.invalidate();
           free(unpacked_data);
           return 1;
         }
@@ -12051,7 +12041,6 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
             "not install table in DD",
             name);
         my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
-        ndbtab_g.invalidate();
         free(unpacked_data);
         return 1;
       }
@@ -12059,20 +12048,54 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
 
 #ifndef NDEBUG
     // Run metadata check except if this is discovery during a DROP TABLE
-    if (thd_sql_command(thd) != SQLCOM_DROP_TABLE) {
+    if (thd_ndb->sql_command() != SQLCOM_DROP_TABLE) {
       const dd::Table *dd_table;
       assert(dd_client.get_table(db, name, &dd_table) &&
-             Ndb_metadata::compare(thd, ndb, db, ndbtab, dd_table));
+             Ndb_metadata::compare(thd_ndb->get_thd(), thd_ndb->ndb, db, ndbtab,
+                                   dd_table));
     }
 #endif
 
-    // NOTE! It might be possible to not commit the transaction
-    // here, assuming the caller would then commit or rollback.
     dd_client.commit();
     free(unpacked_data);
+    ndb_log_info("Successfully installed table %s.%s in DD", db, name);
+    return 0;
+  };
+
+  // Since installing table in DD  requires commit it's not allowed to
+  // discover while in an active transaction.
+  if (thd->in_active_multi_stmt_transaction()) {
+    if (thd_ndb->get_applier()) {
+      // Special case for replica applier which will rollback transaction,
+      // install in DD and return error plus warning to retry.
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+
+      // Install table
+      const int ret = install_in_dd(thd_ndb, ndbtab, db, name);
+      if (ret != 0) {
+        ndbtab_g.invalidate();
+        return ret;
+      }
+      // Push warning to make applier retry transaction.
+      thd_ndb->push_warning(ER_REPLICA_SILENT_RETRY_TRANSACTION,
+                            "Transaction rolled back due to discovery, retry");
+      my_error(ER_TABLE_DEF_CHANGED, MYF(0), db, name);
+      return 1;
+    }
+    thd_ndb->push_warning(
+        "Failed to discover table '%s' from NDB, not allowed in "
+        "active transaction",
+        name);
+    my_error(ER_TABLE_DEF_CHANGED, MYF(0), db, name);
+    return 1;
   }
 
-  ndb_log_info("Successfully installed table %s.%s in DD", db, name);
+  const int ret = install_in_dd(thd_ndb, ndbtab, db, name);
+  if (ret != 0) {
+    ndbtab_g.invalidate();
+    return ret;
+  }
 
   // Don't return any sdi in order to indicate that table definitions exists
   // and has been installed into DD
@@ -12561,6 +12584,12 @@ static int ndbcluster_init(void *handlerton_ptr) {
   }
 
   std::function<bool()> start_channel_func = []() -> bool {
+    DBUG_EXECUTE_IF("ndb_replica_change_t1_version", {
+      //  Change DD version of t1, this forces the applier to reinstall table
+      Ndb_dd_client dd_client(current_thd);
+      assert(dd_client.change_version_for_table("test", "t1", 37));
+    });
+
     if (!wait_setup_completed(opt_ndb_wait_setup)) {
       ndb_log_error(
           "Replica: Connection to NDB not ready after %lu seconds. "
@@ -17456,9 +17485,8 @@ bool ha_ndbcluster::upgrade_table(THD *thd, const char *db_name,
 
   @param  hton  Handlerton of the SE
 
-  @return Void
 */
-static void ndbcluster_pre_dd_shutdown(handlerton *) {
+static void ndbcluster_pre_dd_shutdown(handlerton *hton [[maybe_unused]]) {
   // Stop and deinitialize the ndb_metadata_change_monitor thread
   ndb_metadata_change_monitor_thread.stop();
   ndb_metadata_change_monitor_thread.deinit();
