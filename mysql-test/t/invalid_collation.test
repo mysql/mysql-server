@@ -14,7 +14,7 @@ SHOW VARIABLES LIKE 'character_sets_dir%';
 
 --echo #
 --echo # Show new collation available in the new character sets dir:
-SHOW COLLATION LIKE 'utf8_phone_ci';
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 
 --echo #
 --echo # Create two tables using the new collation:
@@ -37,7 +37,7 @@ SHOW VARIABLES LIKE 'character_sets_dir%';
 
 --echo #
 --echo # The newly added collation has been deleted:
-SHOW COLLATION LIKE 'utf8_phone_ci';
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 
 --echo #
 --echo # Check behavior of CHECK TABLE (succeed, but report error):

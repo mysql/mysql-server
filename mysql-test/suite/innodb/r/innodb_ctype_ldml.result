@@ -2,23 +2,23 @@ drop table if exists t1;
 In the following tests we change the order of letter "b"
 making it equal to letter "a", and check that it works
 with all Unicode character sets
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show variables like 'character_sets_dir%';
 Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
-show collation like 'utf8_phone_ci';
+show collation like 'utf8mb3_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8mb3	352			8	PAD SPACE
+utf8mb3_phone_ci	utf8mb3	352			8	PAD SPACE
 CREATE TABLE t1 (
 name VARCHAR(64),
-phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
+phone VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_phone_ci
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 VALUES ('Svoj','+7 912 800 80 02');
 INSERT INTO t1 VALUES ('Hf','+7 (912) 800 80 04');
 INSERT INTO t1 VALUES ('Bar','+7-912-800-80-01');
@@ -41,14 +41,14 @@ SELECT * FROM t1 WHERE phone='7 9 1 2 8 0 0 8 0 0 1';
 name	phone
 Bar	+7-912-800-80-01
 DROP TABLE t1;
-show collation like 'utf8_test_ci';
+show collation like 'utf8mb3_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_test_ci	utf8mb3	353			8	PAD SPACE
-create table t1 (c1 char(1) character set utf8 collate utf8_test_ci);
+utf8mb3_test_ci	utf8mb3	353			8	PAD SPACE
+create table t1 (c1 char(1) character set utf8mb3 collate utf8mb3_test_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -185,11 +185,11 @@ Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collati
 #
 # Bug#45645 Mysql server close all connection and restart using lower function
 #
-CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8mb3 COLLATE utf8mb3_test_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 (a) VALUES ('hello!');
 SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
 a
@@ -197,11 +197,11 @@ DROP TABLE t1;
 #
 # Bug#51976 LDML collations issue (cyrillic example)
 #
-CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_test_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 (a) VALUES ('Hello');
 SELECT a, UPPER(a), LOWER(a) FROM t1;
 a	UPPER(a)	LOWER(a)
@@ -210,11 +210,11 @@ DROP TABLE t1;
 #
 # Bug#43827 Server closes connections and restarts
 #
-CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_test_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT IGNORE INTO t1 SELECT REPEAT('a',11);
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -574,30 +574,30 @@ utf8mb4_mn_cyrl_0900_as_cs	utf8mb4	323
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328
-utf8_bengali_standard_ci	utf8mb3	336
-utf8_bengali_traditional_ci	utf8mb3	337
-utf8_phone_ci	utf8mb3	352
-utf8_test_ci	utf8mb3	353
-utf8_5624_1	utf8mb3	354
-utf8_5624_2	utf8mb3	355
-utf8_5624_3	utf8mb3	356
-utf8_5624_4	utf8mb3	357
+utf8mb3_bengali_standard_ci	utf8mb3	336
+utf8mb3_bengali_traditional_ci	utf8mb3	337
+utf8mb3_phone_ci	utf8mb3	352
+utf8mb3_test_ci	utf8mb3	353
+utf8mb3_5624_1	utf8mb3	354
+utf8mb3_5624_2	utf8mb3	355
+utf8mb3_5624_3	utf8mb3	356
+utf8mb3_5624_4	utf8mb3	357
 ucs2_test_ci	ucs2	358
 ucs2_vn_ci	ucs2	359
 ucs2_5624_1	ucs2	360
-utf8_5624_5	utf8mb3	368
+utf8mb3_5624_5	utf8mb3	368
 utf32_test_ci	utf32	391
 latin1_test	latin1	1025
-utf8_maxuserid_ci	utf8mb3	2047
+utf8mb3_maxuserid_ci	utf8mb3	2047
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_test	latin1	1025			0	PAD SPACE
 ucs2_test_ci	ucs2	358			8	PAD SPACE
 utf16_test_ci	utf16	327			8	PAD SPACE
 utf32_test_ci	utf32	391			8	PAD SPACE
+utf8mb3_test_ci	utf8mb3	353			8	PAD SPACE
 utf8mb4_test_400_ci	utf8mb4	328			8	PAD SPACE
 utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
-utf8_test_ci	utf8mb3	353			8	PAD SPACE
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
@@ -619,11 +619,11 @@ def	test	t1	t1	c1	c1	254	2	2	Y	0	0	359
 c1
  a
 drop table t1;
-CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
+CREATE TABLE t1 (s1 char(10) character set utf8mb3 collate utf8mb3_maxuserid_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 VALUES ('a'),('b');
 SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -632,17 +632,17 @@ b
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
-SET NAMES utf8 COLLATE utf8_phone_ci;
+SET NAMES utf8mb3 COLLATE utf8mb3_phone_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
-SHOW COLLATION LIKE 'utf8_phone_ci';
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8mb3	352			8	PAD SPACE
-SET NAMES utf8;
+utf8mb3_phone_ci	utf8mb3	352			8	PAD SPACE
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci));
 hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci))
 0E33
@@ -680,11 +680,11 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 #
 # WL#5624 Collation customization improvements
 #
-SET NAMES utf8 COLLATE utf8_5624_1;
+SET NAMES utf8mb3 COLLATE utf8mb3_5624_1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_5624_1' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_5624_1' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_5624_1' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_5624_1' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 16) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('012345'),('001234'),('000123'),('000012'),('000001');
 INSERT INTO t1 VALUES ('12345'),('01234'),('00123'),('00012'),('00001');
@@ -994,31 +994,31 @@ DROP TABLE t1;
 #
 # WL#5624, unsupported features
 #
-SET NAMES utf8 COLLATE utf8_5624_2;
-ERROR HY000: Unknown collation: 'utf8_5624_2'
+SET NAMES utf8mb3 COLLATE utf8mb3_5624_2;
+ERROR HY000: Unknown collation: 'utf8mb3_5624_2'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Error	1273	Unknown collation: 'utf8_5624_2'
-Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8_5624_2.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Error	1273	Unknown collation: 'utf8mb3_5624_2'
+Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8mb3_5624_2.
 #
 # WL#5624, reset before primary ignorable
 #
-SET NAMES utf8 COLLATE utf8_5624_3;
-ERROR HY000: Unknown collation: 'utf8_5624_3'
+SET NAMES utf8mb3 COLLATE utf8mb3_5624_3;
+ERROR HY000: Unknown collation: 'utf8mb3_5624_3'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Error	1273	Unknown collation: 'utf8_5624_3'
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Error	1273	Unknown collation: 'utf8mb3_5624_3'
 Warning	1273	Failed to reset before a primary ignorable character U+A48C.
 #
 # WL#5624, \u without hex digits is equal to {'\', 'u'}
 #
-SET NAMES utf8 COLLATE utf8_5624_4;
+SET NAMES utf8mb3 COLLATE utf8mb3_5624_4;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_5624_4' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_5624_4' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_5624_4' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_5624_4' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('\\'),('u'),('x'),('X');
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
@@ -1033,11 +1033,11 @@ DROP TABLE t1;
 #
 # WL#5624, testing Bengali collations
 #
-SET NAMES utf8, collation_connection=utf8_bengali_standard_ci;
+SET NAMES utf8mb3, collation_connection=utf8mb3_bengali_standard_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bengali_standard_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_bengali_standard_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bengali_standard_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_bengali_standard_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
 Warnings:
@@ -1074,11 +1074,11 @@ Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
-SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
+SET NAMES utf8mb3, collation_connection=utf8mb3_bengali_traditional_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bengali_traditional_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_bengali_traditional_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bengali_traditional_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_bengali_traditional_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES
 (_ucs2 0x0985),(_ucs2 0x0986),(_ucs2 0x0987),(_ucs2 0x0988),
@@ -1359,11 +1359,11 @@ DROP TABLE t1;
 #
 # WL#5624, shift after, using expansion
 #
-SET NAMES utf8 COLLATE utf8_5624_5;
+SET NAMES utf8mb3 COLLATE utf8mb3_5624_5;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_5624_5' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_5624_5' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_5624_5' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_5624_5' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('0'),('1'),('0z'),(_ucs2 0x0030FF9D);
 Warnings:

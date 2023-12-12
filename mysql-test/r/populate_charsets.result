@@ -11,20 +11,20 @@ Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
 #
 # Show new collation available in the new character sets dir:
-SHOW COLLATION LIKE 'utf8_phone_ci';
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8mb3	352			8	PAD SPACE
+utf8mb3_phone_ci	utf8mb3	352			8	PAD SPACE
 #
 # Create and drop a table using the new collation:
 CREATE TABLE t1 (pk INTEGER) COLLATE utf8mb3_phone_ci;
 Warnings:
-Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	3778	'utf8mb3_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_phone_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_phone_ci
 DROP TABLE t1;
 #
 # Restart server with original character sets dir:
@@ -36,7 +36,7 @@ Variable_name	Value
 character_sets_dir	MYSQL_CHARSETSDIR/
 #
 # The newly added collation has been deleted:
-SHOW COLLATION LIKE 'utf8_phone_ci';
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 #
 # Create a table using the deleted collation, expected to fail:

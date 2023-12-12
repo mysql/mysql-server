@@ -4,8 +4,8 @@
 -->
 <charsets>
 
-  <charset name="utf8">
-    <collation name="utf8_phone_ci" id="352">
+  <charset name="utf8mb3">
+    <collation name="utf8mb3_phone_ci" id="352">
       <rules>
         <reset>\u0000</reset>
           <i>\u0020</i> <!-- space -->
@@ -15,14 +15,14 @@
           <i>\u002D</i> <!-- hyphen -->
       </rules>
     </collation>
-    <collation name="utf8_test_ci" id="353">
+    <collation name="utf8mb3_test_ci" id="353">
       <rules>
         <reset>a</reset>
         <i>b</i>
       </rules>
     </collation>
 
-    <collation name="utf8_5624_1" id="354">
+    <collation name="utf8mb3_5624_1" id="354">
       <rules>
         <!-- long contractions and expansions -->
         <reset>12345</reset><q>012345</q>
@@ -89,28 +89,28 @@
     </collation>
 
     <!-- some unsupported tags -->
-    <collation name="utf8_5624_2" id="355">
+    <collation name="utf8mb3_5624_2" id="355">
       <settings strength="tertiary"/>
       <rules>
       </rules>
     </collation>
 
     <!-- reset before primary ignorable -->
-    <collation name="utf8_5624_3" id="356">
+    <collation name="utf8mb3_5624_3" id="356">
       <rules>
         <reset before="primary"><first_secondary_ignorable/></reset><p>lb-fsi</p>
       </rules>
     </collation>
 
     <!-- \u without hex digits -->
-    <collation name="utf8_5624_4" id="357">
+    <collation name="utf8mb3_5624_4" id="357">
       <rules>
         <reset>\u</reset><i>x</i>
       </rules>
     </collation>
 
     <!-- shift after using expansion -->
-    <collation name="utf8_5624_5" id="368" shift-after-method="expand">
+    <collation name="utf8mb3_5624_5" id="368" shift-after-method="expand">
       <rules>
         <!--
            Put small basic Latin letters between 0 and 1.
@@ -125,7 +125,7 @@
       </rules>
     </collation>
 
-    <collation name="utf8_maxuserid_ci" id="2047" version="4.0.0">
+    <collation name="utf8mb3_maxuserid_ci" id="2047" version="4.0.0">
       <rules>
         <reset>a</reset>
         <s>b</s>
@@ -316,8 +316,8 @@
     <collation name="latin1_test" id="1025" order="test"/>
   </charset>
 
-  <charset name="utf8">
-    <collation name="utf8_bengali_standard_ci" id="336">
+  <charset name="utf8mb3">
+    <collation name="utf8mb3_bengali_standard_ci" id="336">
       <rules>
         <reset>\u9FA</reset>
         <p>\u9F8</p>
@@ -404,7 +404,7 @@
       </rules>
     </collation>
 
-    <collation name="utf8_bengali_traditional_ci" id="337">
+    <collation name="utf8mb3_bengali_traditional_ci" id="337">
       <rules>
         <reset>\u994</reset>
         <p>\u982</p>

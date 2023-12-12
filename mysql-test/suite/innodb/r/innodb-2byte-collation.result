@@ -1,9 +1,9 @@
 show variables like 'character_sets_dir%';
 Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
 collation_name	character_set_name	id
 utf8mb4_is_0900_ai_ci	utf8mb4	257
@@ -70,30 +70,30 @@ utf8mb4_mn_cyrl_0900_as_cs	utf8mb4	323
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328
-utf8_bengali_standard_ci	utf8mb3	336
-utf8_bengali_traditional_ci	utf8mb3	337
-utf8_phone_ci	utf8mb3	352
-utf8_test_ci	utf8mb3	353
-utf8_5624_1	utf8mb3	354
-utf8_5624_2	utf8mb3	355
-utf8_5624_3	utf8mb3	356
-utf8_5624_4	utf8mb3	357
+utf8mb3_bengali_standard_ci	utf8mb3	336
+utf8mb3_bengali_traditional_ci	utf8mb3	337
+utf8mb3_phone_ci	utf8mb3	352
+utf8mb3_test_ci	utf8mb3	353
+utf8mb3_5624_1	utf8mb3	354
+utf8mb3_5624_2	utf8mb3	355
+utf8mb3_5624_3	utf8mb3	356
+utf8mb3_5624_4	utf8mb3	357
 ucs2_test_ci	ucs2	358
 ucs2_vn_ci	ucs2	359
 ucs2_5624_1	ucs2	360
-utf8_5624_5	utf8mb3	368
+utf8mb3_5624_5	utf8mb3	368
 utf32_test_ci	utf32	391
 latin1_test	latin1	1025
-utf8_maxuserid_ci	utf8mb3	2047
+utf8mb3_maxuserid_ci	utf8mb3	2047
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_test	latin1	1025			0	PAD SPACE
 ucs2_test_ci	ucs2	358			8	PAD SPACE
 utf16_test_ci	utf16	327			8	PAD SPACE
 utf32_test_ci	utf32	391			8	PAD SPACE
+utf8mb3_test_ci	utf8mb3	353			8	PAD SPACE
 utf8mb4_test_400_ci	utf8mb4	328			8	PAD SPACE
 utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
-utf8_test_ci	utf8mb3	353			8	PAD SPACE
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
@@ -111,11 +111,11 @@ def					hex(c1)	253	12	4	Y	0	31	33
 hex(c1)
 0061
 drop table 2byte_collation;
-CREATE TABLE 2byte_collation (s1 char(10) character set utf8 collate utf8_maxuserid_ci) engine = innodb;
+CREATE TABLE 2byte_collation (s1 char(10) character set utf8mb3 collate utf8mb3_maxuserid_ci) engine = innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO 2byte_collation VALUES ('a'),('b');
 SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -126,23 +126,23 @@ Warning	1287	'BINARY expr' is deprecated and will be removed in a future release
 DROP TABLE 2byte_collation;
 SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
 SET GLOBAL innodb_change_buffering_debug = 1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-show collation like 'utf8_maxuserid_ci';
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+show collation like 'utf8mb3_maxuserid_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_maxuserid_ci	utf8mb3	2047			8	PAD SPACE
+utf8mb3_maxuserid_ci	utf8mb3	2047			8	PAD SPACE
 CREATE TABLE 2byte_collation(
 a INT AUTO_INCREMENT PRIMARY KEY,
-b CHAR(100) character set utf8 collate utf8_maxuserid_ci,
+b CHAR(100) character set utf8mb3 collate utf8mb3_maxuserid_ci,
 c INT,
 z INT,
 INDEX(b))
 ENGINE=InnoDB STATS_PERSISTENT=0;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8mb3_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO 2byte_collation VALUES(0,'x',1, 1);
 CREATE UNIQUE INDEX idx3 ON 2byte_collation(c, b);
 INSERT INTO 2byte_collation SELECT 0,b,c+1,z+1 FROM 2byte_collation;

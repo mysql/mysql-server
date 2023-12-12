@@ -10,7 +10,7 @@ set names utf8mb3;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show variables like 'character_sets_dir%';
 
-show collation like 'utf8_phone_ci';
+show collation like 'utf8mb3_phone_ci';
 CREATE TABLE t1 (
  name VARCHAR(64),
  phone VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_phone_ci
@@ -26,7 +26,7 @@ SELECT * FROM t1 WHERE phone='79128008001';
 SELECT * FROM t1 WHERE phone='7 9 1 2 8 0 0 8 0 0 1';
 DROP TABLE t1;
 
-show collation like 'utf8_test_ci';
+show collation like 'utf8mb3_test_ci';
 create table t1 (c1 char(1) character set utf8mb3 COLLATE utf8mb3_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
@@ -56,7 +56,7 @@ insert into t1 values ('a');
 select * from t1 where c1='b';
 drop table t1;
 
-# make sure utf8_test_ci is Unicode-5.0.0
+# make sure utf8mb3_test_ci is Unicode-5.0.0
 SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci));
 SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci));
 SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
@@ -194,7 +194,7 @@ DROP TABLE t1;
 # Bug#47756 Setting 2byte collation ID with 'set names' crashes the server
 #
 SET NAMES utf8mb3 COLLATE utf8mb3_phone_ci;
-SHOW COLLATION LIKE 'utf8_phone_ci';
+SHOW COLLATION LIKE 'utf8mb3_phone_ci';
 SET NAMES utf8mb3;
 
 # make sure utf8mb4_test_400_ci is Unicode-4.0.0 based
@@ -286,7 +286,7 @@ DROP TABLE t1;
 --echo #
 --echo # WL#5624, testing Bengali collations
 --echo #
-SET NAMES utf8mb3, collation_connection=utf8_bengali_standard_ci;
+SET NAMES utf8mb3, collation_connection=utf8mb3_bengali_standard_ci;
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
 INSERT INTO t1 VALUES (_ucs2 0x09DC), (_ucs2 0x09A109BC);
@@ -296,7 +296,7 @@ SELECT HEX(WEIGHT_STRING(a)), HEX(CONVERT(a USING ucs2)), HEX(a)
 FROM t1 ORDER BY a, BINARY a;
 DROP TABLE t1;
 
-SET NAMES utf8mb3, collation_connection=utf8_bengali_traditional_ci;
+SET NAMES utf8mb3, collation_connection=utf8mb3_bengali_traditional_ci;
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES
 (_ucs2 0x0985),(_ucs2 0x0986),(_ucs2 0x0987),(_ucs2 0x0988),

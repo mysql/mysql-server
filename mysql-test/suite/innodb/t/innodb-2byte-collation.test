@@ -6,7 +6,7 @@
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show variables like 'character_sets_dir%';
 
-set names utf8;
+set names utf8mb3;
 
 # Test that the "ID" column in I_S and SHOW queries can handle two bytes
 select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
@@ -27,7 +27,7 @@ drop table 2byte_collation;
 #
 # Check maximum collation ID (2047 as of MySQL-6.0.9)
 #
-CREATE TABLE 2byte_collation (s1 char(10) character set utf8 collate utf8_maxuserid_ci) engine = innodb;
+CREATE TABLE 2byte_collation (s1 char(10) character set utf8mb3 collate utf8mb3_maxuserid_ci) engine = innodb;
 INSERT INTO 2byte_collation VALUES ('a'),('b');
 SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 DROP TABLE 2byte_collation;
@@ -41,13 +41,13 @@ SET GLOBAL innodb_change_buffering_debug = 1;
 
 -- enable_query_log
 
-set names utf8;
+set names utf8mb3;
 
-show collation like 'utf8_maxuserid_ci';
+show collation like 'utf8mb3_maxuserid_ci';
 
 CREATE TABLE 2byte_collation(
        a INT AUTO_INCREMENT PRIMARY KEY,
-       b CHAR(100) character set utf8 collate utf8_maxuserid_ci,
+       b CHAR(100) character set utf8mb3 collate utf8mb3_maxuserid_ci,
        c INT,
        z INT,
        INDEX(b))
