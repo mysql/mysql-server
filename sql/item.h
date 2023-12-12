@@ -1515,6 +1515,7 @@ class Item : public Parse_tree_node {
   inline void set_data_type_bool() {
     set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
+    decimals = 0;
     max_length = 1;
   }
 
@@ -1533,6 +1534,7 @@ class Item : public Parse_tree_node {
     set_data_type(type);
     collation.set_numeric();
     unsigned_flag = unsigned_prop;
+    decimals = 0;
     fix_char_length(max_width);
   }
 
@@ -1544,6 +1546,7 @@ class Item : public Parse_tree_node {
   inline void set_data_type_longlong() {
     set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
+    decimals = 0;
     fix_char_length(21);
   }
 
@@ -1748,6 +1751,7 @@ class Item : public Parse_tree_node {
   void set_data_type_year() {
     set_data_type(MYSQL_TYPE_YEAR);
     collation.set_numeric();
+    decimals = 0;
     fix_char_length(4);  // YYYY
     unsigned_flag = true;
   }
