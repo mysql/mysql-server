@@ -37,16 +37,16 @@ LEFT JOIN p AS table2s ON table1s.col_int_unique = table2s.col_int_key
 GROUP BY field2
 );
 EXPLAIN
--> Nested loop inner join
-    -> Remove duplicates from input grouped on table2s.col_int
-        -> Sort: table2s.col_int
-            -> Nested loop inner join
-                -> Table scan on table1s, activating pushed join of 2 tables
-                -> Index lookup on table2s using col_int_key (col_int_key=table1s.col_int_unique), child of table1s in pushed join
-    -> Left hash join (no condition)
+-> Left hash join (no condition)
+    -> Nested loop inner join
+        -> Remove duplicates from input grouped on table2s.col_int
+            -> Sort: table2s.col_int
+                -> Nested loop inner join
+                    -> Table scan on table1s, activating pushed join of 2 tables
+                    -> Index lookup on table2s using col_int_key (col_int_key=table1s.col_int_unique), child of table1s in pushed join
         -> Single-row index lookup on table1 using PRIMARY (pk=table2s.col_int)
-        -> Hash
-            -> Index range scan on table2 using PRIMARY over (col_int = 4)
+    -> Hash
+        -> Index range scan on table2 using PRIMARY over (col_int = 4)
 
 Warnings:
 Note	1003	Can't push table 'table1' as child of 'table1s', it is in a sorted-branch which can't be referred.
