@@ -4990,12 +4990,6 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
         return -1;
       }
     }
-    // The function that check if event exist will silently mark the NDB table
-    // definition as 'Invalid' when the event's table version does not match the
-    // cached NDB table definitions version. This indicates that the caller have
-    // used a stale version of the NDB table definition and is a problem which
-    // has to be fixed by the caller of this function.
-    assert(ndbtab->getObjectStatus() != NdbDictionary::Object::Invalid);
 
     if (share->have_event_operation()) {
       DBUG_PRINT("info", ("binlogging already setup"));
