@@ -2005,7 +2005,7 @@ int runBug29167(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
 
-  if (nodeCount < 4) return NDBT_OK;
+  if (nodeCount < 4) return NDBT_SKIPPED;
 
   struct ndb_logevent event;
   int master = restarter.getMasterNodeId();
@@ -2035,9 +2035,10 @@ int runBug29167(NDBT_Context *ctx, NDBT_Step *step) {
     CHECK(restarter.insertErrorInNode(node1, 7183) == 0);
     CHECK(restarter.insertErrorInNode(node2, 7183) == 0);
 
-    CHECK(restarter.waitClusterNoStart() == 0);
+    const unsigned int timeout = 300;
+    CHECK(restarter.waitClusterNoStart(timeout) == 0);
     restarter.startAll();
-    CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
   } while (false);
 
   return result;
