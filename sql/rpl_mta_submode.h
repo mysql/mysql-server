@@ -181,7 +181,7 @@ class Mts_submode_logical_clock : public Mts_submode {
   /// @brief Sets a flag to indicate that we are starting a new binlog file,
   /// therefore we need to skip the check for logical clock to not compare
   /// against sequence_number from previous event (previous file)
-  virtual void indicate_start_of_new_file() override { first_event = true; }
+  void indicate_start_of_new_file() override { first_event = true; }
   /**
     Withdraw the delegated_job increased by the group.
   */
