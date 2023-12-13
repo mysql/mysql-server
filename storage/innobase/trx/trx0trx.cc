@@ -723,8 +723,9 @@ static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
   // Since resurrecting a transaction can take a long time, progress is logged
   // at regular intervals to the error log. The debug value is provided for
   // testing
-  auto const progress_log_interval =
-      DBUG_EVALUATE_IF("resurrect_logs", 1s, 30s);
+  auto const progress_log_interval = 30s;
+  const bool progress_log_debug =
+      DBUG_EVALUATE_IF("resurrect_logs", true, false);
 
   do {
     ulint type;
@@ -755,7 +756,7 @@ static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
     auto now = std::chrono::steady_clock::now();
     auto time_diff = now - last_progress_log_time;
 
-    if (time_diff >= progress_log_interval) {
+    if (time_diff >= progress_log_interval || progress_log_debug) {
       ib::info(ER_IB_RESURRECT_RECORD_PROGRESS, n_undo_recs, n_undo_pages);
       last_progress_log_time = now;
     }
