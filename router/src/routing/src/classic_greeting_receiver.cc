@@ -418,6 +418,31 @@ ClientGreetor::client_greeting() {
     return Result::SendToClient;
   }
 
+  // block pre-5.6-like clients that don't support CLIENT_PLUGIN_AUTH.
+  //
+  // CLIENT_PLUGIN_AUTH is later needed to switch mysql-native-password
+  // from the router's nonce to the server's nonce.
+  if (connection()->greeting_from_router() &&
+      !src_protocol.client_capabilities().test(
+          classic_protocol::capabilities::pos::plugin_auth) &&
+      src_protocol.server_capabilities().test(
+          classic_protocol::capabilities::pos::plugin_auth)) {
+    // do NOT treat this error as "connect-error"
+    connection()->client_conn().protocol().handshake_state(
+        ClassicProtocolState::HandshakeState::kFinished);
+
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_conn, {ER_NOT_SUPPORTED_AUTH_MODE,
+                   "Client does not support authentication protocol requested "
+                   "by server; consider upgrading MySQL client",
+                   "08004"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Error);
+    return Result::SendToClient;
+  }
+
   // remove the frame and message from the recv-buffer
   discard_current_msg(src_conn);
 
