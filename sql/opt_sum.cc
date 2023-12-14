@@ -72,6 +72,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/key.h"       // key_cmp_if_same
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -816,7 +817,8 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
   bool is_null = false;          // IS NULL
   bool between = false;          // BETWEEN ... AND ...
 
-  switch (((Item_func *)cond)->functype()) {
+  const Item_func::Functype functype = down_cast<Item_func *>(cond)->functype();
+  switch (functype) {
     case Item_func::ISNULL_FUNC:
       is_null = true;
       [[fallthrough]];
@@ -851,12 +853,21 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
       return false;  // Can't optimize function
   }
 
-  Item *args[3];
+  Item *args[] = {nullptr, nullptr, nullptr};
   bool inv;
 
   /* Test if this is a comparison of a field and constant */
   if (!is_simple_predicate(down_cast<Item_func *>(cond), args, &inv))
     return false;
+
+  // Test if the field and the constant values can be compared in an index.
+  Field *const field = down_cast<Item_field *>(args[0])->field;
+  for (Item *value : {args[1], args[2]}) {
+    if (value != nullptr &&
+        !comparable_in_index(cond, field, Field::itRAW, functype, value)) {
+      return false;
+    }
+  }
 
   if (!is_null_safe_eq && !is_null &&
       (args[1]->is_null() || (between && args[2]->is_null())))
@@ -871,8 +882,9 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
 
   {
     if (part > field_part) return false;  // Field is beyond the tested parts
-    if (part->field->eq(((Item_field *)args[0])->field))
+    if (part->field->eq(field)) {
       break;  // Found a part of the key for the field
+    }
   }
 
   const bool is_field_part = part == field_part;

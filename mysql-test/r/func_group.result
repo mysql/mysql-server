@@ -2315,3 +2315,25 @@ SELECT MIN(x) FROM t WHERE x > 1 AND x BETWEEN 2 AND 4;
 MIN(x)
 2
 DROP TABLE t;
+#
+# Bug#34057432: MAX gives a different answer after an index is added
+#
+CREATE TABLE t(x VARCHAR(2), KEY(x));
+INSERT INTO t VALUES
+('01'), ('1'), ('3'), ('5'), ('7'), ('9'), ('11'), ('13');
+SELECT MAX(x) FROM t WHERE x < 2;
+MAX(x)
+1
+SELECT MIN(x) FROM t WHERE x > 20;
+MIN(x)
+NULL
+SELECT MAX(x) FROM t WHERE x BETWEEN 0 AND 2;
+MAX(x)
+1
+SELECT MIN(x) FROM t WHERE x BETWEEN 9 AND 20;
+MIN(x)
+11
+SELECT MIN(x) FROM t WHERE x = 1;
+MIN(x)
+01
+DROP TABLE t;
