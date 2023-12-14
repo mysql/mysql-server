@@ -409,6 +409,12 @@ class Timer {
 };
 }  // namespace
 
+bool NdbSocket::ssl_has_pending() const {
+  Guard guard(mutex);
+  if (unlikely(ssl == nullptr)) return false;
+  return SSL_pending(ssl);
+}
+
 /* Read with timeout
  */
 int NdbSocket::ssl_read(int timeout, char *buf, int len) const {

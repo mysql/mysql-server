@@ -98,7 +98,17 @@ class TCP_Transporter : public Transporter {
    */
   virtual void updateReceiveDataPtr(Uint32 bytesRead);
 
-  inline bool hasReceiveData() const { return receiveBuffer.sizeOfData > 0; }
+  /**
+   * Check if we have available data in our internal receiveBuffer.
+   * Use getReceiveData() to fetch and updateReceiveDataPtr() to consume.
+   */
+  bool hasReceiveData() const { return receiveBuffer.sizeOfData > 0; }
+
+  /**
+   * Check if the NdbSocket has more data immediately available.
+   * Need to doReceive() it into the receiveBuffer.
+   */
+  bool hasPending() const { return theSocket.has_pending(); }
 
  protected:
   /**

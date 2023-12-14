@@ -1337,13 +1337,15 @@ Uint32 TransporterRegistry::pollReceive(Uint32 timeOutMillis,
   assert((receiveHandle == &recvdata) || (receiveHandle == nullptr));
 
   Uint32 retVal = 0;
-  recvdata.m_recv_transporters.clear();
 
   /**
-   * If any transporters have left-over data that was not fully executed in
-   * last loop, don't wait and return 'data available' even if nothing new
+   * If any transporters have left-over data that was not fully received or
+   * executed in last loop, don't wait for more to arrive in poll.
+   * (Will still check if more arrived on other transporters).
+   * Ensure that retVal returns 'data available' even if nothing new.
    */
-  if (!recvdata.m_has_data_transporters.isclear()) {
+  if (!recvdata.m_recv_transporters.isclear() ||
+      !recvdata.m_has_data_transporters.isclear()) {
     timeOutMillis = 0;
     retVal = 1;
   }
@@ -1523,7 +1525,6 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
   Uint32 i = 0;
   for (; i < recvdata.nTCPTransporters; i++) {
     TCP_Transporter *t = theTCPTransporters[i];
-    const ndb_socket_t socket = t->getSocket();
     const TrpId trp_id = t->getTransporterIndex();
 
     idx[i] = maxTransporters + 1;
@@ -1531,9 +1532,9 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
     if (is_connected(trp_id)) {
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
-      require(t->isConnected());
-      require(ndb_socket_valid(socket));
+      require(!t->isReleased());
 #endif
+      const ndb_socket_t socket = t->getSocket();
       idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
   }
@@ -1548,7 +1549,6 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
      * memory transporter.
      */
     SHM_Transporter *t = theSHMTransporters[j];
-    const ndb_socket_t socket = t->getSocket();
     const TrpId trp_id = t->getTransporterIndex();
     idx[i] = maxTransporters + 1;
     if (!recvdata.m_transporters.get(trp_id)) {
@@ -1557,9 +1557,9 @@ Uint32 TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
     if (is_connected(trp_id)) {
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
-      require(t->isConnected());
-      require(ndb_socket_valid(socket));
+      require(!t->isReleased());
 #endif
+      const ndb_socket_t socket = t->getSocket();
       idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
     i++;
@@ -1699,6 +1699,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
        trp_id = recvdata.m_recv_transporters.find_next(trp_id + 1)) {
     Transporter *transp = allTransporters[trp_id];
     NodeId node_id = transp->getRemoteNodeId();
+    bool more_pending = false;
     if (transp->getTransporterType() == tt_TCP_TRANSPORTER) {
       TCP_Transporter *t = (TCP_Transporter *)transp;
       assert(recvdata.m_transporters.get(trp_id));
@@ -1728,6 +1729,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
           recvdata.transporter_recv_from(node_id);
           recvdata.m_has_data_transporters.set(trp_id);
         }
+        more_pending = t->hasPending();
       }
     } else {
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
@@ -1750,8 +1752,9 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
       require(false);
 #endif
     }
+    // If 'pending', more data is still available for immediate doReceive()
+    recvdata.m_recv_transporters.set(trp_id, more_pending);
   }
-  recvdata.m_recv_transporters.clear();
 
   /**
    * Unpack data either received above or pending from prev rounds.
