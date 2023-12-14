@@ -23,8 +23,6 @@
 */
 
 #include "router_component_testutils.h"
-#include "mysql/harness/net_ts/buffer.h"
-#include "mysql/harness/net_ts/socket.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
@@ -37,8 +35,8 @@
 #include <fstream>
 #include <thread>
 
-#include "mysql/harness/net_ts/impl/resolver.h"
-#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysqlrouter/mock_server_rest_client.h"
 #include "router_test_helpers.h"
 
