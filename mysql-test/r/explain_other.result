@@ -928,37 +928,37 @@ EXPLAIN
       },
       "used_columns": [
         "f1"
-      ]
-    },
-    "optimized_away_subqueries": [
-      {
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "cost_info": {
-            "query_cost": "1.95"
-          },
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 17,
-            "rows_produced_per_join": 5,
-            "filtered": "33.33",
-            "using_where": true,
+      ],
+      "attached_subqueries": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
             "cost_info": {
-              "read_cost": "1.38",
-              "eval_cost": "0.57",
-              "prefix_cost": "1.95",
-              "data_read_per_join": "45"
+              "query_cost": "1.95"
             },
-            "used_columns": [
-              "f1"
-            ]
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 17,
+              "rows_produced_per_join": 5,
+              "filtered": "33.33",
+              "using_where": true,
+              "cost_info": {
+                "read_cost": "1.38",
+                "eval_cost": "0.57",
+                "prefix_cost": "1.95",
+                "data_read_per_join": "45"
+              },
+              "used_columns": [
+                "f1"
+              ]
+            }
           }
         }
-      }
-    ]
+      ]
+    }
   }
 }
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 WHERE
@@ -985,37 +985,37 @@ EXPLAIN
       "used_columns": [
         "f1"
       ],
-      "attached_condition": "((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= ('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`mysqltest1`.`t1`.`f1` > 1234))))"
-    },
-    "optimized_away_subqueries": [
-      {
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "cost_info": {
-            "query_cost": "1.95"
-          },
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 17,
-            "rows_produced_per_join": 5,
-            "filtered": "33.33",
+      "attached_condition": "((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= ('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`mysqltest1`.`t1`.`f1` > 1234))))",
+      "attached_subqueries": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
             "cost_info": {
-              "read_cost": "1.38",
-              "eval_cost": "0.57",
-              "prefix_cost": "1.95",
-              "data_read_per_join": "45"
+              "query_cost": "1.95"
             },
-            "used_columns": [
-              "f1"
-            ],
-            "attached_condition": "(`mysqltest1`.`t1`.`f1` > 1234)"
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 17,
+              "rows_produced_per_join": 5,
+              "filtered": "33.33",
+              "cost_info": {
+                "read_cost": "1.38",
+                "eval_cost": "0.57",
+                "prefix_cost": "1.95",
+                "data_read_per_join": "45"
+              },
+              "used_columns": [
+                "f1"
+              ],
+              "attached_condition": "(`mysqltest1`.`t1`.`f1` > 1234)"
+            }
           }
         }
-      }
-    ]
+      ]
+    }
   }
 }
 Warnings:

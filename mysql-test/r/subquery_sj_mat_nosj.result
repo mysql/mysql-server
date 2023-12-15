@@ -5515,11 +5515,11 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	PRIMARY	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join)
 2	SUBQUERY	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`ot2`.`a`) and <in_optimizer>((`test`.`ot1`.`a`,`test`.`ot2`.`a`),(`test`.`ot1`.`a`,`test`.`ot2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`it3`.`a`,`test`.`it3`.`a` from `test`.`it3` where true ), <primary_index_lookup>(`test`.`ot1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`ot1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`ot2`.`a` = `<materialized_subquery>`.`a`))))))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`ot2`.`a`) and <in_optimizer>((`test`.`ot2`.`a`,`test`.`ot2`.`a`),(`test`.`ot2`.`a`,`test`.`ot2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`it3`.`a`,`test`.`it3`.`a` from `test`.`it3` where true ), <primary_index_lookup>(`test`.`ot2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`ot2`.`a` = `<materialized_subquery>`.`a`) and (`test`.`ot2`.`a` = `<materialized_subquery>`.`a`))))))
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
@@ -5771,7 +5771,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	SUBQUERY	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` left join `test`.`ot2` on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and <in_optimizer>((`test`.`ot1`.`a`,`test`.`ot2`.`a`),(`test`.`ot1`.`a`,`test`.`ot2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`it1`.`a`,`test`.`it2`.`a` from `test`.`it1` join `test`.`it2` where (`test`.`it1`.`a` = `test`.`it2`.`a`) ), <primary_index_lookup>(`test`.`ot1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`ot1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`ot2`.`a` = `<materialized_subquery>`.`a`))))))) where true
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` left join `test`.`ot2` on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and <in_optimizer>((`test`.`ot1`.`a`,`test`.`ot1`.`a`),(`test`.`ot1`.`a`,`test`.`ot1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`it1`.`a`,`test`.`it2`.`a` from `test`.`it1` join `test`.`it2` where (`test`.`it1`.`a` = `test`.`it2`.`a`) ), <primary_index_lookup>(`test`.`ot1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`ot1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`ot1`.`a` = `<materialized_subquery>`.`a`))))))) where true
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND
 (ot1.a, ot2.a) IN (SELECT it1.a, it2.a

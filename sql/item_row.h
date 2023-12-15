@@ -144,7 +144,8 @@ class Item_row : public Item {
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
-
+  Item *compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t) override;
   uint cols() const override { return arg_count; }
   Item *element_index(uint i) override { return items[i]; }
   Item **addr(uint i) override { return items + i; }

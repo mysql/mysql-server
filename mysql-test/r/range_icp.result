@@ -3028,7 +3028,7 @@ EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in (((@`v`),0),(1,1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((<cache>((@`v`)),0),(1,1)))
 FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
 a	b

@@ -210,6 +210,19 @@ Item *Item_row::transform(Item_transformer transformer, uchar *arg) {
   return (this->*transformer)(arg);
 }
 
+Item *Item_row::compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t) {
+  if (!(this->*analyzer)(arg_p)) return this;
+  for (uint i = 0; i < arg_count; i++) {
+    uchar *arg_v = *arg_p;
+    Item *new_item = items[i]->compile(analyzer, &arg_v, transformer, arg_t);
+    if (new_item == nullptr) return nullptr;
+    if (items[i] != new_item)
+      current_thd->change_item_tree(&items[i], new_item);
+  }
+  return (this->*transformer)(arg_t);
+}
+
 void Item_row::bring_value() {
   for (uint i = 0; i < arg_count; i++) items[i]->bring_value();
 }
