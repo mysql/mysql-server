@@ -351,10 +351,11 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * depends on the where clause and the bound parameter values.
      * 
      * @param context the query context, including the bound parameters
+     * @param limit maximum number of instances to be deleted
      * @return the number of instances deleted
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public int deletePersistentAll(QueryExecutionContext context) {
+    public int deletePersistentAll(QueryExecutionContext context, long limit) {
         SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
@@ -364,6 +365,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         context.setExplain(explain);
         int result = 0;
         int errorCode = 0;
+        if(limit < 1)
+            return result;
         Index storeIndex;
         session.startAutoTransaction();
         Operation op = null;
@@ -417,7 +420,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     // set additional filter conditions
                     where.filterCmpValue(context, (IndexScanOperation)op);
                     // delete results of the scan; don't abort if no row found
-                    result = session.deletePersistentAll((IndexScanOperation)op, false);
+                    result = session.deletePersistentAll((IndexScanOperation)op, false, limit);
                     break;
                 }
 
@@ -432,7 +435,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                         where.filterCmpValue(context, (ScanOperation)op);
                     }
                     // delete results of the scan; don't abort if no row found
-                    result = session.deletePersistentAll((ScanOperation)op, false);
+                    result = session.deletePersistentAll((ScanOperation)op, false, limit);
                     break;
                 }
 

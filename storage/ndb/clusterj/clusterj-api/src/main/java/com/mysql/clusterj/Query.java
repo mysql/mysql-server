@@ -125,7 +125,7 @@ public interface Query<E> {
      * remaining 10 results are ignored.
      * <p>
      * Skip must be greater than or equal to 0. Limit must be greater than or equal to 0.
-     * Limits may not be used with deletePersistentAll.
+     * When using deletePersistentAll, skip must be 0.
      * @param skip the number of results to skip
      * @param limit the number of results to return after skipping;
      * use Long.MAX_VALUE for no limit.
