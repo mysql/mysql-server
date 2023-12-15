@@ -6919,6 +6919,19 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
 
   if (open_secondary_engine_tables(thd, flags)) goto end;
 
+  if (thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
+      has_external_table(thd->lex)) {
+    /* Avoid materializing parts of result in primary engine
+     * during the PRIMARY_TENTATIVELY optimization phase
+     * if there are external tables since this can
+     * take a long time compared to the execution of the query
+     * in the secondary engine and it's wasted work if we end up
+     * executing the query in the secondary engine. */
+    thd->lex->add_statement_options(OPTION_NO_CONST_TABLES |
+                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
+  }
+
   return false;
 end:
   /*
