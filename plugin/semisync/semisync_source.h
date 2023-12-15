@@ -552,8 +552,11 @@ class AckContainer : public Trace {
     AckInfo *ackinfo = nullptr;
 
     for (i = 0; i < m_size; i++) {
-      if (m_ack_array[i].less_than(log_file_name, log_file_pos))
+      if (m_ack_array[i].less_than(log_file_name, log_file_pos)) { 
         ackinfo = m_ack_array + i;
+        log_file_name = ackinfo->binlog_name;
+        log_file_pos = ackinfo->binlog_pos;
+      }
     }
 
     return ackinfo;
