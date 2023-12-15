@@ -466,30 +466,43 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
 
   DictLockConf* conf = (DictLockConf*)signal->getDataPtr();
   Uint32 state = conf->userPtr;
+  SubscriptionPtr subPtr;
 
-  switch(state){
-  case DictLockReq::SumaStartMe:
-    jam();
-    ndbrequire(c_startup.m_restart_server_node_id == RNIL);
-    c_startup.m_restart_server_node_id = 0;
-    CRASH_INSERTION(13039);
-    send_start_me_req(signal);
-    return;
-  case DictLockReq::SumaHandOver:
-    jam();
-    /**
-     * All subscribers are now connected.
-     * Report subscriptions details to all the subscribers.
-     * The DictLockReq::SumaHandOver lock also makes sure that no
-     * changes (add/drop subscriber/subscription) are made to the subscriptions
-     * when the reports are being sent out across various CONTINUEB signals.
-     * The only exception is API node failure that can happen at any time.
-     * To prevent API failure handling to be performed in parallel with the
-     * reporting it is delayed while reporting is in progress.
-     */
-    g_reporting_in_progress = true;
-    report_subscription_set(signal, RNIL, RNIL, RNIL, REPORT_SUBSCRIPTION_INTERVAL);
+  switch (state) {
+    case DictLockReq::SumaStartMe:
+      jam();
+      ndbrequire(c_startup.m_restart_server_node_id == RNIL);
+      c_startup.m_restart_server_node_id = 0;
+      CRASH_INSERTION(13039);
+      send_start_me_req(signal);
+      return;
+    case DictLockReq::SumaHandOver:
+      jam();
+      if ((c_no_of_buckets == 0) && (!c_subscriptions.first(subPtr))) {
+        /**
+         * no subscriptions to report
+         * Continue restart
+         */
+        jam();
+        send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+        sendSTTORRY(signal);
+        return;
+      }
 
+      /**
+       * All subscribers are now connected.
+       * Report subscriptions details to all the subscribers.
+       * The DictLockReq::SumaHandOver lock also makes sure that no
+       * changes (add/drop subscriber/subscription) are made to the
+       * subscriptions when the reports are being sent out across various
+       * CONTINUEB signals. The only exception is API node failure that can
+       * happen at any time. To prevent API failure handling to be performed in
+       * parallel with the reporting it is delayed while reporting is in
+       * progress.
+       */
+      g_reporting_in_progress = true;
+      report_subscription_set(signal, RNIL, RNIL, RNIL,
+                              REPORT_SUBSCRIPTION_INTERVAL);
     return;
   default:
     jam();
@@ -866,10 +879,9 @@ Suma::execAPI_START_REP(Signal* signal)
 }
 
 void
-Suma::check_start_handover(Signal* signal)
-{
-  if(c_startup.m_wait_handover)
-  {
+Suma::check_start_handover(Signal *signal) {
+  if (c_startup.m_wait_handover) {
+    jam();
     NodeBitmask tmp;
     tmp.assign(c_connected_nodes);
     tmp.bitAND(c_subscriber_nodes);
@@ -879,18 +891,18 @@ Suma::check_start_handover(Signal* signal)
     }
     c_startup.m_wait_handover= false;
     SubscriptionPtr subPtr;
-    // Lock the dict only if there are any buckets to handover or
-    // there are subscriptions whose reports need to be sent out
-    if (c_no_of_buckets || c_subscriptions.first(subPtr))
-    {
-      jam();
-      send_dict_lock_req(signal, DictLockReq::SumaHandOver);
-    }
-    else
-    {
-      jam();
-      sendSTTORRY(signal);
-    }
+
+    /** Lock the dict.
+     * Lock is needed because, at least, one of the three following conditions
+     * is always met:
+     * 1. There are any buckets to handover
+     * 2. There are subscriptions whose reports need to be sent out
+     * 3. No buckets to handover nor subscriptions reports to send out (e.g
+     * start node with no nodegroup assigned and no subscribers connected), but
+     * lock is needed to force dict to trigger DIH to update the ndbinfo
+     * restart_state to RESTART COMPLETED
+     */
+    send_dict_lock_req(signal, DictLockReq::SumaHandOver);
   }
 }
 
