@@ -1,2 +1,0 @@
-[mysqld]
-innodb-redo-log-capacity=10M

@@ -1,1 +1,0 @@
-"--replicate-rewrite-db=mysqltest_from->mysqltest_to" --replicate-do-table=mysqltest_to.a

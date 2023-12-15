@@ -1,1 +1,0 @@
---binlog-do-db=mysqltest_sisyfos --binlog-do-db=mysqltest_prometheus

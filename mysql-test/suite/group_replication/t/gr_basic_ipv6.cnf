@@ -1,7 +1,0 @@
-!include ../my.cnf
-
-[mysqld.1]
-report-host=::1
-
-[mysqld.2]
-report-host=::1
