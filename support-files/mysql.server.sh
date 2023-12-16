@@ -44,11 +44,9 @@
 # something other than my.cnf. If you don't use a my.cnf file:
 # If you change base dir, you must also change datadir. These may get
 # overwritten by settings in the MySQL configuration files.
-# If you run mysql under a userid other than root, specify it here.
 cnffile=
 basedir=
 datadir=
-user=
 
 # Default value, in seconds, afterwhich the script should timeout waiting
 # for server start. 
@@ -141,7 +139,6 @@ parse_server_arguments() {
 	;;
       --pid-file=*) mysqld_pid_file_path=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
 }
@@ -261,14 +258,6 @@ else
   esac
 fi
 
-#
-# Set userid
-#
-if test -n "$user"
-then
-  user="--user=$user"
-fi
-
 case "$mode" in
   'start')
     # Start daemon
@@ -281,7 +270,7 @@ case "$mode" in
     then
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
-      $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $user $other_args >/dev/null &
+      $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null &
       wait_for_pid created "$!" "$mysqld_pid_file_path"; return_value=$?
 
       # Make lock for RedHat / SuSE
