@@ -1436,6 +1436,8 @@ SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 FLUSH STATUS;
 SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+
+--skip_if_hypergraph  # Different plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
 EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS a NATURAL JOIN t1;
 SET @@optimizer_switch= @optimizer_switch_saved;
