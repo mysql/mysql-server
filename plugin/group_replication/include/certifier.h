@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <mysql/group_replication_priv.h>
+#include <atomic>
 #include <list>
 #include <map>
 #include <string>
@@ -480,7 +481,7 @@ class Certifier : public Certifier_interface {
   /**
     Is certifier initialized.
   */
-  bool initialized;
+  std::atomic<bool> initialized{false};
 
   /**
     Variable to store the sidno used for transactions which will be logged
