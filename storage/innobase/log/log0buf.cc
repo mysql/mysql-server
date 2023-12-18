@@ -39,6 +39,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
  *******************************************************/
 
+#include <cstdio>
+#include <iostream>
 #ifndef UNIV_HOTBACKUP
 
 /* std::atomic_thread_fence */
@@ -1006,6 +1008,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     /* This is the critical memcpy operation, which copies data
     from internal mtr's buffer to the shared log buffer. */
     std::memcpy(ptr, str, len);
+    std::cout << "redo log" << std::endl;
 
     ut_a(len <= str_len);
 

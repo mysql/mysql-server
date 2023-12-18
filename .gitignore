@@ -36,3 +36,4 @@ scalability_jobs_*
 cmake-build-debug/
 .DS_Store
 */.DS_Store
+bld/
