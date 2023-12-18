@@ -3858,7 +3858,6 @@ bool Item_param::fix_fields(THD *, Item **) {
   }
   if (param_state() == NULL_VALUE) {
     // Parameter data type may be ignored, keep existing type
-    set_data_type_null();
     fixed = true;
     return false;
   }
