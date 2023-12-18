@@ -65,9 +65,13 @@ const std::string config_file_name = "component_keyring_file.cnf";
 /* Config names */
 const std::string config_options[] = {"read_local_config", "path", "read_only"};
 
-bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
+bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
+                               std::string &err) {
   config_pod = std::make_unique<Config_pod>();
-  if (!config_pod) return true;
+  if (!config_pod) {
+    err = "Failed to allocate memory for configuration details";
+    return true;
+  }
   /* Get shared library location */
   std::string path(g_component_path);
 
@@ -81,7 +85,10 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
     full_path.append(config_file_name);
     return false;
   };
-  if (set_config_path(path) == true) return true;
+  if (set_config_path(path) == true) {
+    err = "Failed to set path to configuration file";
+    return true;
+  }
 
   /* Read config file that's located at shared library location */
   std::unique_ptr<Config_reader> config_reader(new (std::nothrow)
@@ -105,15 +112,22 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
       }
     }
   }
-
+  std::string missing_option;
   if (config_reader->get_element<std::string>(
-          config_options[1], config_pod.get()->config_file_path_) ||
-      config_reader->get_element<bool>(config_options[2],
+          config_options[1], config_pod.get()->config_file_path_)) {
+    missing_option = config_options[1];
+    goto error;
+  }
+  if (config_reader->get_element<bool>(config_options[2],
                                        config_pod.get()->read_only_)) {
-    config_pod.reset();
-    return true;
+    missing_option = config_options[2];
+    goto error;
   }
   return false;
+error:
+  config_pod.reset();
+  err = "Could not find '" + missing_option + "' value in configuration file";
+  return true;
 }
 
 bool create_config(

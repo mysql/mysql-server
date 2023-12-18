@@ -68,16 +68,22 @@ int init_reader_template(
     Component_callbacks &callbacks) {
   try {
     if (callbacks.keyring_initialized() == false) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return -1;
     }
 
     if (data_id == nullptr || !*data_id) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_EMPTY_DATA_ID);
       assert(false);
       return 0;
     }
 
     Metadata metadata(data_id, auth_id);
     if (keyring_operations.init_read_iterator(it, metadata) == true) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_INIT_FAILED);
       return 0;
     }
 
@@ -117,6 +123,8 @@ bool deinit_reader_template(
     Component_callbacks &callbacks) {
   try {
     if (callbacks.keyring_initialized() == false) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
     keyring_operations.deinit_forward_iterator(it);
@@ -149,6 +157,8 @@ bool fetch_length_template(
     Component_callbacks &callbacks) {
   try {
     if (callbacks.keyring_initialized() == false) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
 
@@ -160,6 +170,8 @@ bool fetch_length_template(
     Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED);
       return true;
     }
 
@@ -200,12 +212,16 @@ bool fetch_template(
     Component_callbacks &callbacks) {
   try {
     if (callbacks.keyring_initialized() == false) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
 
     Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED);
       return true;
     }
 

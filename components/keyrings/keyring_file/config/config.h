@@ -47,12 +47,14 @@ class Config_pod {
   Read configuration file
 
   @param [out] config_pod Configuration details
+  @param [out] err        Error message
 
   @returns status of read operation
     @retval false Success
     @retval true  Failure
 */
-bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod);
+bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
+                               std::string &err);
 
 /**
   Create configuration vector

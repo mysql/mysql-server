@@ -63,10 +63,14 @@ bool generate_template(
     Component_callbacks &callbacks) {
   try {
     if (callbacks.keyring_initialized() == false) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
 
     if (data_id == nullptr || !*data_id) {
+      LogComponentErr(INFORMATION_LEVEL,
+                      ER_NOTE_KEYRING_COMPONENT_EMPTY_DATA_ID);
       assert(false);
       return true;
     }

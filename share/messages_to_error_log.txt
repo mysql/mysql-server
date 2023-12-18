@@ -11215,7 +11215,7 @@ ER_NOTE_KEYRING_COMPONENT_INITIALIZED
   eng "Keyring component initialized successfully."
 
 ER_KEYRING_COMPONENT_NOT_INITIALIZED
-  eng "The component is not initialized properly. Make sure that configuration is proper and use ALTER INSTANCE RELOAD KEYRING to reinitialize the component."
+  eng "The component is not initialized properly. Error: %s. Make sure that configuration is proper and use ALTER INSTANCE RELOAD KEYRING to reinitialize the component."
 
 ER_KEYRING_COMPONENT_EXCEPTION
   eng "Keyring component encountered an exception while executing : '%s' API of service: '%s'"
@@ -12594,6 +12594,39 @@ ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED
 
 ER_BLOCKED_CIPHER
    eng "Value for option '%s' contains cipher '%s' that is blocked. Please refer to the documentation for allowed ciphers."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_NAME_EMPTY
+   eng "Keyring file path is empty in configuration file."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_READ_FAILED
+   eng "Failed to read keyring file: %s."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_DECRYPT_FAILED
+   eng "Failed to decrypt keyring file: %s."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_INVALID_FORMAT
+   eng "The keyring file content is not in a valid JSON format."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_JSON_EXTRACT_FAILED
+   eng "Failed to extract a valid JSON data from keyring file."
+
+ER_KEYRING_COMPONENT_KEYRING_FILE_KEY_EXTRACT_FAILED
+   eng "Failed to extract key from keyring file JSON data."
+
+ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED
+   eng "Keyring component is not initialized."
+
+ER_NOTE_KEYRING_COMPONENT_EMPTY_DATA_ID
+   eng "Provided Data ID is empty."
+
+ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_INIT_FAILED
+  eng "Failed to initialize metadata iterator."
+
+ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_INIT_FAILED
+  eng "Failed to initialize key reader iterator."
+
+ER_NOTE_KEYRING_COMPONENT_KEY_READ_ITERATOR_FETCH_FAILED
+  eng "Failed to read key from key reader iterator."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

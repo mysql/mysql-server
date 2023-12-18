@@ -52,7 +52,7 @@ extern config::Config_pod *g_config_pod;
 extern bool g_keyring_file_inited;
 
 /* Initialize keyring */
-bool init_or_reinit_keyring();
+bool init_or_reinit_keyring(std::string &err);
 
 bool set_paths(const char *component_path, const char *instance_path);
 

@@ -23,8 +23,6 @@
 #include <fstream>
 #include <memory>
 
-#include "backend.h"
-
 #include <components/keyrings/common/data_file/reader.h>
 #include <components/keyrings/common/data_file/writer.h>
 #include <components/keyrings/common/json_data/json_reader.h>
@@ -32,6 +30,9 @@
 #include <components/keyrings/common/memstore/cache.h>
 #include <components/keyrings/common/memstore/iterator.h>
 #include <components/keyrings/common/utils/utils.h>
+#include "backend.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 namespace keyring_file {
 
@@ -55,21 +56,33 @@ Keyring_file_backend::Keyring_file_backend(const std::string keyring_file_name,
       read_only_(read_only),
       json_writer_(),
       valid_(false) {
-  if (keyring_file_name_.length() == 0) return;
+  if (keyring_file_name_.length() == 0) {
+    LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_KEYRING_FILE_NAME_EMPTY);
+    return;
+  }
   std::string data;
   create_file_if_missing(keyring_file_name_);
   {
     /* Read the file */
     const File_reader file_reader(keyring_file_name_, read_only_, data);
-    if (!file_reader.valid()) return;
+    if (!file_reader.valid()) {
+      LogComponentErr(ERROR_LEVEL,
+                      ER_KEYRING_COMPONENT_KEYRING_FILE_READ_FAILED,
+                      keyring_file_name_.c_str());
+      return;
+    }
   }
 
   /* It is possible that file is empty and that's ok. */
   if (data.length()) {
     /* Read JSON data - format check */
     const Json_reader json_reader(data);
-    if (!json_reader.valid()) return;
-
+    if (!json_reader.valid()) {
+      LogComponentErr(ERROR_LEVEL,
+                      ER_KEYRING_COMPONENT_KEYRING_FILE_INVALID_FORMAT,
+                      keyring_file_name_.c_str());
+      return;
+    }
     /* Cache */
     json_writer_.set_data(data);
   }
@@ -81,15 +94,25 @@ bool Keyring_file_backend::load_cache(
         &operations) {
   if (json_writer_.num_elements() == 0) return false;
   const Json_reader json_reader(json_writer_.to_string());
-  if (!json_reader.valid()) return true;
-  if (json_reader.num_elements() != json_writer_.num_elements()) return true;
-
+  if (!json_reader.valid()) {
+    LogComponentErr(ERROR_LEVEL,
+                    ER_KEYRING_COMPONENT_KEYRING_FILE_JSON_EXTRACT_FAILED);
+    return true;
+  }
+  if (json_reader.num_elements() != json_writer_.num_elements()) {
+    LogComponentErr(ERROR_LEVEL,
+                    ER_KEYRING_COMPONENT_KEYRING_FILE_JSON_EXTRACT_FAILED);
+    return true;
+  }
   for (size_t i = 0; i < json_reader.num_elements(); ++i) {
     std::unique_ptr<Json_data_extension> data_ext;
     Metadata metadata;
     Data data;
-    if (json_reader.get_element(i, metadata, data, data_ext) == true)
+    if (json_reader.get_element(i, metadata, data, data_ext) == true) {
+      LogComponentErr(ERROR_LEVEL,
+                      ER_KEYRING_COMPONENT_KEYRING_FILE_KEY_EXTRACT_FAILED);
       return true;
+    }
     if (operations.insert(metadata, data) == true) return true;
   }
   return false;
