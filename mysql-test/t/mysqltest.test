@@ -2770,7 +2770,7 @@ SELECT 1 as "SOME OLD TEXT";
 --character_set latin1
 set names latin1;
 --lowercase_result
-SELECT 0 as "WILL Lower CASE Å";
+SELECT 0 as "WILL Lower CASE ï¿½";
 --character_set utf8mb4
 set names utf8mb4;
 
@@ -4279,226 +4279,166 @@ EOF
 --echo #
 
 SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO';
 
 CREATE TABLE t1 (
-  c1 DOUBLE NOT NULL AUTO_INCREMENT,
-  c2 INT,
-  c3 DECIMAL(2) UNSIGNED,
-  c4 DECIMAL,
-  PRIMARY KEY (c1)
+  c1 INT NOT NULL PRIMARY KEY, 
+  c2 VARCHAR(2), 
+  c3 SMALLINT, 
+  c4 SMALLINT
 );
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 1, -500, "aaa");
+# declare all warnings
+--let $warning_1_data_truncated = WARN_DATA_TRUNCATED
+--let $warning_2_out_of_range = ER_WARN_DATA_OUT_OF_RANGE
+--let $warning_3_division_by_zero = ER_DIVISION_BY_ZERO
+
+# We have $ENABLED_WARNINGS_LIST - list of all enabled warnings 
+# we have $DISABLED_WARNINGS_LIST - list of all disabled warnings
+
+# $DISABLED_WARNINGS_LIST should be empty now
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+
+# $ENABLED_WARNINGS_LIST
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+
+--echo "Case-1 : No [enable/disable]_commands used"
+INSERT INTO t1 VALUES (1, 'aaaaa', 32768, 1/0);
 DELETE FROM t1;
 
+--echo "Case-2 : disable all warnings"
 # disable_warnings should disable all the warnings
 --disable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+INSERT INTO t1 VALUES (2, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
+--echo "Case-3 : enable all warnings"
 # enable_warning should enable all the disable warnings
 --enable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 3, -500, "aaa");
+INSERT INTO t1 VALUES (3, 'aaaaa', 32768, 1/0);
 DELETE FROM t1;
+--echo "Enabled warnings (should be empty when all warnings are enabled): "
+--echo $ENABLED_WARNINGS_LIST
 
+--echo "Case-4 : specify a warning to disable"
 # disable_warnings with warning list argument, should suppress only
 # the specified warnings.
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 4, -500, "aaa");
+--disable_warnings $warning_1_data_truncated,$warning_2_out_of_range
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (4, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
+--echo "Case-5 : Append the diabled warning list"
 # If there exist disabled warnings, new disabled warnings specified
 # will get appended to the existing list of disabled_warnings.
 # All three warnings should be disabled now.
---disable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 5, -500, "aaa");
+--disable_warnings $warning_3_division_by_zero
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (5, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-# enable_warnings with warning list argument, should enable only
-# the specified warnings.
---enable_warnings ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 6, -500, "aaa");
+--echo "Case-6: specify a warning to enable"
+--enable_warnings $warning_1_data_truncated
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (6, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 7, -500, "aaa");
+--echo "Case-7 : Append the enabled warning list"
+--enable_warnings $warning_2_out_of_range
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (7, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-# Enable all the warnings
---enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 8, -500, "aaa");
+--echo "Case-8 : Enable all warnings"
+--enable_warnings $warning_3_division_by_zero
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (8, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-# Disable all the warnings
+--echo "Case-9 : Disable some warnings once"
+--disable_warnings $warning_1_data_truncated,$warning_2_out_of_range ONCE
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (9, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+
+# All warnings should appear 
+INSERT INTO t1 VALUES (10, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+
+--disable_warnings $warning_3_division_by_zero ONCE
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (11, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+
+--echo "Disabled warnings: "
+--echo $DISABLED_WARNINGS_LIST
+
+# All warnings should appear 
+INSERT INTO t1 VALUES (12, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+
+--echo "Case-10 : Enable some warnings once"
 --disable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 9, -500, "aaa");
+--enable_warnings $warning_1_data_truncated,$warning_2_out_of_range ONCE
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (13, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-# enable_warnings with warning list argument
---enable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 10, -500, "aaa");
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+
+#no warnings should appear 
+INSERT INTO t1 VALUES (14, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-# If there exist enabled warnings, new enabled warnings specified
-# will get appended to the existing list of enabled_warnings.
-# All three warnings should be enabled now.
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 11, -500, "aaa");
+--enable_warnings $warning_3_division_by_zero ONCE
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+INSERT INTO t1 VALUES (15, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
+
+--echo "Enabled warnings: "
+--echo $ENABLED_WARNINGS_LIST
+
+#no warnings should appear 
+INSERT INTO t1 VALUES (16, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+
+--echo "Case-11: Disabling some warning twice"
 --enable_warnings
-
-# disable_warnings with "ONCE" argument
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 12, -500, "aaa");
+--disable_warnings $warning_1_data_truncated,$warning_2_out_of_range
+INSERT INTO t1 VALUES (17, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 13, -500, "aaa");
+# below request would be ignored
+--disable_warnings $warning_1_data_truncated
+INSERT INTO t1 VALUES (18, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 14, -500, "aaa");
-DELETE FROM t1;
-
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 15, -500, "aaa");
-DELETE FROM t1;
-
-# enable_warnings with "ONCE" argument
+--echo "Case-12: Enabling some warning twice" 
 --disable_warnings
---enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 16, -500, "aaa");
+--enable_warnings $warning_1_data_truncated,$warning_2_out_of_range
+INSERT INTO t1 VALUES (19, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 17, -500, "aaa");
+--enable_warnings $warning_1_data_truncated
+INSERT INTO t1 VALUES (20, 'aaaaa',32768, 1/0);
 DELETE FROM t1;
 
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 18, -500, "aaa");
-DELETE FROM t1;
-
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 19, -500, "aaa");
-DELETE FROM t1;
 --enable_warnings
-
-# Disabling a warning more than once WILL NOT have any effect, attempts
-# to disable it after the first one WILL be ignored.
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 20, -500, "aaa");
-DELETE FROM t1;
-
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 21, -500, "aaa");
-DELETE FROM t1;
-
-# ER_WARN_DATA_OUT_OF_RANGE is disaled twice, enabling it ONLY ONCE is
-# enough since disabling of the same warning again will be ignored.
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 22, -500, "aaa");
-DELETE FROM t1;
-
-# $DISABLED_WARNINGS_LIST contains list of currently disabled warnings.
-# All the warnings are enabled, $DISABLED_WARNINGS_LIST should be empty
---echo $DISABLED_WARNINGS_LIST
-
-# Disable ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE warnings
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 23, -500, "aaa");
-DELETE FROM t1;
-
-# $DISABLED_WARNINGS_LIST should contains 2 warnings
---echo $DISABLED_WARNINGS_LIST
-
-# Disable ER_TRUNCATED_WRONG_VALUE_FOR_FIELD warning
---disable_warnings ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 24, -500, "aaa");
-DELETE FROM t1;
-
-# $DISABLED_WARNINGS_LIST should contains 3 warnings now
---echo $DISABLED_WARNINGS_LIST
-
-# ER_WARN_DATA_OUT_OF_RANGE warning is enabled, $DISABLED_WARNINGS_LIST
-# should contain only 2 warnings now.
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE
---echo $DISABLED_WARNINGS_LIST
-
-# $DISABLED_WARNINGS_LIST variable can be used with enable_warnings command
-# to enable all the currently disabled warnings.
---enable_warnings $DISABLED_WARNINGS_LIST
-
-# All the warnings are enabled, $DISABLED_WARNINGS_LIST should be empty
---echo $DISABLED_WARNINGS_LIST
-
-# Disabling warnings only once, $DISABLED_WARNINGS_LIST value should get
-# updated after the execution of the next statement.
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
---echo $DISABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 25, -500, "aaa");
-DELETE FROM t1;
-
-# $DISABLED_WARNINGS_LIST should be empty now
---echo $DISABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 26, -500, "aaa");
-DELETE FROM t1;
-
-# $ENABLED_WARNINGS_LIST contains list of currently enabled warnings.
-# All the warning are enabled, $ENABLED_WARNINGS_LIST should be empty.
---echo $ENABLED_WARNINGS_LIST
-
---disable_warnings
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 27, -500, "aaa");
-DELETE FROM t1;
-
-# Enable ER_WARN_DATA_OUT_OF_RANGE warning
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 28, -500, "aaa");
-DELETE FROM t1;
-
-# $ENABLED_WARNINGS_LIST should contain ER_WARN_DATA_OUT_OF_RANGE
---echo $ENABLED_WARNINGS_LIST
-
-# Enable ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
---enable_warnings ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 29, -500, "aaa");
-DELETE FROM t1;
-
-# $ENABLED_WARNINGS_LIST should contain 3 warnings
---echo $ENABLED_WARNINGS_LIST
-
-# $ENABLED_WARNINGS_LIST variable can be used with disable_warnings command
-# to disable all the currently enabled warnings.
---disable_warnings $ENABLED_WARNINGS_LIST
-
-# All the warnings are disabled, $ENABLED_WARNINGS_LIST should be empty
---echo $ENABLED_WARNINGS_LIST
-
-# Enabling warnings only once, $ENABLED_WARNINGS_LIST value should get
-# updated after the execution of the next statement.
---disable_warnings
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE ONCE
---echo $ENABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 30, -500, "aaa");
-DELETE FROM t1;
-
-# $ENABLED_WARNINGS_LIST should be empty now
---echo $ENABLED_WARNINGS_LIST
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 31, -500, "aaa");
-DELETE FROM t1;
---enable_warnings
-
-# Varables containing warning names as arguments to disable/enable_warnings
-# command.
---let $warning_1 = ER_WARN_DATA_OUT_OF_RANGE
---let $warning_2 = ER_TRUNCATED_WRONG_VALUE
---disable_warnings $warning_1,$warning_2
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 32, -500, "aaa");
-DELETE FROM t1;
-
---enable_warnings $warning_1
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 33, -500, "aaa");
-DELETE FROM t1;
-
---enable_warnings $warning_2
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 34, -500, "aaa");
 
 # Cleanup
 SET @@sql_mode = @old_sql_mode;
@@ -4652,56 +4592,59 @@ EOF
 --echo #
 
 SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO';
 
 CREATE TABLE t1 (
-  c1 DOUBLE NOT NULL AUTO_INCREMENT,
-  c2 INT,
-  c3 DECIMAL(2) UNSIGNED,
-  c4 DECIMAL,
-  PRIMARY KEY (c1)
+  c1 INT NOT NULL PRIMARY KEY, 
+  c2 VARCHAR(2), 
+  c3 SMALLINT, 
+  c4 SMALLINT
 );
 
-# Only ER_TRUNCATED_WRONG_VALUE should be disabled ONCE.
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
---disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 35, -500, "aaa");
+# declare all warnings
+--let $warning_1_data_truncated = WARN_DATA_TRUNCATED
+--let $warning_2_out_of_range = ER_WARN_DATA_OUT_OF_RANGE
+--let $warning_3_division_by_zero = ER_DIVISION_BY_ZERO
+
+--echo "Only $warning_2_out_of_range should be disabled once"
+--disable_warnings $warning_1_data_truncated ONCE
+--disable_warnings $warning_2_out_of_range ONCE
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 36, -500, "aaa");
+--echo "All warnings shall be there"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-# ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
-# disabled for the first INSERT statement.
---disable_warnings ER_WARN_DATA_OUT_OF_RANGE
---disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 37, -500, "aaa");
+--echo "$warning_1_data_truncated, $warning_2_out_of_range should be disabled for the first INSERT statement." 
+--disable_warnings $warning_1_data_truncated
+--disable_warnings $warning_2_out_of_range ONCE
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-# Only ER_WARN_DATA_OUT_OF_RANGE should be disabled.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 38, -500, "aaa");
+--echo "Only $warning_1_data_truncated should be enabled."
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 --enable_warnings
 
-# Only ER_TRUNCATED_WRONG_VALUE should be enabled.
+--echo "Only $warning_2_out_of_range should be enabled." 
 --disable_warnings
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE ONCE
---enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 39, -500, "aaa");
+--enable_warnings $warning_1_data_truncated ONCE
+--enable_warnings $warning_2_out_of_range ONCE
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 40, -500, "aaa");
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-# ER_WARN_DATA_OUT_OF_RANGE and ER_TRUNCATED_WRONG_VALUE should be
-# enabled for the first INSERT statement.
---enable_warnings ER_WARN_DATA_OUT_OF_RANGE
---enable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 41, -500, "aaa");
+--echo "$warning_1_data_truncated, $warning_2_out_of_range should be enabled for the first INSERT statement"
+--enable_warnings $warning_1_data_truncated
+--enable_warnings $warning_2_out_of_range ONCE
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
-# Only ER_WARN_DATA_OUT_OF_RANGE should be enabled.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 42, -500, "aaa");
+--echo "Only $warning_1_data_truncated should be enabled"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 DELETE FROM t1;
 
 --enable_warnings

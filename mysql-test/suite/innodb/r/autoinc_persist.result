@@ -177,41 +177,7 @@ a
 31
 100000000000
 100000000006
-CREATE TABLE t11(a FLOAT AUTO_INCREMENT KEY) ENGINE = InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-INSERT INTO t11 VALUES(0), (0), (0), (0), (-1), (-10), (0),
-(20), (30), (31);
-SELECT * FROM t11;
-a
--10
--1
-1
-2
-3
-4
-5
-20
-30
-31
 set global innodb_flush_log_at_trx_commit=1;
-CREATE TABLE t12(a DOUBLE AUTO_INCREMENT KEY) ENGINE = InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-INSERT INTO t12 VALUES(0), (0), (0), (0), (-1), (-10), (0),
-(20), (30), (31);
-SELECT * FROM t12;
-a
--10
--1
-1
-2
-3
-4
-5
-20
-30
-31
 CREATE TABLE t13(a INT AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB,
 AUTO_INCREMENT = 1234;
 # Scenario 1: Normal restart, to test if the counters are persisted
@@ -353,30 +319,6 @@ a
 31
 100000000000
 100000000006
-SELECT * FROM t11;
-a
--10
--1
-1
-2
-3
-4
-5
-20
-30
-31
-SELECT * FROM t12;
-a
--10
--1
-1
-2
-3
-4
-5
-20
-30
-31
 SELECT * FROM t13;
 a
 SHOW CREATE TABLE t13;
@@ -1163,7 +1105,7 @@ a	pkey	d
 1	10	This is a test
 1	11	This is a test
 DROP TABLE v1, v2, v3;
-DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t30, t32, t33;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t13, t30, t32, t33;
 CREATE TABLE t1 (
 a INT NOT NULL,
 d VARCHAR(15) NOT NULL,

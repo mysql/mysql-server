@@ -13,10 +13,8 @@ set global innodb_file_per_table=on;
 #
 # Create and insert records into a REDUNDANT row formatted table.
 #
-CREATE TABLE t1_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t1_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=REDUNDANT  ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
@@ -25,7 +23,7 @@ INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 SHOW CREATE TABLE t1_restart;
 Table	Create Table
 t1_restart	CREATE TABLE `t1_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -38,10 +36,8 @@ count(*)
 #
 # Create and insert records into a COMPACT row formatted table.
 #
-CREATE TABLE t2_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t2_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPACT  ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t2_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
@@ -50,7 +46,7 @@ INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 SHOW CREATE TABLE t2_restart;
 Table	Create Table
 t2_restart	CREATE TABLE `t2_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -63,10 +59,8 @@ count(*)
 #
 # Create and insert records into a COMPRESSED row formatted table.
 #
-CREATE TABLE t3_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t3_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t3_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
@@ -75,7 +69,7 @@ INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 SHOW CREATE TABLE t3_restart;
 Table	Create Table
 t3_restart	CREATE TABLE `t3_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -88,10 +82,8 @@ count(*)
 #
 # Create and insert records into a DYNAMIC row formatted table.
 #
-CREATE TABLE t4_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t4_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t4_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
@@ -100,7 +92,7 @@ INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SHOW CREATE TABLE t4_restart;
 Table	Create Table
 t4_restart	CREATE TABLE `t4_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -114,10 +106,8 @@ count(*)
 # Create and insert records into a table that uses a remote DATA DIRECTORY.
 #
 #
-CREATE TABLE t5_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t5_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
@@ -126,7 +116,7 @@ INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 SHOW CREATE TABLE t5_restart;
 Table	Create Table
 t5_restart	CREATE TABLE `t5_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -212,10 +202,8 @@ count(*)
 # Create and insert records into a table that uses a general tablespace.
 #
 CREATE TABLESPACE s1_restart ADD DATAFILE 's1_restart.ibd';
-CREATE TABLE t8_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t8_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPACT  ENGINE=InnoDB TABLESPACE=s1_restart;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t8_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
@@ -224,7 +212,7 @@ INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 SHOW CREATE TABLE t8_restart;
 Table	Create Table
 t8_restart	CREATE TABLE `t8_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -234,10 +222,8 @@ t8_restart	CREATE TABLE `t8_restart` (
 SELECT count(*) FROM t8_restart;
 count(*)
 65
-CREATE TABLE t9_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+CREATE TABLE t9_restart(c1 BIGINT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB TABLESPACE=s1_restart;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t9_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
@@ -246,7 +232,7 @@ INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 SHOW CREATE TABLE t9_restart;
 Table	Create Table
 t9_restart	CREATE TABLE `t9_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -345,7 +331,7 @@ innodb_file_per_table	ON
 SHOW CREATE TABLE t1_restart;
 Table	Create Table
 t1_restart	CREATE TABLE `t1_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -355,7 +341,7 @@ t1_restart	CREATE TABLE `t1_restart` (
 SHOW CREATE TABLE t2_restart;
 Table	Create Table
 t2_restart	CREATE TABLE `t2_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -365,7 +351,7 @@ t2_restart	CREATE TABLE `t2_restart` (
 SHOW CREATE TABLE t3_restart;
 Table	Create Table
 t3_restart	CREATE TABLE `t3_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -375,7 +361,7 @@ t3_restart	CREATE TABLE `t3_restart` (
 SHOW CREATE TABLE t4_restart;
 Table	Create Table
 t4_restart	CREATE TABLE `t4_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -385,7 +371,7 @@ t4_restart	CREATE TABLE `t4_restart` (
 SHOW CREATE TABLE t5_restart;
 Table	Create Table
 t5_restart	CREATE TABLE `t5_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -427,7 +413,7 @@ SUBPARTITION BY HASH (`c1`)
 SHOW CREATE TABLE t8_restart;
 Table	Create Table
 t8_restart	CREATE TABLE `t8_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -437,7 +423,7 @@ t8_restart	CREATE TABLE `t8_restart` (
 SHOW CREATE TABLE t9_restart;
 Table	Create Table
 t9_restart	CREATE TABLE `t9_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -593,7 +579,7 @@ count(*)
 SHOW CREATE TABLE t5_restart;
 Table	Create Table
 t5_restart	CREATE TABLE `t5_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -696,7 +682,7 @@ count(*)
 SHOW CREATE TABLE t5_restart;
 Table	Create Table
 t5_restart	CREATE TABLE `t5_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -798,7 +784,7 @@ count(*)
 SHOW CREATE TABLE t55_restart;
 Table	Create Table
 t55_restart	CREATE TABLE `t55_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -900,7 +886,7 @@ count(*)
 SHOW CREATE TABLE t55_restart;
 Table	Create Table
 t55_restart	CREATE TABLE `t55_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1002,7 +988,7 @@ count(*)
 SHOW CREATE TABLE t4_restart;
 Table	Create Table
 t4_restart	CREATE TABLE `t4_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1016,7 +1002,7 @@ count(*)
 SHOW CREATE TABLE t55_restart;
 Table	Create Table
 t55_restart	CREATE TABLE `t55_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1107,7 +1093,7 @@ count(*)
 SHOW CREATE TABLE t4_restart;
 Table	Create Table
 t4_restart	CREATE TABLE `t4_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1121,7 +1107,7 @@ count(*)
 SHOW CREATE TABLE t55_restart;
 Table	Create Table
 t55_restart	CREATE TABLE `t55_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1192,7 +1178,7 @@ count(*)
 SHOW CREATE TABLE t4_restart;
 Table	Create Table
 t4_restart	CREATE TABLE `t4_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,
@@ -1206,7 +1192,7 @@ count(*)
 SHOW CREATE TABLE t55_restart;
 Table	Create Table
 t55_restart	CREATE TABLE `t55_restart` (
-  `c1` double NOT NULL AUTO_INCREMENT,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
   `c2` char(10) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   `c4` date DEFAULT NULL,

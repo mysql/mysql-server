@@ -435,7 +435,6 @@ bool Create_field::init(
       break;
     case MYSQL_TYPE_FLOAT:
       /* change FLOAT(precision) to FLOAT or DOUBLE */
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
       if (display_width_in_codepoints && !fld_decimals) {
         const size_t tmp_length = m_max_display_width_in_codepoints;
         if (tmp_length > PRECISION_FOR_DOUBLE) {
@@ -460,7 +459,6 @@ bool Create_field::init(
       }
       break;
     case MYSQL_TYPE_DOUBLE:
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
       if (!display_width_in_codepoints && !fld_decimals) {
         m_max_display_width_in_codepoints = DBL_DIG + 7;
         decimals = DECIMAL_NOT_SPECIFIED;

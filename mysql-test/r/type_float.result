@@ -502,40 +502,28 @@ SELECT * from t5s;
 c1
 DROP TABLE t5u, t5s;
 #
-# WL#12575: Deprecate AUTO_INCREMENT on DOUBLE and FLOAT
+# WL#13103: Remove AUTO_INCREMENT on DOUBLE and FLOAT
 #
+# AUTO_INCREMENT with FLOAT
 CREATE TABLE t1(a FLOAT PRIMARY KEY AUTO_INCREMENT);
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-ALTER TABLE t1 ADD COLUMN b INT;
-CREATE TABLE t2 LIKE t1;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-CREATE TABLE t3(a FLOAT);
-ALTER TABLE t3 MODIFY COLUMN a FLOAT PRIMARY KEY AUTO_INCREMENT;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-CREATE TABLE t4(a INT PRIMARY KEY);
-ALTER TABLE t4 DROP PRIMARY KEY, ADD COLUMN b FLOAT PRIMARY KEY AUTO_INCREMENT;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'b'.
-DROP TABLE t4, t3, t2, t1;
+ERROR 42000: Incorrect column specifier for column 'a'
+CREATE TABLE t2(a FLOAT);
+ALTER TABLE t2 MODIFY COLUMN a FLOAT PRIMARY KEY AUTO_INCREMENT;
+ERROR 42000: Incorrect column specifier for column 'a'
+CREATE TABLE t3(a INT PRIMARY KEY);
+ALTER TABLE t3 DROP PRIMARY KEY, ADD COLUMN b FLOAT PRIMARY KEY AUTO_INCREMENT;
+ERROR 42000: Incorrect column specifier for column 'b'
+DROP TABLE t2, t3;
+# AUTO_INCREMENT with DOUBLE
 CREATE TABLE t1(a DOUBLE PRIMARY KEY AUTO_INCREMENT);
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-ALTER TABLE t1 ADD COLUMN b INT;
-CREATE TABLE t2 LIKE t1;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-CREATE TABLE t3(a DOUBLE);
-ALTER TABLE t3 MODIFY COLUMN a DOUBLE PRIMARY KEY AUTO_INCREMENT;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
-CREATE TABLE t4(a INT PRIMARY KEY);
-ALTER TABLE t4 DROP PRIMARY KEY, ADD COLUMN b DOUBLE PRIMARY KEY AUTO_INCREMENT;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'b'.
-DROP TABLE t4, t3, t2, t1;
+ERROR 42000: Incorrect column specifier for column 'a'
+CREATE TABLE t2(a DOUBLE);
+ALTER TABLE t2 MODIFY COLUMN a DOUBLE PRIMARY KEY AUTO_INCREMENT;
+ERROR 42000: Incorrect column specifier for column 'a'
+CREATE TABLE t3(a INT PRIMARY KEY);
+ALTER TABLE t3 DROP PRIMARY KEY, ADD COLUMN b DOUBLE PRIMARY KEY AUTO_INCREMENT;
+ERROR 42000: Incorrect column specifier for column 'b'
+DROP TABLE t2, t3;
 #
 # WL#12595: Deprecate the ability to specify number of digits
 #           for floating point types

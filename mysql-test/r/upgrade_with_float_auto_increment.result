@@ -1,0 +1,16 @@
+#
+# WL#13103: Remove AUTO_INCREMENT on DOUBLE and FLOAT
+# 
+# Stop DB server which was created by MTR default
+
+# Upgrade should fail with these errors in the log.
+Pattern "AUTO_INCREMENT is not supported with DOUBLE/FLOAT field" found
+Pattern "Data Dictionary initialization failed" found
+
+# Cleanup.
+
+# ------------------------------------------------------------------
+# End-of-test cleanup.
+# ------------------------------------------------------------------
+# Restart the server with default options.
+# restart

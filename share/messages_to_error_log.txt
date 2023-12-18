@@ -12655,6 +12655,10 @@ ER_LANGUAGE_COMPONENT_VM_INTERNAL_ERROR
 ER_WARN_LANGUAGE_COMPONENT_RESOURCE_LIMIT
   eng "The resource limit has been exceeded. Details: %s."
 
+ER_AUTO_INCREMENT_NOT_SUPPORTED_FOR_FLOAT_DOUBLE
+  eng "AUTO_INCREMENT is not supported with DOUBLE/FLOAT field. Please consider fixing (Schema:%s, Table:%s, Column:%s)."
+
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

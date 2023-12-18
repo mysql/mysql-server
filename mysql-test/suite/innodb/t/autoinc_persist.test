@@ -72,19 +72,9 @@ INSERT INTO t10 VALUES(0), (0), (0), (0), (8), (10), (0),
 (20), (30), (31), (100000000000), (100000000006);
 SELECT * FROM t10;
 
-CREATE TABLE t11(a FLOAT AUTO_INCREMENT KEY) ENGINE = InnoDB;
-INSERT INTO t11 VALUES(0), (0), (0), (0), (-1), (-10), (0),
-(20), (30), (31);
-SELECT * FROM t11;
-
 # Since autoinc counter is persisted by redo logs, we don't want to
 # lose them on kill and restart, so to make the result after restart stable.
 set global innodb_flush_log_at_trx_commit=1;
-
-CREATE TABLE t12(a DOUBLE AUTO_INCREMENT KEY) ENGINE = InnoDB;
-INSERT INTO t12 VALUES(0), (0), (0), (0), (-1), (-10), (0),
-(20), (30), (31);
-SELECT * FROM t12;
 
 CREATE TABLE t13(a INT AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB,
 AUTO_INCREMENT = 1234;
@@ -103,8 +93,6 @@ SELECT * FROM t7;
 SELECT * FROM t8;
 SELECT * FROM t9;
 SELECT * FROM t10;
-SELECT * FROM t11;
-SELECT * FROM t12;
 
 SELECT * FROM t13;
 SHOW CREATE TABLE t13;
@@ -566,7 +554,7 @@ SELECT a, pkey, d FROM v3;
 
 DROP TABLE v1, v2, v3;
 
-DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t30, t32, t33;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t13, t30, t32, t33;
 
 CREATE TABLE t1 (
   a INT NOT NULL,

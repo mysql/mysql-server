@@ -612,6 +612,19 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
         }
       }
     }
+
+    // Check if AUTO_INCREMENT is used with DOUBLE/FLOAT
+    for (const auto &col : *table->columns()) {
+      if (col->is_auto_increment() &&
+          (col->type() == enum_column_types::DOUBLE ||
+           col->type() == enum_column_types::FLOAT)) {
+        (*error_count)++;
+        LogErr(ERROR_LEVEL, ER_AUTO_INCREMENT_NOT_SUPPORTED_FOR_FLOAT_DOUBLE,
+               schema->name().c_str(), table->name().c_str(),
+               col->name().c_str());
+      }
+    }
+
     return error_count->has_too_many_errors();
   };
 

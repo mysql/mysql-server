@@ -1008,8 +1008,8 @@ select 1 as "some new text";
 some new text
 1
 set names latin1;
-select 0 as "will lower case å";
-will lower case å
+select 0 as "will lower case ï¿½";
+will lower case ï¿½
 0
 set names utf8mb4;
 CREATE TABLE t1(
@@ -1761,205 +1761,146 @@ res
 #          disable or enable a specific list of warnings
 #
 SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (
-c1 DOUBLE NOT NULL AUTO_INCREMENT,
-c2 INT,
-c3 DECIMAL(2) UNSIGNED,
-c4 DECIMAL,
-PRIMARY KEY (c1)
+c1 INT NOT NULL PRIMARY KEY, 
+c2 VARCHAR(2), 
+c3 SMALLINT, 
+c4 SMALLINT
 );
-Warnings:
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 1, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 3, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 4, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 5, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 6, -500, "aaa");
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 7, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 8, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 9, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 10, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 11, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 12, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 13, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 14, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 15, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 16, -500, "aaa");
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 17, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 18, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 19, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 20, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 21, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 22, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
+"Disabled warnings: "
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 23, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 24, -500, "aaa");
-DELETE FROM t1;
-ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
-ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+"Enabled warnings: "
 
-ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 25, -500, "aaa");
+"Case-1 : No [enable/disable]_commands used"
+INSERT INTO t1 VALUES (1, 'aaaaa', 32768, 1/0);
 Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1365	Division by 0
 DELETE FROM t1;
+"Case-2 : disable all warnings"
+INSERT INTO t1 VALUES (2, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+"Case-3 : enable all warnings"
+INSERT INTO t1 VALUES (3, 'aaaaa', 32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Enabled warnings (should be empty when all warnings are enabled): "
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 26, -500, "aaa");
+"Case-4 : specify a warning to disable"
+"Disabled warnings: "
+WARN_DATA_TRUNCATED,ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (4, 'aaaaa',32768, 1/0);
 Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1365	Division by 0
 DELETE FROM t1;
+"Case-5 : Append the diabled warning list"
+"Disabled warnings: "
+WARN_DATA_TRUNCATED,ER_WARN_DATA_OUT_OF_RANGE,ER_DIVISION_BY_ZERO
+INSERT INTO t1 VALUES (5, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+"Case-6: specify a warning to enable"
+"Enabled warnings: "
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 27, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 28, -500, "aaa");
+INSERT INTO t1 VALUES (6, 'aaaaa',32768, 1/0);
 Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 DELETE FROM t1;
-ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 29, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+"Case-7 : Append the enabled warning list"
+"Enabled warnings: "
 
-ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 30, -500, "aaa");
+INSERT INTO t1 VALUES (7, 'aaaaa',32768, 1/0);
 Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
+"Case-8 : Enable all warnings"
+"Enabled warnings: "
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 31, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 32, -500, "aaa");
+INSERT INTO t1 VALUES (8, 'aaaaa',32768, 1/0);
 Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 33, -500, "aaa");
-Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1365	Division by 0
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 34, -500, "aaa");
+"Case-9 : Disable some warnings once"
+"Disabled warnings: "
+WARN_DATA_TRUNCATED,ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (9, 'aaaaa',32768, 1/0);
 Warnings:
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Disabled warnings: "
+
+INSERT INTO t1 VALUES (10, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Disabled warnings: "
+ER_DIVISION_BY_ZERO
+INSERT INTO t1 VALUES (11, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+"Disabled warnings: "
+
+INSERT INTO t1 VALUES (12, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Case-10 : Enable some warnings once"
+"Enabled warnings: "
+WARN_DATA_TRUNCATED,ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (13, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+"Enabled warnings: "
+
+INSERT INTO t1 VALUES (14, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+"Enabled warnings: "
+ER_DIVISION_BY_ZERO
+INSERT INTO t1 VALUES (15, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Enabled warnings: "
+
+INSERT INTO t1 VALUES (16, 'aaaaa',32768, 1/0);
+DELETE FROM t1;
+"Case-11: Disabling some warning twice"
+INSERT INTO t1 VALUES (17, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1365	Division by 0
+DELETE FROM t1;
+INSERT INTO t1 VALUES (18, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Case-12: Enabling some warning twice" 
+INSERT INTO t1 VALUES (19, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (20, 'aaaaa',32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
@@ -2023,59 +1964,56 @@ mysqltest: At line 1: Invalid argument 'ER_YES,ER_NO,' to 'enable_warnings' comm
 #               --DISABLE_WARNINGS
 #
 SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (
-c1 DOUBLE NOT NULL AUTO_INCREMENT,
-c2 INT,
-c3 DECIMAL(2) UNSIGNED,
-c4 DECIMAL,
-PRIMARY KEY (c1)
+c1 INT NOT NULL PRIMARY KEY, 
+c2 VARCHAR(2), 
+c3 SMALLINT, 
+c4 SMALLINT
 );
+"Only ER_WARN_DATA_OUT_OF_RANGE should be disabled once"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 Warnings:
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 35, -500, "aaa");
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1365	Division by 0
+DELETE FROM t1;
+"All warnings shall be there"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
+Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1365	Division by 0
+DELETE FROM t1;
+"WARN_DATA_TRUNCATED, ER_WARN_DATA_OUT_OF_RANGE should be disabled for the first INSERT statement." 
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
+Warnings:
+Warning	1365	Division by 0
+DELETE FROM t1;
+"Only WARN_DATA_TRUNCATED should be enabled."
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1365	Division by 0
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 36, -500, "aaa");
+"Only ER_WARN_DATA_OUT_OF_RANGE should be enabled." 
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 37, -500, "aaa");
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
+DELETE FROM t1;
+"WARN_DATA_TRUNCATED, ER_WARN_DATA_OUT_OF_RANGE should be enabled for the first INSERT statement"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 38, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 39, -500, "aaa");
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 40, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 41, -500, "aaa");
-Warnings:
+Warning	1265	Data truncated for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 42, -500, "aaa");
+"Only WARN_DATA_TRUNCATED should be enabled"
+INSERT INTO t1 VALUES (1, 'aaaa', 32768, 1/0);
 Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 DELETE FROM t1;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1;

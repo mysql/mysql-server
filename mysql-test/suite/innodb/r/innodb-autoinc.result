@@ -573,58 +573,6 @@ c1
 1
 18446744073709551610
 DROP TABLE t1;
-SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
-SET @@INSERT_ID=1;
-SHOW VARIABLES LIKE "%auto_inc%";
-Variable_name	Value
-auto_increment_increment	1
-auto_increment_offset	1
-CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1)) ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES(NULL, 1);
-INSERT INTO t1 VALUES(NULL, 2);
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-ALTER TABLE t1 CHANGE c1 c1 SERIAL;
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-INSERT INTO t1 VALUES(NULL, 3);
-INSERT INTO t1 VALUES(NULL, 4);
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-3	3
-4	4
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (c1 FLOAT NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1)) ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES(NULL, 1);
-INSERT INTO t1 VALUES(NULL, 2);
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-ALTER TABLE t1 CHANGE c1 c1 SERIAL;
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-INSERT INTO t1 VALUES(NULL, 3);
-INSERT INTO t1 VALUES(NULL, 4);
-SELECT * FROM t1;
-c1	c2
-1	1
-2	2
-3	3
-4	4
-DROP TABLE t1;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=5;
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -1110,37 +1058,6 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'C1'.
-INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
-# restart
-INSERT INTO t1(C2) VALUES ('innodb');
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `C1` double NOT NULL AUTO_INCREMENT,
-  `C2` char(10) DEFAULT NULL,
-  PRIMARY KEY (`C1`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1;
-CREATE TABLE t1(C1 FLOAT AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'C1'.
-INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
-# restart
-INSERT INTO t1(C2) VALUES ('innodb');
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `C1` float NOT NULL AUTO_INCREMENT,
-  `C2` char(10) DEFAULT NULL,
-  PRIMARY KEY (`C1`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1;
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 SET c1 = 1;
 SHOW CREATE TABLE t1;
@@ -1370,19 +1287,6 @@ c1	c2
 1	NULL
 2	NULL
 3	0
-DROP TABLE t1;
-CREATE TABLE t1 (c1 DOUBLE NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
-AUTO_INCREMENT=10000000000000000000;
-Warnings:
-Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` double NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB AUTO_INCREMENT=10000000000000000000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-INSERT INTO t1 VALUES ();
-ERROR HY000: Failed to read auto-increment value from storage engine
 DROP TABLE t1;
 #
 # Bug #14049391	 INNODB MISCALCULATES AUTO-INCREMENT
