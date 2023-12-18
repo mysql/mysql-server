@@ -399,7 +399,7 @@ class Network_provider {
    * @param security_credentials security credentials to connect to the remote
    *                             endpoint
    * @param connection_timeout connection timeout
-   * @param log_level @see network_provider_dynamic_log_level for more
+   * @param log_level log level @see network_provider_dynamic_log_level for more
    *                        information
    * @return std::unique_ptr<Network_connection> an established connection.
    *                                                 nullptr in case of failure.
