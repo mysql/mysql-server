@@ -3625,6 +3625,11 @@ sub setup_vardir() {
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if ($opt_tmpdir ne "$opt_vardir/tmp");
 
+  if (defined $opt_debugger and $opt_debugger =~ /rr/) {
+    $ENV{'_RR_TRACE_DIR'} = $opt_vardir . "/rr_trace";
+    mtr_report("RR recording for server is enabled. For replay, execute: \"rr replay $opt_vardir\/rr_trace/mysqld-N\"");
+  }
+
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX. Don't allow that
   # to happen.
@@ -7596,6 +7601,10 @@ sub debugger_arguments {
     # Set exe to debuggername
     $$exe = $debugger;
 
+  } elsif ($debugger =~ /rr/) {
+    unshift(@$$args, "$$exe");
+    unshift(@$$args, "record");
+    $$exe = $debugger;
   } else {
     mtr_error("Unknown argument \"$debugger\" passed to --debugger");
   }
