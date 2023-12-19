@@ -418,8 +418,8 @@ static bool populate_db(atrt_config &config, atrt_process *mysqld) {
 }
 
 static bool setup_repl(atrt_process *dst, atrt_process *src) {
-  if (!run_query(src, "STOP SLAVE")) {
-    g_logger.error("Failed to stop slave: %s", mysql_error(&src->m_mysql));
+  if (!run_query(src, "STOP REPLICA")) {
+    g_logger.error("Failed to stop replica: %s", mysql_error(&src->m_mysql));
     return false;
   }
 

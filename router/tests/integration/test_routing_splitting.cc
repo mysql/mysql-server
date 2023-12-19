@@ -1287,7 +1287,6 @@ TEST_P(SplittingConnectionTest, prepare_instance_local_statements_fails) {
            "START REPLICA",
            "STOP GROUP_REPLICATION",
            "STOP REPLICA",
-           "STOP SLAVE",
            "UNLOCK TABLES",
        }) {
     SCOPED_TRACE(stmt);

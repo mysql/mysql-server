@@ -221,7 +221,6 @@ const SharingAllowedParam replication_replica[] = {
     {"start replica", Allowed::Never},                 // instance
     {"start group_replication", Allowed::Never},       // instance
     {"stop replica", Allowed::Never},                  // instance
-    {"stop slave", Allowed::Never},                    // instance
     {"stop group_replication", Allowed::Never},        // instance
 };
 

@@ -623,7 +623,6 @@ TEST_F(RoutingSplittingTest, instance_local_stmt_is_forbidden) {
            "START REPLICA",
            "STOP GROUP_REPLICATION",
            "STOP REPLICA",
-           "STOP SLAVE",
            "UNLOCK TABLES",
        }) {
     SCOPED_TRACE(stmt);
