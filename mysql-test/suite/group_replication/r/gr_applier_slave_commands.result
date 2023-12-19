@@ -21,8 +21,8 @@ ERROR HY000: This operation cannot be performed while Group Replication is runni
 START REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 ERROR HY000: START REPLICA IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing STOP SLAVE IO_THREAD FOR CHANNEL
-STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+# error when executing STOP REPLICA IO_THREAD FOR CHANNEL
+STOP REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
 # error when executing START REPLICA IO_THREAD FOR CHANNEL with UNTIL option
@@ -33,8 +33,8 @@ ERROR HY000: START REPLICA IO_THREAD FOR CHANNEL cannot be performed on channel 
 START REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: START REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing STOP SLAVE FOR CHANNEL
-STOP SLAVE FOR CHANNEL 'group_replication_applier';
+# error when executing STOP REPLICA FOR CHANNEL
+STOP REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
 # error when executing SHOW SLAVE STATUS FOR CHANNEL
@@ -45,7 +45,7 @@ ERROR HY000: SHOW REPLICA STATUS cannot be performed on channel 'group_replicati
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 ERROR HY000: START REPLICA FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
 
-# STOP SLAVE SQL_THREAD command will not work for group_replication_applier
+# STOP REPLICA SQL_THREAD command will not work for group_replication_applier
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 ERROR HY000: STOP REPLICA FOR CHANNEL while Group Replication is running cannot be performed on channel 'group_replication_applier'.
 # START REPLICA SQL_THREAD with UNTIL option will not work for group_replication_applier
@@ -82,16 +82,16 @@ SET SESSION sql_log_bin= 1;
 START REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 ERROR HY000: START REPLICA IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing STOP SLAVE IO_THREAD FOR CHANNEL
-STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+# error when executing STOP REPLICA IO_THREAD FOR CHANNEL
+STOP REPLICA IO_THREAD FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
 # error when executing START REPLICA FOR CHANNEL
 START REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: START REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
-# error when executing STOP SLAVE FOR CHANNEL
-STOP SLAVE FOR CHANNEL 'group_replication_applier';
+# error when executing STOP REPLICA FOR CHANNEL
+STOP REPLICA FOR CHANNEL 'group_replication_applier';
 ERROR HY000: STOP REPLICA FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
 # error when executing SHOW SLAVE STATUS FOR CHANNEL
@@ -102,7 +102,7 @@ ERROR HY000: SHOW REPLICA STATUS cannot be performed on channel 'group_replicati
 include/gr_start_applier_sql_thread.inc
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
-# STOP SLAVE SQL_THREAD command will work for group_replication_applier
+# STOP REPLICA SQL_THREAD command will work for group_replication_applier
 include/gr_stop_applier_sql_thread.inc
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 

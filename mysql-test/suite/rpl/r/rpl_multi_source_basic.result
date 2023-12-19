@@ -81,7 +81,7 @@ test
 include/assert.inc [Slave should have 10 rows in db1.t1]
 include/assert.inc [Slave should have 10 rows in db3.t1]
 #
-# Stop slave (on server_2) for test case 2.
+# Stop replica (on server_2) for test case 2.
 #
 include/rpl_stop_slaves.inc
 #
@@ -160,7 +160,7 @@ CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
 [connection server_1]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 #
-# Stop slave (on server_2) for test case 3.
+# Stop replica (on server_2) for test case 3.
 #
 include/rpl_stop_slaves.inc
 [connection server_1]

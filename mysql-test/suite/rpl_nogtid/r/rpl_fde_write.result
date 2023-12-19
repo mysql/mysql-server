@@ -11,9 +11,7 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 CALL mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log:");
 START REPLICA;
 FLUSH LOGS;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

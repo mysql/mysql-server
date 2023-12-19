@@ -186,9 +186,7 @@ include/sync_slave_sql_with_master.inc
 USE replicate_do_db;
 SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout= 1;
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc

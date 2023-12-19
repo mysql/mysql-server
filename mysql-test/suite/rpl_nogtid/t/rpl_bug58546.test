@@ -8,13 +8,13 @@ source include/have_myisam.inc;
 --echo
 --echo # Bug#58546 test rpl_packet timeout failure sporadically on PB
 --echo # ----------------------------------------------------------------------
---echo # STOP SLAVE stopped IO thread first and then stopped SQL thread. It was
+--echo # STOP REPLICA stopped IO thread first and then stopped SQL thread. It was
 --echo # possible that IO thread stopped after replicating part of a transaction
 --echo # which SQL thread was executing. SQL thread would be hung if the
 --echo # transaction could not be rolled back safely.
 --echo # It caused some sporadic failures on PB2.
 --echo #
---echo # This test verifies that when 'STOP SLAVE' is issued by a user, IO
+--echo # This test verifies that when 'STOP REPLICA' is issued by a user, IO
 --echo # thread will continue to fetch the rest events of the transaction which
 --echo # is being executed by SQL thread and is not able to be rolled back safely.
 
@@ -55,7 +55,7 @@ let $field= Info;
 let $condition= = 'UPDATE t1 SET c2 = 3 WHERE c1 = 1';
 source include/wait_show_condition.inc;
 
-send STOP SLAVE;
+send STOP REPLICA;
 
 --source include/rpl_connection_slave.inc
 ROLLBACK;

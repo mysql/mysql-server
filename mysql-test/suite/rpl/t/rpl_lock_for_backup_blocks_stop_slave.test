@@ -1,23 +1,23 @@
 # ==== Purpose ====
 #
 # This script aims at testing that `LOCK INSTANCE FOR BACKUP` prevents stopping
-# the slave SQL thread - either by means of `STOP SLAVE` or `STOP SLAVE
+# the slave SQL thread - either by means of `STOP REPLICA` or `STOP REPLICA
 # SQL_THREAD`.
 #
 # ==== Implementation ====
 #
-# TC1. Lock instance for backup and execute `STOP SLAVE`
+# TC1. Lock instance for backup and execute `STOP REPLICA`
 # ------------------------------------------------------
 # 1) Execute `LOCK INSTANCE FOR BACKUP`.
-# 2) Execute `STOP SLAVE` and expect a
+# 2) Execute `STOP REPLICA` and expect a
 #    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
 # 3) Check that the slave hasn't stop.
 # 4) Unlock the instance.
 #
-# TC2. Lock instance for backup and execute `STOP SLAVE SQL_THREAD`
+# TC2. Lock instance for backup and execute `STOP REPLICA SQL_THREAD`
 # -----------------------------------------------------------------
 # 1) Execute `LOCK INSTANCE FOR BACKUP`.
-# 2) Execute `STOP SLAVE SQL_THREAD` and expect a
+# 2) Execute `STOP REPLICA SQL_THREAD` and expect a
 #    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
 # 3) Check that the slave hasn't stop.
 # 4) Unlock the instance.
@@ -47,7 +47,7 @@
   # 1) Execute `LOCK INSTANCE FOR BACKUP`.
   LOCK INSTANCE FOR BACKUP;
 
-  # 2) Execute `STOP SLAVE` and expect a
+  # 2) Execute `STOP REPLICA` and expect a
   #    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
   --error ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP
   --eval $statement
@@ -64,15 +64,15 @@
 PROCEDURE
 
 --echo #
---echo # TC1. Lock instance for backup and execute `STOP SLAVE`
+--echo # TC1. Lock instance for backup and execute `STOP REPLICA`
 --echo #
---let $statement = STOP SLAVE
+--let $statement = STOP REPLICA
 --source $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc
 
 --echo #
---echo # TC2. Lock instance for backup and execute `STOP SLAVE SQL_THREAD`
+--echo # TC2. Lock instance for backup and execute `STOP REPLICA SQL_THREAD`
 --echo #
---let $statement = STOP SLAVE SQL_THREAD
+--let $statement = STOP REPLICA SQL_THREAD
 --source $MYSQLTEST_VARDIR/tmp/lock_instance_and_execute.inc
 
 # Clean up

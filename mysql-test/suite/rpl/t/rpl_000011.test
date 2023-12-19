@@ -4,7 +4,7 @@ source include/master-slave.inc;
 create table t1 (n int);
 insert into t1 values(1);
 --source include/sync_slave_sql_with_master.inc
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 START REPLICA;
 --source include/wait_for_slave_to_start.inc

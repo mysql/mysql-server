@@ -130,7 +130,7 @@ CREATE DATABASE db11;
 SHOW DATABASES;
 
 --echo #
---echo # Stop slave.
+--echo # Stop replica.
 --echo #
 --source include/stop_slave.inc
 

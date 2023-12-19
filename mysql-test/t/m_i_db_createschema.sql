@@ -225,7 +225,7 @@ INSERT INTO global_suppressions VALUES
  ("Sending passwords in plain text without SSL/TLS is extremely insecure."),
 
  /*
-  In MTS if the user issues a stop slave sql while it is scheduling a group
+  In MTS if the user issues a STOP REPLICA sql while it is scheduling a group
   of events, this warning is emitted.
   */
  ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),

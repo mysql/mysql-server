@@ -23,13 +23,11 @@ include/wait_for_slave_param.inc [Slave_IO_State]
 include/assert.inc [I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads]
 include/assert.inc [I/O thread STATE should be Waiting for disk space at information_schema.processlist]
 [connection slave1]
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 [connection slave]
 SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 KILL IO_THREAD;
 [connection slave1]
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection slave]
 include/wait_for_slave_io_error.inc [errno=13122]
 # Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug

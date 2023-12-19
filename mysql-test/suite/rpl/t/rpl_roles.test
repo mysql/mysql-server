@@ -50,7 +50,7 @@ SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
 # Start replication by using roles to grant priviliges to user
-# STOP SLAVE
+# STOP REPLICA
 --source include/stop_slave.inc
 set sql_log_bin=0;
 call mtr.add_suppression(".*Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed.*");

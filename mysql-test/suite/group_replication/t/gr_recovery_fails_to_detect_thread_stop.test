@@ -120,7 +120,7 @@ SET SESSION sql_log_bin= 1;
 FLUSH BINARY LOGS;
 --let $server_binlog_file_cur= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
-# Need to kill the dump thread explicitly: stop slave does not do
+# Need to kill the dump thread explicitly: stop replica does not do
 # that, and if the dump thread is slow, it will still be reading from
 # the old binlog at the time we do PURGE BINARY LOGS below. That would
 # prevent PURGE BINARY LOGS from purging the log.

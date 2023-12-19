@@ -5,7 +5,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# Stop slave and install plugin.
+# Stop replica and install plugin.
 #
 include/stop_slave.inc
 include/install_replication_observers_example.inc
@@ -27,7 +27,7 @@ INSERT t1 VALUES(1);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 #
-# Stop slave and uninstall plugin.
+# Stop replica and uninstall plugin.
 #
 include/stop_slave.inc
 include/uninstall_replication_observers_example.inc

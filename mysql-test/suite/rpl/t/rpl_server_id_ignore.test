@@ -30,7 +30,7 @@ connection slave;
 let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
 echo master_id: $master_id;
 
-stop slave;
+STOP REPLICA;
 --echo *** --replicate-same-server-id and change master option can clash ***
 --replace_column 2 ####
 --error ER_REPLICA_IGNORE_SERVER_IDS
@@ -86,7 +86,7 @@ if (`select $slave_relay_pos1 - $slave_relay_pos0`)
     query_vertical show slave status;
 }
 
-stop slave;
+STOP REPLICA;
 source include/wait_for_slave_to_stop.inc;
 reset slave;
 --replace_column 2 ####

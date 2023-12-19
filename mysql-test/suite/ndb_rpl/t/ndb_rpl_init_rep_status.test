@@ -6,7 +6,7 @@
 
 --connection slave
 reset binary logs and gtids;
-stop slave;
+STOP REPLICA;
 
 --connection master
 --echo Generate something in the Masters Binlog
@@ -33,7 +33,7 @@ select server_id from mysql.ndb_apply_status order by server_id;
 
 --echo Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
-stop slave;
+STOP REPLICA;
 reset slave;
 insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
 START REPLICA;
@@ -46,7 +46,7 @@ select server_id from mysql.ndb_apply_status order by server_id;
 drop table test.t1;
 
 --echo Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 reset slave;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
@@ -69,7 +69,7 @@ select server_id from mysql.ndb_apply_status order by server_id;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 
 # Clean up
-stop slave;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 START REPLICA;
 --connection master

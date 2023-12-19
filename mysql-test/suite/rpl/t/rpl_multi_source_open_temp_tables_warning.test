@@ -82,7 +82,7 @@ RESET SLAVE FOR CHANNEL 'channel_1';
 --let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after resetting channel
 --source include/assert.inc
 
-# STOP SLAVE generates a warning because there are open temp tables in the channel.
+# STOP REPLICA generates a warning because there are open temp tables in the channel.
 --echo Stopping slave on channel_3 only
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
@@ -107,7 +107,7 @@ DROP TEMPORARY TABLE t3;
 --let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after dropping last temp table
 --source include/assert.inc
 
-# STOP SLAVE will not generate a warning because there are no open temp tables in the channel.
+# STOP REPLICA will not generate a warning because there are no open temp tables in the channel.
 --echo Stopping slave on channel_3 only
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc

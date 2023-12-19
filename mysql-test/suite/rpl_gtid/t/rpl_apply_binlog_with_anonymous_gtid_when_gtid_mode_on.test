@@ -11,7 +11,7 @@
 # when applying the anonymous_gtid log event if gtid_mode is ON.
 #
 # Steps to Reproduce:
-#  1) Stop slave threads and clear slave datadir.
+#  1) Stop replica threads and clear slave datadir.
 #  2) Copy the binlog with Anonymous_GTID log events and
 #     relay log index to slave datadir.
 #  3) Process the binlog with Anonymous_GTID log events
@@ -25,7 +25,7 @@
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
 --echo #
---echo # Stop slave threads and clear slave datadir.
+--echo # Stop replica threads and clear slave datadir.
 --echo #
 --source include/stop_slave.inc
 RESET SLAVE;

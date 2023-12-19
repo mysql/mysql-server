@@ -38,7 +38,7 @@ UNINSTALL PLUGIN clone;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
-STOP SLAVE;
+STOP REPLICA;
 
 RESET SLAVE ALL;
 

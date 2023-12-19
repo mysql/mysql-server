@@ -11,7 +11,7 @@ CREATE TABLE t1( a int unique);
 # sync data to the slave
 [connection server_1]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
-# stop slave
+# stop replica
 include/rpl_stop_slaves.inc
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;

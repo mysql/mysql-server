@@ -4,13 +4,13 @@
 # Problem:
 # ========
 # TOP SLAVE waits workers to catch up the queue, which may
-# take a lot of time for the command to finish. STOP SLAVE
+# take a lot of time for the command to finish. STOP REPLICA
 # must be executed quickly, even if workers are slow.
 ###############################################################################
-# Following test demonstrates that STOP SLAVE command will not leave any gaps.
+# Following test demonstrates that STOP REPLICA command will not leave any gaps.
 # It first creates two databases (d1 and d2) and setup slave to use two parallel
 # workers. The test case then insert on the slave a tuple that will block
-# writes on d2 and generate gaps. Finally, the test case executes "STOP SLAVE"
+# writes on d2 and generate gaps. Finally, the test case executes "STOP REPLICA"
 # and verify that the SQL thread was properly stopped and left no gaps.
 
 --source include/have_binlog_format_statement.inc
@@ -49,9 +49,9 @@ INSERT INTO d2.t VALUES (2, 'T3'); # This will be a gap when executed on slave
 INSERT INTO d2.t VALUES (3, 'T4'); # This will be a gap when executed on slave
 INSERT INTO d1.t VALUES (2, 'T5');
 INSERT INTO d1.t VALUES (3, 'T6');
-INSERT INTO d2.t VALUES (4, 'T7'); # This should not be executed after STOP SLAVE
-INSERT INTO d2.t VALUES (5, 'T8'); # This should not be executed after STOP SLAVE
-INSERT INTO d1.t VALUES (4, 'T9'); # This should not be executed after STOP SLAVE
+INSERT INTO d2.t VALUES (4, 'T7'); # This should not be executed after STOP REPLICA
+INSERT INTO d2.t VALUES (5, 'T8'); # This should not be executed after STOP REPLICA
+INSERT INTO d1.t VALUES (4, 'T9'); # This should not be executed after STOP REPLICA
 
 --source include/rpl_connection_slave1.inc
 --let $table=d2.t
@@ -76,9 +76,9 @@ INSERT INTO d1.t VALUES (4, 'T9'); # This should not be executed after STOP SLAV
 SELECT * FROM d2.t;
 SELECT * FROM d1.t;
 
---echo #### Verify that STOP SLAVE stops at gap less state ####
+--echo #### Verify that STOP REPLICA stops at gap less state ####
 
---send STOP SLAVE
+--send STOP REPLICA
 
 --source include/rpl_connection_slave.inc
 # Despite time elapsed, the slave should still be running, waiting for the

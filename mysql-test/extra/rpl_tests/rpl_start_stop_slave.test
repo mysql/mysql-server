@@ -14,7 +14,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 connection master;
 create table t1(n int);
 sync_slave_with_master;
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 connection master;
 let $1=2500;
@@ -31,7 +31,7 @@ connection slave;
 START REPLICA;
 let $wait_condition= SELECT COUNT(*) > 0 FROM t1;
 source include/wait_condition_or_abort.inc;
-stop slave io_thread;
+STOP REPLICA io_thread;
 START REPLICA io_thread;
 source include/wait_for_slave_to_start.inc;
 sync_with_master;
@@ -45,7 +45,7 @@ sync_slave_with_master;
 # Bug#38205 Row-based Replication (RBR) causes inconsistencies...
 # Bug#319   if while a non-transactional slave is replicating a transaction...
 #
-# Verifying that STOP SLAVE does not interrupt excution of a group
+# Verifying that STOP REPLICA does not interrupt excution of a group
 # execution of events if the group can not roll back.
 # Killing the sql thread continues to provide a "hard" stop (the
 # part II, moved to the bugs suite as it's hard to make it
@@ -89,7 +89,7 @@ connection slave1;
 let $count= 1;
 let $table= t2m;
 source include/wait_until_rows_count.inc;
-send stop slave;
+send STOP REPLICA;
 
 connection slave;
 rollback; # release the sql thread
@@ -155,13 +155,13 @@ let $wait_condition=
 --source include/wait_condition_or_abort.inc
 
 --echo # Slave: send slave stop
---send STOP SLAVE
+--send STOP REPLICA
 
 --connection slave1
---echo # Slave1: wait for stop slave
+--echo # Slave1: wait for stop replica
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-  WHERE INFO = "STOP SLAVE";
+  WHERE INFO = "STOP REPLICA";
 --source include/wait_condition_or_abort.inc
 
 --echo # Slave1: unlock the table

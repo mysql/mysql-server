@@ -14,9 +14,7 @@ START REPLICA SQL_THREAD;
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 include/assert.inc [Slave was able to apply the provided relay log.]
 DROP TABLE t;
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 include/cleanup_fake_relay_log.inc
 include/start_slave.inc
 include/rpl_end.inc

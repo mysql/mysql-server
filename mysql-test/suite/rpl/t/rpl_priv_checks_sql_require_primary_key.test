@@ -80,7 +80,7 @@ START REPLICA;
 #
 # 1) Grant `SESSION_VARIABLES_ADMIN` to the applier security context.
 #
-STOP SLAVE;
+STOP REPLICA;
 --eval GRANT SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
 START REPLICA;
 

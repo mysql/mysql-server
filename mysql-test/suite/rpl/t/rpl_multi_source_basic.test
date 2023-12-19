@@ -90,7 +90,7 @@ SHOW DATABASES;
 --source include/assert.inc
 
 --echo #
---echo # Stop slave (on server_2) for test case 2.
+--echo # Stop replica (on server_2) for test case 2.
 --echo #
 --source include/rpl_stop_slaves.inc
 
@@ -215,7 +215,7 @@ CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
 --let $rpl_channel_name=
 
 --echo #
---echo # Stop slave (on server_2) for test case 3.
+--echo # Stop replica (on server_2) for test case 3.
 --echo #
 --source include/rpl_stop_slaves.inc
 

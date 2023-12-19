@@ -20,7 +20,7 @@ SELECT * FROM t1  ORDER BY word LIMIT 10;
 save_master_pos;
 connection slave;
 sync_with_master;
-STOP SLAVE;
+STOP REPLICA;
 connection master;
 SET PASSWORD FOR root@"localhost" = 'foo';
 connection slave;

@@ -173,7 +173,7 @@ select * from test.t1 order by a;
 --echo -------------------------------
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo -- Insert a row on the Primary Master
@@ -211,7 +211,7 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop replication to secondary master
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Update row on Primary Master
@@ -259,7 +259,7 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop Secondary slave
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Update on Primary Master
@@ -300,7 +300,7 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop Secondary slave
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Delete on Primary Master
@@ -340,7 +340,7 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop Secondary slave
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Delete on Primary Master
@@ -402,10 +402,10 @@ insert into test.t1 values (3, "Espy");
 select * from test.t1 order by a;
 
 --echo -- Stop replication in both directions
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 
 --echo -- Delete row from both clusters
 delete from test.t1 where a=3;
@@ -458,7 +458,7 @@ delete from test.t1 where a=3;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop replication on Secondary Master
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Insert row on Primary Master
@@ -500,7 +500,7 @@ select * from test.t1;
 --echo ------------------------------------------------
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo -- Stop replication on Secondary Master
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Update row on Primary Master

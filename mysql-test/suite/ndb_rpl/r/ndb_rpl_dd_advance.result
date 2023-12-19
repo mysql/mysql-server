@@ -170,9 +170,7 @@ SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 DROP TABLE t1;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -239,9 +237,7 @@ USE tpcb;
 SELECT COUNT(*) FROM account;
 COUNT(*)
 1000
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

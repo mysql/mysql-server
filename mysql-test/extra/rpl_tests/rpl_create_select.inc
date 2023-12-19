@@ -60,7 +60,7 @@ INSERT INTO t0 VALUES (4);
 
 --echo # Stop the slave, so that we enable debug flag and apply binlog events
 --echo # after master generates binlog events for CREATE TABLE ... SELECT.
-STOP SLAVE;
+STOP REPLICA;
 
 --source include/rpl_connection_master.inc
 --source include/save_master_pos.inc

@@ -21,7 +21,7 @@ CALL mtr.add_suppression('MYSQL_BIN_LOG::purge_logs was called with file ..maste
 #
 
 connection slave;
-stop slave;
+STOP REPLICA;
 
 --let $debug_point= simulate_find_log_pos_error
 --source include/add_debug_point.inc

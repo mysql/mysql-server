@@ -11,9 +11,7 @@ call mtr.add_suppression('Replica: Error dropping database');
 include/stop_slave.inc
 START REPLICA;
 include/sync_slave_sql_with_master.inc
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 insert into test0.benchmark set state='slave is processing load';
 START REPLICA sql_thread;
 use test;

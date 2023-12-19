@@ -50,14 +50,14 @@ Last_Error_Message
 Worker 1 failed executing transaction 'ANONYMOUS' at source log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
-# Verify that the error fields are preserved after STOP SLAVE.
+# Verify that the error fields are preserved after STOP REPLICA.
 
 
 # 1. Verify that thread_id changes to NULL and service_state to "off" on
-#    STOP SLAVE.
+#    STOP REPLICA.
 
-include/assert.inc [After STOP SLAVE, thread_id should be NULL]
-include/assert.inc [So, Service_State after STOP SLAVE should be "OFF".]
+include/assert.inc [After STOP REPLICA, thread_id should be NULL]
+include/assert.inc [So, Service_State after STOP REPLICA should be "OFF".]
 
 # 2. Extract the worker_id and the error related fields from SSS and PS
 #    table and compare them. These fields should preserve their values.
@@ -67,9 +67,7 @@ include/assert.inc [Value returned by SSS and PS table for Last_Error_Number sho
 Last_Error_Message
 Worker 1 failed executing transaction 'ANONYMOUS' at source log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -80,9 +78,8 @@ reset binary logs and gtids;
 # field.
 
 include/rpl_set_gtid_mode.inc [ON on servers 1,2]
-stop slave;
+STOP REPLICA;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_MYPORT, SOURCE_USER='root';
 Warnings:

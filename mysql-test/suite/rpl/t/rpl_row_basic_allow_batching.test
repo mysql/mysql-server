@@ -16,7 +16,7 @@ let $extra_index= ;
 -- source extra/rpl_tests/rpl_row_basic.test
 
 --connection slave
-stop slave;
+STOP REPLICA;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

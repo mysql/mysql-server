@@ -4,11 +4,11 @@
 # IN ERROR LOG FILE.
 
 # Problem:
-# STOP SLAVE IO_THREAD closes socket communication between Master and Slave.
+# STOP REPLICA IO_THREAD closes socket communication between Master and Slave.
 # This prints an ERROR message in the error log
 #    [ERROR] Error reading packet from server: Lost connection to MySQL server
 #      during query (server_errno=2013).
-# Here the socket closed intentionally by the DBA using command 'STOP SLAVE IO_THREAD'.
+# Here the socket closed intentionally by the DBA using command 'STOP REPLICA IO_THREAD'.
 # Hence no need to print the message [ERROR] that says "Lost connection" which will
 # confusion the users/DBAs.
 

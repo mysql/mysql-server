@@ -41,7 +41,7 @@
 #      On Master,
 #       i) write to file the desired content.
 #      ii) create table and stored procedure with load_file
-#     iii) stop slave
+#     iii) stop replica
 #     iii) execute load_file 
 #      iv) remove file
 #
@@ -80,7 +80,7 @@ CREATE PROCEDURE p(file varchar(4096))
   END|
 DELIMITER ;|
 
-# stop slave before issuing the load_file on master
+# stop replica before issuing the load_file on master
 connection slave;
 source include/stop_slave.inc;
 

@@ -4,9 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 **** On Slave ****
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 **** On Master ****
 SET SESSION BINLOG_FORMAT='ROW';
@@ -63,9 +61,7 @@ c	d
 1	1
 2	8
 3	27
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 Warnings:

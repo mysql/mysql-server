@@ -445,7 +445,7 @@ connect(con_rep_slave_test,localhost,u1,pwd,,,,);
 --error 1227
 START REPLICA;
 --error 1227
-STOP SLAVE;
+STOP REPLICA;
 DISCONNECT con_rep_slave_test;
 CONNECTION default;
 GRANT REPLICATION_SLAVE_ADMIN ON *.* to u1@localhost;

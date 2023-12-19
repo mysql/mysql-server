@@ -35,7 +35,7 @@ SELECT MAX(epoch) FROM mysql.ndb_apply_status into @the_epoch;
 SELECT @the_epoch;
 let $the_epoch= `select @the_epoch` ;
 SELECT * FROM t1 ORDER BY c3;
-stop slave;
+STOP REPLICA;
 
 # get the master binlog pos from the epoch, from the _other_ "master", server2
 connection server2;

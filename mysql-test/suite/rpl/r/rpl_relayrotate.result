@@ -5,17 +5,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 call mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 include/sync_slave_sql_with_master.inc
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 create table t1 (a int) engine=innodb;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START REPLICA;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 START REPLICA;
 select max(a) from t1;
 max(a)

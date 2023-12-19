@@ -14,9 +14,7 @@ FLUSH PRIVILEGES;
 # 1.1. Set REQUIRE_ROW_FORMAT to 1
 #      Check the performance_schema table and applier metadata repository
 #      are correct
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT enabled for default channel "" in performance_schema.replication_applier_configuration]

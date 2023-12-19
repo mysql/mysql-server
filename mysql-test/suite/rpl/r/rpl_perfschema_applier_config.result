@@ -13,7 +13,7 @@ include/assert.inc [On master, the table should return an empty set.]
 
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 
-# Verify that the value of this field is correct after STOP SLAVE.
+# Verify that the value of this field is correct after STOP REPLICA.
 
 include/stop_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
@@ -24,7 +24,7 @@ CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 
-# Verify that the value is preserved after STOP SLAVE.
+# Verify that the value is preserved after STOP REPLICA.
 
 include/stop_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]

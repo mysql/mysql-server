@@ -27,7 +27,7 @@ CREATE TABLE d3.t1 (a int unique) ENGINE=INNODB;
 CREATE TABLE d4.t1 (a int unique) ENGINE=INNODB;
 
 --source include/sync_slave_sql_with_master.inc
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 SET GLOBAL DEBUG='d,flush_after_reading_user_var_event';
 # Generate three blocked workers on slave for 3 GAPS.
 BEGIN;

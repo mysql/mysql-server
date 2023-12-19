@@ -79,7 +79,7 @@ INSERT INTO t1 VALUES (1);
 # If slave threads run while changing GTID_MODE, GTID_MODE causes
 # binlog rotations which cause slave to rotate relay logs, which may
 # cause slave to purge the relay log that we are going to process. So
-# we stop slave threads while changing GTID_MODE and running
+# we stop replica threads while changing GTID_MODE and running
 # mysqlbinlog.
 --source include/stop_slave.inc
 

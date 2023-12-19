@@ -21,7 +21,7 @@ include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value fo
 include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid]
 
 # Case 2: 
-# After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
+# After executing 'STOP REPLICA [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
 # is still kept into Slave status.
 -----------------------------------------------------------------------------
 include/stop_slave_io.inc
@@ -77,9 +77,7 @@ include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Only change MASTER_HOST
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 include/check_slave_param.inc [Master_UUID]
@@ -90,9 +88,7 @@ include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Both MASTER_HOST and MASTER_PORT are changed
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 include/check_slave_param.inc [Master_UUID]
@@ -103,9 +99,7 @@ include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Both MASTER_HOST and MASTER_PORT are NOT changed
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT;
 include/check_slave_param.inc [Slave_IO_Running]

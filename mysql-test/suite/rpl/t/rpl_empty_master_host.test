@@ -20,7 +20,7 @@
 --source include/have_binlog_format_mixed.inc
 
 connection slave;
-STOP SLAVE;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);

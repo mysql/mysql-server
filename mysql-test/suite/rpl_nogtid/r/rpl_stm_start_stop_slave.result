@@ -27,10 +27,8 @@ insert into t1i values (5);
 commit;
 zero
 0
-stop slave;
+STOP REPLICA;
 rollback;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 *** sql thread is *not* running: No ***
 *** the prove: the stopped slave has finished the current transaction ***
@@ -55,13 +53,11 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 # Slave: wait for the insert
 # Slave: send slave stop
-STOP SLAVE;
-# Slave1: wait for stop slave
+STOP REPLICA;
+# Slave1: wait for stop replica
 # Slave1: unlock the table
 UNLOCK TABLES;
 # Slave: wait for the slave to stop
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 # Start replica again
 include/start_slave.inc

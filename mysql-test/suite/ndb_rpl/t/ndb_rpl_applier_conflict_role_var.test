@@ -9,7 +9,7 @@ show global variables like 'ndb_applier_conflict_role';
 
 --let $status_items=Slave_SQL_Running
 --source include/show_slave_status.inc
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 --source include/show_slave_status.inc
 
 --echo Show set-to-same state is ok
@@ -77,7 +77,7 @@ show global variables like 'ndb_applier_conflict_role';
 set global ndb_applier_conflict_role = "PASS";
 show global variables like 'ndb_applier_conflict_role';
 
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 
 --echo From PRIMARY
 set global ndb_applier_conflict_role = "PRIMARY";
@@ -95,7 +95,7 @@ show global variables like 'ndb_applier_conflict_role';
 set global ndb_applier_conflict_role = "PASS";
 show global variables like 'ndb_applier_conflict_role';
 
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 
 --echo From SECONDARY
 set global ndb_applier_conflict_role = "SECONDARY";
@@ -113,7 +113,7 @@ show global variables like 'ndb_applier_conflict_role';
 set global ndb_applier_conflict_role = "PASS";
 show global variables like 'ndb_applier_conflict_role';
 
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 
 --echo From PASS
 set global ndb_applier_conflict_role = "NONE";
@@ -132,7 +132,7 @@ show global variables like 'ndb_applier_conflict_role';
 set global ndb_applier_conflict_role = "NONE";
 show global variables like 'ndb_applier_conflict_role';
 
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 
 set global ndb_applier_conflict_role = "NONE";
 

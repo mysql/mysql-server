@@ -29,7 +29,7 @@ INSERT INTO t1 VALUES (2,3);
 #SHOW BINLOG EVENTS;
 
 # Replicate back to the master to test this mixed event on the master
-STOP SLAVE;
+STOP REPLICA;
 
 --let $rpl_topology= 1->2->1
 --source include/rpl_change_topology.inc
@@ -63,7 +63,7 @@ SELECT * FROM t1 ORDER BY a;
 #SHOW BINLOG EVENTS;
 
 # now lets see that this data is applied correctly on the slave
-STOP SLAVE;
+STOP REPLICA;
 save_master_pos;
 
 connection slave;

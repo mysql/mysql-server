@@ -7,7 +7,7 @@ source include/add_anonymous_users.inc;
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not
 # been explicitly deleted, or it has but the slave hasn't had
-# enough time to catch it before STOP SLAVE,
+# enough time to catch it before STOP REPLICA,
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
@@ -59,7 +59,7 @@ CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
 sync_slave_with_master;
 
-# Temporary table t1 open when stop slave is done. So we will have a warning here.
+# Temporary table t1 open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
@@ -84,7 +84,7 @@ INSERT INTO `t1` set `a`=128,`b`='128';
 
 sync_slave_with_master;
 
-# Temporary table `t1` open when stop slave is done. So we will have a warning here.
+# Temporary table `t1` open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
@@ -234,11 +234,11 @@ create table t5 (f int);
 sync_slave_with_master;
 # connection slave
 
-# Temporary table t3,t4 are open when stop slave is done. So we will have a warning here.
+# Temporary table t3,t4 are open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings
-stop slave;  # to prepare for reconnecting w/o waiting for timeout
+STOP REPLICA;  # to prepare for reconnecting w/o waiting for timeout
 --enable_warnings
 
 connection master;
@@ -310,7 +310,7 @@ drop table t1;
 
 # Delete the anonymous users.
 
-# Temporary table `\E4\F6\FC\C4\D6\DC` open when stop slave is done. So we will have a warning here.
+# Temporary table `\E4\F6\FC\C4\D6\DC` open when stop replica is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
 # SBR and RBR if we dont disable warnings here.
 --disable_warnings

@@ -9,28 +9,25 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TEMPORARY TABLE t1(a int);
 include/sync_slave_sql_with_master.inc
 
-# Make sure STOP SLAVE generates a warning.
+# Make sure STOP REPLICA generates a warning.
 
-STOP SLAVE;
+STOP REPLICA;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/wait_for_slave_to_stop.inc
 
-# Make sure STOP SLAVE SQL_THREAD generates a warning.
+# Make sure STOP REPLICA SQL_THREAD generates a warning.
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
 
-# Make sure STOP SLAVE IO_THREAD generates a warning.
+# Make sure STOP REPLICA IO_THREAD generates a warning.
 
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 include/wait_for_slave_io_to_stop.inc

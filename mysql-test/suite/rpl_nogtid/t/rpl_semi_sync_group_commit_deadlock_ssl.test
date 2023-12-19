@@ -14,7 +14,7 @@
 --source include/install_semisync.inc
 
 --source include/rpl_connection_slave.inc
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO SOURCE_SSL=1;
 START REPLICA IO_THREAD;
 

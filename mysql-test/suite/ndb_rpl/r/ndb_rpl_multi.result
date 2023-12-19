@@ -24,9 +24,7 @@ SELECT @the_epoch;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
 include/show_binlog_events.inc

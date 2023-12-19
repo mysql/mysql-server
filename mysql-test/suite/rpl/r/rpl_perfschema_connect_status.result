@@ -55,14 +55,14 @@ Value returned by SSS and PS table for Last_Error_Message is same.
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that source_UUID and the error related fields are preserved
-# after STOP SLAVE, thread_id changes to NULL and service_state to "off".
+# after STOP REPLICA, thread_id changes to NULL and service_state to "off".
 
 include/stop_slave.inc
 
 # 1. Verify that thread_id changes to NULL and service_state to "off" on
-#    STOP SLAVE.
+#    STOP REPLICA.
 
-include/assert.inc [After STOP SLAVE, thread_id should be NULL]
+include/assert.inc [After STOP REPLICA, thread_id should be NULL]
 include/assert.inc [SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "OFF".]
 
 # 2. Extract the source_UUID and the error related fields from SSS and PS
@@ -92,10 +92,10 @@ include/sync_slave_sql_with_master.inc
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 
 # Verify that the value for 'Received_Transaction_Set' field is preserved
-# after STOP SLAVE.
+# after STOP REPLICA.
 
 include/stop_slave.inc
-include/assert.inc [Received_Transaction_Set should not have changed after STOP SLAVE]
+include/assert.inc [Received_Transaction_Set should not have changed after STOP REPLICA]
 
 # Verify that the value for 'Received_Transaction_Set' is cleared
 # after RESET SLAVE.

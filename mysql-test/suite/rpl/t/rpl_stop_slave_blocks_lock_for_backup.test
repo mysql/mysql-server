@@ -2,15 +2,15 @@
 #
 # This script aims at testing that `LOCK INSTANCE FOR BACKUP` doesn't acquire
 # the BACKUP lock while the server is stopping the slave SQL thread - either by
-# means of `STOP SLAVE` or `STOP SLAVE SQL_THREAD`.
+# means of `STOP REPLICA` or `STOP REPLICA SQL_THREAD`.
 #
 # ==== Implementation ====
 #
-# TC1. Lock instance for backup while `STOP SLAVE` executes
+# TC1. Lock instance for backup while `STOP REPLICA` executes
 # ---------------------------------------------------------
 # 1) Open two different connections, A and B to the slave node and set
 #    `stop_replica_dont_release_backup_lock` debug sync point in both.
-# 2) Through connection A, send a `STOP SLAVE` statement to the server that,
+# 2) Through connection A, send a `STOP REPLICA` statement to the server that,
 #    after acquiring the BACKUP lock, will wait for a
 #    `tried_to_lock_instance_for_backup` signal in the
 #    `stop_replica_dont_release_backup_lock` sync point.
@@ -20,11 +20,11 @@
 # 5) Through connection A, reap the result of the sent statement.
 # 6) Check that the slave stopped and re-start it.
 #
-# TC2. Lock instance for backup while `STOP SLAVE SQL_THREAD` executes
+# TC2. Lock instance for backup while `STOP REPLICA SQL_THREAD` executes
 # --------------------------------------------------------------------
 # 1) Open two different connections, A and B to the slave node and set
 #    `stop_replica_dont_release_backup_lock` debug sync point in both.
-# 2) Through connection A, send a `STOP SLAVE SQL_THREAD` statement to the
+# 2) Through connection A, send a `STOP REPLICA SQL_THREAD` statement to the
 #    server that, after acquiring the BACKUP lock, will wait for a
 #    `tried_to_lock_instance_for_backup` signal in the
 #    `stop_replica_dont_release_backup_lock` sync point.
@@ -92,15 +92,15 @@
 PROCEDURE
 
 --echo #
---echo # TC1. Lock instance for backup while `STOP SLAVE` executes
+--echo # TC1. Lock instance for backup while `STOP REPLICA` executes
 --echo #
---let $statement = STOP SLAVE
+--let $statement = STOP REPLICA
 --source $MYSQLTEST_VARDIR/tmp/lock_instance_while_executing.inc
 
 --echo #
---echo # TC2. Lock instance for backup while `STOP SLAVE SQL_THREAD` executes
+--echo # TC2. Lock instance for backup while `STOP REPLICA SQL_THREAD` executes
 --echo #
---let $statement = STOP SLAVE SQL_THREAD
+--let $statement = STOP REPLICA SQL_THREAD
 --source $MYSQLTEST_VARDIR/tmp/lock_instance_while_executing.inc
 
 # Clean up

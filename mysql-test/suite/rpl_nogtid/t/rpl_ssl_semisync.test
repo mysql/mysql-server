@@ -28,7 +28,7 @@ CREATE TABLE table1 (a INT);
 --source include/sync_slave_sql_with_master.inc
 
 --echo
---echo # STOP SLAVE and verify that replication works fine when slave resumes.
+--echo # STOP REPLICA and verify that replication works fine when slave resumes.
 --echo
 
 --source include/stop_slave_io.inc

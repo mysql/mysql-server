@@ -58,7 +58,7 @@ while ($i != 11)
 --replace_result $master_uuid MASTER_UUID
 --eval START REPLICA IO_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5"
 
---echo Wait until IO Thread reads all master binlog and stop slave.
+--echo Wait until IO Thread reads all master binlog and stop replica.
 --let $slave_param= Retrieved_Gtid_Set
 --let $slave_param_value= $master_uuid:1-10
 --source include/wait_for_slave_param.inc

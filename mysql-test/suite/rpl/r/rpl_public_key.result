@@ -29,7 +29,7 @@ include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 c1
 1
-==== Stop slave and used empty values for master_public_key_path ====
+==== Stop replica and used empty values for master_public_key_path ====
 [connection slave]
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='';

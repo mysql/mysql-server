@@ -9,11 +9,11 @@
 #    are independent i.e if sql_threads of all channels are running
 #    and if a START REPLICA IO_THREAD is issued, io_threads of all
 #    channels must be running.
-# 3. Test that per channel start and stop slave commands work
+# 3. Test that per channel start and stop replica commands work
 #     -a) START REPLICA IO_THREAD FOR CHANNEL
 #     -b) START REPLICA SQL_THREAD FOR CHANNEL
-#     -c) STOP SLAVE IO_THREAD FOR CHANNEL
-#     -d) STOP SLAVE SQL_THREAD FOR CHANNEL
+#     -c) STOP REPLICA IO_THREAD FOR CHANNEL
+#     -d) STOP REPLICA SQL_THREAD FOR CHANNEL
 
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
@@ -52,9 +52,9 @@ START REPLICA SQL_THREAD;
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo #  Do stop slave IO_thread.  SQL threads must still be running
+--echo #  Do stop replica IO_thread.  SQL threads must still be running
 --echo #
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 
 --let $rpl_source_file= include/wait_for_slave_io_to_stop.inc
 --source include/rpl_for_each_connection.inc
@@ -68,9 +68,9 @@ START REPLICA;
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo #  Do STOP SLAVE. All slave threads for all channnels must be down.
+--echo #  Do STOP REPLICA. All slave threads for all channnels must be down.
 --echo #
-STOP SLAVE;
+STOP REPLICA;
 
 --let $rpl_source_file= include/wait_for_slave_to_stop.inc
 --source include/rpl_for_each_connection.inc
@@ -88,11 +88,11 @@ STOP SLAVE;
 --let $rpl_channel_name= 'channel_1'
 --source include/start_slave_sql.inc
 
---echo # 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
+--echo # 3.c) Test STOP REPLICA IO_THREAD FOR CHANNEL
 --let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_io.inc
 
---echo # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
+--echo # 3.d) Test STOP REPLICA SQL_THREAD FOR CHANNEL
 --let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_sql.inc
 

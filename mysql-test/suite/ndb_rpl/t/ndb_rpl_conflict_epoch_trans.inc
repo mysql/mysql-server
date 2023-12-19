@@ -13,7 +13,7 @@
 --disable_result_log
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 RESET BINARY LOGS AND GTIDS;
-STOP SLAVE;
+STOP REPLICA;
 select @secondary_server_id:=(variable_value+0)
        from performance_schema.global_variables
        where variable_name like 'server_id';
@@ -25,7 +25,7 @@ let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 RESET BINARY LOGS AND GTIDS;
-STOP SLAVE;
+STOP REPLICA;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_PORT,SOURCE_USER="root"
 START REPLICA;
 select @primary_server_id:=(variable_value+0)
@@ -109,7 +109,7 @@ insert into test.t1 values
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -149,7 +149,7 @@ select * from t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary second change 4" where a=4;
@@ -188,7 +188,7 @@ select * from test.t1 order by a;
 --echo ----------------------------------------------
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary third change 1" where a=1;
@@ -234,7 +234,7 @@ select * from test.t1 order by a;
 --echo --------------------------------------------------------------
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -283,7 +283,7 @@ select * from test.t2 order by a;
 # Whole epoch is rolled back when --ndb-serverid-transid-bits is 0!
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary is king" where a=10;
@@ -328,7 +328,7 @@ select * from t1 order by a;
 --echo ------------------------------------------------------
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="7 : Primary is king" where a=7;
@@ -462,7 +462,7 @@ FLUSH LOGS; # To give a position to sync
 
 --echo Bank sites are disconnected
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Larry buys a yacht using Primary bank site
@@ -628,7 +628,7 @@ FLUSH LOGS;  # Ensure Inserts are in previous epoch trans to what follows
 
 --echo Case 1 : Transactional detection affects row - based entries in same trans
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update test.t1 set b=100 where a=1;
 
@@ -676,7 +676,7 @@ select * from test.t4 order by a;
 
 --echo Case 2 : Row based detection does not affect other transaction entries
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update test.t3 set b=1200 where a=12;
 
@@ -733,7 +733,7 @@ flush logs;
 --echo          stopping with an error.
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-STOP SLAVE;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -811,7 +811,7 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo SECONDARY:
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo PRIMARY:
@@ -1083,8 +1083,8 @@ delete from test.t1 where a != 6;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
---echo STOP slave on SECONDARY
-stop slave;
+--echo # STOP REPLICA on SECONDARY
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
@@ -1366,7 +1366,7 @@ flush logs;
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 
 --connection master
-stop slave;
+STOP REPLICA;
 reset slave;
 
 #change master to master_host='';

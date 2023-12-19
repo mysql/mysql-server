@@ -111,7 +111,7 @@ SET @@local.sql_mode = 'ANSI_QUOTES,HIGH_NOT_PRECEDENCE';
 SET @user_num = 10;
 SET @user_text = 'Alunda';
 
-# Stop slave so that we get a fresh sql thread, reading the slave's
+# Stop replica so that we get a fresh sql thread, reading the slave's
 # global values of variables into its local copies.
 --source include/stop_slave.inc
 --source include/start_slave.inc

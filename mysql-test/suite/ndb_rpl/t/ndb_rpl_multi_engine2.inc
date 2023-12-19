@@ -5,7 +5,7 @@
 #############################################################
 
 connection slave;
-STOP SLAVE;
+STOP REPLICA;
 RESET SLAVE;
 
 connection master;

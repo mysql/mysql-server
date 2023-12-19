@@ -28,7 +28,7 @@ CALL mtr.add_suppression('The replica coordinator and worker threads are stopped
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 
 --echo #
---echo # Start and stop slave
+--echo # Start and stop replica
 --echo #
 
 --let $rpl_channel_name= ''

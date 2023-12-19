@@ -81,7 +81,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo
 --echo # 7. Cleanup
 
-STOP SLAVE FOR CHANNEL 'ch3_1';
+STOP REPLICA FOR CHANNEL 'ch3_1';
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 
 --let $rpl_connection_name= server2

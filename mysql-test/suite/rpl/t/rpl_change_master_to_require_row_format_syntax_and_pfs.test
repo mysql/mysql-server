@@ -113,7 +113,7 @@ PROCEDURE
   }
   if ($stop_slave_thread != '')
   {
-    --eval STOP SLAVE $stop_slave_thread
+    --eval STOP REPLICA $stop_slave_thread
   }
 
   --error $expected_error

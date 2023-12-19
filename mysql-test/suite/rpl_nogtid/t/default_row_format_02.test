@@ -20,7 +20,7 @@
 
 # Set expected error nos on slave side
 connection slave;
-stop slave;
+STOP REPLICA;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER=4;
 START REPLICA;
 

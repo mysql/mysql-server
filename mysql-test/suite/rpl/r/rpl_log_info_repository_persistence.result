@@ -59,9 +59,8 @@ include/assert.inc [Check that priv_chks_username for channel "ch2" is correct]
 include/assert.inc [Check that priv_chks_hostname for channel "ch2" is correct]
 RESET REPLICA ALL FOR CHANNEL "";
 RESET REPLICA ALL FOR CHANNEL "ch2";
-STOP SLAVE FOR CHANNEL "ch1";
+STOP REPLICA FOR CHANNEL "ch1";
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'ch1' are already stopped.
 #
 # TC.E.T1: privilege_checks_username has more than 32 length.

@@ -9,7 +9,7 @@
 # - Create a new replication user on master
 # - Connect to slave and start replication as this user.
 # - Verify that replication works
-# - Stop slave
+# - Stop replica
 # - Change Master_public_key file on slave
 # - Execute FLUSH PRIVILEGES on master
 # - start replica and expect timeout
@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection_slave.inc
 SELECT * FROM t1;
 
---echo ==== Stop slave and used empty values for master_public_key_path ====
+--echo ==== Stop replica and used empty values for master_public_key_path ====
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ###

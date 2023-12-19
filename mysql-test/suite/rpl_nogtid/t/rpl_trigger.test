@@ -315,7 +315,7 @@ while ($rnd)
 # Stop the slave.
 
 connection slave;
-STOP SLAVE;
+STOP REPLICA;
 
 # Replace master's binlog.
 
@@ -359,7 +359,7 @@ SHOW TRIGGERS;
 DROP TABLE t1;
 DROP TABLE t2;
 
-STOP SLAVE;
+STOP REPLICA;
 RESET SLAVE;
 
 # The master should be clean.

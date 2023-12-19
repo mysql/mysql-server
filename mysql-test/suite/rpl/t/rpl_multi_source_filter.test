@@ -379,7 +379,7 @@ SHOW TABLES FROM db66;
 --source include/assert.inc
 
 --echo #
---echo # Stop slave (on server_2).
+--echo # Stop replica (on server_2).
 --echo #
 --source include/rpl_stop_slaves.inc
 

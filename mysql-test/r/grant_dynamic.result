@@ -1090,7 +1090,7 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
 START REPLICA;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
-STOP SLAVE;
+STOP REPLICA;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 GRANT REPLICATION_SLAVE_ADMIN ON *.* to u1@localhost;
 START REPLICA;

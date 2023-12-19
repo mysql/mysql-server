@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection slave]
 #
-# Stop slave threads and clear slave datadir.
+# Stop replica threads and clear slave datadir.
 #
 include/stop_slave.inc
 RESET SLAVE;

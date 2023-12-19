@@ -17,13 +17,9 @@ b int,
 c varchar(2000)) engine=ndb;
 insert into test.t1 values (1,1,repeat("B", 1000));
 Stopping Primary -> Secondary replication
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Stopping Secondary -> Primary replication
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Making change on Primary
 update test.t1 set b=2 where a=1;
 Making conflicting change on Secondary
@@ -55,6 +51,4 @@ on the Primary is == the last_conflict_epoch
 @max_replicated_epoch = @conflict_detected_epoch
 1
 Cleanup
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_end.inc

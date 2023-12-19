@@ -79,7 +79,7 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
   --let $slave_sql_errno= convert_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT)
   --source include/wait_for_slave_sql_error.inc
 
-  STOP SLAVE;
+  STOP REPLICA;
 
   --let $assert_text = The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT
   --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err

@@ -27,7 +27,7 @@ select * from t1 limit 10;
 # Test slave with wrong password
 #
 --source include/sync_slave_sql_with_master.inc
-stop slave;
+STOP REPLICA;
 connection master;
 set password for root@"localhost" = 'foo';
 connection slave;
@@ -60,7 +60,7 @@ eval create table t1 (n int) engine=$engine_type;
 connection master;
 reset binary logs and gtids;
 connection slave;
-stop slave;
+STOP REPLICA;
 reset slave;
 
 connection master;

@@ -47,9 +47,7 @@ include/sync_slave_sql_with_master.inc
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

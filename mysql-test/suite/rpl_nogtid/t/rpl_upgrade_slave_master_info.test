@@ -128,7 +128,7 @@ CREATE TABLE `slave_master_info` (
 --let $assert_cond= "$channel_name" = "channel_2"
 --source include/assert.inc
 
-# Stop slave and reset the slave removing all channels
+# Stop replica and reset the slave removing all channels
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 

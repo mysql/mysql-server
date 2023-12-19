@@ -9,9 +9,9 @@
 # The follwing scenarios are tested in this script:
 #
 #  - Verify that output is same as SSS on a fresh slave.
-#  - Verify that the value of this field is correct after STOP SLAVE.
+#  - Verify that the value of this field is correct after STOP REPLICA.
 #  - Verify that, when desired delay is set, the value is shown corectly.
-#  - Verify that the value is preserved after STOP SLAVE.
+#  - Verify that the value is preserved after STOP REPLICA.
 #  - Verify that, when desired delay is reset, the value is shown corectly.
 #  - Verify that `privilege_checks_user` is initialized to `NULL`.
 #
@@ -46,7 +46,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 --echo
---echo # Verify that the value of this field is correct after STOP SLAVE.
+--echo # Verify that the value of this field is correct after STOP REPLICA.
 --echo
 
 source include/stop_slave.inc;
@@ -71,7 +71,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 --echo
---echo # Verify that the value is preserved after STOP SLAVE.
+--echo # Verify that the value is preserved after STOP REPLICA.
 --echo
 
 source include/stop_slave.inc;

@@ -13,7 +13,7 @@
 # to the master on these errors.
 #
 # Steps to reproduce:
-#  1) Log on slave, stop slave threads.
+#  1) Log on slave, stop replica threads.
 #  2) Active injected error during getting server id from master
 #  3) Start replica theads to verify that their is no error happened.
 #

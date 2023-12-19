@@ -19,7 +19,7 @@ USE test;
 CREATE TABLE table1 (a INT);
 include/sync_slave_sql_with_master.inc
 
-# STOP SLAVE and verify that replication works fine when slave resumes.
+# STOP REPLICA and verify that replication works fine when slave resumes.
 
 include/stop_slave_io.inc
 [connection master]

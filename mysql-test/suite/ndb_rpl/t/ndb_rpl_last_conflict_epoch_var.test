@@ -54,11 +54,11 @@ insert into test.t1 values (1,1,repeat("B", 1000));
 
 --connection slave
 --echo Stopping Primary -> Secondary replication
-stop slave;
+STOP REPLICA;
 
 --connection master
 --echo Stopping Secondary -> Primary replication
-stop slave;
+STOP REPLICA;
 
 --echo Making change on Primary
 update test.t1 set b=2 where a=1;
@@ -153,6 +153,6 @@ drop table mysql.ndb_replication;
 --connection slave
 --sync_slave_with_master master
 --connection master
-stop slave;
+STOP REPLICA;
 
 --source include/rpl_end.inc

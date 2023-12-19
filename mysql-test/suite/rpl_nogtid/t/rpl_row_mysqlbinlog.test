@@ -125,10 +125,10 @@ DROP TABLE t2;
 DROP TABLE t3;
 
 sync_slave_with_master;
-#we expect STOP SLAVE to produce a warning as the slave is stopped
+#we expect STOP REPLICA to produce a warning as the slave is stopped
 #(the server was started with skip-replica-start)
 --disable_warnings
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;
@@ -206,11 +206,11 @@ DROP TABLE t3;
 
 sync_slave_with_master;
 
-#we expect STOP SLAVE to produce a warning as the slave is stopped
+#we expect STOP REPLICA to produce a warning as the slave is stopped
 #(the server was started with skip-replica-start)
 
 --disable_warnings
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;
@@ -286,11 +286,11 @@ select "--- Test 7 reading stdin w/position --" as "";
 select "--- Test 8 switch internal charset --" as "";
 sync_slave_with_master;
 
-#we expect STOP SLAVE to produce a warning as the slave is stopped
+#we expect STOP REPLICA to produce a warning as the slave is stopped
 #(the server was started with skip-replica-start)
 
 --disable_warnings
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;

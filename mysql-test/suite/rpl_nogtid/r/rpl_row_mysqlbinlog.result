@@ -81,7 +81,7 @@ flush logs;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-stop slave;
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
 reset slave;
@@ -259,7 +259,7 @@ DELIMITER ;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-stop slave;
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
 reset slave;
@@ -349,7 +349,7 @@ include/mysqlbinlog.inc
 include/mysqlbinlog.inc
 
 --- Test 8 switch internal charset --
-stop slave;
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
 reset slave;

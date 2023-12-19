@@ -188,7 +188,7 @@ drop table tp3;
 
 SET SESSION BINLOG_FORMAT= DEFAULT;
 
-# stop slave channel if present
+# stop replica channel if present
 if (!$rpl_mysqlbinlog)
 {
   # Sync slave(server1) with master(server2)

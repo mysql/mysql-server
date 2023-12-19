@@ -77,7 +77,7 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-STOP SLAVE FOR CHANNEL 'ch3_1';
+STOP REPLICA FOR CHANNEL 'ch3_1';
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 
 set session sql_log_bin=0;

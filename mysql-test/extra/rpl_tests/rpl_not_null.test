@@ -171,7 +171,7 @@ DROP TABLE t1;
 #connection slave;
 #SET GLOBAL sql_mode="TRADITIONAL";
 #
-#STOP SLAVE;
+#STOP REPLICA;
 #--source include/wait_for_slave_to_stop.inc
 #START REPLICA;
 #--source include/wait_for_slave_to_start.inc
@@ -288,7 +288,7 @@ DROP TABLE t1;
 #connection slave;
 #SET GLOBAL sql_mode="";
 #
-#STOP SLAVE;
+#STOP REPLICA;
 #source include/wait_for_slave_to_stop.inc;
 #START REPLICA;
 #--source include/wait_for_slave_to_start.inc

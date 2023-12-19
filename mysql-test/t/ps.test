@@ -2269,14 +2269,14 @@ prepare abc from "START REPLICA";
 deallocate prepare abc;
 
 
-create procedure proc_1() stop slave;
+create procedure proc_1() STOP REPLICA;
 drop procedure proc_1;
 delimiter |;
 --error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin stop slave; return 1; end|
+create function func_1() returns int begin STOP REPLICA; return 1; end|
 delimiter ;|
 
-prepare abc from "stop slave";
+prepare abc from "STOP REPLICA";
 deallocate prepare abc;
 
 

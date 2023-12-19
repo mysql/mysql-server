@@ -80,9 +80,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 # Test for Multi Threaded Slave
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 SET GLOBAL replica_parallel_workers = 2;
 START REPLICA;
 # 1) Create a database on server_1.
@@ -165,9 +163,7 @@ DROP DATABASE db3;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 START REPLICA;
 include/rpl_end.inc

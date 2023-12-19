@@ -25,7 +25,7 @@ CALL mtr.add_suppression('Replica failed to initialize connection metadata struc
 CALL mtr.add_suppression('This operation cannot be performed with a running replica');
 CALL mtr.add_suppression('Could not find target log file mentioned in applier metadata in the index file');
 # For case:
-# STOP SLAVE SQL_THREAD; // IO_THREAD is running
+# STOP REPLICA SQL_THREAD; // IO_THREAD is running
 # CHANGE MASTER TO relay_log_name = 'non-existing relay log name',...;
 # While CHANGE MASTER throwns an error, group_relay_log_name is changed to the
 # non-existing file name.
@@ -42,7 +42,7 @@ SET @@GLOBAL.event_scheduler= OFF;
 # Define the amount of channels to create
 --let $num_channels= 2
 
-# Stop slave for the default channel
+# Stop replica for the default channel
 --source include/stop_slave.inc
 
 --let $c= 0
@@ -62,11 +62,11 @@ while ($c <= $num_channels)
   --eval CREATE EVENT e_change_master_io_ch$c  ON SCHEDULE EVERY 1 SECOND DO CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL $cn
   --eval CREATE EVENT e_change_master_sql_ch$c ON SCHEDULE EVERY 1 SECOND DO CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin$rls.000001', RELAY_LOG_POS=4 FOR CHANNEL $cn
   --eval CREATE EVENT e_start_slave_io_ch$c    ON SCHEDULE EVERY 1 SECOND DO START REPLICA IO_THREAD FOR CHANNEL $cn
-  --eval CREATE EVENT e_stop_slave_io_ch$c     ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE IO_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_stop_slave_io_ch$c     ON SCHEDULE EVERY 1 SECOND DO STOP REPLICA IO_THREAD FOR CHANNEL $cn
   --eval CREATE EVENT e_reset_slave_ch$c       ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE FOR CHANNEL $cn
   --eval CREATE EVENT e_reset_slave_all_ch$c   ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE ALL FOR CHANNEL $cn
   --eval CREATE EVENT e_start_slave_sql_ch$c   ON SCHEDULE EVERY 1 SECOND DO START REPLICA SQL_THREAD FOR CHANNEL $cn
-  --eval CREATE EVENT e_stop_slave_sql_ch$c    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_stop_slave_sql_ch$c    ON SCHEDULE EVERY 1 SECOND DO STOP REPLICA SQL_THREAD FOR CHANNEL $cn
   --eval CREATE EVENT e_sss_ch$c               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL $cn
   if ($c == 0)
   {
@@ -120,10 +120,10 @@ SET @@GLOBAL.event_scheduler= OFF;
 while ($c > 0)
 {
   --error 0, ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-  --eval STOP SLAVE FOR CHANNEL 'ch$c'
+  --eval STOP REPLICA FOR CHANNEL 'ch$c'
   --dec $c
 }
-STOP SLAVE FOR CHANNEL '';
+STOP REPLICA FOR CHANNEL '';
 RESET SLAVE ALL;
 # Reconfigure the default channel
 --replace_result $MASTER_MYPORT SOURCE_PORT

@@ -7,7 +7,7 @@
 #
 # 1. Start replication with one master and one slave.
 # 2. Connect to slave server.
-# 3. Stop slave applier.
+# 3. Stop replica applier.
 # 4. Verify that SET @@global.binlog_format is allowed if none
 #    of all replication channels have open temporary table(s).
 # 5. Set binlog format to statement for replicating
@@ -20,7 +20,7 @@
 #    any replication channel has open temporary table(s).
 # 9. Verify that SET @@persist.binlog_format must be disallowed if
 #    any replication channel has open temporary table(s).
-# 10. Stop slave threads on the default slave channel and repeat steps 8 and 9.
+# 10. Stop replica threads on the default slave channel and repeat steps 8 and 9.
 #
 # ==== References ====
 #
@@ -34,7 +34,7 @@
 
 # Connect to slave
 --source include/rpl_connection_slave.inc
-# Stop slave applier.
+# Stop replica applier.
 --source include/stop_slave_sql.inc
 --echo #
 --echo # Verify that SET @@global.binlog_format is allowed if none
@@ -73,7 +73,7 @@ SET @@global.binlog_format=ROW;
 --error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 SET @@persist.binlog_format=ROW;
 
-# Stop slave threads on the default slave channel.
+# Stop replica threads on the default slave channel.
 --source include/stop_slave.inc
 --echo #
 --echo # On a stopped slave, verify that SET @@global.binlog_format is

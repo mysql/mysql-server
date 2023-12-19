@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# TC1. Lock instance for backup while `STOP SLAVE` executes
+# TC1. Lock instance for backup while `STOP REPLICA` executes
 #
 [connection slave]
 SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
@@ -12,22 +12,20 @@ SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
 SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave]
-STOP SLAVE;
+STOP REPLICA;
 [connection slave1]
 SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
 LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START REPLICA;
 [connection slave]
 SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 [connection slave1]
 SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 #
-# TC2. Lock instance for backup while `STOP SLAVE SQL_THREAD` executes
+# TC2. Lock instance for backup while `STOP REPLICA SQL_THREAD` executes
 #
 [connection slave]
 SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
@@ -35,15 +33,13 @@ SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
 SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave]
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 [connection slave1]
 SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
 LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START REPLICA;
 [connection slave]
 SET DEBUG = "-d,stop_replica_dont_release_backup_lock";

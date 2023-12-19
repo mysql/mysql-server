@@ -44,7 +44,7 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 call mtr.add_suppression("listed in the index, but failed to stat");
 call mtr.add_suppression("Error counting relay log space");
 
-# Stop slave
+# Stop replica
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc
 

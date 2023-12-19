@@ -205,7 +205,7 @@ enable_query_log;
 --sync_slave_with_master slave
 
 --connection slave
-stop slave;
+STOP REPLICA;
 
 --connection slave
 --echo Slave contents
@@ -373,7 +373,7 @@ flush logs;
 --sync_slave_with_master master
 
 drop table mysql.ndb_replication;
-stop slave;
+STOP REPLICA;
 reset slave;
 #change master to master_host='';
 --source include/rpl_end.inc

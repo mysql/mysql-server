@@ -1,6 +1,6 @@
 # When the relay log gets rotated while the I/O thread
 # is reading a transaction, the transaction spans on two or more
-# relay logs. If STOP SLAVE occurs while the SQL thread is
+# relay logs. If STOP REPLICA occurs while the SQL thread is
 # executing a part of the transaction in the non-first relay logs,
 # we test if START REPLICA will resume in the beginning of the
 # transaction (i.e., step back to the first relay log)
@@ -13,7 +13,7 @@
 connection master;
 --source include/sync_slave_sql_with_master.inc
 connection slave;
-stop slave;
+STOP REPLICA;
 connection master;
 --disable_warnings
 eval create table t1 (a int) engine=$engine_type;
@@ -45,7 +45,7 @@ START REPLICA;
 # Note that except when using Valgrind, 1 second is enough for the I/O slave
 # thread to fetch the whole master's binlog.
 sleep 1;
-stop slave;
+STOP REPLICA;
 # We suppose the SQL thread stopped before COMMIT.
 # If so the transaction was rolled back
 # and the table is now empty.

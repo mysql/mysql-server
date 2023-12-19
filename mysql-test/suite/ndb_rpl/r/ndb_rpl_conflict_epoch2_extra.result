@@ -27,14 +27,10 @@ v int,
 c varchar(2000)) engine=ndb character set latin1;
 Setup conflict roles
 --------------------
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="PRIMARY";
 START REPLICA;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="SECONDARY";
 START REPLICA;
 Create some initial data
@@ -60,10 +56,8 @@ k	v	c
 4	40	Triathlon
 Basic delete-delete cases
 -------------------------
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
 Delete row 3 on PRIMARY
 delete from t1 where k=3;
 Delete row 3 on SECONDARY
@@ -147,14 +141,10 @@ inserted row value.  The end result should still be the same (the new
 value will be applied later, but we should avoid having every modification
 made at the secondary applied twice with some time lag as that will cause
 chaos for Secondary applications)
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-Stop Slave on PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
+# STOP REPLICA on PRIMARY
+STOP REPLICA;
 Delete row 4 on PRIMARY
 DELETE from test.t1 where k=4;
 Primary state
@@ -185,9 +175,7 @@ k	v	c
 3	31	Judo
 Now allow the SECONDARY Binlog to propagate back to the PRIMARY
 while blocking the return path...
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
@@ -199,9 +187,7 @@ k	v	c
 4	440	Fell running
 Now stop the PRIMARY Slave - changes from the
 SECONDARY cannot now reach the PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now go back to the SECONDARY and create a new
 row version
 First show there is no row 4 on the SECONDARY
@@ -268,13 +254,9 @@ k	v	c
 Allow reflection back to the SECONDARY...
 Now show same for UPDATE, then DELETE
 -------------------------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform UPDATE 1 at Secondary
 UPDATE test.t1 SET c="Bathing" where k=1;
 Show data on Secondary
@@ -301,9 +283,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make update 2 on Secondary
 update test.t1 SET c="Paddling" where k=1;
 Data on Secondary
@@ -382,13 +362,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Show same for DELETE
 --------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform DELETE of row 2 at Secondary
 DELETE from test.t1 where k=2;
 Show data on Secondary
@@ -413,9 +389,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make a further change on Secondary
 INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
 Data on Secondary
@@ -493,13 +467,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
-Stop slaves in both directions
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+Stop replicas in both directions
+STOP REPLICA;
+STOP REPLICA;
 Start with non-existent row (5, 50, "Disco dancing") on primary
 insert into test.t1 values (5, 50, "Disco dancing");
 select * from test.t1 order by k;
@@ -541,9 +511,7 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Stop Secondary Slave again
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now delete row from the primary
 delete from test.t1 where k=5;
 select * from test.t1 order by k;
@@ -631,14 +599,10 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Iteration 3
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="SECONDARY";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="PRIMARY";
 Setup S1 P2
@@ -666,10 +630,8 @@ k	v	c
 4	40	Triathlon
 Basic delete-delete cases
 -------------------------
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
 Delete row 3 on PRIMARY
 delete from t1 where k=3;
 Delete row 3 on SECONDARY
@@ -753,14 +715,10 @@ inserted row value.  The end result should still be the same (the new
 value will be applied later, but we should avoid having every modification
 made at the secondary applied twice with some time lag as that will cause
 chaos for Secondary applications)
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-Stop Slave on PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
+# STOP REPLICA on PRIMARY
+STOP REPLICA;
 Delete row 4 on PRIMARY
 DELETE from test.t1 where k=4;
 Primary state
@@ -791,9 +749,7 @@ k	v	c
 3	31	Judo
 Now allow the SECONDARY Binlog to propagate back to the PRIMARY
 while blocking the return path...
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
@@ -805,9 +761,7 @@ k	v	c
 4	440	Fell running
 Now stop the PRIMARY Slave - changes from the
 SECONDARY cannot now reach the PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now go back to the SECONDARY and create a new
 row version
 First show there is no row 4 on the SECONDARY
@@ -874,13 +828,9 @@ k	v	c
 Allow reflection back to the SECONDARY...
 Now show same for UPDATE, then DELETE
 -------------------------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform UPDATE 1 at Secondary
 UPDATE test.t1 SET c="Bathing" where k=1;
 Show data on Secondary
@@ -907,9 +857,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make update 2 on Secondary
 update test.t1 SET c="Paddling" where k=1;
 Data on Secondary
@@ -988,13 +936,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Show same for DELETE
 --------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform DELETE of row 2 at Secondary
 DELETE from test.t1 where k=2;
 Show data on Secondary
@@ -1019,9 +963,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make a further change on Secondary
 INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
 Data on Secondary
@@ -1099,13 +1041,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
-Stop slaves in both directions
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+Stop replicas in both directions
+STOP REPLICA;
+STOP REPLICA;
 Start with non-existent row (5, 50, "Disco dancing") on primary
 insert into test.t1 values (5, 50, "Disco dancing");
 select * from test.t1 order by k;
@@ -1147,9 +1085,7 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Stop Secondary Slave again
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now delete row from the primary
 delete from test.t1 where k=5;
 select * from test.t1 order by k;
@@ -1237,14 +1173,10 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Iteration 2
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="SECONDARY";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="PRIMARY";
 Setup P1 S2
@@ -1272,10 +1204,8 @@ k	v	c
 4	40	Triathlon
 Basic delete-delete cases
 -------------------------
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
 Delete row 3 on PRIMARY
 delete from t1 where k=3;
 Delete row 3 on SECONDARY
@@ -1359,14 +1289,10 @@ inserted row value.  The end result should still be the same (the new
 value will be applied later, but we should avoid having every modification
 made at the secondary applied twice with some time lag as that will cause
 chaos for Secondary applications)
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-Stop Slave on PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
+# STOP REPLICA on PRIMARY
+STOP REPLICA;
 Delete row 4 on PRIMARY
 DELETE from test.t1 where k=4;
 Primary state
@@ -1397,9 +1323,7 @@ k	v	c
 3	31	Judo
 Now allow the SECONDARY Binlog to propagate back to the PRIMARY
 while blocking the return path...
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
@@ -1411,9 +1335,7 @@ k	v	c
 4	440	Fell running
 Now stop the PRIMARY Slave - changes from the
 SECONDARY cannot now reach the PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now go back to the SECONDARY and create a new
 row version
 First show there is no row 4 on the SECONDARY
@@ -1480,13 +1402,9 @@ k	v	c
 Allow reflection back to the SECONDARY...
 Now show same for UPDATE, then DELETE
 -------------------------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform UPDATE 1 at Secondary
 UPDATE test.t1 SET c="Bathing" where k=1;
 Show data on Secondary
@@ -1513,9 +1431,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make update 2 on Secondary
 update test.t1 SET c="Paddling" where k=1;
 Data on Secondary
@@ -1594,13 +1510,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Show same for DELETE
 --------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform DELETE of row 2 at Secondary
 DELETE from test.t1 where k=2;
 Show data on Secondary
@@ -1625,9 +1537,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make a further change on Secondary
 INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
 Data on Secondary
@@ -1705,13 +1615,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
-Stop slaves in both directions
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+Stop replicas in both directions
+STOP REPLICA;
+STOP REPLICA;
 Start with non-existent row (5, 50, "Disco dancing") on primary
 insert into test.t1 values (5, 50, "Disco dancing");
 select * from test.t1 order by k;
@@ -1753,9 +1659,7 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Stop Secondary Slave again
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now delete row from the primary
 delete from test.t1 where k=5;
 select * from test.t1 order by k;
@@ -1843,14 +1747,10 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Iteration 1
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="SECONDARY";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 DELETE FROM test.t1$EX;
 set global ndb_applier_conflict_role="PRIMARY";
 Setup S1 P2
@@ -1878,10 +1778,8 @@ k	v	c
 4	40	Triathlon
 Basic delete-delete cases
 -------------------------
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
 Delete row 3 on PRIMARY
 delete from t1 where k=3;
 Delete row 3 on SECONDARY
@@ -1965,14 +1863,10 @@ inserted row value.  The end result should still be the same (the new
 value will be applied later, but we should avoid having every modification
 made at the secondary applied twice with some time lag as that will cause
 chaos for Secondary applications)
-Stop Slave on SECONDARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-Stop Slave on PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
+# STOP REPLICA on PRIMARY
+STOP REPLICA;
 Delete row 4 on PRIMARY
 DELETE from test.t1 where k=4;
 Primary state
@@ -2003,9 +1897,7 @@ k	v	c
 3	31	Judo
 Now allow the SECONDARY Binlog to propagate back to the PRIMARY
 while blocking the return path...
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 START REPLICA;
 Examine data on the PRIMARY - row 4 exists
 as the PRIMARY's delete is not applied if present
@@ -2017,9 +1909,7 @@ k	v	c
 4	440	Fell running
 Now stop the PRIMARY Slave - changes from the
 SECONDARY cannot now reach the PRIMARY
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now go back to the SECONDARY and create a new
 row version
 First show there is no row 4 on the SECONDARY
@@ -2086,13 +1976,9 @@ k	v	c
 Allow reflection back to the SECONDARY...
 Now show same for UPDATE, then DELETE
 -------------------------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform UPDATE 1 at Secondary
 UPDATE test.t1 SET c="Bathing" where k=1;
 Show data on Secondary
@@ -2119,9 +2005,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make update 2 on Secondary
 update test.t1 SET c="Paddling" where k=1;
 Data on Secondary
@@ -2200,13 +2084,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Show same for DELETE
 --------------------
-First stop SLAVEs
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+First stop REPLICAs
+STOP REPLICA;
+STOP REPLICA;
 Now perform DELETE of row 2 at Secondary
 DELETE from test.t1 where k=2;
 Show data on Secondary
@@ -2231,9 +2111,7 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 Now stop Primary slave to stop further propagation
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now make a further change on Secondary
 INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
 Data on Secondary
@@ -2311,13 +2189,9 @@ stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
-Stop slaves in both directions
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+Stop replicas in both directions
+STOP REPLICA;
+STOP REPLICA;
 Start with non-existent row (5, 50, "Disco dancing") on primary
 insert into test.t1 values (5, 50, "Disco dancing");
 select * from test.t1 order by k;
@@ -2359,9 +2233,7 @@ k	v	c
 4	440	Fell running
 5	55	Disco dancing
 Stop Secondary Slave again
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Now delete row from the primary
 delete from test.t1 where k=5;
 select * from test.t1 order by k;
@@ -2457,15 +2329,11 @@ useful for failover situations etc.
 Here we test that it does not detect conflicts, and
 allows divergence etc.
 Lets set it up
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PASS";
 START REPLICA;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PASS";
 START REPLICA;
@@ -2485,10 +2353,8 @@ k	v	c
 3	31	Judo
 4	440	Fell running
 5	55	Disco dancing
-STOP SLAVE on Secondary
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA on Secondary
+STOP REPLICA;
 Create a conflict between two updates
 First at the primary
 update test.t1 set c="Capoiera" where c="Judo";
@@ -2732,15 +2598,11 @@ stable_epoch_is_older_than_max_replicated
 0
 Remove inconsistencies from the table
 delete from test.t1 where k in (3, 6);
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="PRIMARY";
 START REPLICA;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 set global ndb_applier_conflict_role="SECONDARY";
 START REPLICA;
@@ -2761,9 +2623,7 @@ How to resolve them is an exercise left for
 the reader :)
 Testcase to show the variable in action
 Stop SECONDARY slave
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Change on Primary, won't propagate to Secondary as SLAVE is stopped.
 update test.t1 set c="Loafing" where k=1;
 Conflicting change on Secondary
@@ -2792,9 +2652,7 @@ SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOC
 STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 1
 Stop PRIMARY slave just to have control
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Conflict algorithm counter diff :
 ndb_conflict_fn_epoch2
 1
@@ -2848,19 +2706,13 @@ STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 Done.
 Cleanup conflict roles
 --------------------
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 START REPLICA;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 START REPLICA;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

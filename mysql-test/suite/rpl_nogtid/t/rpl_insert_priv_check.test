@@ -12,7 +12,7 @@
 # 2) On slave create an user 'u1' which will be used as a
 #    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
 # 3) Start replica and expect an error as the user doesn't have INSERT privilege.
-# 4) Stop slave and grant INSERT privilege.
+# 4) Stop replica and grant INSERT privilege.
 # 5) Start replica again and this time there should not be any error.
 # 6) Revoke the privilege granted in step 4)
 # 7) Ensure the table is the same on master and slave.
@@ -57,8 +57,8 @@ if ($grant_to == '')
   --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
   --source include/wait_for_slave_sql_error.inc
 
-  # 4) Stop slave and grant the privilege.
-  STOP SLAVE;
+  # 4) Stop replica and grant the privilege.
+  STOP REPLICA;
   --eval GRANT $privilege ON $priv_context TO $grant_to
 
   # 5) Start replica again and this time there should not be any error.
@@ -147,7 +147,7 @@ while ($context != 0)
         START REPLICA;
         --let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
         --source include/wait_for_slave_sql_error.inc
-        STOP SLAVE;
+        STOP REPLICA;
       }
       --let $privilege = INSERT(c, d)
       --let $sql_statment = INSERT INTO t VALUES(10, 10)
@@ -166,7 +166,7 @@ while ($context != 0)
       --echo #
 
       --source $MYSQLTEST_VARDIR/tmp/check_privilege.inc
-      STOP SLAVE;
+      STOP REPLICA;
 
       if ($privileges == 4)
       {

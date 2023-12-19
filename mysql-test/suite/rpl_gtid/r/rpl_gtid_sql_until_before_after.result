@@ -30,7 +30,7 @@ Check that START REPLICA IO_THREAD UNTIL ... maintains old behaviour, condition 
 START REPLICA IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
 Warnings:
 Note	1279	SQL thread is not to be started so UNTIL options are ignored
-Wait until IO Thread reads all master binlog and stop slave.
+Wait until IO Thread reads all master binlog and stop replica.
 include/wait_for_slave_param.inc [Retrieved_Gtid_Set]
 include/stop_slave_io.inc
 SQL thread must stop *before* INSERT 4

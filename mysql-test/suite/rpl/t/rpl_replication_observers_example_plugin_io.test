@@ -28,7 +28,7 @@
 
 --connection slave
 --echo #
---echo # Stop slave and install plugin.
+--echo # Stop replica and install plugin.
 --echo #
 --source include/stop_slave.inc
 --source include/install_replication_observers_example.inc
@@ -54,7 +54,7 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 --echo #
---echo # Stop slave and uninstall plugin.
+--echo # Stop replica and uninstall plugin.
 --echo #
 --source include/stop_slave.inc
 --source include/uninstall_replication_observers_example.inc

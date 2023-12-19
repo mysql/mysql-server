@@ -20,11 +20,9 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 START REPLICA SQL_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 #
-#  Do stop slave IO_thread.  SQL threads must still be running
+#  Do stop replica IO_thread.  SQL threads must still be running
 #
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
 #
 #  Do  start replica.  IO threads should be up independently.
@@ -32,11 +30,9 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
 START REPLICA;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 #
-#  Do STOP SLAVE. All slave threads for all channnels must be down.
+#  Do STOP REPLICA. All slave threads for all channnels must be down.
 #
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
 #
 # 3) Check start and stop FOR CHANNEL, the inc files wait till
@@ -46,9 +42,9 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
 include/start_slave_io.inc [FOR CHANNEL 'channel_1']
 # 3.b) Test START REPLICA SQL_THREAD FOR CHANNEL
 include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
-# 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
+# 3.c) Test STOP REPLICA IO_THREAD FOR CHANNEL
 include/stop_slave_io.inc [FOR CHANNEL 'channel_1']
-# 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
+# 3.d) Test STOP REPLICA SQL_THREAD FOR CHANNEL
 include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
 include/rpl_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

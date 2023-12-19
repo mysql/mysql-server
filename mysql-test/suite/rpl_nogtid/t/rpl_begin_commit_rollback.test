@@ -217,7 +217,7 @@ USE replicate_do_db;
 SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout= 1;
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 source include/wait_for_slave_sql_to_stop.inc;
 START REPLICA SQL_THREAD;
 source include/wait_for_slave_sql_to_start.inc;

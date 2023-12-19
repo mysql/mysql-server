@@ -63,9 +63,7 @@ delete from t1;
 set sql_log_bin=1;
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 include/wait_for_slave_sql_error.inc [errno=1062]
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

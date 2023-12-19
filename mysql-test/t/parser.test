@@ -753,11 +753,11 @@ DROP TABLE t;
 --echo #
 
 --error ER_PARSE_ERROR
-STOP SLAVE ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+STOP REPLICA ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
 --error ER_PARSE_ERROR
-STOP SLAVE ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
+STOP REPLICA ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
 --error ER_PARSE_ERROR
-STOP SLAVE ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
+STOP REPLICA ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
 
 --echo #
 --echo # Bug#13819132 BROKEN SYNTAX ACCEPTED FOR START TRANSACTION

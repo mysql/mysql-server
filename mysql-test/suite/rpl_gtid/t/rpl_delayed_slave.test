@@ -9,7 +9,7 @@
 #  - Verify that delay is correct when slave is already lagging
 #    due to slow queries.
 #
-#  - Verify that STOP SLAVE works instantly even during a delay, and
+#  - Verify that STOP REPLICA works instantly even during a delay, and
 #    that it does not cause the waited-for event to be executed too
 #    early on slave.
 #
@@ -109,7 +109,7 @@ INSERT INTO t1 SELECT delay_on_slave(2), 4;
 --source extra/rpl_tests/check_slave_delay.inc
 
 
---echo ==== STOP SLAVE / START REPLICA + DML ====
+--echo ==== STOP REPLICA / START REPLICA + DML ====
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
@@ -122,7 +122,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY = $delay;
 
 --echo [on master]
 --connection master
-INSERT INTO t1 VALUES ('stop slave and START REPLICA: DML', 5);
+INSERT INTO t1 VALUES ('STOP REPLICA and START REPLICA: DML', 5);
 
 --echo [on slave]
 --connection slave
@@ -131,15 +131,15 @@ INSERT INTO t1 VALUES ('stop slave and START REPLICA: DML', 5);
 --let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
 --source include/stop_slave.inc
 
---let $assert_text= SQL thread position should not increase after STOP SLAVE
+--let $assert_text= SQL thread position should not increase after STOP REPLICA
 --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
 --source include/assert.inc
 
---let $assert_text= Query should not be executed after STOP SLAVE
+--let $assert_text= Query should not be executed after STOP REPLICA
 --let $assert_cond= MAX(b) = 4 FROM t1
 --source include/assert.inc
 
---let $assert_text= Status should be '' after STOP SLAVE
+--let $assert_text= Status should be '' after STOP REPLICA
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
 --source include/assert.inc
 
@@ -151,7 +151,7 @@ INSERT INTO t1 VALUES ('stop slave and START REPLICA: DML', 5);
 --source extra/rpl_tests/check_slave_delay.inc
 
 
---echo ==== STOP SLAVE / START REPLICA + DDL ====
+--echo ==== STOP REPLICA / START REPLICA + DDL ====
 
 --echo This verifies BUG#56442
 
@@ -167,15 +167,15 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 --let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
 --source include/stop_slave.inc
 
---let $assert_text= SQL thread position should not increase after STOP SLAVE
+--let $assert_text= SQL thread position should not increase after STOP REPLICA
 --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
 --source include/assert.inc
 
---let $assert_text= Query should not be executed after STOP SLAVE
+--let $assert_text= Query should not be executed after STOP REPLICA
 --let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
 --source include/assert.inc
 
---let $assert_text= Status should be '' after STOP SLAVE
+--let $assert_text= Status should be '' after STOP REPLICA
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
 --source include/assert.inc
 

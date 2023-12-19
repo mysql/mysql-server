@@ -16,7 +16,7 @@ create table t1 (t int);
 --source include/sync_slave_sql_with_master.inc
 
 #trying to use this user without ssl
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
@@ -48,7 +48,7 @@ source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 
 #checking if replication works without ssl also performing clean up
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0;
@@ -67,7 +67,7 @@ source include/check_slave_is_running.inc;
 
 # Start replication with ssl_verify_server_cert turned on
 connection slave;
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
@@ -112,7 +112,7 @@ drop table t1;
 #
 # We test the following:
 # - The behaviour of ssl_verify_server_cert with RESET SLAVE.
-# - Test that neither of STOP SLAVE or START REPLICA affects the value of
+# - Test that neither of STOP REPLICA or START REPLICA affects the value of
 #   ssl_verify_server_cert.
 # - Test that CHANGE MASTER with no ssl_verify_server_cert option doesnt
 #   affect ssl_verify_server_cert value.
@@ -121,7 +121,7 @@ drop table t1;
 --source include/stop_slave.inc
 
 --let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on STOP SLAVE.
+--let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.
 --source include/assert.inc
 
 --let $log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)

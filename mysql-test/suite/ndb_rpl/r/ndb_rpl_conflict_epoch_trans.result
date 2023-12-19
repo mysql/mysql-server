@@ -32,9 +32,7 @@ insert into test.t1 values
 (10, "Initial data 10");
 Show basic row-level conflict detection
 ---------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="Primary first change 2" where a=2;
 select * from test.t1 order by a;
 a	b
@@ -106,9 +104,7 @@ a	b
 10	Initial data 10
 Show rollback of whole secondary transaction
 --------------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="Primary second change 4" where a=4;
 select * from test.t1 order by a;
 a	b
@@ -183,9 +179,7 @@ a	b
 10	Initial data 10
 Show rollback of dependent transaction as well
 ----------------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="Primary third change 1" where a=1;
 select * from test.t1 order by a;
 a	b
@@ -255,9 +249,7 @@ a	b
 10	Initial data 10
 Show rollback of dependent transaction across different tables
 --------------------------------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="Primary fifth change 6" where a=6;
 select * from test.t1 order by a;
 a	b
@@ -336,9 +328,7 @@ select * from test.t2 order by a;
 a	b
 Show that whole epoch is not rolled back
 ----------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="Primary is king" where a=10;
 begin;
 update t1 set b="Secondary is emperor" where a=10;
@@ -401,9 +391,7 @@ a	b
 14	Look on my works ye mighty, and despair
 Show that non-conflicting ancestors are not implicated
 ------------------------------------------------------
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update t1 set b="7 : Primary is king" where a=7;
 Primary state
 select * from test.t1 order by a;
@@ -549,9 +537,7 @@ insert into test.balances values
 ("Newsagent", 0);
 FLUSH LOGS;
 Bank sites are disconnected
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Larry buys a yacht using Primary bank site
 begin;
 insert into test.transactions (from_name, to_name, detail, amount)
@@ -696,9 +682,7 @@ insert into test.t5 values
 Allow to propagate
 FLUSH LOGS;
 Case 1 : Transactional detection affects row - based entries in same trans
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update test.t1 set b=100 where a=1;
 begin;
 update test.t3 set b=1100 where a=11;
@@ -800,9 +784,7 @@ a	b
 25	25
 26	26
 Case 2 : Row based detection does not affect other transaction entries
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 update test.t3 set b=1200 where a=12;
 begin;
 update test.t3 set b=1201 where a=12;
@@ -907,9 +889,7 @@ flush logs;
 Case 3 : Check behaviour where table with Blob is implicated
 in transactional conflict.  Should result in Slave
 stopping with an error.
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Setup warning suppression
 begin;
 update t1 set b= 11 where a=1;
@@ -960,9 +940,7 @@ a	b
 6	6
 77	A good year
 SECONDARY:
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 PRIMARY:
 Primary Delete
 delete from test.t1 where a=77;
@@ -1104,10 +1082,8 @@ Cleanup
 delete from test.t1 where a != 6;
 PRIMARY
 Transactional Delete testcase
-STOP slave on SECONDARY
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+# STOP REPLICA on SECONDARY
+STOP REPLICA;
 PRIMARY
 Primary updates row with pk 6
 update test.t1 set b="Pentland" where a=6;
@@ -1221,9 +1197,7 @@ drop table mysql.ndb_replication;
 drop table test.t1;
 drop table test.t2;
 flush logs;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

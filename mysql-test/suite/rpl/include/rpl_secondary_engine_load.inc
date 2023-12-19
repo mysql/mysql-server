@@ -190,7 +190,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 # Set secondary_engine to NULL only on slave.
 ALTER TABLE t2 SECONDARY_ENGINE=NULL;
 
-# Stop slave SQL thread.
+# Stop replica SQL thread.
 --source include/stop_slave_sql.inc
 
 --connection master
@@ -274,7 +274,7 @@ ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
 # Uninstall the plugin on slave.
 UNINSTALL PLUGIN mock;
 
-# Stop slave SQL thread.
+# Stop replica SQL thread.
 --source include/stop_slave_sql.inc
 
 --connection master

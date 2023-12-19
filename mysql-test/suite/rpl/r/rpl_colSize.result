@@ -7,9 +7,7 @@ DROP TABLE IF EXISTS t1;
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
 include/sync_slave_sql_with_master.inc
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 Warnings:

@@ -2531,7 +2531,7 @@
   </ul>
 
   To verify that a slave has reached the desired state, combine the
-  use of <b>START REPLICA</b> or <b>STOP SLAVE</b> with an
+  use of <b>START REPLICA</b> or <b>STOP REPLICA</b> with an
   appropriate “wait” include file. The file contains code that waits
   until the state has been reached or a timeout occurs. For example,
   to verify that both slave threads have started, do this:
@@ -2544,7 +2544,7 @@
   Similarly, to stop both slave threads, do this:
 
   @verbatim
-  STOP SLAVE;
+  STOP REPLICA;
   --source include/wait_for_slave_to_stop.inc
   @endverbatim
 
@@ -2563,21 +2563,21 @@
       <tt>wait_for_slave_to_stop.inc</tt>
 
       Waits for both slave threads (I/O and SQL) to stop. Should be
-      preceded by a <b>STOP SLAVE</b> statement.
+      preceded by a <b>STOP REPLICA</b> statement.
     </li>
 
     <li>
       <tt>wait_for_slave_sql_to_stop.inc</tt>
 
       Waits for the slave SQL thread to stop. Should be preceded by
-      a <b>STOP SLAVE SQL_THREAD</b> statement.
+      a <b>STOP REPLICA SQL_THREAD</b> statement.
     </li>
 
     <li>
       <tt>wait_for_slave_io_to_stop.inc</tt>
 
       Waits for the slave I/O thread to stop. Should be preceded by
-      a <b>STOP SLAVE IO_THREAD</b> statement.
+      a <b>STOP REPLICA IO_THREAD</b> statement.
     </li>
 
     <li>

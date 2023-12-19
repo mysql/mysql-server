@@ -133,7 +133,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
-*** Start/stop slave ***
+*** Start/stop replica ***
 SET @@global.replica_net_timeout=100;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=20;
 Warnings:
@@ -355,9 +355,7 @@ SET @@global.replica_compressed_protocol=0;
 SET @@global.replica_compressed_protocol=0;
 
 *** Reset source ***
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -372,9 +370,7 @@ include/sync_slave_sql_with_master.inc
 Heartbeat events are received after reset of master (1 means 'yes'): 1
 
 *** Reload master ***
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

@@ -394,7 +394,7 @@ create table tb2(a varchar(20) character set utf8 primary key,
                  b blob,
                  c blob) engine=ndb;
 
-stop slave;
+STOP REPLICA;
 set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
 START REPLICA;
 

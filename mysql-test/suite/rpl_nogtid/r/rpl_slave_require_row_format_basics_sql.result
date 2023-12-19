@@ -32,9 +32,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was inserted on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -63,9 +61,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -95,9 +91,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -128,9 +122,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -159,9 +151,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -190,9 +180,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [No temporary table was created]
 # No issues when REQUIRE_ROW_FORMAT = 0
@@ -223,9 +211,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;;
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3944]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [There is still a temporary table]
 # No issues when REQUIRE_ROW_FORMAT = 0

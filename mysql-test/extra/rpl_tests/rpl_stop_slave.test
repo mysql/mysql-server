@@ -35,7 +35,7 @@ let $field= Info;
 let $condition= LIKE 'INSERT%';
 source include/wait_show_condition.inc;
 
-send STOP SLAVE SQL_THREAD;
+send STOP REPLICA SQL_THREAD;
 
 --echo
 --echo [ On Slave1 ]

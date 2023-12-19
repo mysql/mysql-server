@@ -21,7 +21,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy_host', SOURCE_USER='root', SOURCE_PORT=13010 FOR CHANNEL 'ch_b';
 START REPLICA;
 
-STOP SLAVE FOR CHANNEL 'ch_a';
+STOP REPLICA FOR CHANNEL 'ch_a';
 
 # --relay-log-recovery is a source of the following mi initialization failure
 --let $rpl_server_number= 2

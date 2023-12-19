@@ -87,7 +87,7 @@ performance_schema
 sys
 test
 #
-# Stop slave.
+# Stop replica.
 #
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL '';

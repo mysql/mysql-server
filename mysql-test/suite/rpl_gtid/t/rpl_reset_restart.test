@@ -6,7 +6,7 @@
 # It will:
 # 1) generate some workload at the master;
 # 2) sync the slave with the master;
-# 3) stop slave replication threads;
+# 3) stop replica replication threads;
 # 4) do RESET BINARY LOGS AND GTIDS on the master;
 # 5) do RESET BINARY LOGS AND GTIDS on the slave;
 # 6) do RESET SLAVE on the slave;

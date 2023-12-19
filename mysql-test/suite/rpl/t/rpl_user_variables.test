@@ -21,7 +21,7 @@ enable_query_log;
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not
 # been explicitly deleted, or it has but the slave hasn't had
-# enough time to catch it before STOP SLAVE, 
+# enough time to catch it before STOP REPLICA, 
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog

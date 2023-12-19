@@ -91,7 +91,7 @@ include/sync_slave_sql_with_master.inc
 create temporary table t4 (f int);
 create table t5 (f int);
 include/sync_slave_sql_with_master.inc
-stop slave;
+STOP REPLICA;
 insert into t5 select * from t4;
 START REPLICA;
 select * from t5 /* must be 1 after reconnection */;

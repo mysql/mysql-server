@@ -26,9 +26,7 @@ from-master-2-'',
 from-var-from-master-3
 drop table t1;
 include/sync_slave_sql_with_master.inc
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 
 ########################################################################

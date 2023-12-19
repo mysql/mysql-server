@@ -46,7 +46,7 @@
 #    applied twice and the test would fail @12.
 
 --connection slave
-stop slave;
+STOP REPLICA;
 
 --connection master
 use test;
@@ -132,7 +132,7 @@ while($backup_count)
 {
   --echo Restore backup on the slave
   --connection slave
-  stop slave;
+  STOP REPLICA;
   truncate table test.ticker;
   delete from mysql.ndb_apply_status;
 
@@ -171,7 +171,7 @@ while($backup_count)
   #select * from test.ticker order by a;
 
   --echo Now check Binlog apply alone
-  stop slave;
+  STOP REPLICA;
   truncate table test.ticker;
   delete from mysql.ndb_apply_status;
 

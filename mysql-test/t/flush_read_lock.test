@@ -111,7 +111,7 @@ connection default;
 --echo # with various statements.
 --echo #
 --echo # These tests don't cover some classes of statements:
---echo # - Replication-related - CHANGE MASTER TO, START/STOP SLAVE and etc
+--echo # - Replication-related - CHANGE MASTER TO, START/STOP REPLICA and etc
 --echo #   (all compatible with FTWRL).
 --echo # - Plugin-related - INSTALL/UNINSTALL (incompatible with FTWRL,
 --echo #   require plugin support).

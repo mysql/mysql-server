@@ -220,7 +220,7 @@ connection master;
 let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 # Keep original binlog file
 --copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved
-# Stop slave
+# Stop replica
 connection slave;
 source include/stop_slave.inc;
 RESET SLAVE;

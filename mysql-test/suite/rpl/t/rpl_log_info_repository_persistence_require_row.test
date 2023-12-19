@@ -96,7 +96,7 @@ END_OF_PROCEDURE
 --echo #      Check the performance_schema table and applier metadata repository
 --echo #      are correct
 
-STOP SLAVE;
+STOP REPLICA;
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 

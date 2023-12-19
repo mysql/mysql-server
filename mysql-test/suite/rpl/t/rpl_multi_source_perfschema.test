@@ -203,17 +203,17 @@ if ( `select @@GLOBAL.replica_parallel_workers > 0`)
 --echo #
 
 --let $channel_1_port= `select port from performance_schema.replication_connection_configuration where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, replication_connection_configuration is intact
+--let $assert_text=  After stop replica for channel, replication_connection_configuration is intact
 --let $assert_cond= "$channel_1_port"= "$SERVER_MYPORT_1"
 --source include/assert.inc
 
 --let $service_state= `select service_state from performance_schema.replication_connection_status where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF for connection_status table.
+--let $assert_text=  After stop replica for channel, service state is OFF for connection_status table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
 --let $service_state= `select service_state from performance_schema.replication_applier_status where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF for applier_status table.
+--let $assert_text=  After stop replica for channel, service state is OFF for applier_status table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
@@ -221,7 +221,7 @@ if ( `select @@GLOBAL.replica_parallel_workers > 0`)
 # thread's status will be reported as part of
 # performance_schema.replication_applier_status_by_worker table.
 --let $service_state= `select service_state from performance_schema.replication_applier_status_by_worker where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF by replication_applier_status_by_worker table.
+--let $assert_text=  After stop replica for channel, service state is OFF by replication_applier_status_by_worker table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 

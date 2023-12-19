@@ -65,7 +65,7 @@ show variables like 'log_replica_updates';
 # stop replication on "master" as not to replicate
 # shutdown circularly, eg drop table
 --connection master
-STOP SLAVE;
+STOP REPLICA;
 
 # cleanup
 --connection master
@@ -96,7 +96,7 @@ show variables like 'ndb_log_apply_status';
 
 --connection master
 
-stop slave;
+STOP REPLICA;
 insert into t1 values (1,1);
 --sync_slave_with_master
 
@@ -138,12 +138,12 @@ select server_id, log_name from mysql.ndb_apply_status order by server_id;
 
 
 --connection master
-stop slave;
+STOP REPLICA;
 set global ndb_log_apply_status=off;
 
 --connection slave
 set global ndb_log_apply_status=off;
-stop slave;
+STOP REPLICA;
 
 drop table t1;
 

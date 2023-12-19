@@ -7,7 +7,7 @@
 # 1. Bootstrap start group replication on M2. Add some data for recovery.
 #    Start M1.
 # 2. Stop replication on M1. On M2 lock a table to block recovery. Start M1.
-# 3. Execute a STOP SLAVE command and see the recovery channel still active.
+# 3. Execute a STOP REPLICA command and see the recovery channel still active.
 # 4. Execute a RESET SLAVE ALL command and see the recovery channel is not
 #    affected on M1 when GR node is active.
 # 5. Kill the server M1. The recovery channel should still be there but it's
@@ -70,14 +70,14 @@ LOCK TABLE t1 READ;
 --source include/start_group_replication.inc
 
 #
-# Phase 3: Execute a STOP SLAVE command and see the channel still active.
+# Phase 3: Execute a STOP REPLICA command and see the channel still active.
 #
 
 let $wait_condition=
   SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON";
 --source include/wait_condition.inc
 
-STOP SLAVE;
+STOP REPLICA;
 
 --let $assert_text= 'The group replication recovery channel is ON'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON", count, 1] = 1

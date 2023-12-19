@@ -125,7 +125,7 @@ connection slave;
 --source include/wait_for_slave_sql_error.inc
 
 # RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
-stop slave;
+STOP REPLICA;
 reset slave;
 --source include/check_slave_no_error.inc
 

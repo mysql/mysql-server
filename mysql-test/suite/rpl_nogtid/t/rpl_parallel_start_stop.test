@@ -191,7 +191,7 @@ rollback;
 #
 
 --connection slave
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 set @@global.sql_replica_skip_counter=7;
 
 --connection master

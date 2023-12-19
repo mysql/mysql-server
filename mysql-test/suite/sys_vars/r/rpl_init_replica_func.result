@@ -24,9 +24,7 @@ SELECT @@global.init_replica = 'SET @@global.max_connections = @@global.max_conn
 1
 Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
@@ -35,9 +33,7 @@ START REPLICA;
 include/wait_for_slave_to_start.inc
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_replica = "SET @a=5";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:

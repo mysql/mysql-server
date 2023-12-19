@@ -49,6 +49,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 SET GTID_NEXT= @saved_gtid_next;
---echo # "STOP SLAVE" and verify that the SQL thread was properly stopped and
+--echo # "STOP REPLICA" and verify that the SQL thread was properly stopped and
 --echo # left no gaps.
 --source include/rpl_end.inc

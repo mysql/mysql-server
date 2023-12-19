@@ -85,7 +85,7 @@ insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
 select count(1) from mysql.ndb_apply_status;
 
 --echo *** Standard reset slave should clear ndb_apply_status ***
-stop slave;
+STOP REPLICA;
 reset slave;
 
 select count(1) from mysql.ndb_apply_status;
@@ -107,7 +107,7 @@ insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
 select count(1) from mysql.ndb_apply_status;
 
 --echo *** Reset slave all should clear ndb_apply_status ***
-stop slave;
+STOP REPLICA;
 reset slave all;
 
 select count(1) from mysql.ndb_apply_status;
@@ -138,7 +138,7 @@ insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
 select count(1) from mysql.ndb_apply_status;
 
 --echo *** Standard reset slave should NOT clear ndb_apply_status ***
-stop slave;
+STOP REPLICA;
 reset slave;
 
 select count(1) from mysql.ndb_apply_status;
@@ -165,7 +165,7 @@ insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
 select count(1) from mysql.ndb_apply_status;
 
 --echo *** Reset slave all should NOT clear ndb_apply_status ***
-stop slave;
+STOP REPLICA;
 reset slave all;
 
 select count(1) from mysql.ndb_apply_status;

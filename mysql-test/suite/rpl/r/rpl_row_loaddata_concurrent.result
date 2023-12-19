@@ -60,7 +60,7 @@ delete from t1;
 set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
 include/wait_for_slave_sql_error.inc [errno=1062]
-stop slave;
+STOP REPLICA;
 reset slave;
 include/check_slave_no_error.inc
 reset binary logs and gtids;

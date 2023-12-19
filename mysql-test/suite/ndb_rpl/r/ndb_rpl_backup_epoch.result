@@ -5,9 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 Test to show that combination of Backup + Restore and
 Binlog positioning correctly recovers a slave
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 use test;
 create table ticker (a int primary key) engine=ndb;
 reset binary logs and gtids;
@@ -61,9 +59,7 @@ max(a)
 200
 Verify backup restoration is correct wrt binlog positions
 Restore backup on the slave
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 select @backup_rows:=count(1) from test.ticker;
@@ -80,9 +76,7 @@ select max(a) from test.ticker;
 max(a)
 200
 Now check Binlog apply alone
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 START REPLICA;
@@ -96,9 +90,7 @@ select @log_max_val;
 @log_max_val
 200
 Restore backup on the slave
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 select @backup_rows:=count(1) from test.ticker;
@@ -115,9 +107,7 @@ select max(a) from test.ticker;
 max(a)
 200
 Now check Binlog apply alone
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 START REPLICA;

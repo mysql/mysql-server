@@ -450,7 +450,7 @@ connection master;
 --echo
 --echo ** Stop and Reset Slave **
 --echo
-STOP SLAVE;
+STOP REPLICA;
 --echo
 --echo ** create table slave side **
 eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
@@ -506,7 +506,7 @@ sync_slave_with_master;
 --echo *********************************************
 --echo
 --echo  *** Create t11 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 
 eval CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
                        ) ENGINE=$engine_type;
@@ -560,7 +560,7 @@ sync_slave_with_master;
 --echo *********************************************
 --echo
 --echo  *** Create t12 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
                        ) ENGINE=$engine_type;
 
@@ -611,7 +611,7 @@ sync_slave_with_master;
 --echo
 --echo
 --echo *** Create t14 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -684,7 +684,7 @@ connection slave;
 --source include/wait_for_slave_sql_error.inc
 #***************************
 
-STOP SLAVE;
+STOP REPLICA;
 
 --echo
 --echo *** Drop t14  ***
@@ -710,7 +710,7 @@ RESET REPLICA;
 --echo *************************************************
 --echo
 --echo *** Create t15 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -750,7 +750,7 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 connection slave;
 --let $slave_sql_errno= convert_error(ER_BAD_FIELD_ERROR)
 --source include/wait_for_slave_sql_error.inc
-STOP SLAVE;
+STOP REPLICA;
 
 --echo
 --echo *** Drop t15  ***
@@ -773,7 +773,7 @@ connection slave;
 --echo ************************************************
 --echo
 --echo *** Create t16 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -826,7 +826,7 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 connection slave;
 --let $slave_sql_errno= convert_error(ER_KEY_COLUMN_DOES_NOT_EXITS)
 --source include/wait_for_slave_sql_error.inc
-STOP SLAVE;
+STOP REPLICA;
 
 --echo
 --echo *** Drop t16  ***
@@ -849,7 +849,7 @@ connection slave;
 --echo *****************************************************
 --echo
 --echo *** Create t17 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -915,7 +915,7 @@ sync_slave_with_master;
 --echo *** Create t18 on slave  ***
 --echo 
 
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -978,7 +978,7 @@ sync_slave_with_master;
 --echo *****************************************************
 --echo
 --echo *** Create t5 on slave  ***
-STOP SLAVE;
+STOP REPLICA;
 eval CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 

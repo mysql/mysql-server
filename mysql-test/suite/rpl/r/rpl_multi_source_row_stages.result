@@ -21,9 +21,9 @@ use test;
 CREATE TABLE if not exists t1 (a int);
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 [connection server_2]
-stop slave sql_thread for channel_1
+# stop replica sql_thread for channel_1
 include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
-stop slave sql_thread for channel_3
+# stop replica sql_thread for channel_3
 include/stop_slave_sql.inc [FOR CHANNEL 'channel_3']
 [connection server_2]
 set debug point on slave

@@ -108,7 +108,7 @@ performance_schema
 sys
 test
 #
-# Stop slave.
+# Stop replica.
 #
 include/stop_slave.inc
 #

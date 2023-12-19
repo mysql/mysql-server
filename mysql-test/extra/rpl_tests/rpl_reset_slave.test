@@ -78,7 +78,7 @@ source include/check_slave_no_error.inc;
 #
 
 --echo
---echo Sync slave, else STOP SLAVE may complain about open temporary table.
+--echo Sync slave, else STOP REPLICA may complain about open temporary table.
 --echo
 
 --source include/rpl_connection_master.inc
@@ -105,7 +105,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 reset slave;
 
 --echo
---echo Sync slave, else STOP SLAVE may complain about open temporary table.
+--echo Sync slave, else STOP REPLICA may complain about open temporary table.
 --echo
 
 --source include/start_slave.inc

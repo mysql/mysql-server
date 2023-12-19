@@ -4,9 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 master_id: 1
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 *** --replicate-same-server-id and change master option can clash ***
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
 ERROR HY000: The requested server id 2 clashes with the replica startup option --replicate-same-server-id
@@ -34,9 +32,7 @@ include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 show tables;
 Tables_in_test
 *** allowing events from master ***
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset slave;
 Warnings:

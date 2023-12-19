@@ -19,10 +19,10 @@
 #  - Test each field on a fresh replication setup.
 #  - Cause an error in the IO thread and check for the correctness of the error
 #    number, meaasge and timestamp field.
-#  - Verify that the error fields are preserved after STOP SLAVE, thread_id
+#  - Verify that the error fields are preserved after STOP REPLICA, thread_id
 #    changes to NULL and service_state to "off".
 #  - Start server with gtid-mode=on and test the RECEIVED_TRANSACTION_SET field.
-#    Also, make sure the value in this field is preserved after STOP SLAVE.
+#    Also, make sure the value in this field is preserved after STOP REPLICA.
 #  - Test Group Replication related fields. They should be set NULL when plugin
 #    is not installed on slave.
 #  - When Group Replication plugin is not installed, table must return an empty
@@ -240,7 +240,7 @@ source include/assert.inc;
 
 --echo
 --echo # Verify that source_UUID and the error related fields are preserved
---echo # after STOP SLAVE, thread_id changes to NULL and service_state to "off".
+--echo # after STOP REPLICA, thread_id changes to NULL and service_state to "off".
 --echo
 
 --let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
@@ -248,11 +248,11 @@ source include/stop_slave.inc;
 
 --echo
 --echo # 1. Verify that thread_id changes to NULL and service_state to "off" on
---echo #    STOP SLAVE.
+--echo #    STOP REPLICA.
 --echo
 
 let $ps_value= query_get_value(select thread_id from performance_schema.replication_connection_status, thread_id, 1);
-let $assert_text= After STOP SLAVE, thread_id should be NULL;
+let $assert_text= After STOP REPLICA, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
 source include/assert.inc;
 
@@ -358,12 +358,12 @@ source include/assert.inc;
 
 --echo
 --echo # Verify that the value for 'Received_Transaction_Set' field is preserved
---echo # after STOP SLAVE.
+--echo # after STOP REPLICA.
 --echo
 
 --source include/stop_slave.inc
 --let $old_ps_value= $ps_value
---let $assert_text= Received_Transaction_Set should not have changed after STOP SLAVE
+--let $assert_text= Received_Transaction_Set should not have changed after STOP REPLICA
 --let $assert_cond= "$ps_value" = "$old_ps_value";
 --source include/assert.inc
 

@@ -16,7 +16,7 @@
 # 2nd Step
 #
 # The slave server should respond promptly when asked to shutdown. No warnings
-# about the "STOP SLAVE" waiting for disk space should be generated.
+# about the "STOP REPLICA" waiting for disk space should be generated.
 #
 # ==== References ====
 #
@@ -76,9 +76,9 @@ INSERT INTO t1 VALUES(2);
 # Get the relay log file name, also using SHOW SLAVE STATUS
 --let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
 
-# STOP SLAVE IO_THREAD should be blocked
+# STOP REPLICA IO_THREAD should be blocked
 --source include/rpl_connection_slave1.inc
---send STOP SLAVE IO_THREAD
+--send STOP REPLICA IO_THREAD
 
 # But the KILL on it should unblock it
 --source include/rpl_connection_slave.inc

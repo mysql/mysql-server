@@ -56,10 +56,10 @@ include/stop_slave.inc [FOR CHANNEL 'channel_1']
 # Test case 5: Verify that selects work on named channels even
 #              after a channel is stopped. test that service state is OFF
 #
-include/assert.inc [After stop slave for channel, replication_connection_configuration is intact]
-include/assert.inc [After stop slave for channel, service state is OFF for connection_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF for applier_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_worker table.]
+include/assert.inc [After stop replica for channel, replication_connection_configuration is intact]
+include/assert.inc [After stop replica for channel, service state is OFF for connection_status table.]
+include/assert.inc [After stop replica for channel, service state is OFF for applier_status table.]
+include/assert.inc [After stop replica for channel, service state is OFF by replication_applier_status_by_worker table.]
 #
 #  Test case 6): Do a sanity check that joins can be performed as replication tables
 #                 contain multiple rows now.

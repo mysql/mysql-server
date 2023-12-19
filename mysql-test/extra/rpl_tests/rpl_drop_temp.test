@@ -68,7 +68,7 @@ sync_slave_with_master;
 # on slave. The second part of the test covers this situation.
 #
 connection slave;
-stop slave;
+STOP REPLICA;
 wait_for_slave_to_stop;
 
 --echo **** On Master ****

@@ -55,7 +55,7 @@ SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 --echo ############################################################
 --echo # 1. Test with REPLICA_PARALLEL_TYPE default value and
 --echo #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET GLOBAL REPLICA_PARALLEL_WORKERS=4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
@@ -64,7 +64,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo ############################################################
 --echo # 2. Test with REPLICA_PARALLEL_TYPE set to DATABASE and
 --echo #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
@@ -74,7 +74,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo ############################################################
 --echo # 3. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
 --echo #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
@@ -85,7 +85,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo # 4. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK,
 --echo #    parallel workers number set to 4 and
 --echo #    REPLICA_PRESERVE_COMMIT_ORDER set to ON.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= ON;
@@ -95,7 +95,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo ############################################################
 --echo # 5. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
 --echo #    parallel workers number set to 0.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
@@ -104,7 +104,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo ############################################################
 --echo # 6. Test with REPLICA_PARALLEL_TYPE default value and default
 --echo #    parallel workers number.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;

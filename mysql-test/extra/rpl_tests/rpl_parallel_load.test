@@ -69,7 +69,7 @@ while($i)
 
 
 # not gather events into relay log w/o executing yet
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 
 ##call p1(1);
 

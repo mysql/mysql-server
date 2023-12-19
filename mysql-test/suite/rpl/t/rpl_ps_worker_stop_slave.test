@@ -2,14 +2,14 @@
 #
 # The purpose of this test is assess the behaviour of the information on the
 # performance_schema table replication_applier_status_by_worker after the
-# STOP SLAVE command both for a single thread slave and for a multi-threaded
+# STOP REPLICA command both for a single thread slave and for a multi-threaded
 # slave.
 #
 # === Implementation ===
 #
 # We test four scenarios in which we stop and start the slave, changing between
 # STS and MTS or keeping the number of workers. In each scenario, we test is the
-# values after the stop slave and after the start replica are as expected.
+# values after the stop replica and after the start replica are as expected.
 #
 # === References ===
 #
@@ -45,7 +45,7 @@ SET @@GLOBAL.replica_parallel_workers = 0;
 #  - Switch: MTS to STS
 #  - Expected outcome: the values must be cleared after START REPLICA
 #
-# In all four scenarios the values must be preserved after STOP SLAVE
+# In all four scenarios the values must be preserved after STOP REPLICA
 
 --let $ps_table = performance_schema.replication_applier_status_by_worker
 --let $scenario = 1

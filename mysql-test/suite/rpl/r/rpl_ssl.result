@@ -9,9 +9,7 @@ create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
 create table t1 (t int auto_increment, KEY(t));
 include/sync_slave_sql_with_master.inc
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to
 SOURCE_USER='replssl',
 SOURCE_PASSWORD='',
@@ -34,9 +32,7 @@ Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 include/check_slave_is_running.inc
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 select * from t1;
 t
 1

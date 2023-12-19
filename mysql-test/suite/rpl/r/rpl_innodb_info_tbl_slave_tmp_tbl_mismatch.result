@@ -11,7 +11,7 @@ include/sync_slave_sql_with_master.inc
 
 include/assert.inc [Both INNODB_TEMP_TABLE_INFO and REPLICA_OPEN_TEMP_TABLES should show a temp table exists.]
 
-# Verify that after STOP SLAVE the innodb table and slave_open_temp_table
+# Verify that after STOP REPLICA the innodb table and slave_open_temp_table
 # both indicate that there is an open temp table at slave.
 
 include/stop_slave.inc

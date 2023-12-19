@@ -63,7 +63,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
-===== STOP SLAVE without 'FOR CHANNEL' clause.
+===== STOP REPLICA without 'FOR CHANNEL' clause.
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
@@ -109,7 +109,7 @@ Last_IO_Error = ''
 Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = ''
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
+===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
@@ -154,7 +154,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
@@ -197,7 +197,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
@@ -269,7 +269,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
-===== STOP SLAVE without 'FOR CHANNEL' clause.
+===== STOP REPLICA without 'FOR CHANNEL' clause.
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
@@ -321,7 +321,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
+===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
@@ -358,7 +358,7 @@ Last_IO_Error = ''
 Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_2'
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
@@ -403,7 +403,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
@@ -475,7 +475,7 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
-===== STOP SLAVE without 'FOR CHANNEL' clause.
+===== STOP REPLICA without 'FOR CHANNEL' clause.
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
@@ -527,7 +527,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
+===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
@@ -570,7 +570,7 @@ CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
@@ -607,7 +607,7 @@ Last_IO_Error = ''
 Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_3'
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
+===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.

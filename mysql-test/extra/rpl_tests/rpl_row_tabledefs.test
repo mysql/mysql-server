@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
 --enable_query_log
 --enable_warnings
 sync_slave_with_master;
-STOP SLAVE;
+STOP REPLICA;
 START REPLICA;
 
 connection master;

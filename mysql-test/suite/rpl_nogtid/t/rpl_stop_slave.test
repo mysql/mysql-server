@@ -14,7 +14,7 @@ source include/have_binlog_format_statement.inc;
 --echo #
 --echo # If a temporary table is created or dropped, the transaction should be
 --echo # regarded similarly that a non-transactional table is modified. So 
---echo # STOP SLAVE should wait until the transaction has finished.
+--echo # STOP REPLICA should wait until the transaction has finished.
 
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
 CREATE TABLE t2(c1 INT) ENGINE=InnoDB;
@@ -26,7 +26,7 @@ source include/stop_slave.inc;
 --echo
 --echo # Suspend the INSERT statement in current transaction on SQL thread.
 --echo # It guarantees that SQL thread is applying the transaction when
---echo # STOP SLAVE command launchs.
+--echo # STOP REPLICA command launchs.
 SET GLOBAL debug= '+d,after_mysql_insert';
 source include/start_slave.inc;
 

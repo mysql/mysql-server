@@ -12,7 +12,7 @@ SET @@global.default_storage_engine='innodb';
 
 eval SET GLOBAL replica_parallel_workers= $max_workers;
 # As the test case is not going to do any synchronization with the master
-# before issuing STOP SLAVE in the non-deterministic activity, there is a
+# before issuing STOP REPLICA in the non-deterministic activity, there is a
 # chance that the slave applier be in MTS mode and in a condition that it
 # will throw the following error message:
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -89,7 +89,7 @@ while ($i) {
       let $k= 10;
       while ($k) {
 
-	# Can't be CREATE .. SELECT here because of BUG#11756034 that allows STOP SLAVE
+	# Can't be CREATE .. SELECT here because of BUG#11756034 that allows STOP REPLICA
 	# in the middle of CREATE-SELECT caused group.
 	# TODO: fix the bug and create a use case.
 
@@ -131,7 +131,7 @@ while ($i) {
     if (!$slave_status)
     {
       --connection slave
-      STOP SLAVE;
+      STOP REPLICA;
       --connection master
       let $slave_status= 1;
     }

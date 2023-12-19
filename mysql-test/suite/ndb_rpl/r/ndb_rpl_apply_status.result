@@ -59,9 +59,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 2
 *** Standard reset slave should clear ndb_apply_status ***
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -78,9 +76,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 2
 *** Reset slave all should clear ndb_apply_status ***
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave all;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -103,9 +99,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 2
 *** Standard reset slave should NOT clear ndb_apply_status ***
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -123,9 +117,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 2
 *** Reset slave all should NOT clear ndb_apply_status ***
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave all;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

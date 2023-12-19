@@ -37,9 +37,7 @@ include/gr_assert_secondary_member.inc
 include/gr_assert_primary_member.inc
 
 # 7. Cleanup
-STOP SLAVE FOR CHANNEL 'ch3_1';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA FOR CHANNEL 'ch3_1';
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

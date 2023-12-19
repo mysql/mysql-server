@@ -5,7 +5,7 @@
 #
 
 connection slave;
-stop slave;
+STOP REPLICA;
 START REPLICA;
 
 connection master;

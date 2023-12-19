@@ -65,7 +65,7 @@ EOF
 --let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log
 --let args=--no-defaults --innodb_dedicated_server=OFF --console --basedir=$ORIGINAL_MYSQLD_BASEDIR
 
-# 1. Stop slave server so that it can be initialized by specifying server-id and
+# 1. Stop replica server so that it can be initialized by specifying server-id and
 # started without specifying server-id
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc

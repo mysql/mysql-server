@@ -14,9 +14,7 @@ include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t0, slave:t0]
 # Stop the slave, so that we enable debug flag and apply binlog events
 # after master generates binlog events for CREATE TABLE ... SELECT.
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 [connection master]
 include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;

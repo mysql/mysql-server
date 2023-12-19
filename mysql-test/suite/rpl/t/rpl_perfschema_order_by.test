@@ -29,13 +29,13 @@ START REPLICA;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 --echo # Test for Multi Threaded Slave
-STOP SLAVE;
+STOP REPLICA;
 SET GLOBAL replica_parallel_workers = 2;
 START REPLICA;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 #Cleanup
-STOP SLAVE;
+STOP REPLICA;
 --disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings

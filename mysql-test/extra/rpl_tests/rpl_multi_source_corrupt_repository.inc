@@ -125,12 +125,12 @@ if ($rpl_corrupt_channel_name != "''")
 --echo ===== Executing few basic commands without 'FOR CHANNEL' clause.
 
 ###############################################################################
-# Step-3.1: STOP SLAVE should be able to bring all the channels's IO and SQL
+# Step-3.1: STOP REPLICA should be able to bring all the channels's IO and SQL
 # thread down (corrupted channel's IO and SQL thread down already before this
 # step).
 ###############################################################################
 
---echo ===== STOP SLAVE without 'FOR CHANNEL' clause.
+--echo ===== STOP REPLICA without 'FOR CHANNEL' clause.
 --let $rpl_channel_name=
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_AM_INIT_REPOSITORY)
 --source include/stop_slave.inc
@@ -313,7 +313,7 @@ while ($i <= $number_of_channels)
   #############################################################################
   # Step 5: If this channel is a good channel, replication should work fine
   #         without any issues.
-  # Note: Before executing 'STOP SLAVE FOR CHANNEL' command, execute this sync
+  # Note: Before executing 'STOP REPLICA FOR CHANNEL' command, execute this sync
   #       step to avoid stopping and staring these slave threads.
   #############################################################################
 
@@ -332,10 +332,10 @@ while ($i <= $number_of_channels)
   }
 
   #############################################################################
-  # Step 4.5: STOP SLAVE FOR CHANNEL 'channel_name'
+  # Step 4.5: STOP REPLICA FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing STOP SLAVE FOR CHANNEL on channel $channel_name.
+  --echo ===== Executing STOP REPLICA FOR CHANNEL on channel $channel_name.
   --let $rpl_channel_name=$channel_name
   --source include/stop_slave.inc
 

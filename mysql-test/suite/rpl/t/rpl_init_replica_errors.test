@@ -34,7 +34,7 @@ source include/master-slave.inc;
 connection slave;
 
 --disable_warnings
-stop slave;
+STOP REPLICA;
 --enable_warnings
 reset slave;
 

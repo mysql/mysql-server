@@ -7,9 +7,7 @@ call mtr.add_suppression("Replica I/O: The replica I/O thread stops because a fa
 create table t1(n int);
 select * from t1;
 n
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
 include/wait_for_slave_param.inc [Read_Master_Log_Pos]

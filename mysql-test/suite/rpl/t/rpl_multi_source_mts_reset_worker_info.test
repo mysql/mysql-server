@@ -26,7 +26,7 @@ START REPLICA;
 --source include/wait_until_rows_count.inc
 
 # Per channel removal from worker info table proof:
-STOP SLAVE FOR CHANNEL 'ch_b';
+STOP REPLICA FOR CHANNEL 'ch_b';
 RESET SLAVE FOR CHANNEL 'ch_b';
 --let $count=2
 --let $table=mysql.slave_worker_info
@@ -36,7 +36,7 @@ RESET SLAVE FOR CHANNEL 'ch_b';
 # Testing error branches.
 #
 
-STOP SLAVE FOR CHANNEL 'ch_a';
+STOP REPLICA FOR CHANNEL 'ch_a';
 # Faking the worker table info corruption
 ALTER TABLE mysql.slave_worker_info DROP PRIMARY KEY;
 
@@ -45,7 +45,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch_a';
 ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 # now to compensate the above fake with removing the aimed records
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
@@ -75,7 +75,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
 START REPLICA;
 
-STOP SLAVE;
+STOP REPLICA;
 RESET SLAVE ALL;
 
 --let $rpl_skip_stop_slave=1

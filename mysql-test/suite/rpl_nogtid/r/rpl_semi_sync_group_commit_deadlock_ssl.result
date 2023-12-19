@@ -5,9 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 include/install_semisync.inc
 [connection slave]
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO SOURCE_SSL=1;
 START REPLICA IO_THREAD;
 [connection master]

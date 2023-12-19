@@ -150,7 +150,7 @@ connection slave;
 --source include/wait_for_slave_io_error.inc
 
 # Remove the bad binlog and clear error status on slave.
-STOP SLAVE;
+STOP REPLICA;
 RESET SLAVE;
 RESET BINARY LOGS AND GTIDS;
 --connection master

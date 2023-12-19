@@ -16,9 +16,7 @@ include/assert.inc [The performance_schema.replication_applier_configuration hol
 #
 # 3. Stop and reset the slave.
 #
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

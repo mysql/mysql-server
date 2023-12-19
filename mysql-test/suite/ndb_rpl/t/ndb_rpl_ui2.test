@@ -8,7 +8,7 @@ CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
 
 --sync_slave_with_master
 --connection slave
-STOP SLAVE;
+STOP REPLICA;
 insert into t1 values (1,1);
 insert into t1 values (2,2);
 --connection master

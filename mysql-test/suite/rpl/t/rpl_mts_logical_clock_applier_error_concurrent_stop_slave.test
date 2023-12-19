@@ -69,7 +69,7 @@ DELETE FROM parent WHERE a=3;
 --let $slave_param_value= Waiting for dependent transaction to commit
 --source include/wait_for_slave_param.inc
 #
-# Stop slave and cleanup the blocking
+# Stop replica and cleanup the blocking
 #
 --disable_warnings
 --let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)

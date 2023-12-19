@@ -153,7 +153,7 @@ START REPLICA SQL_THREAD;
 
 DROP TABLE t1;
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 --source include/cleanup_fake_relay_log.inc
 --source include/start_slave.inc
 

@@ -15,7 +15,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 #
-# On slave, issue start replica/stop slave command. Slave should not
+# On slave, issue start replica/stop replica command. Slave should not
 # error out anywhere.
 #
 [connection server_2]
@@ -30,9 +30,7 @@ Note	3083	Replication thread(s) for channel 'channel_5' are already runnning.
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 START REPLICA IO_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
 START REPLICA;

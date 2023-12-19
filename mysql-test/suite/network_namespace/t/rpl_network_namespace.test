@@ -84,7 +84,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --exec $EXE_MYSQL --no-defaults -u root  --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
 
---echo # Stop slave and run change master to listen to the master on socket
+--echo # Stop replica and run change master to listen to the master on socket
 --echo # created in the 'red' namespace
 --source include/stop_slave.inc
 

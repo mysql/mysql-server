@@ -15,9 +15,8 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 LOCK TABLE t1 READ;
 include/start_group_replication.inc
-STOP SLAVE;
+STOP REPLICA;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel '' are already stopped.
 include/assert.inc ['The group replication recovery channel is ON']
 SET GLOBAL SUPER_READ_ONLY=0;

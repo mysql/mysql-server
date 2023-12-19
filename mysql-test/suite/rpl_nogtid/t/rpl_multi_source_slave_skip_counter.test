@@ -58,7 +58,7 @@ SET GLOBAL sql_replica_skip_counter= 1;
 --source include/assert.inc
 
 # stop SQL THREAD for all channels
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 --let $rpl_source_file= include/wait_for_slave_sql_to_stop.inc
 --source include/rpl_for_each_connection.inc
 

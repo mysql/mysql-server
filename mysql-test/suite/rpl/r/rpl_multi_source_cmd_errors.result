@@ -29,7 +29,7 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 #
 START REPLICA FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
-STOP SLAVE FOR CHANNEL "non_existent";
+STOP REPLICA FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
 SHOW RELAYLOG EVENTS FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.

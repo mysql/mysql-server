@@ -88,7 +88,7 @@ START REPLICA SQL_THREAD;
 # Clean up
 DROP TABLE t;
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 --source include/cleanup_fake_relay_log.inc
 --source include/start_slave.inc
 

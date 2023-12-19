@@ -246,7 +246,7 @@ t1
 include/assert.inc [Slave should have 1 row in db6.t2 on channel_6]
 include/assert.inc [Slave should have 1 row in db66.t1 on channel_6]
 #
-# Stop slave (on server_2).
+# Stop replica (on server_2).
 #
 include/rpl_stop_slaves.inc
 #

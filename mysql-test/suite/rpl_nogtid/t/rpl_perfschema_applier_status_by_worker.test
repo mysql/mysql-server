@@ -23,10 +23,10 @@
 #  - Introduce error in worker thread and check for the correctness of error
 #    error number, message and timestamp.
 #  - Verify that, the change in values are correctly shown by the table.
-#  - Verify that the values are preserved after STOP SLAVE.
+#  - Verify that the values are preserved after STOP REPLICA.
 #  - Set up replication in gtid-mode=on and test 'Last_Seen_Transaction' field.
 #  - Verify that the value in 'Last_Seen_Transaction' field is preserved after
-#    STOP SLAVE.
+#    STOP REPLICA.
 #
 #  ==== Related Bugs and Worklogs ====
 #
@@ -179,21 +179,21 @@ let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo
---echo # Verify that the error fields are preserved after STOP SLAVE.
+--echo # Verify that the error fields are preserved after STOP REPLICA.
 --echo
 
 --echo
 --echo # 1. Verify that thread_id changes to NULL and service_state to "off" on
---echo #    STOP SLAVE.
+--echo #    STOP REPLICA.
 --echo
 
 let $ps_value= query_get_value(select thread_id from performance_schema.replication_applier_status_by_worker, thread_id, 1);
-let $assert_text= After STOP SLAVE, thread_id should be NULL;
+let $assert_text= After STOP REPLICA, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
 source include/assert.inc;
 
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_coordinator, Service_State, 1);
-let $assert_text= So, Service_State after STOP SLAVE should be "OFF".;
+let $assert_text= So, Service_State after STOP REPLICA should be "OFF".;
 let $assert_cond= "$ps_value"= "OFF";
 source include/assert.inc;
 
@@ -234,7 +234,7 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp sh
 let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
-stop slave;
+STOP REPLICA;
 reset slave;
 --connection master
 drop table t;
@@ -251,7 +251,7 @@ reset binary logs and gtids;
 --let $rpl_skip_sync= 0
 
 --connection slave
-stop slave;
+STOP REPLICA;
 replace_result $MASTER_MYPORT MASTER_MYPORT;
 replace_column 2 ####;
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';

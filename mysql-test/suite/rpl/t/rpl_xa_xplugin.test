@@ -11,7 +11,7 @@
 #    a) master : Create table T1 and perform ddl on T1.
 #    b) slave : Create table T2 and perform ddl on T1 & T2.
 # 4. Assert for values on on tables from slave server.
-# 5. Stop slave through mysqlx.
+# 5. Stop replica through mysqlx.
 # 6. uninstall mysqlx plugin on both master and slave servers.
 # 7. clean-up
 ##############################################################################
@@ -132,9 +132,9 @@ EOF
 
 --source include/sync_slave_sql_with_master.inc
 
-# Creating temp file to stop slave.
+# Creating temp file to stop replica.
 --write_file $MYSQL_TMP_DIR/stop_slave.tmp
--->stmtsql STOP SLAVE;
+-->stmtsql STOP REPLICA;
 -->recvresult
 EOF
 

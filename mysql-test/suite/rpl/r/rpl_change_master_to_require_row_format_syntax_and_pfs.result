@@ -81,39 +81,27 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 START REPLICA IO_THREAD;
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 START REPLICA IO_THREAD;
-STOP SLAVE IO_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 START REPLICA IO_THREAD;
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 START REPLICA SQL_THREAD;
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 START REPLICA SQL_THREAD;
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 START REPLICA SQL_THREAD;

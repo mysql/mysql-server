@@ -50,7 +50,7 @@ SELECT * FROM t2;
 
 --echo ==== Clean up ====
 
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 --source include/cleanup_fake_relay_log.inc
 
 DROP TABLE t1, t2;

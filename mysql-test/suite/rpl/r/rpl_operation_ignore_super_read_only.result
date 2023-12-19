@@ -14,7 +14,7 @@ SHOW VARIABLES like '%autocommit%';
 Variable_name	Value
 autocommit	ON
 ####################################################################
-# Test Case1: STOP SLAVE command
+# Test Case1: STOP REPLICA command
 ####################################################################
 include/stop_slave.inc
 ####################################################################
@@ -90,7 +90,7 @@ SHOW VARIABLES like '%autocommit%';
 Variable_name	Value
 autocommit	OFF
 ####################################################################
-# Test Case1: STOP SLAVE command
+# Test Case1: STOP REPLICA command
 ####################################################################
 include/stop_slave.inc
 ####################################################################

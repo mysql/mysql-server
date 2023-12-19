@@ -40,7 +40,7 @@ call mtr.add_suppression(".*Failed to allocate memory for connection metadata re
 call mtr.add_suppression(".*Failed to allocate memory for the applier metadata structure.*");
 call mtr.add_suppression(".*Error creating applier metadata.*");
 
-STOP SLAVE SQL_THREAD FOR CHANNEL '';
+STOP REPLICA SQL_THREAD FOR CHANNEL '';
 SET @saved_debug= @@GLOBAL.debug;
 
 --echo #

@@ -12,7 +12,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 #
-# Start and stop slave
+# Start and stop replica
 #
 include/stop_slave.inc [FOR CHANNEL '']
 include/start_slave.inc [FOR CHANNEL 'ch1']

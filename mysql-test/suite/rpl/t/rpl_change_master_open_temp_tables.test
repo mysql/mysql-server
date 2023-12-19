@@ -7,8 +7,8 @@
 
 #  - Temporary table(s) should NOT be dropped if applier is running during
 #    CHANGE MASTER.
-#  - If there are open temporary tables and there is a STOP SLAVE/
-#    STOP SLAVE[IO_THREAD/SQL_THREAD]there should be a warning.
+#  - If there are open temporary tables and there is a STOP REPLICA/
+#    STOP REPLICA[IO_THREAD/SQL_THREAD]there should be a warning.
 #  - If there are open temporary tables and there is a CHANGE MASTER,
 #    there should be a warning.
 #  - There is no warning if the change master option only changes connection
@@ -30,24 +30,24 @@ CREATE TEMPORARY TABLE t1(a int);
 --source include/sync_slave_sql_with_master.inc
 
 --echo
---echo # Make sure STOP SLAVE generates a warning.
+--echo # Make sure STOP REPLICA generates a warning.
 --echo
 
-STOP SLAVE;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 
 --echo
---echo # Make sure STOP SLAVE SQL_THREAD generates a warning.
+--echo # Make sure STOP REPLICA SQL_THREAD generates a warning.
 --echo
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 --source include/wait_for_slave_sql_to_stop.inc
 
 --echo
---echo # Make sure STOP SLAVE IO_THREAD generates a warning.
+--echo # Make sure STOP REPLICA IO_THREAD generates a warning.
 --echo
 
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 
 --echo

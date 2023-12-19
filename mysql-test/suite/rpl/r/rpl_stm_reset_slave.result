@@ -61,7 +61,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/start_slave.inc
 include/check_slave_no_error.inc
 
-Sync slave, else STOP SLAVE may complain about open temporary table.
+Sync slave, else STOP REPLICA may complain about open temporary table.
 
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -85,7 +85,7 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
-Sync slave, else STOP SLAVE may complain about open temporary table.
+Sync slave, else STOP REPLICA may complain about open temporary table.
 
 include/start_slave.inc
 [connection master]

@@ -17,9 +17,7 @@ call mtr.add_suppression("Replica: Could not start replica for channel");
 SET GLOBAL sql_replica_skip_counter= 1;
 0
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
 #
 # Verify that START REPLICA FOR CHANNEL will copy sql_replica_skip_counter's

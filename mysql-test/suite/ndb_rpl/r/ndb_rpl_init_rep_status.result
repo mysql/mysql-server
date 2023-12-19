@@ -4,9 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 reset binary logs and gtids;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Generate something in the Masters Binlog
 use test;
 create table t1 (a int primary key, b int) engine=ndb;
@@ -30,9 +28,7 @@ server_id
 Ndb_slave_max_replicated_epoch: 0
 Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -45,9 +41,7 @@ server_id
 Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
 Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 Ndb_slave_max_replicated_epoch: 111
 reset slave;
 Warnings:
@@ -68,9 +62,7 @@ server_id
 3
 4
 Ndb_slave_max_replicated_epoch: 222
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 START REPLICA;
 drop table test.t1;

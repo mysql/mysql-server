@@ -69,9 +69,7 @@ Master D	4	D
 *** Testing schema A->B->D->A if C has failure ***
 
 * Do failure for C and then make new connection B->D *
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);

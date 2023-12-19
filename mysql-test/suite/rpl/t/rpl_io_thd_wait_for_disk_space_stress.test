@@ -122,7 +122,7 @@ while (!$done)
       --inc $restarts
       # Restarting while having MTS in the middle of an incomplete trx might fail
       --disable_warnings
-      STOP SLAVE SQL_THREAD;
+      STOP REPLICA SQL_THREAD;
       --enable_warnings
       --source include/wait_for_slave_sql_to_stop.inc
       # Relay log is in bad shape

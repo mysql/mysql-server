@@ -38,7 +38,7 @@ connection master;
 drop table t1;
 
 --source include/sync_slave_sql_with_master.inc
-stop slave;
+STOP REPLICA;
 source include/wait_for_slave_to_stop.inc;
 # End of 4.1 tests
 

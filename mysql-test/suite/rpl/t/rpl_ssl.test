@@ -26,7 +26,7 @@ create table t1 (t int auto_increment, KEY(t));
 --source include/sync_slave_sql_with_master.inc
 
 # Set slave to use SSL for connection to master
-stop slave;
+STOP REPLICA;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to
@@ -53,7 +53,7 @@ source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 
 # Stop the slave, as reported in bug#21871 it would hang
-STOP SLAVE;
+STOP REPLICA;
 
 select * from t1;
 
@@ -73,7 +73,7 @@ while ($i)
   select * from t1; # Some variance
   connection slave;
   select * from t1; # Some variance
-  stop slave;
+  STOP REPLICA;
   dec $i;
 }
 enable_testcase;

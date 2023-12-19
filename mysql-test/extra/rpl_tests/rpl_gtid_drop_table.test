@@ -296,7 +296,7 @@ CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
 # Sync to know that everything was replicated
 --source include/sync_slave_sql_with_master.inc
 
-# Stop slave io thread
+# Stop replica io thread
 --disable_warnings
 --source include/stop_slave_io.inc
 --enable_warnings

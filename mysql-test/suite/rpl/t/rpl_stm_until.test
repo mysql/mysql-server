@@ -27,7 +27,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 # prepare version for substitutions
 let $VERSION=`select version()`;
 
-# Stop slave before it starts replication.  Also sync with master
+# Stop replica before it starts replication.  Also sync with master
 # to avoid nondeterministic behaviour.
 --echo [on slave]
 --source include/sync_slave_sql_with_master.inc

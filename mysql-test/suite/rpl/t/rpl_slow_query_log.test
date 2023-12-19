@@ -6,7 +6,7 @@
 #   --log-slow-replica-statements is used.
 #
 #   Test is implemented as follows:
-#      i) stop slave
+#      i) stop replica
 #     ii) On slave, set long_query_time to a small value.
 #     ii) start replica so that long_query_time variable is picked by sql thread
 #    iii) On master, do one short time query and one long time query, on slave

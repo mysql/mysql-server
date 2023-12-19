@@ -11,9 +11,7 @@ PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 set global replica_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
 START REPLICA;
 use test;

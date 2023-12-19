@@ -10,9 +10,7 @@ call mtr.add_suppression("Replica: failed in creating filter for channel 'ch1'")
 call mtr.add_suppression(".*Failed to allocate memory for connection metadata repositories..*");
 call mtr.add_suppression(".*Failed to allocate memory for the applier metadata structure.*");
 call mtr.add_suppression(".*Error creating applier metadata.*");
-STOP SLAVE SQL_THREAD FOR CHANNEL '';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD FOR CHANNEL '';
 SET @saved_debug= @@GLOBAL.debug;
 #
 # 1. Simulate an error on copying global replication filters

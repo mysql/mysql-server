@@ -17,25 +17,19 @@ INSERT INTO t1 VALUES (1);
 [connection master]
 INSERT INTO t1 VALUES (1);
 include/sync_slave_io_with_master.inc [FOR CHANNEL 'ch1']
-STOP SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+STOP REPLICA SQL_THREAD FOR CHANNEL 'ch1';
 [connection server_2_2]
 include/assert.inc [SQL thread for ch1 is running]
 include/assert.inc [SQL thread for ch1 running state is "System lock" or "Waiting for workers to exit" or "Applying batch of row changes (write)"]
 Stop ch2 SQL thread while stopping ch1 SQL thread
-STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD FOR CHANNEL 'ch2';
 include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch2']
 include/assert.inc [SQL thread for ch1 is still running]
 [connection slave1]
 ROLLBACK;
 [connection slave]
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch1']
-STOP SLAVE IO_THREAD FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA IO_THREAD FOR CHANNEL 'ch1';
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

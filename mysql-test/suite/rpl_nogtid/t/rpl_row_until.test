@@ -116,7 +116,7 @@ RESET SLAVE;
 # The second section - checks START REPLICA UNTIL RELAY_LOG_FILE =# 'log_name',
 # RELAY_LOG_POS = log_pos. This section of the test does the following:
 # 1) At master, create a table and inserts a value. Let slave replicate this.
-# 2) Stop slave sql thread.
+# 2) Stop replica sql thread.
 # 3) Insert some more values at master. Note that io thread copies this insert
 # 4) Use start replica until to start the sql thread  and check if it
 #    stops at the correct position.

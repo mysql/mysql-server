@@ -186,7 +186,7 @@ select count(*) as 'must be zero' from t2;
 #    random value on binlog_checksum on both master and slave
 #
 connection slave;
-stop slave;
+STOP REPLICA;
 reset slave;
 reset binary logs and gtids;
 

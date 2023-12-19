@@ -91,7 +91,7 @@ COMMIT;
 SET global debug="+d,simulate_stop_when_mta_in_group";
 include/start_slave_io.inc
 include/wait_for_slave_sql_to_stop.inc
-include/assert_grep.inc [Assert that the expected entry is in the error log during STOP SLAVE]
+include/assert_grep.inc [Assert that the expected entry is in the error log during STOP REPLICA]
 SET GLOBAL debug=@save_debug;
 SET @@GLOBAL.replica_checkpoint_group= @save_replica_checkpoint_group;
 set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;

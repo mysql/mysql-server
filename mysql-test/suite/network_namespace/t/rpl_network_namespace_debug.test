@@ -94,7 +94,7 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 
 --echo ==== Scenario 2: source uses a namespace ====
 
---echo # Stop slave and run CHANGE MASTER to listen to the source on socket
+--echo # Stop replica and run CHANGE MASTER to listen to the source on socket
 --echo # created in the 'red' namespace
 --source include/stop_slave.inc
 

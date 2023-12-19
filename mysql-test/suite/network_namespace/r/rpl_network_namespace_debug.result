@@ -26,7 +26,7 @@ include/assert.inc [Performance_schema should show that the network namespace fo
 include/assert.inc [The replication repository should show that the network namespace for the replication connection is configured to ''.]
 include/assert.inc [SHOW REPLICA STATUS should show that the network namespace for the replication connection is configured to ''.]
 ==== Scenario 2: source uses a namespace ====
-# Stop slave and run CHANGE MASTER to listen to the source on socket
+# Stop replica and run CHANGE MASTER to listen to the source on socket
 # created in the 'red' namespace
 include/stop_slave.inc
 [connection master]

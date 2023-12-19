@@ -223,7 +223,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 # behavior was therefore un-intuitive.
 #
 # In the test we test the behaviour of heartbeat_period with RESET SLAVE,
-# STOP SLAVE, CHANGE MASTER, START REPLICA and RESET SLAVE ALL.
+# STOP REPLICA, CHANGE MASTER, START REPLICA and RESET SLAVE ALL.
 #
 # 1. RESET SLAVE:
 #    ===========

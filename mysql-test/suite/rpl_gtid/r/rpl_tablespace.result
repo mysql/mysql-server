@@ -50,6 +50,6 @@ a
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 SET GTID_NEXT= @saved_gtid_next;
-# "STOP SLAVE" and verify that the SQL thread was properly stopped and
+# "STOP REPLICA" and verify that the SQL thread was properly stopped and
 # left no gaps.
 include/rpl_end.inc

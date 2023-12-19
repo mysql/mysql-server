@@ -108,7 +108,7 @@ START REPLICA;
 --source include/wait_for_slave_sql_error.inc
 
 # 4) Stop the slave.
-STOP SLAVE;
+STOP REPLICA;
 
 # 5) Grant `SYSTEM_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
@@ -123,7 +123,7 @@ START REPLICA;
 --let $diff_tables= master:t_system, slave:t_system
 --source include/diff_tables.inc
 
-STOP SLAVE;
+STOP REPLICA;
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
 
 --echo #
@@ -150,7 +150,7 @@ START REPLICA;
 --source include/wait_for_slave_sql_error.inc
 
 # 4) Stop the slave.
-STOP SLAVE;
+STOP REPLICA;
 
 # 5) Grant `SUPER` to the `PRIVILEGE_CHECKS_USER` user.
 GRANT SUPER ON *.* TO 'u1'@'localhost';
@@ -165,7 +165,7 @@ START REPLICA;
 --let $diff_tables= master:t_super, slave:t_super
 --source include/diff_tables.inc
 
-STOP SLAVE;
+STOP REPLICA;
 REVOKE SUPER ON *.* FROM 'u1'@'localhost';
 
 --echo #
@@ -191,7 +191,7 @@ START REPLICA;
 --source include/wait_for_slave_sql_error.inc
 
 # 4) Stop the slave.
-STOP SLAVE;
+STOP REPLICA;
 
 # 5) Grant `SESSION_VARIABLES_ADMIN` to the `PRIVILEGE_CHECKS_USER` user.
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
@@ -206,7 +206,7 @@ START REPLICA;
 --let $diff_tables= master:t_session, slave:t_session
 --source include/diff_tables.inc
 
-STOP SLAVE;
+STOP REPLICA;
 
 --echo #
 --echo # TC4. Verify that setting `default_table_encryption` only succeeds on
@@ -234,7 +234,7 @@ START REPLICA;
 
 # 4) Grant `SYSTEM_VARIABLES_ADMIN` and `TABLE_ENCRYPTION_ADMIN` to
 #    `PRIVILEGE_CHECKS_USER` user.
-STOP SLAVE;
+STOP REPLICA;
 GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 

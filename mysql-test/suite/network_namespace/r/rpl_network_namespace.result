@@ -47,7 +47,7 @@ Namespace from 'SHOW SLAVE STATUS' :
 a	b
 1	abc
 2	cdf
-# Stop slave and run change master to listen to the master on socket
+# Stop replica and run change master to listen to the master on socket
 # created in the 'red' namespace
 include/stop_slave.inc
 [ connection master ]

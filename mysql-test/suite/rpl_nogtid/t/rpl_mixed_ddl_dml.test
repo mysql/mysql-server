@@ -20,7 +20,7 @@ connection master;
 --source include/show_slave_hosts.inc
 drop table t1;
 --source include/sync_slave_sql_with_master.inc
-stop slave;
+STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
 connection master;
 

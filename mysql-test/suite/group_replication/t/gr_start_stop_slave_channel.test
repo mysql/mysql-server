@@ -1,13 +1,13 @@
 ################################################################################
 # This test intends to prove that group replication channels are not affected
-# by START REPLICA and STOP SLAVE commands.
+# by START REPLICA and STOP REPLICA commands.
 #
 # Test:
 # 0) The test requires three servers: M1 and M2.
 # 1) Bootstrap start a group on M1. Start GR on M2.
 # 2) Create a slave channel 'channel_1' on M1 (M3 -> M1). Verify that both slave
 #    channel and group_replication_applier channel are present on M1.
-# 3) With a running slave channel and group replication active do a STOP SLAVE.
+# 3) With a running slave channel and group replication active do a STOP REPLICA.
 #    The slave channel should stop but the group replication channel shouldn't.
 # 4) With a stopped slave channel and group replication off do a START REPLICA.
 #    The slave channel should start but the group replication channel shouldn't.
@@ -54,7 +54,7 @@
 --source include/assert.inc
 
 #
-# Phase 3: Check that after doing a stop slave, the applier channel is still ON
+# Phase 3: Check that after doing a stop replica, the applier channel is still ON
 #
 
 --let $assert_text= 'The group replication applier channel is ON'

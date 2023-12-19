@@ -34,7 +34,7 @@ CREATE TABLE t1( a int unique);
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
---echo # stop slave
+--echo # stop replica
 --source include/rpl_stop_slaves.inc
 
 # Backup the original value of the variables

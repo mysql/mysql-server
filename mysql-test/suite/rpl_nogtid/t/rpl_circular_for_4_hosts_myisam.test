@@ -92,7 +92,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 
 # Do not replicate next event from C
 --connection server_4
-STOP SLAVE;
+STOP REPLICA;
 SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
 source include/start_slave.inc;
 --connection server_3

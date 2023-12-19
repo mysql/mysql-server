@@ -22,23 +22,18 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-STOP SLAVE FOR CHANNEL 'ch_b';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA FOR CHANNEL 'ch_b';
 RESET SLAVE FOR CHANNEL 'ch_b';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-STOP SLAVE FOR CHANNEL 'ch_a';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA FOR CHANNEL 'ch_a';
 ALTER TABLE mysql.slave_worker_info DROP PRIMARY KEY;
 RESET SLAVE ALL FOR CHANNEL 'ch_a';
 ERROR HY000: Unknown error
 ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
-STOP SLAVE IO_THREAD;
+STOP REPLICA IO_THREAD;
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'ch_a' are already stopped.
 Note	3084	Replication thread(s) for channel 'ch_b' are already stopped.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_b';
@@ -57,9 +52,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA;
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

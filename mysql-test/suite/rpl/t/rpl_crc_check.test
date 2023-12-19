@@ -35,7 +35,7 @@
 #
 # Steps to reproduce:
 # 1) Start master and slave servers
-# 2) Stop slave applier thread.
+# 2) Stop replica applier thread.
 # 3) Write an event into binary log on master
 #    when master disables binlog_checksum.
 # 4) Start replica applier thread to verify that

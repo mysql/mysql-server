@@ -202,7 +202,7 @@ INSERT INTO db2.t1 VALUES(40, NULL);
 --source include/sync_slave_sql_with_master.inc
 
 --echo #
---echo # Case 4: Non-temporary error will stop slave workers without retrying
+--echo # Case 4: Non-temporary error will stop replica workers without retrying
 --echo #
 --let $retried_trans= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1)
 INSERT INTO db1.t1 VALUES(50, NULL);

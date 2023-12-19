@@ -5,7 +5,7 @@
 # ==== Implementation ====
 #
 # 1) SET GLOBAL super_read_only to 1 on slave
-# 2) Execute 'STOP SLAVE' command
+# 2) Execute 'STOP REPLICA' command
 # 3) Execute 'CHANGE REPLICATION FILTER' command
 # 4) Execute 'CHANGE MASTER TO' command
 # 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
@@ -51,7 +51,7 @@ SET GLOBAL super_read_only= 1;
 SHOW VARIABLES like '%autocommit%';
 
 --echo ####################################################################
---echo # Test Case1: STOP SLAVE command
+--echo # Test Case1: STOP REPLICA command
 --echo ####################################################################
 --source include/stop_slave.inc
 

@@ -14,7 +14,7 @@
 # Logic of the test is as the following.
 # Configure MTS with few workers and LOGICAL_CLOCK scheduler.
 # Replicate some events.
-# Stop slave threads to reconfigure retrival from an already read, executed and
+# Stop replica threads to reconfigure retrival from an already read, executed and
 # group internal position (COMMIT/Xid event position is chosen to avoid
 # a GTID specific error).
 # Restart replica threads and observe the SQL applier has processed events.

@@ -63,7 +63,7 @@ SELECT * FROM t1 ORDER BY c3;
 
 source include/check_slave_is_running.inc;
 
-# stop slave and reset position to before the last changes
+# stop replica and reset position to before the last changes
 STOP REPLICA;
 --disable_query_log
 --disable_result_log
@@ -192,7 +192,7 @@ commit;
 --connection slave
 source include/check_slave_is_running.inc;
 
---echo   Stop slave and reset position to start of the applied epoch
+--echo   # Stop replica and reset position to start of the applied epoch
 STOP REPLICA;
 --disable_query_log
 --disable_result_log

@@ -47,7 +47,7 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
-# Need to kill the dump thread explicitly: stop slave does not do
+# Need to kill the dump thread explicitly: stop replica does not do
 # that, and if the dump thread is slow, it will still be reading from
 # the old binlog at the time we do PURGE BINARY LOGS below. That would
 # prevent PURGE BINARY LOGS from purging the log.

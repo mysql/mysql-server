@@ -35,7 +35,7 @@
 #  - Change configuration parameters using CHANGE MASTER TO and verify that
 #    these changes are seen in SELECTs from PS table.
 #  - Verify that, the change in values are correctly shown by the table.
-#  - Verify that the values are preserved after STOP SLAVE, thread_id
+#  - Verify that the values are preserved after STOP REPLICA, thread_id
 #    changes to NULL and service_state changes to "Off".
 #  - A priliminary test for Multi-threaded slave(MTS) mode.
 #
@@ -237,17 +237,17 @@ let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo
---echo # Verify that the error fields are preserved after STOP SLAVE, thread_id
+--echo # Verify that the error fields are preserved after STOP REPLICA, thread_id
 --echo # changes to NULL and service_state changes to "Off".
 --echo
 
 --echo
 --echo # 1. Verify that thread_id changes to NULL and service_state to "off" on
---echo #    STOP SLAVE.
+--echo #    STOP REPLICA.
 --echo
 
 let $ps_value= query_get_value(select thread_id from performance_schema.replication_applier_status_by_worker, thread_id, 1);
-let $assert_text= After STOP SLAVE, thread_id should be NULL;
+let $assert_text= After STOP REPLICA, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
 source include/assert.inc;
 

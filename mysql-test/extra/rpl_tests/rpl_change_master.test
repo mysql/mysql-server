@@ -18,7 +18,7 @@ create table t1(n int);
 --sync_slave_with_master
 select * from t1;
 # Now stop it and make I/O slave thread be ahead
-stop slave sql_thread;
+STOP REPLICA sql_thread;
 connection master;
 insert into t1 values(1);
 insert into t1 values(2);

@@ -36,13 +36,13 @@ select @secondary_server_port:=(variable_value+0)
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
 
 # Now set it up
-# Stop Slave @ Secondary
+# Stop Replica @ Secondary
 STOP REPLICA;
 # Clear Secondary Binlog
 RESET BINARY LOGS AND GTIDS;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
-# Stop Slave @ Primary 
+# Stop Replica @ Primary 
 STOP REPLICA;
 # Clear Primary Binlog
 RESET BINARY LOGS AND GTIDS;
@@ -142,7 +142,7 @@ create table test.t1 (
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo -- Stop replication from Primary -> Secondary
-stop slave;
+STOP REPLICA;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Insert a row on Primary
@@ -205,10 +205,10 @@ insert into test.t1 values (1, 1, "Ma Brows");
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
---echo -- Stop Slave in both directions
-stop slave;
+--echo -- Stop Replica in both directions
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-stop slave;
+STOP REPLICA;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo -- Delete row on Primary Cluster
 delete from test.t1 where a=1;

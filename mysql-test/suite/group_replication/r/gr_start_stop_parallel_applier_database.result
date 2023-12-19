@@ -18,9 +18,8 @@ SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 ############################################################
 # 1. Test with REPLICA_PARALLEL_TYPE default value and
 #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET GLOBAL REPLICA_PARALLEL_WORKERS=4;
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
@@ -29,9 +28,8 @@ ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPL
 ############################################################
 # 2. Test with REPLICA_PARALLEL_TYPE set to DATABASE and
 #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
 Warnings:
@@ -43,9 +41,8 @@ ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPL
 ############################################################
 # 3. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
 #    parallel workers number set to 4.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 Warnings:
@@ -58,9 +55,8 @@ ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPL
 # 4. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK,
 #    parallel workers number set to 4 and
 #    REPLICA_PRESERVE_COMMIT_ORDER set to ON.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 Warnings:
@@ -72,9 +68,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 ############################################################
 # 5. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
 #    parallel workers number set to 0.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -86,9 +80,7 @@ START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 ############################################################
 # 6. Test with REPLICA_PARALLEL_TYPE default value and default
 #    parallel workers number.
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.

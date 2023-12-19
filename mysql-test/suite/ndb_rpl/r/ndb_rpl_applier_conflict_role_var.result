@@ -7,9 +7,7 @@ show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	NONE
 Slave_SQL_Running = 'Yes'
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 Slave_SQL_Running = 'No'
 Show set-to-same state is ok
 set global ndb_applier_conflict_role = NONE;
@@ -81,9 +79,7 @@ ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: 
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	NONE
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 From PRIMARY
 set global ndb_applier_conflict_role = "PRIMARY";
 START REPLICA sql_thread;
@@ -103,9 +99,7 @@ ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: 
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	PRIMARY
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 From SECONDARY
 set global ndb_applier_conflict_role = "SECONDARY";
 START REPLICA sql_thread;
@@ -125,9 +119,7 @@ ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: 
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	SECONDARY
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 From PASS
 set global ndb_applier_conflict_role = "NONE";
 set global ndb_applier_conflict_role = "PASS";
@@ -148,9 +140,7 @@ ERROR HY000: Error when executing command SET GLOBAL ndb_applier_conflict_role: 
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
 ndb_applier_conflict_role	PASS
-stop slave sql_thread;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA sql_thread;
 set global ndb_applier_conflict_role = "NONE";
 Test some aliases for role names
 set global ndb_applier_conflict_role = PR;
