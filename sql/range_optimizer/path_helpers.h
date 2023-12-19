@@ -37,6 +37,7 @@
 #include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
+#include "sql/sql_opt_exec_shared.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
   return path->type == AccessPath::INDEX_SKIP_SCAN ||
@@ -198,6 +199,20 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
       return path->index_skip_scan().num_used_key_parts;
     case AccessPath::GROUP_INDEX_SKIP_SCAN:
       return path->group_index_skip_scan().num_used_key_parts;
+    case AccessPath::REF:
+      return path->ref().ref->key_parts;
+    case AccessPath::REF_OR_NULL:
+      return path->ref_or_null().ref->key_parts;
+    case AccessPath::EQ_REF:
+      return path->eq_ref().ref->key_parts;
+    case AccessPath::PUSHED_JOIN_REF:
+      return path->pushed_join_ref().ref->key_parts;
+    case AccessPath::FULL_TEXT_SEARCH:
+      return path->full_text_search().ref->key_parts;
+    case AccessPath::MRR:
+      return path->mrr().ref->key_parts;
+    case AccessPath::INDEX_DISTANCE_SCAN:
+    case AccessPath::INDEX_SCAN:
     case AccessPath::INDEX_MERGE:
     case AccessPath::ROWID_INTERSECTION:
     case AccessPath::ROWID_UNION:

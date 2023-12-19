@@ -957,6 +957,9 @@ EXPLAIN
               "index_name": "key1",
               "table_name": "t1",
               "access_type": "index",
+              "key_columns": [
+                "key1"
+              ],
               "schema_name": "test",
               "used_columns": [
                 "key1",
@@ -979,6 +982,9 @@ EXPLAIN
               "index_name": "key1",
               "table_name": "t1",
               "access_type": "index",
+              "key_columns": [
+                "key1"
+              ],
               "schema_name": "test",
               "used_columns": [
                 "key1",
@@ -1010,6 +1016,9 @@ EXPLAIN
               "index_name": "key3",
               "table_name": "t1",
               "access_type": "index",
+              "key_columns": [
+                "key3"
+              ],
               "schema_name": "test",
               "used_columns": [
                 "key1",
@@ -1032,6 +1041,9 @@ EXPLAIN
               "index_name": "key3",
               "table_name": "t1",
               "access_type": "index",
+              "key_columns": [
+                "key3"
+              ],
               "schema_name": "test",
               "used_columns": [
                 "key1",

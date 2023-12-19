@@ -183,6 +183,9 @@ EXPLAIN
   "query_type": "select",
   "table_name": "t1",
   "access_type": "index",
+  "key_columns": [
+    "a"
+  ],
   "schema_name": "test",
   "used_columns": [
     "a",
@@ -252,6 +255,9 @@ EXPLAIN
       "index_name": "PRIMARY",
       "table_name": "t1",
       "access_type": "index",
+      "key_columns": [
+        "i"
+      ],
       "schema_name": "test",
       "used_columns": [
         "i"
@@ -321,6 +327,9 @@ EXPLAIN
           "index_name": "col_int_key",
           "table_name": "t2",
           "access_type": "index",
+          "key_columns": [
+            "col_int_key"
+          ],
           "schema_name": "test",
           "used_columns": [
             "col_int_key",
@@ -597,6 +606,9 @@ EXPLAIN
                       "index_name": "f1_2",
                       "table_name": "t1",
                       "access_type": "index",
+                      "key_columns": [
+                        "f1"
+                      ],
                       "schema_name": "test",
                       "used_columns": [
                         "f1",
@@ -685,6 +697,9 @@ EXPLAIN
           "index_name": "f1",
           "table_name": "t1",
           "access_type": "index",
+          "key_columns": [
+            "f1"
+          ],
           "schema_name": "test",
           "used_columns": [
             "f1",
@@ -797,6 +812,9 @@ EXPLAIN
                       "index_name": "PRIMARY",
                       "table_name": "t2",
                       "access_type": "index",
+                      "key_columns": [
+                        "a"
+                      ],
                       "schema_name": "test",
                       "used_columns": [
                         "a",

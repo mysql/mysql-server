@@ -73,6 +73,7 @@
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
@@ -194,6 +195,7 @@ static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
     }
     error |= obj->add_alias("used_columns", std::move(used_fields_list));
   }
+
   return error;
 }
 
@@ -210,19 +212,13 @@ static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
      {scan|skip scan|range scan|lookup|search|
       skip scan for grouping|skip scan for deduplication}
   where <Prefix> = {Single-row|Multi-range}
-
-  Return obj. Not necessary, but for the sake of AddMemberToObject() returning
-  NULL in case of failure, we need to return something non-NULL to indicate
-  success.
 */
-static bool SetIndexInfoInObject(string *str,
-                                 const char *json_index_access_type,
-                                 const char *prefix, const TABLE &table,
-                                 const KEY &key, const char *index_access_type,
-                                 const string lookup_condition,
-                                 const string *ranges_text,
-                                 unique_ptr<Json_array> range_arr, bool reverse,
-                                 Item *pushed_idx_cond, Json_object *obj) {
+static bool SetIndexInfoInObject(
+    string *str, const char *json_index_access_type, const char *prefix,
+    const TABLE &table, const KEY &key, uint n_key_columns,
+    const char *index_access_type, const string lookup_condition,
+    const string *ranges_text, unique_ptr<Json_array> range_arr, bool reverse,
+    Item *pushed_idx_cond, Json_object *obj) {
   string idx_cond_str = pushed_idx_cond ? ItemToString(pushed_idx_cond) : "";
   string covering_index =
       string(IsCoveringIndexScan(key, table) ? "Covering index " : "Index ");
@@ -257,6 +253,20 @@ static bool SetIndexInfoInObject(string *str,
   if (!table.file->explain_extra().empty())
     error |= AddMemberToObject<Json_string>(obj, "message",
                                             table.file->explain_extra());
+
+  unique_ptr<Json_array> key_columns(new (std::nothrow) Json_array());
+  KEY_PART_INFO *kp = key.key_part;
+  for (uint i = 0; i < n_key_columns; i++, kp++) {
+    // If the index contains a hash field get_used_key_parts() may report the
+    // amount of columns in that hash field, which may run past the amount of
+    // KEY_PART_INFO in the KEY.
+    if (kp->field == nullptr) break;
+    error |= AddElementToArray<Json_string>(
+        key_columns, get_field_name_or_expression(current_thd, kp->field));
+  }
+  if (key_columns->size() > 0) {
+    error |= obj->add_alias("key_columns", std::move(key_columns));
+  }
 
   return error;
 }
@@ -705,10 +715,11 @@ static bool ExplainIndexSkipScanAccessPath(Json_object *obj,
 
   // NOTE: Currently, index skip scan is always covering, but there's no
   // good reason why we cannot fix this limitation in the future.
-  return SetIndexInfoInObject(
-      description, "index_skip_scan", nullptr, table, key_info, "skip scan",
-      /*lookup condition*/ "", &ranges, std::move(range_arr), /*reverse*/ false,
-      /*push_condition*/ nullptr, obj);
+  return SetIndexInfoInObject(description, "index_skip_scan", nullptr, table,
+                              key_info, get_used_key_parts(path), "skip scan",
+                              /*lookup condition*/ "", &ranges,
+                              std::move(range_arr), /*reverse*/ false,
+                              /*push_condition*/ nullptr, obj);
 }
 
 static bool ExplainGroupIndexSkipScanAccessPath(Json_object *obj,
@@ -746,6 +757,7 @@ static bool ExplainGroupIndexSkipScanAccessPath(Json_object *obj,
   // good reason why we cannot fix this limitation in the future.
   error |= SetIndexInfoInObject(
       description, "group_index_skip_scan", nullptr, table, key_info,
+      get_used_key_parts(path),
       (param->min_max_arg_part ? "skip scan for grouping"
                                : "skip scan for deduplication"),
       /*lookup condition*/ "", (!ranges.empty() ? &ranges : nullptr),
@@ -1159,7 +1171,7 @@ static unique_ptr<Json_object> SetObjectMembers(
 
       const KEY &key = table.key_info[path->index_scan().idx];
       error |= SetIndexInfoInObject(&description, "index_scan", nullptr, table,
-                                    key, "scan",
+                                    key, get_used_key_parts(path), "scan",
                                     /*lookup condition*/ "", /*range*/ nullptr,
                                     nullptr, path->index_scan().reverse,
                                     /*push_condition*/ nullptr, obj);
@@ -1171,11 +1183,11 @@ static unique_ptr<Json_object> SetObjectMembers(
       assert(table.file->pushed_idx_cond == nullptr);
 
       const KEY &key = table.key_info[path->index_distance_scan().idx];
-      error |= SetIndexInfoInObject(&description, "index_distance_scan",
-                                    nullptr, table, key, "distance scan",
-                                    /*lookup condition*/ "", /*range*/ nullptr,
-                                    nullptr, false,
-                                    /*push_condition*/ nullptr, obj);
+      error |= SetIndexInfoInObject(
+          &description, "index_distance_scan", nullptr, table, key,
+          get_used_key_parts(path), "distance scan",
+          /*lookup condition*/ "", /*range*/ nullptr, nullptr, false,
+          /*push_condition*/ nullptr, obj);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
@@ -1183,7 +1195,8 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->ref().table;
       const KEY &key = table.key_info[path->ref().ref->key];
       error |= SetIndexInfoInObject(
-          &description, "index_lookup", nullptr, table, key, "lookup",
+          &description, "index_lookup", nullptr, table, key,
+          get_used_key_parts(path), "lookup",
           RefToString(*path->ref().ref, key, /*include_nulls=*/false),
           /*ranges=*/nullptr, nullptr, path->ref().reverse,
           table.file->pushed_idx_cond, obj);
@@ -1194,7 +1207,8 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->ref_or_null().table;
       const KEY &key = table.key_info[path->ref_or_null().ref->key];
       error |= SetIndexInfoInObject(
-          &description, "index_lookup", nullptr, table, key, "lookup",
+          &description, "index_lookup", nullptr, table, key,
+          get_used_key_parts(path), "lookup",
           RefToString(*path->ref_or_null().ref, key, /*include_nulls=*/true),
           /*ranges=*/nullptr, nullptr, false, table.file->pushed_idx_cond, obj);
       error |= AddChildrenFromPushedCondition(table, children);
@@ -1204,7 +1218,8 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->eq_ref().table;
       const KEY &key = table.key_info[path->eq_ref().ref->key];
       error |= SetIndexInfoInObject(
-          &description, "index_lookup", "Single-row", table, key, "lookup",
+          &description, "index_lookup", "Single-row", table, key,
+          get_used_key_parts(path), "lookup",
           RefToString(*path->eq_ref().ref, key, /*include_nulls=*/false),
           /*ranges=*/nullptr, nullptr, false, table.file->pushed_idx_cond, obj);
       error |= AddChildrenFromPushedCondition(table, children);
@@ -1217,7 +1232,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= SetIndexInfoInObject(
           &description, "pushed_join_ref",
           path->pushed_join_ref().is_unique ? "Single-row" : nullptr, table,
-          key, "lookup",
+          key, get_used_key_parts(path), "lookup",
           RefToString(*path->pushed_join_ref().ref, key,
                       /*include_nulls=*/false),
           /*ranges=*/nullptr, nullptr,
@@ -1228,12 +1243,13 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->full_text_search().table;
       assert(table.file->pushed_idx_cond == nullptr);
       const KEY &key = table.key_info[path->full_text_search().ref->key];
-      error |= SetIndexInfoInObject(
-          &description, "full_text_search", "Full-text", table, key, "search",
-          RefToString(*path->full_text_search().ref, key,
-                      /*include_nulls=*/false),
-          /*ranges=*/nullptr, nullptr,
-          /*reverse=*/false, nullptr, obj);
+      error |=
+          SetIndexInfoInObject(&description, "full_text_search", "Full-text",
+                               table, key, get_used_key_parts(path), "search",
+                               RefToString(*path->full_text_search().ref, key,
+                                           /*include_nulls=*/false),
+                               /*ranges=*/nullptr, nullptr,
+                               /*reverse=*/false, nullptr, obj);
       break;
     }
     case AccessPath::CONST_TABLE: {
@@ -1250,7 +1266,8 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->mrr().table;
       const KEY &key = table.key_info[path->mrr().ref->key];
       error |= SetIndexInfoInObject(
-          &description, "multi_range_read", "Multi-range", table, key, "lookup",
+          &description, "multi_range_read", "Multi-range", table, key,
+          get_used_key_parts(path), "lookup",
           RefToString(*path->mrr().ref, key, /*include_nulls=*/false),
           /*ranges=*/nullptr, nullptr, false, table.file->pushed_idx_cond, obj);
       error |= AddChildrenFromPushedCondition(table, children);
@@ -1277,8 +1294,9 @@ static unique_ptr<Json_object> SetObjectMembers(
                            /*single_part_only=*/false, range_arr, &ranges);
       error |= SetIndexInfoInObject(
           &description, "index_range_scan", nullptr, table, key_info,
-          "range scan", /*lookup condition*/ "", &ranges, std::move(range_arr),
-          path->index_range_scan().reverse, table.file->pushed_idx_cond, obj);
+          get_used_key_parts(path), "range scan", /*lookup condition*/ "",
+          &ranges, std::move(range_arr), path->index_range_scan().reverse,
+          table.file->pushed_idx_cond, obj);
 
       error |= AddChildrenFromPushedCondition(table, children);
       break;
