@@ -342,7 +342,8 @@ using List_item = mem_root_deque<Item *>;
 using Group_list_ptrs = Mem_root_array<ORDER *>;
 
 /**
-  Structure to hold parameters for CHANGE MASTER, START REPLICA, and STOP SLAVE.
+  Structure to hold parameters for CHANGE MASTER, START REPLICA, and STOP
+  REPLICA.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,

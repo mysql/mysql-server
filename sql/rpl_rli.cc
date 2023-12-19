@@ -1882,7 +1882,7 @@ void Relay_log_info::set_master_info(Master_info *info) { mi = info; }
   Stores the file and position where the execute-slave thread are in the
   relay log:
 
-    - As this is only called by the slave thread or on STOP SLAVE, with the
+    - As this is only called by the slave thread or on STOP REPLICA, with the
       log_lock grabbed and the slave thread stopped, we don't need to have
       a lock here.
     - If there is an active transaction, then we don't update the position

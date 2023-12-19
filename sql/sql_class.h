@@ -4576,7 +4576,7 @@ class THD : public MDL_context_owner,
     This is used by replication to decide if the I/O thread should be
     killed or not when stopping the replication threads.
 
-    In ordinary STOP SLAVE case, the I/O thread will wait for disk space
+    In ordinary STOP REPLICA case, the I/O thread will wait for disk space
     or to be killed regardless of this flag value.
 
     In server shutdown case, if this flag is true, the I/O thread will be

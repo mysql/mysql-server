@@ -662,7 +662,7 @@ class Master_info : public Rpl_info {
     administrative commands that cannot be performed concurrently for a given
     replication channel:
     - START REPLICA;
-    - STOP SLAVE;
+    - STOP REPLICA;
     - CHANGE MASTER;
     - RESET SLAVE;
     - end_slave() (when mysqld stops)).

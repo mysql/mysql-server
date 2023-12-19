@@ -595,12 +595,12 @@ class Slave_worker : public Relay_log_info {
     ERROR_LEAVING = 2,  // is set by Worker
     STOP = 3,           // is set by Coordinator upon receiving STOP
     STOP_ACCEPTED =
-        4  // is set by worker upon completing job when STOP SLAVE is issued
+        4  // is set by worker upon completing job when STOP REPLICA is issued
   };
 
   /*
     This function is used to make a copy of the worker object before we
-    destroy it on STOP SLAVE. This new object is then used to report the
+    destroy it on STOP REPLICA. This new object is then used to report the
     worker status until next START REPLICA following which the new worker
     objects will be used.
   */

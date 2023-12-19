@@ -185,9 +185,9 @@ Log_event *Rpl_applier_reader::read_next_event() {
         the checkpoint routine must be periodically invoked.
 
         mta_checkpoint_routine has to be called before enter_stage().
-        Otherwise, it will cause a deadlock with STOP SLAVE or other
+        Otherwise, it will cause a deadlock with STOP REPLICA or other
         thread has the same lock pattern.
-        STOP SLAVE Thread                   Coordinator Thread
+        STOP REPLICA Thread                   Coordinator Thread
         =================                   ==================
         lock LOCK_thd_data                  lock LOCK_binlog_end_pos
                                             enter_stage(LOCK_binlog_end_pos)

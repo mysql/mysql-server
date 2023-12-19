@@ -69,7 +69,7 @@ struct st_row_worker {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   /*
-    worker_id is added to the table because thread is killed at STOP SLAVE
+    worker_id is added to the table because thread is killed at STOP REPLICA
     but the status needs to show up, so worker_id is used as a permanent
     identifier.
   */

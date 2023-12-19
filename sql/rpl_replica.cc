@@ -801,7 +801,7 @@ err:
 }
 
 /**
-  Entry point for the STOP SLAVE command. This function stops replication
+  Entry point for the STOP REPLICA command. This function stops replication
   threads for all channels or a single channel based on the  command
   options supplied.
 
@@ -827,7 +827,7 @@ bool stop_slave_cmd(THD *thd) {
   }
 
   MDL_lock_guard backup_sentry{thd};
-  /* During provisioning we stop slave after acquiring backup lock. */
+  /* During provisioning we stop replica after acquiring backup lock. */
   if (!Clone_handler::is_provisioning() &&
       (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_SQL))) {
     if (backup_sentry.lock(MDL_key::BACKUP_LOCK, MDL_INTENTION_EXCLUSIVE)) {
@@ -847,10 +847,10 @@ bool stop_slave_cmd(THD *thd) {
       disable this command here as, in some cases, group replication does not
       support them.
 
-      For channel group_replication_applier we disable STOP SLAVE [IO_THREAD]
+      For channel group_replication_applier we disable STOP REPLICA [IO_THREAD]
       command.
 
-      For channel group_replication_recovery we disable STOP SLAVE command
+      For channel group_replication_recovery we disable STOP REPLICA command
       and its two thread variants.
     */
     if (mi &&
@@ -872,7 +872,7 @@ bool stop_slave_cmd(THD *thd) {
       return true;
     }
     /*
-      STOP SLAVE for channel group_replication_applier is disallowed while
+      STOP REPLICA for channel group_replication_applier is disallowed while
       Group Replication is running.
     */
     if (mi &&
@@ -5838,7 +5838,7 @@ extern "C" void *handle_slave_io(void *arg) {
         Here we need to clear the active VIO before closing the
         connection with the master.  The reason is that THD::awake()
         might be called from terminate_slave_thread() because somebody
-        issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
+        issued a STOP REPLICA.  If that happends, the shutdown_active_vio()
         can be called in the middle of closing the VIO associated with
         the 'mysql' object, causing a crash.
       */
@@ -6245,7 +6245,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   /*
     When info tables are used and autocommit= 0 we force a new
     transaction start to avoid table access deadlocks when START REPLICA
-    is executed after STOP SLAVE with MTS enabled.
+    is executed after STOP REPLICA with MTS enabled.
   */
   if (is_autocommit_off(thd))
     if (trans_begin(thd)) goto err;
@@ -6285,7 +6285,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   /*
     When info tables are used and autocommit= 0 we force transaction
     commit to avoid table access deadlocks when START REPLICA is executed
-    after STOP SLAVE with MTS enabled.
+    after STOP REPLICA with MTS enabled.
   */
   if (is_autocommit_off(thd))
     if (trans_commit(thd)) goto err;
@@ -6716,7 +6716,7 @@ end:
   /*
     Free the buffer that was being used to report worker's status through
     the table performance_schema.table_replication_applier_status_by_worker
-    between stop slave and next start replica.
+    between stop replica and next start replica.
   */
   for (int i = static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0;
        i--) {
@@ -6757,7 +6757,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
     goto end;
 
   /*
-    If request for stop slave is received notify worker
+    If request for stop replica is received notify worker
     to stop.
   */
   // Initialize worker exit count and max_updated_index to 0 during each stop.
@@ -7122,7 +7122,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       Reset errors for a clean start (otherwise, if the master is idle, the SQL
       thread may execute no Query_log_event, so the error will remain even
       though there's no problem anymore). Do not reset the master timestamp
-      (imagine the slave has caught everything, the STOP SLAVE and START
+      (imagine the slave has caught everything, the STOP REPLICA and START
       REPLICA: as we are not sure that we are going to receive a query, we want
       to remember the last master timestamp (to say how many seconds behind we
       are now. But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
@@ -8955,7 +8955,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
 }
 
 /**
-  Execute a STOP SLAVE statement.
+  Execute a STOP REPLICA statement.
 
   @param thd              Pointer to THD object for the client thread executing
                           the statement.
@@ -8986,7 +8986,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   if (!thd) thd = current_thd;
 
   /*
-    STOP SLAVE command should ignore 'read-only' and 'super_read_only'
+    STOP REPLICA command should ignore 'read-only' and 'super_read_only'
     options so that it can update 'mysql.slave_master_info' and
     'mysql.slave_relay_log_info' replication repository tables.
   */
@@ -10518,8 +10518,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   if (thread_mask) /* If any thread is running */
   {
     /*
-      Prior to WL#6120, we imposed the condition that STOP SLAVE is required
-      before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
+      Prior to WL#6120, we imposed the condition that STOP REPLICA is required
+      before CHANGE MASTER. Since the slave threads die on STOP REPLICA, it was
       fine if we purged relay logs.
 
       Now that we do allow CHANGE MASTER with a running receiver/applier thread,

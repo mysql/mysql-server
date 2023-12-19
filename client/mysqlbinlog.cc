@@ -1243,7 +1243,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
   R3. When relay log size grows too big
   R4. Immediately after START REPLICA
   R5. When slave IO thread reconnects without user doing
-      START REPLICA/STOP SLAVE
+      START REPLICA/STOP REPLICA
   R6. When master dump thread starts a new binlog
   R7. CHANGE MASTER which deletes all relay logs
   R8. RESET SLAVE

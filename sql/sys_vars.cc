@@ -1392,7 +1392,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var) {
         slave> START REPLICA;
         master> CREATE TEMPORARY TABLE t1(a INT);
         slave> [wait for t1 to replicate]
-        slave> STOP SLAVE;
+        slave> STOP REPLICA;
         slave> SET @@global.binlog_format=ROW / SET @@persist.binlog_format=ROW
         master> DROP TEMPORARY TABLE t1;
         slave> START REPLICA;
