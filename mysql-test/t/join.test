@@ -2142,8 +2142,14 @@ INSERT INTO t1 (pk, col_int, col_date) VALUES (1, NULL, '1997-04-21');
 CREATE TABLE t2(pk INTEGER AUTO_INCREMENT, PRIMARY KEY (pk));
 INSERT INTO t2 (pk) VALUES (1);
 
+# The assertion was seen with the old optimizer in this query.
 SELECT DISTINCT t1.col_int
 FROM t2 LEFT OUTER JOIN t1 ON t2.pk = t1.col_int
+WHERE CAST(t2.pk AS SIGNED INTEGER) <> t1.col_date;
+
+# The assertion was seen with the hypergraph optimizer in this query.
+SELECT DISTINCT t1.col_int
+FROM t2 LEFT OUTER JOIN t1 ON t1.col_int = t2.pk
 WHERE CAST(t2.pk AS SIGNED INTEGER) <> t1.col_date;
 
 DROP TABLE t1;

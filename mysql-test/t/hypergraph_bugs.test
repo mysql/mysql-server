@@ -591,7 +591,7 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 x1 JOIN t1 x2 ON x1.a=x2.v AND x1.b=x2.b;
 
 --replace_regex $elide_costs_and_time
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2, t1 x3
-WHERE x1.a=x2.c AND x2.c=x3.v AND x1.b=x3.f;
+WHERE x1.a=x2.c AND x1.a=x3.v AND x1.b=x3.f;
 
 CREATE TABLE t2(x INT, y INT, z INT, KEY (x, y), KEY(y, x));
 

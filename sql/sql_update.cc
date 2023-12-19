@@ -100,7 +100,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_optimizer.h"  // build_equal_items, substitute_gc
+#include "sql/sql_optimizer.h"  // substitute_gc
 #include "sql/sql_partition.h"  // partition_key_modified
 #include "sql/sql_resolver.h"   // setup_order
 #include "sql/sql_select.h"

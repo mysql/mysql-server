@@ -4642,7 +4642,7 @@ WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
 EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Filter: (t1.f1 < NULL)  (rows=1)
+    -> Filter: (t2.f1 < NULL)  (rows=1)
         -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
 
 Warnings:
@@ -4677,7 +4677,7 @@ WHERE t1.f1 = t4.f1
 EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Filter: (t1.f1 < NULL)  (rows=1)
+    -> Filter: (t2.f1 < NULL)  (rows=1)
         -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
 
 Warnings:

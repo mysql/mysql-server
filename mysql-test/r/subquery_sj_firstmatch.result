@@ -13352,7 +13352,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t` `t1` semi join (`test`.`t` `t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and <in_optimizer>(concat(`test`.`t1`.`a`,''),<exists>(/* select#3 */ select `test`.`t3`.`a` from `test`.`t` `t3` where ((`test`.`t3`.`b` = 1) and <if>(outer_field_is_not_null, ((<cache>(concat(`test`.`t1`.`a`,'')) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)) is false))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t` `t1` semi join (`test`.`t` `t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and <in_optimizer>(concat(`test`.`t2`.`a`,''),<exists>(/* select#3 */ select `test`.`t3`.`a` from `test`.`t` `t3` where ((`test`.`t3`.`b` = 1) and <if>(outer_field_is_not_null, ((<cache>(concat(`test`.`t2`.`a`,'')) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)) is false))
 SELECT *
 FROM t AS t1
 WHERE t1.a IN (SELECT t2.a

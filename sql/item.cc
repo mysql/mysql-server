@@ -6412,7 +6412,8 @@ Item *Item_field::replace_equal_field(uchar *arg) {
     if (table_ref != subst->table_ref && !field->eq(subst->field)) {
       Replace_equal *replace = pointer_cast<Replace_equal *>(arg);
       Item_func *func = replace->stack.head();
-      if (!func->allow_replacement(this, subst)) {
+      if (!func->allow_replacement(this, subst) ||
+          !has_compatible_context(subst)) {
         return this;
       }
       // We may have to undo the substitution that is done here when setting up

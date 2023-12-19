@@ -1107,10 +1107,6 @@ bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
 Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                                       COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx);
-bool build_equal_items(THD *thd, Item *cond, Item **retcond,
-                       COND_EQUAL *inherited, bool do_inherit,
-                       mem_root_deque<Table_ref *> *join_list,
-                       COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join,
                              mem_root_deque<Item_field *> *out_args);
 Key_use_array *create_keyuse_for_table(

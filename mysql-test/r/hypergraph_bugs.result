@@ -750,7 +750,7 @@ EXPLAIN
         -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2, t1 x3
-WHERE x1.a=x2.c AND x2.c=x3.v AND x1.b=x3.f;
+WHERE x1.a=x2.c AND x1.a=x3.v AND x1.b=x3.f;
 EXPLAIN
 -> Inner hash join (x1.a = x2.c)  (rows=800) (actual rows=200 loops=1)
     -> Inner hash join (cast(x1.a as double) = cast(x3.v as double)), (x1.b = x3.f)  (rows=200) (actual rows=200 loops=1)

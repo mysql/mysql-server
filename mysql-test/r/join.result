@@ -2811,5 +2811,9 @@ SELECT DISTINCT t1.col_int
 FROM t2 LEFT OUTER JOIN t1 ON t2.pk = t1.col_int
 WHERE CAST(t2.pk AS SIGNED INTEGER) <> t1.col_date;
 col_int
+SELECT DISTINCT t1.col_int
+FROM t2 LEFT OUTER JOIN t1 ON t1.col_int = t2.pk
+WHERE CAST(t2.pk AS SIGNED INTEGER) <> t1.col_date;
+col_int
 DROP TABLE t1;
 DROP TABLE t2;

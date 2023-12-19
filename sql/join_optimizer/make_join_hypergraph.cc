@@ -39,6 +39,8 @@
 #include "my_bitmap.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "prealloced_array.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -83,7 +85,7 @@ namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<Table_ref *> &join_list);
-bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
+bool EarlyNormalizeConditions(THD *thd, const RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
 
@@ -2216,11 +2218,97 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   }
 }
 
+/// Find (via a multiple equality) and return a constant that should replace
+/// "item". If no such constant is found, return "item".
+Item *GetSubstitutionConst(Item *item) {
+  if (item->type() != Item_field::FIELD_ITEM) return item;
+  Item_equal *equal = down_cast<Item_field *>(item)->item_equal;
+  if (equal == nullptr) return item;
+  Item *const_item = equal->const_arg();
+  if (const_item == nullptr || !item->has_compatible_context(const_item))
+    return item;
+  return equal->const_arg();
+}
+
+/// Replace fields with constants in "cond".
+Item *PropagateConstants(Item *cond) {
+  return CompileItem(
+      cond, [](Item *) { return true; },
+      [](Item *item) { return GetSubstitutionConst(item); });
+}
+
+/// Find (via a multiple equality) a field that should replace "item". If no
+/// such field is found, return "item".
+///
+/// @param item    The item to find a replacement for.
+/// @param parent  The immediately enclosing function in which "item" is found.
+/// @param allowed_tables  The set of tables the replacement can come from.
+/// @return The field to replace "item" with, or "item".
+Item_field *GetSubstitutionField(Item_field *item, Item_func *parent,
+                                 table_map allowed_tables) {
+  Item_equal *item_equal = item->item_equal;
+  if (item_equal == nullptr || item_equal->const_arg() != nullptr) {
+    return item;
+  }
+
+  for (Item_field &subst_field : item_equal->get_fields()) {
+    if (IsSubset(subst_field.used_tables(), allowed_tables) &&
+        parent->allow_replacement(item, &subst_field) &&
+        item->has_compatible_context(&subst_field)) {
+      return &subst_field;
+    }
+  }
+  return item;
+}
+
+Item *PropagateEqualities(Item *cond, const RelationalExpression *join) {
+  table_map tables_in_subtree = TablesBetween(0, MAX_TABLES);
+  // If this is a degenerate join condition (that is, all fields in the
+  // join condition come from the same side of the join), we need to
+  // find replacements, if any, from the same side, so that the condition
+  // continues to be pushable to that side.
+  if (join != nullptr) {
+    tables_in_subtree =
+        IsSubset(cond->used_tables(), join->left->tables_in_subtree)
+            ? join->left->tables_in_subtree
+            : (IsSubset(cond->used_tables(), join->right->tables_in_subtree)
+                   ? join->right->tables_in_subtree
+                   : join->tables_in_subtree);
+  }
+
+  // While walking down the item tree, maintain a stack of pointers to enclosing
+  // functions, so that the visitor can access the parent function.
+  Prealloced_array<Item_func *, 10> stack(PSI_NOT_INSTRUMENTED);
+
+  // Find all Item_fields in the condition and see if they can be replaced with
+  // a more beneficial one.
+  return CompileItem(
+      cond,
+      [&stack](Item *item) {
+        if (item->type() == Item::FUNC_ITEM) {
+          stack.push_back(down_cast<Item_func *>(item));
+        }
+        return true;
+      },
+      [tables_in_subtree, &stack](Item *item) -> Item * {
+        switch (item->type()) {
+          case Item::FUNC_ITEM:
+            stack.pop_back();
+            return item;
+          case Item::FIELD_ITEM:
+            return GetSubstitutionField(down_cast<Item_field *>(item),
+                                        stack.back(), tables_in_subtree);
+          default:
+            return item;
+        }
+      });
+}
+
 /**
   Do some equality and constant propagation, conversion/folding work needed
   for correctness and performance.
  */
-bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
+bool EarlyNormalizeConditions(THD *thd, const RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false) {
   CSEConditions(thd, conditions);
@@ -2247,42 +2335,10 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
     */
     const bool is_filter =
         popcount((*it)->used_tables() & ~PSEUDO_TABLE_BITS) < 2;
-    if (is_filter || !is_function_of_type(*it, Item_func::MULT_EQUAL_FUNC)) {
-      table_map tables_in_subtree = TablesBetween(0, MAX_TABLES);
-      // If this is a degenerate join condition i.e. all fields in the
-      // join condition come from the same side of the join, we need to
-      // find replacements if any from the same side so that the condition
-      // continues to be pushable to that side.
-      if (join != nullptr) {
-        tables_in_subtree =
-            IsSubset((*it)->used_tables(), join->left->tables_in_subtree)
-                ? join->left->tables_in_subtree
-                : (IsSubset((*it)->used_tables(),
-                            join->right->tables_in_subtree)
-                       ? join->right->tables_in_subtree
-                       : join->tables_in_subtree);
-      }
-      *it = CompileItem(
-          *it, [](Item *) { return true; },
-          [tables_in_subtree, is_filter](Item *item) -> Item * {
-            if (item->type() == Item::FIELD_ITEM) {
-              Item_equal *item_equal =
-                  down_cast<Item_field *>(item)->item_equal;
-              if (item_equal) {
-                Item *const_item = item_equal->const_arg();
-                if (is_filter && const_item != nullptr &&
-                    item->has_compatible_context(const_item)) {
-                  return const_item;
-                } else if (!is_filter && const_item == nullptr) {
-                  for (Item_field &field : item_equal->get_fields()) {
-                    if (IsSubset(field.used_tables(), tables_in_subtree))
-                      return &field;
-                  }
-                }
-              }
-            }
-            return item;
-          });
+    if (is_filter) {
+      *it = PropagateConstants(*it);
+    } else if (!is_function_of_type(*it, Item_func::MULT_EQUAL_FUNC)) {
+      *it = PropagateEqualities(*it, join);
     }
 
     const Item *const old_item = *it;

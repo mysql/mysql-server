@@ -1945,10 +1945,10 @@ where t2.filler=t3.filler and
 (t2.b,t2.a,t2.filler) in (select a,b,a*3 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
-1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
+1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using index; LooseScan
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (cast(`test`.`t3`.`filler` as double) = cast((`test`.`t1`.`a` * 3) as double)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (cast(`test`.`t2`.`filler` as double) = cast((`test`.`t1`.`a` * 3) as double)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)

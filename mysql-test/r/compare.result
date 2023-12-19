@@ -201,3 +201,15 @@ SELECT * FROM t WHERE 0 < @maxint;
 a
 0
 DROP TABLE t;
+#
+# Bug#35105475: Result diff seen with hypergraph off and on
+# (different number of rows)
+#
+CREATE TABLE t(i INT, x VARCHAR(1));
+INSERT INTO t VALUES (0, '4'), (0, _utf16 X'1BB4');
+SELECT t1.i, HEX(t1.x), t2.i, HEX(t2.x) FROM t AS t1, t AS t2
+WHERE t1.x = t2.x and t1.i < t2.x;
+i	HEX(t1.x)	i	HEX(t2.x)
+0	34	0	34
+0	E1AEB4	0	34
+DROP TABLE t;

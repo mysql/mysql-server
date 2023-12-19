@@ -4463,10 +4463,10 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
   @returns false if success, true if error
 */
 
-bool build_equal_items(THD *thd, Item *cond, Item **retcond,
-                       COND_EQUAL *inherited, bool do_inherit,
-                       mem_root_deque<Table_ref *> *join_list,
-                       COND_EQUAL **cond_equal_ref) {
+static bool build_equal_items(THD *thd, Item *cond, Item **retcond,
+                              COND_EQUAL *inherited, bool do_inherit,
+                              mem_root_deque<Table_ref *> *join_list,
+                              COND_EQUAL **cond_equal_ref) {
   COND_EQUAL *cond_equal = nullptr;
 
   if (cond) {
