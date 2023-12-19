@@ -40,9 +40,14 @@ FUNCTION(FIND_MAVEN)
         NO_DEFAULT_PATH
         PATHS "$ENV{MAVEN_HOME}/bin")
     ELSE()
+      ## First check the standard lab maven installation
       FIND_PROGRAM(MAVEN_EXECUTABLE mvn
-        ## Include the standard lab maven installation
-        PATHS /usr/global/share/java/maven/bin)
+        PATHS /usr/global/share/java/maven/bin
+        /usr2/global/share/java/maven/bin # Path on Mac lab machines
+        NO_DEFAULT_PATH
+      )
+      ## If not found, check the default path
+      FIND_PROGRAM(MAVEN_EXECUTABLE mvn)
     ENDIF()
   ENDIF()
 
