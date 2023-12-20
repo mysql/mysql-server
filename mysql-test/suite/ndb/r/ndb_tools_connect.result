@@ -83,5 +83,5 @@ Connecting to management server at nodeid=0,localhost:<MGMD-PORT><MAYBE-TLS>
 Node 1: STARTED
 Node 2: STARTED
 Connecting to management server at nodeid=0,no_such_host:1186<MAYBE-TLS>
-Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186<MAYBE-TLS>
+Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 latest_error=1001, line=no_such_host

@@ -267,12 +267,18 @@ static int waitClusterStatus(const char *_addr, ndb_mgm_node_status _status) {
   }
   ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
 
-  if (tlsKeyManager.ctx())
-    ndbout << "Using Certificate: " << tlsKeyManager.cert_path();
+  const char *tls_mode;
+  if (opt_mgm_tls == 1)
+    tls_mode = " (using TLS)";
+  else if (tlsKeyManager.ctx())
+    tls_mode = " (trying TLS)";
+  else
+    tls_mode = " (using cleartext)";
 
   char buf[1024];
   ndbout << "Connecting to management server at "
-         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << endl;
+         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << tls_mode
+         << endl;
   if (ndb_mgm_connect_tls(handle, opt_connect_retries - 1,
                           opt_connect_retry_delay, 1, opt_mgm_tls)) {
     MGMERR(handle);
