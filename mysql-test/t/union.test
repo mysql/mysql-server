@@ -2845,3 +2845,15 @@ SELECT 2 UNION SELECT 1
 ON DUPLICATE KEY UPDATE c1 = 1 IN (SELECT 1);
 
 DROP TABLE t1;
+
+--echo # Bug#36112585: Data type is changed from VAR_STRING to STRING by UNION
+--echo #               if all values are empty string
+
+CREATE TABLE t
+SELECT 'AAA' AS a, '' AS b, '' AS c
+UNION ALL
+SELECT 'BBB', 'b', '';
+
+DESCRIBE t;
+
+DROP TABLE t;

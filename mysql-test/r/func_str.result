@@ -4137,7 +4137,7 @@ CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',0)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` char(0) CHARACTER SET latin1 DEFAULT NULL
+  `to_base64` varchar(0) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
@@ -4146,7 +4146,7 @@ CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `from_base64` binary(0) DEFAULT NULL
+  `from_base64` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)

@@ -227,7 +227,7 @@ CREATE TABLE t AS VALUES ROW(1, NULL);
 DESC t;
 Field	Type	Null	Key	Default	Extra
 column_0	int	NO		0	
-column_1	binary(0)	YES		NULL	
+column_1	varbinary(0)	YES		NULL	
 DELETE FROM t0;
 DROP TABLE t;
 # Allowed: Non-deterministic functions with CTE.

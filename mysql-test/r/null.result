@@ -259,7 +259,7 @@ rpad(null, 10, 'str') as c38;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c00` binary(0) DEFAULT NULL,
+  `c00` varbinary(0) DEFAULT NULL,
   `c01` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c02` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c03` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
@@ -273,11 +273,11 @@ t1	CREATE TABLE `t1` (
   `c11` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c12` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c13` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c14` binary(0) DEFAULT NULL,
-  `c15` binary(0) DEFAULT NULL,
+  `c14` varbinary(0) DEFAULT NULL,
+  `c15` varbinary(0) DEFAULT NULL,
   `c16` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c17` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c18` binary(0) DEFAULT NULL,
+  `c18` varbinary(0) DEFAULT NULL,
   `c19` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c20` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c21` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -290,7 +290,7 @@ t1	CREATE TABLE `t1` (
   `c29` varchar(381) CHARACTER SET latin2 DEFAULT NULL,
   `c30` varchar(317) CHARACTER SET latin2 DEFAULT NULL,
   `c31` varchar(192) CHARACTER SET latin2 DEFAULT NULL,
-  `c32` binary(0) DEFAULT NULL,
+  `c32` varbinary(0) DEFAULT NULL,
   `c33` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c34` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c35` varchar(3) CHARACTER SET latin2 DEFAULT NULL,

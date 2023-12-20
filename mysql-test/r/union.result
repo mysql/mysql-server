@@ -1684,11 +1684,11 @@ a	int	YES		NULL
 CREATE TABLE t4 SELECT NULL;
 DESC t4;
 Field	Type	Null	Key	Default	Extra
-NULL	binary(0)	YES		NULL	
+NULL	varbinary(0)	YES		NULL	
 CREATE TABLE t5 SELECT NULL UNION SELECT NULL;
 DESC t5;
 Field	Type	Null	Key	Default	Extra
-NULL	binary(0)	YES		NULL	
+NULL	varbinary(0)	YES		NULL	
 CREATE TABLE t6
 SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
@@ -5713,3 +5713,15 @@ INSERT INTO t1 (c1)
 SELECT 2 UNION SELECT 1
 ON DUPLICATE KEY UPDATE c1 = 1 IN (SELECT 1);
 DROP TABLE t1;
+# Bug#36112585: Data type is changed from VAR_STRING to STRING by UNION
+#               if all values are empty string
+CREATE TABLE t
+SELECT 'AAA' AS a, '' AS b, '' AS c
+UNION ALL
+SELECT 'BBB', 'b', '';
+DESCRIBE t;
+Field	Type	Null	Key	Default	Extra
+a	varchar(3)	NO			
+b	varchar(1)	NO			
+c	varchar(0)	NO			
+DROP TABLE t;

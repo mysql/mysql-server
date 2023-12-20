@@ -1956,8 +1956,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 AS SELECT 1 AS c1, 1 AS c2 INTERSECT SELECT 2,2;
@@ -1985,8 +1985,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 AS SELECT 1 AS c1, 1 AS c2 EXCEPT SELECT 2,2;
@@ -2014,8 +2014,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 # Test T101 hierarchy correctness
@@ -2060,8 +2060,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -2111,8 +2111,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -2162,8 +2162,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -2213,8 +2213,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -4413,8 +4413,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 AS SELECT 1 AS c1, 1 AS c2 INTERSECT SELECT 2,2;
@@ -4442,8 +4442,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 AS SELECT 1 AS c1, 1 AS c2 EXCEPT SELECT 2,2;
@@ -4471,8 +4471,8 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3, t4;
 # Test T101 hierarchy correctness
@@ -4517,8 +4517,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -4568,8 +4568,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -4619,8 +4619,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -4670,8 +4670,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` binary(0) DEFAULT NULL,
-  `c2` binary(0) DEFAULT NULL
+  `c1` varbinary(0) DEFAULT NULL,
+  `c2` varbinary(0) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table

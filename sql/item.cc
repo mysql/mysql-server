@@ -6609,8 +6609,7 @@ Field *Item::make_string_field(TABLE *table) const {
     field = new (*THR_MALLOC) Field_blob(
         max_length, m_nullable, item_name.ptr(), collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
-  else if (max_length > 0 &&
-           (type() != Item::TYPE_HOLDER || data_type() != MYSQL_TYPE_STRING))
+  else if (type() != Item::TYPE_HOLDER || data_type() != MYSQL_TYPE_STRING)
     field = new (*THR_MALLOC) Field_varstring(
         max_length, m_nullable, item_name.ptr(), table->s, collation.collation);
   else

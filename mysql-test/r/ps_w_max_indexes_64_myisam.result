@@ -1871,7 +1871,7 @@ t5	CREATE TABLE `t5` (
   `param10` bigint DEFAULT NULL,
   `const11` year DEFAULT NULL,
   `param11` bigint unsigned DEFAULT NULL,
-  `const12` binary(0) DEFAULT NULL,
+  `const12` varbinary(0) DEFAULT NULL,
   `param12` bigint DEFAULT NULL,
   `param13` decimal(65,30) DEFAULT NULL,
   `param14` longtext,
@@ -1901,7 +1901,7 @@ def	test	t5	t5	const10	const10	8	21	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	21	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	13	4	4	Y	32864	0	63
 def	test	t5	t5	param11	param11	8	21	4	Y	32800	0	63
-def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
+def	test	t5	t5	const12	const12	253	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	21	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
 def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	255
@@ -3957,7 +3957,7 @@ t5	CREATE TABLE `t5` (
   `param10` bigint DEFAULT NULL,
   `const11` year DEFAULT NULL,
   `param11` bigint unsigned DEFAULT NULL,
-  `const12` binary(0) DEFAULT NULL,
+  `const12` varbinary(0) DEFAULT NULL,
   `param12` bigint DEFAULT NULL,
   `param13` decimal(65,30) DEFAULT NULL,
   `param14` longtext,
@@ -3987,7 +3987,7 @@ def	test	t5	t5	const10	const10	8	21	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	21	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	13	4	4	Y	32864	0	63
 def	test	t5	t5	param11	param11	8	21	4	Y	32800	0	63
-def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
+def	test	t5	t5	const12	const12	253	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	21	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
 def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	255
