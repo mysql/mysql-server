@@ -2151,7 +2151,7 @@ ALTER TABLE t TABLESPACE s;
 
 --echo # Drop table and tablespace.
 DROP TABLE t;
-DROP TABLESPACE s ENGINE InnoDB;
+DROP TABLESPACE s;
 
 --echo #
 --echo # Bug#20279241 - ALTER TABLE ... CHARACTER SET utf8mb3, CONVERT TO

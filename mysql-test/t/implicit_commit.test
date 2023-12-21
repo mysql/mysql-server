@@ -1005,7 +1005,7 @@ let $statement=
 source include/implicit_commit_helper.inc;
 
 let $statement=
-  DROP TABLESPACE ts1  ENGINE=INNODB;
+  DROP TABLESPACE ts1;
 source include/implicit_commit_helper.inc;
 
 

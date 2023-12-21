@@ -39,7 +39,7 @@ drop logfile group ndb_lg1 engine=myisam;
 drop logfile group ndb_lg1 engine=myisam;
 
 -- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
+drop tablespace ndb_ts1;
 -- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
+drop tablespace ndb_ts1;
 

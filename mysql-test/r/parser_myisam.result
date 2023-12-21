@@ -27,7 +27,7 @@ drop logfile group ndb_lg1 engine=myisam;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
 drop logfile group ndb_lg1 engine=myisam;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-drop tablespace ndb_ts1 engine=myisam;
+drop tablespace ndb_ts1;
 ERROR HY000: Tablespace ndb_ts1 doesn't exist.
-drop tablespace ndb_ts1 engine=myisam;
+drop tablespace ndb_ts1;
 ERROR HY000: Tablespace ndb_ts1 doesn't exist.

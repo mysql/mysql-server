@@ -2840,9 +2840,7 @@ ERROR HY000: Partition management on a not partitioned table is not possible
 ALTER TABLE t TABLESPACE s;
 # Drop table and tablespace.
 DROP TABLE t;
-DROP TABLESPACE s ENGINE InnoDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE s;
 #
 # Bug#20279241 - ALTER TABLE ... CHARACTER SET utf8mb3, CONVERT TO
 #                CHARACTER SET LATIN1 SHOULD FAIL
