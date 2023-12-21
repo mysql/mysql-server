@@ -157,8 +157,8 @@ call mtr.add_suppression("Failed to install table");
 # Restore backup files (from little endian)
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
 
 SHOW CREATE TABLE t_num;
 # The `t_datetime` table is not expected to be usable. It contains old
@@ -188,8 +188,8 @@ DROP TABLE t_num,t_string_1,t_string_2,t_gis;
 # Restore backup files (from big endian)
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 
 SHOW CREATE TABLE t_num;
 --error ER_NO_SUCH_TABLE

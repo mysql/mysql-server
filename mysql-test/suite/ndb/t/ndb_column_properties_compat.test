@@ -6,8 +6,8 @@
 -- source suite/ndb/include/backup_restore_setup.inc
 
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
 # Check for warnings of implicit conversion of COLUMN_FORMAT

@@ -5,8 +5,8 @@
 --let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
 --let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 --disable_query_log
 # Turn auto sync on with a low interval so changes are detected quickly

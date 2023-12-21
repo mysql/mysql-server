@@ -13,8 +13,8 @@
 #
 
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
 SHOW CREATE TABLE ACCOUNT_TYPE;
@@ -70,8 +70,8 @@ let $show_varpart_table=ACCOUNT_TYPE;
 --source show_varpart.inc
 
 # Restore data
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 # Check data
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
@@ -79,8 +79,8 @@ SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
---exec $NDB_RESTORE -b 2 -n 1 -m -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 2 -n 2 -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 2 -n 1 -m -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 2 -n 2 -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 let $show_attributes_db=BANK;
 let $show_attributes_table=DESCRIPTION;
@@ -93,8 +93,8 @@ DROP TABLE TRANSACTION;
 DROP TABLE SYSTEM_VALUES;
 DROP TABLE ACCOUNT_TYPE;
 
---exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -m $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
 
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
@@ -111,9 +111,9 @@ drop table t1;
 # bug#54613
 
 --error 1
---exec $NDB_RESTORE -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 
 --error 0
---exec $NDB_RESTORE -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 
 --remove_file $NDB_TOOLS_OUTPUT

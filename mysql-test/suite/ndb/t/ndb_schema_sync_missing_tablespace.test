@@ -31,9 +31,9 @@
 # Case 1: Test that the metadata upgrade of the table installs the
 # missing tablespace automatically during schema synchronization
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_disk_data_backup >> $NDB_TOOLS_OUTPUT
 --echo Backup from 7.6 restored
 
 --echo Restart server 1 to trigger schema synchronization

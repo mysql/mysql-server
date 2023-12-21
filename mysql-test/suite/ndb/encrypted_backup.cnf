@@ -8,3 +8,8 @@ backup-password=TOPSECRET
 
 [ndb_print_backup_file]
 backup-password=TOPSECRET
+
+[ENV]
+NDB_MGM_NO_ENCR=--skip-encrypt-backup --skip-backup-password
+NDB_PRINT_BACKUP_FILE_NO_ENCR=-skip-backup-password
+NDB_RESTORE_NO_ENCR=--skip-decrypt --skip-backup-password

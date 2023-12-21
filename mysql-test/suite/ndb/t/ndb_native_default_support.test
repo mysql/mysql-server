@@ -200,8 +200,8 @@ DROP DATABASE mysqltest;
 --echo * Restore the backup from 6.3 or 6.4, which don't support native default value
 --echo ******************************************************************************
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
 
 ####
 # Bug# 53539 Ndb : MySQLD default values in frm embedded in backup not endian-converted
@@ -626,8 +626,8 @@ SHOW CREATE TABLE t1;
 --let $ndb_describe_table= t1
 --source suite/ndb/include/ndb_describe_table.inc
 
---exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
 
 SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne, newTwo from t1 order by i;
 

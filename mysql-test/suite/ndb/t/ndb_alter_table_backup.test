@@ -16,8 +16,8 @@
 --echo *********************************
 --echo * restore tables w/ new column from little endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 
 --disable_query_log
 call mtr.add_suppression("Table upgrade required");
@@ -43,8 +43,8 @@ SHOW WARNINGS;
 --echo *********************************
 --echo * restore tables w/ new column from big endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;

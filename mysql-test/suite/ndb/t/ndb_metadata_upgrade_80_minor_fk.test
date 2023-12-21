@@ -43,8 +43,8 @@
 # INSERT INTO self_ref VALUES(1,1), (2,1);
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
 
 --echo Backup restored
 

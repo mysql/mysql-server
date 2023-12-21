@@ -124,8 +124,8 @@ CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
 --echo #
 --echo # reset, restore and  binlog should _not_ happen
 reset master;
---exec $NDB_RESTORE --no-binlog -b 1 -n 1 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR --no-binlog -b 1 -n 1 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 
 select count(*) from TRANSACTION;
 --source include/show_binlog_events.inc
