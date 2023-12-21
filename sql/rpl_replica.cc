@@ -1278,7 +1278,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
   /*
     When info tables are used and autocommit= 0 we force a new
     transaction start to avoid table access deadlocks when START REPLICA
-    is executed after RESET SLAVE.
+    is executed after RESET REPLICA.
   */
   if (is_autocommit_off(thd)) {
     if (trans_begin(thd)) {
@@ -1345,7 +1345,7 @@ end:
   /*
     When info tables are used and autocommit= 0 we force transaction
     commit to avoid table access deadlocks when START REPLICA is executed
-    after RESET SLAVE.
+    after RESET REPLICA.
   */
   if (is_autocommit_off(thd))
     if (trans_commit(thd)) init_error = 1;
@@ -7125,7 +7125,8 @@ extern "C" void *handle_slave_sql(void *arg) {
       (imagine the slave has caught everything, the STOP REPLICA and START
       REPLICA: as we are not sure that we are going to receive a query, we want
       to remember the last master timestamp (to say how many seconds behind we
-      are now. But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
+      are now. But the master timestamp is reset by RESET REPLICA & CHANGE
+      MASTER.
     */
     rli->clear_error();
     if (rli->workers_array_initialized) {
@@ -9088,7 +9089,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
 }
 
 /**
-  Execute a RESET SLAVE (for all channels), used in Multisource replication.
+  Execute a RESET REPLICA (for all channels), used in Multisource replication.
   If resetting of a particular channel fails, it exits out.
 
   @param[in]  thd  THD object of the client.
@@ -9175,7 +9176,7 @@ int reset_slave(THD *thd) {
 /**
   Execute a RESET REPLICA statement.
   Locks slave threads and unlocks the slave threads after executing
-  reset slave.
+  reset replica.
   The method also takes the mi->channel_wrlock; if this {mi} object
   is deleted (when the parameter reset_all is true) its destructor unlocks
   the lock. In case of error, the method shall always unlock the
@@ -9200,7 +9201,7 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
       strcmp(mi->get_channel(), channel_map.get_default_channel()) == 0;
 
   /*
-    RESET SLAVE command should ignore 'read-only' and 'super_read_only'
+    RESET REPLICA command should ignore 'read-only' and 'super_read_only'
     options so that it can update 'mysql.slave_master_info' and
     'mysql.slave_relay_log_info' replication repository tables.
   */
@@ -9247,7 +9248,7 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   (void)RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 
   /*
-     RESET SLAVE ALL deletes the channels(except default channel), so their mi
+     RESET REPLICA ALL deletes the channels(except default channel), so their mi
      and rli objects are removed. For default channel, its mi and rli are
      deleted and recreated to keep in clear status.
   */
@@ -9285,9 +9286,9 @@ err:
 }
 
 /**
-  Entry function for RESET SLAVE command. Function either resets
+  Entry function for RESET REPLICA command. Function either resets
   the slave for all channels or for a single channel.
-  When RESET SLAVE ALL is given, the slave_info_objects (mi, rli & workers)
+  When RESET REPLICA ALL is given, the slave_info_objects (mi, rli & workers)
   are destroyed.
 
   @param[in]           thd          the client thread with the command.
@@ -9316,7 +9317,7 @@ bool reset_slave_cmd(THD *thd) {
     mi = channel_map.get_mi(lex->mi.channel);
     /*
       If the channel being used is a group replication channel and
-      group_replication is still running we need to disable RESET SLAVE [ALL]
+      group_replication is still running we need to disable RESET REPLICA [ALL]
       command.
     */
     if (mi &&

@@ -151,7 +151,7 @@ extern bool server_id_supplied;
   ### m_channel_lock ###
 
   It is used to SERIALIZE ALL administrative commands of replication: START
-  SLAVE, STOP REPLICA, CHANGE MASTER, RESET SLAVE, delete_slave_info_objects
+  SLAVE, STOP REPLICA, CHANGE MASTER, RESET REPLICA, delete_slave_info_objects
   (when mysqld stops)
 
   This thus protects us against a handful of deadlocks, being the know ones

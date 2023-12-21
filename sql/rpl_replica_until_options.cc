@@ -73,7 +73,7 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
 
   if (m_log_names_cmp_result == LOG_NAMES_CMP_UNKNOWN) {
     /*
-      If we are after RESET SLAVE, and the SQL slave thread has not processed
+      If we are after RESET REPLICA, and the SQL slave thread has not processed
       any event yet, it could be that group_master_log_name is "". In that case,
       just wait for more events (as there is no sensible comparison to do).
     */

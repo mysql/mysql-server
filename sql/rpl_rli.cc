@@ -626,10 +626,10 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
      this, these commands modify abort_pos_wait ; We just monitor abort_pos_wait
      and see if it has changed. Why do we have this mechanism instead of simply
      monitoring slave_running in the loop (we do this too), as CHANGE
-     MASTER/RESET SLAVE require that the SQL thread be stopped? This is because
-     if someones does: STOP REPLICA;CHANGE REPLICATION SOURCE/RESET REPLICA;
-     START REPLICA; the change may happen very quickly and we may not notice
-     that slave_running briefly switches between 1/0/1.
+     MASTER/RESET REPLICA require that the SQL thread be stopped? This is
+     because if someones does: STOP REPLICA;CHANGE REPLICATION SOURCE/RESET
+     REPLICA; START REPLICA; the change may happen very quickly and we may not
+     notice that slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait = abort_pos_wait;
 
@@ -1075,7 +1075,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
     init_info checks for the existence of the relay log, this fails and
     init_info leaves inited to 0.
     In that pathological case, master_log_pos* will be properly reinited at
-    the next START REPLICA (as RESET SLAVE or CHANGE MASTER, the callers of
+    the next START REPLICA (as RESET REPLICA or CHANGE MASTER, the callers of
     purge_relay_logs, will delete bogus *.info files or replace them with
     correct files), however if the user does SHOW SLAVE STATUS before START
     SLAVE, he will see old, confusing master_log_*. In other words, we reinit
@@ -1098,8 +1098,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
           mi->reset means that the channel was reset but still exists. Channel
           shall have the index and the first relay log file.
 
-          Those files shall be remove in a following RESET SLAVE ALL (even when
-          channel was not inited again).
+          Those files shall be remove in a following RESET REPLICA ALL (even
+          when channel was not inited again).
         */
         (mi->reset && delete_only)) {
       assert(relay_log.is_relay_log);
@@ -1612,7 +1612,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     ln = add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                        ln_without_channel_name);
 
-    /* We send the warning only at startup, not after every RESET SLAVE */
+    /* We send the warning only at startup, not after every RESET REPLICA */
     if (!opt_relay_logname_supplied && !opt_relaylog_index_name_supplied &&
         !name_warning_sent) {
       /*

@@ -1246,7 +1246,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
       START REPLICA/STOP REPLICA
   R6. When master dump thread starts a new binlog
   R7. CHANGE MASTER which deletes all relay logs
-  R8. RESET SLAVE
+  R8. RESET REPLICA
 
   (Remark: CHANGE MASTER which does not delete any relay log,
   does not cause any rotation at all.)

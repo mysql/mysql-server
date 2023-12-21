@@ -461,9 +461,9 @@ class Multisource_info {
   channel_map.rdlock() when querying P_S.replication_applier_filters table,
   we keep the rpl_channel_filters. So that we just need to hold the small
   rpl_channel_filters.rdlock() when querying P_S.replication_applier_filters
-  table. Many operations (RESET SLAVE [FOR CHANNEL], START REPLICA, INIT SLAVE,
-  END SLAVE, CHANGE MASTER TO, FLUSH RELAY LOGS, START CHANNEL, PURGE CHANNEL,
-  and so on) hold the channel_map.wrlock().
+  table. Many operations (RESET REPLICA [FOR CHANNEL], START REPLICA, INIT
+  SLAVE, END SLAVE, CHANGE MASTER TO, FLUSH RELAY LOGS, START CHANNEL, PURGE
+  CHANNEL, and so on) hold the channel_map.wrlock().
 
   There is one instance, rpl_channel_filters, created globally for Multisource
   channel filters. The rpl_channel_filters is created when the server is
@@ -479,11 +479,11 @@ class Rpl_channel_filters {
     This lock was designed to protect the channel_to_filter from reading,
     adding, or removing its objects from the map. It is used to preventing
     the following commands to run in parallel:
-      RESET SLAVE ALL [FOR CHANNEL '<channel_name>']
+      RESET REPLICA ALL [FOR CHANNEL '<channel_name>']
       CHANGE MASTER TO ... FOR CHANNEL
       SELECT FROM performance_schema.replication_applier_filters
 
-    Please acquire a wrlock when modifying the map structure (RESET SLAVE ALL
+    Please acquire a wrlock when modifying the map structure (RESET REPLICA ALL
     [FOR CHANNEL '<channel_name>'], CHANGE MASTER TO ... FOR CHANNEL).
     Please acqurie a rdlock when querying existing filter(s) (SELECT FROM
     performance_schema.replication_applier_filters).

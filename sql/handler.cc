@@ -1083,7 +1083,7 @@ void ha_pre_dd_shutdown(void) {
   Administrative and status information statements do not modify
   engine data, and thus do not start a statement transaction and
   also have no effect on the normal transaction. Examples of such
-  statements are SHOW STATUS and RESET SLAVE.
+  statements are SHOW STATUS and RESET REPLICA.
 
   Similarly DDL statements are not transactional,
   and therefore a transaction is [almost] never started for a DDL

@@ -695,7 +695,7 @@ typedef int (*after_queue_event_t)(Binlog_relay_IO_param *param,
                                    unsigned long event_len, uint32 flags);
 
 /**
-  This callback is called after reset slave relay log IO status
+  This callback is called after reset replica relay log IO status
 
   @param param Observer common parameter
 

@@ -664,7 +664,7 @@ class Master_info : public Rpl_info {
     - START REPLICA;
     - STOP REPLICA;
     - CHANGE MASTER;
-    - RESET SLAVE;
+    - RESET REPLICA;
     - end_slave() (when mysqld stops)).
     Any of these commands must hold the wrlock from the start till the end.
   */
@@ -730,7 +730,7 @@ class Master_info : public Rpl_info {
   */
   void wait_until_no_reference(THD *thd);
 
-  /* Set true when the Master_info object was cleared by a RESET SLAVE */
+  /* Set true when the Master_info object was cleared by a RESET REPLICA */
   bool reset;
 
   /**

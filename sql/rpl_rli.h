@@ -917,7 +917,7 @@ class Relay_log_info : public Rpl_info {
 
   /**
     Reset the delay.
-    This is used by RESET SLAVE to clear the delay.
+    This is used by RESET REPLICA to clear the delay.
   */
   void clear_sql_delay() { sql_delay = 0; }
 

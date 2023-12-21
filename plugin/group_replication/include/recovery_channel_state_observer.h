@@ -57,7 +57,7 @@ class Recovery_channel_state_observer : public Channel_state_observer {
   int after_queue_event(Binlog_relay_IO_param *param, const char *event_buf,
                         unsigned long event_len, uint32 flags) override;
 
-  /** Observer for whenever a reset slave is executed */
+  /** Observer for whenever a reset replica is executed */
   int after_reset_slave(Binlog_relay_IO_param *param) override;
 
   /** Observer for applier skip event */

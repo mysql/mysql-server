@@ -4892,7 +4892,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
-      use RESET SLAVE or CHANGE MASTER TO), while the temporary table
+      use RESET REPLICA or CHANGE MASTER TO), while the temporary table
       has already been dropped. To ignore such irrelevant "table does
       not exist errors", we silently clear the error if TEMPORARY was used.
     */

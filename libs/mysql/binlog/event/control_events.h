@@ -367,7 +367,7 @@ class Format_description_event : public Binary_log_event {
   A stop event is written to the log files under these circumstances:
   - A master writes the event to the binary log when it shuts down.
   - A slave writes the event to the relay log when it shuts down or
-    when a RESET SLAVE statement is executed.
+    when a RESET REPLICA statement is executed.
 
   @section Stop_event_binary_format Binary Format
 
@@ -387,7 +387,7 @@ class Stop_event : public Binary_log_event {
     A Stop_event is occurs under these circumstances:
     -  A master writes the event to the binary log when it shuts down
     -  A slave writes the event to the relay log when it shuts down or when a
-       RESET SLAVE statement is executed
+       RESET REPLICA statement is executed
     @param buf  Contains the serialized event.
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
