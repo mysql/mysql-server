@@ -52,7 +52,7 @@
 #
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/pre_75_partitioning_variants >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m $NDB_SAVED_BACKUPS/pre_75_partitioning_variants >> $NDB_TOOLS_OUTPUT
 
 use test;
 

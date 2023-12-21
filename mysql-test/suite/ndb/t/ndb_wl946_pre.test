@@ -59,7 +59,7 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 drop table t1;
 
 --echo # restore meta from wl946_pre
---exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m --print-meta $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 # datetime,timestamp default wrong on solaris (probably bug#53818)
 # show create table t1;
@@ -68,8 +68,8 @@ drop table t1;
 --source show_indexes.inc
 
 --echo # restore data from wl946_pre
---exec $NDB_RESTORE -b 1 -n 1 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 # The `t1` table is not expected to be usable. It contains old

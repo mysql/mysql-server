@@ -128,17 +128,29 @@ write_file $MYSQL_TMP_DIR/backup_password.txt;
 SECRET
 EOF
 
+# If one for example do:
+#
+#   ./mtr --defaults-extra-file=suite/ndb/encrypted_backup.cnf ...
+#
+# then ndb_mgm below will emit a password on command line warning due to the
+# use of --skip-backup-password (via $NDB_MGM_NO_ENCR) to undo the setting of
+# backup-password in encrypted_backup.cnf.
+#
+# Therefore we remove the warning in below two cases.
+
 --echo
 --echo # Test START BACKUP ENCRYPT with password from stdin
-replace_regex /[0-9]+/X/ ;
-exec $NDB_MGM 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
+replace_regex /[0-9]+/X/
+  /ndb_mgm: .Warning. Using a password on the command line interface can be insecure.*\n//;
+exec $NDB_MGM $NDB_MGM_NO_ENCR 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
        --backup-password-from-stdin
        --execute="START BACKUP ENCRYPT";
 
 --echo
 --echo # Make START BACKUP trigger encrypted backup.
-replace_regex /[0-9]+/X/ ;
-exec $NDB_MGM 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
+replace_regex /[0-9]+/X/
+  /ndb_mgm: .Warning. Using a password on the command line interface can be insecure.*\n//;
+exec $NDB_MGM $NDB_MGM_NO_ENCR 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
         --encrypt-backup
         --backup-password-from-stdin
         --execute="START BACKUP";

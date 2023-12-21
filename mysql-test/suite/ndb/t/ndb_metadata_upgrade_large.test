@@ -43,7 +43,7 @@
 # Restore checked in backup
 CREATE DATABASE db1;
 
---exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
 
 # Create more tables if requested. Number of tables created = db_number*100
 --let $i=1
@@ -52,8 +52,8 @@ while($i < $db_number)
   --inc $i
   --let $db_name=db$i
   --eval CREATE DATABASE $db_name
-  --exec $NDB_RESTORE -b 1 -n 1 -m --disable-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m --disable-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 --rebuild-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
 }
 --enable_query_log
 

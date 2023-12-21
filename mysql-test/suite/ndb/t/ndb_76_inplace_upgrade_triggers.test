@@ -53,9 +53,9 @@
 
 --connection server1
 --echo # Restore 7.6 backup into NDB
---exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r --disable-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 --rebuild-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
 
 --echo # Setup the 7.6 data directory
 --echo # Copy zip files to tmp

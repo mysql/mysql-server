@@ -489,9 +489,9 @@ source include/ndb_backup_id.inc;
 #
 
 # ensure correct restore of epoch numbers in old versions
---exec $NDB_RESTORE -e -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
---exec $NDB_RESTORE -e -b 1 -n 1 $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 1 $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
 # ensure correct restore of epoch numbers in current version
 # number hould be "big"
@@ -502,12 +502,12 @@ select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 #
 # Bug#40428 core dumped when restore backup log file(redo log)
 #
---exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR --print --print_meta -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug #33040 ndb_restore crashes with --print_log
 #
---exec $NDB_RESTORE --print_log -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR --print_log -b 1 -n 1 $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#48005 ndb backup / restore does not restore the auto_increment
@@ -562,7 +562,7 @@ if (`SELECT COUNT(*) FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id`)
 #
 # Bug#51432
 #
---exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#56285

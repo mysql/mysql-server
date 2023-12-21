@@ -62,8 +62,8 @@
 # INSERT INTO t5 VALUES (1,'Lipstick on a pig');
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor >> $NDB_TOOLS_OUTPUT
 
 --echo Backup restored
 
