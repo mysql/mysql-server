@@ -423,8 +423,8 @@ static bool setup_repl(atrt_process *dst, atrt_process *src) {
     return false;
   }
 
-  if (!run_query(src, "RESET SLAVE")) {
-    g_logger.error("Failed to reset slave: %s", mysql_error(&src->m_mysql));
+  if (!run_query(src, "RESET REPLICA")) {
+    g_logger.error("Failed to reset replica: %s", mysql_error(&src->m_mysql));
     return false;
   }
 
