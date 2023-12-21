@@ -1,12 +1,12 @@
 # ==== Purpose ====
 #
 # This test script checks if the required data for Relay_log_info gets persisted
-# after a `RESET SLAVE` and a server restart.
+# after a `RESET REPLICA` and a server restart.
 #
 # ==== Requirements ====
 #
 # R1. If instantiated, `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT` must be
-#     persisted in the relay-log info repository, event after a `RESET SLAVE`.
+#     persisted in the relay-log info repository, event after a `RESET REPLICA`.
 #
 # R2. After a server restart, the values for a given channel
 #     `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT` options should be
@@ -67,7 +67,7 @@ INSERT INTO t VALUES (1);
 --echo # 3. Stop and reset the slave.
 --echo #
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 
 --echo #
 --echo # 4. Check that the options values are instantiated.

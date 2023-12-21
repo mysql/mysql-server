@@ -108,12 +108,10 @@ SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/check_slave_param.inc [Slave_IO_Running]
 
 # Case 5:
-# After executing 'RESET SLAVE' successfully, Master's UUID is still kept 
+# After executing 'RESET REPLICA' successfully, Master's UUID is still kept 
 # into Slave status.
 -----------------------------------------------------------------------------
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/check_slave_param.inc [Slave_IO_Running]
 CHANGE REPLICATION SOURCE TO 
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;

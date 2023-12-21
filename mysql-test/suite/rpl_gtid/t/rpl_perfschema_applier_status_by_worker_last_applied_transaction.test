@@ -21,7 +21,7 @@
 
 # Cleanup the slave information
 --source include/rpl_connection_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # Setup the default replication channel again
 --replace_result $MASTER_MYPORT MASTER_PORT

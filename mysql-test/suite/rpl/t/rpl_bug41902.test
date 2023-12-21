@@ -27,13 +27,13 @@ STOP REPLICA;
 --source include/add_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
-reset slave;
+RESET REPLICA;
 show warnings;
 
 --let $debug_point= simulate_find_log_pos_error
 --source include/remove_debug_point.inc
 
-reset slave;
+RESET REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 
 --let $debug_point= simulate_find_log_pos_error
@@ -45,7 +45,7 @@ CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 --let $debug_point= simulate_find_log_pos_error
 --source include/remove_debug_point.inc
 
-reset slave;
+RESET REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 
 connection master;

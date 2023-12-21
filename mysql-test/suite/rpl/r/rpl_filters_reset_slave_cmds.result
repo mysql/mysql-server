@@ -42,15 +42,11 @@ REPLICATE_WILD_DO_TABLE	test.t%	CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
 #
 # Verify that filters doesn't reset by
-# "RESET SLAVE [FOR CHANNEL 'ch1']" command.
+# "RESET REPLICA [FOR CHANNEL 'ch1']" command.
 #
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
+RESET REPLICA FOR CHANNEL 'ch1';
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY
@@ -75,11 +71,9 @@ REPLICATE_WILD_DO_TABLE	test.t%	CHANGE_REPLICATION_FILTER	0
 REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
 #
 # Verify the channel and per channel filters are removed
-# after "RESET SLAVE [ALL] [FOR CHANNEL 'ch1']" command.
+# after "RESET REPLICA [ALL] [FOR CHANNEL 'ch1']" command.
 #
-RESET SLAVE ALL FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY
@@ -95,9 +89,7 @@ COUNT(*)
 7
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='ch1' ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
 FILTER_NAME	FILTER_RULE	CONFIGURED_BY

@@ -49,4 +49,4 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-de
 --source include/stop_slave.inc
 
 # Clean up
-RESET SLAVE ALL;
+RESET REPLICA ALL;

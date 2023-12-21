@@ -20,7 +20,7 @@ CALL mtr.add_suppression("Server was not able to find a rotate event from source
 --source include/stop_slave.inc
 
 # On the slave
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # create a new channel
 --disable_warnings
@@ -45,10 +45,10 @@ RESET SLAVE ALL;
 
 --source include/start_slave.inc
 
-# Stop the slave to execute RESET SLAVE ALL in next step.
+# Stop the slave to execute RESET REPLICA ALL in next step.
 --source include/stop_slave.inc
 # Lets clear the offending channel and recreate it.
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
@@ -71,7 +71,7 @@ START REPLICA;
 # clean up
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
 
@@ -103,7 +103,7 @@ call mtr.add_suppression("Replica: Failed to initialize the connection metadata 
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Recovery from source pos");
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 SET @@global.replica_parallel_workers=5;
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -125,7 +125,7 @@ START REPLICA;
 
 # clean up
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
 

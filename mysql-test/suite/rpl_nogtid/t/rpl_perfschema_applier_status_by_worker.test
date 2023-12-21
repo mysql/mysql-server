@@ -235,7 +235,7 @@ let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 --connection master
 drop table t;
 reset binary logs and gtids;

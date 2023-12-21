@@ -21,7 +21,7 @@
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
 # clear slave datadir
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
 
@@ -60,6 +60,6 @@ DROP VIEW v1;
 
 # clean up
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

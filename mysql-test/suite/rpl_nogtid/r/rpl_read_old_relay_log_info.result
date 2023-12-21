@@ -9,9 +9,7 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 ==== Check that we still understand the old format of relay-log.info ====
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 # Read relay-log.info
 START REPLICA IO_THREAD;
 include/wait_for_slave_io_to_start.inc

@@ -462,10 +462,10 @@ REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbA) FOR CHANNEL '';
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 #
-# 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+# 17. Verify that "RESET REPLICA FOR CHANNEL '<channel_name>'" throws an
 # error 'ER_REPLICA_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
 #
-RESET SLAVE FOR CHANNEL 'channel_2';
+RESET REPLICA FOR CHANNEL 'channel_2';
 ERROR HY000: Replica channel 'channel_2' does not exist.
 include/rpl_start_slaves.inc
 connection_server_1

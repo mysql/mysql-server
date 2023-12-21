@@ -18,9 +18,7 @@ select @slave_server_id;
 @slave_server_id
 2
 Default, no data, max replicated epoch will be 0.
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 START REPLICA;
 select server_id from mysql.ndb_apply_status order by server_id;
 server_id
@@ -29,9 +27,7 @@ Ndb_slave_max_replicated_epoch: 0
 Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
 START REPLICA;
 select server_id from mysql.ndb_apply_status order by server_id;
@@ -40,12 +36,10 @@ server_id
 2
 Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
-Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
+Check that RESET REPLICA resets Ndb_slave_max_replicated_epoch to zero
 STOP REPLICA;
 Ndb_slave_max_replicated_epoch: 111
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Ndb_slave_max_replicated_epoch: 0
 Multiple-channel, load highest of configured serverids, should be 222
 set @other_local_server_id=@slave_server_id+1;

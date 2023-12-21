@@ -1374,9 +1374,7 @@ binlog.000001	#	Query	#	#	use `test`; GRANT DELETE, PERSIST_RO_VARIABLES_ADMIN O
 binlog.000001	#	Query	#	#	use `test`; GRANT GRANT OPTION ON *.* TO 'u1'@'%' WITH GRANT OPTION
 DROP USER u1;
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 #
 # WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
 #

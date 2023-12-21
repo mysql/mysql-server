@@ -71,9 +71,7 @@ include/wait_for_slave_param.inc [Last_IO_Errno]
 Last_IO_Errno = '13114'
 Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Client requested source to start replication from position > file size''
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");

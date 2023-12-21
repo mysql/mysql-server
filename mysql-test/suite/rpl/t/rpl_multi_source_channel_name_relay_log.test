@@ -35,10 +35,10 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --file_exists $relay_log_index_channel1
 
 --echo #
---echo # RESET SLAVE ALL for next test;
+--echo # RESET REPLICA ALL for next test;
 --echo #
 --source include/rpl_stop_slaves.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --echo #
 --echo # 2. Shutdown server. Remove relay log files. Start server with
@@ -70,10 +70,10 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --file_exists $relay_log_index_channel1
 
 --echo #
---echo # RESET SLAVE ALL cleaningup.
+--echo # RESET REPLICA ALL cleaningup.
 --echo #
 --source include/rpl_stop_slaves.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --echo #
 --echo # 3. Shutdown server. Remove relay log files. Start server with
@@ -105,10 +105,10 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --file_exists $relay_log_index_channel1
 
 --echo #
---echo # RESET SLAVE ALL cleaningup.
+--echo # RESET REPLICA ALL cleaningup.
 --echo #
 --source include/rpl_stop_slaves.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --echo #
 --echo # We have to reset the --relay-log and --relay-log-index options,

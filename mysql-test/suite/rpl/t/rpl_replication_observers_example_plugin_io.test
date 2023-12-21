@@ -11,7 +11,7 @@
 #
 # This test will use the hooks related with Event control and SQL/IO
 # thread handling.
-# - after_reset_slave: Called after a RESET SLAVE is invoked
+# - after_reset_slave: Called after a RESET REPLICA is invoked
 # - thread_start: Called when the IO Thread starts
 # - before_request_transmit: Called before the slave requests the events
 #                            from a master.
@@ -34,9 +34,9 @@
 --source include/install_replication_observers_example.inc
 
 --echo #
---echo # Cause a reset slave notification.
+--echo # Cause a reset replica notification.
 --echo #
-RESET SLAVE;
+RESET REPLICA;
 
 --echo #
 --echo # Cause a connect notification.

@@ -25,7 +25,5 @@ include/assert.inc [Verify server1 MEMBER_STATE is ONLINE]
 
 # 5. Clean up
 include/stop_slave.inc [FOR CHANNEL 'ch2_1']
-RESET SLAVE ALL FOR CHANNEL 'ch2_1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch2_1';
 include/group_replication_end.inc

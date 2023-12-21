@@ -50,43 +50,43 @@ SET @saved_debug= @@GLOBAL.debug;
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_table';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_table';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_do_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_do_table';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_ignore_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_ignore_table';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_db';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_db';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_rewrite_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --echo #
 --echo # 2. Simulate an error on creating channel's replication filters
@@ -97,7 +97,7 @@ SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --echo #
 --echo # 3. Simulate an error on executing CHANGE REPLICATION FILTER

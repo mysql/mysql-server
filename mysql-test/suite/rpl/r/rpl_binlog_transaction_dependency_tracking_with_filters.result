@@ -86,9 +86,7 @@ Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 ######## 2.2. WRITESET with SLAVE ########
@@ -104,9 +102,7 @@ Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 ######## 2.3. WRITESET_SESSION with SLAVE ########

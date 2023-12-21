@@ -214,7 +214,7 @@ RESET BINARY LOGS AND GTIDS;
 --let $file_d= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $pos_d= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --connection server_4
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_topology= 1->2->3->4->1
 --let $rpl_master_log_file= 4:$file_d
 --let $rpl_master_log_pos= 4:$pos_d

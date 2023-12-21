@@ -82,16 +82,10 @@ Occurrences of 'Can't start replica SQL THREAD of channel 'ch3_2' when group rep
 # 18. Cleanup
 [connection server1]
 include/stop_slave.inc [FOR CHANNEL 'ch3_1']
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 [connection server2]
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE ALL FOR CHANNEL '';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
+RESET REPLICA ALL FOR CHANNEL '';
 # restart:--group-replication-start-on-boot=OFF --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 include/rpl_reconnect.inc
 [connection server1]

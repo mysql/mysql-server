@@ -96,7 +96,7 @@ CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large ran
 
 # clear errno
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 --remove_file $binlog_uuid_filename

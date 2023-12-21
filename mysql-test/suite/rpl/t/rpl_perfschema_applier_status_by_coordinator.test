@@ -356,7 +356,7 @@ drop table t;
 reset binary logs and gtids;
 
 --connection slave
-reset slave;
+RESET REPLICA;
 reset binary logs and gtids;
 
 --echo

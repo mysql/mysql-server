@@ -270,7 +270,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 # which is not allowed after fix for bug#18789758.
 # Since we are at cleanup stage only, we can
 # ignore the error here in this test script.
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 
 --source include/rpl_end.inc

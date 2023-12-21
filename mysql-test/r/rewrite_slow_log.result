@@ -28,9 +28,7 @@ IGNORE_SERVER_IDS = (99,100), SOURCE_TLS_VERSION = 'TLSv1.2',
 SOURCE_TLS_CIPHERSUITES = NULL,
 SOURCE_BIND = 'eth4n', SOURCE_RETRY_COUNT = 7,
 SOURCE_DELAY = 4711, SOURCE_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 SET SESSION long_query_time=  @old_long_query_time;

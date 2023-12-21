@@ -23,7 +23,7 @@ select * from mysql.ndb_apply_status;
 set @slave_server_id:= @@server_id;
 select @slave_server_id;
 --echo Default, no data, max replicated epoch will be 0.
-reset slave;
+RESET REPLICA;
 START REPLICA;
 --connection master
 --sync_slave_with_master
@@ -34,7 +34,7 @@ select server_id from mysql.ndb_apply_status order by server_id;
 --echo Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
 START REPLICA;
 --connection master
@@ -45,10 +45,10 @@ select server_id from mysql.ndb_apply_status order by server_id;
 
 drop table test.t1;
 
---echo Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
+--echo Check that reset replica resets Ndb_slave_max_replicated_epoch to zero
 STOP REPLICA;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
-reset slave;
+RESET REPLICA;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 
 --echo Multiple-channel, load highest of configured serverids, should be 222

@@ -198,7 +198,7 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin= 1;
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.group_replication_autorejoin_tries = default;

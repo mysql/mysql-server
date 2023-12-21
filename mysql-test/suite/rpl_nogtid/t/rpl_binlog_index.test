@@ -245,7 +245,7 @@ SET SQL_LOG_BIN=1;
 --enable_query_log
 
 # Due to changes on slave start procedure (relay log initialization
-# error requires RESET SLAVE or server restart) we need to restart
+# error requires RESET REPLICA or server restart) we need to restart
 # server to relay log file change be considered.
 --let $include_silent= 1
 --let $rpl_server_number= 2

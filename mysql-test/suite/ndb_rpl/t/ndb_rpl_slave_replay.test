@@ -108,7 +108,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --enable_query_log
 
 
---echo Now try re-positioning after RESET SLAVE
+--echo Now try re-positioning after RESET REPLICA
 STOP REPLICA;
 RESET REPLICA;
 
@@ -118,7 +118,7 @@ RESET REPLICA;
 --connection slave
 
 --echo Any slave positioning warnings?
---echo Should be two, e.g. no extras after the RESET SLAVE
+--echo Should be two, e.g. no extras after the RESET REPLICA
 --echo This avoids warnings when slave context has been explicitly reset
 
 --source ndb_rpl_get_server_error_log.inc

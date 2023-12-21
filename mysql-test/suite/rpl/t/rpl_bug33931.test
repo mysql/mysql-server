@@ -13,7 +13,7 @@ call mtr.add_suppression("Failed during replica I/O thread initialization");
 call mtr.add_suppression("Replica SQL.*Failed during replica thread initialization.* MY-013117");
 
 --source include/stop_slave.inc
-reset slave;
+RESET REPLICA;
 
 # Set debug flags on slave to force errors to occur
 --let $debug_point= simulate_io_replica_error_on_init
@@ -54,7 +54,7 @@ START REPLICA;
 --source include/remove_debug_point.inc
 
 # Clear Last_SQL_Error and Last_IO_Error
-RESET SLAVE;
+RESET REPLICA;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

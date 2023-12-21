@@ -21,7 +21,5 @@ START REPLICA;
 STOP REPLICA FOR CHANNEL 'ch_a';
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
 [connection slave]
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/rpl_end.inc

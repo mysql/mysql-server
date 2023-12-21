@@ -7,9 +7,7 @@ call mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQ
 include/sync_slave_sql_with_master.inc
 STOP REPLICA;
 create table t1 (a int) engine=innodb;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 START REPLICA;
 STOP REPLICA;
 START REPLICA;

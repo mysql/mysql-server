@@ -60,7 +60,7 @@
 #    replication filters to its own per-channel replication
 #    filters with the same values of CONFIGURED_BY when it
 #    is created by CHANGE MASTER TO ... FOR CHANNEL.
-#    Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
+#    Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
 #    will be removed from the P_S table.
 #
 # 9. Verify that if the user specifies a per-channel replication filter
@@ -226,14 +226,14 @@ CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM perfo
 --echo # replication filters to its own per-channel replication
 --echo # filters with the same values of CONFIGURED_BY when it
 --echo # is created by CHANGE MASTER TO ... FOR CHANNEL.
---echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
+--echo # Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
 --echo # will be removed from the P_S table.
 --echo #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
-RESET SLAVE ALL FOR CHANNEL 'channel_2';
+RESET REPLICA ALL FOR CHANNEL 'channel_2';
 
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;

@@ -292,7 +292,7 @@ SET DEBUG_SYNC= "now WAIT_FOR reached_commit_order_leader_before_ha_flush_logs_1
 --echo #     successfully replicated to the slave.
 --echo
 
-RESET SLAVE;
+RESET REPLICA;
 
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers= 4;

@@ -28,7 +28,7 @@ enable_query_log;
 drop table t1;
 save_master_pos;
 connection slave;
-reset slave;
+RESET REPLICA;
 
 --echo #
 --echo # Test 1
@@ -47,7 +47,7 @@ sync_with_master;
 --echo #
 
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 set global max_relay_log_size=(5*4096);
 query_vertical select @@global.max_relay_log_size;
 START REPLICA;
@@ -59,7 +59,7 @@ sync_with_master;
 --echo #
 
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 set global max_relay_log_size=0;
 query_vertical select @@global.max_relay_log_size;
 START REPLICA;
@@ -71,7 +71,7 @@ sync_with_master;
 --echo #
 
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 # test of relay log rotation when the slave is stopped
 # (to make sure it does not crash).
 flush logs;
@@ -80,7 +80,7 @@ flush logs;
 --echo # Test 5
 --echo #
 
-reset slave;
+RESET REPLICA;
 START REPLICA;
 sync_with_master;
 # test of relay log rotation when the slave is started

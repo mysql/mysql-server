@@ -89,7 +89,7 @@ reset binary logs and gtids;
 select * from mysql.ndb_binlog_index;
 
 --connection slave
-reset slave;
+RESET REPLICA;
 # should now contain nothing
 select * from mysql.ndb_apply_status;
 

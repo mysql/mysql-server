@@ -171,9 +171,7 @@ c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 DROP TABLE t1;
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 START REPLICA;
 ******** Create additional TABLESPACE test 2 **************
@@ -238,9 +236,7 @@ SELECT COUNT(*) FROM account;
 COUNT(*)
 1000
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE IF EXISTS tpcb.account;

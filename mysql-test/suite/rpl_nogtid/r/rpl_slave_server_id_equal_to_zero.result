@@ -22,9 +22,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4, SOURCE_HOST='127.0.0.1' FOR CHANN
 START REPLICA FOR CHANNEL 'any_channel';
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
 include/assert_grep.inc [Slave for channel didn't started because of server_id=0]
-RESET SLAVE ALL FOR CHANNEL 'any_channel';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'any_channel';
 DROP TABLE t1;
 SET @@GLOBAL.server_id= 2;
 include/start_slave.inc

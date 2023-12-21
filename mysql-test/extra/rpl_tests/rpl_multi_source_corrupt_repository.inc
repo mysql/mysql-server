@@ -350,18 +350,18 @@ while ($i <= $number_of_channels)
   --source include/show_slave_status.inc
 
   #############################################################################
-  # Step 4.7: RESET SLAVE FOR CHANNEL 'channel_name'
+  # Step 4.7: RESET REPLICA FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing RESET SLAVE FOR CHANNEL on channel $channel_name.
-  --eval RESET SLAVE FOR CHANNEL $channel_name
+  --echo ===== Executing RESET REPLICA FOR CHANNEL on channel $channel_name.
+  --eval RESET REPLICA FOR CHANNEL $channel_name
 
   #############################################################################
-  # Step 4.8: RESET SLAVE ALL FOR CHANNEL 'channel_name'
+  # Step 4.8: RESET REPLICA ALL FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing RESET SLAVE ALL FOR CHANNEL on channel $channel_name.
-  --eval RESET SLAVE ALL FOR CHANNEL $channel_name
+  --echo ===== Executing RESET REPLICA ALL FOR CHANNEL on channel $channel_name.
+  --eval RESET REPLICA ALL FOR CHANNEL $channel_name
 
   --inc $i
 }

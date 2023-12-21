@@ -84,9 +84,7 @@ DROP TABLE t3;
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
 include/wait_for_slave_to_start.inc
@@ -262,9 +260,7 @@ DROP TABLE t3;
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
 include/wait_for_slave_to_start.inc
@@ -352,9 +348,7 @@ include/mysqlbinlog.inc
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
 reset binary logs and gtids;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 START REPLICA;
 include/wait_for_slave_to_start.inc

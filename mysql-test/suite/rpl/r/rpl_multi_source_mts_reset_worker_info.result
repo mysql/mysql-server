@@ -8,9 +8,7 @@ call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch_a';
@@ -23,12 +21,10 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
 STOP REPLICA FOR CHANNEL 'ch_b';
-RESET SLAVE FOR CHANNEL 'ch_b';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL 'ch_b';
 STOP REPLICA FOR CHANNEL 'ch_a';
 ALTER TABLE mysql.slave_worker_info DROP PRIMARY KEY;
-RESET SLAVE ALL FOR CHANNEL 'ch_a';
+RESET REPLICA ALL FOR CHANNEL 'ch_a';
 ERROR HY000: Unknown error
 ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
@@ -40,7 +36,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-include/assert.inc [Two workers are expected to survive the last RESET SLAVE]
+include/assert.inc [Two workers are expected to survive the last RESET REPLICA]
 include/start_slave.inc [FOR CHANNEL 'ch_b']
 
 === RESTART SERVER ===
@@ -53,7 +49,5 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
 STOP REPLICA;
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/rpl_end.inc

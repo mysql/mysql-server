@@ -13,9 +13,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
 START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'The replication receiver thread cannot start because the source has GTID_MODE = OFF and this server has GTID_MODE = ON.'
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_set_gtid_mode.inc [OFF on servers 2]
 include/start_slave.inc
 [connection master]

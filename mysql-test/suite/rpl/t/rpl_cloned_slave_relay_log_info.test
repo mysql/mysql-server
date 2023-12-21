@@ -254,7 +254,7 @@ UNINSTALL PLUGIN clone;
 --source include/stop_slave.inc
 --enable_warnings
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 DROP USER 'u1'@'localhost';
 

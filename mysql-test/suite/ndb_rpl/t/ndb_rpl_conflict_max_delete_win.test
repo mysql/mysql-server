@@ -102,7 +102,7 @@ call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 
 # Recover sync
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 

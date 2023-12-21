@@ -165,6 +165,6 @@ DROP TABLE t1;
 
 --source include/rpl_connection_slave.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 --source include/rpl_end.inc

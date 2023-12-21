@@ -89,9 +89,7 @@ include/stop_slave.inc [FOR CHANNEL 'ch1']
 #
 # Cleanup
 #
-RESET SLAVE ALL FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

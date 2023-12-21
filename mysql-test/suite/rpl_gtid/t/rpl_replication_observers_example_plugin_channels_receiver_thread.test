@@ -14,7 +14,7 @@
 # Establish a connection to a slave with an example channel
 
 --connection server_2
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_AUTO_POSITION=1 FOR CHANNEL "example_channel"
 --source include/start_slave.inc
@@ -60,7 +60,7 @@ SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channel_io_
 
 SET @@GLOBAL.DEBUG= @debug_saved;
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 DROP TABLE t1;
 
 --source include/uninstall_replication_observers_example.inc

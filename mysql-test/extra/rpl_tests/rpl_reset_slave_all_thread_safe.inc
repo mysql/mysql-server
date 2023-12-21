@@ -6,12 +6,12 @@
 SET debug_sync = "now WAIT_FOR wait_func_begin";
 --source include/stop_slave.inc
 
---send RESET SLAVE ALL
+--send RESET REPLICA ALL
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-# RESET SLAVE ALL is blocked by source_pos_wait and show correct state.
+# RESET REPLICA ALL is blocked by source_pos_wait and show correct state.
 --let $wait_condition= SELECT count(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for no channel reference."
 --source include/wait_condition.inc
 

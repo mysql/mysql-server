@@ -343,7 +343,7 @@ let $binlog_version= query_get_value(SHOW BINLOG EVENTS, Info, 1);
 # Make the slave to replay the new binlog.
 
 connection slave;
-RESET SLAVE;
+RESET REPLICA;
 START REPLICA;
 
 SELECT SOURCE_POS_WAIT('master-bin.000001', 513) >= 0;
@@ -360,7 +360,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 
 # The master should be clean.
 

@@ -119,7 +119,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 
 # Clean up logs to test with WRITESET in next step.
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 --echo
@@ -140,7 +140,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 
 # Clean up logs to test with WRITESET_SESSION in next step.
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 --echo

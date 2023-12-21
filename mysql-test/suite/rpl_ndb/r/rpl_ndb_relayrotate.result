@@ -6,9 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/sync_slave_sql_with_master.inc
 STOP REPLICA;
 create table t1 (a int) engine=NDB;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 START REPLICA;
 STOP REPLICA;
 START REPLICA;

@@ -112,38 +112,32 @@ include/assert.inc [Relay log name should not be empty as the command successful
 include/start_group_replication.inc
 [connection server2]
 
-# RESET SLAVE [ALL] command is blocked only when channel is running.
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+# RESET REPLICA [ALL] command is blocked only when channel is running.
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
-RESET SLAVE FOR CHANNEL "group_replication_applier";
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 
 # This is command should work without problem.
 include/stop_group_replication.inc
-RESET SLAVE FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 include/start_group_replication.inc
 
 # This is command should work without problem.
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 include/start_group_replication.inc
-# RESET SLAVE should not be allowed when GR is ONLINE.
+# RESET REPLICA should not be allowed when GR is ONLINE.
 # So this command will fail.
-RESET SLAVE FOR CHANNEL "group_replication_applier";
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
-# RESET SLAVE ALL should not be allowed when GR is ONLINE.
+# RESET REPLICA ALL should not be allowed when GR is ONLINE.
 # So this command will fail.
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
-# stop the channel and try reset slave for channel again. It should work.
+# stop the channel and try reset replica for channel again. It should work.
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 ERROR HY000: Replica channel 'group_replication_applier' does not exist.
 include/group_replication_end.inc

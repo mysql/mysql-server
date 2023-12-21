@@ -38,8 +38,8 @@ let $master_pos_drop_t2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 #show binlog events;
 
 --source include/stop_slave.inc
-# Reset slave.
-RESET SLAVE;
+# Reset replica.
+RESET REPLICA;
 --disable_query_log
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
@@ -109,7 +109,7 @@ START REPLICA UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=561;
 START REPLICA UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=740;
 
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
 ##############################################################################

@@ -10,11 +10,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/stop_slave.inc
 include/install_replication_observers_example.inc
 #
-# Cause a reset slave notification.
+# Cause a reset replica notification.
 #
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 #
 # Cause a connect notification.
 #

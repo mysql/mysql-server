@@ -101,9 +101,7 @@ LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 # Test case 7: Delete channel_3 and count the number of rows in each table.
 #
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'channel_3';
 include/assert.inc [there shall be 1 in replication connection_configuration table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_config table after a channel is deleted.]
@@ -113,9 +111,7 @@ include/assert.inc [there shall be global.replica_parallel_workers rows after a 
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero
 #
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/assert.inc [there shall be 0 rows after all channels are deleted.]
 include/assert.inc [there shall be 0 rows after all channels are deleted.]
 include/assert.inc [there shall be 0 rows after all channels are deleted.]

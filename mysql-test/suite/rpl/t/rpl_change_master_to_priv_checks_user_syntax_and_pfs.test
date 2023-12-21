@@ -25,7 +25,7 @@
 #    NULL and check that the PFS table has the updated value.
 # 4. Use `CHANGE MASTER TO PRIVILEGE_CHECKS_USER = ...` to set the value to
 #    a valid user and check that the PFS table has the updated value.
-# 5. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+# 5. Execute `RESET REPLICA` and verify that the PFS table has unaltered value for
 #    `PRIVILEGE_CHECKS_USER`.
 #
 # ==== References ====
@@ -78,7 +78,7 @@ PROCEDURE
     --die !!!ERROR IN TEST: you must set $expected_user
   }
   --source include/stop_slave.inc
-  RESET SLAVE;
+  RESET REPLICA;
   --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
   --source include/start_slave.inc
 #END OF
@@ -128,7 +128,7 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
 --let $include_silent = 0
 
 #
-# 5. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+# 5. Execute `RESET REPLICA` and verify that the PFS table has unaltered value for
 #    `PRIVILEGE_CHECKS_USER`.
 #
 --let $expected_user = $applier_user

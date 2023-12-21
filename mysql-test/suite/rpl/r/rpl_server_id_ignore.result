@@ -13,10 +13,8 @@ ignore server id list:
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 *** must be 10, 100 ***
 ignore server id list: 10, 100
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-*** must be still (10,100) after reset slave ***
+RESET REPLICA;
+*** must be still (10,100) after reset replica ***
 ignore server id list: 10, 100
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
@@ -34,26 +32,22 @@ Tables_in_test
 *** allowing events from master ***
 STOP REPLICA;
 include/wait_for_slave_to_stop.inc
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
-*** the list must remain (10, 100) after reset slave ***
+*** the list must remain (10, 100) after reset replica ***
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= ();
 *** must be empty due to IGNORE_SERVER_IDS empty list ***
 ignore server id list: 
-*** RESET SLAVE ALL should empty the list ***
+*** RESET REPLICA ALL should empty the list ***
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (10, 100);
 ignore server id list: 10, 100
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-include/assert.inc [RESET SLAVE ALL must empty the list of server-ids.]
+include/assert.inc [RESET REPLICA ALL must empty the list of server-ids.]
 include/sync_slave_sql_with_master.inc
 *** must have caught create table ***
 show tables;

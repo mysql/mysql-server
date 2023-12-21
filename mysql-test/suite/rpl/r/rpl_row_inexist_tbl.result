@@ -19,9 +19,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 include/wait_for_slave_sql_error.inc [errno=1146]
 ==== Clean up ====
 include/stop_slave_io.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 [on master]
 DROP TABLE t1;
 include/rpl_end.inc

@@ -33,7 +33,7 @@ STOP REPLICA FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
 SHOW RELAYLOG EVENTS FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
-RESET SLAVE FOR CHANNEL "non_existent";
+RESET REPLICA FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.
 FLUSH RELAY LOGS FOR CHANNEL "non_existent";
 ERROR HY000: Replica channel 'non_existent' does not exist.

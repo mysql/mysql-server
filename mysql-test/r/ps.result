@@ -2046,22 +2046,18 @@ execute abc;
 execute abc;
 execute abc;
 deallocate prepare abc;
-create procedure proc_1() reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+create procedure proc_1() RESET REPLICA;
 call proc_1();
 call proc_1();
 call proc_1();
-create function func_1() returns int begin reset slave; return 1; end|
+create function func_1() returns int begin RESET REPLICA; return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
 create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
 ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
 drop procedure proc_1;
-prepare abc from "reset slave";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+prepare abc from "RESET REPLICA";
 execute abc;
 execute abc;
 execute abc;

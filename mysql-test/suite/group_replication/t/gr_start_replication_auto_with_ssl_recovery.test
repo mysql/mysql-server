@@ -134,7 +134,7 @@ set session sql_log_bin=1;
 --eval SET GLOBAL group_replication_ssl_mode= $conf_rec_ssl_mode_s2
 --enable_query_log
 
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 
 --connection server1
@@ -145,7 +145,7 @@ RESET BINARY LOGS AND GTIDS;
 --eval SET GLOBAL group_replication_ssl_mode= $conf_rec_ssl_mode_s1
 --enable_query_log
 
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1

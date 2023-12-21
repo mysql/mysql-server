@@ -74,7 +74,7 @@ let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed
 SELECT * FROM mysql.gtid_executed;
 
 --echo "Clean up"
-# Reset slave to clean state
+# Reset replica to clean state
 SET GLOBAL super_read_only= @saved_value_super;
 SET GLOBAL read_only= @saved_value;
 

@@ -297,7 +297,7 @@ if ($gtid_mode == 'ON')
 
 --let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
 
-# Create two connections to each server; reset binary logs and gtids/reset slave, select
+# Create two connections to each server; reset binary logs and gtids/reset replica, select
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _

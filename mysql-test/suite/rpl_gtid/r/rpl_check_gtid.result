@@ -304,9 +304,7 @@ FLUSH LOGS;
 ==== Part 5 ====
 ---- i=1 ----
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
@@ -324,9 +322,7 @@ FLUSH LOGS;
 FLUSH LOGS;
 ---- i=2 ----
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
@@ -344,9 +340,7 @@ FLUSH LOGS;
 FLUSH LOGS;
 ---- i=3 ----
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
@@ -364,9 +358,7 @@ FLUSH LOGS;
 FLUSH LOGS;
 ---- i=4 ----
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
@@ -384,9 +376,7 @@ FLUSH LOGS;
 FLUSH LOGS;
 ==== Part 6 ====
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
@@ -458,9 +448,7 @@ include/start_slave.inc
 FLUSH LOGS;
 ==== Part 7 ====
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_MASTER_HOST', SOURCE_AUTO_POSITION= 1;
@@ -525,9 +513,7 @@ include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_AUTO_POSITION= 0;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc

@@ -77,9 +77,7 @@ include/assert.inc [Verify test.t2 is synced]
 DROP TABLE test.t2;
 [connection server1]
 include/stop_slave.inc [FOR CHANNEL 'ch3_1']
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 DROP TABLE test.t1;
 [connection server3]
 DROP TABLE test.t1;

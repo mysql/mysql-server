@@ -179,8 +179,8 @@
 --replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
 --eval SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', $SERVER_MYPORT_3, '')
 
-# If the channel is running RESET SLAVE on server2 will fail,
-# which shows that successful run of the RESET SLAVE is validating
+# If the channel is running RESET REPLICA on server2 will fail,
+# which shows that successful run of the RESET REPLICA is validating
 # that the channel didn't started.
 --let $rpl_channel_name='ch1'
 --let $rpl_reset_slave_all= 1

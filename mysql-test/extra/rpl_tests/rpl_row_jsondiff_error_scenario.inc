@@ -201,7 +201,7 @@ if (!$skip_case)
 
       # Restart replication
       --source include/stop_slave_io.inc
-      RESET SLAVE;
+      RESET REPLICA;
       --source include/start_slave.inc
 
       --source include/rpl_connection_master.inc
@@ -211,7 +211,7 @@ if (!$skip_case)
     if (!$recover_from_error)
     {
       --source include/stop_slave_io.inc
-      RESET SLAVE;
+      RESET REPLICA;
       --source include/rpl_connection_master.inc
       RESET BINARY LOGS AND GTIDS;
       --source include/rpl_connection_slave.inc
@@ -239,11 +239,11 @@ if (!$skip_case)
 
   # BUG#27636289: RPL BREAKS WITH RESTART AFTER RESET SLAVE,
   #               RESET BINARY LOGS AND GTIDS WITH WRONG ERROR IN MTS
-  # Due to the above mentioned bug we need to use RESET SLAVE ALL
-  # and CHANGE MASTER instead of just RESET SLAVE, in order to clear
+  # Due to the above mentioned bug we need to use RESET REPLICA ALL
+  # and CHANGE MASTER instead of just RESET REPLICA, in order to clear
   # RECEIVED_GTID_SET when test runs in MTS mode.
 
-  RESET SLAVE ALL;
+  RESET REPLICA ALL;
   RESET BINARY LOGS AND GTIDS;
   --source include/rpl_connection_master.inc
   RESET BINARY LOGS AND GTIDS;

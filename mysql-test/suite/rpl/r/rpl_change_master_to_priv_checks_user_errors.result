@@ -21,9 +21,7 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 #      doesn't have CREATE privilege on the active database.
 # -------------------------------------------------------------------
 CALL mtr.add_suppression(".CREATE command denied to user.");
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
 Warnings:

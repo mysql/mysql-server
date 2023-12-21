@@ -34,7 +34,7 @@ call mtr.add_suppression('Replica SQL.*Relay log read failure: Could not parse r
 
 --echo ==== Initialize ====
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
 source include/setup_fake_relay_log.inc;

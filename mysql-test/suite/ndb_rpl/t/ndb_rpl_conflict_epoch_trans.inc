@@ -1367,7 +1367,7 @@ flush logs;
 
 --connection master
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 
 #change master to master_host='';
 --source include/rpl_end.inc

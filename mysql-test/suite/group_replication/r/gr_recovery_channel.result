@@ -25,7 +25,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/assert.inc ['The slave channel is present']
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: RESET REPLICA ALL FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/assert.inc ['The group replication recovery channel is present']
 include/assert.inc ['The group replication recovery channel is ON']

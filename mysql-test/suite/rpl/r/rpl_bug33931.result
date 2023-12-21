@@ -6,9 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression("Failed during replica I/O thread initialization");
 call mtr.add_suppression("Replica SQL.*Failed during replica thread initialization.* MY-013117");
 include/stop_slave.inc
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 # Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
 # Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
 Warnings:
@@ -21,7 +19,5 @@ include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed during replica I/O thread initialization '
 # Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
 # Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

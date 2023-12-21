@@ -2005,20 +2005,20 @@ execute abc;
 deallocate prepare abc;
 
 
-create procedure proc_1() reset slave;
+create procedure proc_1() RESET REPLICA;
 call proc_1();
 call proc_1();
 call proc_1();
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin reset slave; return 1; end|
+create function func_1() returns int begin RESET REPLICA; return 1; end|
 create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
 drop procedure proc_1;
-prepare abc from "reset slave";
+prepare abc from "RESET REPLICA";
 execute abc;
 execute abc;
 execute abc;

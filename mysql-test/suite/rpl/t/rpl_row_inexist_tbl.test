@@ -38,7 +38,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 --echo ==== Clean up ====
 source include/stop_slave_io.inc;
-RESET SLAVE;
+RESET REPLICA;
 
 --echo [on master]
 connection master;

@@ -128,7 +128,7 @@ START GROUP_REPLICATION;
 --echo
 --echo # 7. Start Group Replication on server2 and after
 --echo #    resetting slave, verify it is running.
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 
 --source include/start_group_replication.inc
 

@@ -30,9 +30,9 @@
 #                set of complete transactions stored in the previous relay
 #                logs.
 #
-# 3. Guarantee that RESET SLAVE/RESET BINARY LOGS AND GTIDS cleans the appropriate states.
+# 3. Guarantee that RESET REPLICA/RESET BINARY LOGS AND GTIDS cleans the appropriate states.
 #
-# Property 3.1 - RESET SLAVE cleans the GTIDs and previous GTIDs' state
+# Property 3.1 - RESET REPLICA cleans the GTIDs and previous GTIDs' state
 #                stored in the relay log.
 #
 # Property 3.2 - RESET BINARY LOGS AND GTIDS cleans the GTIDs and previous GTIDs' state
@@ -54,7 +54,7 @@
 #    rotate logs through FLUSH LOGS.
 # 4. On the slave, rotate logs by start/stop. On the master, rotate logs by
 #    restarting the server.
-# 5. RESET SLAVE must not affect its binary log. On the master, rotate logs
+# 5. RESET REPLICA must not affect its binary log. On the master, rotate logs
 #    by restarting the server.
 # 6. On the slave, rotate logs by start/stop and calling CHANGE MASTER TO
 #    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
@@ -561,7 +561,7 @@ while ($i != 5)
   #  5.1 - Resets the IO Thread's state but not SQL Thread's state.
   --connection slave
   --source include/stop_slave.inc
-  RESET SLAVE;
+  RESET REPLICA;
   RESET BINARY LOGS AND GTIDS;
   --connection master
   RESET BINARY LOGS AND GTIDS;
@@ -619,7 +619,7 @@ while ($i != 5)
 
 --connection slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
@@ -721,7 +721,7 @@ while ($i != 5)
 
 --connection slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
@@ -792,7 +792,7 @@ while ($i != 5)
 --connection slave
 --source include/stop_slave.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 0
 --connection master
 RESET BINARY LOGS AND GTIDS;

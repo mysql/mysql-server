@@ -92,7 +92,7 @@ ROLLBACK;
 # Cleanup
 --let $rpl_channel_name=
 STOP REPLICA IO_THREAD FOR CHANNEL 'ch1';
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 --disable_warnings

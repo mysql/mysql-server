@@ -158,8 +158,6 @@ slave-relay-bin.000002	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -185,8 +183,6 @@ include/assert_grep.inc [Case 1 found the expected warning line in the error log
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -212,8 +208,6 @@ include/assert_grep.inc [Case 2 found the expected warning line in the error log
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -239,8 +233,6 @@ include/assert_grep.inc [Case 3 found the expected warning line in the error log
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -266,8 +258,6 @@ include/assert_grep.inc [Case 4 found the expected warning line in the error log
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -293,8 +283,6 @@ include/assert_grep.inc [Case 5 found the expected warning line in the error log
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -320,8 +308,6 @@ include/assert_grep.inc [Case 6.a found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -347,8 +333,6 @@ include/assert_grep.inc [Case 6.b found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -374,8 +358,6 @@ include/assert_grep.inc [Case 7.a found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -401,8 +383,6 @@ include/assert_grep.inc [Case 7.b found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -428,8 +408,6 @@ include/assert_grep.inc [Case 8.a found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -455,8 +433,6 @@ include/assert_grep.inc [Case 8.b found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -482,8 +458,6 @@ include/assert_grep.inc [Case 9.a found the expected warning line in the error l
 #
 # Cleaning up and reseting the slave
 include/stop_slave.inc
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 include/start_slave_io.inc
 # Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
@@ -515,9 +489,7 @@ Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 DROP TABLE IF EXISTS t1, t2;
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/start_slave.inc
 DROP TABLE saved_positions;
 [connection master]

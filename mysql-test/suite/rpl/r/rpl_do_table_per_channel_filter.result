@@ -64,12 +64,8 @@ DROP DATABASE db4;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3_2']
 include/stop_slave.inc [FOR CHANNEL 'channel_3_2']
 include/stop_slave.inc [FOR CHANNEL '']
-RESET SLAVE ALL FOR CHANNEL '';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL '';
+RESET REPLICA ALL FOR CHANNEL 'channel_3_2';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root' for CHANNEL 'channel_1';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_PORT=MASTER_PORT_3, SOURCE_USER='root' for CHANNEL 'channel_3';
 include/rpl_end.inc

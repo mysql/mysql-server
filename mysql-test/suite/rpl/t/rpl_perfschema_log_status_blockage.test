@@ -120,7 +120,7 @@ SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
 --let $rpl_connection_name= server_2_4
 --source include/rpl_connection.inc
 --let $tid4=`SELECT CONNECTION_ID()`
---send RESET SLAVE ALL FOR CHANNEL 'ch1'
+--send RESET REPLICA ALL FOR CHANNEL 'ch1'
 
 # No changes into blocked storage engines (InnoDB)
 --let $rpl_connection_name= server_2_5
@@ -287,7 +287,7 @@ if ($rpl_debug)
 --source include/remove_debug_point.inc
 --replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
 --eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
-RESET SLAVE ALL FOR CHANNEL 'ch2';
+RESET REPLICA ALL FOR CHANNEL 'ch2';
 --remove_file $ils_dump
 
 --source include/rpl_connection_master.inc

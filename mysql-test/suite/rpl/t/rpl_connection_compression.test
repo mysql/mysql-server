@@ -241,7 +241,7 @@ EOF
   --source include/rpl_connection_slave.inc
   --disable_query_log
   RESET BINARY LOGS AND GTIDS;
-  RESET SLAVE ALL;
+  RESET REPLICA ALL;
   --enable_query_log
 EOF
 
@@ -345,7 +345,7 @@ EOF
   # 2066 = CR_COMPRESSION_WRONGLY_CONFIGURED
   --source include/wait_for_slave_io_error.inc
   --echo got error
-  RESET SLAVE ALL;
+  RESET REPLICA ALL;
 EOF
 
 

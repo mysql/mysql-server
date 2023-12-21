@@ -54,7 +54,7 @@
 --echo # with FTWRL. This is class #4 -- incompatible
 --echo # becuase issue implicit COMMIT which is not a no-op.
 --echo # Finally, there are administrative statements (such as 
---echo # RESET SLAVE) that do not take any locks and do not
+--echo # RESET REPLICA) that do not take any locks and do not
 --echo # issue COMMIT.
 --echo # This is class #5.
 --echo # The goal of this coverage is to test statements

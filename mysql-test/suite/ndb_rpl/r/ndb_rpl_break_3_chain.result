@@ -78,9 +78,7 @@ select * from mysql.ndb_apply_status order by server_id;
 server_id	epoch	log_name	start_pos	end_pos
 1	#	cluster1-bin.000001	#	#
 2	#	cluster2-bin.000001	#	#
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_change_topology.inc [new topology=1->2,1->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

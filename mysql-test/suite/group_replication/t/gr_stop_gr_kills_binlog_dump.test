@@ -300,7 +300,7 @@ DROP TABLE test.t1;
 --let $rpl_channel_name='ch3_1'
 --source include/stop_slave.inc
 --let $rpl_channel_name=
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server4
@@ -309,7 +309,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 --let $rpl_channel_name='ch4_1'
 --source include/stop_slave.inc
 --let $rpl_channel_name=
-RESET SLAVE ALL FOR CHANNEL 'ch4_1';
+RESET REPLICA ALL FOR CHANNEL 'ch4_1';
 --source include/start_group_replication.inc
 
 --source include/group_replication_end.inc

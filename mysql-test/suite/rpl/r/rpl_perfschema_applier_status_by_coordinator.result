@@ -54,9 +54,7 @@ include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp 
 include/stop_slave.inc
 drop table t;
 reset binary logs and gtids;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 
 # Restarting servers and setting up MTS now. Since, SQL thread and

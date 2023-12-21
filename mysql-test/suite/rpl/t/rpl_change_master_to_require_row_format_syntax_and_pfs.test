@@ -29,7 +29,7 @@
 #    0 and check that the PFS table has the updated value.
 # 6. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1` to set the value to
 #    a valid user and check that the PFS table has the updated value.
-# 7. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+# 7. Execute `RESET REPLICA` and verify that the PFS table has unaltered value for
 #    `REQUIRE_ROW_FORMAT`.
 # 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave and expect an error.
@@ -94,7 +94,7 @@ PROCEDURE
     --die !!!ERROR IN TEST: you must set $expected_event_format
   }
   --source include/stop_slave.inc
-  RESET SLAVE;
+  RESET REPLICA;
   --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
   --source include/start_slave.inc
 #END OF
@@ -180,7 +180,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 --let $include_silent = 0
 
 #
-# 7. Execute `RESET SLAVE` and verify that the PFS table has unaltered value for
+# 7. Execute `RESET REPLICA` and verify that the PFS table has unaltered value for
 #    `REQUIRE_ROW_FORMAT`.
 #
 --let $expected_event_format = 1

@@ -14,7 +14,7 @@ drop table t1;
 create table t1 (a int);
 drop table t1;
 connection slave;
-reset slave;
+RESET REPLICA;
 START REPLICA io_thread;
 # Give the I/O thread time to block.
 let $slave_param= Slave_IO_State;
@@ -23,7 +23,7 @@ source include/wait_for_slave_param.inc;
 
 # A bug caused the I/O thread to refuse stopping.
 --source include/stop_slave_io.inc
-reset slave;
+RESET REPLICA;
 --source include/start_slave.inc
 
 # The I/O thread stops filling the relay log when it's >10b. And the

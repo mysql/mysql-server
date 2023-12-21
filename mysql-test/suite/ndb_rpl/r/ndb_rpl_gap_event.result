@@ -25,7 +25,5 @@ Last_Errno = '13119'
 Last_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysqld startup'
 drop table if exists t1;
 include/stop_slave_io.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

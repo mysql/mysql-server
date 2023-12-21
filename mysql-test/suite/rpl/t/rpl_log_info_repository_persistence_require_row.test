@@ -177,8 +177,8 @@ CALL mtr.add_suppression("Error writing relay log configuration.");
 
 DROP USER 'replication_applier'@'localhost';
 
-RESET SLAVE ALL FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "ch1";
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 if ($gtid_mode_on == 0) {
   --let $rpl_gtid_mode = 0

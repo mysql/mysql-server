@@ -173,7 +173,7 @@ SET GLOBAL replica_parallel_type='DATABASE';
 -- let diff_tables= master:db4.t, slave:db4.t
 -- source include/diff_tables.inc
 -- source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
@@ -193,7 +193,7 @@ SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 -- let diff_tables= master:db4.t, slave:db4.t
 -- source include/diff_tables.inc
 -- source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;

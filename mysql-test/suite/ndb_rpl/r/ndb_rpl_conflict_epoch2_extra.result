@@ -2713,9 +2713,7 @@ STOP REPLICA;
 set global ndb_applier_conflict_role="NONE";
 START REPLICA;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 drop table test.t1;
 drop table test.t1$EX;
 drop table mysql.ndb_replication;

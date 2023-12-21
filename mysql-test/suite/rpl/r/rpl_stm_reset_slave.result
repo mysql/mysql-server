@@ -12,9 +12,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Master_User = 'test'
 Master_Host = '127.0.0.1'
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Master_User = 'test'
 Master_Host = '127.0.0.1'
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
@@ -25,17 +23,13 @@ include/start_slave.inc
 Master_User = 'root'
 Master_Host = '127.0.0.1'
 include/stop_slave.inc
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/start_slave.inc
 create temporary table t1 (a int);
 include/stop_slave.inc
 Warnings:
 Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 include/start_slave.inc
 show status like 'replica_open_temp_tables';
@@ -43,9 +37,7 @@ Variable_name	Value
 Replica_open_temp_tables	1
 drop temporary table if exists t1;
 include/stop_slave.inc
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/check_slave_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
@@ -73,17 +65,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 START REPLICA;
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/check_slave_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 
 Sync slave, else STOP REPLICA may complain about open temporary table.
 
@@ -91,9 +79,7 @@ include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-reset slave all;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA all;
 START REPLICA;
 ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT;
@@ -110,7 +96,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=MASTER_PORT, SOURCE_HOS
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-# Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
+# Issue a RESET REPLICA instruction and try to start the slave IO thread that will error out
 include/rpl_reset_slave.inc
 START REPLICA IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]

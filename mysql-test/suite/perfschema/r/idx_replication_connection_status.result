@@ -1,7 +1,7 @@
 include/master-slave.inc
 [connection master]
 include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 include/start_slave.inc
 select THREAD_ID from performance_schema.replication_connection_status
 where CHANNEL_NAME = "channel_1"
@@ -79,8 +79,6 @@ SERVICE_STATE
 #
 OK: handler_read_key incremented
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/start_slave.inc
 include/rpl_end.inc

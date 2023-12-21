@@ -1,6 +1,6 @@
 ################################################################################
 # This test verifies that group replication channels are not affect by global
-# RESET SLAVE commands when the group replication is running.
+# RESET REPLICA commands when the group replication is running.
 # If a command is used directly in a group channel it should work.
 # If a command is used when group replication is stopped it should work.
 #
@@ -19,16 +19,16 @@
 #  c) On M2, group applier files should now be present with the channel.
 #  b) On M2, recovery files should be present.
 #
-# 3. Phase 3: Check that the RESET SLAVE command doesn't affect GR specific
+# 3. Phase 3: Check that the RESET REPLICA command doesn't affect GR specific
 #    channels when the GR member is ONLINE.
-#  a) Execute RESET SLAVE ALL command on M1.
+#  a) Execute RESET REPLICA ALL command on M1.
 #  b) Validate that group applier files are still present on M1.
 #  c) Check that slave files are removed on M1.
 #
 # 4. Phase 4: After a direct reset command all files should disappear.
-#  a) RESET SLAVE ALL command should fail on an ONLINE member M1.
+#  a) RESET REPLICA ALL command should fail on an ONLINE member M1.
 #  b) Stop GR on M1.
-#  c) Execute RESET SLAVE ALL command on M1.
+#  c) Execute RESET REPLICA ALL command on M1.
 #  d) Validate that group applier files are removed.
 #
 # 5. Phase 5: Restart server 1 plugin, all should be fine.
@@ -40,15 +40,15 @@
 # 6. Phase 6: When GR is stopped, after global reset command all files
 #    should disappear.
 #  a) Stop GR on M2.
-#  b) Execute RESET SLAVE command on M2
+#  b) Execute RESET REPLICA command on M2
 #  c) Validate that slave_master_info and slave_relay_log_info tables are
 #     cleared.
 #  d) Start GR on M2. The node should be ONLINE.
 #
-# 7. Phase 7: When GR is stopped, after global RESET SLAVE ALL command all
+# 7. Phase 7: When GR is stopped, after global RESET REPLICA ALL command all
 #    files should disappear including recovery channel specific credentials.
 #  a) Stop GR on M2.
-#  b) Execute RESET SLAVE ALL command on M2
+#  b) Execute RESET REPLICA ALL command on M2
 #  c) Validate that slave_master_info and slave_relay_log_info tables are
 #  cleared.
 #  d) Execute CHANGE MASTER command to provide recovery channel credentials.
@@ -155,17 +155,17 @@ INSERT INTO t1 VALUES (3);
 --file_exists $recovery_relay_log_index
 
 #
-# Phase 3: Check that the RESET SLAVE command doesn't affect group replication
+# Phase 3: Check that the RESET REPLICA command doesn't affect group replication
 # specific channels when the GR member is ONLINE. Only the slave channel should
 # not be there
 #
 
 --connection server1
 
-# Global RESET SLAVE ALL command will not work on group replication channels
+# Global RESET REPLICA ALL command will not work on group replication channels
 # when the group memeber is ONLINE.
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
 --file_exists $relay_log_file
@@ -199,11 +199,11 @@ RESET SLAVE ALL;
 #
 
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
 --source include/stop_group_replication.inc
 
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
 --let $relay_log_file_mgr=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
 --error 1
@@ -257,8 +257,8 @@ INSERT INTO t1 VALUES (5);
 
 --source include/stop_group_replication.inc
 
---echo RESET SLAVE command clears master and slave info repositories and will flush master info
-RESET SLAVE;
+--echo RESET REPLICA command clears master and slave info repositories and will flush master info
+RESET REPLICA;
 
 --let $assert_text= 'mysql.slave_relay_log_info contains flushed group replication channel information'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name like "group_replication%", count, 1] = 2
@@ -283,13 +283,13 @@ RESET SLAVE;
 --source include/assert.inc
 
 #
-# Phase 7: After a global reset slave all command, all files should disappear
+# Phase 7: After a global reset replica all command, all files should disappear
 # Executed the CHANGE MASTER command to create recovery channel and enable
 # group replication.
 #
 
 --source include/stop_group_replication.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $assert_text= 'mysql.slave_relay_log_info does not contrain group replication channel information'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name like "group_replication%", count, 1] = 0

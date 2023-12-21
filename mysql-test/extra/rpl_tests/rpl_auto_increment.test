@@ -223,7 +223,7 @@ let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 # Stop replica
 connection slave;
 source include/stop_slave.inc;
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 connection master;
 # Force master to forget used GTIDs

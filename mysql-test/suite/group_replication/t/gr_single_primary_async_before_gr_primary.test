@@ -72,6 +72,6 @@ if (!$group_replication_found_primary_out_var)
 --source include/stop_slave.inc
 --let $rpl_channel_name=
 
-RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+RESET REPLICA ALL FOR CHANNEL 'ch2_1';
 
 --source include/group_replication_end.inc

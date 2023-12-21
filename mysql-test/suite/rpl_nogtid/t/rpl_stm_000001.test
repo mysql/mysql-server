@@ -61,7 +61,7 @@ connection master;
 reset binary logs and gtids;
 connection slave;
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 
 connection master;
 let $1=100;

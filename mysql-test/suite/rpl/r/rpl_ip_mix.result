@@ -8,9 +8,7 @@ show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Master-Host: No such row
 CHANGE REPLICATION SOURCE to SOURCE_HOST='::1';
 Master-Host: ::1
@@ -26,9 +24,7 @@ show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Master-Host: ::1
 CHANGE REPLICATION SOURCE to SOURCE_HOST='0000:0000:0000:0000:0000:0000:0000:0001';
 Master-Host: 0000:0000:0000:0000:0000:0000:0000:0001
@@ -44,9 +40,7 @@ show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Master-Host: 0000:0000:0000:0000:0000:0000:0000:0001
 CHANGE REPLICATION SOURCE to SOURCE_HOST='0:0:0:0:0:0:0:1';
 Master-Host: 0:0:0:0:0:0:0:1
@@ -62,9 +56,7 @@ show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 Master-Host: 0:0:0:0:0:0:0:1
 CHANGE REPLICATION SOURCE to SOURCE_HOST='::1';
 Master-Host: ::1

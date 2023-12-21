@@ -6,7 +6,7 @@ create table test.t1(a int primary key) engine=ndb;
 set global ndb_log_apply_status=Off;
 show variables like '%ndb_log_apply_status%';
 
-reset slave;
+RESET REPLICA;
 reset binary logs and gtids;
 --echo Should have empty apply status table
 select * from mysql.ndb_apply_status;
@@ -31,7 +31,7 @@ let $Binlog_condition= like '%binlog.000001%';
 set global ndb_log_apply_status=On;
 show variables like '%ndb_log_apply_status%';
 
-reset slave;
+RESET REPLICA;
 reset binary logs and gtids;
 --echo Should have empty apply status table
 select * from mysql.ndb_apply_status;

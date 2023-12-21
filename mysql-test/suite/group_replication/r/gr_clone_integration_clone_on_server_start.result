@@ -20,9 +20,7 @@ INSERT INTO t1 VALUES (2);
 # 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
 #    Remove the default channel from server1 to server2
 [connection server2]
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/spawn_monitoring_process.inc
 
 ############################################################

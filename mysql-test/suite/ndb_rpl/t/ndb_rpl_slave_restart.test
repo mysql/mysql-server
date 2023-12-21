@@ -97,7 +97,7 @@ sync_slave_with_master;
 
 STOP REPLICA;
 
-# Reset slave back to first master 
+# Reset replica back to first master 
 connection slave;
 --replace_result $MASTER_MYPORT <MASTER_PORT>
 eval CHANGE REPLICATION SOURCE TO

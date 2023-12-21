@@ -56,9 +56,7 @@ include/wait_for_slave_sql_error.inc [errno=1050 FOR CHANNEL 'example_channel']
 [connection slave1]
 SET SESSION sql_log_bin= 1;
 include/stop_slave.inc [FOR CHANNEL 'example_channel']
-RESET SLAVE FOR CHANNEL 'example_channel';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL 'example_channel';
 
 #######################
 # 5. I/O thread testing
@@ -92,9 +90,7 @@ SET SESSION sql_log_bin= 1;
 ############
 # 6. Cleanup
 [connection slave]
-RESET SLAVE ALL FOR CHANNEL 'example_channel';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'example_channel';
 include/uninstall_replication_observers_example.inc
 [connection master]
 DROP TABLE t1;

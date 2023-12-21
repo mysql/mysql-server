@@ -189,7 +189,7 @@ COMMIT;
 --echo # 4.2 Clean the data on Slave.
 --echo #
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 DROP TABLE t1, t2;
 
 --echo #

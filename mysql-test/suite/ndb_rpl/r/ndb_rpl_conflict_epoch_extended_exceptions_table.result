@@ -378,7 +378,5 @@ SET NAMES latin1;
 flush logs;
 drop table mysql.ndb_replication;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

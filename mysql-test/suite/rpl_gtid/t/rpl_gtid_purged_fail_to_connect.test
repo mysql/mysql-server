@@ -155,7 +155,7 @@ CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missin
 --echo #
 --source include/rpl_connection_slave.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --source include/rpl_connection_master.inc
 RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc

@@ -28,7 +28,7 @@
 --echo # Stop replica threads and clear slave datadir.
 --echo #
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
 
@@ -60,10 +60,10 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 --let $slave_sql_errno= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --source include/wait_for_slave_sql_error.inc
 
-# Reset slave.
+# Reset replica.
 --source include/stop_slave.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
 # Cleanup

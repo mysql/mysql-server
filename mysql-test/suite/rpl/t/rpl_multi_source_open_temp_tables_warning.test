@@ -75,7 +75,7 @@ CREATE TEMPORARY TABLE t3 (a INT);
 --source include/assert.inc
 
 # Resetting slave for channel_1 causes t1 to be dropped
-RESET SLAVE FOR CHANNEL 'channel_1';
+RESET REPLICA FOR CHANNEL 'channel_1';
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $correct_num_open_tables= 1
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
@@ -116,7 +116,7 @@ DROP TEMPORARY TABLE t3;
 # the channel.
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = 4711 FOR CHANNEL 'channel_3';
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --let $rpl_skip_sync= 1
 --let $rpl_skip_delete_channels= 1
 --let $rpl_only_running_threads= 1

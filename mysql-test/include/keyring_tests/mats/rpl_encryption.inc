@@ -324,7 +324,7 @@ FLUSH LOGS;
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 # A new relay log file is always created for the default channel
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
@@ -363,7 +363,7 @@ SET GLOBAL binlog_encryption = OFF;
 --let $assert_text=New binary log is not encrypted
 --let $assert_cond="$rpl_encryption_key_id" = "None"
 --source include/assert.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 # A new relay log file is always created for the default channel
 --let $encrypted_relay_file=`SELECT CONCAT(@@GLOBAL.relay_log,'.000001')`
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file

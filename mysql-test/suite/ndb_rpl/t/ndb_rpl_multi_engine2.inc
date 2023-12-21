@@ -6,7 +6,7 @@
 
 connection slave;
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 
 connection master;
 RESET BINARY LOGS AND GTIDS;

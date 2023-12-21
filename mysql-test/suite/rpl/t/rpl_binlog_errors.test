@@ -545,7 +545,7 @@ eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 -- remove_file $MYSQLTEST_VARDIR/tmp/bug_46166.data
 -- remove_file $MYSQLTEST_VARDIR/tmp/bug_46166-2.data
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

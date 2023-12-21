@@ -28,7 +28,7 @@ CALL mtr.add_suppression("Replica worker thread has failed to apply an event. As
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
 # clear slave datadir
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
 
@@ -62,7 +62,7 @@ START REPLICA;
 --source include/assert.inc
 
 # clean up slave
-RESET SLAVE;
+RESET REPLICA;
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;
 COMMIT;
@@ -72,7 +72,7 @@ DROP TABLE t1;
 
 
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
 
@@ -106,7 +106,7 @@ START REPLICA;
 
 # clean up slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
 BEGIN;
 COMMIT;

@@ -16,9 +16,7 @@ include/wait_for_slave_sql_error.inc [errno=29, 13, 1290]
 drop table t1;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 drop table t1;
 call mtr.add_suppression("Replica: Can't get stat of .*");
 call mtr.add_suppression("Replica SQL for channel '': .*Error .Can.t get stat of.* Error_code: MY-000013");

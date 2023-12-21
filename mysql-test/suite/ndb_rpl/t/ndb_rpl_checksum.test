@@ -182,12 +182,12 @@ sync_slave_with_master;
 select count(*) as 'must be zero' from t2;
 
 #
-# D. Reset slave, Change-Master, Binlog & Relay-log rotations with 
+# D. Reset replica, Change-Master, Binlog & Relay-log rotations with 
 #    random value on binlog_checksum on both master and slave
 #
 connection slave;
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 reset binary logs and gtids;
 
 # randomize slave server's own checksum policy

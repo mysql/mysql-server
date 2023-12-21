@@ -6,25 +6,20 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/sync_slave_sql_with_master.inc
 STOP REPLICA;
 # Adding debug point 'simulate_find_log_pos_error' to @@GLOBAL.debug
-reset slave;
+RESET REPLICA;
 ERROR HY000: Target log not found in binlog index
 show warnings;
 Level	Code	Message
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 Error	1373	Target log not found in binlog index
 Error	1371	Failed purging old relay logs: Failed during log reset
 # Removing debug point 'simulate_find_log_pos_error' from @@GLOBAL.debug
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 # Adding debug point 'simulate_find_log_pos_error' to @@GLOBAL.debug
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 ERROR HY000: Target log not found in binlog index
 # Removing debug point 'simulate_find_log_pos_error' from @@GLOBAL.debug
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 # Adding debug point 'simulate_find_log_pos_error' to @@GLOBAL.debug
 reset binary logs and gtids;

@@ -221,7 +221,7 @@ DROP TABLE test.t2;
 --source include/stop_slave.inc
 --let $rpl_channel_name=
 
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
 DROP TABLE test.t1;
 

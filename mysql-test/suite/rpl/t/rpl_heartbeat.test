@@ -72,7 +72,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 0.001;
 --query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
-reset slave;
+RESET REPLICA;
 
 #
 # A warning if heartbeat_interval greater than replica_net_timeout
@@ -83,7 +83,7 @@ set @@global.replica_net_timeout= 5;
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 5.001;
 --query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 
-reset slave;
+RESET REPLICA;
 
 #
 # A warning if replica_net_timeout is set to less than the current HB period
@@ -95,7 +95,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 --query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
 set @@global.replica_net_timeout= 3 /* must be a warning */;
 
-reset slave;
+RESET REPLICA;
 
 ###
 ### checking no rotation
@@ -217,18 +217,18 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 # BUG#18777899 HEARTBEAT_PERIOD AUTOMATICALLY SETS TO DEFAULT POST RESET SLAVE
 #              COMMAND
 #
-# Due to the buggy behaviour, a RESET SLAVE command on the slave server
-# reset heartbeat_period to default. RESET SLAVE is generally expected to
+# Due to the buggy behaviour, a RESET REPLICA command on the slave server
+# reset heartbeat_period to default. RESET REPLICA is generally expected to
 # delete slave logs and forget the replicaiton positions. This erroneous
 # behavior was therefore un-intuitive.
 #
-# In the test we test the behaviour of heartbeat_period with RESET SLAVE,
-# STOP REPLICA, CHANGE MASTER, START REPLICA and RESET SLAVE ALL.
+# In the test we test the behaviour of heartbeat_period with RESET REPLICA,
+# STOP REPLICA, CHANGE MASTER, START REPLICA and RESET REPLICA ALL.
 #
-# 1. RESET SLAVE:
+# 1. RESET REPLICA:
 #    ===========
 #
-#    Execute a RESET SLAVE and verify that the heartbeat_period is what we
+#    Execute a RESET REPLICA and verify that the heartbeat_period is what we
 #    set in the latest CHANGE MASTER and not the the default value.
 #
 # 2. CHANGE MASTER, START REPLICA:
@@ -238,14 +238,14 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 3;
 # b. Changing port resets heartbeat_period to default.
 # c. changing host and port resets heartbeat_period to default.
 #
-# 3. RESET SLAVE ALL:
+# 3. RESET REPLICA ALL:
 #    ===============
 #
-#    Execute a RESET SLAVE ALL and verify that the heartbeat_period is set to 0.
+#    Execute a RESET REPLICA ALL and verify that the heartbeat_period is set to 0.
 ###############################################################################
 
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 
 --let $MASTER_AUTO_POSITION=SOURCE_AUTO_POSITION=0
@@ -259,7 +259,7 @@ if (`SELECT @@GLOBAL.gtid_mode = 'ON'`)
 --source include/start_slave.inc
 
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = 10.000
---let $assert_text= HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.
+--let $assert_text= HEARTBEAT_INTERVAL should still be 10.000 after RESET REPLICA.
 --source include/assert.inc
 
 --source include/stop_slave_io.inc
@@ -360,10 +360,10 @@ DROP TABLE IF EXISTS t1;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $assert_cond= \'[SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration]\' = ""
---let $assert_text= heartbeat_interval should reset to zero by RESET SLAVE ALL.
+--let $assert_text= heartbeat_interval should reset to zero by RESET REPLICA ALL.
 --source include/assert.inc
 
 # Make this a slave again to successfully pass through cleanup routines.
@@ -371,7 +371,7 @@ RESET SLAVE ALL;
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE to SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root'
 
-# The table might have replicated again after RESET SLAVE.
+# The table might have replicated again after RESET REPLICA.
 --source include/start_slave.inc
 --connection master
 --disable_warnings

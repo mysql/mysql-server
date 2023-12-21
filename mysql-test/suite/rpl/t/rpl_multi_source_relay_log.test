@@ -4,7 +4,7 @@
 --echo # when they are being created and configured by CHANGE MASTER TO
 --echo # ... FOR CHANNEL.
 --echo #
---echo # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
+--echo # Verify RESET REPLICA and RESET REPLICA FOR CHANNEL
 --echo # - deletes all relay log files of named channels and reinitializes
 --echo # them.
 --echo # - For default channel, it restart the relay log from .000001
@@ -12,12 +12,12 @@
 --echo # - For named channel, it restart the relay log from ch.000001
 --echo # - retains all replication filters from all replication channels.
 --echo #
---echo # Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+--echo # Verify that "'RESET REPLICA ALL FOR CHANNEL '<channel_name>'" removes
 --echo # the replication channel specified by 'FOR CHANNEL' clause and all
 --echo # replication filters of the channel. There is no effect to other
 --echo # channels.
 --echo #
---echo # "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+--echo # "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 --echo # replication filters of the channel firstly, but then create a new
 --echo # default channel which is not configured yet. So performance_schema.
 --echo # replication_applier_filters and SHOW SLAVE STATUS do not show it.
@@ -28,7 +28,7 @@
 --echo # filter type when it is being configured. Then performance_schema.
 --echo # replication_applier_filters and SHOW SLAVE STATUS show it.
 --echo #
---echo # Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+--echo # Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
 --echo # replication channels, so it shall remove all per-channel replication
 --echo # filters but does not touch all global replication filters. When the
 --echo # new channel is being configured, it therefore uses the global filters
@@ -80,12 +80,12 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
 --echo #
---echo # RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
+--echo # RESET REPLICA FOR CHANNEL "ch1" deletes all relay log files of ch1.
 --echo #
-eval RESET SLAVE FOR CHANNEL "ch1";
+eval RESET REPLICA FOR CHANNEL "ch1";
 
 --echo #
---echo # Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
+--echo # Verify that "RESET REPLICA FOR CHANNEL '<channel_name>'" retains
 --echo # replication filters of the channel.
 --echo #
 --let $rpl_channel_name= 'ch1'
@@ -98,16 +98,16 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --list_files $datadir *ch1*
 
 --echo #
---echo # RESET SLAVE deletes all relay log files of ch2
+--echo # RESET REPLICA deletes all relay log files of ch2
 --echo #
 --let $rpl_channel_name=
 --disable_warnings
 --source include/stop_slave.inc
 --enable_warnings
-RESET SLAVE;
+RESET REPLICA;
 
 --echo #
---echo # Verify that "RESET SLAVE" retains all replication filters from
+--echo # Verify that "RESET REPLICA" retains all replication filters from
 --echo # all replication channels.
 --echo #
 --let $rpl_channel_name= 'ch1'
@@ -123,7 +123,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --list_files $datadir *ch2*
 
 --echo #
---echo # RESET SLAVE resets relay log of default channel from .000001
+--echo # RESET REPLICA resets relay log of default channel from .000001
 --echo #
 # relay log files of default channel is still there
 --let $relay_log_index= `SELECT @@GLOBAL.relay_log_index`
@@ -141,23 +141,23 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --file_exists $relay_log_base_name-ch1.000001
 --file_exists $relay_log_base_name-ch2.000001
 
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 --echo #
---echo # Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+--echo # Verify that "'RESET REPLICA ALL FOR CHANNEL '<channel_name>'" removes
 --echo # the replication channel specified by 'FOR CHANNEL' clause and all
 --echo # replication filters of the channel. There is no effect to other
 --echo # channels.
 --echo #
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
-RESET SLAVE ALL FOR CHANNEL '';
+RESET REPLICA ALL FOR CHANNEL '';
 --echo #
---echo # "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+--echo # "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 --echo # replication filters of the channel firstly, but then create a new
 --echo # default channel which is not configured yet. So performance_schema.
 --echo # replication_applier_filters and SHOW SLAVE STATUS do not show it.
@@ -187,14 +187,14 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --source include/show_slave_status.inc
 
 --echo #
---echo # Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+--echo # Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
 --echo # replication channels, so it shall remove all per-channel replication
 --echo # filters but does not touch all global replication filters. When the
 --echo # new channel is being configured, it therefore uses the global filters
 --echo # (copies all global replication filters to its own per-channel
 --echo # replication filters).
 --echo #
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # all files of "ch1" and "ch2" are removed
 --list_files $datadir *ch1*
@@ -207,7 +207,7 @@ RESET SLAVE ALL;
 --let $relay_log_basename= `SELECT @@GLOBAL.relay_log_basename`
 --file_exists $relay_log_basename.000001
 
-# Verify that "RESET SLAVE ALL" removes all replication channels and
+# Verify that "RESET REPLICA ALL" removes all replication channels and
 # clear all replication filters but does not touch all global
 # replication filters.
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST

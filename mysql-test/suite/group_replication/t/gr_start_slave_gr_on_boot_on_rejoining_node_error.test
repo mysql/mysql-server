@@ -227,7 +227,7 @@ DROP TABLE test.t1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
 DROP TABLE test.t1;
 

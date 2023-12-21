@@ -34,7 +34,7 @@ commit;
 enable_query_log;
 save_master_pos;
 connection slave;
-reset slave;
+RESET REPLICA;
 START REPLICA;
 # We wait 1 sec for the SQL thread to be somewhere in
 # the middle of the transaction, hopefully not in

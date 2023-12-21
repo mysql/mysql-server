@@ -54,23 +54,17 @@ SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	NULL	YES	STREAM	OFF	NULL
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '4']
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	NULL	YES	STREAM	OFF	NULL
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '2']
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	NULL	YES	STREAM	OFF	NULL
 check_pfs.inc [Require_Row_Format column in performance_schema.replication_applier_configuration is set to 1 for server '3']
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	NULL	YES	STREAM	OFF	NULL

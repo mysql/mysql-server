@@ -139,7 +139,7 @@ SET @@session.debug ='-d,feign_commit_parent';
 RESET BINARY LOGS AND GTIDS;
 
 --connection slave
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --source include/start_slave.inc
 

@@ -95,9 +95,7 @@ Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -125,7 +123,7 @@ COMMENT 'The channel on which the slave is connected to a source. Used in Multis
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
 include/assert_grep.inc [Found the expected error line in the error log.]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
@@ -140,9 +138,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/rpl_restart_server.inc [server_number=1]
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -181,7 +177,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/rpl_restart_server.inc [server_number=1]
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 include/assert_grep.inc [Found the expected error line in the error log generated on server startup.]
 ALTER TABLE slave_master_info
@@ -193,9 +189,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/rpl_restart_server.inc [server_number=1]
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_LOG_FILE='FILE', SOURCE_LOG_POS=POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

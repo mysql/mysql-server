@@ -151,7 +151,7 @@ connection slave;
 
 # Remove the bad binlog and clear error status on slave.
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 --connection master
 RESET BINARY LOGS AND GTIDS;
@@ -296,7 +296,7 @@ DROP TABLE t1;
 # Clear Last_IO_Error
 
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 
 --let $rpl_only_running_threads=1
 --source include/rpl_end.inc

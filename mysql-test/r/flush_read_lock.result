@@ -37,7 +37,7 @@ include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
 # with FTWRL. This is class #4 -- incompatible
 # becuase issue implicit COMMIT which is not a no-op.
 # Finally, there are administrative statements (such as 
-# RESET SLAVE) that do not take any locks and do not
+# RESET REPLICA) that do not take any locks and do not
 # issue COMMIT.
 # This is class #5.
 # The goal of this coverage is to test statements

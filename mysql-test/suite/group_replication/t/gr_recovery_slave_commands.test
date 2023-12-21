@@ -20,8 +20,8 @@
 # 7. SHOW SLAVE STATUS
 # 8. SHOW RELAYLOG EVENTS
 # 9. FLUSH RELAY LOGS
-# 10. RESET SLAVE
-# 11. RESET SLAVE ALL
+# 10. RESET REPLICA
+# 11. RESET REPLICA ALL
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
@@ -130,14 +130,14 @@ SHOW RELAYLOG EVENTS  FOR CHANNEL 'group_replication_recovery';
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # ERROR when executing RESET SLAVE command on GR recovery channel
+--echo # ERROR when executing RESET REPLICA command on GR recovery channel
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 
 --echo
---echo # ERROR when executing RESET SLAVE ALL command on GR recovery channel
+--echo # ERROR when executing RESET REPLICA ALL command on GR recovery channel
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # Phase 2
 --echo
@@ -215,13 +215,13 @@ START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # SUCCESS when executing RESET SLAVE on GR recovery channel
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+--echo # SUCCESS when executing RESET REPLICA on GR recovery channel
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 
 --echo
---echo # Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
+--echo # Execute RESET REPLICA ALL FOR CHANNEL to delete the recovery channel
 --echo # and related files
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # Phase 3
 --echo
@@ -330,14 +330,14 @@ START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicat
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo
---echo # RESET SLAVE command is blocked only when recovery channel is active.
+--echo # RESET REPLICA command is blocked only when recovery channel is active.
 --error ER_REPLICA_CHANNEL_MUST_STOP
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 
 --echo
---echo # RESET SLAVE [ALL] command is blocked only when recovery channel is active.
+--echo # RESET REPLICA [ALL] command is blocked only when recovery channel is active.
 --error ER_REPLICA_CHANNEL_MUST_STOP
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 
 # Phase 5
@@ -405,14 +405,14 @@ START REPLICA SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 --source include/assert.inc
 
 --echo
---echo # Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
+--echo # Execute RESET REPLICA ALL FOR CHANNEL to delete the recovery channel
 --echo # and related files
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 --echo
---echo # ERROR when executing RESET SLAVE on GR recovery channel
+--echo # ERROR when executing RESET REPLICA on GR recovery channel
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing FLUSH RELAY LOGS on GR recovery channel

@@ -15,7 +15,7 @@
 #
 #  - Verify that changing back to no delay works.
 #
-#  - Verify that RESET SLAVE sets the delay to 0.
+#  - Verify that RESET REPLICA sets the delay to 0.
 #
 #  - Verify that setting a bad value for the delay gives an error.
 #
@@ -206,7 +206,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 0;
 --source include/assert.inc
 
 
---echo ==== Reset delay with RESET SLAVE ====
+--echo ==== Reset delay with RESET REPLICA ====
 
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 71;
 --source include/start_slave.inc
@@ -216,10 +216,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 71;
 --source include/assert.inc
 
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
---let $assert_text= Delay should be 0 after RESET SLAVE
+--let $assert_text= Delay should be 0 after RESET REPLICA
 --let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
 --source include/assert.inc
 

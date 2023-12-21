@@ -48,7 +48,7 @@ DROP TABLE IF EXISTS t1, t2;
 DROP EVENT IF EXISTS ev1;
 --enable_warnings
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --enable_query_log
 
 ###

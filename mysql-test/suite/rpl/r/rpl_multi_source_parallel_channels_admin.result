@@ -30,9 +30,7 @@ ROLLBACK;
 [connection slave]
 include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch1']
 STOP REPLICA IO_THREAD FOR CHANNEL 'ch1';
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;

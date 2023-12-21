@@ -73,7 +73,7 @@ START REPLICA IO_THREAD;
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error = 1
 --source include/wait_for_slave_io_error.inc
-RESET SLAVE;
+RESET REPLICA;
 
 # 2) Set gtid_mode = Off and check that replication works fine
 --let $rpl_gtid_mode= OFF

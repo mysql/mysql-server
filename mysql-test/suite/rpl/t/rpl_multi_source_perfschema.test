@@ -264,7 +264,7 @@ if ($w_rows == 0)
 --echo #
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';
 
 --let $assert_text= there shall be 1 in replication connection_configuration table after a channel is deleted.
 --let $assert_cond= [select count(*) from performance_schema.replication_connection_configuration] = 1;
@@ -316,7 +316,7 @@ if ($w_rows != 0)
 --echo #
 --echo #  Test case 8: Do a complete delete and see if the number of rows are zero
 --echo #
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 
 --let $assert_text= there shall be 0 rows after all channels are deleted.

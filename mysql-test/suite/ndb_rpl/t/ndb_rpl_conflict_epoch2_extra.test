@@ -959,7 +959,7 @@ START REPLICA;
 # Note use of fixed connection names here.
 --connection master
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 drop table test.t1;
 drop table test.t1$EX;
 drop table mysql.ndb_replication;

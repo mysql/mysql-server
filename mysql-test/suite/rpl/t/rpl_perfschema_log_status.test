@@ -184,7 +184,7 @@ SELECT COUNT(*) FROM performance_schema.global_variables;
 --source include/rpl_connection_slave.inc
 --disconnect user1
 DROP USER user1@'%';
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 
 --echo # Third step

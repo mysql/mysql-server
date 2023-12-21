@@ -82,10 +82,8 @@ drop table t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on STOP REPLICA.]
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET SLAVE.]
+RESET REPLICA;
+include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
 include/start_slave.inc

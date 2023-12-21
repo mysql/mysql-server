@@ -250,9 +250,7 @@ RESET PERSIST size;
 ERROR HY000: Variable size does not exist in persisted config file
 SELECT JSON_OBJECTAGG(id,x) FROM t;
 ERROR 42S22: Unknown column 'id' in 'field list'
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 DROP DATABASE bug27903874;
 #
 # Bug #27512616: SET PERSIST COMMAND FAILS TO MAP DEFAULT(NULL) VALUES IN

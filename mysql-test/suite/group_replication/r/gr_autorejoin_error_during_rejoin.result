@@ -98,9 +98,7 @@ include/stop_group_replication.inc
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin= 1;
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.group_replication_autorejoin_tries = default;

@@ -251,7 +251,7 @@ DROP TABLE t1;
 
 RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 --echo #
 --echo # Case 2: Error on Slave(receiver thread)
@@ -415,7 +415,7 @@ DROP TABLE t4;
 RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -500,7 +500,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 DROP TABLE t5;
-RESET SLAVE;
+RESET REPLICA;
 
 --let $rpl_skip_sync=0
 --source include/start_slave.inc
@@ -580,7 +580,7 @@ DROP TABLE t6;
 RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 --let $rpl_skip_sync=0
 --source include/start_slave.inc
@@ -658,7 +658,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --connection slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 SET @@GLOBAL.DEBUG= '+d,simulate_source_has_unknown_gtid_mode';
 START REPLICA IO_THREAD;
 --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
@@ -667,7 +667,7 @@ START REPLICA IO_THREAD;
 SET @@GLOBAL.DEBUG= @debug_saved;
 
 SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
-RESET SLAVE;
+RESET REPLICA;
 
 --echo #
 --echo # ER_CANT_SET_GTID_MODE generated because AUTO_POSITION = 1.

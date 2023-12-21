@@ -69,7 +69,7 @@ drop table t1;
 
 --source include/sync_slave_io_with_master.inc
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 
 drop table t1;
 

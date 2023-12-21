@@ -140,7 +140,7 @@ DROP DATABASE d2;
 # Problem:
 # ========
 # When error occurred in MTS mode, If user first change master
-# (ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS received here), and then reset slave,
+# (ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS received here), and then reset replica,
 # user can never change master (error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 # occurred again). The debug version mysqld will crash at this case.
 #
@@ -208,7 +208,7 @@ FLUSH LOGS;
 --replace_column 2 ####
 --error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
-reset slave;
+RESET REPLICA;
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;

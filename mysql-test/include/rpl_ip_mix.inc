@@ -9,7 +9,7 @@ source include/show_master_status.inc;
 save_master_pos;
 --echo connection slave;
 connection slave;
-reset slave;
+RESET REPLICA;
 let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 --echo Master-Host: $master_host
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='$IPv6';

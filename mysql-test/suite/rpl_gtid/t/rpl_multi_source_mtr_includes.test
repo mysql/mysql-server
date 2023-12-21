@@ -137,7 +137,7 @@ DELETE FROM t1 WHERE c1 = 4;
 
 --let $rpl_channel_name=
 --let $binlog_limit=
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

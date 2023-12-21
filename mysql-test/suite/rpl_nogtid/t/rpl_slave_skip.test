@@ -60,7 +60,7 @@ SELECT * FROM t2;
 
 STOP REPLICA;
 --source include/wait_for_slave_to_stop.inc
-RESET SLAVE;
+RESET REPLICA;
 connection master;
 RESET BINARY LOGS AND GTIDS;
 

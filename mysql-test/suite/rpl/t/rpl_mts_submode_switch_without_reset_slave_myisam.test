@@ -1,6 +1,6 @@
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
-# without using RESET SLAVE. The idea is that the two submode should work
+# without using RESET REPLICA. The idea is that the two submode should work
 # seamlessly.
 
 --source include/have_debug.inc

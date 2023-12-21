@@ -56,7 +56,7 @@ CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missin
 # 7) Cleanup.
 #
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]

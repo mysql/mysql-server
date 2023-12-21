@@ -17,17 +17,15 @@ include/rpl_gr_wait_for_number_of_members.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1";
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The slave channel is present']
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: RESET REPLICA ALL FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/assert.inc ['The group replication applier channel is still present']
 include/assert.inc ['The group replication applier channel is ON']
 include/assert.inc ['The slave channel is not present']
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 include/assert.inc ['The group replication applier channel is not present']
 server2
 INSERT INTO t1 VALUES (4);
@@ -41,18 +39,14 @@ Vefiry that group replication channels are present
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The group replication recovery channel is present']
 include/stop_group_replication.inc
-RESET SLAVE command clears master and slave info repositories and will flush master info
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA command clears master and slave info repositories and will flush master info
+RESET REPLICA;
 include/assert.inc ['mysql.slave_relay_log_info contains flushed group replication channel information']
 include/assert.inc ['mysql.slave_master_info contains flushed group replication channel information']
 include/start_group_replication.inc
 include/assert.inc ['The group replication applier and recovery channel are present']
 include/stop_group_replication.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 include/assert.inc ['mysql.slave_relay_log_info does not contrain group replication channel information']
 include/assert.inc ['mysql.slave_master_info does not contrain group replication channel information']
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";

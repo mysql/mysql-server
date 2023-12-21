@@ -104,7 +104,7 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
 
   --source include/stop_slave.inc
 
-  RESET SLAVE;
+  RESET REPLICA;
 
   --source include/rpl_connection_master.inc
 

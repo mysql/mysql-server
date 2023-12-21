@@ -223,7 +223,7 @@ UNINSTALL PLUGIN clone;
 
 --enable_warnings
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 set session sql_log_bin=0;
 

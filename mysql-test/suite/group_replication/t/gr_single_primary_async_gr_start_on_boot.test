@@ -222,14 +222,14 @@ START REPLICA SQL_THREAD FOR CHANNEL 'ch3_2';
 --source include/stop_slave.inc
 --let $rpl_channel_name=
 
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 
-RESET SLAVE ALL FOR CHANNEL '';
+RESET REPLICA ALL FOR CHANNEL '';
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`

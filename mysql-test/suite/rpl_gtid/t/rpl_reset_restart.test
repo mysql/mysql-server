@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
-# This test will check if reset slave is generating correct Previous_gtids
-# event in first relay log file after a RESET SLAVE.
+# This test will check if reset replica is generating correct Previous_gtids
+# event in first relay log file after a RESET REPLICA.
 #
 # It will:
 # 1) generate some workload at the master;
@@ -9,7 +9,7 @@
 # 3) stop replica replication threads;
 # 4) do RESET BINARY LOGS AND GTIDS on the master;
 # 5) do RESET BINARY LOGS AND GTIDS on the slave;
-# 6) do RESET SLAVE on the slave;
+# 6) do RESET REPLICA on the slave;
 # 7) restart the slave.
 #
 # Slave shall be able to sync with master without issues.
@@ -32,7 +32,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
 --source include/kill_and_restart_mysqld.inc

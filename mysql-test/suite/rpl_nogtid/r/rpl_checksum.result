@@ -100,9 +100,7 @@ select count(*) as 'must be zero' from t2;
 must be zero
 0
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 reset binary logs and gtids;
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
 flush logs;

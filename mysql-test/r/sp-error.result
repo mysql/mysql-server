@@ -608,7 +608,7 @@ ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin reset binary logs and gtids;
 return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
-create function bug8409() returns int begin reset slave;
+create function bug8409() returns int begin RESET REPLICA;
 return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
 create function bug8409() returns int begin flush privileges;

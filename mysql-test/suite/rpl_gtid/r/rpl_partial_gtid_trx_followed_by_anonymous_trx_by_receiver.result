@@ -42,9 +42,7 @@ include/gtid_step_assert_on_retrieved.inc [count=2, only_count=1]
 Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
 include/stop_slave_io.inc
 SET GLOBAL GTID_MODE = ON;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 [connection master]

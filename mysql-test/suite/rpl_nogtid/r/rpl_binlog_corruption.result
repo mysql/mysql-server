@@ -7,9 +7,7 @@ call mtr.add_suppression('Found invalid event in binary log');
 call mtr.add_suppression('Replica SQL.*Relay log read failure: Could not parse relay log event entry.* MY-013121');
 ==== Initialize ====
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug40482-bin.000001
 ==== Test ====

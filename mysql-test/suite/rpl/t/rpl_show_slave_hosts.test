@@ -14,7 +14,7 @@ source include/master-slave.inc;
 connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
 
 connection slave2;
-RESET SLAVE;
+RESET REPLICA;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root'

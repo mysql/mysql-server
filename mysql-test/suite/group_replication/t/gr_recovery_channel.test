@@ -1,6 +1,6 @@
 ################################################################################
 # This test validates the behavior of the group replication recovery channel
-# against common slave commands like START/STOP/RESET SLAVE.
+# against common slave commands like START/STOP/RESET REPLICA.
 #
 # Test:
 # 0. The test requires three servers: M1, M2 and M3.
@@ -8,7 +8,7 @@
 #    Start M1.
 # 2. Stop replication on M1. On M2 lock a table to block recovery. Start M1.
 # 3. Execute a STOP REPLICA command and see the recovery channel still active.
-# 4. Execute a RESET SLAVE ALL command and see the recovery channel is not
+# 4. Execute a RESET REPLICA ALL command and see the recovery channel is not
 #    affected on M1 when GR node is active.
 # 5. Kill the server M1. The recovery channel should still be there but it's
 #    not started. Recreate the slave channel to test that it started
@@ -84,7 +84,7 @@ STOP REPLICA;
 --source include/assert.inc
 
 #
-# Phase 4: Execute a RESET SLAVE ALL command and see the recovery channel is
+# Phase 4: Execute a RESET REPLICA ALL command and see the recovery channel is
 # not affected as GR node is active.
 #
 
@@ -106,7 +106,7 @@ SET GLOBAL SUPER_READ_ONLY=0; # Bug#22097534
 --file_exists $recovery_relay_log_index
 
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $assert_text= 'The group replication recovery channel is present'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_recovery", count, 1] = 1

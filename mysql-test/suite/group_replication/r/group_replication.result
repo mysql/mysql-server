@@ -16,6 +16,4 @@ ERROR HY000: The START GROUP_REPLICATION command failed since the group is alrea
 SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
 ERROR HY000: The group_replication_group_name cannot be changed when Group Replication is running
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";

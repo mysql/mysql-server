@@ -57,12 +57,12 @@ ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
-# ERROR when executing RESET SLAVE command on GR recovery channel
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+# ERROR when executing RESET REPLICA command on GR recovery channel
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
-# ERROR when executing RESET SLAVE ALL command on GR recovery channel
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+# ERROR when executing RESET REPLICA ALL command on GR recovery channel
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
 # Add some data for recovery on M1. Start GR on M2.
@@ -112,16 +112,12 @@ include/assert.inc [Relay logs are created]
 # SUCCESS when executing FLUSH RELAY LOGS on GR recovery channel
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
-# SUCCESS when executing RESET SLAVE on GR recovery channel
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+# SUCCESS when executing RESET REPLICA on GR recovery channel
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 
-# Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
+# Execute RESET REPLICA ALL FOR CHANNEL to delete the recovery channel
 # and related files
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # Stop GR on M2. Add data on M1. Lock table on M2 to block recovery.
 # Start GR on M2.
@@ -187,12 +183,12 @@ include/assert.inc [Relay log name should not be empty as the command successful
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Error on observer while running replication hook 'before_commit'.
 
-# RESET SLAVE command is blocked only when recovery channel is active.
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+# RESET REPLICA command is blocked only when recovery channel is active.
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL 'group_replication_recovery' first
 
-# RESET SLAVE [ALL] command is blocked only when recovery channel is active.
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+# RESET REPLICA [ALL] command is blocked only when recovery channel is active.
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL 'group_replication_recovery' first
 
 # Unlock tables on M2 and drop table t1 on M1. Stop GR on M2. Test
@@ -236,14 +232,12 @@ include/assert.inc [recovery channel is inactive]
 # SHOW RELAYLOG EVENTS - check that relaylogs are not deleted
 include/assert.inc [Relay logs are not deleted]
 
-# Execute RESET SLAVE ALL FOR CHANNEL to delete the recovery channel
+# Execute RESET REPLICA ALL FOR CHANNEL to delete the recovery channel
 # and related files
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
-# ERROR when executing RESET SLAVE on GR recovery channel
-RESET SLAVE FOR CHANNEL "group_replication_recovery";
+# ERROR when executing RESET REPLICA on GR recovery channel
+RESET REPLICA FOR CHANNEL "group_replication_recovery";
 ERROR HY000: Replica channel 'group_replication_recovery' does not exist.
 
 # ERROR when executing FLUSH RELAY LOGS on GR recovery channel

@@ -369,12 +369,12 @@ source include/assert.inc;
 
 --echo
 --echo # Verify that the value for 'Received_Transaction_Set' is cleared
---echo # after RESET SLAVE.
+--echo # after RESET REPLICA.
 --echo
 
-RESET SLAVE;
+RESET REPLICA;
 --let $assert_cond= Received_Transaction_Set = "" FROM performance_schema.replication_connection_status
---let $assert_text= Received_Transaction_Set should be empty after RESET SLAVE
+--let $assert_text= Received_Transaction_Set should be empty after RESET REPLICA
 --source include/assert.inc
 
 source include/start_slave.inc;

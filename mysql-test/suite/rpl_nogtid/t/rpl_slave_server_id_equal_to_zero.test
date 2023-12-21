@@ -84,7 +84,7 @@ START REPLICA FOR CHANNEL 'any_channel';
 --source include/assert_grep.inc
 
 # Remove the created channel
-RESET SLAVE ALL FOR CHANNEL 'any_channel';
+RESET REPLICA ALL FOR CHANNEL 'any_channel';
 
 # Remove the t1 table on slave to allow it to be replicated again
 DROP TABLE t1;

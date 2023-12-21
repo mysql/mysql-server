@@ -210,7 +210,7 @@ DROP TABLE t1;
 --echo ############################################################
 --echo # 7. Group Replication channel must not be present on common
 --echo #    replication P_S tables after a RESET ALL command.
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_configuration table'
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"

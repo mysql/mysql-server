@@ -14,8 +14,8 @@
 #        `SOURCE_AUTO_POSITION = 1`
 # R4. Replication threads must be stopped to set GTID_ONLY
 # R5  Disabling SOURCE_AUTO_POSITION if positions are invalid requires SOURCE_LOG_FILE/POS
-# R6  RESET SLAVE does not affect the GTID_ONLY
-# R6  RESET SLAVE ALL does affect the GTID_ONLY value
+# R6  RESET REPLICA does not affect the GTID_ONLY
+# R6  RESET REPLICA ALL does affect the GTID_ONLY value
 #
 # ==== Implementation ====
 # 0.  Setup replication but make the channel have REQUIRE_ROW_FORMAT=0, SOURCE_AUTO_POSITION=0

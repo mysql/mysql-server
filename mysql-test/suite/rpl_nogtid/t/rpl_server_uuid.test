@@ -223,11 +223,11 @@ eval CHANGE REPLICATION SOURCE TO
 
 --echo
 --echo # Case 5:
---echo # After executing 'RESET SLAVE' successfully, Master's UUID is still kept 
+--echo # After executing 'RESET REPLICA' successfully, Master's UUID is still kept 
 --echo # into Slave status.
 --echo -----------------------------------------------------------------------------
 connection slave;
-RESET SLAVE;
+RESET REPLICA;
 --source include/check_slave_param.inc
 
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS

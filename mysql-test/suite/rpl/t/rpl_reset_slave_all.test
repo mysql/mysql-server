@@ -7,10 +7,10 @@
 #   BUG#21111229 RESET SLAVE ALL BEHAVES DIFFERENT FOR DEFAULT AND
 #                NON-DEFAULT CHANNELS
 #
-#   Verify that count_transactions_retries is reset to 0 after RESET SLAVE ALL
+#   Verify that count_transactions_retries is reset to 0 after RESET REPLICA ALL
 #   Step 1. Generates an innodb row lock timeout to increase
 #           count_transactions_retries
-#   Step 2. RESET SLAVE
+#   Step 2. RESET REPLICA
 #   Step 3. check count_transactions_retries is 0
 ###############################################################################
 
@@ -52,7 +52,7 @@ CALL mtr.add_suppression(".*The replica coordinator and worker threads are "
 --let $table=replication_applier_status
 --source include/rpl_pfs_assert_status.inc
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $assert_text= count_transactions_retries should be 0
 --let $assert_status_name= count_transactions_retries

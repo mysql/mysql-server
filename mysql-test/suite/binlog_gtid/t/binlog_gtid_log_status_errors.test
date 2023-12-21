@@ -65,4 +65,4 @@ SELECT * FROM performance_schema.log_status ORDER BY 1;
 --enable_result_log
 
 # Cleanup
-RESET SLAVE ALL;
+RESET REPLICA ALL;

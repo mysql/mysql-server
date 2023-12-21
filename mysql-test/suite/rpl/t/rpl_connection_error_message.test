@@ -129,7 +129,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
 
 --echo #### Clean up ####
 
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $script_dir/check_message.inc
 --remove_file $script_dir/check_both_messages.inc
 --replace_result $MASTER_MYPORT PORT

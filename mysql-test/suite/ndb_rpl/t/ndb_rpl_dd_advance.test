@@ -180,7 +180,7 @@ DROP TABLE t1;
 --sync_slave_with_master
 connection slave;
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 connection master;
 RESET BINARY LOGS AND GTIDS;
 connection slave;
@@ -248,7 +248,7 @@ while ($j)
 USE tpcb;
 SELECT COUNT(*) FROM account;
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE IF EXISTS tpcb.account;

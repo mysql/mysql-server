@@ -130,7 +130,7 @@ CREATE TABLE `slave_master_info` (
 
 # Stop replica and reset the slave removing all channels
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # Create the default channel again
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
@@ -171,7 +171,7 @@ ALTER TABLE slave_master_info
 # We cannot perform repository operations until the repository be fixed
 
 --error ER_CONNECTION_METADATA
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
@@ -202,7 +202,7 @@ ALTER TABLE slave_master_info
 --source include/rpl_restart_server.inc
 
 # This now should work fine now
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # Create the default channel again
 # to replicate from the last synced position
@@ -264,7 +264,7 @@ ALTER TABLE slave_master_info
 
 # We cannot perform repository operations until the repository be fixed
 --error ER_REPLICA_CONFIGURATION
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
@@ -291,7 +291,7 @@ ALTER TABLE slave_master_info
 --let $rpl_channel_name=
 --let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # Create the default channel again
 # to replicate from the last synced position

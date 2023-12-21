@@ -84,15 +84,13 @@ Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 
 include/stop_slave_io.inc
 START REPLICA SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -118,15 +116,13 @@ Last_IO_Error = 'Fatal error: Failed to flush connection metadata.'
 include/stop_slave_sql.inc
 START REPLICA SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 33, found 32. The table is probably corrupted
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 33, found 32. The table is probably corrupted
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 33, found 32. The table is probably corrupted
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

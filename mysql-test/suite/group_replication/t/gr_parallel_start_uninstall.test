@@ -32,7 +32,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 
 SET @saved_group_replication_group_seeds = @@GLOBAL.group_replication_group_seeds;
 SET @saved_group_replication_local_address = @@GLOBAL.group_replication_local_address;

@@ -41,9 +41,7 @@ create table t1 (n int) engine=myisam;
 include/sync_slave_sql_with_master.inc
 reset binary logs and gtids;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/assert.inc [We should have generated greater than 16 KB relay log]
 lock tables t1 read;
 START REPLICA;

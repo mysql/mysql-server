@@ -4,7 +4,7 @@
 # when they are being created and configured by CHANGE MASTER TO
 # ... FOR CHANNEL.
 #
-# Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
+# Verify RESET REPLICA and RESET REPLICA FOR CHANNEL
 # - deletes all relay log files of named channels and reinitializes
 # them.
 # - For default channel, it restart the relay log from .000001
@@ -12,12 +12,12 @@
 # - For named channel, it restart the relay log from ch.000001
 # - retains all replication filters from all replication channels.
 #
-# Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+# Verify that "'RESET REPLICA ALL FOR CHANNEL '<channel_name>'" removes
 # the replication channel specified by 'FOR CHANNEL' clause and all
 # replication filters of the channel. There is no effect to other
 # channels.
 #
-# "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+# "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 # replication filters of the channel firstly, but then create a new
 # default channel which is not configured yet. So performance_schema.
 # replication_applier_filters and SHOW SLAVE STATUS do not show it.
@@ -28,7 +28,7 @@
 # filter type when it is being configured. Then performance_schema.
 # replication_applier_filters and SHOW SLAVE STATUS show it.
 #
-# Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+# Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
 # replication channels, so it shall remove all per-channel replication
 # filters but does not touch all global replication filters. When the
 # new channel is being configured, it therefore uses the global filters
@@ -100,13 +100,11 @@ ch1	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 #
-# RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
+# RESET REPLICA FOR CHANNEL "ch1" deletes all relay log files of ch1.
 #
-RESET SLAVE FOR CHANNEL "ch1";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL "ch1";
 #
-# Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
+# Verify that "RESET REPLICA FOR CHANNEL '<channel_name>'" retains
 # replication filters of the channel.
 #
 Replicate_Do_DB = 'global_db'
@@ -130,14 +128,12 @@ ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 slave-relay-bin-ch1.000001
 slave-relay-bin-ch1.index
 #
-# RESET SLAVE deletes all relay log files of ch2
+# RESET REPLICA deletes all relay log files of ch2
 #
 include/stop_slave.inc
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 #
-# Verify that "RESET SLAVE" retains all replication filters from
+# Verify that "RESET REPLICA" retains all replication filters from
 # all replication channels.
 #
 Replicate_Do_DB = 'global_db'
@@ -168,21 +164,19 @@ ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 slave-relay-bin-ch2.000001
 slave-relay-bin-ch2.index
 #
-# RESET SLAVE resets relay log of default channel from .000001
+# RESET REPLICA resets relay log of default channel from .000001
 #
 #
 # Relay log files for all channels are recreated automatically.
 #
-RESET SLAVE ALL FOR CHANNEL 'ch1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 #
-# Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+# Verify that "'RESET REPLICA ALL FOR CHANNEL '<channel_name>'" removes
 # the replication channel specified by 'FOR CHANNEL' clause and all
 # replication filters of the channel. There is no effect to other
 # channels.
 #
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 ERROR HY000: Replica channel 'ch1' does not exist.
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
 ERROR HY000: Replica channel 'ch1' does not exist.
@@ -195,11 +189,9 @@ CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
-RESET SLAVE ALL FOR CHANNEL '';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL '';
 #
-# "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+# "RESET REPLICA ALL FOR CHANNEL ''" removes the default channel and all
 # replication filters of the channel firstly, but then create a new
 # default channel which is not configured yet. So performance_schema.
 # replication_applier_filters and SHOW SLAVE STATUS do not show it.
@@ -244,16 +236,14 @@ Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
 #
-# Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+# Verify that "RESET REPLICA ALL" with no FOR CHANNEL clause removes all
 # replication channels, so it shall remove all per-channel replication
 # filters but does not touch all global replication filters. When the
 # new channel is being configured, it therefore uses the global filters
 # (copies all global replication filters to its own per-channel
 # replication filters).
 #
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
 ERROR HY000: Replica channel 'ch1' does not exist.
 SHOW SLAVE STATUS FOR CHANNEL 'ch2';

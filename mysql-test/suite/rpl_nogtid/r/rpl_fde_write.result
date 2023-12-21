@@ -12,7 +12,5 @@ CALL mtr.add_suppression("Got fatal error 1236 from source when reading data fro
 START REPLICA;
 FLUSH LOGS;
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

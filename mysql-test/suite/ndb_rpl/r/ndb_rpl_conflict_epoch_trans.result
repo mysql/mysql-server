@@ -1198,7 +1198,5 @@ drop table test.t1;
 drop table test.t2;
 flush logs;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

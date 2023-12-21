@@ -70,6 +70,6 @@ START GROUP_REPLICATION;
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 --source include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
 --source include/gr_clear_configuration.inc

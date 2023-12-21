@@ -24,6 +24,4 @@ SELECT * FROM performance_schema.log_status;
 ERROR HY000: Unable to collect information for column 'REPLICATION': failed to allocate memory to collect information.
 # Removing debug point 'log_status_oom_replication' from @@GLOBAL.debug
 SELECT * FROM performance_schema.log_status ORDER BY 1;
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;

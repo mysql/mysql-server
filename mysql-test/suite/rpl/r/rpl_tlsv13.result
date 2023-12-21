@@ -31,12 +31,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_GCM_SHA256' FO
 include/start_slave.inc [FOR CHANNEL 'my_channel']
 include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 ########################################################################
-# 3. RESET SLAVE does not clean MASTER_TLS_CIPHERSUITES.
+# 3. RESET REPLICA does not clean MASTER_TLS_CIPHERSUITES.
 [connection slave]
 include/stop_slave.inc [FOR CHANNEL 'my_channel']
-RESET SLAVE FOR CHANNEL 'my_channel';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL 'my_channel';
 include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_GCM_SHA256]
 ########################################################################
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
@@ -74,6 +72,4 @@ Warnings:
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 [connection slave]
-RESET SLAVE ALL FOR CHANNEL 'my_channel';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'my_channel';

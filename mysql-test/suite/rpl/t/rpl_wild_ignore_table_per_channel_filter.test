@@ -190,8 +190,8 @@ DROP DATABASE db4;
 --let $rpl_channel_name= ''
 --source include/stop_slave.inc
 
-RESET SLAVE ALL FOR CHANNEL '';
-RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
+RESET REPLICA ALL FOR CHANNEL '';
+RESET REPLICA ALL FOR CHANNEL 'channel_3_2';
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT

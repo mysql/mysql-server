@@ -8,7 +8,7 @@
 # check if duplicate entries trigger an error (they should unless IGNORE or
 # REPLACE was used on the master) (bug 571).
 #
-# check if START REPLICA, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
+# check if START REPLICA, RESET REPLICA, CHANGE MASTER reset Last_slave_error and
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
 
 -- source include/have_binlog_format_statement.inc
@@ -107,7 +107,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 --source include/check_slave_no_error.inc
 
-# Trigger error again to test RESET SLAVE
+# Trigger error again to test RESET REPLICA
 
 set global sql_replica_skip_counter=1;
 START REPLICA;
@@ -124,9 +124,9 @@ connection slave;
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 
-# RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
+# RESET REPLICA and see if error is cleared in SHOW SLAVE STATUS.
 STOP REPLICA;
-reset slave;
+RESET REPLICA;
 --source include/check_slave_no_error.inc
 
 # Finally, see if logging is done ok on master for a failing LOAD DATA INFILE

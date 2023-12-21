@@ -32,9 +32,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 # Asserting that CHANGE MASTER is not replicated in the binary log of the server.
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 [connection server2]
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

@@ -68,9 +68,7 @@ include/start_slave.inc [FOR CHANNEL 'channel_1']
 UNINSTALL PLUGIN clone;
 include/clean_monitoring_process.inc
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;
 set session sql_log_bin=0;
 CALL mtr.add_suppression("Clone removing all user data for provisioning: Started");
 CALL mtr.add_suppression("Clone removing all user data for provisioning: Finished");

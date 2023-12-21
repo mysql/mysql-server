@@ -83,7 +83,7 @@ UPDATE t SET name='Old';
 
 --source include/stop_slave_io.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

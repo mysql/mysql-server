@@ -45,14 +45,10 @@ set session sql_log_bin=0;
 DROP USER 'rec_ssl_user';
 set session sql_log_bin=1;
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 include/stop_group_replication.inc
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 [connection server1]
 SET SESSION sql_log_bin=0;

@@ -83,9 +83,7 @@ include/stop_group_replication.inc
 DROP TABLE test.t2;
 DROP TABLE test.t1;
 [connection server1]
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 DROP TABLE test.t1;
 include/stop_group_replication.inc
 SET SESSION sql_log_bin= 0;

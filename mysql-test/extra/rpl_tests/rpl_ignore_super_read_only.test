@@ -8,9 +8,9 @@
 # 2) Execute 'STOP REPLICA' command
 # 3) Execute 'CHANGE REPLICATION FILTER' command
 # 4) Execute 'CHANGE MASTER TO' command
-# 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
-# 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
-# 8) Execute 'RESET SLAVE' command
+# 5) Execute 'RESET REPLICA FOR CHANNEL <channel_name>' command
+# 7) Execute 'RESET REPLICA ALL FOR CHANNEL <channel_name>' command
+# 8) Execute 'RESET REPLICA' command
 # 9) Execute 'START REPLICA' command
 # 10) Execute 'RESET BINARY LOGS AND GTIDS' command (with GTID_MODE=ON will assert)
 # 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
@@ -68,12 +68,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 
 --echo ####################################################################
---echo # Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+--echo # Test Case4: RESET REPLICA FOR CHANNEL/RESET REPLICA ALL/RESET REPLICA
 --echo # commands
 --echo ####################################################################
-RESET SLAVE FOR CHANNEL 'aaa';
-RESET SLAVE ALL FOR CHANNEL 'aaa';
-RESET SLAVE;
+RESET REPLICA FOR CHANNEL 'aaa';
+RESET REPLICA ALL FOR CHANNEL 'aaa';
+RESET REPLICA;
 
 --echo ####################################################################
 --echo # Test Case5: START REPLICA command
@@ -139,7 +139,7 @@ RESET BINARY LOGS AND GTIDS;
 --source include/sync_slave_sql_with_master.inc
 
 --echo "Clean up"
-# Reset slave to clean state
+# Reset replica to clean state
 --replace_result $saved_autocommit SAVED_AUTOCOMMIT
 --eval SET AUTOCOMMIT= $saved_autocommit
 --replace_result $saved_value_super SAVED_SUPER_READ_ONLY

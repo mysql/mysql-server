@@ -48,9 +48,7 @@ INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), R
 include/wait_for_slave_io_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 SET @max_allowed_packet_0= @@session.max_allowed_packet;
@@ -94,7 +92,5 @@ SET @@global.replica_max_allowed_packet= 4096;
 SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc

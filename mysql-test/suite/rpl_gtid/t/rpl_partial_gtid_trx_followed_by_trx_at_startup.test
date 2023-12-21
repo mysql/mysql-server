@@ -100,7 +100,7 @@ INSERT INTO t1 VALUES (3);
 
 # Restore the slave
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --let $use_gtids= 1

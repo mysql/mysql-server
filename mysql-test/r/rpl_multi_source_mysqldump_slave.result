@@ -21,6 +21,4 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='binlog-ch1.000001', SOURCE_LOG_POS
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='binlog-ch2.000001', SOURCE_LOG_POS=4 FOR CHANNEL 'ch2';
 # Execute mysql using the dump as input
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL;

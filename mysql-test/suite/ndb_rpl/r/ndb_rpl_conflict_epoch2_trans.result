@@ -1178,9 +1178,7 @@ drop table test.t1;
 drop table test.t2;
 flush logs;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc
 Next we have Cluster A as Secondary, Cluster B as Primary
 SET GLOBAL ndb_applier_conflict_role="NONE";
@@ -2365,9 +2363,7 @@ drop table test.t1;
 drop table test.t2;
 flush logs;
 STOP REPLICA;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 include/rpl_end.inc
 SET GLOBAL ndb_applier_conflict_role="NONE";
 SET GLOBAL ndb_applier_conflict_role="NONE";

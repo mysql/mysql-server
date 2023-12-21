@@ -13,7 +13,7 @@ source include/have_blackhole.inc;
 SET default_storage_engine=BLACKHOLE;
 STOP REPLICA;
 source include/wait_for_slave_to_stop.inc;
-RESET SLAVE;
+RESET REPLICA;
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 START REPLICA;
 source include/wait_for_slave_to_start.inc;
@@ -21,7 +21,7 @@ source include/wait_for_slave_to_start.inc;
 # Stop replica and reconnect to blackhole slave
 connection slave;
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$BHS_MYPORT;
 START REPLICA;
 source include/wait_for_slave_to_start.inc;

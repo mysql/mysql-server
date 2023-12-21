@@ -1,12 +1,12 @@
 # TBF - difference in row level logging
 # Temp tables are not replicated in rbr, but it is still good to hit rbr with everthing
 
-# See SHOW SLAVE STATUS displays well after RESET SLAVE (it should display the
+# See SHOW SLAVE STATUS displays well after RESET REPLICA (it should display the
 # --master-* options from mysqld, as this is what is going to be used next time
 # slave threads will be started). In bug 985, it displayed old values (of before
-# RESET SLAVE).
+# RESET REPLICA).
 # See if slave crashes when doing a CREATE TEMPORARY TABLE twice, separated by
-# RESET SLAVE.
+# RESET REPLICA.
 
 -- source include/master-slave.inc
 sync_slave_with_master;
@@ -21,7 +21,7 @@ source include/stop_slave.inc;
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 source include/show_slave_status.inc;
 
-reset slave;
+RESET REPLICA;
 source include/show_slave_status.inc;
 
 --replace_column 2 ####
@@ -30,16 +30,16 @@ source include/start_slave.inc;
 sync_with_master;
 source include/show_slave_status.inc;
 
-# test of crash with temp tables & RESET SLAVE
-# (test to see if RESET SLAVE clears temp tables in memory and disk)
+# test of crash with temp tables & RESET REPLICA
+# (test to see if RESET REPLICA clears temp tables in memory and disk)
 source include/stop_slave.inc;
-reset slave;
+RESET REPLICA;
 source include/start_slave.inc;
 connection master;
 create temporary table t1 (a int);
 sync_slave_with_master;
 source include/stop_slave.inc;
-reset slave;
+RESET REPLICA;
 reset binary logs and gtids; # clear GTIDs metadata so that create temporary table is replayed
 source include/start_slave.inc;
 sync_with_master;
@@ -54,7 +54,7 @@ sync_slave_with_master;
 
 # clearing the status
 source include/stop_slave.inc;
-reset slave;
+RESET REPLICA;
 source include/check_slave_no_error.inc;
 
 #
@@ -74,7 +74,7 @@ source include/start_slave.inc;
 source include/check_slave_no_error.inc;
 
 #
-# verifying reset slave resets Last_{IO,SQL}_Err{or,no}
+# verifying reset replica resets Last_{IO,SQL}_Err{or,no}
 #
 
 --echo
@@ -92,7 +92,7 @@ let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
 
-reset slave;
+RESET REPLICA;
 source include/check_slave_no_error.inc;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
@@ -102,7 +102,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 # BUG#11809016 - NO WAY TO DISCOVER AN INSTANCE IS NO LONGER A SLAVE FOLLOWING MYSQL BUG#28796
 #
 
-reset slave;
+RESET REPLICA;
 
 --echo
 --echo Sync slave, else STOP REPLICA may complain about open temporary table.
@@ -117,7 +117,7 @@ reset slave;
 --let $_slave_master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
 --let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
 
-reset slave all;
+RESET REPLICA all;
 --error ER_BAD_REPLICA
 START REPLICA;
 
@@ -152,7 +152,7 @@ if ($_show_master_host != No such row)
 --replace_result $MASTER_MYPORT MASTER_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='localhost'
 
---echo # Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
+--echo # Issue a RESET REPLICA instruction and try to start the slave IO thread that will error out
 
 --let $rpl_reset_slave_all= 0
 --source include/rpl_reset_slave.inc

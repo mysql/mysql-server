@@ -5,7 +5,7 @@
 #
 # Testing how well MSR handles initialization failures.
 # Specifically it's proved that a failure to initialize mi in one of
-# the channels allows RESET SLAVE, no crash happens.
+# the channels allows RESET REPLICA, no crash happens.
 #
 
 # The default channel and channel 'ch_a' will connect to the same master
@@ -29,7 +29,7 @@ STOP REPLICA FOR CHANNEL 'ch_a';
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1

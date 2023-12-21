@@ -113,7 +113,7 @@ SET DEBUG_SYNC= 'RESET';
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
 DROP TABLE t1;
-RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 RESET BINARY LOGS AND GTIDS;
 
 

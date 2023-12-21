@@ -78,6 +78,6 @@ let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;
 drop table if exists t1;
 
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

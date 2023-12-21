@@ -57,7 +57,7 @@ let $wait_binlog_event= DROP;
 
 FLUSH LOGS;
 STOP REPLICA;
-RESET SLAVE;
+RESET REPLICA;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

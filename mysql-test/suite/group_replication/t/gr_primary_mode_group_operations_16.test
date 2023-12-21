@@ -118,7 +118,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

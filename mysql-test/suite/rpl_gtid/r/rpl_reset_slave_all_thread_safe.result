@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# Case 1: Verify source_pos_wait can block RESET SLAVE ALL
+# Case 1: Verify source_pos_wait can block RESET REPLICA ALL
 #
 [connection slave]
 SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
@@ -12,12 +12,10 @@ SELECT source_pos_wait("master-bin.000001", 10000);;
 [connection slave1]
 SET debug_sync = "now WAIT_FOR wait_func_begin";
 include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 [connection server_2]
 SET debug_sync = "now signal wait_func_continue";
 [connection slave1]
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET debug_sync = 'RESET';
 [connection slave]
 source_pos_wait("master-bin.000001", 10000)

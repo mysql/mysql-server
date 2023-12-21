@@ -72,9 +72,7 @@ Warnings:
 Note	3083	Replication thread(s) for channel '' are already runnning.
 include/stop_slave.inc
 drop table if exists t1;
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:

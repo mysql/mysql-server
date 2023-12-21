@@ -83,7 +83,7 @@ SET sql_log_bin=1;
 #Cleanup
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 
 SET sql_log_bin=0;
 DROP USER manish;

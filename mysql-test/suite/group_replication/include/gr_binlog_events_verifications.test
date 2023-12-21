@@ -201,7 +201,7 @@ if (!$rpl_mysqlbinlog)
   --let $rpl_channel_name='ch2_1'
   --source include/stop_slave.inc
 
-  RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+  RESET REPLICA ALL FOR CHANNEL 'ch2_1';
 
   --let $rpl_channel_name=
 }

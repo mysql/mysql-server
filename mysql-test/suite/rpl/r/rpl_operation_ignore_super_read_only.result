@@ -28,18 +28,12 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 ####################################################################
-# Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+# Test Case4: RESET REPLICA FOR CHANNEL/RESET REPLICA ALL/RESET REPLICA
 # commands
 ####################################################################
-RESET SLAVE FOR CHANNEL 'aaa';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE ALL FOR CHANNEL 'aaa';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL 'aaa';
+RESET REPLICA ALL FOR CHANNEL 'aaa';
+RESET REPLICA;
 ####################################################################
 # Test Case5: START REPLICA command
 ####################################################################
@@ -104,18 +98,12 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 ####################################################################
-# Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+# Test Case4: RESET REPLICA FOR CHANNEL/RESET REPLICA ALL/RESET REPLICA
 # commands
 ####################################################################
-RESET SLAVE FOR CHANNEL 'aaa';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE ALL FOR CHANNEL 'aaa';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA FOR CHANNEL 'aaa';
+RESET REPLICA ALL FOR CHANNEL 'aaa';
+RESET REPLICA;
 ####################################################################
 # Test Case5: START REPLICA command
 ####################################################################

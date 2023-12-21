@@ -903,9 +903,7 @@ FLUSH LOGS;
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1]
 --> Master binlog: Server ver: 5.0.16-debug-log, Binlog ver: 4
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 START REPLICA;
 SELECT SOURCE_POS_WAIT('master-bin.000001', 513) >= 0;
 SOURCE_POS_WAIT('master-bin.000001', 513) >= 0
@@ -919,9 +917,7 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 DROP TABLE t1;
 DROP TABLE t2;
 STOP REPLICA;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 SHOW TABLES LIKE 't_';
 Tables_in_test (t_)
 SHOW TRIGGERS;

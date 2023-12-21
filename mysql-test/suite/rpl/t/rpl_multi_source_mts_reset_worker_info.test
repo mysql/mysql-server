@@ -13,7 +13,7 @@ call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
 
 --source include/stop_slave.inc
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -27,7 +27,7 @@ START REPLICA;
 
 # Per channel removal from worker info table proof:
 STOP REPLICA FOR CHANNEL 'ch_b';
-RESET SLAVE FOR CHANNEL 'ch_b';
+RESET REPLICA FOR CHANNEL 'ch_b';
 --let $count=2
 --let $table=mysql.slave_worker_info
 --source include/wait_until_rows_count.inc
@@ -41,7 +41,7 @@ STOP REPLICA FOR CHANNEL 'ch_a';
 ALTER TABLE mysql.slave_worker_info DROP PRIMARY KEY;
 
 --error ER_UNKNOWN_ERROR
-RESET SLAVE ALL FOR CHANNEL 'ch_a';
+RESET REPLICA ALL FOR CHANNEL 'ch_a';
 ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 # now to compensate the above fake with removing the aimed records
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
@@ -49,7 +49,7 @@ STOP REPLICA IO_THREAD;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
---let $assert_text=Two workers are expected to survive the last RESET SLAVE
+--let $assert_text=Two workers are expected to survive the last RESET REPLICA
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_worker_info`
 --source include/assert.inc
 
@@ -76,7 +76,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', S
 START REPLICA;
 
 STOP REPLICA;
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $rpl_skip_stop_slave=1
 --let $rpl_skip_sync = 1

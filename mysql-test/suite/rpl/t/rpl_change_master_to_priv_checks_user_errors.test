@@ -99,7 +99,7 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 #
 CALL mtr.add_suppression(".CREATE command denied to user.");
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 # Set REQUIRE_ROW_FORMAT to 1 in order to be able to freely set
 # PRIVILEGE_CHECKS_USER

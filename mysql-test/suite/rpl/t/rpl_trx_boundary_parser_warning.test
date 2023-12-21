@@ -314,7 +314,7 @@ while ($event_counter <= $expected_amount_of_events)
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
+RESET REPLICA;
 if ($use_gtids)
 {
   --disable_query_log

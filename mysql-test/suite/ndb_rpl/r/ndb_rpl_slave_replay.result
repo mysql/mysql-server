@@ -59,12 +59,12 @@ repeat_err_count
 0
 skipped_err_count
 0
-Now try re-positioning after RESET SLAVE
+Now try re-positioning after RESET REPLICA
 STOP REPLICA;
 RESET REPLICA;
 include/rpl_start_slaves.inc
 Any slave positioning warnings?
-Should be two, e.g. no extras after the RESET SLAVE
+Should be two, e.g. no extras after the RESET REPLICA
 This avoids warnings when slave context has been explicitly reset
 lower_warn_count
 2

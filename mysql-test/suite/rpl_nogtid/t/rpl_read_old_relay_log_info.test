@@ -14,7 +14,7 @@ DROP TABLE t1;
 --echo ==== Check that we still understand the old format of relay-log.info ====
 --source include/stop_slave.inc
 
-RESET SLAVE;
+RESET REPLICA;
 --let $MYSQLD_DATADIR= `select @@datadir`
 
 # the old version of relay_log.info comes in two versions: with path

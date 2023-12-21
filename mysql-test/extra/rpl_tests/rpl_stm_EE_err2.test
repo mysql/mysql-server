@@ -37,7 +37,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 drop table t1;
 --source include/stop_slave.inc
 # Clear error messages.
-RESET SLAVE;
+RESET REPLICA;
 
 # End of 4.1 tests
 

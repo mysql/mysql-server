@@ -48,9 +48,7 @@ Mode switched to single-primary successfully.
 
 # 7. Clean up
 [connection server1]
-RESET SLAVE ALL FOR CHANNEL 'ch3_1';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 [connection server2]
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
 include/group_replication_end.inc

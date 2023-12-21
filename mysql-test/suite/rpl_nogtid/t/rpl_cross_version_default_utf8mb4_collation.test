@@ -32,7 +32,7 @@
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
 # clear slave datadir
-RESET SLAVE;
+RESET REPLICA;
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
 --remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
 
@@ -79,7 +79,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
-RESET SLAVE;
+RESET REPLICA;
 
 --source include/start_slave.inc
 
@@ -90,10 +90,10 @@ RESET SLAVE;
 
 # clean up
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

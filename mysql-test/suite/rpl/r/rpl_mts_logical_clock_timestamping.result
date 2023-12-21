@@ -47,9 +47,7 @@ SET @@session.debug ='-d,feign_commit_parent';
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave_io.inc
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 DROP TABLE t1;

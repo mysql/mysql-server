@@ -45,7 +45,7 @@ call mtr.add_suppression("Failed to initialize the connection metadata structure
 #      is not properly configured and working.
 #  3 - Shows that after fixing the problem the server can be properly
 #      restared.
-#  4 - Shows that trying to fix the problem with START REPLICA, RESET SLAVE may
+#  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
 #      replication.
 #
@@ -89,7 +89,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 --connection slave
 --source include/start_slave.inc
 
-#  4 - Shows that trying to fix the problem with START REPLICA, RESET SLAVE may
+#  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
 #      replication.
 #
@@ -114,14 +114,14 @@ START REPLICA SQL_THREAD;
 --let $_slave_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
 --let $_slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
@@ -139,7 +139,7 @@ RESET SLAVE ALL;
 #      is not properly configured and working.
 #  3 - Shows that after fixing the problem the server can be properly
 #      restared.
-#  4 - Shows that trying to fix the problem with START REPLICA, RESET SLAVE may
+#  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
 #      replication.
 #
@@ -182,7 +182,7 @@ UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 
 --source include/start_slave.inc
 
-#  4 - Shows that trying to fix the problem with START REPLICA, RESET SLAVE may
+#  4 - Shows that trying to fix the problem with START REPLICA, RESET REPLICA may
 #      not work and requires to manually back up positions to restart
 #      replication.
 #
@@ -205,14 +205,14 @@ START REPLICA SQL_THREAD;
 --let $_slave_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
 --let $_slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --replace_column 2 ####
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$_slave_master_host', SOURCE_USER= '$_slave_master_user', SOURCE_PORT= $_slave_master_port, SOURCE_LOG_FILE= '$_slave_master_log_file', SOURCE_LOG_POS= $_slave_master_log_pos

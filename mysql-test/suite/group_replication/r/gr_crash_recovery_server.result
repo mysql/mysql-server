@@ -75,7 +75,7 @@ include/rpl_reconnect.inc
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
 [connection server3]
-RESET SLAVE FOR CHANNEL 'group_replication_recovery';
+RESET REPLICA FOR CHANNEL 'group_replication_recovery';
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 include/rpl_sync.inc

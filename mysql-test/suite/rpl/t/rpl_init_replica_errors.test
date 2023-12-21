@@ -36,7 +36,7 @@ connection slave;
 --disable_warnings
 STOP REPLICA;
 --enable_warnings
-reset slave;
+RESET REPLICA;
 
 ######################################################################
 #           Injecting faults in the threads' initialization
@@ -80,7 +80,7 @@ SET SESSION sql_log_bin= 1;
 ######################################################################
 connection slave;
 
-reset slave;
+RESET REPLICA;
 
 SET GLOBAL init_replica= "garbage";
 
@@ -97,6 +97,6 @@ SET GLOBAL init_replica= "";
 
 # Clean up Last_SQL_Error
 --source include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

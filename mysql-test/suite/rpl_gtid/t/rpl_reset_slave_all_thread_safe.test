@@ -1,13 +1,13 @@
 ################################################################################
 # BUG# reset slave all is not thread-safe
 #
-# RESET SLAVE ALL could delete a channel, even source_pos_wait and
+# RESET REPLICA ALL could delete a channel, even source_pos_wait and
 # wait_until_sql_thread_after_gtid were still waiting for binlog to be applied.
 # It caused server crash when the functions tried to access the channel which
 # had been deleted.
 #
 # A channel reference counter is added. It should be increased if the channel
-# should not be deleted when the code is running. RESET SLAVE ALL will wait
+# should not be deleted when the code is running. RESET REPLICA ALL will wait
 # for no reference and then delete the channel.
 ################################################################################
 --source include/not_group_replication_plugin.inc
@@ -16,12 +16,12 @@
 --source include/master-slave.inc
 
 --echo #
---echo # Case 1: Verify source_pos_wait can block RESET SLAVE ALL
+--echo # Case 1: Verify source_pos_wait can block RESET REPLICA ALL
 --echo #
 
 --source include/rpl_connection_slave.inc
 
-# Just wait immediately after entering the function. RESET SLAVE ALL
+# Just wait immediately after entering the function. RESET REPLICA ALL
 # should be blocked by it.
 SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
 --send SELECT source_pos_wait("master-bin.000001", 10000);

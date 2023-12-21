@@ -138,7 +138,7 @@ SET DEBUG_SYNC='now WAIT_FOR reached_sql_thread_started';
 --reap
 SET SESSION sql_log_bin= 1;
 --source include/stop_slave.inc
-RESET SLAVE FOR CHANNEL 'example_channel';
+RESET REPLICA FOR CHANNEL 'example_channel';
 
 --echo
 --echo #######################
@@ -210,7 +210,7 @@ SET SESSION sql_log_bin= 1;
 
 --source include/rpl_connection_slave.inc
 # Remove the example_channel on the slave
-RESET SLAVE ALL FOR CHANNEL 'example_channel';
+RESET REPLICA ALL FOR CHANNEL 'example_channel';
 # Remove the plug-in on the slave
 --source include/uninstall_replication_observers_example.inc
 

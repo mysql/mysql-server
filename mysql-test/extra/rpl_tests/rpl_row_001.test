@@ -59,7 +59,7 @@ connection slave;
 --let $wait_condition=SELECT COUNT(*)=0 from t1
 --source include/wait_condition_or_abort.inc
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 connection master;
 let $1=5000;

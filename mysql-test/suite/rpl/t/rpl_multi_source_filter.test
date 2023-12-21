@@ -102,7 +102,7 @@
 # CHANNEL <channel_name> throws an error 'ER_REPLICA_CONFIGURATION'
 # if the specified channel is not configured.
 #
-# 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+# 17. Verify that "RESET REPLICA FOR CHANNEL '<channel_name>'" throws an
 # error 'ER_REPLICA_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
 #
 # Note: Out of convention, server 2 is always made a slave for multisource testing.
@@ -513,11 +513,11 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replicati
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbA) FOR CHANNEL '';
 
 --echo #
---echo # 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+--echo # 17. Verify that "RESET REPLICA FOR CHANNEL '<channel_name>'" throws an
 --echo # error 'ER_REPLICA_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
 --echo #
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE FOR CHANNEL 'channel_2';
+RESET REPLICA FOR CHANNEL 'channel_2';
 
 --source include/rpl_start_slaves.inc
 

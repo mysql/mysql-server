@@ -64,7 +64,7 @@ DROP TABLE t2;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 --let $rpl_only_running_threads= 1
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err

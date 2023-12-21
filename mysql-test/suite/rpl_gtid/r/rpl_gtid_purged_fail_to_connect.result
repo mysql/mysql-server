@@ -68,9 +68,7 @@ CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missin
 #
 [connection slave]
 RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 [connection master]
 RESET BINARY LOGS AND GTIDS;
 [connection slave]

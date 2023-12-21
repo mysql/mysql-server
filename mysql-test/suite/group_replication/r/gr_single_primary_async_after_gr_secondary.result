@@ -58,9 +58,7 @@ include/assert.inc [Verify only single table present i.e. t1]
 
 # 8. Clean Up
 [connection server2]
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 [connection server1]
 DROP TABLE test.t1;
 [connection server3]

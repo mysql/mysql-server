@@ -93,7 +93,7 @@ let $CLUSTER1_LOG_POS= `select end_pos from mysql.ndb_apply_status
                           where server_id = $CLUSTER1_SERVER_ID`;
 
 # Avoid warnings about epoch# differences between Cluster 2 and Cluster 1
-reset slave;
+RESET REPLICA;
 
 --let $rpl_topology= 1->2, 1->3
 --let $rpl_master_log_file= 3:$CLUSTER1_LOG_FILE

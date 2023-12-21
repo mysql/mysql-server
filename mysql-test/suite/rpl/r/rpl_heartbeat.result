@@ -35,9 +35,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	0.001
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 set @@global.replica_net_timeout= 5;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 5.001;
 Warnings:
@@ -46,9 +44,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	5.001
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 set @@global.replica_net_timeout= 5;
 Warnings:
 Warning	1704	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
@@ -61,9 +57,7 @@ HEARTBEAT_INTERVAL	4.000
 set @@global.replica_net_timeout= 3 /* must be a warning */;
 Warnings:
 Warning	1704	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
-reset slave;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 [connection master]
 drop table if exists t1;
 [connection slave]
@@ -101,13 +95,11 @@ include/assert.inc [COUNT_RECEIVED_HEARTBEATS should NOT be set to 0]
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION;
 include/start_slave.inc
-include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.]
+include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET REPLICA.]
 include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost', SOURCE_PORT= SOURCE_PORT;
 include/start_slave.inc
@@ -153,10 +145,8 @@ include/assert.inc [heartbeat_interval should reset to default on changing host 
 DROP TABLE IF EXISTS t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-include/assert.inc [heartbeat_interval should reset to zero by RESET SLAVE ALL.]
+RESET REPLICA ALL;
+include/assert.inc [heartbeat_interval should reset to zero by RESET REPLICA ALL.]
 CHANGE REPLICATION SOURCE to SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT, SOURCE_USER= 'root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

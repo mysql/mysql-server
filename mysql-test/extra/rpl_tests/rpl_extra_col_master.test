@@ -448,7 +448,7 @@ connection master;
 --echo * Expect: Proper error message         *
 --echo ****************************************
 --echo
---echo ** Stop and Reset Slave **
+--echo ** Stop and Reset Replica **
 --echo
 STOP REPLICA;
 --echo
