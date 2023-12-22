@@ -5,10 +5,27 @@
 # Don't run in asan builds
 --source include/not_asan.inc
 --source include/have_ndb.inc
+
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
 --let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
+
+# Check there is no --RequireTls=On, it will happen when running for example
+# ./mtr --defaults-extra-file=suite/ndb/secure.cnf
+let $find_defaults_option=RequireTls;
+let $find_defaults_value=(On|True|1);
+let $find_defaults_groups=cluster_config;
+let $find_defaults_group_suffix=.1;
+source include/find_defaults.inc;
+if ($find_defaults_status == 0) {
+  # RequireTls is on for cluster_config.1. Provide TLS configuraion for
+  # clusterj too.
+  --append_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
+com.mysql.clusterj.tls.path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+com.mysql.clusterj.tls.strict=1
+EOF
+}
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
