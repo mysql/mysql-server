@@ -22283,7 +22283,8 @@ static void test_bug32915973() {
   rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
   check_execute(stmt, rc);
 
-  rc = mysql_stmt_bind_named_param(stmt, bind, std::size(bind), nullptr);
+  // only one bind parameter used (single ? placeholder)
+  rc = mysql_stmt_bind_named_param(stmt, bind, 1, nullptr);
   check_execute(stmt, rc);
 
   rc = mysql_stmt_execute(stmt);
