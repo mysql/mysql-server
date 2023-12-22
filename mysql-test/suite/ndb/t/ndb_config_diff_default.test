@@ -8,7 +8,8 @@ enable_query_log;
 let $VARDIR_REGEX = `select concat('/', replace(@vardir, '/', '.'), '/MYSQLTEST_VARDIR/')`;
 let $SHMKEY2_REGEX = /ShmKey,[0-9]+[GMK]?,/ShmKey,<SHM-KEY>,/;
 let $MGMPORT_VARDIR_REGEX = $MGMPORT_REGEX $VARDIR_REGEX;
-let $MGM_DYN_PORT_SHMKEY2_REGEX = $MGMPORT_REGEX $DYNPORT_REGEX $SHMKEY2_REGEX;
+let $LINKTLS_REGEX = /RequireLinkTls,1,false\n//;
+let $CONNECTIONS_REGEX = $MGMPORT_REGEX $DYNPORT_REGEX $SHMKEY2_REGEX $LINKTLS_REGEX;
 
 echo;
 echo exec NDB_CONFIG --rows="\n" --system --diff-default;
@@ -22,5 +23,5 @@ exec $NDB_CONFIG --rows="\n" --nodes --type=MGM --diff-default;
 
 echo;
 echo exec NDB_CONFIG --rows="\n" --connections --diff-default;
-replace_regex $MGM_DYN_PORT_SHMKEY2_REGEX;
+replace_regex $CONNECTIONS_REGEX;
 exec $NDB_CONFIG --rows="\n" --connections --diff-default;

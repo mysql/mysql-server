@@ -1,0 +1,5 @@
+[cluster_config]
+RequireTls=On
+
+[mysql_cluster]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
