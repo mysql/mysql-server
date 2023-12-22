@@ -1,6 +1,17 @@
 --source include/have_ndb.inc
 --source suite/ndb_tls/include/check_openssl.inc
 
+# Check there is no --ndb-tls-search-path option for ndb_sign_keys, will happen
+# when running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
+let $find_defaults_option=ndb-tls-search-path;
+let $find_defaults_value=.MYSQLTEST_VARDIR/std_data/ndb-tls/active;
+let $find_defaults_groups=mysql_cluster ndb_sign_keys;
+source include/find_defaults.inc;
+if ($find_defaults_status == 0) {
+  skip TLS is configured for ndb_sign_keys;
+}
+
+
 # The MySQL server is up
 SELECT 1;
 

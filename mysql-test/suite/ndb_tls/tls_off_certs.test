@@ -1,6 +1,16 @@
 --source include/have_ndb.inc
 --source suite/ndb_tls/include/check_openssl.inc
 
+# Check there is no --RequireTls=On for ndbd, will happen
+# when running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
+let $find_defaults_option=RequireTls;
+let $find_defaults_value=(On|True|1);
+let $find_defaults_groups=cluster_config;
+source include/find_defaults.inc;
+if ($find_defaults_status == 0) {
+  skip TLS should not be required for ndbd;
+}
+
 # Data node certs exist and are visible in ndbinfo
 
 # Expect 3 node certificates, for DB, DB, and MGM.
