@@ -9421,9 +9421,8 @@ static void wait_stacktrace_collector_event() {
       }
       break;
     default:
-      die("Unexpected result %lu from WaitForSingleObject() in " __FUNCTION__
-          "().",
-          wait_res);
+      die("Unexpected result %lu from WaitForSingleObject() in %s().", wait_res,
+          __FUNCTION__);
       break;
   }
 
