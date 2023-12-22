@@ -494,8 +494,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.19.4
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.19.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 %endif # add_fido_plugins

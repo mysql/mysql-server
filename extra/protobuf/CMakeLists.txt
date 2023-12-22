@@ -20,10 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# The files in protobuf-3.19.4/ are almost unmodified versions of google
-# source files taken from protobuf-cpp-3.19.4.tar.gz archive.
+# The files in protobuf-24.4/ are almost unmodified versions of google
+# source files taken from protobuf-cpp-24.4.tar.gz archive.
 
-# libprotobuf-lite.so.3.19.4: cannot allocate memory in static TLS block
+# libprotobuf-lite.so.24.4: cannot allocate memory in static TLS block
 IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   STRING(REPLACE
     "-ftls-model=initial-exec" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -32,15 +32,48 @@ ENDIF()
 # Xcode >= 14 makes noise about sprintf, so silence:
 IF(APPLE)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-shorten-64-to-32")
 ENDIF()
 
 # Inhibit warning messages
 IF(MSVC AND NOT WIN32_CLANG)
   # no suitable definition provided for explicit template instantiation
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4661")
+  # 'inline' used more than once
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4141")
+  # unsafe mix of type 'bool' and type 'uint64_t
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4805")
+  # signed/unsigned mismatch
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4018")
 ELSE()
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-sign-compare")
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wzero-as-null-pointer-constant" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  # For WIN32_CLANG, replace it, since we do not use ICU_LINUX_COMPILE_OPTIONS.
+  STRING(REPLACE "-Wzero-as-null-pointer-constant" ""
+    CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-lambda-capture" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+# always_inline function might not be inlinable
+MY_CHECK_CXX_COMPILER_WARNING("-Wattributes" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+# implicit capture of this via [=] is deprecated in C++20
+# src/google/protobuf/map.cc
+MY_CHECK_CXX_COMPILER_WARNING("-Wdeprecated" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
@@ -89,13 +122,19 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wchar-subscripts" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 SET(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
 SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 
 # protoc hangs in __static_initialization_and_destruction_0
 # Look for: Force running AddDescriptors() at dynamic initialization time.
 # Hangs at src/google/protobuf/compiler/plugin.pb.cc:193
-IF(SOLARIS)
+# cmake/abseil-cpp.cmake assumes abseil is also a .dll
+IF(SOLARIS OR WIN32)
   SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 ELSE()
   # With static C/C++ libraries, protoc with shared libs will segfault,
@@ -110,4 +149,4 @@ ENDIF()
 SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
 SET(protobuf_WITH_ZLIB ON CACHE INTERNAL "")
 SET(ZLIB_LIBRARIES ext::zlib)
-ADD_SUBDIRECTORY(protobuf-3.19.4/cmake)
+ADD_SUBDIRECTORY(protobuf-24.4)

@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/protobuf.cmake)
+MY_CHECK_CXX_COMPILER_WARNING("-Wchar-subscripts" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
-SET(PROTOBUF_LITE_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite")
-FILE(MAKE_DIRECTORY ${PROTOBUF_LITE_GENERATE_DIR})
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-lambda-capture" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
-SET(MY_PROTOBUF_PROTO_FILES
-  "${CMAKE_CURRENT_SOURCE_DIR}/replication_asynchronous_connection_failover.proto"
-)
+MY_CHECK_CXX_COMPILER_WARNING("-Wzero-as-null-pointer-constant" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
-MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY(
-  rpl_protobuf_lite
-  ${MY_PROTOBUF_PROTO_FILES}
-  OUTPUT_DIRECTORY ${PROTOBUF_LITE_GENERATE_DIR}
-  ADDITIONAL_COMMENT "- lite version")
+IF(FREEBSD)
+  # Missing posix_memalign()
+  ADD_DEFINITIONS(-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION)
+ENDIF()
 
-SET(RPL_PROTOBUF_LITE_LIB rpl_protobuf_lite PARENT_SCOPE)
+SET(ABSL_PROPAGATE_CXX_STD ON)
+ADD_SUBDIRECTORY(abseil-cpp-20230802.1)

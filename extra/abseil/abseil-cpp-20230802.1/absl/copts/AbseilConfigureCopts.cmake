@@ -1,5 +1,6 @@
 # See absl/copts/copts.py and absl/copts/generate_copts.py
-include(GENERATED_AbseilCopts)
+# Disable abseil maintainer mode flags.
+# include(GENERATED_AbseilCopts)
 
 set(ABSL_DEFAULT_LINKOPTS "")
 

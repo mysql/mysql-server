@@ -83,6 +83,7 @@ FUNCTION(add_harness_plugin NAME)
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
   ADD_LIBRARY(${NAME} SHARED ${_option_SOURCES})
+  TARGET_COMPILE_FEATURES(${NAME} PUBLIC cxx_std_17)
 
   # add plugin to build-all target
   ADD_DEPENDENCIES(mysqlrouter_all ${NAME})

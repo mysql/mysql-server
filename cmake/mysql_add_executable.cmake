@@ -118,6 +118,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   ADD_VERSION_INFO(${target} EXECUTABLE sources)
 
   ADD_EXECUTABLE(${target} ${sources})
+  TARGET_COMPILE_FEATURES(${target} PUBLIC cxx_std_17)
 
   SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 

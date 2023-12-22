@@ -36,6 +36,7 @@ ADD_LIBRARY(metadata_cache
   gr_notifications_listener.cc
   router_cs_options.cc
 )
+TARGET_COMPILE_FEATURES(metadata_cache PUBLIC cxx_std_17)
 TARGET_LINK_LIBRARIES(metadata_cache
   PUBLIC
   harness_stdx
