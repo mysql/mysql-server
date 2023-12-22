@@ -29,6 +29,7 @@
 STATICLIB_FROM_TARGET(metadata_cache_export_all metadata_cache)
 TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
   PUBLIC METADATA_CACHE_STATIC_DEFINE=1)
+TARGET_COMPILE_FEATURES(metadata_cache_export_all PUBLIC cxx_std_20)
 
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file

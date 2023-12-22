@@ -157,7 +157,7 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
 
   IF(WIN32)
     # Activate necessary dllexport/dllimport declarations.
-    ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
+    # ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
   ENDIF()
 
   DISABLE_MISSING_PROFILE_WARNING()
@@ -185,6 +185,7 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
     SET_TARGET_PROPERTIES(gr_unit_test_resource
       PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
       )
+    TARGET_COMPILE_FEATURES(gr_unit_test_resource PUBLIC cxx_std_20)
     TARGET_LINK_LIBRARIES(gr_unit_test_resource extra::rapidjson)
     TARGET_LINK_LIBRARIES(gr_unit_test_resource ext::zlib)
     TARGET_LINK_LIBRARIES(gr_unit_test_resource ext::libprotobuf-lite)

@@ -33,7 +33,9 @@ function(protobuf_configure_target target)
     target_compile_features("${target}" PUBLIC cxx_std_14)
     if (MSVC)
         # Build with multiple processes
-        target_compile_options("${target}" PRIVATE /MP)
+        if (NOT WIN32_CLANG)
+          target_compile_options("${target}" PRIVATE /MP)
+        endif()
         # Set source file and execution character sets to UTF-8
         target_compile_options("${target}" PRIVATE /utf-8)
         # MSVC warning suppressions

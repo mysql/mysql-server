@@ -16,7 +16,7 @@
 
 # https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md
 # As of 2022-09-06, CMake 3.10 is the minimum supported version.
-cmake_minimum_required(VERSION 3.10)
+## cmake_minimum_required(VERSION 3.10)
 
 # Compiler id for Apple Clang is now AppleClang.
 if (POLICY CMP0025)

@@ -37,6 +37,7 @@ ADD_LIBRARY(metadata_cache
   log_suppressor.cc
   router_options.cc
 )
+TARGET_COMPILE_FEATURES(metadata_cache PUBLIC cxx_std_20)
 TARGET_LINK_LIBRARIES(metadata_cache
   PUBLIC
   harness_stdx

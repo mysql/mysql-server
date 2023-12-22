@@ -53,6 +53,11 @@ ADD_STATIC_LIBRARY(xpl_test_src ${XPL_TEST_SRC}
   DEPENDENCIES mysqlx
   LINK_LIBRARIES ext::zlib ext::lz4 ext::zstd extra::rapidjson ext::icu)
 
+IF(WITH_PROTOBUF STREQUAL "bundled")
+  TARGET_INCLUDE_DIRECTORIES(xpl_test_src SYSTEM BEFORE PUBLIC
+    "${BUNDLED_ABSEIL_SRCDIR}")
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ../test_main.cc
   LINK_LIBRARIES xpl_test_src

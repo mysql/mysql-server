@@ -53,8 +53,8 @@ usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
 usr/share/man/man8/mysqld.8
 # private shared libraries
-usr/lib/mysql/private/libprotobuf-lite.so.3.19.4
-usr/lib/mysql/private/libprotobuf.so.3.19.4
+usr/lib/mysql/private/libprotobuf-lite.so.24.4.0
+usr/lib/mysql/private/libprotobuf.so.24.4.0
 # private data files
 usr/lib/mysql/private/icudt73l/cnvalias.icu
 usr/lib/mysql/private/icudt73l/uemoji.icu

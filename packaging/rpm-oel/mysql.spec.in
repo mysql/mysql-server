@@ -1146,8 +1146,8 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.19.4
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.19.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
 %if 0%{?commercial}
 %ifarch x86_64
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
@@ -1851,7 +1851,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
-%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.19.4
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.24.4.0
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so

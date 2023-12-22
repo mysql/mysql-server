@@ -187,6 +187,11 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   # Generate it only if needed by other targets
   SET_PROPERTY(TARGET ${TARGET_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+  IF(WITH_PROTOBUF STREQUAL "bundled")
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_NAME} SYSTEM BEFORE PUBLIC
+      "${BUNDLED_ABSEIL_SRCDIR}")
+  ENDIF()
+
   # Run protoc to generate .pb.h and .pb.cc files, for clang-tidy.
   IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
     # New in version 3.19:
@@ -244,6 +249,12 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
 
       # Silence warnings about: needs to have dll-interface
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4251")
+      # not all control paths return a value
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4715")
+      # <expression> is never evaluated and might have side effects
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd6286")
+      # __declspec(dllimport): ignored on left of ...  VS16 only
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4091")
     ENDIF()
   ENDIF(MSVC)
 
