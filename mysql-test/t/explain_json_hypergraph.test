@@ -227,3 +227,59 @@ EXPLAIN FORMAT=JSON INSERT INTO t VALUES (4), (5), (6);
 EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36134568 Add query type to iterator-based EXPLAIN FORMAT=JSON
+--echo #
+
+CREATE TABLE t1 (i1 INT PRIMARY KEY, i2 INT);
+CREATE TABLE t2 (i3 INT, i4 INT);
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+INSERT INTO t2 SELECT i2, i1 FROM t1;
+ANALYZE TABLE t1, t2;
+
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 REPLACE t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'replace';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 DELETE FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+
+SET @v1 = NULL;
+
+EXPLAIN FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+
+DROP TABLE t1, t2;
+SET @v1=NULL;

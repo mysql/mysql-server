@@ -85,6 +85,7 @@ SELECT @v1, JSON_VALID(@v1);
   ],
   "join_type": "inner join",
   "operation": "Nested loop inner join",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 0.30000000447034836,
   "join_algorithm": "nested_loop",

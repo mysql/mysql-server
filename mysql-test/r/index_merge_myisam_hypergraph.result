@@ -1089,6 +1089,7 @@ EXPLAIN
   ],
   "condition": "(((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))",
   "operation": "Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))",
+  "query_type": "select",
   "access_type": "filter",
   "estimated_rows": "#",
   "estimated_total_cost": "#",

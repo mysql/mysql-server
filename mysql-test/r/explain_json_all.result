@@ -8896,6 +8896,7 @@ EXPLAIN
     }
   ],
   "operation": "Limit: 1 row(s)",
+  "query_type": "select",
   "access_type": "limit",
   "limit_offset": 0,
   "estimated_rows": 1.0,
@@ -8951,5 +8952,65 @@ SELECT @@explain_json_format_version;
 DROP PROCEDURE p;
 DROP TABLE t;
 SET @@end_markers_in_json=ON;
+SET @@explain_json_format_version = @saved_json_format_version;
+#
+# Bug#36134568 Add query type to iterator-based EXPLAIN FORMAT=JSON
+#
+SET @saved_json_format_version = @@explain_json_format_version;
+SET @@explain_json_format_version = 2;
+CREATE TABLE t1 (i1 INT PRIMARY KEY, i2 INT);
+CREATE TABLE t2 (i3 INT, i4 INT);
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+INSERT INTO t2 SELECT i2, i1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+JSON_EXTRACT(@v1, '$.query_type') = 'select'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+JSON_EXTRACT(@v1, '$.query_type') = 'select'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+JSON_EXTRACT(@v1, '$.query_type') = 'insert'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+JSON_EXTRACT(@v1, '$.query_type') = 'insert'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+JSON_EXTRACT(@v1, '$.query_type') = 'update'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 REPLACE t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'replace';
+JSON_EXTRACT(@v1, '$.query_type') = 'replace'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 DELETE FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+JSON_EXTRACT(@v1, '$.query_type') = 'delete'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+JSON_EXTRACT(@v1, '$.query_type') = 'update'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+JSON_EXTRACT(@v1, '$.query_type') = 'delete'
+1
+DROP TABLE t1, t2;
+SET @v1=NULL;
 SET @@explain_json_format_version = @saved_json_format_version;
 set optimizer_switch=default;

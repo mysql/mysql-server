@@ -77,6 +77,7 @@ EXPLAIN
   ],
   "condition": "(t1.f1 = (select #2))",
   "operation": "Filter: (t1.f1 = (select #2))",
+  "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 1.0,
   "estimated_total_cost": 2.4999699950218206,
@@ -139,6 +140,7 @@ EXPLAIN
   ],
   "condition": "(t1.f1 > (select #2))",
   "operation": "Filter: (t1.f1 > (select #2))",
+  "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 0.9998999834060669,
   "estimated_total_cost": 0.6333333333333333,
@@ -168,6 +170,7 @@ EXPLAIN
   "covering": false,
   "operation": "Index range scan on t1 using PRIMARY over (2 < a)",
   "index_name": "PRIMARY",
+  "query_type": "select",
   "table_name": "t1",
   "access_type": "index",
   "schema_name": "test",
@@ -252,6 +255,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Nested loop inner join",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 2.0,
   "join_algorithm": "nested_loop",
@@ -330,6 +334,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Nested loop inner join",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 0.6665999889373779,
   "join_algorithm": "nested_loop",
@@ -454,6 +459,7 @@ EXPLAIN
   "group_by": true,
   "functions": [],
   "operation": "Group (no aggregates)",
+  "query_type": "select",
   "access_type": "aggregate",
   "estimated_rows": 1.9504787306608202,
   "estimated_total_cost": 2.2666726321531416,
@@ -511,6 +517,7 @@ EXPLAIN
   ],
   "condition": "(e.`ENGINE` = 'MyISAM')",
   "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
+  "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
   "estimated_total_cost": 115.0,
@@ -619,6 +626,7 @@ EXPLAIN
   ],
   "condition": "(dt.f1 > 2)",
   "operation": "Filter: (dt.f1 > 2)",
+  "query_type": "select",
   "access_type": "filter",
   "estimated_rows": 0.8164149177207436,
   "estimated_total_cost": 4.559846922834953,
@@ -697,6 +705,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Nested loop inner join",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 1.110888863128281,
   "join_algorithm": "nested_loop",
@@ -807,6 +816,7 @@ EXPLAIN
     }
   ],
   "operation": "Sort: t1.b",
+  "query_type": "select",
   "access_type": "sort",
   "sort_fields": [
     "t1.b"
@@ -860,6 +870,7 @@ EXPLAIN
   ],
   "join_type": "left join",
   "operation": "Nested loop left join",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 4.0,
   "join_algorithm": "nested_loop",
@@ -976,6 +987,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Inner hash join (x2.a = (select #2))",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 1.0,
   "hash_condition": [
@@ -1078,6 +1090,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Inner hash join (no condition), extra conditions: (x2.a < (select #2))",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 1.0,
   "hash_condition": [],
@@ -1160,6 +1173,7 @@ EXPLAIN
     "last_value(`(select #2)`) OVER (PARTITION BY x1.b ) "
   ],
   "operation": "Window aggregate with buffering: last_value(`(select #2)`) OVER (PARTITION BY x1.b ) ",
+  "query_type": "select",
   "access_type": "window",
   "estimated_rows": 1.0,
   "estimated_total_cost": 0.44999999999999996,
@@ -1188,6 +1202,7 @@ EXPLAIN
     }
   ],
   "operation": "Insert into t",
+  "query_type": "insert",
   "table_name": "t",
   "access_type": "insert_values",
   "schema_name": "test",
@@ -1206,6 +1221,7 @@ EXPLAIN
     }
   ],
   "operation": "Replace into t",
+  "query_type": "replace",
   "table_name": "t",
   "access_type": "replace_values",
   "schema_name": "test",
@@ -1214,3 +1230,60 @@ EXPLAIN
   ]
 }
 DROP TABLE t;
+#
+# Bug#36134568 Add query type to iterator-based EXPLAIN FORMAT=JSON
+#
+CREATE TABLE t1 (i1 INT PRIMARY KEY, i2 INT);
+CREATE TABLE t2 (i3 INT, i4 INT);
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+INSERT INTO t2 SELECT i2, i1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+JSON_EXTRACT(@v1, '$.query_type') = 'select'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'select';
+JSON_EXTRACT(@v1, '$.query_type') = 'select'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+JSON_EXTRACT(@v1, '$.query_type') = 'insert'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'insert';
+JSON_EXTRACT(@v1, '$.query_type') = 'insert'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+JSON_EXTRACT(@v1, '$.query_type') = 'update'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 REPLACE t1 SELECT * FROM t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'replace';
+JSON_EXTRACT(@v1, '$.query_type') = 'replace'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 DELETE FROM t1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+JSON_EXTRACT(@v1, '$.query_type') = 'delete'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'update';
+JSON_EXTRACT(@v1, '$.query_type') = 'update'
+1
+SET @v1 = NULL;
+EXPLAIN FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
+SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
+JSON_EXTRACT(@v1, '$.query_type') = 'delete'
+1
+DROP TABLE t1, t2;
+SET @v1=NULL;

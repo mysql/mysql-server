@@ -12,6 +12,7 @@ EXPLAIN
 {
   "query": "/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`",
   "operation": "Table scan on t1",
+  "query_type": "select",
   "table_name": "t1",
   "access_type": "table",
   "schema_name": "test",
@@ -68,6 +69,7 @@ EXPLAIN
   ],
   "join_type": "inner join",
   "operation": "Inner hash join (t1.a = t2.a)",
+  "query_type": "select",
   "access_type": "join",
   "estimated_rows": 0.10000000149011612,
   "hash_condition": [

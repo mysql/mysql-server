@@ -56,6 +56,7 @@ EXPLAIN
 {
   "query": "/* select#1 */ select 1 AS `1`",
   "operation": "Rows fetched before execution",
+  "query_type": "select",
   "access_type": "rows_fetched_before_execution",
   "estimated_rows": 1.0,
   "estimated_total_cost": 0.0,
@@ -71,6 +72,7 @@ EXPLAIN
 {
   "query": "/* select#1 */ select 1 AS `1`",
   "operation": "Rows fetched before execution",
+  "query_type": "select",
   "access_type": "rows_fetched_before_execution",
   "estimated_rows": 1.0,
   "estimated_total_cost": 0.0,
@@ -86,6 +88,7 @@ EXPLAIN
 {
   "query": "/* select#1 */ select 1 AS `1`",
   "operation": "Rows fetched before execution",
+  "query_type": "select",
   "access_type": "rows_fetched_before_execution",
   "estimated_rows": 1.0,
   "estimated_total_cost": 0.0,

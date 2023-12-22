@@ -846,6 +846,7 @@ static unique_ptr<Json_object> ExplainQueryPlan(
     bool is_root_of_join) {
   string dml_desc;
   string access_type;
+  string query_type;
   unique_ptr<Json_object> obj = nullptr;
 
   /* Create a Json object for the SELECT path */
@@ -863,6 +864,7 @@ static unique_ptr<Json_object> ExplainQueryPlan(
         access_type = "insert_values";
         [[fallthrough]];
       case SQLCOM_INSERT_SELECT:
+        query_type = "insert";
         dml_desc = string("Insert into ") +
                    query_plan->get_lex()->insert_table_leaf->table->alias;
         break;
@@ -870,11 +872,23 @@ static unique_ptr<Json_object> ExplainQueryPlan(
         access_type = "replace_values";
         [[fallthrough]];
       case SQLCOM_REPLACE_SELECT:
+        query_type = "replace";
         dml_desc = string("Replace into ") +
                    query_plan->get_lex()->insert_table_leaf->table->alias;
         break;
+      case SQLCOM_SELECT:
+        query_type = "select";
+        break;
+      case SQLCOM_UPDATE:
+      case SQLCOM_UPDATE_MULTI:
+        query_type = "update";
+        break;
+      case SQLCOM_DELETE:
+      case SQLCOM_DELETE_MULTI:
+        query_type = "delete";
+        break;
       default:
-        // SELECTs have no top-level node.
+        assert(false);
         break;
     }
   }
@@ -902,6 +916,10 @@ static unique_ptr<Json_object> ExplainQueryPlan(
       return nullptr;
     }
     obj = std::move(dml_obj);
+  }
+
+  if (!query_type.empty()) {
+    AddMemberToObject<Json_string>(obj, "query_type", query_type);
   }
 
   return obj;
