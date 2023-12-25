@@ -886,6 +886,8 @@ MySQL clients support the protocol:
 #include "violite.h"
 
 #include "state/allocator/region_allocator.h"
+#include "state/rdma_connection/meta_manager.h"
+#include "state/coroutine_scheduler/coroutine_scheduler.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -2673,6 +2675,10 @@ static void clean_up(bool print_message) {
   mysql_client_plugin_deinit();
 
   Global_THD_manager::destroy_instance();
+  /* @StateReplicate: clean up MetaManager instance and RDMARegionAllocator instance
+  */
+  MetaManager::destroy_instance();
+  RDMARegionAllocator::destroy_instance();
 
   my_free(const_cast<char *>(log_bin_basename));
   my_free(const_cast<char *>(log_bin_index));
@@ -11159,10 +11165,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   /* @StateReplicate: init global resource manager used for RDMA operations
       the life cycle of global_meta_mgr and global RDMARegionAllocator is the same as Global_THD_manager
   */
-  MetaManager* global_meta_mgr = new MetaManager();
+  // MetaManager* global_meta_mgr = new MetaManager();
+  if(MetaManager::create_instance()) {
+    return 1;
+  }
+  
   // There is global MetaManager to manager meta_info for states in remote StateNode
   // we assume that the thread count is the same as the max_connections/max_threads in MySQL
-  if(RDMARegionAllocator::create_instance(global_meta_mgr, Connection_handler_manager::get_instance()->max_threads)) {
+  if(RDMARegionAllocator::create_instance(MetaManager::get_instance(), Connection_handler_manager::get_instance()->max_threads)) {
     // LogErr(ERROR_LEVEL, ER_RDMA_ALLOCATE_OOM);
     return 1;
   }

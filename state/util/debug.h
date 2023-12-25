@@ -18,11 +18,7 @@ using namespace rdmaio;
 
 #define ASSERT(condition)     \
   if (unlikely(!(condition))) \
-  ::rdmaio::MessageLogger((char*)__FILE__, __LINE__, ::rdmaio::FATAL + 1).stream() << "Assertion! "
-
-#define TLOG(n, tid)       \
-  if (n >= RDMA_LOG_LEVEL) \
-  LogicalThreadLogger((char*)__FILE__, __LINE__, n, tid).stream()
+  ::rdmaio::MessageLogger((char*)__FILE__, __LINE__, ::rdmaio::RDMA_LOG_FATAL + 1).stream() << "Assertion! "
 
 // Use the logical thread ID
 class LogicalThreadLogger {
@@ -40,7 +36,7 @@ class LogicalThreadLogger {
       fout.open(log_file_name, std::ios::app);
       fout << stream_.str() << std::endl;
       fout.close();
-      if (level_ >= ::rdmaio::FATAL)
+      if (level_ >= ::rdmaio::RDMA_LOG_FATAL)
         abort();
     }
   }
@@ -84,7 +80,7 @@ class PhysicalThreadLogger {
       fout.open(log_file_name, std::ios::app);
       fout << stream_.str() << std::endl;
       fout.close();
-      if (level_ >= ::rdmaio::FATAL)
+      if (level_ >= ::rdmaio::RDMA_LOG_FATAL)
         abort();
     }
   }

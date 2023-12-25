@@ -12,7 +12,7 @@ using coro_id_t = int;          // Coroutine id type
 using t_id_t = uint32_t;        // thread id type
 using node_id_t = int;          // Node id type
 using offset_t = int64_t;       // offset type, used for remote offset in RDMA
-using latch_t = uint64_t;       // latch that has to be modified by RDMA atomic operation, must be 64bit
+using rwlatch_t = uint64_t;       // latch that has to be modified by RDMA atomic operation, must be 64bit
 
 // memory region ids for various state
 const mr_id_t STATE_TXN_LIST_ID = 97;

@@ -1,7 +1,3 @@
-// Author: Ming Zhang
-// Adapted from mica
-// Copyright (c) 2022
-
 #pragma once
 
 #include <cinttypes>
@@ -24,10 +20,10 @@
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #pragma GCC diagnostic ignored "-Winline"
 
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include "extra/rapidjson/include/rapidjson/document.h"
+#include "extra/rapidjson/include/rapidjson/error/en.h"
+#include "extra/rapidjson/include/rapidjson/stringbuffer.h"
+#include "extra/rapidjson/include/rapidjson/writer.h"
 
 #pragma GCC diagnostic pop
 

@@ -1465,19 +1465,19 @@ static void trx_start_low(
     MetaManager* meta_mgr = MetaManager::get_instance();
 
     char* bitmap_latch_buf = thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-    *(latch_t*)bitmap_latch_buf = BITMAP_LOCKED;
+    *(rwlatch_t*)bitmap_latch_buf = BITMAP_LOCKED;
     
     // get latch for txn_list_bitmap
-    while(*(latch_t*)bitmap_latch_buf != BITMAP_UNLOCKED) {
-      if(!thd->coro_sched->RDMACASSync(0, qp, bitmap_latch_buf, meta_mgr->GetTxnListLatchAddr(), BITMAP_UNLOCKED, BITMAP_LOCKED)){
+    while(*(rwlatch_t*)bitmap_latch_buf != BITMAP_UNLOCKED) {
+      if(!thd->coro_sched->RDMACASSync(0, qp, bitmap_latch_buf, meta_mgr->GetTxnListLatchAddr(), (uint64_t)BITMAP_UNLOCKED, (uint64_t)BITMAP_LOCKED)){
         return;
       }
     }
 
     // read txn_list_bitmap
     size_t txn_bitmap_size = meta_mgr->GetTxnBitmapSize();
-    char* txn_list_bitmap = thd->rdma_buffer_allocator->Alloc(txn_bitmap_size);
-    if(!thd->coro_sched->RDMAReadSync(0, qp, txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)){
+    unsigned char* txn_list_bitmap = (unsigned char*)thd->rdma_buffer_allocator->Alloc(txn_bitmap_size);
+    if(!thd->coro_sched->RDMAReadSync(0, qp, (char*)txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)){
       return;
     }
     
@@ -1488,14 +1488,14 @@ static void trx_start_low(
     SetBitToUsed(txn_list_bitmap, free_index);
 
     // write modified bitmap and release latch
-    if(!thd->coro_sched->RDMAWriteSync(0, qp, txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)) {
+    if(!thd->coro_sched->RDMAWriteSync(0, qp, (char*)txn_list_bitmap, meta_mgr->GetTxnListBitmapAddr(), txn_bitmap_size)) {
       return;
     }
     if(!thd->coro_sched->RDMACASSync(0, qp, bitmap_latch_buf, meta_mgr->GetTxnListLatchAddr(), BITMAP_LOCKED, BITMAP_UNLOCKED)) {
       return;
     }
     // this CAS must succeed, because only one thread can obtain the authority
-    assert(*(latch_t*)bitmap_latch_buf == BITMAP_LOCKED);
+    assert(*(rwlatch_t*)bitmap_latch_buf == BITMAP_LOCKED);
 
     // write txn into state node
     TxnItem* txn_item_buf = (TxnItem*)thd->rdma_buffer_allocator->Alloc(sizeof(TxnItem));

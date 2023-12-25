@@ -946,7 +946,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
   if (relaylog_file_reader.open(filename)) {
     LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR,
            relaylog_file_reader.get_error_str());
-    return ERROR;
+    return enum_read_rotate_from_relay_log_status::ERROR;
   }
 
   Log_event *ev = nullptr;
@@ -980,7 +980,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
         break;
       default:
         LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_SOURCE);
-        ret = ERROR;
+        ret = enum_read_rotate_from_relay_log_status::ERROR;
         done = true;
         break;
     }
@@ -988,7 +988,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
   }
   if (relaylog_file_reader.has_fatal_error()) {
     LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR_READ_RELAY_LOG, -1);
-    return ERROR;
+    return enum_read_rotate_from_relay_log_status::ERROR;
   }
   return ret;
 }
@@ -1031,7 +1031,7 @@ static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
        pos = rli->relay_log.find_next_log(&linfo, true)) {
     switch (read_rotate_from_relay_log(linfo.log_file_name, master_log_file,
                                        &master_log_pos)) {
-      case ERROR:
+      case enum_read_rotate_from_relay_log_status::ERROR:
         error = 1;
         break;
       case FOUND_ROTATE:

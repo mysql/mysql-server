@@ -25,7 +25,7 @@ class Memory {
                                                                  len(len),
                                                                  mr(ibv_reg_mr(pd, const_cast<void*>(static_cast<const void*>(addr)), len, flag)) {
     if (mr == nullptr) {
-      RDMA_LOG(WARNING) << "failed to register local_mr, for addr " << addr << "; len " << len;
+      RDMA_LOG(RDMA_LOG_WARNING) << "failed to register local_mr, for addr " << addr << "; len " << len;
     } else {
       rattr.buf = (uintptr_t) addr;
       rattr.key = mr->rkey;
@@ -35,7 +35,7 @@ class Memory {
   ~Memory() {
     if (mr != nullptr) {
       int rc = ibv_dereg_mr(mr);
-      RDMA_LOG_IF(rdma_loglevel::ERROR, rc != 0) << "dereg local_mr error: " << strerror(errno);
+      RDMA_LOG_IF(rdma_loglevel::RDMA_LOG_ERROR, rc != 0) << "dereg local_mr error: " << strerror(errno);
     }
   }
 

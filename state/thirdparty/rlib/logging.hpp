@@ -29,20 +29,20 @@ namespace rdmaio {
  */
 
 enum rdma_loglevel {
-  NONE = 7,
-  FATAL = 6,
-  ERROR = 5,
-  WARNING = 4,
-  EMPH = 3,
-  INFO = 2,
-  DBG = 1,
-  EVERYTHING = 0
+  RDMA_LOG_NONE = 7,
+  RDMA_LOG_FATAL = 6,
+  RDMA_LOG_ERROR = 5,
+  RDMA_LOG_WARNING = 4,
+  RDMA_LOG_EMPH = 3,
+  RDMA_LOG_INFO = 2,
+  RDMA_LOG_DBG = 1,
+  RDMA_LOG_EVERYTHING = 0
 };
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 #ifndef RDMA_LOG_LEVEL
-#define RDMA_LOG_LEVEL ::rdmaio::DBG
+#define RDMA_LOG_LEVEL ::rdmaio::RDMA_LOG_DBG
 #endif
 
 // logging macro definiations
@@ -72,7 +72,7 @@ enum rdma_loglevel {
 
 #define RDMA_ASSERT(condition) \
   if (unlikely(!(condition)))  \
-  ::rdmaio::MessageLogger((const char *)__FILE__, __LINE__, ::rdmaio::FATAL + 1).stream() << "Assertion! "
+  ::rdmaio::MessageLogger((const char *)__FILE__, __LINE__, ::rdmaio::RDMA_LOG_FATAL + 1).stream() << "Assertion! "
 
 #define RDMA_VERIFY(n, condition) RDMA_LOG_IF(n, (!(condition)))
 
@@ -89,7 +89,7 @@ class MessageLogger {
       stream_ << "\n";
       std::cout << "\033[" << RDMA_DEBUG_LEVEL_COLOR[std::min(level_, 6)] << "m"
                 << stream_.str() << EndcolorFlag();
-      if (level_ >= ::rdmaio::FATAL)
+      if (level_ >= ::rdmaio::RDMA_LOG_FATAL)
         abort();
     }
   }

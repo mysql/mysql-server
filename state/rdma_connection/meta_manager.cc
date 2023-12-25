@@ -1,23 +1,46 @@
 #include "meta_manager.h"
 
-#include "util/json_config.h"
+#include "util/json_util.h"
+
+MetaManager* MetaManager::global_meta_mgr = nullptr;
 
 /**
  * In MetaManager(), we need to init the remote node meta_info
 */
 MetaManager::MetaManager() {
-    // Read config json file
-    std::string config_filepath = "../../../config/compute_node_config.json";
-    auto json_config = JsonConfig::load_file(config_filepath);
-    // Get local node info
-    auto local_node = json_config.get("local_compute_node");
-    local_machine_id = (node_id_t)local_node.get("machine_id").get_int64();
+  std::string config_path = "../config/compute_node_config.json";
+  cJSON* cjson = parse_json_file(config_path);
+  cJSON* local_node = cJSON_GetObjectItem(cjson, "local_compute_node");
+  local_machine_id = (node_id_t)cJSON_GetObjectItem(local_node, "machine_id")->valueint;
+  int local_port = cJSON_GetObjectItem(local_node, "local_port")->valueint;
+
+  cJSON* state_nodes = cJSON_GetObjectItem(cjson, "remote_state_nodes");
+  cJSON* remote_ip_array = cJSON_GetObjectItem(state_nodes, "remote_ips");
+  cJSON* remote_port_array = cJSON_GetObjectItem(state_nodes, "remote_ports");
+  int remote_node_cnt = cJSON_GetArraySize(remote_ip_array);
+  
+  cJSON* ip = NULL;
+  cJSON* port = NULL;
+  for(int i = 0; i < remote_node_cnt; ++i) {
+    ip = cJSON_GetArrayItem(remote_ip_array, i);
+    port = cJSON_GetArrayItem(remote_port_array, i);
+    remote_nodes.push_back(RemoteNode{.node_id = i, .ip = ip->valuestring, .port = port->valueint});
+  }
+
+  cJSON_Delete(cjson);
+  // cJSON* remote_ips = 
+    // // Read config json file
+    // std::string config_filepath = "../config/compute_node_config.json";
+    // auto json_config = JsonConfig::load_file(config_filepath);
+    // // Get local node info
+    // auto local_node = json_config.get("local_compute_node");
+    // local_machine_id = (node_id_t)local_node.get("machine_id").get_int64();
 
     // get remote StateNode ip_info
-    auto state_nodes = json_config.get("remote_state_nodes");
-    auto remote_ips = state_nodes.get("remote_ips");                // Array
-    auto remote_ports = state_nodes.get("remote_ports");            // Array Used for RDMA exchanges
-    auto remote_meta_ports = state_nodes.get("remote_meta_ports");  // Array Used for transferring datastore metas
+    // auto state_nodes = json_config.get("remote_state_nodes");
+    // auto remote_ips = state_nodes.get("remote_ips");                // Array
+    // auto remote_ports = state_nodes.get("remote_ports");            // Array Used for RDMA exchanges
+    // auto remote_meta_ports = state_nodes.get("remote_meta_ports");  // Array Used for transferring datastore metas
 
     // // Get remote machine's memory store meta via TCP
     // for (size_t index = 0; index < remote_ips.size(); index++) {
@@ -33,7 +56,6 @@ MetaManager::MetaManager() {
     // RDMA_LOG(INFO) << "All hash meta received";
 
     // RDMA setup
-    int local_port = (int)local_node.get("local_port").get_int64();
     global_rdma_ctrl = std::make_shared<RdmaCtrl>(local_machine_id, local_port);
 
     // Using the first RNIC's first port
@@ -157,4 +179,15 @@ void MetaManager::GetMRMeta(const RemoteNode& node) {
   remote_txn_list_mrs[node.node_id] = remote_txn_list_mr;
   remote_lock_buf_mrs[node.node_id] = remote_lock_buf_mr;
   remote_log_buf_mrs[node.node_id] = remote_log_buf_mr;
+}
+
+bool MetaManager::create_instance() {
+  if(global_meta_mgr == nullptr)
+      global_meta_mgr = new (std::nothrow) MetaManager();
+  return (global_meta_mgr == nullptr);
+}
+
+void MetaManager::destroy_instance() {
+  delete global_meta_mgr;
+  global_meta_mgr = nullptr;
 }

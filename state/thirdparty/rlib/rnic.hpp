@@ -31,7 +31,7 @@ struct RNicInfo {
   bool query_dev_attribute(ibv_context* ctx, ibv_device_attr& attr) {
     int rc = ibv_query_device(ctx, &attr);
     if (rc != 0) {
-      RDMA_LOG(rdma_loglevel::ERROR) << "query device attribute error: " << strerror(errno);
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "query device attribute error: " << strerror(errno);
       return false;
     }
     return true;
@@ -48,13 +48,13 @@ struct RNicInfo {
       struct ibv_port_attr port_attr;
       int rc = ibv_query_port(ctx, port_id, &port_attr);
       if (rc != 0) {
-        RDMA_LOG(rdma_loglevel::ERROR) << "query port_id " << port_id << " on device " << dev_id << "error.";
+        RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "query port_id " << port_id << " on device " << dev_id << "error.";
         continue;
       }
 
       // check port status
       if (port_attr.phys_state != IBV_PORT_ACTIVE && port_attr.phys_state != IBV_PORT_ACTIVE_DEFER) {
-        RDMA_LOG(rdma_loglevel::WARNING) << "query port_id " << port_id << " on device " << dev_id << " not active.";
+        RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "query port_id " << port_id << " on device " << dev_id << " not active.";
         continue;
       }
 
@@ -64,7 +64,7 @@ struct RNicInfo {
           break;
         case IBV_LINK_LAYER_INFINIBAND:link_layer = "Infiniband";
           break;
-        default:RDMA_LOG(rdma_loglevel::WARNING) << "unknown link layer at this port: " << port_attr.link_layer;
+        default:RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "unknown link layer at this port: " << port_attr.link_layer;
           link_layer = "Unknown";
       };
       active_ports.push_back({port_id, link_layer});
@@ -83,7 +83,7 @@ struct RNicInfo {
     int rc = ibv_query_port(ctx, port_id, &port_attr);
 
     if (rc != 0) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "query port attribute at dev " << dev_name << ",port " << port_id
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "query port attribute at dev " << dev_name << ",port " << port_id
                         << "; w error: " << strerror(errno);
       return;
     }
@@ -151,8 +151,8 @@ struct RNicHandler {
 
   ~RNicHandler() {
     // delete ctx & pd
-    RDMA_VERIFY(rdma_loglevel::INFO, ibv_close_device(ctx) == 0) << "failed to close device " << dev_id;
-    RDMA_VERIFY(rdma_loglevel::INFO, ibv_dealloc_pd(pd) == 0) << "failed to dealloc pd at device " << dev_id
+    RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_close_device(ctx) == 0) << "failed to close device " << dev_id;
+    RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_dealloc_pd(pd) == 0) << "failed to dealloc pd at device " << dev_id
                                                << "; w error " << strerror(errno);
   }
 

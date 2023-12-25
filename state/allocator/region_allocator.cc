@@ -1,8 +1,7 @@
 #include "region_allocator.h"
 
-/**
- * Singleton Instance creation
-*/
+RDMARegionAllocator* RDMARegionAllocator::rdma_region_allocator = nullptr;
+
 bool RDMARegionAllocator::create_instance(MetaManager* global_meta_mgr, t_id_t thread_num_per_machine) {
     if(rdma_region_allocator == nullptr) {
         rdma_region_allocator = new (std::nothrow) RDMARegionAllocator(global_meta_mgr, thread_num_per_machine);

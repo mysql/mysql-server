@@ -25,16 +25,9 @@ public:
 */
 class MetaManager {
 public:
-    static bool create_instance() {
-        if(global_meta_mgr == nullptr)
-            global_meta_mgr = new (std::nothrow) MetaManager();
-        return (global_meta_mgr == nullptr);
-    }
+    static bool create_instance();
 
-    static void destroy_instance() {
-        delete global_meta_mgr;
-        global_meta_mgr = nullptr;
-    }
+    static void destroy_instance();
 
     static MetaManager* get_instance() {
         assert(global_meta_mgr != nullptr);
@@ -103,7 +96,7 @@ public:
     }
 
 private:
-    MetaManager() {}
+    MetaManager();
     ~MetaManager() {}
 
     static MetaManager* global_meta_mgr;

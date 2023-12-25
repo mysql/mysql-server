@@ -95,22 +95,22 @@ class RdmaCtrl::RdmaCtrlImpl {
     dev_list = ibv_get_device_list(&num_devices);
 
     if (idx.dev_id >= num_devices || idx.dev_id < 0) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "wrong dev_id: " << idx.dev_id << "; total " << num_devices << " found";
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "wrong dev_id: " << idx.dev_id << "; total " << num_devices << " found";
       goto OPEN_END;
     }
 
     // alloc ctx
     ib_ctx = ibv_open_device(dev_list[idx.dev_id]);
     if (ib_ctx == nullptr) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "failed to open ib ctx w error: " << strerror(errno);
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "failed to open ib ctx w error: " << strerror(errno);
       goto OPEN_END;
     }
 
     // alloc pd
     pd = ibv_alloc_pd(ib_ctx);
     if (pd == nullptr) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "failed to alloc pd w error: " << strerror(errno);
-      RDMA_VERIFY(rdma_loglevel::INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << idx.dev_id;
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "failed to alloc pd w error: " << strerror(errno);
+      RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << idx.dev_id;
       goto OPEN_END;
     }
 
@@ -118,9 +118,9 @@ class RdmaCtrl::RdmaCtrlImpl {
     ibv_port_attr port_attr;
     rc = ibv_query_port(ib_ctx, idx.port_id, &port_attr);
     if (rc < 0) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "failed to query port status w error: " << strerror(errno);
-      RDMA_VERIFY(rdma_loglevel::INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << idx.dev_id;
-      RDMA_VERIFY(rdma_loglevel::INFO, ibv_dealloc_pd(pd) == 0) << "failed to dealloc pd";
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "failed to query port status w error: " << strerror(errno);
+      RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << idx.dev_id;
+      RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_dealloc_pd(pd) == 0) << "failed to dealloc pd";
       goto OPEN_END;
     }
 
@@ -212,14 +212,14 @@ class RdmaCtrl::RdmaCtrlImpl {
   bool register_memory(int mr_id, const char* buf, uint64_t size, RNicHandler* rnic, int flag) {
     Memory* m = new Memory(buf, size, rnic->pd, flag);
     if (!m->valid()) {
-      RDMA_LOG(rdma_loglevel::WARNING) << "register local_mr to rnic error: " << strerror(errno);
+      RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "register local_mr to rnic error: " << strerror(errno);
       delete m;
       return false;
     }
     {
       SCS s;
       if (mrs_.find(mr_id) != mrs_.end()) {
-        RDMA_LOG(rdma_loglevel::WARNING) << "local_mr " << mr_id << " has already been registered!";
+        RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "local_mr " << mr_id << " has already been registered!";
         delete m;
       } else {
         mrs_.insert(std::make_pair(mr_id, m));
@@ -262,7 +262,7 @@ class RdmaCtrl::RdmaCtrlImpl {
       int temp_devices = num_devices;
 
       if (dev_list == nullptr) {
-        RDMA_LOG(rdma_loglevel::ERROR) << "cannot get ib devices.";
+        RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "cannot get ib devices.";
         num_devices = 0;
         goto QUERY_END;
       }
@@ -270,14 +270,14 @@ class RdmaCtrl::RdmaCtrlImpl {
       for (int dev_id = 0; dev_id < temp_devices; ++dev_id) {
         struct ibv_context* ib_ctx = ibv_open_device(dev_list[dev_id]);
         if (ib_ctx == nullptr) {
-          RDMA_LOG(rdma_loglevel::ERROR) << "open dev " << dev_id << " error: " << strerror(errno) << " ignored";
+          RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "open dev " << dev_id << " error: " << strerror(errno) << " ignored";
           num_devices -= 1;
           continue;
         }
         res.emplace_back(ibv_get_device_name(ib_ctx->device), dev_id, ib_ctx);
         // QUERY_DEV_END:
         // close ib_ctx
-        RDMA_VERIFY(rdma_loglevel::INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << dev_id;
+        RDMA_VERIFY(rdma_loglevel::RDMA_LOG_INFO, ibv_close_device(ib_ctx) == 0) << "failed to close device " << dev_id;
       }
     }
 
@@ -341,9 +341,9 @@ class RdmaCtrl::RdmaCtrlImpl {
     auto listenfd = PreConnector::get_listen_socket(local_ip_, tcp_base_port_);
 
     int opt = 1;
-    RDMA_VERIFY(rdma_loglevel::ERROR, setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(int)) == 0)
+    RDMA_VERIFY(rdma_loglevel::RDMA_LOG_ERROR, setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(int)) == 0)
       << "unable to configure socket status.";
-    RDMA_VERIFY(rdma_loglevel::ERROR, listen(listenfd, 24) == 0) << "TCP listen error: " << strerror(errno);
+    RDMA_VERIFY(rdma_loglevel::RDMA_LOG_ERROR, listen(listenfd, 24) == 0) << "TCP listen error: " << strerror(errno);
     while (running_) {
       asm volatile(""::
       : "memory");
@@ -353,7 +353,7 @@ class RdmaCtrl::RdmaCtrlImpl {
       auto csfd = accept(listenfd, (struct sockaddr*) &cli_addr, &clilen);
 
       if (csfd < 0) {
-        RDMA_LOG(rdma_loglevel::ERROR) << "accept a wrong connection error: " << strerror(errno);
+        RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "accept a wrong connection error: " << strerror(errno);
         continue;
       }
 
@@ -399,21 +399,21 @@ class RdmaCtrl::RdmaCtrlImpl {
               case IBV_QPT_RC: {
                 // MZ: Server passively accepts and connects QPs. It is more efficient than the original rlib
                 QPIdx idx = create_rc_idx(arg.payload.qp.from_node, arg.payload.qp.from_worker);
-                RDMA_LOG(rdma_loglevel::INFO) << "Receive QP from client, my node id: " << arg.payload.qp.from_node << ", client worker id: " << arg.payload.qp.from_worker;
+                RDMA_LOG(rdma_loglevel::RDMA_LOG_INFO) << "Receive QP from client, my node id: " << arg.payload.qp.from_node << ", client worker id: " << arg.payload.qp.from_worker;
                 qp = get_qp<RCQP, get_rc_key>(idx); // For multi round tests
                 if (qp == nullptr) {
                   qp = create_rc_qp(idx, opened_rnic, NULL);
-                  RDMA_LOG(rdma_loglevel::INFO) << "Create new RCQP for connection";
+                  RDMA_LOG(rdma_loglevel::RDMA_LOG_INFO) << "Create new RCQP for connection";
                   if (!RCQPImpl::readytorcv(qp->qp_, arg.payload.qp.qp_attr, opened_rnic)) {
-                    RDMA_LOG(FATAL) << "change qp_attr status to ready to receive error: " << strerror(errno);
+                    RDMA_LOG(RDMA_LOG_FATAL) << "change qp_attr status to ready to receive error: " << strerror(errno);
                   }
                   if (!RCQPImpl::readytosend(qp->qp_)) {
-                    RDMA_LOG(FATAL) << "change qp_attr status to ready to send error: " << strerror(errno);
+                    RDMA_LOG(RDMA_LOG_FATAL) << "change qp_attr status to ready to send error: " << strerror(errno);
                   }
                 }
               }
                 break;
-              default:RDMA_LOG(rdma_loglevel::ERROR) << "unknown QP connection type: " << arg.payload.qp.qp_type;
+              default:RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "unknown QP connection type: " << arg.payload.qp.qp_type;
             }
             if (qp != nullptr) {
               reply.payload.qp = qp->get_attr();
@@ -422,7 +422,7 @@ class RdmaCtrl::RdmaCtrlImpl {
             reply.payload.qp.node_id = node_id_;
             break;
           }
-          default:RDMA_LOG(rdma_loglevel::WARNING) << "received unknown connect type " << arg.type;
+          default:RDMA_LOG(rdma_loglevel::RDMA_LOG_WARNING) << "received unknown connect type " << arg.type;
         }
       }  // end simple critical section protection
 

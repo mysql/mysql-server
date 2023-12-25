@@ -3,9 +3,9 @@
 #include "common.h"
 
 // from right to left, 0-->bitmap_size-1
-static int GetFirstFreeBit(char* bitmap, size_t bitmap_size) {
+static int GetFirstFreeBit(unsigned char* bitmap, size_t bitmap_size) {
     for(int i = 0; i < bitmap_size; ++i) {
-        if (bitmap[i] != 0xFF) {
+        if (static_cast<unsigned char>(bitmap[i]) != 0xFF) {
             int offset = 0;
             while((bitmap[i] & (1 << offset)) != 0) {
                 ++offset;
@@ -17,12 +17,12 @@ static int GetFirstFreeBit(char* bitmap, size_t bitmap_size) {
 }
 
 // change the specific bit from 0 to 1
-static void SetBitToUsed(char* bitmap, int pos) {
+static void SetBitToUsed(unsigned char* bitmap, int pos) {
     bitmap[pos / 8] |= (1 << (pos % 8));
 }
 
 // change the specific bit from 1 to 0
-static void SetBitToFree(char* bitmap, int pos) {
+static void SetBitToFree(unsigned char* bitmap, int pos) {
     bitmap[pos / 8] &= ~(1 << (pos % 8));
 }
 

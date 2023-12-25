@@ -1,6 +1,7 @@
-#include "util/json_config.h"
-
+#include "util/json_util.h"
+#include "util/common.h"
 #include "state_server.h"
+#include <assert.h>
 
 /**
  * allocate memory for state node
@@ -50,7 +51,7 @@ void StateServer::InitRDMA() {
 // }
 
 bool StateServer::Run() {
-    
+    while(true) {}
 }
 
 void StateServer::CleanQP() {
@@ -58,18 +59,37 @@ void StateServer::CleanQP() {
 }
 
 int main(int argc, char* argv[]) {
-    std::string config_path = "state_server_config.json";
-    auto json_config = JsonConfig::load_file(config_path);
+    std::string config_path = "../config/state_server_config.json";
+    // auto json_config = JsonConfig::load_file(config_path);
     
-    auto state_node = json_config.get("state_node");
-    int node_id = (int)state_node.get("node_id").get_int64();
-    int local_port = (int)state_node.get("local_port").get_int64();
-    size_t txn_list_size = state_node.get("txn_list_size_GB").get_uint64();
-    size_t log_buf_size = state_node.get("log_buf_size_GB").get_uint64() * 1024 * 1024 * 1024;
-    size_t lock_buf_size = state_node.get("lock_buf_size_GB").get_uint64() * 1024 * 1024 * 1024;
+    // auto state_node = json_config.get("state_node");
+    // int node_id = (int)state_node.get("node_id").get_int64();
+    // int local_port = (int)state_node.get("local_port").get_int64();
+    // size_t txn_list_size = state_node.get("txn_list_size_GB").get_uint64();
+    // size_t log_buf_size = state_node.get("log_buf_size_GB").get_uint64() * 1024 * 1024 * 1024;
+    // size_t lock_buf_size = state_node.get("lock_buf_size_GB").get_uint64() * 1024 * 1024 * 1024;
 
-    auto master_node = json_config.get("master_node");
-    auto master_node_ip = master_node.get("master_node_ip");
+    // auto master_node = json_config.get("master_node");
+    // auto master_node_ip = master_node.get("master_node_ip");
+
+    cJSON *cjson = parse_json_file(config_path);
+    cJSON *state_node = cJSON_GetObjectItem(cjson, "state_node");
+    int node_id = cJSON_GetObjectItem(state_node, "node_id")->valueint;
+    int local_port = cJSON_GetObjectItem(state_node, "local_port")->valueint;
+    size_t txn_list_size = (size_t) cJSON_GetObjectItem(state_node,"txn_list_size_GB")->valuedouble;
+    size_t log_buf_size = ((size_t) cJSON_GetObjectItem(state_node,"log_buf_size_GB")->valuedouble) * 1024 * 1024 * 1024;
+    size_t lock_buf_size = ((size_t) cJSON_GetObjectItem(state_node,"lock_buf_size_GB")->valuedouble) * 1024 * 1024 * 1024;
+
+    cJSON *master_node = cJSON_GetObjectItem(cjson, "master_node");
+    std::string master_node_ip = cJSON_GetObjectItem(master_node, "master_node_ip")->valuestring;
+    cJSON_Delete(cjson);
+
+    std::cout << "node_id: " << node_id 
+                << "\nlocal_port: " << local_port
+                << "\ntxn_list_size: " << txn_list_size
+                << "\nlog_buf_size: " << log_buf_size
+                << "\nlock_buf_size: " << lock_buf_size
+                << "\nmaster_node_ip: " << master_node_ip << "\n";
 
     auto server = std::make_shared<StateServer>(node_id, local_port, txn_list_size, log_buf_size, lock_buf_size);
     server->AllocMem();

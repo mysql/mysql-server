@@ -53,7 +53,7 @@ class QP {
      * Note, we leverage TCP for a pre connect.
      * So the IP/Hostname and a TCP port must be given.
      *
-     * WARNING:
+     * RDMA_LOG_WARNING:
      * This function actually should contains two functions, connect + change QP status
      * maybe split to connect + change status for more flexibility?
      */
@@ -153,7 +153,7 @@ class RRCQP : public QP {
     enum ibv_qp_state state;
     if ((state = QPImpl::query_qp_status(qp_)) != IBV_QPS_INIT) {
       if (state != IBV_QPS_RTS)
-        RDMA_LOG(WARNING) << "qp not in a correct state to connect!";
+        RDMA_LOG(RDMA_LOG_WARNING) << "qp not in a correct state to connect!";
       return (state == IBV_QPS_RTS) ? SUCC : UNKNOWN_RDMA;
     }
     ConnArg arg = {};
@@ -168,13 +168,13 @@ class RRCQP : public QP {
     if (ret == SUCC) {
       // change QP status
       if (!RCQPImpl::ready2rcv<F>(qp_, reply.payload.qp, rnic_)) {
-        RDMA_LOG(WARNING) << "change qp status to ready to receive error: " << strerror(errno);
+        RDMA_LOG(RDMA_LOG_WARNING) << "change qp status to ready to receive error: " << strerror(errno);
         ret = ERR;
         goto CONN_END;
       }
 
       if (!RCQPImpl::ready2send<F>(qp_)) {
-        RDMA_LOG(WARNING) << "change qp status to ready to send error: " << strerror(errno);
+        RDMA_LOG(RDMA_LOG_WARNING) << "change qp status to ready to send error: " << strerror(errno);
         ret = ERR;
         goto CONN_END;
       }
@@ -219,7 +219,7 @@ class RRCQP : public QP {
     sr.wr.rdma.rkey = remote_mr.key;
 
     auto rc = ibv_post_send(qp_, &sr, &bad_sr);
-    if (rc != 0) { RDMA_LOG(rdma_loglevel::ERROR) << "ibv_post_send FAIL rc = " << rc << " " << strerror(errno); }
+    if (rc != 0) { RDMA_LOG(rdma_loglevel::RDMA_LOG_ERROR) << "ibv_post_send FAIL rc = " << rc << " " << strerror(errno); }
     return rc == 0 ? SUCC : ERR;
   }
 
@@ -390,7 +390,7 @@ class RUDQP : public QP {
       // create the ah, and store the address handler
       auto ah = UDQPImpl::create_ah(rnic_, reply.payload.qp);
       if (ah == nullptr) {
-        RDMA_LOG(WARNING) << "create address handler error: " << strerror(errno);
+        RDMA_LOG(RDMA_LOG_WARNING) << "create address handler error: " << strerror(errno);
         ret = ERR;
       } else {
         ahs_[reply.payload.qp.node_id] = ah;
