@@ -52,12 +52,18 @@ void *async_log_function(void *args) {
   return nullptr;
 }
 
-BufferedLogHandler::BufferedLogHandler(LogHandler *dest_loghandler)
-    : LogHandler(),
-      m_dest_loghandler(dest_loghandler),
+BufferedLogHandler::BufferedLogHandler(LogHandler *dest_loghandler,
+                                       bool dest_owned,
+                                       const char *buffer_msg_category,
+                                       unsigned buffer_kb)
+    : m_dest_loghandler(dest_loghandler),
+      m_dest_owned(dest_owned),
       m_log_threadvar(nullptr),
-      m_stop_logging(false) {
-  m_logbuf = new LogBuffer(32768, new MessageStreamLostMsgHandler());  // 32kB
+      m_stop_logging(false),
+      m_buffer_msg_category(buffer_msg_category) {
+  m_logbuf = new LogBuffer(
+      buffer_kb * 1024, new MessageStreamLostMsgHandler(buffer_msg_category));
+
   ThreadData *thr_data = new ThreadData();
   thr_data->buf_loghandler = this;
 
@@ -75,7 +81,9 @@ BufferedLogHandler::~BufferedLogHandler() {
   NdbThread_WaitFor(m_log_threadvar, nullptr);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;
-  delete m_dest_loghandler;
+  if (m_dest_owned) {
+    delete m_dest_loghandler;
+  }
 }
 
 bool BufferedLogHandler::open() { return true; }
@@ -166,9 +174,9 @@ void BufferedLogHandler::writeLostMsgDestLogHandler() {
     cstrbuf<LostMsgHandler::MAX_LOST_MESSAGE_SIZE> msg;
     require(msg.appendf(LostMsgHandler::LOST_MESSAGES_FMT, lost_count) != -1);
     assert(!msg.is_truncated());
-    time_t now = ::time(nullptr);
-    constexpr char category[] = "MgmtSrvr";
-    m_dest_loghandler->append(category, Logger::LL_INFO, msg.c_str(), now);
+    const time_t now = ::time(nullptr);
+    m_dest_loghandler->append(m_buffer_msg_category, Logger::LL_INFO,
+                              msg.c_str(), now);
   }
 }
 
@@ -186,7 +194,7 @@ bool MessageStreamLostMsgHandler::writeLostMsg(char *buf, size_t buf_size,
                                                size_t /*lost_bytes*/,
                                                size_t lost_msgs) {
   BufferedLogHandler::LogMessageFixedPart lost_message_fixedpart;
-  lost_message_fixedpart.level = Logger::LL_DEBUG;
+  lost_message_fixedpart.level = Logger::LL_WARNING;
   lost_message_fixedpart.log_timestamp = time((time_t *)nullptr);
 
   const size_t sz_fixedpart = sizeof(lost_message_fixedpart);

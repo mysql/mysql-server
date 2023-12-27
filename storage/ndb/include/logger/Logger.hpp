@@ -34,8 +34,8 @@
 #define MAX_LOG_MESSAGE_SIZE 1024
 
 class LogHandler;
-class LogHandlerList;
-
+class InternalLogListHandler;
+class BufferedLogHandler;
 /**
  * Logger should be used whenever you need to log a message like
  * general information or debug messages. By creating/adding different
@@ -207,6 +207,18 @@ class Logger {
   void removeSyslogHandler();
 
   /**
+   * Invoke handlers asynchronously
+   *
+   * @param buffer_kb  kb of buffer to use
+   */
+  void startAsync(unsigned buffer_kb = 32);
+
+  /**
+   * Invoke handlers synchronously
+   */
+  void stopAsync();
+
+  /**
    * Add a new log handler.
    *
    * @param pHandler a log handler.
@@ -317,7 +329,8 @@ class Logger {
   virtual void setRepeatFrequency(unsigned val);
 
  protected:
-  NdbMutex *m_mutex;
+  /* Serialises the Logger front-end API calls */
+  NdbMutex *m_log_mutex;
 
   void log(LoggerLevel logLevel, const char *msg, va_list ap) const
       ATTRIBUTE_FORMAT(printf, 3, 0);
@@ -332,14 +345,48 @@ class Logger {
 
   bool m_logLevels[MAX_LOG_LEVELS];
 
-  LogHandlerList *m_pHandlerList;
   const char *m_pCategory;
 
   /* Default handlers */
-  NdbMutex *m_handler_mutex;
+  NdbMutex *m_handler_creation_mutex;
+  /* List of user defined handlers */
+  InternalLogListHandler *m_internalLogListHandler;
+  /* Buffered handler used in async mode */
+  BufferedLogHandler *m_internalBufferedHandler;
+  /* Pointer to List or Buffered handler */
+  LogHandler *m_logHandler;
+
   LogHandler *m_pConsoleHandler;
   LogHandler *m_pFileHandler;
   LogHandler *m_pSyslogHandler;
+
+  /**
+   * for test only
+   */
+
+  // Pointer to default Log Handler pointer
+  LogHandler **m_test_handler;
+  // Pointer to original handler
+  LogHandler *m_test_handler_backup;
+  friend class LoggerTest;
+
+  /**
+   * Class to change, in run time, the default log handler used by the logger.
+   */
+ public:
+  class LoggerTest {
+   public:
+    static void setHandlerPointerAdress(Logger &logger, LogHandler **lh) {
+      logger.m_test_handler_backup = *lh;
+      logger.m_test_handler = lh;
+    }
+    static void setHandler(const Logger &logger, LogHandler *lh) {
+      *logger.m_test_handler = lh;
+    }
+    static void unset(const Logger &logger) {
+      *logger.m_test_handler = logger.m_test_handler_backup;
+    }
+  };
 };
 
 #endif

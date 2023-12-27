@@ -41,6 +41,55 @@ class Ndb_cluster_connection_node_iter {
 
 class Ndb;
 class NdbWaitGroup;
+class LogHandler;
+
+/**
+ * NdbApiLogConsumer
+ *
+ * An object of this type can be passed to the
+ * Ndb_cluster_connection::set_log_consumer() method to define custom
+ * handling of NdbApi internal log messages.
+ * NdbApi will call this object's log() method every time an NdbApi
+ * event occurs.
+ *
+ * Ndb_cluster_connection::set_log_consumer(nullptr) should be called
+ * before the supplied NdbApiLogConsumer is deleted.
+ */
+class NdbApiLogConsumer {
+ public:
+  virtual ~NdbApiLogConsumer() = default;
+  enum LogLevel {
+    LL_ON,
+    LL_DEBUG,
+    LL_INFO,
+    LL_WARNING,
+    LL_ERROR,
+    LL_CRITICAL,
+    LL_ALERT,
+    LL_ALL
+  };
+
+  /**
+   * getLogLevelName
+   *
+   * Function returning a string describing the passed loglevel.
+   */
+  static const char *getLogLevelName(LogLevel ll);
+
+  /**
+   * log
+   *
+   * This function is called when NdbApi has an event of interest to
+   * report.
+   *
+   * Parameters :
+   *   LogLevel   The log level
+   *   Category   The log event category string
+   *   Message    The log event message
+   */
+  virtual void log(LogLevel level, const char *category,
+                   const char *message) = 0;
+};
 
 /**
  * @class Ndb_cluster_connection
@@ -195,6 +244,25 @@ class Ndb_cluster_connection {
    * @return 0 on success
    */
   int set_timeout(int timeout_ms);
+
+  /**
+   * Set log consumer
+   *
+   * Supply a consumer which will be passed NdbApi internal informational
+   * log messages for output.
+   *
+   * This consumer will be used for all NdbApi logging in the process, even
+   * with multiple ndb cluster connections in a process.
+   *
+   * The consumer must exist until all ndb_cluster_connections in the
+   * process are deleted, or the log consumer is set to NULL.
+   *
+   * Setting to NULL reverts to the default behaviour.
+   *
+   * @param log_consumer Pointer to log consumer.  Setting NULL reverts to the
+   *                     default behaviour.
+   */
+  static void set_log_consumer(NdbApiLogConsumer *log_consumer);
 
   /**
    * Connect to a cluster management server
