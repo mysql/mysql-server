@@ -4286,21 +4286,19 @@ buf_block_t *Buf_fetch<T>::single_page() {
   /* Check if this is the first access to the page */
   const auto access_time = buf_page_is_accessed(&block->page);
 
+  /* This is a heuristic and we don't care about ordering issues. */
+  if (access_time == std::chrono::steady_clock::time_point{}) {
+    buf_page_mutex_enter(block);
+
+    buf_page_set_accessed(&block->page);
+
+    buf_page_mutex_exit(block);
+  }
+
   /* Don't move the page to the head of the LRU list so that the
   page can be discarded quickly if it is not accessed again. */
-  if (m_mode != Page_fetch::SCAN) {
-    /* This is a heuristic and we don't care about ordering issues. */
-    if (access_time == std::chrono::steady_clock::time_point{}) {
-      buf_page_mutex_enter(block);
-
-      buf_page_set_accessed(&block->page);
-
-      buf_page_mutex_exit(block);
-    }
-
-    if (m_mode != Page_fetch::PEEK_IF_IN_POOL) {
-      buf_page_make_young_if_needed(&block->page);
-    }
+  if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN) {
+    buf_page_make_young_if_needed(&block->page);
   }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4326,7 +4324,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   mtr_add_page(block);
 
-  if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN &&
+  if (m_mode != Page_fetch::PEEK_IF_IN_POOL &&
       access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
 
