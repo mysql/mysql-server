@@ -125,6 +125,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
+#include "handler0alter.h"  //alter_stats_rebuild()
 #include "i_s.h"
 #include "ibuf0ibuf.h"
 #include "lex_string.h"
@@ -18723,6 +18724,8 @@ int ha_innobase::extra(enum ha_extra_function operation)
       m_prebuilt->table->skip_alter_undo = 1;
       break;
     case HA_EXTRA_END_ALTER_COPY:
+      alter_stats_rebuild(m_prebuilt->table, m_prebuilt->table->name.m_name,
+                          m_user_thd);
       m_prebuilt->table->skip_alter_undo = 0;
       break;
     case HA_EXTRA_NO_AUTOINC_LOCKING:
