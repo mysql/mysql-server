@@ -6293,7 +6293,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
       return false;
     }
 
-    srv_io_thread_function[++n_segments] = "insert buffer thread";
+    srv_io_thread_function[n_segments++] = "insert buffer thread";
 
   } else {
     s_ibuf = nullptr;
@@ -6308,7 +6308,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 
   for (size_t i = 0; i < n_readers; ++i) {
     ut_a(n_segments < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[++n_segments] = "read thread";
+    srv_io_thread_function[n_segments++] = "read thread";
   }
 
   s_writes =
@@ -6320,7 +6320,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 
   for (size_t i = 0; i < n_writers; ++i) {
     ut_a(n_segments < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[++n_segments] = "write thread";
+    srv_io_thread_function[n_segments++] = "write thread";
   }
 
   ut_ad(n_segments == n_extra + n_readers + n_writers);
