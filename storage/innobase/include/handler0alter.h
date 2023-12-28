@@ -33,6 +33,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 constexpr uint32_t ERROR_STR_LENGTH = 1024;
 
+/** Adjust the persistent statistics after rebuilding ALTER TABLE.
+Remove statistics for dropped indexes, add statistics for created indexes
+and rename statistics for renamed indexes.
+@param table InnoDB table that was rebuilt by ALTER TABLE
+@param table_name Table name in MySQL
+@param thd MySQL connection
+*/
+void alter_stats_rebuild(dict_table_t *table, const char *table_name, THD *thd);
+
 /** Copies an InnoDB record to table->record[0].
 @param[in,out] table Mysql table
 @param[in] rec Record

@@ -1,0 +1,86 @@
+# Test for BUG #35127747: The n_rows value becomes 0 when repeated altering with algorithm=copy within 10 seconds.
+
+--echo # Test setup.
+
+CREATE TABLE t1 (
+    c1 INT PRIMARY KEY,
+    c2 VARCHAR(50),
+    c3 VARCHAR(50),
+    c4 VARCHAR(50)
+);
+
+INSERT INTO t1 (c1, c2, c3, c4)
+VALUES
+    (1, 'AAA_2', 'AAA_3', 'AAA_4'),
+    (2, 'BBB_2', 'BBB_3', 'BBB_4'),
+    (3, 'CCC_2', 'CCC_3', 'CCC_4'),
+    (4, 'DDD_2', 'DDD_3', 'DDD_4'),
+    (5, 'EEE_2', 'EEE_3', 'EEE_4');
+
+
+--echo # Start test.
+ALTER TABLE t1 CONVERT TO CHARACTER SET 'utf8mb4',ALGORITHM=COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(15), ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 DROP COLUMN c5, ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(15), ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 DROP COLUMN c5, ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (c4), ALGORITHM=COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (c1), ALGORITHM=INPLACE;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(15), ALGORITHM = INPLACE;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+ALTER TABLE t1 DROP COLUMN c5, ALGORITHM = INPLACE;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name IN ('t1') ;
+
+CREATE TABLE t2 (
+    c1 INT PRIMARY KEY,
+    c2 VARCHAR(50),
+    c3 VARCHAR(50),
+    c4 VARCHAR(50)
+    ) PARTITION BY RANGE (c1) (
+    PARTITION p1 VALUES LESS THAN (6),
+    PARTITION p2 VALUES LESS THAN (11),
+    PARTITION p3 VALUES LESS THAN (16),
+    PARTITION p4 VALUES LESS THAN (21)
+);
+INSERT INTO t2 (c1, c2, c3, c4)
+VALUES
+    (1, 'AAA_2', 'AAA_3', 'AAA_4'),
+    (2, 'BBB_2', 'BBB_3', 'BBB_4'),
+    (3, 'CCC_2', 'CCC_3', 'CCC_4'),
+    (4, 'DDD_2', 'DDD_3', 'DDD_4'),
+    (5, 'EEE_2', 'EEE_3', 'EEE_4'),
+    (6, 'FFF_2', 'DDD_3', 'DDD_4'),
+    (7, 'GGG_2', 'DDD_3', 'DDD_4'),
+    (8, 'HHH_2', 'DDD_3', 'DDD_4'),
+    (9, 'III_2', 'DDD_3', 'DDD_4'),
+    (10, 'JJJ_2', 'DDD_3', 'DDD_4'),
+    (13, 'KKK_2', 'DDD_3', 'DDD_4'),
+    (20, 'LLL_2', 'DDD_3', 'DDD_4');
+
+ALTER TABLE t2 CONVERT TO CHARACTER SET 'utf8mb4',ALGORITHM=COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name LIKE '%t2%';
+
+ALTER TABLE t2 ADD COLUMN c5 VARCHAR(15), ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name LIKE '%t2%';
+
+ALTER TABLE t2 DROP COLUMN c5, ALGORITHM = COPY;
+SELECT n_rows, database_name, table_name FROM mysql.innodb_table_stats WHERE table_name LIKE '%t2%';
+
+--echo # Test Cleanup.
+DROP TABLE t1;
+DROP TABLE t2;

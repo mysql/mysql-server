@@ -7369,8 +7369,8 @@ and rename statistics for renamed indexes.
 @param table_name Table name in MySQL
 @param thd MySQL connection
 */
-static void alter_stats_rebuild(dict_table_t *table, const char *table_name,
-                                THD *thd) {
+void alter_stats_rebuild(dict_table_t *table, const char *table_name,
+                         THD *thd) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 

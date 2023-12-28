@@ -62,6 +62,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "fsp0sysspace.h"
 #include "ha_innodb.h"
 #include "ha_innopart.h"
+#include "handler0alter.h"  //alter_stats_rebuild()
 #include "key.h"
 #include "lex_string.h"
 #include "lock0lock.h"
@@ -2923,7 +2924,9 @@ int ha_innopart::extra(enum ha_extra_function operation) {
     for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
          i = m_part_info->get_next_used_partition(i)) {
       dict_table_t *table_part = m_part_share->get_table_part(i);
-
+      if (operation == HA_EXTRA_END_ALTER_COPY) {
+        alter_stats_rebuild(table_part, table_part->name.m_name, m_user_thd);
+      }
       table_part->skip_alter_undo = (operation == HA_EXTRA_BEGIN_ALTER_COPY);
     }
 
