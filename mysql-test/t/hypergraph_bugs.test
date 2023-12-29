@@ -1194,6 +1194,42 @@ EXECUTE ps;
 DROP TABLE t;
 
 --echo #
+--echo # Bug #113492: Hypergraph: Too low row estimate for index lookup
+--echo #
+
+CREATE TABLE t1(
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  PRIMARY KEY(a),
+  KEY k1(d)
+);
+
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<19)
+SELECT n, n%10, n%10, n%10 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
+ANALYZE TABLE t1;
+
+# Do a lookup on the primary key, so that we can verify that the row estimate
+# is 1.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
+  WHERE x1.b=x2.a AND x2.b=x3.a AND (x1.c < 5 OR x3.c=7);
+
+# Do a lookup on non-unique key k1, where the row estimate should be 2.
+# 'ORDER BY' ensures that we get a nested loop join, where the lookup is
+# present.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
+  WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
 --echo #
 

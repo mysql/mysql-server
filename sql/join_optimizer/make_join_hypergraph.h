@@ -128,7 +128,15 @@ struct JoinHypergraph {
       return m_sargable_predicates;
     }
 
-    void AddPushable(Item *cond) { m_pushable_conditions.push_back(cond); }
+    void AddPushable(Item *cond) {
+      // Don't add duplicate conditions, as this causes their selectivity to
+      // be applied multiple times, giving poor row estimates (cf.
+      // bug#36135001).
+      assert(std::none_of(
+          m_pushable_conditions.cbegin(), m_pushable_conditions.cend(),
+          [&](const Item *other) { return ItemsAreEqual(cond, other, true); }));
+      m_pushable_conditions.push_back(cond);
+    }
 
     const Mem_root_array<Item *> &pushable_conditions() const {
       return m_pushable_conditions;
