@@ -215,7 +215,7 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
     THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
   // Collect functional dependencies from unique indexes.
   for (JoinHypergraph::Node &node : graph->nodes) {
-    TABLE *table = node.table;
+    TABLE *table = node.table();
     for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
       KEY *key = &table->key_info[key_idx];
       if (!Overlaps(actual_key_flags(key), HA_NOSAME)) {
@@ -619,7 +619,7 @@ void BuildInterestingOrders(
   // Collect list of all active indexes. We will be needing this for ref access
   // and full-text index search even if we don't have any interesting orders.
   for (unsigned node_idx = 0; node_idx < graph->nodes.size(); ++node_idx) {
-    TABLE *table = graph->nodes[node_idx].table;
+    TABLE *table = graph->nodes[node_idx].table();
     for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
       // NOTE: visible_index claims to contain “visible and enabled” indexes,
       // but we still need to check keys_in_use to ignore disabled indexes.

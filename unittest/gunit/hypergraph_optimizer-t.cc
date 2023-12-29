@@ -159,12 +159,12 @@ void SortNodes(JoinHypergraph *graph) {
     node_order.push_back(i);
   }
   std::sort(node_order.begin(), node_order.end(), [graph](int a, int b) {
-    return strcmp(graph->nodes[a].table->alias, graph->nodes[b].table->alias) <
-           0;
+    return strcmp(graph->nodes[a].table()->alias,
+                  graph->nodes[b].table()->alias) < 0;
   });
   std::sort(graph->nodes.begin(), graph->nodes.end(),
             [](const JoinHypergraph::Node &a, const JoinHypergraph::Node &b) {
-              return strcmp(a.table->alias, b.table->alias) < 0;
+              return strcmp(a.table()->alias, b.table()->alias) < 0;
             });
 
   // Remap hyperedges to the new node indexes. Note that we don't
@@ -243,7 +243,7 @@ TEST_F(MakeHypergraphTest, SingleTable) {
   EXPECT_EQ(0, graph.edges.size());
   EXPECT_EQ(0, graph.predicates.size());
 
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
 }
 
 TEST_F(MakeHypergraphTest, InnerJoin) {
@@ -265,9 +265,9 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
   SortNodes(&graph);
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // Simple edges; order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -304,9 +304,9 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -344,9 +344,9 @@ TEST_F(MakeHypergraphTest, OuterJoinNonNullRejecting) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -386,9 +386,9 @@ TEST_F(MakeHypergraphTest, SemiJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -427,9 +427,9 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -469,8 +469,8 @@ TEST_F(MakeHypergraphTest, Predicates) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(2, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
 
   // t1/t2.
   ASSERT_EQ(1, graph.edges.size());
@@ -511,9 +511,9 @@ TEST_F(MakeHypergraphTest, PushdownFromOuterJoinCondition) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t2/t3.
   ASSERT_EQ(2, graph.edges.size());
@@ -564,9 +564,9 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t3.
   ASSERT_EQ(2, graph.edges.size());
@@ -617,12 +617,12 @@ TEST_F(MakeHypergraphTest, Cycle) {
   SortNodes(&graph);
 
   ASSERT_EQ(6, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
-  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
-  EXPECT_STREQ("t6", graph.nodes[5].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table()->alias);
+  EXPECT_STREQ("t6", graph.nodes[5].table()->alias);
 
   // t1/t2.
   ASSERT_EQ(6, graph.edges.size());
@@ -695,10 +695,10 @@ TEST_F(MakeHypergraphTest, NoCycleBelowOuterJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   // t2/t3.
   ASSERT_EQ(3, graph.edges.size());
@@ -741,10 +741,10 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   SortNodes(&graph);
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   // t3/t2.
   ASSERT_EQ(4, graph.edges.size());
@@ -840,9 +840,9 @@ TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t2.
   ASSERT_EQ(3, graph.edges.size());
@@ -915,10 +915,10 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
   SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t3", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   ASSERT_EQ(4, graph.edges.size());
 
@@ -968,11 +968,11 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
   SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
 
   ASSERT_EQ(5, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
-  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table()->alias);
 
   EXPECT_EQ(6, graph.edges.size());
 
@@ -1022,12 +1022,12 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
 
   ASSERT_EQ(6, graph.nodes.size());
   SortNodes(&graph);
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
-  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
-  EXPECT_STREQ("t6", graph.nodes[5].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table()->alias);
+  EXPECT_STREQ("t6", graph.nodes[5].table()->alias);
 
   EXPECT_EQ(11, graph.edges.size());
 
@@ -1086,11 +1086,11 @@ TEST_F(MakeHypergraphTest, ConflictRulesWithManyTables) {
 
   SortNodes(&graph);
   ASSERT_EQ(5, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
-  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table()->alias);
 
   for (const JoinPredicate &pred : graph.edges) {
     // We are not interested in the plan. However, while generating
@@ -1126,9 +1126,9 @@ TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t1", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t1", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t3.
   ASSERT_EQ(3, graph.edges.size());
@@ -1181,10 +1181,10 @@ TEST_F(MakeHypergraphTest, Flattening) {
   SortNodes(&graph);
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   ASSERT_EQ(4, graph.edges.size());
 
@@ -1244,9 +1244,9 @@ TEST_F(MakeHypergraphTest, PredicatePromotionOnMultipleEquals) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t2.
   ASSERT_EQ(3, graph.edges.size());
@@ -1325,9 +1325,9 @@ TEST_F(MakeHypergraphTest, MultipleEqualityPushedFromJoinConditions) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t2.
   ASSERT_EQ(2, graph.edges.size());
@@ -1380,10 +1380,10 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
   SortNodes(&graph);
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   ASSERT_EQ(5, graph.edges.size());
 
@@ -1464,10 +1464,10 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   SortNodes(&graph);
 
   ASSERT_EQ(4, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
-  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table()->alias);
 
   ASSERT_EQ(4, graph.edges.size());
 
@@ -1531,8 +1531,8 @@ TEST_F(MakeHypergraphTest, EqualityPropagationExpandsTopConjunction) {
   SortNodes(&graph);
 
   ASSERT_EQ(2, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
 
   // Expect to find a simple equijoin condition and a table filter. The table
   // filter used to be part of the join condition, but it should not be.
@@ -1575,9 +1575,9 @@ TEST_F(MakeHypergraphTest, PartialPushdownOfNonDeterministicPredicate) {
   SortNodes(&graph);
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   ASSERT_EQ(3, graph.edges.size());
 
@@ -1649,9 +1649,9 @@ TEST_P(MakeHypergraphMultipleEqualParamTest,
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
   // t1/t2. This one should not be too surprising.
   ASSERT_EQ(2, graph.edges.size());
@@ -2845,33 +2845,33 @@ TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
   // (one to each of the other nodes). Verify that they are
   // correctly set up (the order does not matter, though).
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
-  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
-  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table()->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table()->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table()->alias);
 
-  ASSERT_EQ(2, graph.nodes[0].sargable_predicates.size());
+  ASSERT_EQ(2, graph.nodes[0].sargable_predicates().size());
   EXPECT_EQ(
       "t1.x -> t2.x [(t1.x = t2.x)]",
-      PrintSargablePredicate(graph.nodes[0].sargable_predicates[0], graph));
+      PrintSargablePredicate(graph.nodes[0].sargable_predicates()[0], graph));
   EXPECT_EQ(
       "t1.x -> t3.x [(t1.x = t3.x)]",
-      PrintSargablePredicate(graph.nodes[0].sargable_predicates[1], graph));
+      PrintSargablePredicate(graph.nodes[0].sargable_predicates()[1], graph));
 
-  ASSERT_EQ(2, graph.nodes[1].sargable_predicates.size());
+  ASSERT_EQ(2, graph.nodes[1].sargable_predicates().size());
   EXPECT_EQ(
       "t2.x -> t3.x [(t2.x = t3.x)]",
-      PrintSargablePredicate(graph.nodes[1].sargable_predicates[0], graph));
+      PrintSargablePredicate(graph.nodes[1].sargable_predicates()[0], graph));
   EXPECT_EQ(
       "t2.x -> t1.x [(t1.x = t2.x)]",
-      PrintSargablePredicate(graph.nodes[1].sargable_predicates[1], graph));
+      PrintSargablePredicate(graph.nodes[1].sargable_predicates()[1], graph));
 
-  ASSERT_EQ(2, graph.nodes[2].sargable_predicates.size());
+  ASSERT_EQ(2, graph.nodes[2].sargable_predicates().size());
   EXPECT_EQ(
       "t3.x -> t2.x [(t2.x = t3.x)]",
-      PrintSargablePredicate(graph.nodes[2].sargable_predicates[0], graph));
+      PrintSargablePredicate(graph.nodes[2].sargable_predicates()[0], graph));
   EXPECT_EQ(
       "t3.x -> t1.x [(t1.x = t3.x)]",
-      PrintSargablePredicate(graph.nodes[2].sargable_predicates[1], graph));
+      PrintSargablePredicate(graph.nodes[2].sargable_predicates()[1], graph));
 }
 
 INSTANTIATE_TEST_SUITE_P(

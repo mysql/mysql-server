@@ -110,7 +110,7 @@ class DestroyNodes {
   explicit DestroyNodes(const JoinHypergraph *graph) : m_graph(graph) {}
   void operator()() const {
     for (const JoinHypergraph::Node &node : m_graph->nodes) {
-      ::destroy_at(static_cast<Fake_TABLE *>(node.table));
+      ::destroy_at(static_cast<Fake_TABLE *>(node.table()));
     }
   }
 
@@ -135,7 +135,7 @@ using NodeGuard = Scope_guard<DestroyNodes>;
     table->alias = alias;
 
     g->nodes.push_back(
-        JoinHypergraph::Node{table, {}, {}, new (mem_root) CompanionSet()});
+        JoinHypergraph::Node{mem_root, table, new (mem_root) CompanionSet()});
     g->graph.AddNode();
   }
 
@@ -263,10 +263,10 @@ TEST(GraphSimplificationTest, ExistingHyperedge) {
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
   NodeGuard node_guard = AddNodes(4, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 690;
-  g.nodes[1].table->file->stats.records = 6;
-  g.nodes[2].table->file->stats.records = 1;
-  g.nodes[3].table->file->stats.records = 1;
+  g.nodes[0].table()->file->stats.records = 690;
+  g.nodes[1].table()->file->stats.records = 6;
+  g.nodes[2].table()->file->stats.records = 1;
+  g.nodes[3].table()->file->stats.records = 1;
 
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10, 0.2,
           &mem_root, &g);
@@ -316,10 +316,10 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins) {
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
   NodeGuard node_guard = AddNodes(4, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 0;
-  g.nodes[1].table->file->stats.records = 171;
-  g.nodes[2].table->file->stats.records = 6;
-  g.nodes[3].table->file->stats.records = 3824;
+  g.nodes[0].table()->file->stats.records = 0;
+  g.nodes[1].table()->file->stats.records = 171;
+  g.nodes[2].table()->file->stats.records = 6;
+  g.nodes[3].table()->file->stats.records = 3824;
 
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b10, 0b100, 0.2,
           &mem_root, &g);
@@ -372,11 +372,11 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins2) {
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
   NodeGuard node_guard = AddNodes(5, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 1;
-  g.nodes[1].table->file->stats.records = 1;
-  g.nodes[2].table->file->stats.records = 1;
-  g.nodes[3].table->file->stats.records = 1;
-  g.nodes[4].table->file->stats.records = 1;
+  g.nodes[0].table()->file->stats.records = 1;
+  g.nodes[1].table()->file->stats.records = 1;
+  g.nodes[2].table()->file->stats.records = 1;
+  g.nodes[3].table()->file->stats.records = 1;
+  g.nodes[4].table()->file->stats.records = 1;
 
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10000,
           0.1, &mem_root, &g);  // t1-t5.
@@ -423,9 +423,9 @@ TEST(GraphSimplificationTest, ConflictRules) {
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
   NodeGuard node_guard = AddNodes(3, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 100;
-  g.nodes[1].table->file->stats.records = 10000;
-  g.nodes[2].table->file->stats.records = 0;
+  g.nodes[0].table()->file->stats.records = 100;
+  g.nodes[1].table()->file->stats.records = 10000;
+  g.nodes[2].table()->file->stats.records = 0;
 
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10, 1.0,
           &mem_root, &g);
@@ -466,9 +466,9 @@ TEST(GraphSimplificationTest, Antijoin) {
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
   NodeGuard node_guard = AddNodes(3, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 100;
-  g.nodes[1].table->file->stats.records = 100;
-  g.nodes[2].table->file->stats.records = 10000;
+  g.nodes[0].table()->file->stats.records = 100;
+  g.nodes[1].table()->file->stats.records = 100;
+  g.nodes[2].table()->file->stats.records = 10000;
 
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10, 1.0,
           &mem_root, &g);
@@ -519,13 +519,13 @@ TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
    */
 
   NodeGuard node_guard = AddNodes(7, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 1500;
-  g.nodes[1].table->file->stats.records = 6000;
-  g.nodes[2].table->file->stats.records = 700;
-  g.nodes[3].table->file->stats.records = 200;
-  g.nodes[4].table->file->stats.records = 150;
-  g.nodes[5].table->file->stats.records = 1000;
-  g.nodes[6].table->file->stats.records = 1000;
+  g.nodes[0].table()->file->stats.records = 1500;
+  g.nodes[1].table()->file->stats.records = 6000;
+  g.nodes[2].table()->file->stats.records = 700;
+  g.nodes[3].table()->file->stats.records = 200;
+  g.nodes[4].table()->file->stats.records = 150;
+  g.nodes[5].table()->file->stats.records = 1000;
+  g.nodes[6].table()->file->stats.records = 1000;
 
   THD *thd = initializer.thd();
   AddEdge(thd, RelationalExpression::LEFT_JOIN, 0b1, 0b1110, 0.0007, &mem_root,
@@ -621,14 +621,14 @@ TEST(GraphSimplificationTest, CyclicInformationSchemaView) {
    */
 
   NodeGuard node_guard = AddNodes(8, &mem_root, &g);
-  g.nodes[0].table->file->stats.records = 1399;
-  g.nodes[1].table->file->stats.records = 4706;
-  g.nodes[2].table->file->stats.records = 316;
-  g.nodes[3].table->file->stats.records = 222;
-  g.nodes[4].table->file->stats.records = 259;
-  g.nodes[5].table->file->stats.records = 6;
-  g.nodes[6].table->file->stats.records = 1;
-  g.nodes[7].table->file->stats.records = 1;
+  g.nodes[0].table()->file->stats.records = 1399;
+  g.nodes[1].table()->file->stats.records = 4706;
+  g.nodes[2].table()->file->stats.records = 316;
+  g.nodes[3].table()->file->stats.records = 222;
+  g.nodes[4].table()->file->stats.records = 259;
+  g.nodes[5].table()->file->stats.records = 6;
+  g.nodes[6].table()->file->stats.records = 1;
+  g.nodes[7].table()->file->stats.records = 1;
 
   THD *thd = initializer.thd();
   // t0-t1
@@ -682,7 +682,7 @@ TEST(GraphSimplificationTest, CyclicInformationSchemaView) {
   std::uniform_int_distribution<int> table_size(1, 10000);
   NodeGuard node_guard = AddNodes(graph_size, mem_root, g);
   for (int node_idx = 0; node_idx < graph_size; ++node_idx) {
-    g->nodes[node_idx].table->file->stats.records = table_size(*engine);
+    g->nodes[node_idx].table()->file->stats.records = table_size(*engine);
   }
 
   std::uniform_real_distribution<double> selectivity(0.001, 1.000);
@@ -701,7 +701,7 @@ TEST(GraphSimplificationTest, CyclicInformationSchemaView) {
   std::uniform_int_distribution<int> table_size(1, 10000);
   NodeGuard node_guard = AddNodes(graph_size, mem_root, g);
   for (int node_idx = 0; node_idx < graph_size; ++node_idx) {
-    g->nodes[node_idx].table->file->stats.records = table_size(*engine);
+    g->nodes[node_idx].table()->file->stats.records = table_size(*engine);
   }
 
   std::uniform_real_distribution<double> selectivity(0.001, 1.000);

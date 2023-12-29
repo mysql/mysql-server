@@ -489,7 +489,7 @@ class CostingReceiver {
         ret += ",";
       }
       first = false;
-      ret += m_graph->nodes[node_idx].table->alias;
+      ret += m_graph->nodes[node_idx].table()->alias;
     }
     return ret + "}";
   }
@@ -738,12 +738,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   m_graph->secondary_engine_costing_flags &=
       ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
 
-  TABLE *table = m_graph->nodes[node_idx].table;
+  TABLE *table = m_graph->nodes[node_idx].table();
   Table_ref *tl = table->pos_in_table_list;
 
   if (TraceStarted(m_thd)) {
     Trace(m_thd) << StringPrintf("\nFound node %s [rows=%llu]\n",
-                                 m_graph->nodes[node_idx].table->alias,
+                                 m_graph->nodes[node_idx].table()->alias,
                                  table->file->stats.records);
   }
 
@@ -898,7 +898,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // we don't miss any such paths.
       table_map want_parameter_tables = 0;
       for (const SargablePredicate &sp :
-           m_graph->nodes[node_idx].sargable_predicates) {
+           m_graph->nodes[node_idx].sargable_predicates()) {
         if (sp.field->table == table && sp.field->part_of_key.is_set(key_idx) &&
             !Overlaps(sp.other_side->used_tables(),
                       PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
@@ -1395,7 +1395,7 @@ bool CostingReceiver::FindIndexRangeScans(
     int node_idx, bool *impossible, double *num_output_rows_after_filter) {
   *impossible = false;
   *num_output_rows_after_filter = -1.0;
-  TABLE *table = m_graph->nodes[node_idx].table;
+  TABLE *table = m_graph->nodes[node_idx].table();
 
   RANGE_OPT_PARAM param;
   if (setup_range_optimizer_param(
@@ -2542,7 +2542,7 @@ bool CostingReceiver::ProposeRefAccess(
     bool matched_this_keypart = false;
 
     for (const SargablePredicate &sp :
-         m_graph->nodes[node_idx].sargable_predicates) {
+         m_graph->nodes[node_idx].sargable_predicates()) {
       if (!sp.field->part_of_key.is_set(key_idx)) {
         // Quick reject.
         continue;
@@ -2821,13 +2821,13 @@ bool HasConstantEqualityForField(
 bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
                                                                   bool *found) {
   const Mem_root_array<SargablePredicate> &sargable_predicates =
-      m_graph->nodes[node_idx].sargable_predicates;
+      m_graph->nodes[node_idx].sargable_predicates();
 
   if (sargable_predicates.empty()) {
     return false;
   }
 
-  TABLE *const table = m_graph->nodes[node_idx].table;
+  TABLE *const table = m_graph->nodes[node_idx].table();
   assert(!table->pos_in_table_list->is_recursive_reference());
   assert(!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS));
 
@@ -3592,7 +3592,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
  */
 bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
                                      const JoinHypergraph &graph) {
-  const Table_ref *table_ref = graph.nodes[node_idx].table->pos_in_table_list;
+  const Table_ref *table_ref = graph.nodes[node_idx].table()->pos_in_table_list;
 
   if (table_ref->is_derived()) {
     const NodeMap lateral_deps = GetNodeMapFromTableMap(
@@ -3900,7 +3900,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       assert(has_single_bit(forced_leftmost_table));
       const int node_idx = FindLowestBitSet(forced_leftmost_table);
       my_error(ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER, MYF(0),
-               m_graph->nodes[node_idx].table->alias);
+               m_graph->nodes[node_idx].table()->alias);
       return true;
     }
     swap(left, right);
@@ -4672,8 +4672,8 @@ bool CostingReceiver::RedundantThroughSargable(
 pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
     Item *condition, const AccessPath *left_path,
     const AccessPath *right_path) {
-  const auto it = m_graph->sargable_join_predicates.find(condition);
-  if (it == m_graph->sargable_join_predicates.end()) {
+  const int position = m_graph->FindSargableJoinPredicate(condition);
+  if (position == -1) {
     return {false, false};
   }
 
@@ -4681,11 +4681,11 @@ pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
   // ref access on the outer side, but not impossible if conditions are
   // duplicated; see e.g. bug #33383388.
   const bool applied =
-      IsBitSet(it->second, left_path->applied_sargable_join_predicates()) ||
-      IsBitSet(it->second, right_path->applied_sargable_join_predicates());
+      IsBitSet(position, left_path->applied_sargable_join_predicates()) ||
+      IsBitSet(position, right_path->applied_sargable_join_predicates());
   const bool subsumed =
-      IsBitSet(it->second, left_path->subsumed_sargable_join_predicates()) ||
-      IsBitSet(it->second, right_path->subsumed_sargable_join_predicates());
+      IsBitSet(position, left_path->subsumed_sargable_join_predicates()) ||
+      IsBitSet(position, right_path->subsumed_sargable_join_predicates());
   if (subsumed) {
     assert(applied);
   }
@@ -4965,8 +4965,8 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
       // This predicate was already applied as a ref access earlier.
       // Make sure not to double-count its selectivity, and also
       // that we don't reapply it if it was subsumed by the ref access.
-      const auto it = m_graph->sargable_join_predicates.find(condition);
-      already_applied *= m_graph->predicates[it->second].selectivity;
+      const int position = m_graph->FindSargableJoinPredicate(condition);
+      already_applied *= m_graph->predicates[position].selectivity;
     } else if (RedundantThroughSargable(
                    properties.redundant_against_sargable_predicates, left_path,
                    right_path, left, right)) {
@@ -5284,7 +5284,7 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
       if ((uint64_t{1} << node_idx) == RAND_TABLE_BIT) {
         str += "<random>";
       } else {
-        str += graph.nodes[node_idx].table->alias;
+        str += graph.nodes[node_idx].table()->alias;
       }
       first = false;
     }
@@ -5876,7 +5876,7 @@ bool IsImmediateUpdateCandidate(const Table_ref *table_ref, int node_idx,
                                 table_map target_tables) {
   assert(table_ref->is_updated());
   assert(Overlaps(table_ref->map(), target_tables));
-  assert(table_ref->table == graph.nodes[node_idx].table);
+  assert(table_ref->table == graph.nodes[node_idx].table());
 
   // Cannot update the table immediately if it's joined with itself.
   if (unique_table(table_ref, graph.query_block()->leaf_tables,
@@ -5982,7 +5982,7 @@ table_map FindImmediateUpdateDeleteCandidates(const JoinHypergraph &graph,
   table_map candidates = 0;
   for (unsigned node_idx = 0; node_idx < graph.nodes.size(); ++node_idx) {
     const JoinHypergraph::Node &node = graph.nodes[node_idx];
-    const Table_ref *tl = node.table->pos_in_table_list;
+    const Table_ref *tl = node.table()->pos_in_table_list;
     if (Overlaps(tl->map(), target_tables)) {
       if (is_delete ? IsImmediateDeleteCandidate(tl, graph.query_block())
                     : IsImmediateUpdateCandidate(tl, node_idx, graph,
@@ -5999,7 +5999,7 @@ table_map FindImmediateUpdateDeleteCandidates(const JoinHypergraph &graph,
 NodeMap FindFullTextSearchedTables(const JoinHypergraph &graph) {
   NodeMap tables = 0;
   for (size_t i = 0; i < graph.nodes.size(); ++i) {
-    if (graph.nodes[i].table->pos_in_table_list->is_fulltext_searched()) {
+    if (graph.nodes[i].table()->pos_in_table_list->is_fulltext_searched()) {
       tables |= TableBitmap(i);
     }
   }
@@ -6381,7 +6381,7 @@ AccessPath MakeSortPathForDistinct(
 
 JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
   for (JoinHypergraph::Node &node : graph->nodes) {
-    if (node.table == table) {
+    if (node.table() == table) {
       return &node;
     }
   }
@@ -7141,7 +7141,7 @@ static void PossiblyAddSargableCondition(
     if (TraceStarted(thd)) {
       if (is_join_condition) {
         Trace(thd) << "Found sargable join condition " << ItemToString(item)
-                   << " on " << node->table->alias << "\n";
+                   << " on " << node->table()->alias << "\n";
       } else {
         Trace(thd) << "Found sargable condition " << ItemToString(item) << "\n";
       }
@@ -7164,7 +7164,7 @@ static void PossiblyAddSargableCondition(
       p.contained_subqueries.init(thd->mem_root);  // Empty.
       graph->predicates.push_back(std::move(p));
       predicate_index = graph->predicates.size() - 1;
-      graph->sargable_join_predicates.emplace(eq_item, predicate_index);
+      graph->AddSargableJoinPredicate(eq_item, predicate_index);
     }
 
     // Can we evaluate the right side of the predicate during optimization (in
@@ -7175,8 +7175,7 @@ static void PossiblyAddSargableCondition(
                               !right->has_subquery() &&
                               !right->cost().IsExpensive();
 
-    node->sargable_predicates.push_back(
-        {predicate_index, field, right, can_evaluate});
+    node->AddSargable({predicate_index, field, right, can_evaluate});
 
     // No need to check the opposite order. We have no indexes on constants.
     if (can_evaluate) break;
@@ -7205,12 +7204,12 @@ void FindSargablePredicates(THD *thd, JoinHypergraph *graph) {
     }
   }
   for (JoinHypergraph::Node &node : graph->nodes) {
-    for (Item *cond : node.join_conditions_pushable_to_this) {
-      const auto it = graph->sargable_join_predicates.find(cond);
-      int predicate_index =
-          (it == graph->sargable_join_predicates.end()) ? -1 : it->second;
-      PossiblyAddSargableCondition(thd, cond, *node.companion_set, node.table,
-                                   predicate_index,
+    for (Item *cond : node.pushable_conditions()) {
+      const int predicate_index{graph->FindSargableJoinPredicate(cond)};
+
+      assert(node.companion_set() != nullptr);
+      PossiblyAddSargableCondition(thd, cond, *node.companion_set(),
+                                   node.table(), predicate_index,
                                    /*is_join_condition=*/true, graph);
     }
   }
@@ -7566,7 +7565,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     Trace(thd) << "\nEnumerating subplans:\n";
   }
   for (const JoinHypergraph::Node &node : graph.nodes) {
-    node.table->init_cost_model(thd->cost_model());
+    node.table()->init_cost_model(thd->cost_model());
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
@@ -7934,7 +7933,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       table_map immediate_tables = 0;
       if (root_path->immediate_update_delete_table != -1) {
         immediate_tables = graph.nodes[root_path->immediate_update_delete_table]
-                               .table->pos_in_table_list->map();
+                               .table()
+                               ->pos_in_table_list->map();
       }
       AccessPath *delete_path = NewDeleteRowsAccessPath(
           thd, root_path, update_delete_target_tables, immediate_tables);
@@ -7949,7 +7949,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       table_map immediate_tables = 0;
       if (root_path->immediate_update_delete_table != -1) {
         immediate_tables = graph.nodes[root_path->immediate_update_delete_table]
-                               .table->pos_in_table_list->map();
+                               .table()
+                               ->pos_in_table_list->map();
       }
       AccessPath *update_path = NewUpdateRowsAccessPath(
           thd, root_path, update_delete_target_tables, immediate_tables);

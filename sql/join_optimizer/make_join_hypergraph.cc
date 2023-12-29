@@ -306,7 +306,6 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
     ret->type = RelationalExpression::TABLE;
     ret->table = tl;
     ret->tables_in_subtree = tl->map();
-    ret->join_conditions_pushable_to_this.init(thd->mem_root);
     return ret;
   } else {
     // A join or multijoin.
@@ -1777,7 +1776,7 @@ void PushDownCondition(THD *thd, Item *cond, RelationalExpression *expr,
   with regular push (in PushDownCondition()), but here, we would push down the
   condition onto both sides if possible. (E.g.: If the join was a left join, we
   could push it down to t2, but not to t1.) When we hit a table in such a push,
-  we store the conditions in “join_conditions_pushable_to_this“ for the table
+  we store the conditions in “m_pushable_conditions“ for the table
   to signal that it should be investigated when we consider the table during
   join optimization.
  */
@@ -1792,7 +1791,7 @@ void PushDownToSargableCondition(Item *cond, RelationalExpression *expr,
     }
     if (!IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS,
                   expr->tables_in_subtree)) {
-      expr->join_conditions_pushable_to_this.push_back(cond);
+      expr->AddPushable(cond);
     }
     return;
   }
@@ -2491,13 +2490,13 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   // aliases as we go.
   vector<string> aliases;
   for (const JoinHypergraph::Node &node : graph.nodes) {
-    string alias = node.table->alias;
+    string alias = node.table()->alias;
     while (std::find(aliases.begin(), aliases.end(), alias) != aliases.end()) {
       alias += '_';
     }
-    if (alias != node.table->alias) {
+    if (alias != node.table()->alias) {
       digraph += StringPrintf("  %s [label=\"%s\"];\n", alias.c_str(),
-                              node.table->alias);
+                              node.table()->alias);
     }
     aliases.push_back(std::move(alias));
   }
@@ -2817,7 +2816,7 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 
   // Estimate size of the values.
   for (int node_idx : BitsSetIn(expr->nodes_in_subtree)) {
-    const TABLE *table = graph.nodes[node_idx].table;
+    const TABLE *table = graph.nodes[node_idx].table();
     for (uint i = 0; i < table->s->fields; ++i) {
       if (bitmap_is_set(table->read_set, i)) {
         Field *field = table->field[i];
@@ -3120,10 +3119,8 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     assert(IsSimpleEdge(left, right));
     const int left_node_idx = *BitsSetIn(left).begin();
     const int right_node_idx = *BitsSetIn(right).begin();
-    graph->nodes[left_node_idx].join_conditions_pushable_to_this.push_back(
-        cond);
-    graph->nodes[right_node_idx].join_conditions_pushable_to_this.push_back(
-        cond);
+    graph->nodes[left_node_idx].AddPushable(cond);
+    graph->nodes[right_node_idx].AddPushable(cond);
   }
 }
 
@@ -3191,11 +3188,15 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
                                            JoinHypergraph *graph) {
   if (expr->type == RelationalExpression::TABLE) {
     graph->graph.AddNode();
-    graph->nodes.push_back(JoinHypergraph::Node{
-        expr->table->table,
-        Mem_root_array<Item *>{thd->mem_root,
-                               expr->join_conditions_pushable_to_this},
-        Mem_root_array<SargablePredicate>{thd->mem_root}, expr->companion_set});
+    JoinHypergraph::Node node{thd->mem_root, expr->table->table,
+                              expr->companion_set};
+
+    for (Item *cond : expr->pushable_conditions()) {
+      node.AddPushable(cond);
+    }
+
+    graph->nodes.push_back(std::move(node));
+
     assert(expr->table->tableno() < MAX_TABLES);
     graph->table_num_to_node_num[expr->table->tableno()] =
         graph->graph.nodes.size() - 1;
@@ -3342,10 +3343,8 @@ void AddMultipleEqualityPredicate(THD *thd,
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
 
   // Make this predicate potentially sargable.
-  graph->nodes[left_node_idx].join_conditions_pushable_to_this.push_back(
-      eq_item);
-  graph->nodes[right_node_idx].join_conditions_pushable_to_this.push_back(
-      eq_item);
+  graph->nodes[left_node_idx].AddPushable(eq_item);
+  graph->nodes[right_node_idx].AddPushable(eq_item);
 }
 
 /**
@@ -3667,7 +3666,7 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
   // Build sets of equal fields in each CompanionSet.
   ForEachOperator(root, [&](RelationalExpression *expr) {
     if (expr->type == RelationalExpression::TABLE) {
-      for (const Item *condition : expr->join_conditions_pushable_to_this) {
+      for (const Item *condition : expr->pushable_conditions()) {
         if (is_function_of_type(condition, Item_func::EQ_FUNC)) {
           expr->companion_set->AddEquijoinCondition(
               thd, down_cast<const Item_func_eq &>(*condition));
@@ -3739,7 +3738,7 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
       Trace(thd) << "Node mappings, for reference:\n";
       for (size_t i = 0; i < graph->nodes.size(); ++i) {
         Trace(thd) << StringPrintf("  R%zu = %s\n", i + 1,
-                                   graph->nodes[i].table->alias);
+                                   graph->nodes[i].table()->alias);
       }
     }
     Trace(thd) << "\n";

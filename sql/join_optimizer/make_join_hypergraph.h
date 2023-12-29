@@ -29,6 +29,7 @@
 
 #include "map_helpers.h"
 #include "my_table_map.h"
+#include "sql/item.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/node_map.h"
@@ -85,7 +86,7 @@ struct JoinHypergraph {
         nodes(mem_root),
         edges(mem_root),
         predicates(mem_root),
-        sargable_join_predicates(mem_root),
+        m_sargable_join_predicates(mem_root),
         m_query_block(query_block) {}
 
   hypergraph::Hypergraph graph;
@@ -102,28 +103,57 @@ struct JoinHypergraph {
   // except for when scalar-to-derived conversion is active.
   std::array<int, MAX_TABLES> table_num_to_node_num;
 
-  struct Node {
-    TABLE *table;
+  class Node final {
+   public:
+    Node(MEM_ROOT *mem_root, TABLE *table, const CompanionSet *companion_set)
+        : m_table{table},
+          m_companion_set{companion_set},
+          m_sargable_predicates{mem_root},
+          m_pushable_conditions(mem_root) {
+      assert(mem_root != nullptr);
+      assert(table != nullptr);
+    }
+
+    TABLE *table() const { return m_table; }
+    const CompanionSet *companion_set() const { return m_companion_set; }
+
+    void AddSargable(const SargablePredicate &predicate) {
+      assert(predicate.predicate_index >= 0);
+      assert(predicate.field != nullptr);
+      assert(predicate.other_side != nullptr);
+      m_sargable_predicates.push_back(predicate);
+    }
+
+    const Mem_root_array<SargablePredicate> &sargable_predicates() const {
+      return m_sargable_predicates;
+    }
+
+    void AddPushable(Item *cond) { m_pushable_conditions.push_back(cond); }
+
+    const Mem_root_array<Item *> &pushable_conditions() const {
+      return m_pushable_conditions;
+    }
+
+   private:
+    TABLE *m_table;
+    const CompanionSet *m_companion_set;
+    // List of all sargable predicates (see SargablePredicate) where
+    // the field is part of this table. When we see the node for
+    // the first time, we will evaluate all of these and consider
+    // creating access paths that exploit these predicates.
+    Mem_root_array<SargablePredicate> m_sargable_predicates;
 
     // Join conditions that are potentially pushable to this node
     // as sargable predicates (if they are sargable, they will be
     // added to sargable_predicates below, together with sargable
     // non-join conditions). This is a verbatim copy of
-    // the join_conditions_pushable_to_this member in RelationalExpression,
+    // the m_pushable_conditions member in RelationalExpression,
     // which is computed as a side effect during join pushdown.
     // (We could in principle have gone and collected all join conditions
     // ourselves when determining sargable conditions, but there would be
     // a fair amount of duplicated code in determining pushability,
     // which is why regular join pushdown does the computation.)
-    Mem_root_array<Item *> join_conditions_pushable_to_this;
-
-    // List of all sargable predicates (see SargablePredicate) where
-    // the field is part of this table. When we see the node for
-    // the first time, we will evaluate all of these and consider
-    // creating access paths that exploit these predicates.
-    Mem_root_array<SargablePredicate> sargable_predicates;
-
-    const CompanionSet *companion_set;
+    Mem_root_array<Item *> m_pushable_conditions;
   };
   Mem_root_array<Node> nodes;
 
@@ -143,12 +173,6 @@ struct JoinHypergraph {
   // A bitmap over predicates that are, or contain, at least one
   // materializable subquery.
   OverflowBitset materializable_predicates{0};
-
-  // For each sargable join condition, maps into its index in “predicates”.
-  // We need the predicate index when applying the join to figure out whether
-  // we have already applied the predicate or not; see
-  // {applied,subsumed}_sargable_join_predicates in AccessPath.
-  mem_root_unordered_map<Item *, int> sargable_join_predicates;
 
   /// Returns a pointer to the query block that is being planned.
   const Query_block *query_block() const { return m_query_block; }
@@ -174,7 +198,22 @@ struct JoinHypergraph {
   /// we can assume that the result of the top-level join will also be empty.
   table_map tables_inner_to_outer_or_anti = 0;
 
+  int FindSargableJoinPredicate(const Item *predicate) const {
+    const auto iter = m_sargable_join_predicates.find(predicate);
+    return iter == m_sargable_join_predicates.cend() ? -1 : iter->second;
+  }
+
+  void AddSargableJoinPredicate(const Item *predicate, int position) {
+    m_sargable_join_predicates.emplace(predicate, position);
+  }
+
  private:
+  // For each sargable join condition, maps into its index in “predicates”.
+  // We need the predicate index when applying the join to figure out whether
+  // we have already applied the predicate or not; see
+  // {applied,subsumed}_sargable_join_predicates in AccessPath.
+  mem_root_unordered_map<const Item *, int> m_sargable_join_predicates;
+
   /// A pointer to the query block being planned.
   const Query_block *m_query_block;
 };

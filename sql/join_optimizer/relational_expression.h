@@ -179,7 +179,8 @@ struct RelationalExpression {
         join_conditions(thd->mem_root),
         equijoin_conditions(thd->mem_root),
         properties_for_join_conditions(thd->mem_root),
-        properties_for_equijoin_conditions(thd->mem_root) {}
+        properties_for_equijoin_conditions(thd->mem_root),
+        m_pushable_conditions(thd->mem_root) {}
 
   table_map tables_in_subtree;
 
@@ -190,7 +191,6 @@ struct RelationalExpression {
 
   // If type == TABLE.
   const Table_ref *table;
-  Mem_root_array<Item *> join_conditions_pushable_to_this;
 
   // The CompanionSet that this object is part of.
   CompanionSet *companion_set{nullptr};
@@ -233,6 +233,21 @@ struct RelationalExpression {
   // out of this join; this is in addition to the regular connectivity
   // check. See FindHyperedgeAndJoinConflicts() for more details.
   Mem_root_array<ConflictRule> conflict_rules;
+
+  const Mem_root_array<Item *> &pushable_conditions() const {
+    return m_pushable_conditions;
+  }
+
+  /// Add a condition that can be pushed down to the acces path for 'table'.
+  void AddPushable(Item *cond) {
+    assert(type == TABLE);
+    assert(table->map() && cond->used_tables() != 0);
+    m_pushable_conditions.push_back(cond);
+  }
+
+ private:
+  /// Conditions that can be pushed down to the acces path for 'table'
+  Mem_root_array<Item *> m_pushable_conditions;
 };
 
 // Check conflict rules; usually, they will be empty, but the hyperedges are

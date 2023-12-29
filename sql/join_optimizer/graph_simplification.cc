@@ -233,7 +233,7 @@ double GetCardinality(THD *thd, NodeMap tables_to_join,
     // end up with zero costs in the rudimentary cost model used by the graph
     // simplification.
     component_cardinality[num_components] =
-        max(ha_rows{1}, graph.nodes[node_idx].table->file->stats.records);
+        max(ha_rows{1}, graph.nodes[node_idx].table()->file->stats.records);
     ++num_components;
   }
 
