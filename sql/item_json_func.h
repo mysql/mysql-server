@@ -1115,7 +1115,7 @@ class Item_func_json_value final : public Item_func {
   bool fix_fields(THD *thd, Item **ref) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   bool val_json(Json_wrapper *wr) override;
   String *val_str(String *buffer) override;
   double val_real() override;

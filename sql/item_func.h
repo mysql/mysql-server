@@ -78,8 +78,7 @@ class List;
 
 /* Function items used by mysql */
 
-extern bool reject_geometry_args(uint arg_count, Item **args,
-                                 Item_result_field *me);
+extern bool reject_geometry_args(uint arg_count, Item **args, Item_func *me);
 void unsupported_json_comparison(size_t arg_count, Item **args,
                                  const char *msg);
 
@@ -134,6 +133,26 @@ class Item_func : public Item_result_field {
   inline Item **arguments() const {
     return (argument_count() > 0) ? args : nullptr;
   }
+  /*
+    This function is used to provide a unique textual name for the specific
+    subclass of Item_func. E.g, it returns "+" for the arithmetic addition
+    operator, "abs" for the absolute value function, "avg" for the average
+    aggregate function, etc. The function value is currently used to distinguish
+    Item_func subclasses from each other in Item_func::eq(),
+    since Item_func::functype() is not implemented for every subclass.
+    In addition, the function value is used when printing a textual
+    representation of a function reference, which is used within the dictionary
+    implementation and when printing SQL text for explain purposes.
+    Note that for calls to stored functions and UDF functions, func_name()
+    returns the name of the function. This may overlap with the name of an
+    internal function, thus the functype() must be used together with
+    func_name() to get a unique function reference.
+    For runtime type identification, it is adviced to use Item_func::functype()
+    and Item_sum::sum_func() instead.
+    The value is returned in ASCII character set, except for user-defined
+    functions, whose names are returned in the system character set.
+  */
+  virtual const char *func_name() const = 0;
 
  protected:
   /*
@@ -494,6 +513,11 @@ class Item_func : public Item_result_field {
   void update_used_tables() override;
   void set_used_tables(table_map map) { used_tables_cache = map; }
   bool eq(const Item *item, bool binary_cmp) const override;
+  /**
+    Provide a more specific equality check for a function.
+    Combine with Item::eq() to implement a complete equality check.
+  */
+  virtual bool eq_specific(const Item *) const { return true; }
   virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return false; }
   virtual Item *key_item() const { return args[0]; }
@@ -1727,7 +1751,7 @@ class Item_rollup_group_item final : public Item_func {
   enum Functype functype() const override { return ROLLUP_GROUP_ITEM_FUNC; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   TYPELIB *get_typelib() const override;
 
   // Used by AggregateIterator.
@@ -3320,7 +3344,7 @@ class Item_func_get_user_var : public Item_var_func,
   */
   const char *func_name() const override { return "get_user_var"; }
   bool is_non_const_over_literals(uchar *) override { return true; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
 
  private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
@@ -3449,7 +3473,7 @@ class Item_func_get_system_var final : public Item_var_func {
   }
   /* TODO: fix to support views */
   const char *func_name() const override { return "get_system_var"; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
     // Expressions which have system variables cannot be pushed as of
     // now because Item_func_get_system_var::print does not print the
@@ -3529,7 +3553,7 @@ class Item_func_match final : public Item_real_func {
   enum Functype functype() const override { return FT_FUNC; }
   const char *func_name() const override { return "match"; }
   bool fix_fields(THD *thd, Item **ref) override;
-  bool eq(const Item *, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   /* The following should be safe, even if we compare doubles */
   longlong val_int() override {
     assert(fixed);

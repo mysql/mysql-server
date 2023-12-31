@@ -141,7 +141,7 @@ class Arg_comparator {
   Item **left{nullptr};
   Item **right{nullptr};
   arg_cmp_func func{nullptr};
-  Item_result_field *owner{nullptr};
+  Item_func *owner{nullptr};
   Arg_comparator *comparators{nullptr};  // used only for compare_row()
   uint16 comparator_count{0};
   double precision{0.0};
@@ -171,14 +171,14 @@ class Arg_comparator {
 
   Arg_comparator(Item **left, Item **right) : left(left), right(right) {}
 
-  bool set_compare_func(Item_result_field *owner, Item_result type);
-  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
+  bool set_compare_func(Item_func *owner, Item_result type);
+  bool set_cmp_func(Item_func *owner_arg, Item **left, Item **right,
                     Item_result type);
 
-  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
+  bool set_cmp_func(Item_func *owner_arg, Item **left, Item **right,
                     bool set_null_arg);
 
-  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
+  bool set_cmp_func(Item_func *owner_arg, Item **left, Item **right,
                     bool set_null_arg, Item_result type);
   /**
      Comparison function are expected to operate on arguments having the
@@ -227,8 +227,7 @@ class Arg_comparator {
 
   static bool can_compare_as_dates(const Item *a, const Item *b);
 
-  void set_datetime_cmp_func(Item_result_field *owner_arg, Item **a1,
-                             Item **b1);
+  void set_datetime_cmp_func(Item_func *owner_arg, Item **a1, Item **b1);
   static arg_cmp_func comparator_matrix[5];
   void cleanup();
   /*
@@ -1308,7 +1307,7 @@ class Item_func_opt_neg : public Item_int_func {
     return ignore_unknown() || original->is_nullable() || !subst->is_nullable();
   }
 
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   bool subst_argument_checker(uchar **) override { return true; }
 
  protected:
@@ -2705,7 +2704,7 @@ class Item_equal final : public Item_bool_func {
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   const CHARSET_INFO *compare_collation() const override {
     return fields.head()->collation.collation;
   }

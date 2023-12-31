@@ -4319,9 +4319,7 @@ static bool same_response_type(Json_on_response_type type1,
                              type2 == Json_on_response_type::NULL_VALUE));
 }
 
-bool Item_func_json_value::eq(const Item *item, bool binary_cmp) const {
-  if (!Item_func::eq(item, binary_cmp)) return false;
-
+bool Item_func_json_value::eq_specific(const Item *item) const {
   const auto other = down_cast<const Item_func_json_value *>(item);
 
   if (other->m_cast_target != m_cast_target) return false;

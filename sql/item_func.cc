@@ -773,22 +773,25 @@ void Item_func::print_op(const THD *thd, String *str,
   str->append(')');
 }
 
-/// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const {
-  /* Assume we don't have rtti */
   if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
+  if (item->type() != type()) return false;
   const Item_func::Functype func_type = functype();
-  const Item_func *item_func = down_cast<const Item_func *>(item);
-
-  if ((func_type != item_func->functype()) ||
-      (arg_count != item_func->arg_count) ||
-      (func_type != Item_func::FUNC_SP &&
-       strcmp(func_name(), item_func->func_name()) != 0) ||
-      (func_type == Item_func::FUNC_SP &&
-       my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
+  const Item_func *func = down_cast<const Item_func *>(item);
+  /*
+    Note: most function names are in ASCII character set, however stored
+          functions and UDFs return names in system character set,
+          therefore the comparison is performed using this character set.
+  */
+  if (func_type != func->functype() || arg_count != func->arg_count ||
+      my_strcasecmp(system_charset_info, func_name(), func->func_name()) ||
+      !eq_specific(item)) {
     return false;
-  return AllItemsAreEqual(args, item_func->args, arg_count, binary_cmp);
+  }
+  if (arg_count == 0) {
+    return true;
+  }
+  return AllItemsAreEqual(args, func->args, arg_count, binary_cmp);
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {
@@ -1589,7 +1592,7 @@ void Item_func_num1::fix_num_length_and_dec() {
   Reject geometry arguments, should be called in resolve_type() for
   SQL functions/operators where geometries are not suitable as operands.
  */
-bool reject_geometry_args(uint arg_count, Item **args, Item_result_field *me) {
+bool reject_geometry_args(uint arg_count, Item **args, Item_func *me) {
   /*
     We want to make sure the operands are not GEOMETRY strings because
     it's meaningless for them to participate in arithmetic and/or numerical
@@ -4162,10 +4165,9 @@ void Item_rollup_group_item::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_rollup_group_item::eq(const Item *item, bool binary_cmp) const {
-  return Item_func::eq(item, binary_cmp) &&
-         min_rollup_level() == down_cast<const Item_rollup_group_item *>(item)
-                                   ->min_rollup_level();
+bool Item_rollup_group_item::eq_specific(const Item *item) const {
+  return min_rollup_level() ==
+         down_cast<const Item_rollup_group_item *>(item)->min_rollup_level();
 }
 
 TYPELIB *Item_rollup_group_item::get_typelib() const {
@@ -7011,13 +7013,7 @@ void Item_func_get_user_var::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func_get_user_var::eq(const Item *item, bool) const {
-  /* Assume we don't have rtti */
-  if (this == item) return true;  // Same item is same.
-  /* Check if other type is also a get_user_var() object */
-  if (item->type() != FUNC_ITEM ||
-      down_cast<const Item_func *>(item)->functype() != functype())
-    return false;
+bool Item_func_get_user_var::eq_specific(const Item *item) const {
   const Item_func_get_user_var *other =
       down_cast<const Item_func_get_user_var *>(item);
   return name.eq_bin(other->name);
@@ -7477,13 +7473,7 @@ double Item_func_get_system_var::val_real() {
   return var_tracker.access_system_variable<double>(thd, f).value_or(0);
 }
 
-bool Item_func_get_system_var::eq(const Item *item, bool) const {
-  /* Assume we don't have rtti */
-  if (this == item) return true;  // Same item is same.
-  /* Check if other type is also a get_user_var() object */
-  if (item->type() != FUNC_ITEM ||
-      down_cast<const Item_func *>(item)->functype() != functype())
-    return false;
+bool Item_func_get_system_var::eq_specific(const Item *item) const {
   const Item_func_get_system_var *other =
       down_cast<const Item_func_get_system_var *>(item);
   return var_tracker == other->var_tracker;
@@ -7834,18 +7824,18 @@ err:
   return true;
 }
 
-bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
-  /* We ignore FT_SORTED flag when checking for equality since result is
-     equivalent regardless of sorting */
-  if (!is_function_of_type(item, FT_FUNC) ||
-      (flags | FT_SORTED) !=
-          (down_cast<const Item_func_match *>(item)->flags | FT_SORTED))
-    return false;
-
+bool Item_func_match::eq_specific(const Item *item) const {
   const Item_func_match *ifm = down_cast<const Item_func_match *>(item);
 
+  /*
+    Ignore FT_SORTED flag when checking for equality since result is
+    equivalent regardless of sorting
+  */
+  if ((flags | FT_SORTED) != (ifm->flags | FT_SORTED)) {
+    return false;
+  }
   if (key == ifm->key && table_ref == ifm->table_ref &&
-      key_item()->eq(ifm->key_item(), binary_cmp))
+      key_item()->eq(ifm->key_item(), false))
     return true;
 
   return false;

@@ -5822,3 +5822,17 @@ SELECT QUOTE(x'80');
 ERROR HY000: Cannot convert string '\x80' from binary to utf8mb4
 SELECT QUOTE(_utf8mb4 x'80');
 ERROR HY000: Invalid utf8mb4 character string: '80'
+#
+# Bug#36137690 Item_func_conv_charset::eq not correct
+#
+CREATE TABLE t1 (a CHAR(10));
+INSERT INTO t1 VALUES ('你好'), ('中午好');
+SELECT a, CONVERT(a USING latin1) FROM t1 ORDER BY CONVERT(a USING utf8mb4);
+a	CONVERT(a USING latin1)
+中午好	???
+你好	??
+SELECT a FROM t1 ORDER BY CONVERT(a USING utf8mb4);
+a
+中午好
+你好
+DROP TABLE t1;

@@ -5843,18 +5843,6 @@ class Item_result_field : public Item {
   Field *get_result_field() const override { return result_field; }
 
   void cleanup() override;
-  /*
-    This method is used for debug purposes to print the name of an
-    item to the debug log. The second use of this method is as
-    a helper function of print() and error messages, where it is
-    applicable. To suit both goals it should return a meaningful,
-    distinguishable and syntactically correct string. This method
-    should not be used for runtime type identification, use enum
-    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
-    instead.
-    Added here, to the parent class of both Item_func and Item_sum.
-  */
-  virtual const char *func_name() const = 0;
   bool check_function_as_value_generator(uchar *) override { return false; }
   bool mark_field_in_map(uchar *arg) override {
     bool rc = Item::mark_field_in_map(arg);

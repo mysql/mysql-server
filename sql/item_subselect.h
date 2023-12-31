@@ -180,11 +180,6 @@ class Item_subselect : public Item_result_field {
   bool inform_item_in_cond_of_tab(uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
 
-  const char *func_name() const override {
-    assert(0);
-    return "subquery";
-  }
-
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);

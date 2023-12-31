@@ -2675,3 +2675,15 @@ SELECT QUOTE(NULL);
 SELECT QUOTE(x'80');
 --error ER_INVALID_CHARACTER_STRING
 SELECT QUOTE(_utf8mb4 x'80');
+
+--echo #
+--echo # Bug#36137690 Item_func_conv_charset::eq not correct
+--echo #
+
+CREATE TABLE t1 (a CHAR(10));
+INSERT INTO t1 VALUES ('你好'), ('中午好');
+
+SELECT a, CONVERT(a USING latin1) FROM t1 ORDER BY CONVERT(a USING utf8mb4);
+SELECT a FROM t1 ORDER BY CONVERT(a USING utf8mb4);
+
+DROP TABLE t1;

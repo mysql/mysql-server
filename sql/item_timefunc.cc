@@ -944,12 +944,9 @@ longlong Item_datetime_func::val_date_temporal() {
              : TIME_to_longlong_datetime_packed(ltime);
 }
 
-bool Item_date_literal::eq(const Item *item, bool) const {
-  return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
-             0 &&
-         cached_time.eq(
-             down_cast<const Item_date_literal *>(item)->cached_time);
+bool Item_date_literal::eq_specific(const Item *item) const {
+  return cached_time.eq(
+      down_cast<const Item_date_literal *>(item)->cached_time);
 }
 
 void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
@@ -958,12 +955,9 @@ void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
   str->append('\'');
 }
 
-bool Item_datetime_literal::eq(const Item *item, bool) const {
-  return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
-             0 &&
-         cached_time.eq(
-             down_cast<const Item_datetime_literal *>(item)->cached_time);
+bool Item_datetime_literal::eq_specific(const Item *item) const {
+  return cached_time.eq(
+      down_cast<const Item_datetime_literal *>(item)->cached_time);
 }
 
 void Item_datetime_literal::print(const THD *, String *str,
@@ -973,12 +967,9 @@ void Item_datetime_literal::print(const THD *, String *str,
   str->append('\'');
 }
 
-bool Item_time_literal::eq(const Item *item, bool) const {
-  return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
-             0 &&
-         cached_time.eq(
-             down_cast<const Item_time_literal *>(item)->cached_time);
+bool Item_time_literal::eq_specific(const Item *item) const {
+  return cached_time.eq(
+      down_cast<const Item_time_literal *>(item)->cached_time);
 }
 
 void Item_time_literal::print(const THD *, String *str, enum_query_type) const {
@@ -2223,14 +2214,9 @@ bool Item_func_date_format::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const {
-  if (item->type() != FUNC_ITEM) return false;
-  if (strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) != 0)
-    return false;
-  if (this == item) return true;
+bool Item_func_date_format::eq_specific(const Item *item) const {
   const Item_func_date_format *item_func =
       down_cast<const Item_func_date_format *>(item);
-  if (!ItemsAreEqual(args[0], item_func->args[0], binary_cmp)) return false;
   /*
     We must compare format string case sensitive.
     This needed because format modifiers with different case,
@@ -2651,8 +2637,7 @@ bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
   return get_time_internal(ltime);
 }
 
-bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const {
-  if (!Item_func::eq(item, binary_cmp)) return false;
+bool Item_date_add_interval::eq_specific(const Item *item) const {
   const Item_date_add_interval *other =
       down_cast<const Item_date_add_interval *>(item);
   return m_interval_type == other->m_interval_type &&
@@ -2881,16 +2866,9 @@ longlong Item_extract::val_int() {
   return 0;  // Impossible
 }
 
-bool Item_extract::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM ||
-      functype() != down_cast<const Item_func *>(item)->functype())
-    return false;
-
+bool Item_extract::eq_specific(const Item *item) const {
   const Item_extract *ie = down_cast<const Item_extract *>(item);
   if (ie->int_type != int_type) return false;
-
-  if (!args[0]->eq(ie->args[0], binary_cmp)) return false;
   return true;
 }
 

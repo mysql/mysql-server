@@ -1010,7 +1010,7 @@ class Item_typecast_char final : public Item_charset_conversion {
     m_cast_length = length_arg;
   }
   enum Functype functype() const override { return TYPECAST_FUNC; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   const char *func_name() const override { return "cast_as_char"; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
@@ -1100,7 +1100,7 @@ class Item_func_set_collation final : public Item_str_func {
   bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   const char *func_name() const override { return "collate"; }
   enum Functype functype() const override { return COLLATE_FUNC; }
   void print(const THD *thd, String *str,
@@ -1170,7 +1170,7 @@ class Item_func_weight_string final : public Item_str_func {
   bool do_itemize(Parse_context *pc, Item **res) override;
 
   const char *func_name() const override { return "weight_string"; }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,

@@ -879,7 +879,7 @@ class Item_date_literal final : public Item_date_func {
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override { assert(marker == MARKER_NONE); }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
 };
 
 /**
@@ -920,7 +920,7 @@ class Item_time_literal final : public Item_time_func {
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override { assert(marker == MARKER_NONE); }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
 };
 
 /**
@@ -964,7 +964,7 @@ class Item_datetime_literal final : public Item_datetime_func {
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override { assert(marker == MARKER_NONE); }
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
 };
 
 /**
@@ -1271,7 +1271,7 @@ class Item_func_date_format final : public Item_str_func {
   }
   bool resolve_type(THD *thd) override;
   uint format_length(const String *format);
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
 };
 
 class Item_func_from_unixtime final : public Item_datetime_func {
@@ -1356,7 +1356,7 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
   const char *func_name() const override { return "date_add_interval"; }
   enum Functype functype() const override { return DATEADD_FUNC; }
   bool resolve_type(THD *) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   interval_type get_interval_type() const { return m_interval_type; }
@@ -1388,7 +1388,7 @@ class Item_extract final : public Item_int_func {
   enum Functype functype() const override { return EXTRACT_FUNC; }
   const char *func_name() const override { return "extract"; }
   bool resolve_type(THD *) override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq_specific(const Item *item) const override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool check_partition_func_processor(uchar *) override { return false; }

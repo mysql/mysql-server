@@ -3090,18 +3090,10 @@ bool Item_func_set_collation::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const {
-  /* Assume we don't have rtti */
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
-  const Item_func *item_func = down_cast<const Item_func *>(item);
-  if (arg_count != item_func->arg_count || functype() != item_func->functype())
-    return false;
+bool Item_func_set_collation::eq_specific(const Item *item) const {
   const Item_func_set_collation *item_func_sc =
       down_cast<const Item_func_set_collation *>(item);
   if (collation.collation != item_func_sc->collation.collation) return false;
-  for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func_sc->args[i], binary_cmp)) return false;
   return true;
 }
 
@@ -3198,21 +3190,11 @@ bool Item_func_weight_string::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
-
-  const Item_func *func_item = down_cast<const Item_func *>(item);
-  if (functype() != func_item->functype() ||
-      strcmp(func_name(), func_item->func_name()) != 0)
-    return false;
-
+bool Item_func_weight_string::eq_specific(const Item *item) const {
   const Item_func_weight_string *wstr =
       down_cast<const Item_func_weight_string *>(item);
   if (num_codepoints != wstr->num_codepoints || flags != wstr->flags)
     return false;
-
-  if (!args[0]->eq(wstr->args[0], binary_cmp)) return false;
   return true;
 }
 
@@ -3423,20 +3405,10 @@ err:
 }
 #endif
 
-bool Item_typecast_char::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
-
-  const Item_func *func_item = down_cast<const Item_func *>(item);
-  if (functype() != func_item->functype() ||
-      strcmp(func_name(), func_item->func_name()))
-    return false;
-
+bool Item_typecast_char::eq_specific(const Item *item) const {
   const Item_typecast_char *cast = down_cast<const Item_typecast_char *>(item);
   if (m_cast_length != cast->m_cast_length || m_cast_cs != cast->m_cast_cs)
     return false;
-
-  if (!args[0]->eq(cast->args[0], binary_cmp)) return false;
   return true;
 }
 

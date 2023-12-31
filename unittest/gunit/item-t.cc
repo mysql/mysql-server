@@ -941,7 +941,7 @@ TEST_F(ItemTest, NormalizedPrint) {
 TEST_F(ItemTest, CompareEmptyStrings) {
   Item *item1 = new Item_string(nullptr, 0, &my_charset_bin);
   Item *item2 = new Item_string(nullptr, 0, &my_charset_bin);
-  Item_result_field *owner = new Item_func_le(item1, item2);
+  Item_func *owner = new Item_func_le(item1, item2);
   EXPECT_FALSE(item1->fix_fields(thd(), nullptr));
   EXPECT_FALSE(item2->fix_fields(thd(), nullptr));
 

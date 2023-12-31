@@ -882,8 +882,7 @@ void Arg_comparator::cleanup() {
   value2.mem_free();
 }
 
-bool Arg_comparator::set_compare_func(Item_result_field *item,
-                                      Item_result type) {
+bool Arg_comparator::set_compare_func(Item_func *item, Item_result type) {
   m_compare_type = type;
   owner = item;
   func = comparator_matrix[type];
@@ -920,7 +919,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        const char *func_name = owner ? owner->func_name() : "";
+        const char *func_name = owner != nullptr ? owner->func_name() : "";
         my_coll_agg_error((*left)->collation, (*right)->collation, func_name);
         return true;
       }
@@ -1250,7 +1249,7 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **, const Item *,
     Here we override the chosen result type for certain expression
     containing date or time or decimal expressions.
  */
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, Item_result type) {
   m_compare_type = type;
   owner = owner_arg;
@@ -1337,7 +1336,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
       DTCollation::set() may have chosen a charset that's a superset of both
       and "left" and "right", so we need to convert both items.
      */
-    const char *func_name = owner ? owner->func_name() : "";
+    const char *func_name = owner != nullptr ? owner->func_name() : "";
     if (agg_item_set_converter(coll, func_name, left, 1, MY_COLL_CMP_CONV, 1,
                                true) ||
         agg_item_set_converter(coll, func_name, right, 1, MY_COLL_CMP_CONV, 1,
@@ -1370,7 +1369,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   return set_compare_func(owner_arg, type);
 }
 
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, bool set_null_arg) {
   set_null = set_null_arg;
   const Item_result item_result =
@@ -1378,7 +1377,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   return set_cmp_func(owner_arg, left_arg, right_arg, item_result);
 }
 
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, bool set_null_arg,
                                   Item_result type) {
   set_null = set_null_arg;
@@ -1598,7 +1597,7 @@ static Item **cache_converted_constant(THD *thd, Item **value,
   return value;
 }
 
-void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
+void Arg_comparator::set_datetime_cmp_func(Item_func *owner_arg,
                                            Item **left_arg, Item **right_arg) {
   owner = owner_arg;
   left = left_arg;
@@ -2097,7 +2096,7 @@ int Arg_comparator::compare_row() {
     /* Aggregate functions don't need special null handling. */
     if (owner->null_value && owner->type() == Item::FUNC_ITEM) {
       // NULL was compared
-      switch (((Item_func *)owner)->functype()) {
+      switch (owner->functype()) {
         case Item_func::NE_FUNC:
           break;  // NE never aborts on NULL even if abort_on_null is set
         case Item_func::LT_FUNC:
@@ -2869,16 +2868,10 @@ longlong Item_func_strcmp::val_int() {
   return value == 0 ? 0 : value < 0 ? -1 : 1;
 }
 
-bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
-  /* Assume we don't have rtti */
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
-  const Item_func *item_func = down_cast<const Item_func *>(item);
-  if (arg_count != item_func->arg_count || functype() != item_func->functype())
+bool Item_func_opt_neg::eq_specific(const Item *item) const {
+  if (negated != down_cast<const Item_func_opt_neg *>(item)->negated)
     return false;
-  if (negated != down_cast<const Item_func_opt_neg *>(item_func)->negated)
-    return false;
-  return AllItemsAreEqual(args, item_func->arguments(), arg_count, binary_cmp);
+  return true;
 }
 
 bool Item_func_interval::do_itemize(Parse_context *pc, Item **res) {
@@ -7278,16 +7271,12 @@ void Item_equal::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_equal::eq(const Item *item, bool binary_cmp) const {
-  if (!is_function_of_type(item, Item_func::MULT_EQUAL_FUNC)) {
-    return false;
-  }
+bool Item_equal::eq_specific(const Item *item) const {
   const Item_equal *item_eq = down_cast<const Item_equal *>(item);
   if ((m_const_arg != nullptr) != (item_eq->m_const_arg != nullptr)) {
     return false;
   }
-  if (m_const_arg != nullptr &&
-      !m_const_arg->eq(item_eq->m_const_arg, binary_cmp)) {
+  if (m_const_arg != nullptr && !m_const_arg->eq(item_eq->m_const_arg, false)) {
     return false;
   }
 
