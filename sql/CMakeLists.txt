@@ -277,13 +277,6 @@ SET(DD_SOURCES
   dd/performance_schema/init.cc
 
   dd/ndbinfo_schema/init.cc
-
-  dd/upgrade_57/event.cc
-  dd/upgrade_57/global.cc
-  dd/upgrade_57/routine.cc
-  dd/upgrade_57/schema.cc
-  dd/upgrade_57/table.cc
-  dd/upgrade_57/upgrade.cc
 )
 
 SET(SQL_GIS_SOURCES

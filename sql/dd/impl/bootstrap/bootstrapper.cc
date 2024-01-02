@@ -67,7 +67,6 @@
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
 #include "sql/dd/upgrade/server.h"         // UPGRADE_NONE
-#include "sql/dd/upgrade_57/upgrade.h"     // upgrade_57::Upgrade_status
 #include "sql/handler.h"                   // dict_init_mode_t
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
@@ -835,37 +834,11 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
 }
 
 // Initialize the data dictionary.
-bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
-                           Dictionary_impl *d) {
-  if (is_dd_upgrade_57)
-    bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::STARTED);
-
+bool initialize_dictionary(THD *thd, Dictionary_impl *d) {
   store_predefined_tablespace_metadata(thd);
   if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
       create_tables(thd, nullptr))
     return true;
-
-  if (is_dd_upgrade_57) {
-    // Add status to mark creation of dictionary in InnoDB.
-    // Till this step, no new undo log is created by InnoDB.
-    if (upgrade_57::Upgrade_status().update(
-            upgrade_57::Upgrade_status::enum_stage::DICT_TABLES_CREATED))
-      return true;
-  }
-
-  DBUG_EXECUTE_IF(
-      "dd_upgrade_stage_2", if (is_dd_upgrade_57) {
-        /*
-          Server will crash will upgrading 5.7 data directory.
-          This will leave server is an inconsistent state.
-          File tracking upgrade will have Stage 2 written in it.
-          Next restart of server on same data directory should
-          revert all changes done by upgrade and data directory
-          should be reusable by 5.7 server.
-        */
-        DBUG_SUICIDE();
-      });
 
   if (DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
@@ -875,7 +848,7 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       populate_tables(thd) ||
       update_properties(thd, nullptr, nullptr,
                         String_type(MYSQL_SCHEMA_NAME.str)) ||
-      verify_contents(thd) || update_versions(thd, is_dd_upgrade_57))
+      verify_contents(thd) || update_versions(thd))
     return true;
 
   DBUG_EXECUTE_IF(
@@ -915,7 +888,7 @@ bool initialize(THD *thd) {
     commit explicitly here.
   */
   if (DDSE_dict_init(thd, DICT_INIT_CREATE_FILES, d->get_target_dd_version()) ||
-      initialize_dictionary(thd, false, d))
+      initialize_dictionary(thd, d))
     return true;
 
   assert(d->get_target_dd_version() == d->get_actual_dd_version(thd));
@@ -924,8 +897,33 @@ bool initialize(THD *thd) {
   return false;
 }
 
-// Normal server restart.
-bool restart(THD *thd) {
+// Initialize dictionary in case of server restart.
+bool restart_dictionary(THD *thd) {
+  Disable_autocommit_guard autocommit_guard(thd);
+  Dictionary_impl *d = dd::Dictionary_impl::instance();
+  assert(d);
+  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  if (bootstrap::DDSE_dict_init(thd, DICT_INIT_CHECK_FILES,
+                                d->get_target_dd_version())) {
+    LogErr(ERROR_LEVEL, ER_DD_SE_INIT_FAILED);
+    return true;
+  }
+
+  // RAII to handle error messages.
+  dd::upgrade::Bootstrap_error_handler bootstrap_error_handler;
+
+  // RAII to handle error in execution of CREATE TABLE.
+  Key_length_error_handler key_error_handler;
+  /*
+    Ignore ER_TOO_LONG_KEY for dictionary tables during restart.
+    Do not print the error in error log as we are creating only the
+    cached objects and not physical tables.
+    TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
+  */
+  thd->push_internal_handler(&key_error_handler);
+  bootstrap_error_handler.set_log_error(false);
+
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::STARTED);
 
   /*
@@ -938,12 +936,6 @@ bool restart(THD *thd) {
   // Set explicit_defaults_for_timestamp variable for dictionary creation
   thd->variables.explicit_defaults_for_timestamp = true;
 
-  Disable_autocommit_guard autocommit_guard(thd);
-
-  Dictionary_impl *d = dd::Dictionary_impl::instance();
-  assert(d);
-  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
   store_predefined_tablespace_metadata(thd);
 
   if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
@@ -952,7 +944,9 @@ bool restart(THD *thd) {
                         d->get_actual_dd_version(thd)) ||
       upgrade::do_server_upgrade_checks(thd) || upgrade::upgrade_tables(thd) ||
       repopulate_charsets_and_collations(thd) || verify_contents(thd) ||
-      update_versions(thd, false)) {
+      update_versions(thd)) {
+    bootstrap_error_handler.set_log_error(true);
+    thd->pop_internal_handler();
     return true;
   }
 
@@ -967,6 +961,9 @@ bool restart(THD *thd) {
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));
+
+  bootstrap_error_handler.set_log_error(true);
+  thd->pop_internal_handler();
 
   return false;
 }
@@ -1020,7 +1017,7 @@ bool setup_dd_objects_and_collations(THD *thd) {
     upgrade does not need to be considered.
   */
   if (sync_meta_data(thd) || repopulate_charsets_and_collations(thd) ||
-      verify_contents(thd) || update_versions(thd, false)) {
+      verify_contents(thd) || update_versions(thd)) {
     return true;
   }
 
@@ -1854,7 +1851,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
   return false;
 }
 
-bool update_versions(THD *thd, bool is_dd_upgrade_57) {
+bool update_versions(THD *thd) {
   /*
     During initialize, store the DD version number, the LCTN used, and the
     mysqld server version.
@@ -1874,18 +1871,9 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
         setprop(thd, "MYSQLD_VERSION", MYSQL_VERSION_ID))
       return dd::end_transaction(thd, true);
 
-    if (is_dd_upgrade_57) {
-      if (setprop(thd, "MYSQLD_VERSION_UPGRADED",
-                  bootstrap::SERVER_VERSION_50700))
-        return true;
-      bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
-          bootstrap::SERVER_VERSION_50700);
-    } else {
-      if (setprop(thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID))
-        return true;
-      bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
-          MYSQL_VERSION_ID);
-    }
+    if (setprop(thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID)) return true;
+    bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
+        MYSQL_VERSION_ID);
   } else {
     uint mysqld_version_lo = 0;
     uint mysqld_version_hi = 0;

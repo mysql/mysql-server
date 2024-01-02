@@ -184,9 +184,6 @@ then table->data_dir_path will remain nullptr.
 @param[in]      filepath        filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 
-/** Load all tablespaces during upgrade */
-void dict_load_tablespaces_for_upgrade();
-
 /* Comparator for missing_spaces. */
 struct space_compare {
   bool operator()(const fil_space_t *lhs, const fil_space_t *rhs) const {
@@ -203,8 +200,7 @@ extern missing_sys_tblsp_t missing_spaces;
 
 /** This bool denotes if we found a Table or Partition with discarded Tablespace
 during load of SYS_TABLES (in dict_check_sys_tables).
-
-We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
+*/
 extern bool has_discarded_tablespaces;
 
 #endif

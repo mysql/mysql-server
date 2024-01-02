@@ -157,37 +157,6 @@ ERROR HY000: Running in read-only mode
 alter table t_alter comment = 'new comment';
 ERROR HY000: Running in read-only mode
 # -----------------------------------------------------------------------
-# Upgrade from 5.7.22.
-# -----------------------------------------------------------------------
-#
-# Prepare data directory
-#
-#
-# Upgrade with read-only = 1 succeeds.
-#
-# restart: --datadir=MYSQLD_DATADIR --read-only=1 --log-error=MYSQLD_LOG
-select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
-@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
-0	0	1	0
-#
-# Upgrade with super-read-only = 1 succeeds.
-#
-# restart: --datadir=MYSQLD_DATADIR --super-read-only=1 --log-error=MYSQLD_LOG
-select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
-@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
-0	0	1	1
-#
-# Upgrade with transaction-read-only = 1 succeeds.
-#
-# restart: --datadir=MYSQLD_DATADIR --transaction-read-only=1 --log-error=MYSQLD_LOG
-select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
-@@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only
-0	1	0	0
-#
-# Upgrade with innodb-read-only = 1 fails.
-#
-Pattern "Database upgrade cannot be accomplished in read-only mode" found
-# -----------------------------------------------------------------------
 # Upgrade from 8.0.15.
 # -----------------------------------------------------------------------
 #

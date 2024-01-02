@@ -1183,7 +1183,7 @@ bool upgrade_tables(THD *thd) {
       update_object_ids(thd, create_set, remove_set, mysql_schema_id,
                         target_table_schema_id, target_table_schema_name,
                         actual_table_schema_id) ||
-      update_versions(thd, false))
+      update_versions(thd))
     return true;
 
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_COMPLETED,

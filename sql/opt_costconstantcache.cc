@@ -33,9 +33,8 @@
 #include "mysql/my_loglevel.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"            // current_thd
-#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress()
-#include "sql/field.h"                  // Field
+#include "sql/current_thd.h"  // current_thd
+#include "sql/field.h"        // Field
 #include "sql/iterators/row_iterator.h"
 #include "sql/mysqld.h"         // key_LOCK_cost_const
 #include "sql/opt_costmodel.h"  // Optimizer
@@ -438,14 +437,8 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
       created. This happens when handlertons are initialized. Hence, during
       --initialize, up to the point after plugins are initialized, we may
       suppress this warning.
-      The warning may also be emitted during upgrade from a mysql 5.7 version
-      where the cost model tables are not present. This happens at the same
-      point as above because the cost model tables are upgraded at a later
-      stage in the upgrade process. Thus, we can suppress the warning also in
-      this case.
     */
-    if (dynamic_plugins_are_initialized ||
-        (!opt_initialize && !dd::upgrade_57::in_progress())) {
+    if (dynamic_plugins_are_initialized || !opt_initialize) {
       LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
     }
   }

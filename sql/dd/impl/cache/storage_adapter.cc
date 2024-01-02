@@ -69,7 +69,6 @@
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/view.h"                      // View
-#include "sql/dd/upgrade_57/upgrade.h"              // allow_sdi_creation
 #include "sql/debug_sync.h"                         // DEBUG_SYNC
 #include "sql/error_handler.h"                      // Internal_error_handler
 #include "sql/log.h"
@@ -343,7 +342,7 @@ bool Storage_adapter::store(THD *thd, T *object) {
   // dictionary entry during upgrade.
   if (bootstrap::DD_bootstrap_ctx::instance().get_stage() >
           bootstrap::Stage::CREATED_TABLES &&
-      dd::upgrade_57::allow_sdi_creation() && sdi::store(thd, object))
+      sdi::store(thd, object))
     return true;
 
   return false;

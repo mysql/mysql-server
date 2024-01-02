@@ -66,12 +66,6 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   bool check_n_load(THD *thd, const dd::Table &table);
 
-  /*
-   During upgrade from 5.7, we need to use the trigger chains to fix
-   the trigger order.
-  */
-  bool reorder_57_list(MEM_ROOT *mem_root, List<Trigger> *triggers);
-
  private:
   Table_trigger_dispatcher(TABLE *subject_table);
 

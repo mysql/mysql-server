@@ -6425,6 +6425,11 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
     key to make sure it is not considered as a candidate parent key,
     unless the SE supports this. This function will be called for self
     referencing foreign keys only during upgrade from 5.7.
+
+    Upgrade from 5.7 to 8.4 is blocked. Probably the following condition is
+    relavent if 5.7 is database is upgraded to older version before 8.4 and
+    then upgraded to 8.4+. There is scope to remove this part of code after
+    further analysis post WL#15924.
   */
   if (is_self_referencing_fk &&
       (hton->foreign_keys_flags &

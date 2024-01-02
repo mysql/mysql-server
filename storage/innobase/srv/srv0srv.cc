@@ -108,6 +108,7 @@ Srv_cpu_usage srv_cpu_usage;
 
 #ifdef INNODB_DD_TABLE
 /* true when upgrading. */
+/* TODO To be removed in WL#16210 */
 bool srv_is_upgrade_mode = false;
 bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;

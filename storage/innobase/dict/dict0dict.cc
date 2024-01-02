@@ -5843,6 +5843,7 @@ void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
 
 /** Change the table_id of SYS_* tables if they have been created after
 an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
+TODO - This function is to be removed by WL#16210.
 */
 void dict_table_change_id_sys_tables() {
   ut_ad(dict_sys_mutex_own());
@@ -5874,80 +5875,6 @@ void dict_table_change_id_sys_tables() {
 
     dict_table_prevent_eviction(system_table);
   }
-}
-
-/** Evict all tables that are loaded for applying purge.
-Since we move the offset of all table ids during upgrade,
-these tables cannot exist in cache. Also change table_ids
-of SYS_* tables if they are upgraded from earlier versions */
-void dict_upgrade_evict_tables_cache() {
-  dict_table_t *table;
-
-  rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
-  dict_sys_mutex_enter();
-
-  ut_ad(dict_lru_validate());
-  ut_ad(srv_is_upgrade_mode);
-
-  /* Move all tables from non-LRU to LRU */
-  for (table = UT_LIST_GET_LAST(dict_sys->table_non_LRU); table != nullptr;) {
-    dict_table_t *prev_table;
-
-    prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-    if (!dict_table_is_system(table->id)) {
-      DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_185)
-                                        << "Moving table " << table->name
-                                        << " from non-LRU to LRU";);
-
-      dict_table_move_from_non_lru_to_lru(table);
-    }
-
-    table = prev_table;
-  }
-
-  for (table = UT_LIST_GET_LAST(dict_sys->table_LRU); table != nullptr;) {
-    dict_table_t *prev_table;
-
-    prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-    ut_ad(dict_table_can_be_evicted(table));
-
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_186)
-                                      << "Evicting table: LRU: "
-                                      << table->name;);
-
-    dict_table_remove_from_cache_low(table, true);
-
-    table = prev_table;
-  }
-
-  dict_table_change_id_sys_tables();
-
-  dict_sys_mutex_exit();
-  rw_lock_x_unlock(dict_operation_lock);
-}
-
-/** Build the table_id array of SYS_* tables. This
-array is used to determine if a table is InnoDB SYSTEM
-table or not.
-@return true if successful, false otherwise */
-bool dict_sys_table_id_build() {
-  dict_sys_mutex_enter();
-  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
-    dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
-
-    if (system_table == nullptr) {
-      /* Cannot find a system table, this happens only if user trying
-      to boot server earlier than 5.7 */
-      dict_sys_mutex_exit();
-      LogErr(ERROR_LEVEL, ER_IB_MSG_1271);
-      return (false);
-    }
-    dict_sys_table_id[i] = system_table->id;
-  }
-  dict_sys_mutex_exit();
-  return (true);
 }
 
 /** @return true if table is InnoDB SYS_* table

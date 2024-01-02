@@ -4,7 +4,7 @@ let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --
 
 --echo # Test starting MySQL with --innodb-log-file-size provided and --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR
---error 1,42 # MySQL is not going to start because data directory is not initialized
+--error 3,42 # MySQL is not going to start because data directory is not initialized
 --exec $MYSQLD $MYSQLD_ARGS --innodb-log-file-size=16777216 --innodb-redo-log-capacity=8388608
 let SEARCH_PATTERN = Ignored deprecated configuration parameter innodb_log_file_size\. Used innodb_redo_log_capacity instead\.;
 --source include/search_pattern.inc
@@ -13,7 +13,7 @@ let SEARCH_PATTERN = Ignored deprecated configuration parameter innodb_log_file_
 
 --echo # Test starting MySQL with --innodb_log_files_in_group=16 provided and --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR
---error 1,42 # MySQL is not going to start because data directory is not initialized
+--error 3,42 # MySQL is not going to start because data directory is not initialized
 --exec $MYSQLD $MYSQLD_ARGS --innodb_log_files_in_group=16 --innodb-redo-log-capacity=8388608
 let SEARCH_PATTERN = Ignored deprecated configuration parameter innodb_log_files_in_group\. Used innodb_redo_log_capacity instead\.;
 --source include/search_pattern.inc
@@ -22,7 +22,7 @@ let SEARCH_PATTERN = Ignored deprecated configuration parameter innodb_log_files
 
 --echo # Test starting MySQL with --innodb-log-file-size provided but without --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR
---error 1,42 # MySQL is not going to start because data directory is not initialized
+--error 3,42 # MySQL is not going to start because data directory is not initialized
 --exec $MYSQLD $MYSQLD_ARGS --innodb-log-file-size=8388608
 let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity=16777216. Please use innodb_redo_log_capacity instead.;
 --source include/search_pattern.inc
@@ -31,7 +31,7 @@ let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size an
 
 --echo # Test starting MySQL with --innodb-log-files-in-group provided but without --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR
---error 1,42 # MySQL is not going to start because data directory is not initialized
+--error 3,42 # MySQL is not going to start because data directory is not initialized
 --exec $MYSQLD $MYSQLD_ARGS --innodb-log-files-in-group=3
 let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity=150994944. Please use innodb_redo_log_capacity instead.;
 --source include/search_pattern.inc
@@ -40,7 +40,7 @@ let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size an
 
 --echo # Test starting MySQL with --innodb-log-files-in-group and --innodb-log-file-size provided but without --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR
---error 1,42 # MySQL is not going to start because data directory is not initialized
+--error 3,42 # MySQL is not going to start because data directory is not initialized
 --exec $MYSQLD $MYSQLD_ARGS --innodb-log-files-in-group=32 --innodb-log-file-size=16G
 let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity=549755813888. Please use innodb_redo_log_capacity instead.;
 --source include/search_pattern.inc

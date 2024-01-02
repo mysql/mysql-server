@@ -212,8 +212,7 @@ bool initialize(THD *thd);
 
   @return       Upon failure, return true, otherwise false.
 */
-
-bool restart(THD *thd);
+bool restart_dictionary(THD *thd);
 
 /**
   Iterate through all the plugins, and store IS table meta data
@@ -277,7 +276,7 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version);
   @return       Upon failure, return true, otherwise false.
 
 */
-bool initialize_dictionary(THD *thd, bool is_dd_upgrade, Dictionary_impl *d);
+bool initialize_dictionary(THD *thd, Dictionary_impl *d);
 
 }  // namespace bootstrap
 
@@ -396,11 +395,10 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
   This function is used during initialize and during server upgrade.
 
   @param thd               Thread context.
-  @param is_dd_upgrade_57  Flag to indicate if it is an upgrade from 5.7.
 
   @return       Upon failure, return true, otherwise false.
 */
-bool update_versions(THD *thd, bool is_dd_upgrade_57);
+bool update_versions(THD *thd);
 
 }  // namespace dd
 #endif  // DD__BOOTSTRAPPER_INCLUDED

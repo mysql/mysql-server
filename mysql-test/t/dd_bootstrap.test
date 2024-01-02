@@ -74,7 +74,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Failed to find valid data directory./gi,<FILE>);
+  my $c_e= grep(/Can\'t open file: \'mysql.ibd\'/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
@@ -114,7 +114,7 @@ remove_file $MYSQLD_LOG;
 --mkdir $DDIR
 
 --echo # 4.1 Restart the server against existing but empty DDIR - should fail.
---error 1
+--error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 4.2 Look for error.
@@ -122,7 +122,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Failed to find valid data directory/gi,<FILE>);
+  my $c_e= grep(/File \..ibdata1: \'open\' returned OS error 71/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF
@@ -139,7 +139,7 @@ remove_file $MYSQLD_LOG;
 --mkdir $DDIR/mysql
 
 --echo # 5.1 Restart the server against existing but empty mysql dir - should fail.
---error 1
+--error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 5.2 Look for error.
@@ -147,7 +147,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Failed to find valid data directory/gi,<FILE>);
+  my $c_e= grep(/File \..ibdata1: \'open\' returned OS error 71/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF

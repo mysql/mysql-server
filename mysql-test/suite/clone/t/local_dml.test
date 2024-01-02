@@ -13,26 +13,6 @@ if ($disabled_redo) {
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $CLONE_DATADIR1 = $MYSQL_TMP_DIR/data_new1
 
-if ($clone_upgrade) {
-  --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
-
-  --echo # Upgrade 5.7 database
-  --let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_upgrade
-  --source ../include/clone_upgrade.inc
-
-  --echo # Cloning database immediately after upgrade
-  --replace_result $CLONE_PLUGIN CLONE_PLUGIN
-  --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
-  --connection clone_conn_1
-  --source ../include/clone_command.inc
-
-  select count(*) from 57_data_table;
-
-  --echo # In connection default - Finished Cloning
-  --connection default
-  UNINSTALL PLUGIN clone;
-}
-
 --source include/count_sessions.inc
 
 # Use a couple explicit undo tablespaces
@@ -271,16 +251,6 @@ SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
 if (!$clone_remote_replace) {
 --force-rmdir $CLONE_DATADIR
 --force-rmdir $CLONE_DATADIR1
-}
-
-if ($clone_upgrade) {
-  --echo # Cleanup: Restart with default options.
-  --let $restart_parameters =
-  --source include/restart_mysqld.inc
-
-  --echo
-  --echo # Remove upgraded data directory.
-  --force-rmdir $MYSQLD_DATADIR_UPGRADE
 }
 
 # Clean recipient by cloning the cleaned up donor

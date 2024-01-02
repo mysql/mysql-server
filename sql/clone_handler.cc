@@ -40,7 +40,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
-#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_parse.h"
@@ -185,13 +184,6 @@ int Clone_handler::clone_remote_server(THD *thd, MYSQL_SOCKET socket) {
 }
 
 int Clone_handler::init() {
-  /* Don't allow loading clone plugin during upgrade. */
-  if (dd::upgrade_57::in_progress()) {
-    LogErr(ERROR_LEVEL, ER_PLUGIN_INSTALL_ERROR, "clone",
-           "Cannot install during upgrade.");
-    return 1;
-  }
-
   plugin_ref plugin;
 
   plugin = my_plugin_lock_by_name(

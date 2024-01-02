@@ -153,12 +153,6 @@ dberr_t dict_stats_rename_table(const char *old_name, /*!< in: old table name */
     const char *old_index_name,  /*!< in: old index name */
     const char *new_index_name); /*!< in: new index name */
 
-/** Evict the stats tables if they loaded in tablespace cache and also
-close the stats .ibd files. We have to close stats tables because
-8.0 stats tables will use the same name. We load the stats from 5.7
-with a suffix "_backup57" and migrate the statistics. */
-void dict_stats_evict_tablespaces();
-
 /** Represent the record of innodb_table_stats table. */
 class TableStatsRecord {
  public:

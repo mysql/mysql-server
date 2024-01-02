@@ -5788,8 +5788,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   DBUG_TRACE;
 
   ut_ad(dict_init_mode == DICT_INIT_CREATE_FILES ||
-        dict_init_mode == DICT_INIT_CHECK_FILES ||
-        dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
+        dict_init_mode == DICT_INIT_CHECK_FILES);
 
   bool create = (dict_init_mode == DICT_INIT_CREATE_FILES);
 
@@ -5801,8 +5800,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
-  srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
-
   /* Start the InnoDB server. */
   err = srv_start(create);
 
@@ -5810,57 +5807,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
-  if (srv_is_upgrade_mode) {
-    if (!dict_sys_table_id_build()) {
-      return innodb_init_abort();
-    }
-
-    if (trx_sys->found_prepared_trx) {
-      ib::error(ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION);
-      return innodb_init_abort();
-    }
-
-    /* Disable AHI when we start loading tables for purge.
-    These tables are evicted anyway after purge. */
-
-    bool old_btr_search_value = btr_search_enabled;
-    btr_search_enabled = false;
-
-    /* Load all tablespaces upfront from InnoDB Dictionary.
-    This is needed for applying purge and ibuf from 5.7 */
-    dict_load_tablespaces_for_upgrade();
-
-    /* Start purge threads immediately and wait for purge to
-    become empty. All table_ids will be adjusted by a fixed
-    offset during upgrade. So purge cannot load a table by
-    table_id later. Also InnoDB dictionary will be dropped
-    during the process of upgrade. So apply all the purge
-    now. */
-    srv_start_purge_threads();
-
-    uint64_t rseg_history_len;
-    while ((rseg_history_len = trx_sys->rseg_history_len.load()) != 0) {
-      ib::info(ER_IB_MSG_547)
-          << "Waiting for purge to become empty:"
-          << " current purge history len is " << rseg_history_len;
-      sleep(1);
-    }
-
-    srv_upgrade_old_undo_found = false;
-
-    buf_flush_sync_all_buf_pools();
-
-    dict_upgrade_evict_tables_cache();
-
-    dict_stats_evict_tablespaces();
-
-    btr_search_enabled = old_btr_search_value;
-  }
-
   bool ret;
 
-  // For upgrade from 5.7, create mysql.ibd
-  create |= (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
   ret = create ? dd_create_hardcoded(dict_sys_t::s_dict_space_id,
                                      dict_sys_t::s_dd_space_file_name)
                : dd_open_hardcoded(dict_sys_t::s_dict_space_id,

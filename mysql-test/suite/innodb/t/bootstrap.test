@@ -39,7 +39,6 @@ EOF
 let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
 --source include/search_pattern.inc
 
---remove_file $bugdir/data/mysql_dd_upgrade_info
 --force-rmdir $bugdir/data/mysql
 --list_files $bugdir/data
 --rmdir $bugdir/data/undo_002

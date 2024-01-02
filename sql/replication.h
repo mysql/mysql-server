@@ -403,6 +403,7 @@ typedef struct Server_state_observer {
   after_recovery_t after_recovery;
   before_server_shutdown_t before_server_shutdown;
   after_server_shutdown_t after_server_shutdown;
+  /* TODO To be removed in WL#16215 */
   after_dd_upgrade_t after_dd_upgrade_from_57;
 } Server_state_observer;
 

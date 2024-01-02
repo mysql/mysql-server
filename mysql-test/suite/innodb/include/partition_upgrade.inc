@@ -1,5 +1,5 @@
 # WL 13352: Test Upgrade of partitioned tables from different versions
-# Caller need to set OLD_VERSION: 5727, 8013, 8015, 8017, 8019
+# Caller need to set OLD_VERSION: 8013, 8015, 8017, 8019
 #                    OLD_LCTN: 0,1,2 [lower_case_table_names]
 #                    OLD_PLATFORM: lin, win, mac [linux/windows/mac]
 
@@ -16,10 +16,8 @@
 
 # For all other versions we run only on case sensitive fs
 if ($OLD_VERSION != 8019) {
-  if ($OLD_VERSION != 5727) {
     --source include/have_case_sensitive_file_system.inc
     --let $OLD_LCTN = 1
-  }
 }
 
 --let $OLD_EXTN = $OLD_VERSION
@@ -33,29 +31,6 @@ if ($OLD_LCTN == 0) {
 # lower_case_table_names = 2 is supported only on case sensitive fs
 if ($OLD_LCTN == 2) {
   --source include/have_case_insensitive_file_system.inc
-}
-
-if ($OLD_VERSION == 5727)
-{
-  # By default skip external directory for 5.7
-  --let $NO_EXT_PATH = 1
-
-  # 5.7 upgrade not supported across platforms
-  if ($OLD_PLATFORM == win)
-  {
-    --source include/windows.inc
-  }
-
-  if ($OLD_PLATFORM == mac)
-  {
-    --source include/have_mac_os.inc
-  }
-
-  if ($OLD_PLATFORM == lin)
-  {
-    --source include/have_case_sensitive_file_system.inc
-  }
-  --let $OLD_EXTN = `select concat("$OLD_VERSION", "_", "$OLD_PLATFORM", "_lctn_", "$OLD_LCTN")`
 }
 
 # Check migration across platforms for 8.0.19

@@ -74,11 +74,10 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/schema.h"
-#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade::in_progress
-#include "sql/debug_sync.h"             // DEBUG_SYNC
-#include "sql/derror.h"                 // ER_THD
-#include "sql/error_handler.h"          // Drop_table_error_handler
-#include "sql/events.h"                 // Events
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/derror.h"         // ER_THD
+#include "sql/error_handler.h"  // Drop_table_error_handler
+#include "sql/events.h"         // Events
 #include "sql/handler.h"
 #include "sql/lock.h"       // lock_schema_name
 #include "sql/log.h"        // log_*()
@@ -421,8 +420,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   MY_STAT stat_info;
   const bool schema_dir_exists =
       (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != nullptr);
-  if (thd->is_dd_system_thread() &&
-      (!opt_initialize || dd::upgrade_57::in_progress()) &&
+  if (thd->is_dd_system_thread() && !opt_initialize &&
       dd::get_dictionary()->is_dd_schema_name(db)) {
     /*
       CREATE SCHEMA statement is being executed from bootstrap thread.

@@ -3,61 +3,8 @@
 #
 # SETUP
 
-# Test 1 : Upgrade from 5.7 having table with no row_format specified
-
-SHOW VARIABLES LIKE "%innodb_default_row_format%";
-Variable_name	Value
-innodb_default_row_format	dynamic
-# Stop the running the server
-# Copy and unzip the datadir.
-# Restart the server against the unzipped datadir
-# restart: --datadir=DATADIR --innodb-page-size=16k
-SHOW VARIABLES LIKE "%innodb_default_row_format%";
-Variable_name	Value
-innodb_default_row_format	dynamic
-# Verify tables after upgrade
-SHOW CREATE TABLE test.t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int unsigned NOT NULL AUTO_INCREMENT,
-  `c2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME="t1";
-TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
-test	t1	InnoDB	Redundant	
-SELECT * FROM test.t1;
-c1	c2
-# Use default algorithm (INPLACE). Table not rebuilt. Expect error.
-ALTER TABLE test.t1 ADD INDEX idx(C2);
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
-# Use algorithm INPLACE. Table not rebuilt. Expect error.
-ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=INPLACE;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
-# Use algorithm COPY. Table rebuilt. Expect success.
-ALTER TABLE test.t1 ADD INDEX idx(C2), ALGORITHM=COPY;
-SELECT * FROM test.t1;
-c1	c2
-# Restart server
-# restart: --datadir=DATADIR --innodb-page-size=16k
-SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, ROW_FORMAT, CREATE_OPTIONS
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME="t1";
-TABLE_SCHEMA	TABLE_NAME	ENGINE	ROW_FORMAT	CREATE_OPTIONS
-test	t1	InnoDB	Dynamic	
-SELECT * FROM test.t1;
-c1	c2
-# Cleanup
-DROP TABLE t1;
-# Shutdown server
-# Remove copied files
-# Restarting server to restore server state
-# restart:
-
-# Test 2 : Test behavior of ALTER with different algorithm and create
-#          table options.
+# Test behavior of ALTER with different algorithm and create
+# table options.
 
 SET @innodb_default_row_format_saved = @@global.innodb_default_row_format;
 # --------------- DEFAULT ALGORITHM -----------------

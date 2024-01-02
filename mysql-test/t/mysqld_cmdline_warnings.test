@@ -20,7 +20,7 @@
 
 # 1. Start the server to test 'utf8mb3'
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
---error 1
+--error 3
 --exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8mb3 --character-set-filesystem=utf8mb3 2>&1
 
 --echo # Warning on --character-set-server=utf8mb3:
@@ -34,7 +34,7 @@
 
 # 2. Start the server to test 'utf8mb3' and 'utf8mb3_general_ci'.
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
---error 1
+--error 3
 --exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8mb3 --character-set-filesystem=utf8mb3  --collation-server=utf8mb3_general_ci 2>&1
 
 --echo # Warning on --character-set-server=utf8mb3:

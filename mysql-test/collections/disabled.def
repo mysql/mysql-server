@@ -45,7 +45,6 @@ innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once s
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten
 innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
-innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk

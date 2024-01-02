@@ -94,8 +94,7 @@ missing_sys_tblsp_t missing_spaces;
 
 /** This bool denotes if we found a Table or Partition with discarded Tablespace
 during load of SYS_TABLES (in dict_check_sys_tables).
-
-We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
+TODO To be removed in WL#16210 */
 bool has_discarded_tablespaces = false;
 
 /** Loads a table definition and also all its index definitions.
@@ -1270,6 +1269,8 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 /** Load and check each general tablespace mentioned in the SYS_TABLESPACES.
 Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
+TODO - This function is to be removed by WL#16210
+
 @param[in]      validate        true when the previous shutdown was not clean
 @return the highest space ID found. */
 static inline space_id_t dict_check_sys_tablespaces(bool validate) {
@@ -1423,6 +1424,8 @@ Search SYS_TABLES and check each tablespace mentioned that has not
 already been added to the fil_system.  If it is valid, add it to the
 file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
+TODO - This function is to be removed by WL#16210
+
 @param[in]      validate        Whether to do validation on the table.
 @return the highest space ID found. */
 static inline space_id_t dict_check_sys_tables(bool validate) {
@@ -3063,23 +3066,4 @@ load_next_index:
   }
 
   return DB_SUCCESS;
-}
-
-/** Load all tablespaces during upgrade */
-void dict_load_tablespaces_for_upgrade() {
-  ut_ad(srv_is_upgrade_mode);
-
-  dict_sys_mutex_enter();
-
-  mtr_t mtr;
-  mtr_start(&mtr);
-  space_id_t max_id = mtr_read_ulint(dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
-                                     MLOG_4BYTES, &mtr);
-  mtr_commit(&mtr);
-  fil_set_max_space_id_if_bigger(max_id);
-
-  dict_check_sys_tablespaces(false);
-  dict_check_sys_tables(false);
-
-  dict_sys_mutex_exit();
 }

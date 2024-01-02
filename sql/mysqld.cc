@@ -983,8 +983,7 @@ MySQL clients support the protocol:
 #include "sql/dd/dictionary.h"           // dd::get_dictionary
 #include "sql/dd/ndbinfo_schema/init.h"  // dd::ndbinfo::init_schema_and_tables()
 #include "sql/dd/performance_schema/init.h"  // performance_schema::init
-#include "sql/dd/upgrade/server.h"      // dd::upgrade::upgrade_system_schemas
-#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
+#include "sql/dd/upgrade/server.h"  // dd::upgrade::upgrade_system_schemas
 #include "sql/server_component/component_sys_var_service_imp.h"
 #include "sql/server_component/log_builtins_filter_imp.h"
 #include "sql/server_component/log_builtins_imp.h"
@@ -1966,7 +1965,6 @@ static const char *get_relative_path(const char *path);
 static int fix_paths(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
-static void delete_dictionary_tablespace();
 
 extern "C" void *signal_hand(void *arg);
 static bool pid_file_created = false;
@@ -2769,8 +2767,6 @@ static void clean_up(bool print_message) {
     tc_log->close();
     tc_log = nullptr;
   }
-
-  if (dd::upgrade_57::in_progress()) delete_dictionary_tablespace();
 
   Recovered_xa_transactions::destroy();
   delegates_destroy();
@@ -8442,9 +8438,6 @@ static int init_server_components() {
       if (!opt_initialize)
         sysd::notify("STATUS=Initialization of dynamic plugins unsuccessful\n");
       delete_optimizer_cost_module();
-      // Delete all DD tables in case of error in initializing plugins.
-      if (dd::upgrade_57::in_progress())
-        (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
       if (!opt_validate_config)
         LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
@@ -8467,32 +8460,11 @@ static int init_server_components() {
     res_grp_mgr->set_unsupport_reason("Thread pool plugin enabled");
   }
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    A value of the variable dd_upgrade_flag is reset after
-    dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
-    So make its copy to call init_pfs_tables() with right argument value later.
-  */
-  const bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
-#endif
-
-  if (!is_help_or_validate_option() && dd::upgrade_57::in_progress()) {
-    // Populate DD tables with meta data from 5.7
-    if (dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE)) {
-      LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
-      unireg_abort(1);
-    }
-    // Run after_dd_upgrade hook
-    if (RUN_HOOK(server_state, after_dd_upgrade_from_57, (nullptr)))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
   /*
     Store server and plugin IS tables metadata into new DD.
     This is done after all the plugins are registered.
   */
   if (!is_help_or_validate_option() && !opt_initialize &&
-      !dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA)) {
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -8508,7 +8480,7 @@ static int init_server_components() {
     init_optimizer_cost_module(true);
 
     bool st;
-    if (opt_initialize || dd_upgrade_was_initiated)
+    if (opt_initialize)
       st = dd::performance_schema::init_pfs_tables(
           dd::enum_dd_init_type::DD_INITIALIZE);
     else
@@ -13443,21 +13415,6 @@ static void delete_pid_file(myf flags) {
     pid_file_created = false;
   }
   return;
-}
-
-/**
-  Delete mysql.ibd after aborting upgrade.
-*/
-static void delete_dictionary_tablespace() {
-  char path[FN_REFLEN + 1];
-  bool not_used;
-
-  build_table_filename(path, sizeof(path) - 1, "", "mysql", ".ibd", 0,
-                       &not_used);
-  (void)mysql_file_delete(key_file_misc, path, MYF(MY_WME));
-
-  // Drop file which tracks progress of upgrade.
-  dd::upgrade_57::Upgrade_status().remove();
 }
 
 /**
