@@ -919,7 +919,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
  *******************************************************/
 
  /**
-  * @StateReplicate: Separate redo log, send them to State Node by RDMA
+  * @StateReplicate: Separate redo log, send them to StateNode by RDMA
   * 
   */
 
