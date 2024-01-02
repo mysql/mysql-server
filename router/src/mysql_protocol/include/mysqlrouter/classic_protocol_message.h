@@ -232,8 +232,8 @@ inline bool operator==(const AuthMethodSwitch<Borrowed> &a,
  * like caching_sha2_password does:
  *
  * - 0x01 0x02 (send public key)
- * - 0x01 0x03 (send full handshake)
- * - 0x01 0x04 (fast path done)
+ * - 0x01 0x03 (fast path done)
+ * - 0x01 0x04 (send full handshake)
  */
 template <bool Borrowed>
 class AuthMethodData {
