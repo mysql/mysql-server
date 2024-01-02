@@ -23,6 +23,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for 10 seconds. The Recovery will be terminated.");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin= 1;
 SET @@GLOBAL.DEBUG='+d,gr_set_metadata_wait_time_10';

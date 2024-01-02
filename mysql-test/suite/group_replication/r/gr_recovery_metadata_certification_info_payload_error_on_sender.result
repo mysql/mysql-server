@@ -22,6 +22,7 @@ SET @@GLOBAL.DEBUG='+d,gr_compression_get_empty_buffer';
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The group was unable to send the Recovery Metadata to a joining member.");
 call mtr.add_suppression("Error received while the Recovery thread was waiting for the Recovery Metadata. The Recovery will be terminated.");

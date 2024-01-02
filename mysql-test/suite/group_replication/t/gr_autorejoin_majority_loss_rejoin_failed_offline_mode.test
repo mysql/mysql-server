@@ -164,6 +164,7 @@ while ($tries <= 3)
 --echo # 4) Cleanup.
 --echo ####
 --echo
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 --source include/start_and_bootstrap_group_replication.inc
 

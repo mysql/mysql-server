@@ -95,6 +95,7 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_rep
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 --enable_query_log
 set sql_log_bin=1;
 

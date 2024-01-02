@@ -108,6 +108,7 @@ SET @@GLOBAL.DEBUG='d,group_replication_read_mode_error';
 INSERT INTO t1 VALUES (2);
 
 --let $skip_assert_read_only= 1
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 
 --echo #

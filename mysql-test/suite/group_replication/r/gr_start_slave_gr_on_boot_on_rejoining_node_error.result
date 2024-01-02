@@ -86,6 +86,7 @@ DROP TABLE test.t1;
 RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 DROP TABLE test.t1;
 include/stop_group_replication.inc
+SET @@GLOBAL.offline_mode= OFF;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");

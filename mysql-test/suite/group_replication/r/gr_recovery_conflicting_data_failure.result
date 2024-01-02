@@ -36,6 +36,7 @@ call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET SESSION sql_log_bin= 1;
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;

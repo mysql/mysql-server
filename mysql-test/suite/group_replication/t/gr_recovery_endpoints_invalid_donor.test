@@ -153,6 +153,7 @@ call mtr.add_suppression("Maximum number of retries when*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");

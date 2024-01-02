@@ -58,6 +58,7 @@ include/suppress_messages.inc
 # Connection 1 suppresses message <Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.>.
 # Connection 1 suppresses message <Due to a plugin error, some transactions were unable to be certified and will now rollback.>.
 # Connection 1 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 1 suppresses message <The server was automatically set into offline mode after an error was detected.>.
 # Connection 1 suppresses message <Error while waiting for conflict detection procedure to finish on session>.
 # Connection 1 suppresses message <Skipping leave operation: concurrent attempt to leave the group is on-going.>.
 # Connection 1 suppresses message <Replica SQL for channel 'group_replication_applier': Worker . failed executing transaction>.
@@ -69,6 +70,7 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.>.
 # Connection 2 suppresses message <Due to a plugin error, some transactions were unable to be certified and will now rollback.>.
 # Connection 2 suppresses message <The server was automatically set into read only mode after an error was detected.>.
+# Connection 2 suppresses message <The server was automatically set into offline mode after an error was detected.>.
 # Connection 2 suppresses message <Error while waiting for conflict detection procedure to finish on session>.
 # Connection 2 suppresses message <Skipping leave operation: concurrent attempt to leave the group is on-going.>.
 # Connection 2 suppresses message <Replica SQL for channel 'group_replication_applier': Worker . failed executing transaction>.

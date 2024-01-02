@@ -46,6 +46,7 @@ DROP TABLE pid_table;
 # Supress log errors since they are expected.
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Member was expelled from the group due to network failures.");
 call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
@@ -59,6 +60,8 @@ SET SESSION sql_log_bin = 1;
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
 
+# Set the exit state action sysvar to READ_ONLY
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 
 --echo
 --echo #########################################################################

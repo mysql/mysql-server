@@ -322,8 +322,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 #group_replication_exit_state_action
---let $assert_text= Default group_replication_exit_state_action is READ_ONLY
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "READ_ONLY"
+--let $assert_text= Default group_replication_exit_state_action is OFFLINE_MODE
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "OFFLINE_MODE"
 --source include/assert.inc
 
 # group_replication_member_expel_timeout

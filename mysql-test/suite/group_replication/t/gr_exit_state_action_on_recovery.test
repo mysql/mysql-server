@@ -55,6 +55,7 @@ call mtr.add_suppression("Replica: Table 't1' already exists Error_code:*");
 call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error in the recovery module of Group Replication.");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
@@ -69,9 +70,13 @@ SET sql_log_bin = 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 CREATE TABLE t1 (a INT PRIMARY KEY);
+
 # Add M1 to the group
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+# Set the exit state action sysvar to READ_ONLY
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 

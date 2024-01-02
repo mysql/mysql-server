@@ -232,7 +232,15 @@ RESET REPLICA ALL FOR CHANNEL 'ch3_1';
 DROP TABLE test.t1;
 
 --let $skip_assert_read_only= 1
+# offline_mode will only be enabled if server1 is already part of the
+# group when the applier error happens.
+# Since the applier error may happen before server1 joins the group,
+# we skip the offline_mode assert.
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
+
+# offline_mode may have been enabled, so we always disable it.
+SET @@GLOBAL.offline_mode= OFF;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");

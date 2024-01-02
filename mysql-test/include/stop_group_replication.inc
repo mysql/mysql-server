@@ -9,6 +9,8 @@
 # --let $group_replication_group_name= UUID
 # [--let $skip_assert_read_only= 1]
 # [--let $skip_reset_read_mode= 1]
+# [--let $skip_assert_offline_mode= 1]
+# [--let $skip_reset_offline_mode= 1]
 # [--let $$wait_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/stop_group_replication.inc
@@ -24,6 +26,13 @@
 #   $skip_reset_read_mode
 #     Skip the disabling of read_only vars
 #     See include/assert_and_disable_read_only.inc
+#
+#   $skip_assert_offline_mode
+#     Skip assert that offline_mode is enabled when the member is in ERROR state,
+#     and the consequent disable of both variables
+#
+#   $skip_reset_offline_mode
+#     Skip reset offline_mode variable.
 #
 #   $wait_timeout
 #     See include/wait_condition.inc
@@ -42,6 +51,21 @@ if ($group_replication_group_name == '')
 if (!$rpl_debug)
 {
   --disable_query_log
+}
+
+--let $_is_member_in_error_state=
+--let $_is_member_auto_rejoin_running= 0
+if (!$skip_assert_offline_mode)
+{
+  # Save member state before it changes to OFFLINE.
+  --let $_this_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+  --let $_is_member_in_error_state= `SELECT member_state IN ("ERROR") FROM performance_schema.replication_group_members WHERE member_id="$_this_member_id"`
+
+  if ($_is_member_in_error_state)
+  {
+    # Check if auto-rejoin is running before STOP.
+    --let $_is_member_auto_rejoin_running= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE '%auto-rejoin%'`
+  }
 }
 
 STOP GROUP_REPLICATION;
@@ -69,6 +93,22 @@ if (!$skip_assert_read_only)
   --source include/assert_and_disable_read_only.inc
 }
 --let $skip_assert_read_only=
+
+if (!$skip_assert_offline_mode)
+{
+  if ($_is_member_in_error_state)
+  {
+    if ($_is_member_auto_rejoin_running == 0)
+    {
+      --let $_member_exit_state_action= `SELECT @@GLOBAL.group_replication_exit_state_action`
+      if ($_member_exit_state_action == "OFFLINE_MODE")
+      {
+        --source include/assert_and_disable_offline_mode.inc
+      }
+    }
+  }
+}
+--let $skip_assert_offline_mode=
 
 --let $include_filename= stop_group_replication.inc
 --source include/end_include_file.inc

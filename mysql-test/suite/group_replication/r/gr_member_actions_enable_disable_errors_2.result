@@ -8,6 +8,7 @@ SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Unable to update the member actions configuration with the one sent by the primary. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
 call mtr.add_suppression("A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin = 1;
 

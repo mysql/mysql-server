@@ -89,6 +89,9 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 --source include/assert_and_disable_read_only.inc
 --source include/assert_and_disable_offline_mode.inc
 
+--let $skip_assert_offline_mode= 1
+--source include/stop_group_replication.inc
+
 --echo
 --echo # 6. Cleanup
 

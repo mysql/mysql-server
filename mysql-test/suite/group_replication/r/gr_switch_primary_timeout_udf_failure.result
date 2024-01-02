@@ -17,6 +17,7 @@ call mtr.add_suppression("There was an issue on the primary election process: Co
 call mtr.add_suppression("Plugin group_replication reported: 'A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.'");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error while executing a group configuration operation: A critical error occurred during the local execution of this action. The member will now leave the group.");
 set session sql_log_bin=1;
 include/start_group_replication.inc

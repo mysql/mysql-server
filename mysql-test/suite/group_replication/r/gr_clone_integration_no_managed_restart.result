@@ -60,5 +60,6 @@ call mtr.add_suppression("Due to a critical cloning error or lack of donors, dis
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 call mtr.add_suppression("Clone shutting down server as RESTART failed. Please start server to complete clone operation.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 set session sql_log_bin=1;
 include/group_replication_end.inc

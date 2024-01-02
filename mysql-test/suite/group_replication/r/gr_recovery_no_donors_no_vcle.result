@@ -12,6 +12,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("This member has more executed transactions *.*");
@@ -56,6 +57,7 @@ call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': R
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("There are no valid recovery metadata donors. The joining member will leave the group.");
 SET SESSION sql_log_bin = 1;
@@ -65,6 +67,7 @@ call mtr.add_suppression("On shutdown there was a timeout on the Group Replicati
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");
@@ -77,6 +80,7 @@ call mtr.add_suppression("On shutdown there was a timeout on the Group Replicati
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("The member is already leaving or joining a group.");

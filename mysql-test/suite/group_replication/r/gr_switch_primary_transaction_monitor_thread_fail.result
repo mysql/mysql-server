@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.");
 SET SESSION sql_log_bin= 1;
 include/start_and_bootstrap_group_replication.inc
@@ -16,6 +17,7 @@ include/start_and_bootstrap_group_replication.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error while executing a group configuration operation: A critical error occurred during the local execution of this action. This operation ended in error as it was not possible to stop the ongoing transactions. The member will now leave the group.");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc

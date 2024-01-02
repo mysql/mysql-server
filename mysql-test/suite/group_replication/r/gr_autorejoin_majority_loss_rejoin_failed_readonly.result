@@ -25,6 +25,8 @@ SET @debug_saved = @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
@@ -80,5 +82,6 @@ include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET @@GLOBAL.group_replication_autorejoin_tries = default;
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 include/gr_end_autorejoin_monitoring.inc
 include/group_replication_end.inc

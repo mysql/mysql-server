@@ -60,6 +60,9 @@ SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name = server2
@@ -157,6 +160,8 @@ while ($tries <= 3)
 
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET @@GLOBAL.group_replication_autorejoin_tries = default;
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+
 --source include/gr_end_autorejoin_monitoring.inc
 --source include/group_replication_end.inc
 

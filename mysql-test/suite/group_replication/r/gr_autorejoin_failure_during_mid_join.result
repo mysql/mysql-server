@@ -10,6 +10,7 @@ call mtr.add_suppression("Member was expelled from the group due to network fail
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 call mtr.add_suppression("Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt.");
 call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");

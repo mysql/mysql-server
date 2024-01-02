@@ -14,6 +14,7 @@ call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET sql_log_bin = 1;
 include/gr_autorejoin_monitoring.inc
 SET @debug_saved = @@GLOBAL.DEBUG;
@@ -21,6 +22,8 @@ SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
 SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
@@ -94,5 +97,6 @@ include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET @@GLOBAL.group_replication_autorejoin_tries = default;
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 include/gr_end_autorejoin_monitoring.inc
 include/group_replication_end.inc

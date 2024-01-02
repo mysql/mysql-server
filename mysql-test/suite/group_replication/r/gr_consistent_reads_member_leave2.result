@@ -35,6 +35,7 @@ call mtr.add_suppression("The applier thread execution was aborted. Unable to pr
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET SESSION sql_log_bin= 1;
 
 ############################################################
@@ -59,6 +60,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_supress_message_send_after_applier_pr
 SET DEBUG_SYNC= 'now SIGNAL signal.after_supress_message_send_after_applier_prepare_continue';
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_supress_message_send_after_applier_prepare';
 include/stop_group_replication.inc
+include/assert_and_disable_offline_mode.inc
 include/assert.inc ['There are no values in table t1']
 
 ############################################################

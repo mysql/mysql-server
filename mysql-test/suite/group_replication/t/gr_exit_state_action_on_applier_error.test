@@ -37,6 +37,7 @@ call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': .
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during execution on the Applier module of Group Replication.");
@@ -50,9 +51,12 @@ SET SESSION sql_log_bin = 1;
 --echo # 1) Force applier error on member 1.
 --echo #########################################################################
 --echo
-# Create a table for our tests
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+# Set the exit state action sysvar to READ_ONLY
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+
+# Create a table for our tests
 CREATE TABLE t1(a INT PRIMARY KEY);
 --source include/rpl_sync.inc
 # Write to it without replicating the trx

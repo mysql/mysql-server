@@ -163,6 +163,7 @@ while ($tries <= 3)
 --echo ####
 --echo
 # Reset GR so that the member returns to a clean slate
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 

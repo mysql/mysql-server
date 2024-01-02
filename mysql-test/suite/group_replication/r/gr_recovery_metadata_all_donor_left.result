@@ -29,6 +29,7 @@ call mtr.add_suppression("Error fetching the Recovery Metadata by the Recovery t
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("No donor available to provide the certification information, part of the required information to the new member join the group*");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc

@@ -1,5 +1,8 @@
 !include ../my.cnf
 
+[mysqld]
+loose-group_replication_exit_state_action=READ_ONLY
+
 [mysqld.1]
 
 [mysqld.2]

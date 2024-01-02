@@ -46,6 +46,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 set sql_log_bin=1;
 [connection server1]
 INSERT INTO t1 VALUES (1);

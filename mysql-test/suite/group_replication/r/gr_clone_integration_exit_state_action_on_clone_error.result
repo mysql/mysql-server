@@ -25,6 +25,7 @@ include/start_and_bootstrap_group_replication.inc
 #    from binary logs is not possible.
 #    But the donor has no plugin installed so it will error out
 [connection server2]
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 include/start_group_replication.inc
 include/assert.inc [super_read_only should be enabled]

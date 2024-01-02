@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4928,7 +4928,7 @@ static MYSQL_SYSVAR_ENUM(exit_state_action,        /* name */
                          "ABORT_SERVER and OFFLINE_MODE.",  /* values */
                          nullptr,                           /* check func. */
                          nullptr,                           /* update func. */
-                         EXIT_STATE_ACTION_READ_ONLY,       /* default */
+                         EXIT_STATE_ACTION_OFFLINE_MODE,    /* default */
                          &ov.exit_state_actions_typelib_t); /* type lib */
 
 static MYSQL_SYSVAR_UINT(autorejoin_tries,        /* name */

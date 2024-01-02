@@ -22,6 +22,7 @@ call mtr.add_suppression("Unable to disable super read only flag. Try to disable
 call mtr.add_suppression("The member action \"mysql_disable_super_read_only_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"1\" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about*");
 call mtr.add_suppression("The member action \"mysql_disable_super_read_only_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"1\" failed. Please check previous messages in the error log for hints about what could have caused this failure.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Error while sending message. Context: primary election process.");
 SET SESSION sql_log_bin = 1;
@@ -77,6 +78,13 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 --let $assert_select= The server was automatically set into read only mode after an error was detected.
 --let $assert_count= 1
 --let $assert_text= The server was automatically set into read only mode after an error was detected.
+--source include/assert_grep.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_error_handling
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= The server was automatically set into offline mode after an error was detected.
+--let $assert_count= 1
+--let $assert_text= The server was automatically set into offline mode after an error was detected.
 --source include/assert_grep.inc
 
 SET @@GLOBAL.DEBUG='-d,group_replication_force_error_on_mysql_disable_super_read_only_if_primary';

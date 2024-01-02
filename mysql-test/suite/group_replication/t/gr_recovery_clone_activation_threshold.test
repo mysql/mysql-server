@@ -84,6 +84,7 @@ SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 --echo #
 --echo # Cleaning up
 --echo #
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
 --source include/group_replication_end.inc

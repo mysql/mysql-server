@@ -64,6 +64,9 @@ FLUSH BINARY LOGS;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+# Set the exit state action sysvar to READ_ONLY
+SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+
 --let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN

@@ -98,6 +98,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 
 SET SESSION sql_log_bin= 0;

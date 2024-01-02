@@ -118,6 +118,7 @@ SELECT USER(), CURRENT_USER();
 --source include/assert_and_disable_offline_mode.inc
 
 # Stop GR
+--let $skip_assert_offline_mode= 1
 --source include/stop_group_replication.inc
 
 # Delete the transaction that clashed, so the server doesn't error out right

@@ -47,5 +47,6 @@ call mtr.add_suppression("No valid or ONLINE members exist to get the missing da
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Member version is read compatible with the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 SET SESSION sql_log_bin=1;
 include/group_replication_end.inc
