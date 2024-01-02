@@ -1294,3 +1294,11 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
   ON x1.b=d1.k ORDER BY x1.a LIMIT 1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36032958: Assertion `IsEmpty(child.delayed_predicates)' failed
+--echo #
+
+CREATE TABLE t(x INT, KEY(x));
+SELECT ROW_NUMBER() OVER () FROM t WHERE x = RAND() GROUP BY x;
+DROP TABLE t;

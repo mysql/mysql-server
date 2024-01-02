@@ -3569,7 +3569,11 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
                                   predicate.selectivity);
       }
       *new_fd_set |= predicate.functional_dependencies;
-    } else if (Overlaps(total_eligibility_set, my_map)) {
+    } else if (Overlaps(total_eligibility_set, my_map) &&
+               !Overlaps(total_eligibility_set, RAND_TABLE_BIT)) {
+      // The predicate refers to this table and some other table or tables, and
+      // is deterministic, so it can be applied as a delayed predicate once all
+      // the tables in total_eligibility_set have been joined together.
       delayed_predicates.SetBit(i);
     }
   }
@@ -7805,6 +7809,16 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       }
     }
   }
+
+  // All the delayed predicates should have been applied by now. (Only the
+  // num_where_predicates first bits of delayed_predicates actually represent
+  // delayed predicates, so we only check those).
+  assert(all_of(root_candidates.begin(), root_candidates.end(),
+                [&graph](const AccessPath *root_path) {
+                  return IsEmpty(root_path->delayed_predicates) ||
+                         *BitsSetIn(root_path->delayed_predicates).begin() >=
+                             graph.num_where_predicates;
+                }));
 
   // Now we have one or more access paths representing joining all the tables
   // together. (There may be multiple ones because they can be better at

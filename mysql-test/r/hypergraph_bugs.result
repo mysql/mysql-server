@@ -1587,3 +1587,10 @@ EXPLAIN
                                 -> Table scan on x2  (cost=0.0125..0.25 rows=20)
 
 DROP TABLE t1;
+#
+# Bug#36032958: Assertion `IsEmpty(child.delayed_predicates)' failed
+#
+CREATE TABLE t(x INT, KEY(x));
+SELECT ROW_NUMBER() OVER () FROM t WHERE x = RAND() GROUP BY x;
+ROW_NUMBER() OVER ()
+DROP TABLE t;
