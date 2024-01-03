@@ -36,7 +36,7 @@ server_id
 2
 Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
-Check that RESET REPLICA resets Ndb_slave_max_replicated_epoch to zero
+Check that reset replica resets Ndb_slave_max_replicated_epoch to zero
 STOP REPLICA;
 Ndb_slave_max_replicated_epoch: 111
 RESET REPLICA;
