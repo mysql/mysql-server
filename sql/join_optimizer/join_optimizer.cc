@@ -127,9 +127,12 @@ class Temp_table_param;
 using hypergraph::Hyperedge;
 using hypergraph::Node;
 using hypergraph::NodeMap;
+using std::all_of;
+using std::any_of;
 using std::find_if;
 using std::has_single_bit;
 using std::min;
+using std::none_of;
 using std::pair;
 using std::popcount;
 using std::string;
@@ -2801,11 +2804,11 @@ bool CostingReceiver::ProposeRefAccess(
 bool HasConstantEqualityForField(
     const Mem_root_array<SargablePredicate> &sargable_predicates,
     const Field *field) {
-  return std::any_of(sargable_predicates.begin(), sargable_predicates.end(),
-                     [field](const SargablePredicate &sp) {
-                       return sp.other_side->const_for_execution() &&
-                              field->eq(sp.field);
-                     });
+  return any_of(sargable_predicates.begin(), sargable_predicates.end(),
+                [field](const SargablePredicate &sp) {
+                  return sp.other_side->const_for_execution() &&
+                         field->eq(sp.field);
+                });
 }
 
 /**
@@ -2849,11 +2852,11 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
       continue;
     }
 
-    if (std::all_of(key->key_part, key->key_part + num_key_parts,
-                    [&sargable_predicates](const KEY_PART_INFO &key_part) {
-                      return HasConstantEqualityForField(sargable_predicates,
-                                                         key_part.field);
-                    })) {
+    if (all_of(key->key_part, key->key_part + num_key_parts,
+               [&sargable_predicates](const KEY_PART_INFO &key_part) {
+                 return HasConstantEqualityForField(sargable_predicates,
+                                                    key_part.field);
+               })) {
       *found = true;
       if (ProposeRefAccess(
               table, node_idx, index_info.key_idx,
@@ -3522,14 +3525,16 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
                                            m_graph->predicates.size()};
   new_fd_set->reset();
   for (size_t i = 0; i < m_graph->num_where_predicates; ++i) {
+    const Predicate &predicate = m_graph->predicates[i];
+    const NodeMap total_eligibility_set = predicate.total_eligibility_set;
     if (IsBitSet(i, subsumed_predicates)) {
       // Apply functional dependencies for the base table, but no others;
       // this ensures we get the same functional dependencies set no matter what
       // access path we choose. (The ones that refer to multiple tables,
       // which are fairly rare, are not really relevant before the other
       // table(s) have been joined in.)
-      if (m_graph->predicates[i].total_eligibility_set == my_map) {
-        *new_fd_set |= m_graph->predicates[i].functional_dependencies;
+      if (total_eligibility_set == my_map) {
+        *new_fd_set |= predicate.functional_dependencies;
       } else {
         // We have a WHERE predicate that refers to multiple tables,
         // that we can subsume as if it were a join condition
@@ -3544,11 +3549,10 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
     // TODO(sgunders): We should also allow conditions that depend on
     // parameterized tables (and also touch this table, of course). See bug
     // #33477822.
-    if (m_graph->predicates[i].total_eligibility_set == my_map) {
+    if (total_eligibility_set == my_map) {
       filter_predicates.SetBit(i);
-      FilterCost cost =
-          EstimateFilterCost(m_thd, path->num_output_rows(),
-                             m_graph->predicates[i].contained_subqueries);
+      FilterCost cost = EstimateFilterCost(m_thd, path->num_output_rows(),
+                                           predicate.contained_subqueries);
       if (materialize_subqueries) {
         path->set_cost(path->cost() + cost.cost_if_materialized);
         materialize_cost += cost.cost_to_materialize;
@@ -3562,10 +3566,10 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         // the selectivity of the ref access, so don't do it again.
       } else {
         path->set_num_output_rows(path->num_output_rows() *
-                                  m_graph->predicates[i].selectivity);
+                                  predicate.selectivity);
       }
-      *new_fd_set |= m_graph->predicates[i].functional_dependencies;
-    } else if (Overlaps(m_graph->predicates[i].total_eligibility_set, my_map)) {
+      *new_fd_set |= predicate.functional_dependencies;
+    } else if (Overlaps(total_eligibility_set, my_map)) {
       delayed_predicates.SetBit(i);
     }
   }
@@ -6115,10 +6119,10 @@ uint64_t FindSargableFullTextPredicates(const JoinHypergraph &graph) {
         // We only set the hint if this is the only reference to the MATCH
         // function. If it is used other places (for example in the SELECT list
         // or in other predicates) we may still need ranking.
-        if (std::none_of(funcs->begin(), funcs->end(),
-                         [parent](const Item_func_match &match) {
-                           return match.master == parent;
-                         })) {
+        if (none_of(funcs->begin(), funcs->end(),
+                    [parent](const Item_func_match &match) {
+                      return match.master == parent;
+                    })) {
           parent->set_hints_op(FT_OP_NO, 0.0);
         }
       }
@@ -6255,6 +6259,116 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.has_group_skip_scan = child_path->has_group_skip_scan;
   EstimateAggregateCost(thd, &aggregate_path, query_block);
   return aggregate_path;
+}
+
+/// Check if a predicate in the WHERE clause should be applied after all tables
+/// have been joined together. That is, the predicate either references no
+/// tables in this query block, or it is non-deterministic.
+bool IsFinalPredicate(const Predicate &predicate) {
+  return predicate.total_eligibility_set == 0 ||
+         Overlaps(predicate.total_eligibility_set, RAND_TABLE_BIT);
+}
+
+/**
+  Can we skip the ApplyFinalPredicatesAndExpandFilters() step?
+
+  It is an unnecessary step if there are no FILTER access paths to expand. It's
+  not so expensive that it's worth spending a lot of effort to find out if it
+  can be skipped, but let's skip it if our only candidate is an EQ_REF with no
+  filter predicates, so that we don't waste time in point selects.
+ */
+bool SkipFinalPredicates(const Prealloced_array<AccessPath *, 4> &candidates,
+                         const JoinHypergraph &graph) {
+  return candidates.size() == 1 &&
+         candidates.front()->type == AccessPath::EQ_REF &&
+         IsEmpty(candidates.front()->filter_predicates) &&
+         none_of(graph.predicates.begin(),
+                 graph.predicates.begin() + graph.num_where_predicates,
+                 [](const Predicate &pred) { return IsFinalPredicate(pred); });
+}
+
+/*
+  Apply final predicates after all tables have been joined together, and expand
+  FILTER access paths for all predicates (not only the final ones) in the entire
+  access path tree of the candidates.
+ */
+void ApplyFinalPredicatesAndExpandFilters(
+    THD *thd, const CostingReceiver &receiver, const JoinHypergraph &graph,
+    const LogicalOrderings &orderings, FunctionalDependencySet *fd_set,
+    Prealloced_array<AccessPath *, 4> *root_candidates) {
+  if (TraceStarted(thd)) {
+    Trace(thd) << "Adding final predicates\n";
+  }
+
+  // Add any functional dependencies that are activated by the predicate.
+  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+    if (IsFinalPredicate(graph.predicates[i])) {
+      *fd_set |= graph.predicates[i].functional_dependencies;
+    }
+  }
+
+  // Add all the final predicates to filter_predicates, and expand FILTER access
+  // paths for all predicates in the access path tree of each candidate.
+  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  for (const AccessPath *root_path : *root_candidates) {
+    for (bool materialize_subqueries : {false, true}) {
+      AccessPath path = *root_path;
+      double init_once_cost = 0.0;
+
+      MutableOverflowBitset filter_predicates =
+          path.filter_predicates.Clone(thd->mem_root);
+
+      // Apply any predicates that don't belong to any
+      // specific table, or which are nondeterministic.
+      for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+        const Predicate &predicate = graph.predicates[i];
+        if (IsFinalPredicate(predicate)) {
+          filter_predicates.SetBit(i);
+          FilterCost cost =
+              EstimateFilterCost(thd, root_path->num_output_rows(),
+                                 predicate.contained_subqueries);
+          if (materialize_subqueries) {
+            path.set_cost(path.cost() + cost.cost_if_materialized);
+            init_once_cost += cost.cost_to_materialize;
+          } else {
+            path.set_cost(path.cost() + cost.cost_if_not_materialized);
+          }
+          path.set_num_output_rows(path.num_output_rows() *
+                                   predicate.selectivity);
+        }
+      }
+      path.ordering_state = orderings.ApplyFDs(path.ordering_state, *fd_set);
+
+      path.filter_predicates = std::move(filter_predicates);
+      const bool contains_subqueries =
+          Overlaps(path.filter_predicates, graph.materializable_predicates);
+
+      // Now that we have decided on a full plan, expand all the applied filter
+      // maps into proper FILTER nodes for execution. This is a no-op in the
+      // second iteration.
+      ExpandFilterAccessPaths(thd, &path, graph.join(), graph.predicates,
+                              graph.num_where_predicates);
+
+      if (materialize_subqueries) {
+        assert(path.type == AccessPath::FILTER);
+        path.filter().materialize_subqueries = true;
+        path.set_cost(path.cost() + init_once_cost);  // Will be subtracted back
+                                                      // for rescans.
+        path.set_init_cost(path.init_cost() + init_once_cost);
+        path.set_init_once_cost(path.init_once_cost() + init_once_cost);
+      }
+
+      receiver.ProposeAccessPath(&path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0,
+                                 materialize_subqueries ? "mat. subq" : "");
+
+      if (!contains_subqueries) {
+        // Nothing to try to materialize.
+        break;
+      }
+    }
+  }
+  *root_candidates = std::move(new_root_candidates);
 }
 
 // If we are planned using in2exists, and our SELECT list has a window
@@ -7703,97 +7817,15 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // fewer candidates in each step, but this part is so cheap that it's
   // unlikely to be worth it. We go through ProposeAccessPath() mainly
   // because it gives us better tracing.
-  if (TraceStarted(thd)) {
-    Trace(thd) << "Adding final predicates\n";
-  }
+
   FunctionalDependencySet fd_set = receiver.active_fds_at_root();
-  bool has_final_predicates = false;
-  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
-    // Apply any predicates that don't belong to any
-    // specific table, or which are nondeterministic.
-    if (!Overlaps(graph.predicates[i].total_eligibility_set,
-                  TablesBetween(0, graph.nodes.size())) ||
-        Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
-      fd_set |= graph.predicates[i].functional_dependencies;
-      has_final_predicates = true;
-    }
-  }
 
   // Add the final predicates to the root candidates, and expand FILTER access
   // paths for all predicates (not only the final ones) in the entire access
   // path tree of the candidates.
-  //
-  // It is an unnecessary step if there are no FILTER access paths to expand.
-  // It's not so expensive that it's worth spending a lot of effort to find out
-  // if it can be skipped, but let's skip it if our only candidate is an EQ_REF
-  // with no filter predicates, so that we don't waste time in point selects.
-  if (has_final_predicates ||
-      !(root_candidates.size() == 1 &&
-        root_candidates[0]->type == AccessPath::EQ_REF &&
-        IsEmpty(root_candidates[0]->filter_predicates))) {
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (const AccessPath *root_path : root_candidates) {
-      for (bool materialize_subqueries : {false, true}) {
-        AccessPath path = *root_path;
-        double init_once_cost = 0.0;
-
-        MutableOverflowBitset filter_predicates =
-            path.filter_predicates.Clone(thd->mem_root);
-
-        // Apply any predicates that don't belong to any
-        // specific table, or which are nondeterministic.
-        for (size_t i = 0; i < graph.num_where_predicates; ++i) {
-          if (!Overlaps(graph.predicates[i].total_eligibility_set,
-                        TablesBetween(0, graph.nodes.size())) ||
-              Overlaps(graph.predicates[i].total_eligibility_set,
-                       RAND_TABLE_BIT)) {
-            filter_predicates.SetBit(i);
-            FilterCost cost =
-                EstimateFilterCost(thd, root_path->num_output_rows(),
-                                   graph.predicates[i].contained_subqueries);
-            if (materialize_subqueries) {
-              path.set_cost(path.cost() + cost.cost_if_materialized);
-              init_once_cost += cost.cost_to_materialize;
-            } else {
-              path.set_cost(path.cost() + cost.cost_if_not_materialized);
-            }
-            path.set_num_output_rows(path.num_output_rows() *
-                                     graph.predicates[i].selectivity);
-          }
-        }
-        path.ordering_state = orderings.ApplyFDs(path.ordering_state, fd_set);
-
-        path.filter_predicates = std::move(filter_predicates);
-        const bool contains_subqueries =
-            Overlaps(path.filter_predicates, graph.materializable_predicates);
-
-        // Now that we have decided on a full plan, expand all
-        // the applied filter maps into proper FILTER nodes
-        // for execution. This is a no-op in the second
-        // iteration.
-        ExpandFilterAccessPaths(thd, &path, join, graph.predicates,
-                                graph.num_where_predicates);
-
-        if (materialize_subqueries) {
-          assert(path.type == AccessPath::FILTER);
-          path.filter().materialize_subqueries = true;
-          path.set_cost(path.cost() + init_once_cost);  // Will be subtracted
-                                                        // back for rescans.
-          path.set_init_cost(path.init_cost() + init_once_cost);
-          path.set_init_once_cost(path.init_once_cost() + init_once_cost);
-        }
-
-        receiver.ProposeAccessPath(&path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0,
-                                   materialize_subqueries ? "mat. subq" : "");
-
-        if (!contains_subqueries) {
-          // Nothing to try to materialize.
-          break;
-        }
-      }
-    }
-    root_candidates = std::move(new_root_candidates);
+  if (!SkipFinalPredicates(root_candidates, graph)) {
+    ApplyFinalPredicatesAndExpandFilters(thd, receiver, graph, orderings,
+                                         &fd_set, &root_candidates);
   }
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
