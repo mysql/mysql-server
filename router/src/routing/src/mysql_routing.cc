@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -742,6 +742,16 @@ std::string get_accepting_endpoints_list(
 stdx::expected<void, std::string> MySQLRouting::run_acceptor(
     mysql_harness::PluginFuncEnv *env) {
   destination_->start(env);
+
+  if (!mysql_harness::is_running(env)) {
+    // if a shutdown-request is received while waiting for the destination to
+    // start, just leave.
+
+    log_info("[%s] stopped", context_.get_name().c_str());
+
+    return {};
+  }
+
   destination_->register_start_router_socket_acceptor(
       [this]() { return start_accepting_connections(); });
   destination_->register_stop_router_socket_acceptor(
