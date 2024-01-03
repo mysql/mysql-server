@@ -1371,6 +1371,48 @@ trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
 distinct values for field 'b' from histogram."
 SET SESSION OPTIMIZER_TRACE='enabled=off';
 DROP TABLE t1;
+#
+# Bug#36125903 Hypergraph: Inconsistent numeric precision for
+# AccessPath in optimizer trace
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT
+);
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<100) SELECT n, n FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION OPTIMIZER_TRACE="enabled=on";
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3, t1 x4;
+EXPLAIN
+-> Nested loop inner join  (rows=104e+6)
+    -> Nested loop inner join  (rows=1.03e+6)
+        -> Nested loop inner join  (rows=10201)
+            -> Table scan on x1  (rows=101)
+            -> Table scan on x2  (rows=101)
+        -> Table scan on x3  (rows=101)
+    -> Table scan on x4  (rows=101)
+
+SELECT REGEXP_SUBSTR(trace, " - \\{NESTED_LOOP_JOIN[^\n]*keeping",1,1,'n')
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(trace, " - \\{NESTED_LOOP_JOIN[^\n]*keeping",1,1,'n')
+ - {NESTED_LOOP_JOIN, cost=260151, init_cost=0, rows=104e+6, join_order=(((x1,x2),x3),x4)} is first alternative, keeping
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a=5 AND b=5;
+EXPLAIN
+-> Filter: (t1.b = 5)  (rows=0.0099)
+    -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
+
+SELECT REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
+ - {FILTER, cost=0.35, init_cost=0, rows=0.0099} is first alternative, keeping
+SET SESSION OPTIMIZER_TRACE="enabled=off";
+DROP TABLE t1;
 # Bug#5889990: Setting secondary_engine to OFF causes offload issues
 CREATE TABLE t(x INT, y INT);
 INSERT INTO t VALUES (1, 2), (2, 3);

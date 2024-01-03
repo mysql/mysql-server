@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5264,12 +5264,13 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
       break;
   }
 
-  str += StringPrintf(", cost=%.1f, init_cost=%.1f", path.cost(),
-                      path.init_cost());
+  str += ", cost=" + FormatNumberReadably(path.cost()) +
+         ", init_cost=" + FormatNumberReadably(path.init_cost());
+
   if (path.init_once_cost() != 0.0) {
-    str += StringPrintf(", rescan_cost=%.1f", path.rescan_cost());
+    str += ", rescan_cost=" + FormatNumberReadably(path.rescan_cost());
   }
-  str += StringPrintf(", rows=%.1f", path.num_output_rows());
+  str += ", rows=" + FormatNumberReadably(path.num_output_rows());
 
   if (!join_order.empty()) str += ", join_order=" + join_order;
 

@@ -1123,6 +1123,40 @@ SET SESSION OPTIMIZER_TRACE='enabled=off';
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#36125903 Hypergraph: Inconsistent numeric precision for
+--echo # AccessPath in optimizer trace
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT
+);
+
+INSERT INTO t1 WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<100) SELECT n, n FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+ANALYZE TABLE t1;
+
+SET SESSION OPTIMIZER_TRACE="enabled=on";
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3, t1 x4;
+
+SELECT REGEXP_SUBSTR(trace, " - \\{NESTED_LOOP_JOIN[^\n]*keeping",1,1,'n')
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a=5 AND b=5;
+
+SELECT REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET SESSION OPTIMIZER_TRACE="enabled=off";
+
+DROP TABLE t1;
+
 --echo # Bug#5889990: Setting secondary_engine to OFF causes offload issues
 
 CREATE TABLE t(x INT, y INT);

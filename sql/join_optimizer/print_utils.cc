@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <algorithm>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -89,4 +91,119 @@ std::string GenerateExpressionLabel(const RelationalExpression *expr) {
       break;
   }
   return label;
+}
+
+namespace {
+
+/// The maximal number of digits we use in decimal numbers (e.g. "123456" or
+/// "0.00123").
+constexpr int kPlainNumberLength = 6;
+
+/// The maximal number of digits in engineering format mantissas, e.g.
+/// "12.3e+6".
+constexpr int kMantissaLength = 3;
+
+/// The  smallest number (absolute value) that we do not format as "0".
+constexpr double kMinNonZeroNumber = 1.0e-12;
+
+/// For decimal numbers, include enough decimals to ensure that any rounding
+/// error is less than `<number>*10^kLogPrecision` (i.e. less than 1%).
+constexpr int kLogPrecision = -2;
+
+/// The smallest number (absolute value) that we format as decimal (rather than
+/// engineering format).
+const double kMinPlainFormatNumber =
+    std::pow(10, 1 - kPlainNumberLength - kLogPrecision);
+
+/// Find the number of integer digits (i.e. those before the decimal point) in
+/// 'd' when represented as a decimal number.
+int IntegerDigits(double d) {
+  return d == 0.0 ? 1
+                  : std::max(1, 1 + static_cast<int>(
+                                        std::floor(std::log10(std::abs(d)))));
+}
+
+/**
+   Format 'd' as a decimal number with enough decimals to get a rounding error
+   less than d*10^log_precision, without any trailing fractional zeros.
+*/
+std::string DecimalFormat(double d, int log_precision) {
+  assert(d != 0.0);
+  constexpr int max_digits = 18;
+  assert(IntegerDigits(d + 0.5) <= max_digits);
+
+  // The position of the first nonzero digit, relative to the decimal point.
+  const int first_nonzero_digit_pos =
+      static_cast<int>(std::floor(std::log10(std::abs(d))));
+
+  // The number of decimals needed for the required precision.
+  const int decimals = std::max(0, -log_precision - first_nonzero_digit_pos);
+
+  // Add space for sign, decimal point and zero termination.
+  char buff[max_digits + 3];
+  // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
+  // directions, so tests would not be reproducible between platforms.
+  // Format/round using my_fcvt() instead.
+  my_fcvt(d, decimals, buff, nullptr);
+  if (strchr(buff, '.') == nullptr) {
+    return buff;
+  } else {
+    // Remove trailing fractional zeros.
+    return std::regex_replace(buff, std::regex("[.]?0+$"), "");
+  }
+}
+
+/**
+   Format 'd' in engineering format, i.e. `<mantissa>e<sign><exponent>`
+   where 1.0<=mantissa<1000.0 and exponent is a multiple of 3.
+*/
+std::string EngineeringFormat(double d) {
+  assert(d != 0.0);
+  int exp = std::floor(std::log10(std::abs(d)) / 3.0) * 3;
+  double mantissa = d / std::pow(10.0, exp);
+  std::ostringstream stream;
+
+  if (mantissa + 0.5 * std::pow(10, 3 - kMantissaLength) < 1000.0) {
+    stream << DecimalFormat(mantissa, 1 - kMantissaLength) << "e"
+           << std::showpos << exp;
+  } else {
+    // Cover the case where the mantissa will be rounded up to give an extra
+    // digit. For example, if d=999500000 and kMantissaLength=3, we want it to
+    // be formatted as "1e+9" rather than "1000e+6".
+    stream << DecimalFormat(mantissa / 1000.0, 1 - kMantissaLength) << "e"
+           << std::showpos << exp + 3;
+  }
+  return stream.str();
+}
+
+/// Integer exponentiation.
+uint64_t constexpr Power(uint64_t base, int power) {
+  assert(power >= 0);
+  uint64_t result = 1;
+  for (int i = 0; i < power; i++) {
+    result *= base;
+  }
+  return result;
+}
+
+}  // Anonymous namespace.
+
+std::string FormatNumberReadably(double d) {
+  if (std::abs(d) < kMinNonZeroNumber) {
+    return "0";
+  } else if (std::abs(d) < kMinPlainFormatNumber ||
+             IntegerDigits(d + 0.5) > kPlainNumberLength) {
+    return EngineeringFormat(d);
+  } else {
+    return DecimalFormat(d, kLogPrecision);
+  }
+}
+
+std::string FormatNumberReadably(uint64_t l) {
+  constexpr uint64_t limit = Power(10, kPlainNumberLength);
+  if (l >= limit) {
+    return EngineeringFormat(l);
+  } else {
+    return std::to_string(l);
+  }
 }

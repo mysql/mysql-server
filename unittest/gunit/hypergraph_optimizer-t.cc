@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4722,18 +4722,22 @@ TEST_F(HypergraphOptimizerTest, IndexDistanceScanMulti) {
   // Check that the optimizer considers both orders
   std::smatch matches1;
   std::string trace_str{trace.contents().ToString()};
-  std::regex_search(
-      trace_str.cbegin(), trace_str.cend(), matches1,
-      std::regex(
-          "INDEX_DISTANCE_SCAN, cost=([0-9]+).([0-9]+), "
-          "init_cost=([0-9]+).([0-9]+), rows=([0-9]+).([0-9]+), order=1"));
+  const auto num_pattern{
+      []() { return std::string("([0-9]+)([.]([0-9]+))?(e[+-]([0-9]+))?"); }};
+
+  std::regex_search(trace_str.cbegin(), trace_str.cend(), matches1,
+                    std::regex(("INDEX_DISTANCE_SCAN, cost=" + num_pattern() +
+                                ", init_cost=" + num_pattern() +
+                                ", rows=" + num_pattern() + ", order=1")
+                                   .c_str()));
+
   EXPECT_GT(matches1.size(), 0);
   std::smatch matches2;
-  std::regex_search(
-      trace_str.cbegin(), trace_str.cend(), matches2,
-      std::regex(
-          "INDEX_DISTANCE_SCAN, cost=([0-9]+).([0-9]+), "
-          "init_cost=([0-9]+).([0-9]+), rows=([0-9]+).([0-9]+), order=2"));
+  std::regex_search(trace_str.cbegin(), trace_str.cend(), matches2,
+                    std::regex(("INDEX_DISTANCE_SCAN, cost=" + num_pattern() +
+                                ", init_cost=" + num_pattern() +
+                                ", rows=" + num_pattern() + ", order=2")
+                                   .c_str()));
   EXPECT_GT(matches2.size(), 0);
 
   query_block->cleanup(/*full=*/true);
